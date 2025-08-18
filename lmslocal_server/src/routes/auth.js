@@ -219,8 +219,8 @@ router.post('/request-login', async (req, res) => {
                 [authToken, expiresAt, userId]
             );
 
-            // Create magic link
-            const magicLink = `${process.env.EMAIL_VERIFICATION_URL}/api/auth/verify-token?token=${authToken}`;
+            // Create magic link - point to frontend verification page
+            const magicLink = `http://localhost:3000/auth/verify?token=${authToken}`;
 
             // Send email via Resend
             const emailResult = await resend.emails.send({
