@@ -1,0 +1,71 @@
+# =========================================
+# General (Windows/macOS/IDEs)
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*.swo
+*.tmp
+*.lock
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# =========================================
+# Node.js & Next.js (splitdine_server + frontend)
+node_modules/
+.env
+.env.local
+.env.production
+.env.development
+dist/
+.cache/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================================
+# Flutter (splitdine_flutter)
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+
+# iOS
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/.symlinks/
+ios/Pods/
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcuserdata/
+DerivedData/
+
+# Android
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/*.iml
+android/app/google-services.json
+android/app/key.properties
+android/key.jks
+**/android/app/.cxx/
+
+# Python environment
+venv/
+
+# Claude Code settings
+.claude/
+
+# Any Private Keys
+splitdine-ocr-6921886ed122.json
+

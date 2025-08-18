@@ -1,0 +1,17 @@
+Flutter - Mobile App
+Node.js - Server
+Express.js - Server
+Postgres - Database
+Resend - Emails
+JWT - Auth
+BCrypt - Password hashing and comparison
+Crypto - verification token generation
+Visual Studio Code - IDE
+Claude - AI Dev
+Augment - AI Dev
+ChatGPT - AI Dev
+Next.js - Website
+Tailwind - Website CSS
+
+Notes
+If you know the user when accessing the app, Record last accessed date

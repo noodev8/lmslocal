@@ -1,0 +1,100 @@
+LMSLOCAL — PRODUCT OUTLINE & ACTION PLAN (MVP)
+
+OVERVIEW
+LMSLocal is an admin-first platform designed to make running Last-Man-Standing competitions effortless for pub landlords, workplace organizers, and club managers. The system prioritizes the organizer experience above all else - making it simple to set up, manage players, handle disputes, and keep competitions running smoothly.
+
+DESIGN PHILOSOPHY: ADMIN-FIRST APPROACH
+• Primary User: The pub landlord/organizer who needs to run engaging competitions for fundraising or entertainment
+• Secondary User: Players who want a simple, hassle-free way to participate
+• Core Value: Reduce admin workload while increasing customer engagement and revenue
+
+The platform handles ALL the complexity behind the scenes so organizers can focus on their business. Key admin benefits:
+- 5-minute setup wizard gets competitions running immediately
+- Managed player system handles customers without smartphones/email
+- Complete audit trail and override powers for handling disputes
+- One-click invitation sharing and bulk player management
+- Real-time status dashboards reduce "who's picked?" questions
+- Clone & restart makes running repeat competitions effortless
+
+The design will incorporate automated English Premier League fixtures and results, but MVP will start with manual entry. The admin can define their list of teams at application level, and use the team names/list in their competitions
+Multiple competitions are allowed, and each will either be created or joined.
+Passwordless sign‑in via email (Resend) with optional OTP. The platform does not handle entry fees or prize payouts; organisers pay a subscription to use the service and can collect fees from players if they wish.
+A "Clone & Restart" flow spins up new seasons quickly.
+
+There will be pricig involved. For starters, £39 per competion or £19 a month. Competitions with 5 or less participants is FREE
+
+GAME OUTLINE
+What is “Last Man Standing” (LMS)
+A round-by-round elimination game based on real fixtures. Each round, every player chooses exactly one team to win. Outcomes determine survival. 
+Play continues until only one player remains — the “Last Man Standing.” If no single winner emerges, the game rolls over per the organiser’s rule.
+
+Core Concepts (applies to all variants)
+Fixture Set / Round: A defined set of matches with a start date/time and set duration
+
+Pick: One team pick per player per round.
+
+No Same Team Twice: A player cannot pick the same team again in the same competition.
+
+Lock: Picks close in these scenarios, in order of priority
+1 - ALL players have made their choice. The picks are then available to see and cannot be changed
+2 - The allocated lock time has been reached, which was set by the admin
+3 - 1hr before the round kick off
+
+Result Basis: League regulation time only (90’ + stoppage). Extra time/penalties do not apply.
+Time Zone: All deadlines and kick-offs use the competition’s time zone (default Europe/London).
+
+Pick outcome:
+Win: Player progresses to the next round.
+Draw or Loss: Player is eliminated immediately.
+Missed pick: A player life is lost. If 0 lives left, player is eliminated. The admin can set the number of lives
+
+Overall Winner: When a single player is left in the competition after a round has completed. If multiple players are eliminated at the same time and no players are left, the game ends. The admin can restart or offer a draw, This is outside the the functionality of the app
+
+Postponed/abandoned fixtures:
+The admin has flexibility to void scores, void whle rounds, eliminate players and re-add players (full flexibility in case an earlier mistake was made)
+
+New players cannot be added after a tournament has started
+
+Picks are hidden until lock to prevent copying.
+Late changes allowed until lock; no changes after lock.
+
+Admin Power
+Manual override: Admin can Set/adjust a match result with a mandatory audit note; system recalculates eliminations.
+Kiosk entry: Organiser may enter a pick on a player’s behalf (audited).
+
+
+ROLES & ACCESS
+• Player: join via link/code, make weekly picks, view status and leaderboard
+• Organiser: create competitions, manage players, set rules/deadlines, invite (link/code/bulk), override results (with audit)
+• Organisation owner/admin: manage billing and branding; may delegate co‑organisers
+
+SETUP WIZARD (ORGANISER)
+Pre-Set Up
+We will have EPL team names set up, but an option will be avilable for admin to determine a list of teams for themselves and use them in a competition. e.g. They do a game for Rugby
+
+Game Set-Up
+Step 1 — Basics: competition name (e.g., “The Red Lion LMS”), logo (optional)
+Step 2 — Team List e.g. EPL 2025–26; choose start week
+Step 3 — Choose initial rules. “no team twice” toggle; number of lives (default 1);
+Step 4 — Subscription: choose plan → pay (Stripe or equivalent) → competition activated. FREE for 5 players so they can start
+
+ACCOUNT & JOIN FLOW
+Sign‑up/Login: email or phone prompt;
+Allow admin guest entry. An admin can add players with just a name for the pub customers who dont have the technology
+Admin can add guest players and send invites for the person to sign up/login
+Join: player follows link → verifies email/OTP → added as player to the competition or logs in and enters teh join code provided by the organiser
+
+ORGANISER DASHBOARD (MVP)
+• Competitions list (active/past)
+• Players list with status (alive/out), paid status note (manual), last pick
+• Fixtures for current round; lock countdown
+• Invites: copy link/code, bulk email, pre‑add contacts
+• Overrides: set/adjust results with audit note; recalculates eliminations
+
+LEGAL & PAYMENTS
+• LMSLocal does not collect entry fees or pay prizes
+• Payment details are entered and managed by the organiser; the platform only displays them and optional QR links
+• Clear disclaimers on join and payment screens
+
+
+
