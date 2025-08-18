@@ -6,6 +6,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 LMSLocal is an admin-first platform for running Last-Man-Standing (LMS) competitions, designed for pub landlords, workplace organizers, and club managers. The system prioritizes the organizer experience, making it simple to set up, manage players, handle disputes, and keep competitions running smoothly.
 
+## Development Commands
+
+### Backend Server (lmslocal_server/)
+```bash
+cd lmslocal_server
+npm start              # Start production server
+npm run dev            # Start with nodemon for development
+npm install           # Install dependencies
+```
+
+### Frontend Application (lmslocal_frontend/)
+```bash
+cd lmslocal_frontend
+npm run dev           # Start Next.js development server (localhost:3000)
+npm run build         # Build for production
+npm start             # Start production server
+npm install           # Install dependencies
+```
+
+### Testing Commands
+```bash
+# Backend API testing
+cd lmslocal_server
+node test_endpoints.js    # Test all API endpoints
+node test_auth.js         # Test authentication flow
+
+# Manual API testing examples
+curl -X POST http://localhost:3015/api/health -H "Content-Type: application/json" -d "{}"
+curl -X POST http://localhost:3015/api/auth/request-login -H "Content-Type: application/json" -d '{"email":"test@example.com"}'
+```
+
+## Current Implementation Status
+
+### ✅ Completed Features
+- **Authentication System**: JWT-based with magic link email authentication via Resend
+- **Core API Endpoints**: Health, auth, organisation, user, competition CRUD operations
+- **Frontend Foundation**: Next.js pages with working login flow and protected routes
+- **Database Schema**: PostgreSQL with explicit rule columns (no JSONB)
+- **Security**: Input validation, SQL injection protection, CORS configuration
+
+### 🚧 Next Development Phase
+- Competition creation wizard and management dashboard
+- Join competition flow with invite codes
+- Player role management and competition participation
+
 ### Core Game Mechanics
 - Round-by-round elimination based on real fixtures (EPL 2025 initially)
 - Players pick one team to win per round
@@ -155,10 +200,10 @@ All admin actions must be logged to `audit_log` table with:
 - Role-based access via `competition_user` junction table
 
 ### Performance Considerations
-- Separate `competition_stats` table for dashboard data
 - User activity tracking for engagement analytics
-- Indexed queries for common access patterns
+- Indexed queries for common access patterns  
 - Competition-scoped data isolation
+- Real-time statistics calculated from source tables
 
 ## Future Mobile App Considerations
 

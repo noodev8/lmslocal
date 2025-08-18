@@ -8,6 +8,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [error, setError] = useState('');
+  const [hasOrganisation, setHasOrganisation] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     checkAuthentication();
@@ -28,6 +30,10 @@ export default function Dashboard() {
       
       if (result.success) {
         setUser(result.data);
+        
+        // Check if user has completed onboarding
+        await checkOnboardingStatus();
+        
       } else {
         // JWT invalid or expired
         token.remove();
@@ -42,9 +48,49 @@ export default function Dashboard() {
     setLoading(false);
   };
 
+  const checkOnboardingStatus = async () => {
+    try {
+      // Check localStorage for onboarding completion
+      const organisationId = localStorage.getItem('current_organisation_id');
+      const role = localStorage.getItem('user_role');
+      const onboardingChoice = localStorage.getItem('user_onboarding_choice');
+
+      if (organisationId) {
+        setHasOrganisation(true);
+      }
+      
+      if (role) {
+        setUserRole(role);
+      }
+
+      // If user hasn't completed onboarding, redirect them
+      if (!organisationId && !role && !onboardingChoice) {
+        console.log('👋 New user detected, redirecting to onboarding');
+        router.push('/onboarding');
+        return;
+      }
+
+      // TODO: In production, also check server-side for user's actual organisations
+      // For now, we rely on localStorage for MVP
+
+    } catch (error) {
+      console.error('❌ Error checking onboarding status:', error);
+    }
+  };
+
   const handleLogout = () => {
     token.remove();
+    // Clear onboarding data
+    localStorage.removeItem('current_organisation_id');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('user_onboarding_choice');
+    localStorage.removeItem('joined_competition_id');
     router.push('/');
+  };
+
+  const handleRoleSwitch = () => {
+    // Allow users to switch between organizer and player roles
+    router.push('/onboarding');
   };
 
   if (loading) {
@@ -130,19 +176,65 @@ export default function Dashboard() {
 
           {/* Quick Actions */}
           <div className="card">
-            <h2>Quick Actions</h2>
-            <p style={{ marginBottom: '16px', color: '#666' }}>
-              Organizer dashboard - manage your competitions and players.
-            </p>
-            
-            <div className="nav">
-              <Link href="/competition/create" className="btn btn-primary">
-                ➕ Create Competition
-              </Link>
-              <Link href="/player/dashboard" className="btn btn-secondary">
-                🎮 Player View
-              </Link>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2>Quick Actions</h2>
+              {userRole && (
+                <span style={{ 
+                  padding: '4px 12px', 
+                  backgroundColor: userRole === 'organizer' ? '#007bff' : '#28a745',
+                  color: 'white',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 'bold'
+                }}>
+                  {userRole === 'organizer' ? '🏆 ORGANIZER' : '🎮 PLAYER'}
+                </span>
+              )}
             </div>
+            
+            {userRole === 'organizer' ? (
+              <>
+                <p style={{ marginBottom: '16px', color: '#666' }}>
+                  Manage your competitions and players as an organizer.
+                </p>
+                
+                <div className="nav">
+                  <Link href="/competition/create" className="btn btn-primary">
+                    ➕ Create Competition
+                  </Link>
+                  <button onClick={handleRoleSwitch} className="btn btn-secondary">
+                    🎮 Switch to Player
+                  </button>
+                </div>
+              </>
+            ) : userRole === 'player' ? (
+              <>
+                <p style={{ marginBottom: '16px', color: '#666' }}>
+                  View your competitions and make predictions as a player.
+                </p>
+                
+                <div className="nav">
+                  <Link href="/player/dashboard" className="btn btn-success">
+                    🎮 Player Dashboard
+                  </Link>
+                  <button onClick={handleRoleSwitch} className="btn btn-secondary">
+                    🏆 Switch to Organizer
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ marginBottom: '16px', color: '#666' }}>
+                  Choose your role to get started with competitions.
+                </p>
+                
+                <div className="nav">
+                  <button onClick={handleRoleSwitch} className="btn btn-primary">
+                    🚀 Choose Your Role
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Competitions */}

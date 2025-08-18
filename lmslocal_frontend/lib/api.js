@@ -98,14 +98,33 @@ export const user = {
 
 // Competition API calls
 export const competition = {
+    // Get available team lists for competition creation
+    getTeamLists: async (data) => {
+        return await apiCall('/competition/team-lists', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
     // Create competition
     create: async (data) => {
-        return await apiCall('/competition/create', data);
+        return await apiCall('/competition/create', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
     },
 
     // Get competition by ID
     get: async (data) => {
-        return await apiCall('/competition/get', data);
+        return await apiCall('/competition/get', data, {
+            headers: {
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
     }
 };
 
