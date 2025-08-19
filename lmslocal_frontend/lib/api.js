@@ -122,6 +122,127 @@ export const competition = {
     get: async (data) => {
         return await apiCall('/competition/get', data, {
             headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Get competition by invite code (for join flow)
+    getByInviteCode: async (data) => {
+        return await apiCall('/competition/get-by-invite-code', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Join competition using invite code
+    join: async (data) => {
+        return await apiCall('/competition/join', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Get user's competitions (player dashboard)
+    getUserCompetitions: async () => {
+        return await apiCall('/competition/user-competitions', {}, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Get organizer's competitions (organizer dashboard)
+    getOrganizerCompetitions: async () => {
+        return await apiCall('/competition/organizer-competitions', {}, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Start competition (change status from setup to active)
+    startCompetition: async (data) => {
+        return await apiCall('/competition/start', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Create round with fixtures
+    createRound: async (data) => {
+        return await apiCall('/competition/create-round', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Get teams for competition (for fixture creation)
+    getTeams: async (data) => {
+        return await apiCall('/competition/teams', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Get rounds and fixtures for competition
+    getRounds: async (data) => {
+        return await apiCall('/competition/rounds', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Update fixture
+    updateFixture: async (data) => {
+        return await apiCall('/competition/update-fixture', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Submit player pick
+    submitPick: async (data) => {
+        return await apiCall('/competition/submit-pick', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Get player's picks for a competition
+    getUserPicks: async (data) => {
+        return await apiCall('/competition/user-picks', data, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.get()}`
+            }
+        });
+    },
+
+    // Enter match result (organizer only)
+    enterResult: async (data) => {
+        return await apiCall('/competition/enter-result', data, {
+            headers: {
+                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token.get()}`
             }
         });

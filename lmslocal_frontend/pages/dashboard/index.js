@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { authenticated, token } from '../../lib/api';
+import { authenticated, token, competition } from '../../lib/api';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -10,6 +10,8 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [hasOrganisation, setHasOrganisation] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [organizerCompetitions, setOrganizerCompetitions] = useState([]);
+  const [competitionsLoading, setCompetitionsLoading] = useState(false);
 
   useEffect(() => {
     checkAuthentication();
@@ -33,6 +35,9 @@ export default function Dashboard() {
         
         // Check if user has completed onboarding
         await checkOnboardingStatus();
+        
+        // Determine user role by checking what competitions they have
+        await determineUserRole();
         
       } else {
         // JWT invalid or expired
@@ -78,6 +83,67 @@ export default function Dashboard() {
     }
   };
 
+  const determineUserRole = async () => {
+    try {
+      console.log('🔍 Determining user role from database...');
+      
+      // Try to load organizer competitions
+      const orgResult = await competition.getOrganizerCompetitions();
+      const hasOrganizerRole = orgResult.success && orgResult.data.competitions.length > 0;
+      
+      // Try to load player competitions  
+      const playerResult = await competition.getUserCompetitions();
+      const hasPlayerRole = playerResult.success && playerResult.data.competitions.length > 0;
+      
+      console.log('📊 Role check results:', { hasOrganizerRole, hasPlayerRole });
+      
+      if (hasOrganizerRole) {
+        setUserRole('organizer');
+        localStorage.setItem('user_role', 'organizer');
+        setOrganizerCompetitions(orgResult.data.competitions || []);
+        console.log('👑 User detected as organizer with', orgResult.data.competitions.length, 'competitions');
+      } else if (hasPlayerRole) {
+        setUserRole('player');
+        localStorage.setItem('user_role', 'player');
+        console.log('🎮 User detected as player only');
+      } else {
+        // No competitions found, check localStorage or default to no role
+        const storedRole = localStorage.getItem('user_role');
+        setUserRole(storedRole);
+        console.log('🤷 No competitions found, using stored role:', storedRole);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error determining user role:', error);
+      // Fallback to localStorage
+      const storedRole = localStorage.getItem('user_role');
+      setUserRole(storedRole);
+    }
+  };
+
+  const loadOrganizerCompetitions = async () => {
+    setCompetitionsLoading(true);
+    try {
+      console.log('📋 Loading organizer competitions...');
+      const result = await competition.getOrganizerCompetitions();
+      console.log('📥 Raw API response:', result);
+      
+      if (result.success) {
+        const competitions = result.data.competitions || [];
+        setOrganizerCompetitions(competitions);
+        console.log('✅ Organizer competitions loaded:', competitions.length, 'competitions');
+        console.log('🔍 Competition details:', competitions);
+      } else {
+        console.log('❌ API returned error:', result.data);
+        setOrganizerCompetitions([]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading organizer competitions:', error);
+      setOrganizerCompetitions([]);
+    }
+    setCompetitionsLoading(false);
+  };
+
   const handleLogout = () => {
     token.remove();
     // Clear onboarding data
@@ -89,8 +155,28 @@ export default function Dashboard() {
   };
 
   const handleRoleSwitch = () => {
-    // Allow users to switch between organizer and player roles
+    // Clear current role and redirect to onboarding to choose new role
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('current_organisation_id');
     router.push('/onboarding');
+  };
+
+  const handleStartCompetition = async (competitionId) => {
+    try {
+      console.log('🚀 Starting competition:', competitionId);
+      const result = await competition.startCompetition({ competition_id: competitionId });
+      
+      if (result.success) {
+        // Refresh the competitions list
+        await determineUserRole();
+        alert('Competition started successfully!');
+      } else {
+        alert('Failed to start competition: ' + (result.data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('❌ Error starting competition:', error);
+      alert('Network error. Please try again.');
+    }
   };
 
   if (loading) {
@@ -214,6 +300,9 @@ export default function Dashboard() {
                 </p>
                 
                 <div className="nav">
+                  <Link href="/join" className="btn btn-primary">
+                    🎯 Join Competition
+                  </Link>
                   <Link href="/player/dashboard" className="btn btn-success">
                     🎮 Player Dashboard
                   </Link>
@@ -229,6 +318,9 @@ export default function Dashboard() {
                 </p>
                 
                 <div className="nav">
+                  <Link href="/join" className="btn btn-success">
+                    🎯 Join Competition
+                  </Link>
                   <button onClick={handleRoleSwitch} className="btn btn-primary">
                     🚀 Choose Your Role
                   </button>
@@ -237,24 +329,126 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Competitions */}
-          <div className="card">
-            <h2>Your Competitions</h2>
-            <div className="alert alert-info">
-              🚧 Competition list will be implemented next. For now, this demonstrates 
-              the protected route working with JWT authentication.
+
+          {/* Organizer Competitions */}
+          {userRole === 'organizer' && (
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2>Your Competitions</h2>
+                {competitionsLoading && <div className="loading"></div>}
+              </div>
+
+              {organizerCompetitions.length === 0 ? (
+                <div>
+                  <div className="alert alert-info">
+                    🏆 You haven't created any competitions yet. Start by creating your first competition to manage players and rounds.
+                  </div>
+                  
+                  <div style={{ marginTop: '20px' }}>
+                    <Link href="/competition/create" className="btn btn-primary">
+                      ➕ Create Your First Competition
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {organizerCompetitions.map((comp, index) => (
+                    <div key={comp.competition_id || index} style={{
+                      border: '1px solid #e9ecef',
+                      borderRadius: '8px',
+                      padding: '20px',
+                      marginBottom: '15px',
+                      backgroundColor: '#f8f9fa'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h3 style={{ margin: 0 }}>{comp.name}</h3>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <span style={{
+                            padding: '4px 8px',
+                            backgroundColor: comp.status === 'setup' ? '#ffc107' : 
+                                           comp.status === 'active' ? '#28a745' : 
+                                           comp.status === 'locked' ? '#17a2b8' : '#6c757d',
+                            color: 'white',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                          }}>
+                            {comp.status === 'setup' ? '🔧 Setup' : 
+                             comp.status === 'active' ? '🟢 Active' : 
+                             comp.status === 'locked' ? '🔒 Locked' : '🏁 Complete'}
+                          </span>
+                          <span style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                          }}>
+                            👥 {comp.player_count || 0} Players
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {comp.description && (
+                        <p style={{ color: '#666', margin: '8px 0' }}>{comp.description}</p>
+                      )}
+                      
+                      <div style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+                        <p><strong>Team List:</strong> {comp.team_list_name}</p>
+                        <p><strong>Invite Code:</strong> <code style={{ backgroundColor: '#fff', padding: '2px 6px', borderRadius: '3px' }}>{comp.invite_code}</code></p>
+                        {comp.current_round && (
+                          <p><strong>Current Round:</strong> Round {comp.current_round}</p>
+                        )}
+                      </div>
+
+                      {/* Management Actions */}
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        {comp.status === 'setup' ? (
+                          <>
+                            <button 
+                              className="btn btn-primary"
+                              onClick={() => handleStartCompetition(comp.competition_id)}
+                            >
+                              🚀 Start Competition
+                            </button>
+                            <button className="btn btn-secondary">
+                              ⚙️ Edit Settings
+                            </button>
+                          </>
+                        ) : comp.status === 'active' ? (
+                          <>
+                            <Link 
+                              href={`/competition/${comp.competition_id}/manage`}
+                              className="btn btn-primary"
+                            >
+                              📅 Manage Rounds
+                            </Link>
+                            <button className="btn btn-secondary">
+                              👥 View Players
+                            </button>
+                            <button className="btn btn-secondary">
+                              📊 Results
+                            </button>
+                          </>
+                        ) : (
+                          <button className="btn btn-secondary">
+                            📊 View Results
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div style={{ marginTop: '20px' }}>
+                    <Link href="/competition/create" className="btn btn-success">
+                      ➕ Create Another Competition
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
-            
-            <p style={{ color: '#666', fontSize: '14px', marginTop: '16px' }}>
-              This section will show:
-            </p>
-            <ul style={{ marginLeft: '20px', color: '#666', fontSize: '14px' }}>
-              <li>Active competitions you're organizing</li>
-              <li>Player counts and statuses</li>
-              <li>Recent activity and updates</li>
-              <li>Competition management links</li>
-            </ul>
-          </div>
+          )}
 
           {/* Development Status */}
           <div className="card">

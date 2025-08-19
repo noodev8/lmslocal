@@ -84,7 +84,7 @@ Return Codes:
 4. **Password security** - Use bcrypt for password hashing
 5. **Token expiration** - Implement appropriate token expiration times
 
-### Frontend
+### FLUTTER Frontend RULES ONLY
 1. Always use UI and widget code inline in the screen file itself
 2. Do not centralise UI code with a single file
 3. Each screen has its own UI design code

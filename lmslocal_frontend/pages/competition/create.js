@@ -174,6 +174,10 @@ export default function CreateCompetition() {
           content: `Competition created successfully! Invite code: ${result.data.invite_code}.${roleText}` 
         });
         
+        // Update user role to organizer since they just created a competition
+        localStorage.setItem('user_role', 'organizer');
+        console.log('🏆 User role updated to organizer after competition creation');
+        
         // Move to final step showing success
         setCurrentStep(4);
       } else {
