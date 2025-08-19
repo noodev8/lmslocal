@@ -1,0 +1,37 @@
+"Our UI strategy will follow Material Design 3 principles with a component-driven architecture using a design system approach. We'll implement
+  Material Design 3 guidelines for consistency, ensuring mobile-first responsive design with accessibility compliance. The aesthetic will be clean and
+  minimalist with support for dark/light themes and progressive enhancement for optimal performance across all devices. Material 3's emphasis on
+  dynamic color, improved contrast, and adaptive layouts will provide an excellent user experience for both organizers managing competitions and
+  players making picks."
+
+  🛠️ Technical Implementation Keywords for Me:
+
+  - Material UI (MUI) - React implementation
+  - Design tokens - consistent theming
+  - Component library - reusable elements
+  - Responsive breakpoints - mobile/tablet/desktop
+  - Elevation system - cards and surfaces
+
+
+From a user perspective, we have several scenarios/hats
+
+1 - The knowing pub owner (Paying our subscription)
+They already have a pub and are manually running a LMS game through spreadsheets. They increase their funds with entry fees for charity and prizes while increasing customer satisfaction
+
+2 - The un-knowing pub owner (May pay our subscription)
+They already have a pub and have not heard or used LMS
+
+3 - The admin
+They want to organise a game for their local pub, social group or whoever
+
+4 - The player
+They enjoy the game, are in touch with either an admin, pub or both and want to join in. There may also be a price involved.
+
+
+We need to link them together. The admin ultimately gets us through the door. This can also be a player.
+
+The website must have a landing page but for different purposes and for different people and a login which directs them to heir home page
+
+From there, depending on who they are, and their purpose must FLOW through the system with minimal friction
+
+And each person can switch from one "type" to another easily only if they wanted to. ie. Easy to find the option but not get n the way of those who dont
