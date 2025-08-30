@@ -39,21 +39,21 @@ router.post('/', async (req, res) => {
 
     // Validation
     if (!display_name || !email || !password) {
-      return res.status(400).json({
+      return res.status(200).json({
         return_code: "VALIDATION_ERROR",
         message: "Display name, email, and password are required"
       });
     }
 
-    if (password.length < 8) {
-      return res.status(400).json({
+    if (password.length < 6) {
+      return res.status(200).json({
         return_code: "VALIDATION_ERROR",
-        message: "Password must be at least 8 characters long"
+        message: "Password must be at least 6 characters long"
       });
     }
 
     if (!/\S+@\S+\.\S+/.test(email)) {
-      return res.status(400).json({
+      return res.status(200).json({
         return_code: "VALIDATION_ERROR",
         message: "Please enter a valid email address"
       });
@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
     // Check if email already exists
     const existingUser = await query('SELECT id FROM app_user WHERE email = $1', [email.toLowerCase()]);
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({
+      return res.status(200).json({
         return_code: "EMAIL_EXISTS",
         message: "An account with this email already exists"
       });
@@ -98,7 +98,7 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({
+    res.status(200).json({
       return_code: "SERVER_ERROR",
       message: "Internal server error"
     });

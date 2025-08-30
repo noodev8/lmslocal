@@ -296,12 +296,12 @@ export default function CreateCompetitionPage() {
                       </div>
                       <div className="text-sm text-gray-500">
                         Players cannot pick the same team in different rounds
+                        {watchedValues.no_team_twice && (
+                          <span className="block mt-1">
+                            Teams automatically reset when players run out of options.
+                          </span>
+                        )}
                       </div>
-                      {watchedValues.no_team_twice && (
-                        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                          <strong>Auto-reset:</strong> When a player runs out of available teams, all teams will automatically become available again at the start of the next round.
-                        </div>
-                      )}
                     </div>
                   </label>
                 </div>

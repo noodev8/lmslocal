@@ -48,13 +48,21 @@ export default function DashboardPage() {
     const token = localStorage.getItem('jwt_token');
     const userData = localStorage.getItem('user');
     
-    if (!token || !userData) {
+    if (!token || !userData || userData === 'undefined' || userData === 'null') {
       router.push('/login');
       return;
     }
 
-    const parsedUser = JSON.parse(userData);
-    setUser(parsedUser);
+    try {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+    } catch (error) {
+      console.error('Failed to parse user data:', error);
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user');
+      router.push('/login');
+      return;
+    }
     
     // Check if we just created a new competition
     const newCompId = localStorage.getItem('new_competition_id');
@@ -192,6 +200,12 @@ export default function DashboardPage() {
               <span className="text-sm text-gray-600">
                 Welcome back, <span className="font-medium text-gray-900">{user?.display_name}</span>
               </span>
+              <Link
+                href="/profile"
+                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md"
+              >
+                Profile
+              </Link>
               <button
                 onClick={handleLogout}
                 className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md"

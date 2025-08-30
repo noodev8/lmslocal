@@ -29,7 +29,10 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const response = await authApi.register(data);
+      const response = await authApi.register({
+        ...data,
+        display_name: data.name
+      });
       
       if (response.data.return_code === 'SUCCESS') {
         // Store token and user data consistently
@@ -94,8 +97,9 @@ export default function RegisterPage() {
               </label>
               <div className="mt-1">
                 <input
+                  id="name"
                   {...register('name', {
-                    required: 'Name is required',
+                    required: 'Full name is required',
                     minLength: {
                       value: 2,
                       message: 'Name must be at least 2 characters'
@@ -118,6 +122,7 @@ export default function RegisterPage() {
               </label>
               <div className="mt-1">
                 <input
+                  id="email"
                   {...register('email', {
                     required: 'Email is required',
                     pattern: {
@@ -142,15 +147,12 @@ export default function RegisterPage() {
               </label>
               <div className="mt-1 relative">
                 <input
+                  id="password"
                   {...register('password', {
                     required: 'Password is required',
                     minLength: {
-                      value: 8,
-                      message: 'Password must be at least 8 characters'
-                    },
-                    pattern: {
-                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                      message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+                      value: 6,
+                      message: 'Password must be at least 6 characters'
                     }
                   })}
                   type={showPassword ? 'text' : 'password'}
@@ -174,7 +176,7 @@ export default function RegisterPage() {
                 )}
               </div>
               <div className="mt-1 text-xs text-gray-500">
-                Must contain at least 8 characters with uppercase, lowercase, and number
+                Must be at least 6 characters long
               </div>
             </div>
 
@@ -184,6 +186,7 @@ export default function RegisterPage() {
               </label>
               <div className="mt-1 relative">
                 <input
+                  id="confirmPassword"
                   {...register('confirmPassword', {
                     required: 'Please confirm your password',
                     validate: (value) =>
@@ -229,36 +232,17 @@ export default function RegisterPage() {
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-gray-500">Free plan benefits</span>
-              </div>
-            </div>
-
-            <div className="mt-4 bg-green-50 rounded-lg p-4">
-              <ul className="text-sm text-green-800 space-y-1">
-                <li>✓ Up to 5 players completely free</li>
-                <li>✓ Full competition management tools</li>
-                <li>✓ No time limits or restrictions</li>
-                <li>✓ Upgrade anytime for unlimited players</li>
-              </ul>
-            </div>
-          </div>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-600">
               By creating an account, you agree to our{' '}
-              <Link href="/terms" className="text-green-600 hover:text-green-500">
+              <a href="https://www.noodev8.com/terms-of-service/" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-500">
                 Terms of Service
-              </Link>{' '}
+              </a>{' '}
               and{' '}
-              <Link href="/privacy" className="text-green-600 hover:text-green-500">
+              <a href="https://www.noodev8.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-500">
                 Privacy Policy
-              </Link>
+              </a>
             </p>
           </div>
         </div>
