@@ -713,25 +713,34 @@ export default function CompetitionPickPage() {
                 return (
                   <div
                     key={`${team.short}-${index}`}
-                    className={`relative p-4 rounded-lg border-2 ${
-                      resultState === 'won'
-                        ? `border-green-500 bg-green-50 ${isCurrentPick ? 'ring-2 ring-blue-400' : ''}`
-                        : resultState === 'lost'
-                        ? `border-red-500 bg-red-50 ${isCurrentPick ? 'ring-2 ring-blue-400' : ''}`
-                        : isCurrentPick
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-300 bg-gray-100 opacity-70'
+                    className={`relative p-4 rounded-lg border-2 transition-all duration-200 cursor-default ${
+                      isCurrentPick ? (
+                        resultState === 'won' ? 'bg-green-100 border-green-500 shadow-md' :
+                        resultState === 'lost' ? 'bg-red-100 border-red-500 shadow-md' :
+                        'bg-blue-100 border-blue-500 shadow-md'
+                      ) : (
+                        resultState === 'won' ? 'bg-green-50 border-green-300' :
+                        resultState === 'lost' ? 'bg-red-50 border-red-300' :
+                        'bg-gray-50 border-gray-200 opacity-70'
+                      )
                     }`}
                   >
+                    {/* Your pick indicator */}
+                    {isCurrentPick && (
+                      <div className="absolute -top-2 -left-2 bg-blue-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
+                        YOUR PICK
+                      </div>
+                    )}
+                    
                     {/* Player Count Badge - only show when round is locked */}
                     {teamPickCounts[team.short] && (
-                      <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+                      <div className="absolute -top-2 -right-2 bg-gray-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
                         {teamPickCounts[team.short]}
                       </div>
                     )}
                     <div className="text-center">
-                      {/* Main team (large) */}
-                      <div className={`text-lg font-bold mb-2 ${
+                      {/* Team short code (large) */}
+                      <div className={`text-lg font-bold mb-1 ${
                         resultState === 'won'
                           ? 'text-green-900'
                           : resultState === 'lost'
@@ -740,20 +749,28 @@ export default function CompetitionPickPage() {
                           ? 'text-blue-900'
                           : 'text-gray-500'
                       }`}>
-                        {team.full}
+                        {team.short}
                       </div>
                       
-                      {/* Fixture context */}
-                      <div className={`text-xs leading-tight ${
+                      {/* Full team name */}
+                      <div className={`text-sm mb-2 line-clamp-2 min-h-[2.5rem] flex items-center justify-center ${
                         resultState === 'won'
                           ? 'text-green-700'
                           : resultState === 'lost'
                           ? 'text-red-700'
                           : isCurrentPick
                           ? 'text-blue-700'
-                          : 'text-gray-400'
+                          : 'text-gray-600'
                       }`}>
-                        {team.fixtureDisplay}
+                        {team.full}
+                      </div>
+                      
+                      {/* Fixture context */}
+                      <div className={`text-xs text-gray-500 mb-2`}>
+                        {team.position === 'home' ? 'vs' : '@'} {team.position === 'home' ? 
+                          fixtures.find(f => f.home_team_short === team.short)?.away_team_short :
+                          fixtures.find(f => f.away_team_short === team.short)?.home_team_short
+                        }
                       </div>
                       
                       {/* Result indicator for all teams */}
