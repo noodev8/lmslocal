@@ -59,6 +59,26 @@ export default function CompetitionPickPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
+
+  // Completely eliminate touch flicker by disabling active states on touch devices
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media (hover: none) and (pointer: coarse) {
+        .team-card-no-touch:active {
+          background-color: inherit !important;
+          border-color: inherit !important;
+          color: inherit !important;
+          transform: none !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   
   const [user, setUser] = useState<User | null>(null);
   const [competition, setCompetition] = useState<Competition | null>(null);
@@ -74,7 +94,9 @@ export default function CompetitionPickPage() {
   const [teamPickCounts, setTeamPickCounts] = useState<Record<string, number>>({}); // Pick counts per team
   const [previousRoundData, setPreviousRoundData] = useState<any>(null);
   const [loadingPreviousRound, setLoadingPreviousRound] = useState(false);
+  const [showPreviousRound, setShowPreviousRound] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const previousRoundAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     // Create abort controller for this effect
@@ -118,6 +140,12 @@ export default function CompetitionPickPage() {
       controller.abort();
       window.removeEventListener('auth-expired', handleAuthExpired);
       abortControllerRef.current = null;
+      
+      // Clean up previous round requests
+      if (previousRoundAbortControllerRef.current) {
+        previousRoundAbortControllerRef.current.abort();
+        previousRoundAbortControllerRef.current = null;
+      }
     };
   }, [competitionId, router]);
 
@@ -174,8 +202,7 @@ export default function CompetitionPickPage() {
             loadTeamPickCounts(currentRound.id);
           }
           
-          // Load previous round data for context
-          loadPreviousRoundData(currentRound.round_number, competitionId.toString());
+          // Don't automatically load previous round - only when user requests it
         }
       }
     } catch (error) {
@@ -235,16 +262,12 @@ export default function CompetitionPickPage() {
   };
 
   const loadPreviousRoundData = async (currentRoundNumber: number, competitionIdToUse?: string) => {
-    console.log('loadPreviousRoundData called with round:', currentRoundNumber);
-    
     if (currentRoundNumber <= 1) {
-      console.log('No previous round for round 1');
       return; // No previous round for round 1
     }
     
     const compId = competitionIdToUse || competitionId;
     if (!compId) {
-      console.log('No competition ID available');
       return;
     }
     
@@ -253,29 +276,23 @@ export default function CompetitionPickPage() {
     try {
       // Get previous round ID directly from the database
       const previousRoundNumber = currentRoundNumber - 1;
-      console.log('Looking for round number:', previousRoundNumber, 'in competition:', compId);
       
       // Use the existing getRounds API to get all rounds, then find the previous one
       const roundsResponse = await roundApi.getRounds(parseInt(compId));
-      console.log('getRounds response:', roundsResponse.data);
       
       if (roundsResponse.data.return_code === 'SUCCESS') {
         const previousRound = roundsResponse.data.rounds.find(r => r.round_number === previousRoundNumber);
-        console.log('Found previous round:', previousRound);
         
         if (previousRound) {
           // Get fixtures for previous round
           const fixturesResponse = await fixtureApi.get(previousRound.id.toString());
-          console.log('Previous round fixtures:', fixturesResponse.data);
           
           if (fixturesResponse.data.return_code === 'SUCCESS') {
             // Get player's pick for previous round
             const pickResponse = await playerActionApi.getCurrentPick(previousRound.id);
-            console.log('Previous round pick:', pickResponse.data);
             
             // Get pick counts for previous round
             const pickCountResponse = await fixtureApi.getPickCounts(previousRound.id);
-            console.log('Previous round pick counts:', pickCountResponse.data);
             
             // Build the previous round data
             const previousRoundData = {
@@ -304,11 +321,8 @@ export default function CompetitionPickPage() {
               previousRoundData.player_outcome = 'no_pick';
             }
             
-            console.log('Final previous round data:', previousRoundData);
             setPreviousRoundData(previousRoundData);
           }
-        } else {
-          console.log('Previous round not found in database');
         }
       }
     } catch (error) {
@@ -318,14 +332,133 @@ export default function CompetitionPickPage() {
     }
   };
 
+  const handleTogglePreviousRound = async () => {
+    // Prevent multiple rapid clicks
+    if (loadingPreviousRound) {
+      return;
+    }
+
+    if (showPreviousRound) {
+      // Hide previous round and clean up data - immediate, no async needed
+      setShowPreviousRound(false);
+      setPreviousRoundData(null);
+      
+      // Cancel any ongoing previous round API calls
+      if (previousRoundAbortControllerRef.current) {
+        previousRoundAbortControllerRef.current.abort();
+        previousRoundAbortControllerRef.current = null;
+      }
+    } else {
+      // Show previous round and load data if not already loaded
+      setShowPreviousRound(true);
+      if (!previousRoundData && competition?.current_round) {
+        // Cancel any previous ongoing request before starting new one
+        if (previousRoundAbortControllerRef.current) {
+          previousRoundAbortControllerRef.current.abort();
+        }
+        
+        // Create new abort controller for this request
+        previousRoundAbortControllerRef.current = new AbortController();
+        
+        await loadPreviousRoundData(competition.current_round, competitionId);
+      }
+    }
+  };
+
+  // Aggressive scroll detection for iPad
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  // Function to completely reset all touch states
+  const resetTouchStates = () => {
+    setIsScrolling(false);
+    touchStartRef.current = null;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
+  };
+
+  // Global scroll detection
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolling(true);
+      
+      // Clear existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      // Set timeout to detect when scrolling stops
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+      }, 100);
+    };
+
+    const handleTouchMove = () => {
+      setIsScrolling(true);
+    };
+
+    // Listen for scroll and touch events globally
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('touchmove', handleTouchMove);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now()
+    };
+  };
+
   const handleTeamSelect = (teamShort: string, fixtureId: number, position: 'home' | 'away', event: React.MouseEvent | React.TouchEvent) => {
-    // Prevent if it's a scroll gesture or round is locked
+    // Prevent if round is locked  
     if (isRoundLocked) return;
     
-    // For touch events, check if this was likely a scroll gesture
-    if ('touches' in event || event.type === 'touchend') {
+    // AGGRESSIVE: Block ALL interactions during any scrolling
+    if (isScrolling) {
       event.preventDefault();
+      event.stopPropagation();
+      return;
     }
+    
+    // For touch events, do additional verification
+    if (event.type === 'touchend' && touchStartRef.current) {
+      const touch = 'changedTouches' in event ? event.changedTouches[0] : null;
+      if (touch) {
+        const deltaX = Math.abs(touch.clientX - touchStartRef.current.x);
+        const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
+        const deltaTime = Date.now() - touchStartRef.current.time;
+        
+        // Reasonable movement and time detection for normal taps
+        if (deltaX > 15 || deltaY > 15 || deltaTime < 50) {
+          touchStartRef.current = null;
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+      }
+      touchStartRef.current = null;
+    }
+    
+    // Block touch events other than touchend
+    if (event.type !== 'click' && event.type !== 'touchend') {
+      return;
+    }
+    
+    event.preventDefault();
+    event.stopPropagation();
     
     // If there's already a current pick, don't allow any new selections
     // User must remove current pick first
@@ -341,6 +474,9 @@ export default function CompetitionPickPage() {
 
   const handleUnselectPick = async () => {
     if (!currentRoundId || submitting || isRoundLocked) return;
+
+    // Reset all touch states when cancelling selection
+    resetTouchStates();
 
     setSubmitting(true);
     try {
@@ -366,6 +502,8 @@ export default function CompetitionPickPage() {
   };
 
   const submitPick = async () => {
+    // Reset all touch states when submitting selection
+    resetTouchStates();
     if (!selectedTeam || submitting || isRoundLocked) return;
 
     setSubmitting(true);
@@ -549,9 +687,15 @@ export default function CompetitionPickPage() {
                   <button
                     key={`${team.short}-${index}`}
                     onClick={(e) => handleTeamSelect(team.short, team.fixtureId, team.position, e)}
+                    onTouchStart={handleTouchStart}
                     onTouchEnd={(e) => handleTeamSelect(team.short, team.fixtureId, team.position, e)}
                     disabled={isDisabled}
-                    className={`p-4 rounded-lg border-2 touch-manipulation ${
+                    style={{
+                      // Light CSS to prevent unwanted touch behaviors but allow normal interaction
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                    }}
+                    className={`team-card-no-touch p-4 rounded-lg border-2 select-none transition-none ${isScrolling ? 'pointer-events-none touch-none' : 'touch-manipulation'} ${
                       isCurrentPick
                         ? 'border-blue-500 bg-blue-50 text-blue-900'
                         : currentPick || !isAllowed
@@ -820,11 +964,45 @@ export default function CompetitionPickPage() {
           </div>
         )}
         
-        {/* Previous Round Results */}
-        {console.log('Rendering, previousRoundData:', previousRoundData)}
-        {previousRoundData && (
+        {/* Previous Round Toggle Button - Debug */}
+        {console.log('Toggle check - competition:', competition, 'current_round:', competition?.current_round)}
+        
+        {/* Previous Round Toggle Button - Only show when round is NOT locked (not in-play) */}
+        {!isRoundLocked && competition?.current_round && competition.current_round > 1 && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={handleTogglePreviousRound}
+              disabled={loadingPreviousRound}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors"
+            >
+              {loadingPreviousRound ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                  <span>Loading...</span>
+                </>
+              ) : showPreviousRound ? (
+                <>
+                  <span>Hide Previous Round</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                </>
+              ) : (
+                <>
+                  <span>Show Previous Round</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+        
+        {/* Previous Round Results - Only when toggled */}
+        {showPreviousRound && previousRoundData && (
           <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mt-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Previous Round Results</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Round {previousRoundData.round_number} Results</h2>
             {loadingPreviousRound ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -832,11 +1010,6 @@ export default function CompetitionPickPage() {
               </div>
             ) : (
               <div>
-                {/* Previous round header */}
-                <div className="mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Round {previousRoundData.round_number} Results</h3>
-                </div>
-
                 {/* Team cards grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {previousRoundData.fixtures
