@@ -57,6 +57,7 @@ const getCalculatedFixturesRoute = require('./routes/get-calculated-fixtures');
 const getCompetitionStandingsRoute = require('./routes/get-competition-standings');
 const joinCompetitionByCodeRoute = require('./routes/join-competition-by-code');
 const getFixturePickCountRoute = require('./routes/get-fixture-pick-count');
+const getRoundHistoryRoute = require('./routes/get-round-history');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -190,6 +191,7 @@ app.use('/get-calculated-fixtures', getCalculatedFixturesRoute);
 app.use('/get-competition-standings', getCompetitionStandingsRoute);
 app.use('/join-competition-by-code', joinCompetitionByCodeRoute);
 app.use('/get-fixture-pick-count', getFixturePickCountRoute);
+app.use('/get-round-history', getRoundHistoryRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

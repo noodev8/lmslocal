@@ -124,6 +124,20 @@ export const fixtureApi = {
     api.post<ApiResponse<any>>('/set-fixture-result', { fixture_id, result }),
   getCalculated: (round_id: number) => api.post<ApiResponse<{ calculated_fixture_ids: number[] }>>('/get-calculated-fixtures', { round_id }),
   getPickCounts: (round_id: number) => api.post<ApiResponse<{ pick_counts: Record<string, number> }>>('/get-fixture-pick-count', { round_id }),
+  getRoundHistory: (round_id: number) => api.post<ApiResponse<{ round_data: {
+    round_number: number;
+    fixtures: Array<{
+      id: number;
+      home_team: string;
+      away_team: string;
+      home_team_short: string;
+      away_team_short: string;
+      result?: string;
+    }>;
+    player_pick?: string;
+    player_outcome?: string;
+    pick_counts: Record<string, number>;
+  } }>>('/get-round-history', { round_id }),
 };
 
 // Team API calls
