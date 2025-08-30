@@ -243,7 +243,7 @@ export default function JoinCompetitionPage() {
         {/* Help Text */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
-            Need help? Contact your competition organizer
+            Need help? Contact your competition organiser
           </p>
         </div>
       </main>

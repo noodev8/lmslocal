@@ -192,8 +192,7 @@ export default function PlayerDashboardPage() {
               <div className="flex items-center">
                 <TrophyIcon className="h-8 w-8 text-blue-600 mr-4" />
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Player Dashboard</h1>
-                  <p className="text-gray-600">Welcome back, {user?.display_name}!</p>
+                  <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.display_name}!</h1>
                 </div>
               </div>
               <div className="flex items-center gap-4">

@@ -141,44 +141,87 @@ router.post('/', verifyToken, async (req, res) => {
 
     const players = playersResult.rows;
 
-    // For each player, get their round history
+    // Get current round history for each player - only show picks if round is locked
     for (let player of players) {
+      if (isLocked) {
+        // Get current round pick for this player
+        const currentRoundPick = await query(`
+          SELECT p.team, p.outcome, f.home_team, f.away_team, f.home_team_short, f.away_team_short
+          FROM pick p
+          LEFT JOIN fixture f ON p.fixture_id = f.id
+          WHERE p.user_id = $1 AND p.round_id IN (
+            SELECT id FROM round WHERE competition_id = $2 AND round_number = $3
+          )
+        `, [player.id, competition_id, competition.current_round]);
+
+        if (currentRoundPick.rows.length > 0) {
+          const pick = currentRoundPick.rows[0];
+          player.current_pick = {
+            team: pick.team,
+            outcome: pick.outcome,
+            fixture: pick.home_team && pick.away_team ? `${pick.home_team} vs ${pick.away_team}` : null
+          };
+        } else {
+          // Check for NO_PICK entry
+          const noPickCheck = await query(`
+            SELECT outcome FROM pick 
+            WHERE user_id = $1 AND outcome = 'NO_PICK' AND round_id IN (
+              SELECT id FROM round WHERE competition_id = $2 AND round_number = $3
+            )
+          `, [player.id, competition_id, competition.current_round]);
+
+          if (noPickCheck.rows.length > 0) {
+            player.current_pick = {
+              team: null,
+              outcome: 'NO_PICK',
+              fixture: null
+            };
+          } else {
+            player.current_pick = null;
+          }
+        }
+      } else {
+        // Round not locked - don't show picks
+        player.current_pick = null;
+      }
+
+      // Get history for all completed rounds (not current round)
       const historyResult = await query(`
         SELECT 
           r.id as round_id,
           r.round_number,
           r.lock_time,
           p.team as pick_team,
-          t.name as pick_team_full_name,
+          p.outcome,
           f.home_team,
           f.away_team,
-          f.result,
-          CASE 
-            WHEN p.team IS NULL THEN 'no_pick'
-            WHEN f.result IS NULL THEN 'pending'
-            WHEN (p.team = 'home' AND f.result = 'home_win') OR 
-                 (p.team = 'away' AND f.result = 'away_win') THEN 'win'
-            WHEN f.result = 'draw' THEN 'draw'
-            ELSE 'loss'
-          END as pick_result,
-          -- Only show current pick if round is locked
-          CASE 
-            WHEN r.round_number = $2 AND $3 = false THEN NULL
-            ELSE p.team
-          END as visible_pick_team,
-          CASE 
-            WHEN r.round_number = $2 AND $3 = false THEN NULL
-            ELSE t.name
-          END as visible_pick_team_full_name
+          f.home_team_short,
+          f.away_team_short,
+          f.result as fixture_result
         FROM round r
-        LEFT JOIN pick p ON p.round_id = r.id AND p.user_id = $1
-        LEFT JOIN team t ON t.short_name = p.team
-        LEFT JOIN fixture f ON f.id = p.fixture_id
-        WHERE r.competition_id = $4
-        ORDER BY r.round_number ASC
-      `, [player.id, competition.current_round, isLocked, competition_id]);
-      
-      player.history = historyResult.rows;
+        LEFT JOIN pick p ON p.user_id = $1 AND p.round_id = r.id
+        LEFT JOIN fixture f ON p.fixture_id = f.id
+        WHERE r.competition_id = $2 
+          AND r.round_number < $3
+          AND r.round_number IS NOT NULL
+        ORDER BY r.round_number DESC
+      `, [player.id, competition_id, competition.current_round]);
+
+      player.history = historyResult.rows.map(round => ({
+        round_id: round.round_id,
+        round_number: round.round_number,
+        lock_time: round.lock_time,
+        pick_team: round.pick_team,
+        pick_team_full_name: round.pick_team, // Using team name directly
+        visible_pick_team: round.pick_team,
+        visible_pick_team_full_name: round.pick_team,
+        home_team: round.home_team,
+        away_team: round.away_team,
+        result: round.fixture_result,
+        pick_result: round.outcome === 'WIN' ? 'win' : 
+                    round.outcome === 'LOSE' ? 'loss' : 
+                    round.outcome === 'NO_PICK' ? 'no_pick' : 'pending'
+      }));
     }
 
     res.json({

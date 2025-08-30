@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import Link from 'next/link';
 import { 
   TrophyIcon,
@@ -19,7 +20,7 @@ import {
   CheckIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, roundApi, fixtureApi, teamApi } from '@/lib/api';
+import { competitionApi, roundApi, fixtureApi, teamApi, adminApi } from '@/lib/api';
 
 interface Competition {
   id: number;
@@ -62,6 +63,13 @@ export default function ManageCompetitionPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateRoundModal, setShowCreateRoundModal] = useState(false);
   const [newRoundLockTime, setNewRoundLockTime] = useState('');
+  
+  // Admin pick management state
+  const [players, setPlayers] = useState<any[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const [settingPick, setSettingPick] = useState(false);
+  const [showAdminPickModal, setShowAdminPickModal] = useState(false);
 
   const getNextFriday6PM = () => {
     const now = new Date();
@@ -83,6 +91,7 @@ export default function ManageCompetitionPage() {
   const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
   const [isEditingCutoff, setIsEditingCutoff] = useState(false);
   const [newCutoffTime, setNewCutoffTime] = useState('');
+  const [isSavingFixtures, setIsSavingFixtures] = useState(false);
   const hasInitialized = useRef(false);
 
   useEffect(() => {
@@ -298,8 +307,10 @@ export default function ManageCompetitionPage() {
   };
 
   const savePendingFixtures = async () => {
-    if (!currentRound || pendingFixtures.length === 0) return;
+    if (!currentRound || pendingFixtures.length === 0 || isSavingFixtures) return;
 
+    setIsSavingFixtures(true);
+    
     try {
       // Add kickoff_time for API call (backend still expects it)
       const defaultKickoffTime = currentRound.lock_time || new Date().toISOString();
@@ -315,10 +326,12 @@ export default function ManageCompetitionPage() {
         router.push(`/competition/${competitionId}/results`);
       } else {
         alert('Failed to save fixtures: ' + (response.data.message || 'Unknown error'));
+        setIsSavingFixtures(false);
       }
     } catch (error) {
       console.error('Save fixtures error:', error);
       alert('Failed to save fixtures');
+      setIsSavingFixtures(false);
     }
   };
 
@@ -380,6 +393,47 @@ export default function ManageCompetitionPage() {
     }
   };
 
+  // Admin pick management functions
+  const loadPlayers = async () => {
+    if (!competition) return;
+    
+    try {
+      const response = await competitionApi.getPlayers(parseInt(competitionId));
+      if (response.data.return_code === 'SUCCESS') {
+        setPlayers(response.data.players.filter(p => p.status !== 'OUT'));
+      }
+    } catch (error) {
+      console.error('Failed to load players:', error);
+    }
+  };
+
+  const handleSetPlayerPick = async () => {
+    if (!selectedPlayer || !selectedTeam || !competition) return;
+    
+    setSettingPick(true);
+    try {
+      const response = await adminApi.setPlayerPick(competition.id, selectedPlayer, selectedTeam);
+      if (response.data.return_code === 'SUCCESS') {
+        alert(`Pick set successfully for ${response.data.pick.player_name}: ${response.data.pick.team}`);
+        setShowAdminPickModal(false);
+        setSelectedPlayer(null);
+        setSelectedTeam('');
+      } else {
+        alert(`Failed to set pick: ${response.data.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to set player pick:', error);
+      alert('Failed to set pick. Please try again.');
+    } finally {
+      setSettingPick(false);
+    }
+  };
+
+  const openAdminPickModal = async () => {
+    await loadPlayers();
+    setShowAdminPickModal(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -428,7 +482,8 @@ export default function ManageCompetitionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -529,12 +584,38 @@ export default function ManageCompetitionPage() {
               </div>
               
               <div className="mt-6 lg:mt-0 flex gap-3 flex-wrap">
+                {currentRound && 
+                 currentRound.fixture_count > 0 && 
+                 new Date() < new Date(currentRound.lock_time) && (
+                  <button
+                    onClick={openAdminPickModal}
+                    className="inline-flex items-center px-4 py-2 border border-blue-300 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 hover:border-blue-400 transition-colors text-sm"
+                  >
+                    <UserGroupIcon className="h-4 w-4 mr-2" />
+                    Set Player Pick
+                  </button>
+                )}
                 {pendingFixtures.length > 0 && (
                   <button
                     onClick={savePendingFixtures}
-                    className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors text-lg"
+                    disabled={isSavingFixtures}
+                    className={`inline-flex items-center px-4 py-2 border rounded-lg font-medium transition-all duration-200 text-sm ${
+                      isSavingFixtures
+                        ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                    }`}
                   >
-                    Confirm Fixtures
+                    {isSavingFixtures ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                        Saving Fixtures...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="h-4 w-4 mr-2 text-green-600" />
+                        Confirm Fixtures ({pendingFixtures.length})
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -663,6 +744,83 @@ export default function ManageCompetitionPage() {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Admin Pick Modal */}
+      {showAdminPickModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Set Player Pick</h3>
+              <button
+                onClick={() => setShowAdminPickModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Player Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Player
+                </label>
+                <select
+                  value={selectedPlayer || ''}
+                  onChange={(e) => setSelectedPlayer(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Choose a player...</option>
+                  {players.map((player, index) => (
+                    <option key={`player-${player.user_id}-${index}`} value={player.user_id}>
+                      {player.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Team Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Team
+                </label>
+                <select
+                  value={selectedTeam}
+                  onChange={(e) => setSelectedTeam(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Choose a team...</option>
+                  {teams.map((team, index) => (
+                    <option key={`team-${team.id}-${index}`} value={team.name}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAdminPickModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSetPlayerPick}
+                disabled={!selectedPlayer || !selectedTeam || settingPick}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                {settingPick ? 'Setting Pick...' : 'Set Pick'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      </div>
+    </ErrorBoundary>
   );
 }

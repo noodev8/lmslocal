@@ -60,6 +60,19 @@ export default function CompetitionPickPage() {
   const params = useParams();
   const competitionId = params.id as string;
 
+  // Helper function to get full team name from short name
+  const getFullTeamName = (shortName: string): string => {
+    for (const fixture of fixtures) {
+      if (fixture.home_team_short === shortName) {
+        return fixture.home_team;
+      }
+      if (fixture.away_team_short === shortName) {
+        return fixture.away_team;
+      }
+    }
+    return shortName; // Fallback to short name if not found
+  };
+
   // Completely eliminate touch flicker by disabling active states on touch devices
   useEffect(() => {
     const style = document.createElement('style');
@@ -635,7 +648,7 @@ export default function CompetitionPickPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">No fixtures yet</h2>
             <p className="text-gray-600 mb-4">
-              The organizer hasn't added fixtures for this round yet. Check back soon!
+              The organiser hasn't added fixtures for this round yet. Check back soon!
             </p>
             <div className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-lg">
               <ClockIcon className="h-5 w-5 mr-2" />
@@ -647,11 +660,6 @@ export default function CompetitionPickPage() {
         {/* Pick Selection - Only show when round is NOT locked */}
         {fixtures.length > 0 && !isRoundLocked && (
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Choose Your Pick</h2>
-            <p className="text-gray-600 mb-6">
-              Select one team that you think will win. Remember, you can only pick each team once!
-            </p>
-            
             {/* Team Selection Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {fixtures
@@ -788,18 +796,18 @@ export default function CompetitionPickPage() {
 
             {/* Remove Current Pick Card - shown when no team selected but user has current pick */}
             {!selectedTeam && currentPick && (
-              <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <div className="text-center">
-                  <div className="text-red-800 font-medium mb-2">
-                    Current Pick: <span className="font-bold">{currentPick}</span>
+                  <div className="text-gray-800 font-medium mb-2">
+                    Current Pick: <span className="font-bold">{getFullTeamName(currentPick)}</span>
                   </div>
-                  <div className="text-red-600 text-sm mb-4">
+                  <div className="text-gray-600 text-sm mb-4">
                     Want to change your pick? Remove it first to select a different team.
                   </div>
                   <button
                     onClick={handleUnselectPick}
                     disabled={submitting}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors min-w-[140px]"
+                    className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors min-w-[140px]"
                   >
                     {submitting ? 'Removing...' : 'Remove Pick'}
                   </button>
@@ -883,7 +891,7 @@ export default function CompetitionPickPage() {
                       </div>
                     )}
                     <div className="text-center">
-                      {/* Team short code (large) */}
+                      {/* Team name (large) */}
                       <div className={`text-lg font-bold mb-1 ${
                         resultState === 'won'
                           ? 'text-green-900'
@@ -893,28 +901,20 @@ export default function CompetitionPickPage() {
                           ? 'text-blue-900'
                           : 'text-gray-500'
                       }`}>
-                        {team.short}
+                        {team.full}
                       </div>
                       
-                      {/* Full team name */}
-                      <div className={`text-sm mb-2 line-clamp-2 min-h-[2.5rem] flex items-center justify-center ${
+                      {/* Fixture context */}
+                      <div className={`text-xs mb-2 ${
                         resultState === 'won'
                           ? 'text-green-700'
                           : resultState === 'lost'
                           ? 'text-red-700'
                           : isCurrentPick
                           ? 'text-blue-700'
-                          : 'text-gray-600'
+                          : 'text-gray-500'
                       }`}>
-                        {team.full}
-                      </div>
-                      
-                      {/* Fixture context */}
-                      <div className={`text-xs text-gray-500 mb-2`}>
-                        {team.position === 'home' ? 'vs' : '@'} {team.position === 'home' ? 
-                          fixtures.find(f => f.home_team_short === team.short)?.away_team_short :
-                          fixtures.find(f => f.away_team_short === team.short)?.home_team_short
-                        }
+                        {team.fixtureDisplay}
                       </div>
                       
                       {/* Result indicator for all teams */}
@@ -1074,15 +1074,12 @@ export default function CompetitionPickPage() {
                           
                           <div className="text-center">
                             <div className="text-lg font-bold text-gray-900 mb-1">
-                              {team.short}
-                            </div>
-                            <div className="text-sm text-gray-600 mb-2 line-clamp-2 min-h-[2.5rem] flex items-center justify-center">
                               {team.name}
                             </div>
                             
                             {/* Fixture info */}
                             <div className="text-xs text-gray-500 mb-2">
-                              {team.is_home ? 'vs' : '@'} {team.is_home ? fixture.away_team_short : fixture.home_team_short}
+                              {team.is_home ? `${team.name} v ${fixture.away_team}` : `${fixture.home_team} v ${team.name}`}
                             </div>
                             
                             {/* Result indicators */}

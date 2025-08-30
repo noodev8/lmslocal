@@ -199,12 +199,12 @@ router.post('/', verifyToken, async (req, res) => {
     queries.push({
       text: `
         INSERT INTO audit_log (competition_id, user_id, action, details)
-        VALUES ($1, $2, 'Bulk Fixtures Replaced', $3)
+        VALUES ($1, $2, 'Fixtures Created', $3)
       `,
       params: [
         verifyResult.rows[0].competition_id,
         user_id,
-        `Replaced all fixtures in Round ${verifyResult.rows[0].round_number} with ${fixtures.length} new fixtures`
+        `Created all fixtures in Round ${verifyResult.rows[0].round_number} with ${fixtures.length} new fixtures`
       ]
     });
 

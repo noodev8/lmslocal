@@ -154,11 +154,24 @@ export const playerActionApi = {
   calculateResults: (round_id: number) => api.post<ApiResponse<any>>('/calculate-results', { round_id: parseInt(round_id.toString()) }),
 };
 
+// Admin actions
+export const adminApi = {
+  setPlayerPick: (competition_id: number, user_id: number, team: string) => api.post<ApiResponse<{
+    pick: {
+      id: number;
+      user_id: number;
+      team: string;
+      player_name: string;
+      round_number: number;
+    }
+  }>>('/admin-set-pick', { competition_id, user_id, team }),
+};
+
 // User profile
 export const userApi = {
   updateProfile: (updates: any) => api.post<ApiResponse<any>>('/update-profile', updates),
   getPlayerDashboard: () => api.post<ApiResponse<{ competitions: any[] }>>('/player-dashboard', {}),
-  getAllowedTeams: (competition_id: number) => api.post<ApiResponse<{ allowed_teams: any[] }>>('/get-allowed-teams', { competition_id }),
+  getAllowedTeams: (competition_id: number, user_id?: number) => api.post<ApiResponse<{ allowed_teams: any[] }>>('/get-allowed-teams', { competition_id, ...(user_id && { user_id }) }),
   checkUserType: () => api.post<ApiResponse<{ user_type: string; suggested_route: string; organized_count: number; participating_count: number; has_organized: boolean; has_participated: boolean }>>('/check-user-type', {}),
   getCompetitionStandings: (competition_id: number) => api.post<ApiResponse<{ competition: any; players: any[] }>>('/get-competition-standings', { competition_id }),
   joinCompetitionByCode: (competition_code: string) => api.post<ApiResponse<{ competition: { id: number; name: string } }>>('/join-competition-by-code', { competition_code }),

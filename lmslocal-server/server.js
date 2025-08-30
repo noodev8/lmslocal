@@ -41,6 +41,7 @@ const getCompetitionStatusRoute = require('./routes/get-competition-status');
 // const joinCompetitionBySlugRoute = require('./routes/join-competition-by-slug'); // DISABLED - using single login
 const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round');
 const setPickRoute = require('./routes/set-pick');
+const adminSetPickRoute = require('./routes/admin-set-pick');
 const calculateResultsRoute = require('./routes/calculate-results');
 const joinCompetitionRoute = require('./routes/join-competition');
 // const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
@@ -175,6 +176,7 @@ app.use('/get-competition-status', getCompetitionStatusRoute);
 // app.use('/join-competition-by-slug', joinCompetitionBySlugRoute); // DISABLED - using single login
 app.use('/get-player-current-round', getPlayerCurrentRoundRoute);
 app.use('/set-pick', setPickRoute);
+app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/calculate-results', calculateResultsRoute);
 app.use('/join-competition', joinCompetitionRoute);
 // app.use('/player-login', playerLoginRoute); // DISABLED - using single login

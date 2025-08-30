@@ -40,9 +40,10 @@ npm run dev        # Development with nodemon
 ```bash
 cd lmslocal-web
 npm run dev        # Development server with hot reload (port 3000)
-npm run build      # Production build
+npm run build      # Production build with TypeScript type checking
 npm run start      # Production server
 npm run lint       # ESLint code linting
+npx tsc --noEmit   # TypeScript type checking only (no build output)
 ```
 
 ### Testing
@@ -160,9 +161,10 @@ lmslocal-web/
 
 ## Environment Configuration
 
-- **Single .env file** at project root only
+- **Environment Files**: Both lmslocal-server/.env and lmslocal-web/.env exist (check both locations)
+- **Backend .env**: Contains database and server configuration
 - **Required variables**: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, PORT, JWT_SECRET
-- **Optional variables**: CLIENT_URL (for CORS), NODE_ENV
+- **Optional variables**: CLIENT_URL (for CORS), NODE_ENV, RESEND_API_KEY
 - **Access via**: `process.env.VARIABLE_NAME`
 - **Frontend API**: Hardcoded to http://localhost:3015 in src/lib/api.ts
 
@@ -218,4 +220,24 @@ lmslocal-web/
 - **Authentication**: Dual authentication system for admins (full login) and players (magic link)
 - **Access Methods**: Players join via competition slug or access code
 - **Data Flow**: PostgreSQL backend with real-time fixture and result management
-- Alays check /docs/DB-Schema.sql when about to make SQL database calls in the code, ensuring the correct table names and columns are used.
+
+## Database Schema Reference
+
+**CRITICAL**: Always check `/docs/DB-Schema.sql` when making SQL database calls to ensure correct table names and column references. This file contains the complete database structure including:
+
+- `competitions` - Competition definitions and settings
+- `users` - User accounts (admins and players)
+- `rounds` - Competition rounds and fixtures
+- `picks` - Player picks for each round
+- `allowed_teams` - Teams available to players per competition
+- `teams` - Master list of teams and fixtures
+
+## Important Development Notes
+
+### API Migration Status
+See `/docs/api-migration-plan.md` for current status of migrating APIs from HTTP status codes to the standardized 200 + return_code pattern. When modifying existing APIs, check this file to understand which routes still need migration.
+
+### TypeScript Configuration
+- **Frontend TypeScript**: Strict mode enabled with Next.js plugin integration
+- **Path Mapping**: `@/*` maps to `./src/*` for clean imports
+- **Type Checking**: Run `npx tsc --noEmit` for standalone type checking without build

@@ -91,7 +91,7 @@ export default function DashboardPage() {
           }
         }
         
-        // Stay on admin dashboard for organizers or if user chooses to
+        // Stay on admin dashboard for organisers or if user chooses to
         loadCompetitions();
       } else {
         // Fallback to loading competitions if check fails

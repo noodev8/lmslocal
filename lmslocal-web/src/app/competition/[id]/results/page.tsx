@@ -8,8 +8,10 @@ import {
   TrophyIcon,
   CheckCircleIcon,
   PencilIcon,
+  UserGroupIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { competitionApi, roundApi, fixtureApi, playerActionApi } from '@/lib/api';
+import { competitionApi, roundApi, fixtureApi, playerActionApi, adminApi, teamApi, userApi } from '@/lib/api';
 
 interface Competition {
   id: number;
@@ -50,6 +52,15 @@ export default function CompetitionResultsPage() {
   const [calculatedFixtures, setCalculatedFixtures] = useState<Set<number>>(new Set());
   const [competitionStatus, setCompetitionStatus] = useState<any>(null);
   const [hasUnprocessedResults, setHasUnprocessedResults] = useState(false);
+  
+  // Admin pick management state
+  const [players, setPlayers] = useState<any[]>([]);
+  const [allowedTeams, setAllowedTeams] = useState<any[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const [settingPick, setSettingPick] = useState(false);
+  const [showAdminPickModal, setShowAdminPickModal] = useState(false);
+  const [loadingAllowedTeams, setLoadingAllowedTeams] = useState(false);
 
   useEffect(() => {
     // Check authentication
@@ -167,6 +178,82 @@ export default function CompetitionResultsPage() {
     if (activePlayers > 1) return 'CONTINUE';
     
     return null;
+  };
+
+  // Admin pick management functions
+  const loadPlayers = async () => {
+    if (!competition) return;
+    
+    try {
+      const response = await competitionApi.getPlayers(parseInt(competitionId));
+      if (response.data.return_code === 'SUCCESS') {
+        setPlayers(response.data.players.filter(p => p.status !== 'OUT'));
+      }
+    } catch (error) {
+      console.error('Failed to load players:', error);
+    }
+  };
+
+  const loadAllowedTeamsForPlayer = async (playerId: number) => {
+    if (!competition) return;
+    
+    setLoadingAllowedTeams(true);
+    try {
+      // Use enhanced API that supports getting allowed teams for another player (admin only)
+      const response = await userApi.getAllowedTeams(competition.id, playerId);
+      if (response.data.return_code === 'SUCCESS') {
+        setAllowedTeams(response.data.allowed_teams.map((team: any) => ({
+          team_id: team.team_id,
+          team_name: team.name
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load allowed teams:', error);
+      setAllowedTeams([]);
+    } finally {
+      setLoadingAllowedTeams(false);
+    }
+  };
+
+  const handleSetPlayerPick = async () => {
+    if (!selectedPlayer || !selectedTeam || !competition) return;
+    
+    setSettingPick(true);
+    try {
+      const response = await adminApi.setPlayerPick(competition.id, selectedPlayer, selectedTeam);
+      if (response.data.return_code === 'SUCCESS') {
+        setShowAdminPickModal(false);
+        setSelectedPlayer(null);
+        setSelectedTeam('');
+        setAllowedTeams([]);
+      } else {
+        alert(`Failed to set pick: ${response.data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to set pick:', error);
+      alert('Failed to set pick. Please try again.');
+    } finally {
+      setSettingPick(false);
+    }
+  };
+
+  const openAdminPickModal = async () => {
+    await loadPlayers();
+    setSelectedPlayer(null);
+    setSelectedTeam('');
+    setAllowedTeams([]);
+    setShowAdminPickModal(true);
+  };
+
+  const handlePlayerSelection = async (playerId: number | null) => {
+    setSelectedPlayer(playerId);
+    setSelectedTeam(''); // Reset team selection when player changes
+    
+    if (playerId && !isNaN(playerId)) {
+      await loadAllowedTeamsForPlayer(playerId);
+    } else {
+      setAllowedTeams([]);
+    }
   };
 
   const handleCreateNextRound = async () => {
@@ -524,6 +611,17 @@ export default function CompetitionResultsPage() {
                     </button>
                   )}
 
+                  {/* Set Player Pick Button - Show during active picking phase */}
+                  {currentRound && currentRound.lock_time && new Date() < new Date(currentRound.lock_time) && (
+                    <button
+                      onClick={openAdminPickModal}
+                      className="px-4 py-2 bg-blue-50 border border-blue-300 text-blue-700 rounded-lg font-medium hover:bg-blue-100 hover:border-blue-400 transition-all duration-200 flex items-center gap-2 text-sm"
+                    >
+                      <UserGroupIcon className="h-4 w-4" />
+                      Set Player Pick
+                    </button>
+                  )}
+
                   {/* Create Next Round Button */}
                   {isRoundComplete() && getCompetitionState() === 'CONTINUE' && (
                     <button
@@ -712,6 +810,98 @@ export default function CompetitionResultsPage() {
           </div>
         )}
       </main>
+
+      {/* Admin Pick Modal */}
+      {showAdminPickModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Set Player Pick</h3>
+              <button
+                onClick={() => setShowAdminPickModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Player Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Player
+                </label>
+                <select
+                  value={selectedPlayer || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const playerId = value ? parseInt(value) : null;
+                    handlePlayerSelection(playerId);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Choose a player...</option>
+                  {players.map((player, index) => (
+                    <option key={`player-${player.id}-${index}`} value={player.id}>
+                      {player.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Team Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Team {selectedPlayer && loadingAllowedTeams && '(Loading...)'}
+                </label>
+                <select
+                  value={selectedTeam}
+                  onChange={(e) => setSelectedTeam(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={!selectedPlayer || loadingAllowedTeams}
+                  required
+                >
+                  <option value="">
+                    {!selectedPlayer 
+                      ? 'Select a player first...' 
+                      : loadingAllowedTeams 
+                        ? 'Loading teams...' 
+                        : 'Choose a team...'
+                    }
+                  </option>
+                  {allowedTeams.map((team, index) => (
+                    <option key={`allowed-team-${team.team_id}-${index}`} value={team.team_name}>
+                      {team.team_name}
+                    </option>
+                  ))}
+                </select>
+                {selectedPlayer && allowedTeams.length === 0 && !loadingAllowedTeams && (
+                  <p className="text-sm text-red-600 mt-1">
+                    No teams available for this player
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAdminPickModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSetPlayerPick}
+                disabled={!selectedPlayer || !selectedTeam || settingPick}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                {settingPick ? 'Setting Pick...' : 'Set Pick'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

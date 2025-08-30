@@ -41,7 +41,7 @@ export default function LoginPage() {
             if (userType === 'player') {
               router.push('/play');
             } else {
-              // Default to dashboard for organizers and mixed users
+              // Default to dashboard for organisers and mixed users
               router.push('/dashboard');
             }
           } else {
@@ -78,7 +78,7 @@ export default function LoginPage() {
           Sign in to LMSLocal
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          For both organizers and players
+          For both organisers and players
         </p>
       </div>
 

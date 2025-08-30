@@ -12,7 +12,7 @@ export default function LandingPage() {
     },
     {
       title: 'Admin-First Design',
-      description: 'Built for pub landlords and organizers who need simple, powerful management tools.',
+      description: 'Built for pub landlords and organisers who need simple, powerful management tools.',
       icon: TrophyIcon,
     },
     {

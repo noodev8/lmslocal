@@ -1,12 +1,16 @@
 /*
 =======================================================================================================================================
-Calculate Results Route
+Calculate Results Route (REDESIGNED)
+=======================================================================================================================================
+Method: POST
+Purpose: Calculate pick outcomes based on fixture results for a round - ULTRA-EFFICIENT VERSION
+Design: Single transaction with bulk SQL operations instead of N+1 queries
 =======================================================================================================================================
 */
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { query } = require('../database');
+const { query, transaction } = require('../database');
 const router = express.Router();
 
 // Middleware to verify JWT token
@@ -23,7 +27,6 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get user from database
     const result = await query('SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', [decoded.user_id || decoded.userId]);
     if (result.rows.length === 0) {
       return res.status(401).json({
@@ -42,38 +45,12 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-/*
-=======================================================================================================================================
-API Route: /calculate-results
-=======================================================================================================================================
-Method: POST
-Purpose: Calculate pick outcomes based on fixture results for a round
-=======================================================================================================================================
-Request Payload:
-{
-  "round_id": 1
-}
-
-Success Response:
-{
-  "return_code": "SUCCESS",
-  "message": "Pick outcomes calculated successfully",
-  "results": {
-    "winners": 5,
-    "losers": 3,
-    "draws": 2,
-    "processed": 10,
-    "skipped": 0
-  }
-}
-=======================================================================================================================================
-*/
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { round_id } = req.body;
     const user_id = req.user.id;
 
-    // Basic validation
+    // Validation
     if (!round_id || !Number.isInteger(round_id)) {
       return res.status(400).json({
         return_code: "VALIDATION_ERROR",
@@ -81,9 +58,11 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Get round details and verify user is organiser
+    // PHASE 1: GET ROUND DETAILS AND VALIDATE PERMISSIONS
     const roundResult = await query(`
-      SELECT r.id, r.round_number, r.competition_id, c.organiser_id, c.name as competition_name
+      SELECT 
+        r.id, r.round_number, r.competition_id, r.no_pick_processed,
+        c.organiser_id, c.name as competition_name
       FROM round r
       JOIN competition c ON r.competition_id = c.id
       WHERE r.id = $1
@@ -105,195 +84,183 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // ULTRA-EFFICIENT TRANSACTION: ALL OPERATIONS IN SINGLE ATOMIC BLOCK
+    const transactionQueries = [];
 
-    // Get all fixtures that have results but haven't been processed yet
-    const unprocessedFixtures = await query(`
-      SELECT id, result, home_team_short, away_team_short
-      FROM fixture 
-      WHERE round_id = $1 
-        AND result IS NOT NULL 
-        AND processed IS NULL
-    `, [round_id]);
+    // PHASE 2: BULK CALCULATE ALL PICK OUTCOMES
+    transactionQueries.push({
+      text: `
+        UPDATE pick 
+        SET outcome = CASE 
+          WHEN f.result = 'DRAW' THEN 'LOSE'
+          WHEN p.team = f.result THEN 'WIN'
+          ELSE 'LOSE'
+        END
+        FROM fixture f
+        WHERE p.fixture_id = f.id 
+          AND f.round_id = $1 
+          AND f.result IS NOT NULL 
+          AND f.processed IS NULL
+          AND p.outcome IS NULL
+        RETURNING p.id, p.outcome`,
+      params: [round_id]
+    });
 
+    // PHASE 3: BULK UPDATE PLAYER LIVES BASED ON LOSSES
+    transactionQueries.push({
+      text: `
+        WITH losing_picks AS (
+          SELECT p.user_id, COUNT(*) as losses
+          FROM pick p
+          JOIN fixture f ON p.fixture_id = f.id  
+          WHERE f.round_id = $1 
+            AND p.outcome = 'LOSE'
+          GROUP BY p.user_id
+        )
+        UPDATE competition_user cu
+        SET 
+          lives_remaining = GREATEST(0, cu.lives_remaining - COALESCE(lp.losses, 0)),
+          status = CASE 
+            WHEN cu.lives_remaining - COALESCE(lp.losses, 0) <= 0 THEN 'OUT'
+            ELSE cu.status 
+          END
+        FROM losing_picks lp
+        WHERE cu.competition_id = $2 
+          AND cu.user_id = lp.user_id
+        RETURNING cu.user_id, cu.lives_remaining, cu.status`,
+      params: [round_id, round.competition_id]
+    });
 
-    let winners = 0;
-    let losers = 0;
-    let draws = 0;
-    let processed = 0;
-    let skipped = 0;
-    let playersEliminated = 0;
-
-    // Process each unprocessed fixture
-    for (const fixture of unprocessedFixtures.rows) {
-      // Get all picks for this fixture
-      const picksForFixture = await query(`
-        SELECT p.id as pick_id, p.team, p.user_id, p.outcome,
-               COALESCE(u.display_name, 'Unknown User') as display_name
-        FROM pick p
-        LEFT JOIN app_user u ON p.user_id = u.id
-        WHERE p.fixture_id = $1
-      `, [fixture.id]);
-
-      // Process each pick for this fixture
-      for (const pick of picksForFixture.rows) {
-        let outcome = null;
-
-        if (fixture.result === 'DRAW') {
-          outcome = 'LOSE';
-          draws++;
-          losers++;
-        } else if (pick.team === fixture.result) {
-          outcome = 'WIN';
-          winners++;
-        } else {
-          outcome = 'LOSE';
-          losers++;
-        }
-
-        // Update the pick with the calculated outcome
-        await query(`
-          UPDATE pick 
-          SET outcome = $1
-          WHERE id = $2
-        `, [outcome, pick.pick_id]);
-        
-        processed++;
-
-        // Reduce lives for LOSE outcomes only
-        if (outcome === 'LOSE') {
-          const livesResult = await query(`
-            SELECT lives_remaining, status
-            FROM competition_user
-            WHERE competition_id = $1 AND user_id = $2
-          `, [round.competition_id, pick.user_id]);
-
-          if (livesResult.rows.length > 0) {
-            const currentLives = livesResult.rows[0].lives_remaining;
-            const newLives = currentLives - 1;
-
-            if (newLives < 0) {
-              await query(`
-                UPDATE competition_user
-                SET lives_remaining = 0, status = 'OUT'
-                WHERE competition_id = $1 AND user_id = $2
-              `, [round.competition_id, pick.user_id]);
-              playersEliminated++;
-            } else {
-              await query(`
-                UPDATE competition_user
-                SET lives_remaining = $1
-                WHERE competition_id = $2 AND user_id = $3
-              `, [newLives, round.competition_id, pick.user_id]);
-            }
-          }
-        }
-      }
-
-      // Mark fixture as processed
-      await query(`
+    // PHASE 4: MARK FIXTURES AS PROCESSED
+    transactionQueries.push({
+      text: `
         UPDATE fixture 
         SET processed = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `, [fixture.id]);
-    }
+        WHERE round_id = $1 
+          AND result IS NOT NULL 
+          AND processed IS NULL
+        RETURNING id, home_team_short, away_team_short, result`,
+      params: [round_id]
+    });
 
-    // Handle players who didn't make picks - only if this is first calculation for round
-    // Check if any picks already have outcomes (indicating round was calculated before)
-    const existingCalculation = await query(`
-      SELECT COUNT(*) as count 
-      FROM pick 
-      WHERE round_id = $1 AND outcome IS NOT NULL
-    `, [round_id]);
+    // PHASE 5: CHECK IF ALL FIXTURES COMPLETE FOR NO_PICK PROCESSING
+    transactionQueries.push({
+      text: `
+        SELECT 
+          COUNT(*) as total_fixtures,
+          COUNT(CASE WHEN result IS NOT NULL THEN 1 END) as fixtures_with_results
+        FROM fixture 
+        WHERE round_id = $1`,
+      params: [round_id]
+    });
 
-    const isFirstCalculation = parseInt(existingCalculation.rows[0].count) === 0;
-
-    if (isFirstCalculation) {
-      const noPickPlayers = await query(`
-        SELECT cu.user_id, cu.lives_remaining, cu.status
-        FROM competition_user cu
-        WHERE cu.competition_id = $1 
-          AND cu.status != 'OUT'
-          AND cu.user_id NOT IN (
-            SELECT p.user_id FROM pick p WHERE p.round_id = $2
-          )
-      `, [round.competition_id, round_id]);
-
-      // Handle no-pick players - lose life but progress 
-      for (const player of noPickPlayers.rows) {
-        // Create NO_PICK record
-        await query(`
-          INSERT INTO pick (round_id, user_id, outcome)
-          VALUES ($1, $2, 'NO_PICK')
-        `, [round_id, player.user_id]);
-        
-        // Reduce life for not making a pick
-        const newLives = player.lives_remaining - 1;
-        
-        if (newLives < 0) {
-          await query(`
-            UPDATE competition_user
-            SET lives_remaining = 0, status = 'OUT'
-            WHERE competition_id = $1 AND user_id = $2
-          `, [round.competition_id, player.user_id]);
-          playersEliminated++;
-        } else {
-          await query(`
-            UPDATE competition_user
-            SET lives_remaining = $1
-            WHERE competition_id = $2 AND user_id = $3
-          `, [newLives, round.competition_id, player.user_id]);
-        }
-        
-        processed++;
-        losers++; // Count no-pick as a loss (life penalty)
-      }
-    }
-
-    // Get final count of remaining players
-    const remainingPlayersResult = await query(`
-      SELECT COUNT(*) as count
-      FROM competition_user
-      WHERE competition_id = $1 AND status != 'OUT'
-    `, [round.competition_id]);
+    // Execute the main transaction
+    const results = await transaction(transactionQueries);
     
-    const playersRemaining = parseInt(remainingPlayersResult.rows[0].count);
+    const [pickResults, livesResults, fixtureResults, fixtureCountResults] = results;
+    
+    // Calculate statistics from results
+    const picks = pickResults.rows;
+    const winners = picks.filter(p => p.outcome === 'WIN').length;
+    const losers = picks.filter(p => p.outcome === 'LOSE').length;
+    const draws = picks.filter(p => p.outcome === 'LOSE').length; // Draws count as losses
+    const processed = picks.length;
+    const playersEliminated = livesResults.rows.filter(p => p.status === 'OUT').length;
 
-    // Now populate player_progress table for all players
-    const allCompetitionPlayersResult = await query(`
-      SELECT cu.user_id, p.fixture_id, p.team, p.outcome
-      FROM competition_user cu
-      LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $1
-      WHERE cu.competition_id = $2
+    // NO_PICK PROCESSING - Only if all fixtures complete and not already processed
+    const totalFixtures = parseInt(fixtureCountResults.rows[0].total_fixtures);
+    const fixturesWithResults = parseInt(fixtureCountResults.rows[0].fixtures_with_results);
+    
+    let noPickProcessed = 0;
+    
+    if (totalFixtures > 0 && totalFixtures === fixturesWithResults && !round.no_pick_processed) {
+      // PHASE 6: BULK NO_PICK PROCESSING
+      const noPickQueries = [];
+
+      // Insert NO_PICK records for players who didn't make picks
+      noPickQueries.push({
+        text: `
+          INSERT INTO pick (round_id, user_id, outcome)
+          SELECT $1, cu.user_id, 'NO_PICK'
+          FROM competition_user cu
+          WHERE cu.competition_id = $2 
+            AND cu.status != 'OUT'
+            AND cu.user_id NOT IN (
+              SELECT p.user_id FROM pick p WHERE p.round_id = $1
+            )
+          RETURNING user_id`,
+        params: [round_id, round.competition_id]
+      });
+
+      // Insert player_progress records for NO_PICK
+      noPickQueries.push({
+        text: `
+          INSERT INTO player_progress (player_id, competition_id, round_id, fixture_id, chosen_team, outcome)
+          SELECT cu.user_id, $2, $1, null, null, 'NO_PICK'
+          FROM competition_user cu
+          WHERE cu.competition_id = $2 
+            AND cu.status != 'OUT'
+            AND cu.user_id NOT IN (
+              SELECT p.user_id FROM pick p WHERE p.round_id = $1
+            )`,
+        params: [round_id, round.competition_id]
+      });
+
+      // Reduce lives for NO_PICK players
+      noPickQueries.push({
+        text: `
+          UPDATE competition_user
+          SET 
+            lives_remaining = GREATEST(0, lives_remaining - 1),
+            status = CASE 
+              WHEN lives_remaining - 1 <= 0 THEN 'OUT'
+              ELSE status 
+            END
+          WHERE competition_id = $1 
+            AND status != 'OUT'
+            AND user_id NOT IN (
+              SELECT p.user_id FROM pick p WHERE p.round_id = $2
+            )
+          RETURNING user_id, lives_remaining, status`,
+        params: [round.competition_id, round_id]
+      });
+
+      // Mark NO_PICK processing as complete
+      noPickQueries.push({
+        text: `
+          UPDATE round 
+          SET no_pick_processed = true 
+          WHERE id = $1`,
+        params: [round_id]
+      });
+
+      const noPickResults = await transaction(noPickQueries);
+      noPickProcessed = noPickResults[0].rows.length;
+    }
+
+    // PHASE 7: BULK INSERT PLAYER_PROGRESS FOR REGULAR PICKS
+    await query(`
+      INSERT INTO player_progress (player_id, competition_id, round_id, fixture_id, chosen_team, outcome)
+      SELECT p.user_id, $2, $1, p.fixture_id, p.team, p.outcome
+      FROM pick p
+      JOIN fixture f ON p.fixture_id = f.id
+      WHERE f.round_id = $1 
+        AND p.outcome IS NOT NULL 
+        AND p.outcome != 'NO_PICK'
+      ON CONFLICT DO NOTHING
     `, [round_id, round.competition_id]);
 
-    // Insert player progress records
-    for (const player of allCompetitionPlayersResult.rows) {
-      const playerOutcome = player.outcome || 'NO_PICK';
-      
-      await query(`
-        INSERT INTO player_progress (player_id, competition_id, round_id, fixture_id, chosen_team, outcome, players_remaining)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [
-        player.user_id,
-        round.competition_id, 
-        round_id,
-        player.fixture_id,
-        player.team,
-        playerOutcome,
-        playersRemaining
-      ]);
-    }
-
-    // Log the calculation
+    // PHASE 8: INSERT AUDIT LOG
     await query(`
       INSERT INTO audit_log (competition_id, user_id, action, details)
       VALUES ($1, $2, 'Results Calculated', $3)
     `, [
       round.competition_id,
       user_id,
-      `Calculated outcomes for Round ${round.round_number}: ${processed} picks processed (${winners} winners, ${losers} losers, ${draws} draws), ${playersEliminated} players eliminated, ${skipped} skipped, ${playersRemaining} players remaining`
+      `Calculated outcomes for Round ${round.round_number}: ${processed + noPickProcessed} picks processed`
     ]);
 
+    // Return success with statistics
     res.json({
       return_code: "SUCCESS",
       message: "Pick outcomes calculated successfully",
@@ -301,11 +268,11 @@ router.post('/', verifyToken, async (req, res) => {
         winners,
         losers,
         draws,
-        processed,
-        skipped,
+        processed: processed + noPickProcessed,
+        skipped: 0,
         playersEliminated,
-        playersRemaining,
-        total: winners + losers + draws
+        noPickProcessed,
+        total: winners + losers + draws + noPickProcessed
       }
     });
 
