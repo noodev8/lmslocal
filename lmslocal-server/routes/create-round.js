@@ -169,6 +169,59 @@ router.post('/', verifyToken, async (req, res) => {
       `Created Round ${nextRoundNumber} for "${competitionCheck.rows[0].name}" with lock time ${lock_time}`
     ]);
 
+    // Auto-reset teams for players who have none left
+    try {
+      // Get competition's team_list_id
+      const compResult = await db.query(`
+        SELECT team_list_id FROM competition WHERE id = $1
+      `, [competition_id]);
+      
+      if (compResult.rows.length > 0) {
+        const teamListId = compResult.rows[0].team_list_id;
+        
+        // Find all players in this competition who have zero allowed_teams
+        const playersNeedingResetResult = await db.query(`
+          SELECT DISTINCT cu.user_id, u.display_name
+          FROM competition_user cu
+          JOIN app_user u ON cu.user_id = u.id
+          WHERE cu.competition_id = $1 
+          AND cu.status = 'active'
+          AND NOT EXISTS (
+            SELECT 1 FROM allowed_teams at 
+            WHERE at.competition_id = $1 AND at.user_id = cu.user_id
+          )
+        `, [competition_id]);
+
+        // Reset teams for each player who needs it
+        for (const player of playersNeedingResetResult.rows) {
+          // Insert all active teams for this player
+          await db.query(`
+            INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
+            SELECT $1, $2, t.id, NOW()
+            FROM team t
+            WHERE t.team_list_id = $3 AND t.is_active = true
+          `, [competition_id, player.user_id, teamListId]);
+
+          // Log the reset
+          await db.query(`
+            INSERT INTO audit_log (competition_id, user_id, action, details)
+            VALUES ($1, $2, 'Teams Auto-Reset', $3)
+          `, [
+            competition_id, 
+            player.user_id, 
+            `Teams automatically reset for ${player.display_name} at start of Round ${nextRoundNumber}`
+          ]);
+        }
+
+        if (playersNeedingResetResult.rows.length > 0) {
+          console.log(`Auto-reset teams for ${playersNeedingResetResult.rows.length} players in competition ${competition_id} for Round ${nextRoundNumber}`);
+        }
+      }
+    } catch (resetError) {
+      // Don't fail the round creation if team reset fails
+      console.error('Team reset error during round creation:', resetError);
+    }
+
     res.json({
       return_code: "SUCCESS",
       message: "Round created successfully",

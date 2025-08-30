@@ -42,6 +42,7 @@ const getCompetitionStatusRoute = require('./routes/get-competition-status');
 const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round');
 const setPickRoute = require('./routes/set-pick');
 const adminSetPickRoute = require('./routes/admin-set-pick');
+const updatePaymentStatusRoute = require('./routes/update-payment-status');
 const calculateResultsRoute = require('./routes/calculate-results');
 const joinCompetitionRoute = require('./routes/join-competition');
 // const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
@@ -59,6 +60,7 @@ const getCompetitionStandingsRoute = require('./routes/get-competition-standings
 const joinCompetitionByCodeRoute = require('./routes/join-competition-by-code');
 const getFixturePickCountRoute = require('./routes/get-fixture-pick-count');
 const getRoundHistoryRoute = require('./routes/get-round-history');
+const checkAndResetTeamsRoute = require('./routes/check-and-reset-teams');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -177,6 +179,7 @@ app.use('/get-competition-status', getCompetitionStatusRoute);
 app.use('/get-player-current-round', getPlayerCurrentRoundRoute);
 app.use('/set-pick', setPickRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
+app.use('/update-payment-status', updatePaymentStatusRoute);
 app.use('/calculate-results', calculateResultsRoute);
 app.use('/join-competition', joinCompetitionRoute);
 // app.use('/player-login', playerLoginRoute); // DISABLED - using single login
@@ -194,6 +197,7 @@ app.use('/get-competition-standings', getCompetitionStandingsRoute);
 app.use('/join-competition-by-code', joinCompetitionByCodeRoute);
 app.use('/get-fixture-pick-count', getFixturePickCountRoute);
 app.use('/get-round-history', getRoundHistoryRoute);
+app.use('/check-and-reset-teams', checkAndResetTeamsRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

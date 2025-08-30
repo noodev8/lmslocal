@@ -154,6 +154,14 @@ export const playerActionApi = {
   calculateResults: (round_id: number) => api.post<ApiResponse<any>>('/calculate-results', { round_id: parseInt(round_id.toString()) }),
 };
 
+// Team management
+export const teamApi = {
+  checkAndResetTeams: (competition_id: number, user_id: number) => api.post<ApiResponse<{
+    teams_reset: boolean;
+    available_teams_count: number;
+  }>>('/check-and-reset-teams', { competition_id, user_id }),
+};
+
 // Admin actions
 export const adminApi = {
   setPlayerPick: (competition_id: number, user_id: number, team: string) => api.post<ApiResponse<{
@@ -165,6 +173,15 @@ export const adminApi = {
       round_number: number;
     }
   }>>('/admin-set-pick', { competition_id, user_id, team }),
+  updatePaymentStatus: (competition_id: number, user_id: number, paid: boolean, paid_amount?: number, paid_date?: string) => api.post<ApiResponse<{
+    payment_status: {
+      user_id: number;
+      player_name: string;
+      paid: boolean;
+      paid_amount?: number;
+      paid_date?: string;
+    }
+  }>>('/update-payment-status', { competition_id, user_id, paid, paid_amount, paid_date }),
 };
 
 // User profile

@@ -9,9 +9,13 @@ import {
   UserIcon,
   TrashIcon,
   CalendarIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  CurrencyDollarIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi } from '@/lib/api';
+import { competitionApi, adminApi } from '@/lib/api';
 import { logout } from '@/lib/auth';
 import ConfirmationModal from '@/components/ConfirmationModal';
 
@@ -35,6 +39,9 @@ interface Player {
   status: 'active' | 'eliminated';
   lives_remaining: number;
   joined_at: string;
+  paid: boolean;
+  paid_amount?: number;
+  paid_date?: string;
 }
 
 export default function CompetitionPlayersPage() {
@@ -49,6 +56,8 @@ export default function CompetitionPlayersPage() {
   const [removing, setRemoving] = useState<Set<number>>(new Set());
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState<{ id: number; name: string } | null>(null);
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [updatingPayment, setUpdatingPayment] = useState<Set<number>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -171,6 +180,53 @@ export default function CompetitionPlayersPage() {
     logout(router);
   };
 
+  const handlePaymentToggle = async (playerId: number, currentPaid: boolean) => {
+    if (!competition || updatingPayment.has(playerId)) return;
+    
+    setUpdatingPayment(prev => new Set([...prev, playerId]));
+    
+    try {
+      const response = await adminApi.updatePaymentStatus(
+        competition.id,
+        playerId,
+        !currentPaid, // Toggle the payment status
+        undefined, // No amount for now
+        !currentPaid ? new Date().toISOString() : undefined // Set current time if marking as paid
+      );
+      
+      if (response.data.return_code === 'SUCCESS') {
+        // Update the local state
+        setPlayers(prev => prev.map(player => 
+          player.id === playerId 
+            ? { 
+                ...player, 
+                paid: !currentPaid,
+                paid_date: !currentPaid ? new Date().toISOString() : undefined
+              }
+            : player
+        ));
+      } else {
+        alert(`Failed to update payment status: ${response.data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to update payment:', error);
+      alert('Failed to update payment status. Please try again.');
+    } finally {
+      setUpdatingPayment(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(playerId);
+        return newSet;
+      });
+    }
+  };
+
+  // Filter players based on payment status
+  const filteredPlayers = players.filter(player => {
+    if (paymentFilter === 'paid') return player.paid;
+    if (paymentFilter === 'unpaid') return !player.paid;
+    return true; // 'all'
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -179,8 +235,12 @@ export default function CompetitionPlayersPage() {
     );
   }
 
-  const activePlayers = players.filter(p => p.status === 'active');
-  const eliminatedPlayers = players.filter(p => p.status === 'eliminated');
+  const activePlayers = filteredPlayers.filter(p => p.status === 'active');
+  const eliminatedPlayers = filteredPlayers.filter(p => p.status === 'eliminated');
+  
+  // Payment summary
+  const paidCount = players.filter(p => p.paid).length;
+  const unpaidCount = players.filter(p => !p.paid).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -222,10 +282,10 @@ export default function CompetitionPlayersPage() {
           
           {/* Competition Stats */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">{activePlayers.length}</div>
-                <div className="text-sm text-gray-600">Active Players</div>
+                <div className="text-sm text-gray-600">Active</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{eliminatedPlayers.length}</div>
@@ -233,7 +293,15 @@ export default function CompetitionPlayersPage() {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900">{players.length}</div>
-                <div className="text-sm text-gray-600">Total Players</div>
+                <div className="text-sm text-gray-600">Total</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{paidCount}</div>
+                <div className="text-sm text-gray-600">Paid</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{unpaidCount}</div>
+                <div className="text-sm text-gray-600">Unpaid</div>
               </div>
             </div>
             
@@ -255,6 +323,48 @@ export default function CompetitionPlayersPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Payment Filter */}
+        <div className="mb-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-4">
+              <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <span className="text-sm font-medium text-gray-700">Filter by payment:</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPaymentFilter('all')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    paymentFilter === 'all'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  All ({players.length})
+                </button>
+                <button
+                  onClick={() => setPaymentFilter('paid')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    paymentFilter === 'paid'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Paid ({paidCount})
+                </button>
+                <button
+                  onClick={() => setPaymentFilter('unpaid')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    paymentFilter === 'unpaid'
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Unpaid ({unpaidCount})
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -280,6 +390,28 @@ export default function CompetitionPlayersPage() {
                   </div>
                   
                   <div className="flex items-center space-x-4">
+                    {/* Payment Status Badge */}
+                    <div className="flex flex-col items-end">
+                      {player.paid ? (
+                        <>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircleIcon className="h-3 w-3 mr-1" />
+                            Paid
+                          </span>
+                          {player.paid_date && (
+                            <span className="text-xs text-gray-500 mt-1">
+                              {new Date(player.paid_date).toLocaleDateString('en-GB')}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          <XCircleIcon className="h-3 w-3 mr-1" />
+                          Unpaid
+                        </span>
+                      )}
+                    </div>
+
                     <div className="text-right">
                       <p className="text-sm font-medium text-gray-900">
                         {player.lives_remaining} {player.lives_remaining === 1 ? 'life' : 'lives'}
@@ -289,6 +421,24 @@ export default function CompetitionPlayersPage() {
                         Joined {new Date(player.joined_at).toLocaleDateString('en-GB')}
                       </p>
                     </div>
+                    
+                    {/* Payment Toggle Button */}
+                    <button
+                      onClick={() => handlePaymentToggle(player.id, player.paid)}
+                      disabled={updatingPayment.has(player.id)}
+                      className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                        player.paid 
+                          ? 'text-orange-600 hover:bg-orange-50' 
+                          : 'text-green-600 hover:bg-green-50'
+                      }`}
+                      title={player.paid ? 'Mark as unpaid' : 'Mark as paid'}
+                    >
+                      {updatingPayment.has(player.id) ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b border-current"></div>
+                      ) : (
+                        <CurrencyDollarIcon className="h-5 w-5" />
+                      )}
+                    </button>
                     
                     <button
                       onClick={() => handleRemovePlayerClick(player.id, player.display_name)}
@@ -331,6 +481,28 @@ export default function CompetitionPlayersPage() {
                   </div>
                   
                   <div className="flex items-center space-x-4">
+                    {/* Payment Status Badge */}
+                    <div className="flex flex-col items-end">
+                      {player.paid ? (
+                        <>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircleIcon className="h-3 w-3 mr-1" />
+                            Paid
+                          </span>
+                          {player.paid_date && (
+                            <span className="text-xs text-gray-500 mt-1">
+                              {new Date(player.paid_date).toLocaleDateString('en-GB')}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                          <XCircleIcon className="h-3 w-3 mr-1" />
+                          Unpaid
+                        </span>
+                      )}
+                    </div>
+
                     <div className="text-right">
                       <p className="text-sm font-medium text-red-600">Eliminated</p>
                       <p className="text-xs text-gray-400 flex items-center">
@@ -338,6 +510,24 @@ export default function CompetitionPlayersPage() {
                         Joined {new Date(player.joined_at).toLocaleDateString('en-GB')}
                       </p>
                     </div>
+                    
+                    {/* Payment Toggle Button */}
+                    <button
+                      onClick={() => handlePaymentToggle(player.id, player.paid)}
+                      disabled={updatingPayment.has(player.id)}
+                      className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                        player.paid 
+                          ? 'text-orange-600 hover:bg-orange-50' 
+                          : 'text-green-600 hover:bg-green-50'
+                      }`}
+                      title={player.paid ? 'Mark as unpaid' : 'Mark as paid'}
+                    >
+                      {updatingPayment.has(player.id) ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b border-current"></div>
+                      ) : (
+                        <CurrencyDollarIcon className="h-5 w-5" />
+                      )}
+                    </button>
                     
                     <button
                       onClick={() => handleRemovePlayerClick(player.id, player.display_name)}

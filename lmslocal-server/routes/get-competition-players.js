@@ -120,7 +120,7 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Get all players in the competition
+    // Get all players in the competition including payment info
     const playersResult = await query(`
       SELECT 
         u.id,
@@ -128,7 +128,9 @@ router.post('/', verifyToken, async (req, res) => {
         u.email,
         cu.status,
         cu.lives_remaining,
-        cu.joined_at
+        cu.joined_at,
+        cu.paid,
+        cu.paid_date
       FROM competition_user cu
       INNER JOIN app_user u ON cu.user_id = u.id
       WHERE cu.competition_id = $1
@@ -151,7 +153,9 @@ router.post('/', verifyToken, async (req, res) => {
         email: row.email,
         status: row.status,
         lives_remaining: row.lives_remaining,
-        joined_at: row.joined_at
+        joined_at: row.joined_at,
+        paid: row.paid,
+        paid_date: row.paid_date
       }))
     });
 
