@@ -162,10 +162,10 @@ export default function LandingPage() {
               </p>
               <div className="space-y-3 mb-8">
                 <Link 
-                  href="/join" 
+                  href="/login" 
                   className="block w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold text-center transition-colors duration-200"
                 >
-                  Join Competition
+                  Player Login
                 </Link>
                 <div className="flex items-center justify-center text-sm text-gray-500">
                   <QrCodeIcon className="h-4 w-4 mr-2" />

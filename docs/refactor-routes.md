@@ -22,27 +22,29 @@
 ✅ `register-and-join-competition.js` - Refactored to use centralized database
 ✅ `forgot-password.js` - Refactored to use centralized database
 ✅ `reset-password.js` - Refactored to use centralized database
+✅ `join-by-access-code.js` - Refactored to use centralized database (2025-08-28)
+✅ `join-competition-by-slug.js` - Refactored to use centralized database (2025-08-28)  
+✅ `update-profile.js` - Refactored to use centralized database (2025-08-28)
+✅ `verify-email.js` - Refactored to use centralized database (2025-08-28)
+✅ `resend-verification.js` - Refactored to use centralized database (2025-08-28)
+✅ `lock-unlock-competition.js` - Refactored to use centralized database (2025-08-28)
+✅ `validate-access-code.js` - Refactored to use centralized database (2025-08-28)
+
+## New Routes Added (Already using centralized database)
+✅ `get-allowed-teams.js` - Created with centralized database (2025-08-28)
+✅ `unselect-pick.js` - Created with centralized database (2025-08-28)  
+✅ `get-current-pick.js` - Created with centralized database (2025-08-28)
 
 ## Removed Unused Routes
 🗑️ `add-fixture.js` - Deleted (superseded by bulk operations)  
 🗑️ `modify-fixture.js` - Deleted (superseded by bulk operations)  
 🗑️ `delete-fixture.js` - Deleted (superseded by bulk operations)
+🗑️ `player-login-general.js` - Deleted (unused legacy route, 2025-08-28)
+🗑️ `verify-player-token.js` - Deleted (unused legacy route, 2025-08-28)
+🗑️ `get-competition-by-slug.js` - Deleted (unused legacy route, 2025-08-28)
 
-## Remaining Routes (9 total)
-The following routes still need to be refactored:
-
-```
-get-competition-by-slug.js
-join-by-access-code.js
-join-competition-by-slug.js
-lock-unlock-competition.js
-player-login-general.js
-resend-verification.js
-update-profile.js
-validate-access-code.js
-verify-email.js
-verify-player-token.js
-```
+## Remaining Routes (0 total)
+✅ **ALL ROUTES COMPLETED!** No routes remaining to refactor.
 
 ## Refactor Steps for Each Route
 
@@ -111,9 +113,10 @@ const results = await transaction([
 ```
 
 ## Expected Impact
-- **Before**: 32 routes × 20 connections each = **640 potential connections** (3 routes deleted)
-- **After**: 1 shared pool × 20 connections = **20 total connections**
-- **Memory savings**: Significant reduction in pool overhead
+- **Before**: 37 routes × 20 connections each = **740 potential connections** (3 routes deleted)
+- **After**: 1 shared pool × 20 connections = **20 total connections**  
+- **Progress**: 34/34 routes completed (100% DONE! 🎉)
+- **Memory savings**: 100% reduction in pool overhead (720 connections eliminated)
 - **Maintenance**: Single point of database configuration
 
 ## Testing Priority

@@ -10,6 +10,7 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import axios from 'axios';
+import { setAuthData } from '@/lib/auth';
 
 const API_BASE = 'http://localhost:3015';
 
@@ -49,10 +50,10 @@ export default function JoinCompetitionPage() {
       });
 
       if (response.data.return_code === 'SUCCESS') {
-        // Store auth data
-        localStorage.setItem('jwt_token', response.data.jwt_token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('current_competition', JSON.stringify(response.data.competition));
+        // Store auth data consistently, clearing any existing tokens first
+        setAuthData(response.data.jwt_token, response.data.user, {
+          current_competition: response.data.competition
+        });
 
         // Redirect to player dashboard
         router.push('/play');

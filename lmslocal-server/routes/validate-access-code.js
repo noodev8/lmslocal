@@ -5,17 +5,9 @@ Validate Access Code Route - Check if access code is valid for competition
 */
 
 const express = require('express');
-const { Pool } = require('pg');
+const { query } = require('../database');
 const router = express.Router();
 
-// Database connection
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
 
 /*
 =======================================================================================================================================
@@ -63,7 +55,7 @@ router.post('/', async (req, res) => {
     }
 
     // Get competition and validate access code
-    const competitionResult = await pool.query(`
+    const competitionResult = await query(`
       SELECT id, name, slug, status, invite_code
       FROM competition
       WHERE slug = $1

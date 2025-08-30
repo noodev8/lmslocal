@@ -53,6 +53,7 @@ No test framework is currently configured. The package.json test scripts show pl
 ### Route Conventions
 - **All routes use POST method** for consistency
 - **All responses include "return_code"** field ("SUCCESS" or error type)
+- **ALWAYS return HTTP 200** - Use `return_code` for success/error status (prevents frontend crashes)
 - **Single route file per function** - no combining multiple endpoints
 - **Lowercase filenames with hyphens** (e.g., `set-pick.js`, `add-fixtures-bulk.js`)
 - **Database connections**: Each route creates its own Pool instance (anti-pattern - should use database.js)
@@ -73,21 +74,51 @@ Request Payload:
   "field2": "value2"                   // type, required/optional
 }
 
-Success Response:
+Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "field1": "value1",                  // type, description
   "field2": "value2"                   // type, description
 }
+
+Error Response (ALWAYS HTTP 200):
+{
+  "return_code": "ERROR_TYPE_1",
+  "message": "Descriptive error message"
+}
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
-"ERROR_TYPE_1"
-"ERROR_TYPE_2" 
+"VALIDATION_ERROR"
+"UNAUTHORIZED" 
+"NOT_FOUND"
 "SERVER_ERROR"
 =======================================================================================================================================
 */
 ```
+
+### API Response Pattern (NEW APIS ONLY)
+**CRITICAL**: All new APIs must follow this crash-safe pattern:
+
+```javascript
+// ✅ CORRECT - Always return 200, use return_code for status
+if (error) {
+  return res.status(200).json({
+    return_code: "ERROR_TYPE",
+    message: "User-friendly error message"
+  });
+}
+
+// ❌ WRONG - HTTP errors can crash frontend
+if (error) {
+  return res.status(404).json({ // Can cause unhandled promise rejection
+    return_code: "ERROR_TYPE",
+    message: "Error message"
+  });
+}
+```
+
+**Migration**: Existing APIs will be gradually migrated to this pattern. See `docs/api-migration-plan.md` for tracking progress.
 
 ## Database Configuration
 
@@ -187,3 +218,4 @@ lmslocal-web/
 - **Authentication**: Dual authentication system for admins (full login) and players (magic link)
 - **Access Methods**: Players join via competition slug or access code
 - **Data Flow**: PostgreSQL backend with real-time fixture and result management
+- Alays check /docs/DB-Schema.sql when about to make SQL database calls in the code, ensuring the correct table names and columns are used.

@@ -107,7 +107,7 @@ router.post('/', verifyToken, async (req, res) => {
     // Get fixture details and verify user is organiser
     const fixtureCheck = await query(`
       SELECT f.id, f.home_team, f.away_team, f.home_team_short, f.away_team_short, f.round_id,
-             r.competition_id, r.round_number, c.organiser_id, c.name as competition_name
+             r.competition_id, r.round_number, r.lock_time, c.organiser_id, c.name as competition_name
       FROM fixture f
       JOIN round r ON f.round_id = r.id
       JOIN competition c ON r.competition_id = c.id
@@ -127,6 +127,17 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(403).json({
         return_code: "UNAUTHORIZED",
         message: "Only the competition organiser can set fixture results"
+      });
+    }
+
+    // Check if round is locked (can only set results after lock time)
+    const now = new Date();
+    const lockTime = new Date(fixture.lock_time);
+    
+    if (now < lockTime) {
+      return res.status(400).json({
+        return_code: "ROUND_NOT_LOCKED",
+        message: `Cannot set fixture results before round lock time. Round locks at ${lockTime.toISOString()}`
       });
     }
 

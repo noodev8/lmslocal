@@ -7,7 +7,7 @@ Register and Join Competition Route - Create account and auto-join competition
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { query, transaction } = require('../database');
+const { query, transaction, populateAllowedTeams } = require('../database');
 const router = express.Router();
 
 /*
@@ -189,6 +189,9 @@ router.post('/', async (req, res) => {
 
       // Commit transaction
       await client.query('COMMIT');
+
+      // Populate allowed teams for this player (after transaction)
+      await populateAllowedTeams(competition.id, newUser.id);
 
       res.json({
         return_code: "SUCCESS",

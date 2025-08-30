@@ -117,12 +117,23 @@ router.post('/', verifyToken, async (req, res) => {
     // Update the round
     const result = await db.query(`
       UPDATE round 
-      SET lock_time = $2, updated_at = CURRENT_TIMESTAMP
+      SET lock_time = $2
       WHERE id = $1
       RETURNING *
     `, [round_id, lock_time]);
 
     const updatedRound = result.rows[0];
+
+    // If this is Round 1 and the lock time is in the past (locked now), delete the invite code
+    if (roundData.round_number === 1 && new Date(lock_time) <= new Date()) {
+      await db.query(`
+        UPDATE competition 
+        SET invite_code = NULL 
+        WHERE id = $1
+      `, [roundData.competition_id]);
+      
+      console.log(`Deleted invite code for competition ${roundData.competition_id} as Round 1 is now locked`);
+    }
 
     // Log the update
     await db.query(`

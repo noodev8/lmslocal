@@ -135,6 +135,35 @@ router.post('/', verifyToken, async (req, res) => {
     // Convert home/away to team short code
     const teamShortCode = team === 'home' ? fixtureInfo.home_team_short : fixtureInfo.away_team_short;
 
+    // Get team ID from short code for allowed teams check
+    const teamResult = await query(`
+      SELECT id FROM team WHERE short_name = $1
+    `, [teamShortCode]);
+
+    if (teamResult.rows.length === 0) {
+      return res.status(400).json({
+        return_code: "INVALID_TEAM",
+        message: "Team not found"
+      });
+    }
+
+    const teamId = teamResult.rows[0].id;
+
+    // Check if team is in user's allowed teams (unless admin override)
+    if (!isAdmin) {
+      const allowedTeamCheck = await query(`
+        SELECT id FROM allowed_teams 
+        WHERE competition_id = $1 AND user_id = $2 AND team_id = $3
+      `, [competition_id, target_user_id, teamId]);
+
+      if (allowedTeamCheck.rows.length === 0) {
+        return res.status(400).json({
+          return_code: "TEAM_NOT_ALLOWED",
+          message: "You are not allowed to pick this team"
+        });
+      }
+    }
+
     // Verify target user is part of this competition
     const memberCheck = await query(`
       SELECT cu.status
@@ -175,6 +204,28 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Check if user already has a pick for this round (for change handling)
+    let oldTeamId = null;
+    if (!isAdmin) {
+      const existingPickResult = await query(`
+        SELECT p.team
+        FROM pick p
+        WHERE p.round_id = $1 AND p.user_id = $2
+      `, [round_id, target_user_id]);
+
+      if (existingPickResult.rows.length > 0) {
+        const oldTeamShortCode = existingPickResult.rows[0].team;
+        // Get the old team ID to restore it to allowed_teams
+        const oldTeamResult = await query(`
+          SELECT id FROM team WHERE short_name = $1
+        `, [oldTeamShortCode]);
+        
+        if (oldTeamResult.rows.length > 0) {
+          oldTeamId = oldTeamResult.rows[0].id;
+        }
+      }
+    }
+
     // Insert or update the pick
     const result = await query(`
       INSERT INTO pick (round_id, user_id, team, fixture_id, created_at)
@@ -186,17 +237,39 @@ router.post('/', verifyToken, async (req, res) => {
 
     const pick = result.rows[0];
 
+    // Handle allowed_teams changes (unless admin - they can override rules)
+    if (!isAdmin) {
+      // If this was a change, restore the old team to allowed_teams
+      if (oldTeamId) {
+        await query(`
+          INSERT INTO allowed_teams (competition_id, user_id, team_id)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
+        `, [competition_id, target_user_id, oldTeamId]);
+      }
+
+      // Remove the new team from allowed_teams
+      await query(`
+        DELETE FROM allowed_teams 
+        WHERE competition_id = $1 AND user_id = $2 AND team_id = $3
+      `, [competition_id, target_user_id, teamId]);
+    }
+
     // Log the pick
+    const actionType = oldTeamId ? 'Pick Changed' : 'Pick Made';
     const logDetails = isAdmin && !isOwnPick 
-      ? `Admin set pick: ${teamShortCode} for User ${target_user_id} in Round ${fixtureInfo.round_number}`
-      : `Player picked ${teamShortCode} for Round ${fixtureInfo.round_number}`;
+      ? `Admin set pick: ${teamShortCode} for User ${target_user_id} in Round ${fixtureInfo.round_number}${oldTeamId ? ' (changed)' : ''}`
+      : oldTeamId 
+        ? `Player changed pick from previous selection to ${teamShortCode} for Round ${fixtureInfo.round_number}`
+        : `Player picked ${teamShortCode} for Round ${fixtureInfo.round_number}`;
       
     await query(`
       INSERT INTO audit_log (competition_id, user_id, action, details)
-      VALUES ($1, $2, 'Pick Made', $3)
+      VALUES ($1, $2, $3, $4)
     `, [
       competition_id,
       authenticated_user_id,
+      actionType,
       logDetails
     ]);
 

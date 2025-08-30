@@ -5,19 +5,10 @@ Join Competition by Slug Route - Player joins with magic link authentication
 */
 
 const express = require('express');
-const { Pool } = require('pg');
+const { query, populateAllowedTeams } = require('../database');
 const { sendPlayerMagicLink } = require('../services/emailService');
 const { generateToken } = require('../utils/tokenUtils');
 const router = express.Router();
-
-// Database connection
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
 
 /*
 =======================================================================================================================================
@@ -76,7 +67,7 @@ router.post('/', async (req, res) => {
     }
 
     // Get competition by slug and validate invite code
-    const competitionResult = await pool.query(`
+    const competitionResult = await query(`
       SELECT id, name, invite_code, status 
       FROM competition 
       WHERE slug = $1
@@ -101,7 +92,7 @@ router.post('/', async (req, res) => {
 
     // Check if user already exists
     let user;
-    const existingUserResult = await pool.query(
+    const existingUserResult = await query(
       'SELECT id, display_name, email FROM app_user WHERE email = $1',
       [email.toLowerCase().trim()]
     );
@@ -111,14 +102,14 @@ router.post('/', async (req, res) => {
       
       // Update display name if different
       if (user.display_name !== display_name.trim()) {
-        await pool.query(
+        await query(
           'UPDATE app_user SET display_name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
           [display_name.trim(), user.id]
         );
       }
     } else {
       // Create new user (player account)
-      const newUserResult = await pool.query(`
+      const newUserResult = await query(`
         INSERT INTO app_user (
           email,
           display_name,
@@ -135,7 +126,7 @@ router.post('/', async (req, res) => {
     }
 
     // Check if already joined this competition
-    const existingMemberResult = await pool.query(`
+    const existingMemberResult = await query(`
       SELECT id FROM competition_user 
       WHERE competition_id = $1 AND user_id = $2
     `, [competition.id, user.id]);
@@ -144,7 +135,7 @@ router.post('/', async (req, res) => {
       // Already joined - still send magic link for login
     } else {
       // Add to competition
-      await pool.query(`
+      await query(`
         INSERT INTO competition_user (
           competition_id,
           user_id,
@@ -155,8 +146,11 @@ router.post('/', async (req, res) => {
         VALUES ($1, $2, 'active', (SELECT lives_per_player FROM competition WHERE id = $1), CURRENT_TIMESTAMP)
       `, [competition.id, user.id]);
 
+      // Populate allowed teams for this player
+      await populateAllowedTeams(competition.id, user.id);
+
       // Log the join action
-      await pool.query(`
+      await query(`
         INSERT INTO audit_log (competition_id, user_id, action, details)
         VALUES ($1, $2, 'Player Joined', $3)
       `, [
@@ -172,7 +166,7 @@ router.post('/', async (req, res) => {
     expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 minute expiry
 
     // Store token in database
-    await pool.query(`
+    await query(`
       UPDATE app_user 
       SET auth_token = $1, auth_token_expires = $2, updated_at = CURRENT_TIMESTAMP
       WHERE id = $3

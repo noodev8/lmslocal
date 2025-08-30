@@ -8,7 +8,7 @@ Purpose: Create new competition for authenticated user
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { query } = require('../database');
+const { query, populateAllowedTeams } = require('../database');
 const router = express.Router();
 
 // Middleware to verify JWT token
@@ -115,8 +115,8 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Generate unique invite code in format: <organiser_id>.<4digit_pin>
-    const generateInviteCode = async (organiserId) => {
+    // Generate unique invite code - simple 4-digit format
+    const generateInviteCode = async () => {
       let isUnique = false;
       let inviteCode = '';
       let attempts = 0;
@@ -124,13 +124,12 @@ router.post('/', verifyToken, async (req, res) => {
 
       while (!isUnique && attempts < maxAttempts) {
         // Generate 4-digit random number
-        const pin = Math.floor(1000 + Math.random() * 9000);
-        inviteCode = `${organiserId}.${pin}`;
+        inviteCode = Math.floor(1000 + Math.random() * 9000).toString();
 
-        // Check if this code already exists for this organiser
+        // Check if this code already exists
         const existingCode = await query(
-          'SELECT id FROM competition WHERE organiser_id = $1 AND invite_code = $2',
-          [organiserId, inviteCode]
+          'SELECT id FROM competition WHERE invite_code = $1',
+          [inviteCode]
         );
 
         if (existingCode.rows.length === 0) {
@@ -181,7 +180,7 @@ router.post('/', verifyToken, async (req, res) => {
     };
 
     // Generate the invite code and slug
-    const inviteCode = await generateInviteCode(organiser_id);
+    const inviteCode = await generateInviteCode();
     const slug = await generateSlug();
 
     // Create the competition with invite code and slug
@@ -229,6 +228,9 @@ router.post('/', verifyToken, async (req, res) => {
         organiser_id,
         competition.lives_per_player
       ]);
+
+      // Populate allowed teams for the organiser as player
+      await populateAllowedTeams(competition.id, organiser_id);
     }
 
     // Log the creation

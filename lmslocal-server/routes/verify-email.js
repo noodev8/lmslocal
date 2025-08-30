@@ -5,19 +5,10 @@ Email Verification Routes
 */
 
 const express = require('express');
-const { Pool } = require('pg');
+const { query } = require('../database');
 const emailService = require('../services/emailService');
 const tokenUtils = require('../utils/tokenUtils');
 const router = express.Router();
-
-// Database connection
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
 
 /*
 =======================================================================================================================================
@@ -59,7 +50,7 @@ router.get('/', async (req, res) => {
     }
 
     // Find user by token
-    const result = await pool.query(
+    const result = await query(
       'SELECT id, email, display_name, auth_token_expires, email_verified FROM app_user WHERE auth_token = $1',
       [token]
     );
@@ -153,7 +144,7 @@ router.get('/', async (req, res) => {
     }
 
     // Verify the email
-    await pool.query(
+    await query(
       'UPDATE app_user SET email_verified = true, auth_token = NULL, auth_token_expires = NULL, updated_at = NOW() WHERE id = $1',
       [user.id]
     );

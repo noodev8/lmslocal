@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TrophyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { authApi, LoginRequest } from '@/lib/api';
+import { authApi, userApi, LoginRequest } from '@/lib/api';
+import { setAuthData } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,12 +28,31 @@ export default function LoginPage() {
       const response = await authApi.login(data);
       
       if (response.data.return_code === 'SUCCESS') {
-        // Store token and user data
-        localStorage.setItem('jwt_token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        // Store token and user data consistently
+        setAuthData(response.data.token, response.data.user);
         
-        // Redirect to dashboard
-        router.push('/dashboard');
+        // Check user type to determine redirect
+        try {
+          const userTypeResponse = await userApi.checkUserType();
+          if (userTypeResponse.data.return_code === 'SUCCESS') {
+            const userType = userTypeResponse.data.user_type;
+            
+            // Redirect based on user type
+            if (userType === 'player') {
+              router.push('/play');
+            } else {
+              // Default to dashboard for organizers and mixed users
+              router.push('/dashboard');
+            }
+          } else {
+            // Fallback to dashboard if user type check fails
+            router.push('/dashboard');
+          }
+        } catch (error) {
+          console.error('User type check failed:', error);
+          // Fallback to dashboard if user type check fails
+          router.push('/dashboard');
+        }
       } else {
         setError(response.data.return_code === 'INVALID_CREDENTIALS' 
           ? 'Invalid email or password' 
@@ -55,16 +75,10 @@ export default function LoginPage() {
           </Link>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Sign in to your account
+          Sign in to LMSLocal
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or{' '}
-          <Link
-            href="/register"
-            className="font-medium text-green-600 hover:text-green-500"
-          >
-            create a new account
-          </Link>
+          For both organizers and players
         </p>
       </div>
 
@@ -164,29 +178,6 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-2 text-gray-500">Player access</span>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600 mb-3">
-                Joining a competition as a player?
-              </p>
-              <Link
-                href="/player/login"
-                className="inline-flex justify-center rounded-md border border-green-300 bg-white py-2 px-4 text-sm font-medium text-green-700 shadow-sm hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              >
-                Player Login
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>

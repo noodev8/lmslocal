@@ -1,8 +1,6 @@
 /*
 =======================================================================================================================================
-Check User Type Route - Determine if user is primarily organizer or player
-=======================================================================================================================================
-Purpose: Analyze user's competitions to determine their primary role for smart routing
+Get Allowed Teams Route - Get teams player is allowed to pick
 =======================================================================================================================================
 */
 
@@ -28,6 +26,7 @@ const verifyToken = async (req, res, next) => {
     // Get user from database
     const userId = decoded.user_id || decoded.userId; // Handle both formats
     const result = await query('SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', [userId]);
+    
     if (result.rows.length === 0) {
       return res.status(401).json({
         return_code: "UNAUTHORIZED",
@@ -47,63 +46,58 @@ const verifyToken = async (req, res, next) => {
 
 /*
 =======================================================================================================================================
-API Route: /check-user-type
+API Route: /get-allowed-teams
 =======================================================================================================================================
 Method: POST
-Purpose: Determine user's primary role (organizer vs player) and suggest default dashboard
+Purpose: Get teams that user is allowed to pick in a competition
 =======================================================================================================================================
 Request Payload:
-{}
+{
+  "competition_id": 123
+}
 
 Success Response:
 {
   "return_code": "SUCCESS",
-  "user_type": "admin", // "admin" or "player"
-  "suggested_route": "/dashboard" // "/dashboard" for admin, "/play" for player
+  "allowed_teams": [
+    {
+      "team_id": 1,
+      "name": "Arsenal",
+      "short_name": "ARS"
+    }
+  ]
 }
-=======================================================================================================================================
-Return Codes:
-"SUCCESS"
-"UNAUTHORIZED"
-"USER_NOT_FOUND"
-"SERVER_ERROR"
 =======================================================================================================================================
 */
 router.post('/', verifyToken, async (req, res) => {
   try {
+    const { competition_id } = req.body;
     const user_id = req.user.id;
 
-    // Get user type directly from app_user table
-    const userResult = await query(
-      'SELECT user_type FROM app_user WHERE id = $1',
-      [user_id]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({
-        return_code: "USER_NOT_FOUND",
-        message: "User not found"
+    // Basic validation
+    if (!competition_id || !Number.isInteger(competition_id)) {
+      return res.status(400).json({
+        return_code: "VALIDATION_ERROR",
+        message: "Competition ID is required and must be a number"
       });
     }
 
-    const user_type = userResult.rows[0].user_type || 'player'; // Default to player if null
-    
-    // Determine suggested route based on user type
-    let suggested_route;
-    if (user_type === 'admin') {
-      suggested_route = "/dashboard";
-    } else {
-      suggested_route = "/play";
-    }
+    // Get allowed teams for user in this competition
+    const result = await query(`
+      SELECT at.team_id, t.name, t.short_name
+      FROM allowed_teams at
+      JOIN team t ON at.team_id = t.id
+      WHERE at.competition_id = $1 AND at.user_id = $2
+      ORDER BY t.name
+    `, [competition_id, user_id]);
 
     res.json({
       return_code: "SUCCESS",
-      user_type: user_type,
-      suggested_route: suggested_route
+      allowed_teams: result.rows
     });
 
   } catch (error) {
-    console.error('Check user type error:', error);
+    console.error('Get allowed teams error:', error);
     res.status(500).json({
       return_code: "SERVER_ERROR",
       message: "Internal server error"

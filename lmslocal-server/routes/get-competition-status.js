@@ -85,7 +85,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Verify user is the organiser
     const competitionCheck = await query(
-      'SELECT organiser_id, name FROM competition WHERE id = $1',
+      'SELECT organiser_id, name, invite_code FROM competition WHERE id = $1',
       [competition_id]
     );
 
@@ -133,15 +133,63 @@ router.post('/', verifyToken, async (req, res) => {
 
     const fixtureCount = parseInt(fixtureCountResult.rows[0].count);
 
+    // Get player counts
+    const statusCounts = await query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'active') as players_active,
+        COUNT(*) FILTER (WHERE status = 'OUT') as players_out,
+        COUNT(*) as total_players
+      FROM competition_user 
+      WHERE competition_id = $1
+    `, [competition_id]);
+
+    const counts = statusCounts.rows[0];
+
+    // Check if round has been calculated (any fixtures have been processed)
+    const calculatedCheck = await query(`
+      SELECT COUNT(*) as count 
+      FROM fixture 
+      WHERE round_id = $1 AND processed IS NOT NULL
+    `, [currentRound.id]);
+
+    const roundCalculated = parseInt(calculatedCheck.rows[0].count) > 0;
+    
+    // If there's exactly 1 active player and no invite code (competition started), get the winner details
+    let winner = null;
+    const competition = competitionCheck.rows[0];
+    if (parseInt(counts.players_active) === 1 && !competition.invite_code) {
+      const winnerResult = await query(`
+        SELECT u.display_name, u.email, cu.joined_at
+        FROM competition_user cu
+        INNER JOIN app_user u ON cu.user_id = u.id
+        WHERE cu.competition_id = $1 AND cu.status = 'active'
+        LIMIT 1
+      `, [competition_id]);
+      
+      if (winnerResult.rows.length > 0) {
+        winner = {
+          display_name: winnerResult.rows[0].display_name,
+          email: winnerResult.rows[0].email,
+          joined_at: winnerResult.rows[0].joined_at
+        };
+      }
+    }
+
     res.json({
       return_code: "SUCCESS",
       current_round: {
         id: currentRound.id,
         round_number: currentRound.round_number,
-        lock_time: currentRound.lock_time
+        lock_time: currentRound.lock_time,
+        calculated: roundCalculated
       },
       fixture_count: fixtureCount,
-      should_route_to_results: fixtureCount > 0
+      should_route_to_results: fixtureCount > 0,
+      players_active: parseInt(counts.players_active),
+      players_out: parseInt(counts.players_out), 
+      total_players: parseInt(counts.total_players),
+      round_calculated: roundCalculated,
+      winner: winner
     });
 
   } catch (error) {

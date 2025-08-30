@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TrophyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authApi, RegisterRequest } from '@/lib/api';
+import { setAuthData } from '@/lib/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -31,9 +32,8 @@ export default function RegisterPage() {
       const response = await authApi.register(data);
       
       if (response.data.return_code === 'SUCCESS') {
-        // Store token and user data
-        localStorage.setItem('jwt_token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        // Store token and user data consistently
+        setAuthData(response.data.token, response.data.user);
         
         // Redirect to dashboard
         router.push('/dashboard');

@@ -1,6 +1,18 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3015';
+// Dynamic API URL that works for both localhost development and network access
+const getApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    // Server-side rendering
+    return 'http://localhost:3015';
+  }
+  
+  // Client-side - use the same host as the frontend but with backend port
+  const hostname = window.location.hostname;
+  return `http://${hostname}:3015`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -28,8 +40,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('jwt_token');
       localStorage.removeItem('user');
+      
+      // Dispatch custom event instead of hard redirect
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('auth-expired'));
       }
     }
     return Promise.reject(error);
@@ -73,8 +87,6 @@ export const authApi = {
 // Player auth API calls (magic link system)
 export const playerApi = {
   login: (email: string, competition_slug?: string) => api.post<ApiResponse<any>>('/player-login', { email, competition_slug }),
-  loginGeneral: (email: string) => api.post<ApiResponse<any>>('/player-login-general', { email }),
-  verifyToken: (token: string) => api.post<ApiResponse<{ user: any }>>('/verify-player-token', { token }),
   joinCompetition: (access_code: string) => api.post<ApiResponse<any>>('/join-competition', { access_code }),
   joinBySlug: (slug: string) => api.post<ApiResponse<any>>('/join-competition-by-slug', { slug }),
   registerAndJoin: (name: string, email: string, access_code: string) => api.post<ApiResponse<any>>('/register-and-join-competition', { name, email, access_code }),
@@ -85,7 +97,8 @@ export const competitionApi = {
   create: (data: CreateCompetitionRequest) => api.post<ApiResponse<{ competition_id: string }>>('/create-competition', data),
   getMyCompetitions: () => api.post<ApiResponse<{ competitions: any[] }>>('/mycompetitions', {}),
   getStatus: (competition_id: number) => api.post<ApiResponse<{ current_round: any; fixture_count: number; should_route_to_results: boolean }>>('/get-competition-status', { competition_id }),
-  getBySlug: (slug: string) => api.post<ApiResponse<{ competition: any }>>('/get-competition-by-slug', { slug }),
+  getPlayers: (competition_id: number) => api.post<ApiResponse<{ competition: any; players: any[] }>>('/get-competition-players', { competition_id }),
+  removePlayer: (competition_id: number, player_id: number) => api.post<ApiResponse<{ removed_data: any }>>('/remove-player', { competition_id, player_id }),
   lockUnlock: (competition_id: string, is_locked: boolean) => api.post<ApiResponse<any>>('/lock-unlock-competition', { competition_id, is_locked }),
   validateAccessCode: (access_code: string) => api.post<ApiResponse<{ competition: any }>>('/validate-access-code', { access_code }),
   joinByAccessCode: (access_code: string) => api.post<ApiResponse<any>>('/join-by-access-code', { access_code }),
@@ -109,6 +122,8 @@ export const fixtureApi = {
   get: (round_id: string) => api.post<ApiResponse<{ fixtures: any[] }>>('/get-fixtures', { round_id: parseInt(round_id) }),
   setResult: (fixture_id: number, result: 'home_win' | 'away_win' | 'draw') =>
     api.post<ApiResponse<any>>('/set-fixture-result', { fixture_id, result }),
+  getCalculated: (round_id: number) => api.post<ApiResponse<{ calculated_fixture_ids: number[] }>>('/get-calculated-fixtures', { round_id }),
+  getPickCounts: (round_id: number) => api.post<ApiResponse<{ pick_counts: Record<string, number> }>>('/get-fixture-pick-count', { round_id }),
 };
 
 // Team API calls
@@ -119,15 +134,20 @@ export const teamApi = {
 
 // Player actions
 export const playerActionApi = {
-  setPick: (round_id: string, team_name: string) => api.post<ApiResponse<any>>('/set-pick', { round_id, team_name }),
-  calculateResults: (round_id: string) => api.post<ApiResponse<any>>('/calculate-results', { round_id }),
+  setPick: (fixture_id: number, team: string) => api.post<ApiResponse<any>>('/set-pick', { fixture_id, team }),
+  unselectPick: (round_id: number) => api.post<ApiResponse<{ warning?: string }>>('/unselect-pick', { round_id }),
+  getCurrentPick: (round_id: number) => api.post<ApiResponse<{ pick?: { team: string, fixture_id: number } }>>('/get-current-pick', { round_id }),
+  calculateResults: (round_id: number) => api.post<ApiResponse<any>>('/calculate-results', { round_id: parseInt(round_id.toString()) }),
 };
 
 // User profile
 export const userApi = {
   updateProfile: (updates: any) => api.post<ApiResponse<any>>('/update-profile', updates),
   getPlayerDashboard: () => api.post<ApiResponse<{ competitions: any[] }>>('/player-dashboard', {}),
+  getAllowedTeams: (competition_id: number) => api.post<ApiResponse<{ allowed_teams: any[] }>>('/get-allowed-teams', { competition_id }),
   checkUserType: () => api.post<ApiResponse<{ user_type: string; suggested_route: string; organized_count: number; participating_count: number; has_organized: boolean; has_participated: boolean }>>('/check-user-type', {}),
+  getCompetitionStandings: (competition_id: number) => api.post<ApiResponse<{ competition: any; players: any[] }>>('/get-competition-standings', { competition_id }),
+  joinCompetitionByCode: (competition_code: string) => api.post<ApiResponse<{ competition: { id: number; name: string } }>>('/join-competition-by-code', { competition_code }),
 };
 
 export default api;

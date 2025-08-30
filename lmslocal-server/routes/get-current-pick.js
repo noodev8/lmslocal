@@ -1,8 +1,6 @@
 /*
 =======================================================================================================================================
-Check User Type Route - Determine if user is primarily organizer or player
-=======================================================================================================================================
-Purpose: Analyze user's competitions to determine their primary role for smart routing
+Get Current Pick Route - Get player's current pick for a round
 =======================================================================================================================================
 */
 
@@ -28,6 +26,7 @@ const verifyToken = async (req, res, next) => {
     // Get user from database
     const userId = decoded.user_id || decoded.userId; // Handle both formats
     const result = await query('SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', [userId]);
+    
     if (result.rows.length === 0) {
       return res.status(401).json({
         return_code: "UNAUTHORIZED",
@@ -47,63 +46,62 @@ const verifyToken = async (req, res, next) => {
 
 /*
 =======================================================================================================================================
-API Route: /check-user-type
+API Route: /get-current-pick
 =======================================================================================================================================
 Method: POST
-Purpose: Determine user's primary role (organizer vs player) and suggest default dashboard
+Purpose: Get player's current pick for a specific round
 =======================================================================================================================================
 Request Payload:
-{}
+{
+  "round_id": 5
+}
 
 Success Response:
 {
   "return_code": "SUCCESS",
-  "user_type": "admin", // "admin" or "player"
-  "suggested_route": "/dashboard" // "/dashboard" for admin, "/play" for player
+  "pick": {
+    "team": "AVL",
+    "fixture_id": 15,
+    "created_at": "2025-08-28T12:00:00Z"
+  }
 }
-=======================================================================================================================================
-Return Codes:
-"SUCCESS"
-"UNAUTHORIZED"
-"USER_NOT_FOUND"
-"SERVER_ERROR"
+
+No Pick Response:
+{
+  "return_code": "SUCCESS",
+  "pick": null
+}
 =======================================================================================================================================
 */
 router.post('/', verifyToken, async (req, res) => {
   try {
+    const { round_id } = req.body;
     const user_id = req.user.id;
 
-    // Get user type directly from app_user table
-    const userResult = await query(
-      'SELECT user_type FROM app_user WHERE id = $1',
-      [user_id]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({
-        return_code: "USER_NOT_FOUND",
-        message: "User not found"
+    // Basic validation
+    if (!round_id || !Number.isInteger(round_id)) {
+      return res.status(400).json({
+        return_code: "VALIDATION_ERROR",
+        message: "Round ID is required and must be a number"
       });
     }
 
-    const user_type = userResult.rows[0].user_type || 'player'; // Default to player if null
-    
-    // Determine suggested route based on user type
-    let suggested_route;
-    if (user_type === 'admin') {
-      suggested_route = "/dashboard";
-    } else {
-      suggested_route = "/play";
-    }
+    // Get current pick for this round
+    const result = await query(`
+      SELECT p.team, p.fixture_id, p.created_at
+      FROM pick p
+      WHERE p.round_id = $1 AND p.user_id = $2
+    `, [round_id, user_id]);
+
+    const pick = result.rows.length > 0 ? result.rows[0] : null;
 
     res.json({
       return_code: "SUCCESS",
-      user_type: user_type,
-      suggested_route: suggested_route
+      pick: pick
     });
 
   } catch (error) {
-    console.error('Check user type error:', error);
+    console.error('Get current pick error:', error);
     res.status(500).json({
       return_code: "SERVER_ERROR",
       message: "Internal server error"

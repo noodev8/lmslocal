@@ -6,17 +6,9 @@ Lock Unlock Competition Route
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { Pool } = require('pg');
+const { query } = require('../database');
 const router = express.Router();
 
-// Database connection
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
 
 // Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
@@ -33,7 +25,7 @@ const verifyToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Get user from database
-    const result = await pool.query('SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', [decoded.user_id || decoded.userId]);
+    const result = await query('SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', [decoded.user_id || decoded.userId]);
     if (result.rows.length === 0) {
       return res.status(401).json({
         return_code: "UNAUTHORIZED",
@@ -105,7 +97,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Verify user is the organiser
-    const competitionCheck = await pool.query(
+    const competitionCheck = await query(
       'SELECT organiser_id, name FROM competition WHERE id = $1',
       [competition_id]
     );
@@ -125,7 +117,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Update competition status
-    const result = await pool.query(`
+    const result = await query(`
       UPDATE competition 
       SET status = $1 
       WHERE id = $2
@@ -142,7 +134,7 @@ router.post('/', verifyToken, async (req, res) => {
     const competition = result.rows[0];
 
     // Log the action
-    await pool.query(`
+    await query(`
       INSERT INTO audit_log (competition_id, user_id, action, details)
       VALUES ($1, $2, 'Competition Status Changed', $3)
     `, [

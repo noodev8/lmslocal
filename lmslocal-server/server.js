@@ -26,6 +26,8 @@ const mycompetitionsRoute = require('./routes/mycompetitions');
 const createCompetitionRoute = require('./routes/create-competition');
 const teamListsRoute = require('./routes/team-lists');
 const getTeamsRoute = require('./routes/get-teams');
+const getCompetitionPlayersRoute = require('./routes/get-competition-players');
+const removePlayerRoute = require('./routes/remove-player');
 const createRoundRoute = require('./routes/create-round');
 const updateRoundRoute = require('./routes/update-round');
 const getRoundsRoute = require('./routes/get-rounds');
@@ -35,22 +37,26 @@ const getFixturesRoute = require('./routes/get-fixtures');
 const setFixtureResultRoute = require('./routes/set-fixture-result');
 // const lockUnlockRoundRoute = require('./routes/lock-unlock-round'); // DISABLED: Round status removed
 const lockUnlockCompetitionRoute = require('./routes/lock-unlock-competition');
-const getCompetitionBySlugRoute = require('./routes/get-competition-by-slug');
 const getCompetitionStatusRoute = require('./routes/get-competition-status');
-const joinCompetitionBySlugRoute = require('./routes/join-competition-by-slug');
-const verifyPlayerTokenRoute = require('./routes/verify-player-token');
+// const joinCompetitionBySlugRoute = require('./routes/join-competition-by-slug'); // DISABLED - using single login
 const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round');
 const setPickRoute = require('./routes/set-pick');
 const calculateResultsRoute = require('./routes/calculate-results');
 const joinCompetitionRoute = require('./routes/join-competition');
-const playerLoginRoute = require('./routes/player-login');
-const playerLoginGeneralRoute = require('./routes/player-login-general');
+// const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
 const validateAccessCodeRoute = require('./routes/validate-access-code');
-const registerAndJoinCompetitionRoute = require('./routes/register-and-join-competition');
+// const registerAndJoinCompetitionRoute = require('./routes/register-and-join-competition'); // DISABLED - using single login
 const joinByAccessCodeRoute = require('./routes/join-by-access-code');
-const joinByCodeRoute = require('./routes/join-by-code');
+// const joinByCodeRoute = require('./routes/join-by-code'); // DISABLED - using single login
 const playerDashboardRoute = require('./routes/player-dashboard');
 const checkUserTypeRoute = require('./routes/check-user-type');
+const getAllowedTeamsRoute = require('./routes/get-allowed-teams');
+const unselectPickRoute = require('./routes/unselect-pick');
+const getCurrentPickRoute = require('./routes/get-current-pick');
+const getCalculatedFixturesRoute = require('./routes/get-calculated-fixtures');
+const getCompetitionStandingsRoute = require('./routes/get-competition-standings');
+const joinCompetitionByCodeRoute = require('./routes/join-competition-by-code');
+const getFixturePickCountRoute = require('./routes/get-fixture-pick-count');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -107,12 +113,22 @@ const allowedOrigins = [
   'http://localhost:3003'
 ];
 
+// Function to check if origin is allowed
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Allow requests with no origin
+  if (allowedOrigins.includes(origin)) return true;
+  if (process.env.CLIENT_URL === origin) return true;
+  
+  // Allow any local network IP on port 3000 (for mobile browser access)
+  const localNetworkPattern = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):3000$/;
+  if (localNetworkPattern.test(origin)) return true;
+  
+  return false;
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.CLIENT_URL === origin) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
@@ -143,6 +159,8 @@ app.use('/mycompetitions', mycompetitionsRoute);
 app.use('/create-competition', createCompetitionRoute);
 app.use('/team-lists', teamListsRoute);
 app.use('/get-teams', getTeamsRoute);
+app.use('/get-competition-players', getCompetitionPlayersRoute);
+app.use('/remove-player', removePlayerRoute);
 app.use('/create-round', createRoundRoute);
 app.use('/update-round', updateRoundRoute);
 app.use('/get-rounds', getRoundsRoute);
@@ -152,22 +170,26 @@ app.use('/get-fixtures', getFixturesRoute);
 app.use('/set-fixture-result', setFixtureResultRoute);
 // app.use('/lock-unlock-round', lockUnlockRoundRoute); // DISABLED: Round status removed
 app.use('/lock-unlock-competition', lockUnlockCompetitionRoute);
-app.use('/get-competition-by-slug', getCompetitionBySlugRoute);
 app.use('/get-competition-status', getCompetitionStatusRoute);
-app.use('/join-competition-by-slug', joinCompetitionBySlugRoute);
-app.use('/verify-player-token', verifyPlayerTokenRoute);
+// app.use('/join-competition-by-slug', joinCompetitionBySlugRoute); // DISABLED - using single login
 app.use('/get-player-current-round', getPlayerCurrentRoundRoute);
 app.use('/set-pick', setPickRoute);
 app.use('/calculate-results', calculateResultsRoute);
 app.use('/join-competition', joinCompetitionRoute);
-app.use('/player-login', playerLoginRoute);
-app.use('/player-login-general', playerLoginGeneralRoute);
+// app.use('/player-login', playerLoginRoute); // DISABLED - using single login
 app.use('/validate-access-code', validateAccessCodeRoute);
-app.use('/register-and-join-competition', registerAndJoinCompetitionRoute);
+// app.use('/register-and-join-competition', registerAndJoinCompetitionRoute); // DISABLED - using single login
 app.use('/join-by-access-code', joinByAccessCodeRoute);
-app.use('/join-by-code', joinByCodeRoute);
+// app.use('/join-by-code', joinByCodeRoute); // DISABLED - using single login
 app.use('/player-dashboard', playerDashboardRoute);
 app.use('/check-user-type', checkUserTypeRoute);
+app.use('/get-allowed-teams', getAllowedTeamsRoute);
+app.use('/unselect-pick', unselectPickRoute);
+app.use('/get-current-pick', getCurrentPickRoute);
+app.use('/get-calculated-fixtures', getCalculatedFixturesRoute);
+app.use('/get-competition-standings', getCompetitionStandingsRoute);
+app.use('/join-competition-by-code', joinCompetitionByCodeRoute);
+app.use('/get-fixture-pick-count', getFixturePickCountRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

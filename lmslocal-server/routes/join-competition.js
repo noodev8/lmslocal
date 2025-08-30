@@ -36,7 +36,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query } = require('../database');
+const { query, populateAllowedTeams } = require('../database');
 const verifyToken = require('../middleware/verifyToken');
 const router = express.Router();
 
@@ -132,6 +132,9 @@ router.post('/', verifyToken, async (req, res) => {
       user_id,
       competition.lives_per_player
     ]);
+
+    // Populate allowed teams for this player
+    await populateAllowedTeams(competition.id, user_id);
 
     // Log the join action
     await query(`

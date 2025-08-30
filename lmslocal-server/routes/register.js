@@ -78,8 +78,8 @@ router.post('/', async (req, res) => {
 
     // Create user
     const result = await query(
-      'INSERT INTO app_user (display_name, email, password_hash, email_verified, auth_token, auth_token_expires, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING id',
-      [display_name, email.toLowerCase(), hashedPassword, false, verificationToken, tokenExpiry]
+      'INSERT INTO app_user (display_name, email, password_hash, email_verified, auth_token, auth_token_expires, user_type, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW()) RETURNING id',
+      [display_name, email.toLowerCase(), hashedPassword, false, verificationToken, tokenExpiry, 'player']
     );
 
     // Send verification email

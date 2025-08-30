@@ -106,16 +106,15 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
 
-    // Get all picks with available fixture data (only those not already calculated)
-    const picksAndResults = await query(`
-      SELECT p.id as pick_id, p.team, p.fixture_id, p.user_id, p.outcome,
-             f.home_team, f.away_team, f.home_team_short, f.away_team_short, f.result,
-             COALESCE(u.display_name, 'Unknown User') as display_name
-      FROM pick p
-      LEFT JOIN fixture f ON p.fixture_id = f.id
-      LEFT JOIN app_user u ON p.user_id = u.id
-      WHERE p.round_id = $1 AND p.outcome IS NULL
+    // Get all fixtures that have results but haven't been processed yet
+    const unprocessedFixtures = await query(`
+      SELECT id, result, home_team_short, away_team_short
+      FROM fixture 
+      WHERE round_id = $1 
+        AND result IS NOT NULL 
+        AND processed IS NULL
     `, [round_id]);
+
 
     let winners = 0;
     let losers = 0;
@@ -124,45 +123,44 @@ router.post('/', verifyToken, async (req, res) => {
     let skipped = 0;
     let playersEliminated = 0;
 
-    // Calculate outcomes for each pick
-    for (const pick of picksAndResults.rows) {
-      let outcome = null;
+    // Process each unprocessed fixture
+    for (const fixture of unprocessedFixtures.rows) {
+      // Get all picks for this fixture
+      const picksForFixture = await query(`
+        SELECT p.id as pick_id, p.team, p.user_id, p.outcome,
+               COALESCE(u.display_name, 'Unknown User') as display_name
+        FROM pick p
+        LEFT JOIN app_user u ON p.user_id = u.id
+        WHERE p.fixture_id = $1
+      `, [fixture.id]);
 
-      // Skip picks without fixture data or results
-      if (!pick.result || !pick.fixture_id) {
-        skipped++;
-        continue;
-      }
+      // Process each pick for this fixture
+      for (const pick of picksForFixture.rows) {
+        let outcome = null;
 
-      if (pick.result === 'DRAW') {
-        // Draw - all picks get draw outcome
-        outcome = 'DRAW';
-        draws++;
-      } else {
-        // Check if the pick matches the winning team
-        if (pick.team === pick.result) {
-          // Player picked the winning team
+        if (fixture.result === 'DRAW') {
+          outcome = 'LOSE';
+          draws++;
+          losers++;
+        } else if (pick.team === fixture.result) {
           outcome = 'WIN';
           winners++;
         } else {
-          // Player picked a different team than the winner
           outcome = 'LOSE';
           losers++;
         }
-      }
 
-      // Update the pick with the calculated outcome
-      if (outcome) {
+        // Update the pick with the calculated outcome
         await query(`
           UPDATE pick 
           SET outcome = $1
           WHERE id = $2
         `, [outcome, pick.pick_id]);
+        
         processed++;
 
-        // If player lost, reduce their lives and potentially eliminate them
+        // Reduce lives for LOSE outcomes only
         if (outcome === 'LOSE') {
-          // Get current lives for this user
           const livesResult = await query(`
             SELECT lives_remaining, status
             FROM competition_user
@@ -174,7 +172,6 @@ router.post('/', verifyToken, async (req, res) => {
             const newLives = currentLives - 1;
 
             if (newLives < 0) {
-              // Player would go to -1 lives - eliminate them (set to 0 for tidiness)
               await query(`
                 UPDATE competition_user
                 SET lives_remaining = 0, status = 'OUT'
@@ -182,7 +179,6 @@ router.post('/', verifyToken, async (req, res) => {
               `, [round.competition_id, pick.user_id]);
               playersEliminated++;
             } else {
-              // Player still survives (even at 0 lives)
               await query(`
                 UPDATE competition_user
                 SET lives_remaining = $1
@@ -192,6 +188,100 @@ router.post('/', verifyToken, async (req, res) => {
           }
         }
       }
+
+      // Mark fixture as processed
+      await query(`
+        UPDATE fixture 
+        SET processed = CURRENT_TIMESTAMP
+        WHERE id = $1
+      `, [fixture.id]);
+    }
+
+    // Handle players who didn't make picks - only if this is first calculation for round
+    // Check if any picks already have outcomes (indicating round was calculated before)
+    const existingCalculation = await query(`
+      SELECT COUNT(*) as count 
+      FROM pick 
+      WHERE round_id = $1 AND outcome IS NOT NULL
+    `, [round_id]);
+
+    const isFirstCalculation = parseInt(existingCalculation.rows[0].count) === 0;
+
+    if (isFirstCalculation) {
+      const noPickPlayers = await query(`
+        SELECT cu.user_id, cu.lives_remaining, cu.status
+        FROM competition_user cu
+        WHERE cu.competition_id = $1 
+          AND cu.status != 'OUT'
+          AND cu.user_id NOT IN (
+            SELECT p.user_id FROM pick p WHERE p.round_id = $2
+          )
+      `, [round.competition_id, round_id]);
+
+      // Handle no-pick players - lose life but progress 
+      for (const player of noPickPlayers.rows) {
+        // Create NO_PICK record
+        await query(`
+          INSERT INTO pick (round_id, user_id, outcome)
+          VALUES ($1, $2, 'NO_PICK')
+        `, [round_id, player.user_id]);
+        
+        // Reduce life for not making a pick
+        const newLives = player.lives_remaining - 1;
+        
+        if (newLives < 0) {
+          await query(`
+            UPDATE competition_user
+            SET lives_remaining = 0, status = 'OUT'
+            WHERE competition_id = $1 AND user_id = $2
+          `, [round.competition_id, player.user_id]);
+          playersEliminated++;
+        } else {
+          await query(`
+            UPDATE competition_user
+            SET lives_remaining = $1
+            WHERE competition_id = $2 AND user_id = $3
+          `, [newLives, round.competition_id, player.user_id]);
+        }
+        
+        processed++;
+        losers++; // Count no-pick as a loss (life penalty)
+      }
+    }
+
+    // Get final count of remaining players
+    const remainingPlayersResult = await query(`
+      SELECT COUNT(*) as count
+      FROM competition_user
+      WHERE competition_id = $1 AND status != 'OUT'
+    `, [round.competition_id]);
+    
+    const playersRemaining = parseInt(remainingPlayersResult.rows[0].count);
+
+    // Now populate player_progress table for all players
+    const allCompetitionPlayersResult = await query(`
+      SELECT cu.user_id, p.fixture_id, p.team, p.outcome
+      FROM competition_user cu
+      LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $1
+      WHERE cu.competition_id = $2
+    `, [round_id, round.competition_id]);
+
+    // Insert player progress records
+    for (const player of allCompetitionPlayersResult.rows) {
+      const playerOutcome = player.outcome || 'NO_PICK';
+      
+      await query(`
+        INSERT INTO player_progress (player_id, competition_id, round_id, fixture_id, chosen_team, outcome, players_remaining)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+        player.user_id,
+        round.competition_id, 
+        round_id,
+        player.fixture_id,
+        player.team,
+        playerOutcome,
+        playersRemaining
+      ]);
     }
 
     // Log the calculation
@@ -201,7 +291,7 @@ router.post('/', verifyToken, async (req, res) => {
     `, [
       round.competition_id,
       user_id,
-      `Calculated outcomes for Round ${round.round_number}: ${processed} picks processed (${winners} winners, ${losers} losers, ${draws} draws), ${playersEliminated} players eliminated, ${skipped} skipped`
+      `Calculated outcomes for Round ${round.round_number}: ${processed} picks processed (${winners} winners, ${losers} losers, ${draws} draws), ${playersEliminated} players eliminated, ${skipped} skipped, ${playersRemaining} players remaining`
     ]);
 
     res.json({
@@ -214,6 +304,7 @@ router.post('/', verifyToken, async (req, res) => {
         processed,
         skipped,
         playersEliminated,
+        playersRemaining,
         total: winners + losers + draws
       }
     });

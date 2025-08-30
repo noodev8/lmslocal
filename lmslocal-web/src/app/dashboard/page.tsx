@@ -11,7 +11,10 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowRightIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  CalendarDaysIcon,
+  ChartBarIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, userApi } from '@/lib/api';
 import { logout } from '@/lib/auth';
@@ -28,6 +31,8 @@ interface Competition {
   needs_pick?: boolean;
   my_pick?: string;
   is_organiser?: boolean;
+  invite_code?: string;
+  slug?: string;
 }
 
 export default function DashboardPage() {
@@ -212,28 +217,11 @@ export default function DashboardPage() {
         
         {/* Organised Competitions */}
         <section className="mb-12">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">My Organised Competitions</h2>
-              <p className="text-gray-600 text-sm mt-1">
-                Create engaging competitions that bring your customers together
-              </p>
-            </div>
-            {organizedCompetitions.length > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 lg:max-w-xs">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <TrophyIcon className="h-5 w-5 text-blue-600 mt-0.5" />
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-blue-900">Running smoothly? 🎯</h3>
-                    <p className="text-xs text-blue-800 mt-1">
-                      Add more rounds to keep the excitement going, or start planning your next competition.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">My Organised Competitions</h2>
+            <p className="text-gray-600 text-sm mt-1">
+              Create engaging competitions that bring your customers together
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -269,7 +257,7 @@ export default function DashboardPage() {
             {organizedCompetitions.map((competition) => {
               const isNewCompetition = newCompetitionId && competition.id.toString() === newCompetitionId;
               return (
-              <div key={competition.id} className={`rounded-lg p-6 hover:shadow-md transition-shadow ${
+              <div key={competition.id} className={`rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col ${
                 isNewCompetition 
                   ? 'bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-400 shadow-lg' 
                   : 'bg-white border border-gray-200'
@@ -284,12 +272,6 @@ export default function DashboardPage() {
                 )}
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 truncate">{competition.name}</h3>
-                  {competition.current_round && (
-                    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-blue-600 bg-blue-50">
-                      <ClockIcon className="h-4 w-4" />
-                      <span className="ml-1">Round {competition.current_round}</span>
-                    </div>
-                  )}
                 </div>
                 
                 {isNewCompetition && (
@@ -301,17 +283,97 @@ export default function DashboardPage() {
                   </div>
                 )}
                 
-                <div className="space-y-2 text-sm text-gray-600 mb-6">
-                  <div className="flex items-center">
-                    <UserGroupIcon className="h-4 w-4 mr-2" />
-                    <span>{competition.player_count || 0} players</span>
+                {!isNewCompetition && competition.player_count === 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                    <div className="text-sm text-amber-800">
+                      <p className="font-medium mb-1">📢 Ready for players!</p>
+                      <p className="text-xs">Competition is set up - share your access code to get players joining.</p>
+                    </div>
                   </div>
+                )}
+                
+                {competition.current_round && competition.player_count > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                    <div className="text-sm text-green-800">
+                      <p className="font-medium mb-1">🏃‍♂️ Competition running!</p>
+                      <p className="text-xs">Manage rounds, results and keep the excitement going.</p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-2 text-sm text-gray-600 mb-6 flex-grow">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <UserGroupIcon className="h-4 w-4 mr-2" />
+                      <span>{competition.player_count || 0} players</span>
+                    </div>
+                    {competition.current_round && (
+                      <div className="flex items-center">
+                        <ChartBarIcon className="h-4 w-4 mr-1" />
+                        <span>Round {competition.current_round}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {competition.total_rounds && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <CalendarDaysIcon className="h-4 w-4 mr-2" />
+                        <span>{competition.total_rounds} total rounds</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          competition.status === 'UNLOCKED' ? 'bg-green-100 text-green-700' :
+                          competition.status === 'LOCKED' ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {competition.status === 'UNLOCKED' ? 'Active' :
+                           competition.status === 'LOCKED' ? 'Locked' :
+                           'Setup'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <ClockIcon className="h-4 w-4 mr-2" />
+                      <span className="text-xs">
+                        Created {new Date(competition.created_at).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {competition.invite_code && (
+                    <div className="bg-gray-50 border border-gray-200 rounded p-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-gray-900 mb-1">Player Access Code</p>
+                          <p className="text-lg font-bold text-blue-600 tracking-wider">{competition.invite_code}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(competition.invite_code);
+                            // Could add a toast notification here
+                          }}
+                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">Share this code with players to join</p>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex mt-auto space-x-2">
                   <button
                     onClick={() => handleManageClick(competition.id)}
-                    className={`flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    className={`flex-1 inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
                       isNewCompetition 
                         ? 'bg-green-600 text-white hover:bg-green-700 shadow-md' 
                         : 'bg-green-600 text-white hover:bg-green-700'
@@ -321,11 +383,15 @@ export default function DashboardPage() {
                     Manage
                   </button>
                   <Link
-                    href={`/competition/${competition.id}/player`}
-                    className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
+                    href={`/competition/${competition.id}/players`}
+                    className={`flex-1 inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                      isNewCompetition 
+                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                   >
-                    View
-                    <ArrowRightIcon className="h-4 w-4 ml-1" />
+                    <UsersIcon className="h-4 w-4 mr-1" />
+                    Players
                   </Link>
                 </div>
               </div>

@@ -7,7 +7,7 @@ Join by Code Route - Streamlined player onboarding
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { query, transaction } = require('../database');
+const { query, transaction, populateAllowedTeams } = require('../database');
 const router = express.Router();
 
 /*
@@ -224,6 +224,9 @@ router.post('/', async (req, res) => {
     `, [competition.id, user.id, competition.lives_per_player]);
 
     const playerStatus = joinResult.rows[0];
+
+    // Populate allowed teams for this player
+    await populateAllowedTeams(competition.id, user.id);
 
     // Generate JWT token
     const jwtPayload = {
