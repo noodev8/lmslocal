@@ -60,92 +60,98 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Header Section - Material 3 Style */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <Link href="/" className="flex items-center">
-            <TrophyIcon className="h-12 w-12 text-green-600" />
-            <span className="ml-2 text-3xl font-bold text-gray-900">LMSLocal</span>
+        <div className="flex justify-center mb-8">
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="p-3 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
+              <TrophyIcon className="h-8 w-8 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">LMSLocal</h1>
+              <p className="text-sm text-slate-500">Last Man Standing</p>
+            </div>
           </Link>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Create your account
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link
-            href="/login"
-            className="font-medium text-green-600 hover:text-green-500"
-          >
-            Sign in
-          </Link>
-        </p>
+        
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-slate-900 mb-3">
+            Create your account
+          </h2>
+          <p className="text-slate-600">
+            Already have an account?{' '}
+            <Link
+              href="/login"
+              className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+      {/* Register Form - Material 3 Card */}
+      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="text-sm text-red-700">{error}</div>
+              <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+                <div className="text-sm text-red-700 font-medium">{error}</div>
               </div>
             )}
 
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-2">
+              <label htmlFor="name" className="block text-sm font-semibold text-slate-900">
                 Full name
               </label>
-              <div className="mt-1">
-                <input
-                  id="name"
-                  {...register('name', {
-                    required: 'Full name is required',
-                    minLength: {
-                      value: 2,
-                      message: 'Name must be at least 2 characters'
-                    }
-                  })}
-                  type="text"
-                  autoComplete="name"
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-green-500 focus:outline-none focus:ring-green-500 sm:text-sm"
-                  placeholder="Enter your full name"
-                />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-                )}
-              </div>
+              <input
+                id="name"
+                {...register('name', {
+                  required: 'Full name is required',
+                  minLength: {
+                    value: 2,
+                    message: 'Name must be at least 2 characters'
+                  }
+                })}
+                type="text"
+                autoComplete="name"
+                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                placeholder="Enter your full name"
+              />
+              {errors.name && (
+                <p className="text-sm text-red-600 font-medium">{errors.name.message}</p>
+              )}
             </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-900">
                 Email address
               </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^\S+@\S+$/i,
-                      message: 'Please enter a valid email address'
-                    }
-                  })}
-                  type="email"
-                  autoComplete="email"
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-green-500 focus:outline-none focus:ring-green-500 sm:text-sm"
-                  placeholder="Enter your email"
-                />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-                )}
-              </div>
+              <input
+                id="email"
+                {...register('email', {
+                  required: 'Email is required',
+                  pattern: {
+                    value: /^\S+@\S+$/i,
+                    message: 'Please enter a valid email address'
+                  }
+                })}
+                type="email"
+                autoComplete="email"
+                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                placeholder="Enter your email"
+              />
+              {errors.email && (
+                <p className="text-sm text-red-600 font-medium">{errors.email.message}</p>
+              )}
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-slate-900">
                 Password
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
                 <input
                   id="password"
                   {...register('password', {
@@ -157,34 +163,34 @@ export default function RegisterPage() {
                   })}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 pr-10 placeholder-gray-400 shadow-sm focus:border-green-500 focus:outline-none focus:ring-green-500 sm:text-sm"
+                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
                   placeholder="Create a password"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-5 w-5" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-5 w-5" />
                   )}
                 </button>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-                )}
               </div>
-              <div className="mt-1 text-xs text-gray-500">
+              {errors.password && (
+                <p className="text-sm text-red-600 font-medium">{errors.password.message}</p>
+              )}
+              <p className="text-xs text-slate-500">
                 Must be at least 6 characters long
-              </div>
+              </p>
             </div>
 
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-slate-900">
                 Confirm password
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
                 <input
                   id="confirmPassword"
                   {...register('confirmPassword', {
@@ -194,53 +200,51 @@ export default function RegisterPage() {
                   })}
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 pr-10 placeholder-gray-400 shadow-sm focus:border-green-500 focus:outline-none focus:ring-green-500 sm:text-sm"
+                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
                   placeholder="Confirm your password"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition-colors"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-5 w-5" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-5 w-5" />
                   )}
                 </button>
-                {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-                )}
               </div>
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-600 font-medium">{errors.confirmPassword.message}</p>
+              )}
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex w-full justify-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating account...
-                  </div>
-                ) : (
-                  'Create account'
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex justify-center items-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+                  Creating account...
+                </>
+              ) : (
+                'Create account'
+              )}
+            </button>
           </form>
 
-
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-600">
+          {/* Terms and Privacy */}
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <p className="text-xs text-slate-500 text-center leading-relaxed">
               By creating an account, you agree to our{' '}
-              <a href="https://www.noodev8.com/terms-of-service/" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-500">
+              <a href="https://www.noodev8.com/terms-of-service/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium">
                 Terms of Service
               </a>{' '}
               and{' '}
-              <a href="https://www.noodev8.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-500">
+              <a href="https://www.noodev8.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium">
                 Privacy Policy
               </a>
             </p>

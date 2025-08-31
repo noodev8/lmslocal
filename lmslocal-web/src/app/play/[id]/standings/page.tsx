@@ -61,11 +61,20 @@ export default function CompetitionStandingsPage() {
   const params = useParams();
   const competitionId = params.id as string;
   
+  // Check if coming from admin dashboard
+  const [fromAdmin, setFromAdmin] = useState(false);
+  
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    setFromAdmin(urlParams.get('from') === 'admin');
+  }, []);
+  
   const [user, setUser] = useState<User | null>(null);
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
+  const [isUserOrganizer, setIsUserOrganizer] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -125,12 +134,12 @@ export default function CompetitionStandingsPage() {
         setPlayers(response.data.players);
       } else {
         console.error('Failed to load standings:', response.data.message);
-        router.push('/play');
+        router.push(fromAdmin ? '/dashboard' : '/play');
       }
     } catch (error) {
       if (abortControllerRef.current?.signal.aborted) return;
       console.error('Failed to load standings:', error);
-      router.push('/play');
+      router.push(fromAdmin ? '/dashboard' : '/play');
     } finally {
       if (!abortControllerRef.current?.signal.aborted) {
         setLoading(false);
@@ -185,7 +194,10 @@ export default function CompetitionStandingsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <Link href={`/play/${competitionId}`} className="mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <Link 
+                href={fromAdmin ? '/dashboard' : `/play/${competitionId}`} 
+                className="mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
               </Link>
               <Link href="/" className="flex items-center">

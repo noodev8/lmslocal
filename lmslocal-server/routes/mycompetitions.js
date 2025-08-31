@@ -78,10 +78,11 @@ router.post('/', verifyToken, async (req, res) => {
       FROM competition c
       -- Join team list for team list name
       JOIN team_list tl ON c.team_list_id = tl.id
-      -- LEFT JOIN aggregated player counts to avoid N+1 queries
+      -- LEFT JOIN aggregated active player counts to avoid N+1 queries
       LEFT JOIN (
         SELECT competition_id, COUNT(*) as player_count
         FROM competition_user 
+        WHERE status != 'OUT'
         GROUP BY competition_id
       ) pc ON c.id = pc.competition_id
       -- LEFT JOIN aggregated round info to avoid N+1 queries

@@ -315,7 +315,7 @@ export default function DashboardPage() {
                       <div className="flex items-center space-x-4 text-sm text-slate-600">
                         <div className="flex items-center space-x-2">
                           <UserGroupIcon className="h-4 w-4" />
-                          <span>{competition.player_count || 0} players</span>
+                          <span>{competition.player_count || 0} active</span>
                         </div>
                         {competition.current_round && (
                           <div className="flex items-center space-x-2">
@@ -325,13 +325,7 @@ export default function DashboardPage() {
                         )}
                       </div>
                     </div>
-                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(competition.status)}`}>
-                      {getStatusIcon(competition.status)}
-                      <span className="ml-1">
-                        {competition.status === 'UNLOCKED' ? 'Active' :
-                         competition.status === 'LOCKED' ? 'Locked' : 'Setup'}
-                      </span>
-                    </div>
+                    {/* Removed status badge as requested */}
                   </div>
 
                   {/* Status Messages */}
@@ -349,7 +343,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                   
-                  {!isNewCompetition && competition.player_count === 0 && (
+                  {!isNewCompetition && competition.player_count === 0 && competition.status !== 'COMPLETE' && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
@@ -363,7 +357,20 @@ export default function DashboardPage() {
                     </div>
                   )}
                   
-                  {competition.current_round && competition.player_count > 0 && (
+                  {/* Competition Status Display */}
+                  {competition.status === 'COMPLETE' ? (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <TrophyIcon className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Competition Complete</p>
+                          <p className="text-xs text-slate-600 mt-1">This competition has finished - all results have been calculated</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : competition.current_round && competition.player_count > 0 ? (
                     <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
@@ -375,27 +382,15 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Card Body */}
                 <div className="p-6">
                   <div className="space-y-4">
                     {/* Competition Stats */}
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center space-x-2 text-slate-600">
-                        <CalendarDaysIcon className="h-4 w-4" />
-                        <span>{competition.total_rounds || 0} rounds</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-slate-600">
-                        <ClockIcon className="h-4 w-4" />
-                        <span className="text-xs">
-                          Created {new Date(competition.created_at).toLocaleDateString('en-GB', {
-                            day: 'numeric',
-                            month: 'short'
-                          })}
-                        </span>
-                      </div>
+                    <div className="grid grid-cols-1 gap-4 text-sm">
+                      {/* Removed rounds count and created date as requested */}
                     </div>
                     
                     {/* Access Code */}
@@ -427,28 +422,39 @@ export default function DashboardPage() {
 
                 {/* Card Actions */}
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
-                  <div className="flex space-x-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <button
                       onClick={() => handleManageClick(competition.id)}
-                      className={`flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                      className={`inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
                         isNewCompetition 
                           ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
-                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      <Cog6ToothIcon className="h-4 w-4 mr-2" />
+                      <Cog6ToothIcon className="h-4 w-4 mr-1" />
                       Manage
                     </button>
                     <Link
                       href={`/competition/${competition.id}/players`}
-                      className={`flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                      className={`inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
                         isNewCompetition 
                           ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      <UsersIcon className="h-4 w-4 mr-2" />
+                      <UsersIcon className="h-4 w-4 mr-1" />
                       Players
+                    </Link>
+                    <Link
+                      href={`/play/${competition.id}/standings?from=admin`}
+                      className={`inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                        isNewCompetition 
+                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      <ChartBarIcon className="h-4 w-4 mr-1" />
+                      Standings
                     </Link>
                   </div>
                 </div>

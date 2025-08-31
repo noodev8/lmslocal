@@ -105,6 +105,7 @@ router.post('/', verifyToken, async (req, res) => {
         
         -- === USER ACCESS VALIDATION ===
         user_access.user_id as has_access,        -- Non-null if user is participant
+        c.organiser_id,                           -- Competition organizer ID
         
         -- === PLAYER DETAILS ===
         u.id as player_id,                        -- Player's user ID
@@ -169,11 +170,14 @@ router.post('/', verifyToken, async (req, res) => {
 
     const firstRow = mainResult.rows[0];
     
-    // Verify user is participating in this competition
-    if (!firstRow.has_access) {
+    // Verify user has access (either participant or organizer)
+    const isParticipant = !!firstRow.has_access;
+    const isOrganizer = firstRow.organiser_id === user_id;
+    
+    if (!isParticipant && !isOrganizer) {
       return res.json({
         return_code: "UNAUTHORIZED", 
-        message: "You are not participating in this competition"
+        message: "You do not have access to this competition"
       });
     }
 

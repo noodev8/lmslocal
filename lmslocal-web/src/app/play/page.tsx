@@ -28,6 +28,7 @@ interface Competition {
   id: number;
   name: string;
   player_count?: number;
+  active_players?: number;
   current_round?: number;
   total_rounds?: number;
   needs_pick?: boolean;
@@ -226,7 +227,7 @@ export default function PlayerDashboardPage() {
                       <div className="flex items-center space-x-3 mt-2 text-sm text-slate-600">
                         <span className="flex items-center">
                           <UserGroupIcon className="h-4 w-4 mr-1" />
-                          {competition.player_count}
+                          {competition.active_players} active
                         </span>
                         {competition.current_round && (
                           <span className="flex items-center">
@@ -237,9 +238,14 @@ export default function PlayerDashboardPage() {
                       </div>
                     </div>
                     
-                    {/* Status Badge */}
-                    {competition.is_complete ? (
-                      <div className="flex items-center px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
+                    {/* Status Badge - Check player elimination first, then competition status */}
+                    {competition.user_status === 'OUT' ? (
+                      <div className="flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                        <XMarkIcon className="h-4 w-4 mr-1" />
+                        OUT
+                      </div>
+                    ) : competition.is_complete ? (
+                      <div className="flex items-center px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">
                         <TrophyIcon className="h-4 w-4 mr-1" />
                         Complete
                       </div>
@@ -261,8 +267,8 @@ export default function PlayerDashboardPage() {
                     )}
                   </div>
 
-                  {/* Quick Info - Only show most important */}
-                  {competition.current_round_lock_time && !competition.is_complete && (
+                  {/* Quick Info - Only show for active players */}
+                  {competition.user_status !== 'OUT' && competition.current_round_lock_time && !competition.is_complete && (
                     <div className="text-sm text-slate-600 mb-3">
                       Picks close: {new Date(competition.current_round_lock_time).toLocaleString('en-GB', {
                         weekday: 'short',
@@ -274,7 +280,7 @@ export default function PlayerDashboardPage() {
                     </div>
                   )}
 
-                  {competition.lives_remaining !== undefined && (
+                  {competition.user_status !== 'OUT' && competition.lives_remaining !== undefined && (
                     <div className="flex items-center justify-between mt-3 text-sm">
                       <span className="text-slate-600 font-medium">Lives:</span>
                       <div className="flex items-center space-x-1">

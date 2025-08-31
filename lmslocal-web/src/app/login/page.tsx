@@ -66,60 +66,68 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Header Section - Material 3 Style */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <Link href="/" className="flex items-center">
-            <TrophyIcon className="h-12 w-12 text-green-600" />
-            <span className="ml-2 text-3xl font-bold text-gray-900">LMSLocal</span>
+        <div className="flex justify-center mb-8">
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="p-3 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
+              <TrophyIcon className="h-8 w-8 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">LMSLocal</h1>
+              <p className="text-sm text-slate-500">Last Man Standing</p>
+            </div>
           </Link>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Sign in to LMSLocal
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          For both organisers and players
-        </p>
+        
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-slate-900 mb-3">
+            Welcome back
+          </h2>
+          <p className="text-slate-600">
+            Sign in to manage competitions or join games
+          </p>
+        </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+      {/* Login Form - Material 3 Card */}
+      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="text-sm text-red-700">{error}</div>
+              <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+                <div className="text-sm text-red-700 font-medium">{error}</div>
               </div>
             )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-semibold text-slate-900">
                 Email address
               </label>
-              <div className="mt-1">
-                <input
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^\S+@\S+$/i,
-                      message: 'Please enter a valid email address'
-                    }
-                  })}
-                  type="email"
-                  autoComplete="email"
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-green-500 focus:outline-none focus:ring-green-500 sm:text-sm"
-                  placeholder="Enter your email"
-                />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-                )}
-              </div>
+              <input
+                {...register('email', {
+                  required: 'Email is required',
+                  pattern: {
+                    value: /^\S+@\S+$/i,
+                    message: 'Please enter a valid email address'
+                  }
+                })}
+                type="email"
+                autoComplete="email"
+                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                placeholder="Enter your email"
+              />
+              {errors.email && (
+                <p className="text-sm text-red-600 font-medium">{errors.email.message}</p>
+              )}
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-slate-900">
                 Password
               </label>
-              <div className="mt-1 relative">
+              <div className="relative">
                 <input
                   {...register('password', {
                     required: 'Password is required',
@@ -130,66 +138,64 @@ export default function LoginPage() {
                   })}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 pr-10 placeholder-gray-400 shadow-sm focus:border-green-500 focus:outline-none focus:ring-green-500 sm:text-sm"
+                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
                   placeholder="Enter your password"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-5 w-5" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-5 w-5" />
                   )}
                 </button>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-                )}
               </div>
+              {errors.password && (
+                <p className="text-sm text-red-600 font-medium">{errors.password.message}</p>
+              )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <Link
-                  href="/forgot-password"
-                  className="font-medium text-green-600 hover:text-green-500"
-                >
-                  Forgot your password?
-                </Link>
-              </div>
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex w-full justify-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            <div className="flex items-center justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
               >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Signing in...
-                  </div>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
+                Forgot password?
+              </Link>
             </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex justify-center items-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+                  Signing in...
+                </>
+              ) : (
+                'Sign in'
+              )}
+            </button>
           </form>
 
           {/* Register Link */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link
-                href="/register"
-                className="font-medium text-green-600 hover:text-green-500 focus:outline-none focus:underline transition ease-in-out duration-150"
-              >
-                Register here
-              </Link>
-            </p>
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <div className="text-center">
+              <p className="text-slate-600">
+                Don't have an account?{' '}
+                <Link
+                  href="/register"
+                  className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  Create account
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>

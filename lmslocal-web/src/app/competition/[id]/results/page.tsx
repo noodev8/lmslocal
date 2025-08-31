@@ -344,9 +344,9 @@ export default function CompetitionResultsPage() {
   const getResultButtonClass = (fixture: Fixture, resultType: 'home_win' | 'away_win' | 'draw') => {
     const locked = isRoundLocked();
     const calculated = calculatedFixtures.has(fixture.id);
-    const baseClass = "px-3 py-2 rounded-md font-medium text-sm transition-colors ";
+    const baseClass = "px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 border ";
     
-    // If fixture has calculated picks, show as locked with light blue theme
+    // If fixture has calculated picks, show as locked with professional theme
     if (calculated) {
       const isSelected = 
         (resultType === 'home_win' && fixture.result === fixture.home_team_short) ||
@@ -354,20 +354,20 @@ export default function CompetitionResultsPage() {
         (resultType === 'draw' && fixture.result === 'DRAW');
       
       if (isSelected) {
-        return baseClass + "bg-teal-500 text-white cursor-not-allowed";
+        return baseClass + "bg-slate-600 text-white border-slate-600 cursor-not-allowed shadow-sm";
       } else {
-        return baseClass + "bg-teal-100 text-teal-400 cursor-not-allowed";
+        return baseClass + "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
       }
     }
     
     // If round is not locked, show disabled state
     if (!locked) {
-      return baseClass + "bg-gray-200 text-gray-400 cursor-not-allowed";
+      return baseClass + "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
     }
     
     // Only show as selected if there's actually a result set
     if (!fixture.result || fixture.result === null || fixture.result === undefined) {
-      return baseClass + "bg-gray-100 text-gray-700 hover:bg-gray-200";
+      return baseClass + "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm";
     }
     
     const isSelected = 
@@ -376,10 +376,10 @@ export default function CompetitionResultsPage() {
       (resultType === 'draw' && fixture.result === 'DRAW');
     
     if (isSelected) {
-      return baseClass + "bg-green-600 text-white";
+      return baseClass + "bg-blue-600 text-white border-blue-600 shadow-sm";
     }
     
-    return baseClass + "bg-gray-100 text-gray-700 hover:bg-gray-200";
+    return baseClass + "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-sm";
   };
 
   const handleEditLockTime = () => {
@@ -574,50 +574,64 @@ export default function CompetitionResultsPage() {
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-2xl font-bold text-gray-900">{competition.name} - Results</h1>
             
-            {/* Competition Status and Actions */}
+            {/* Competition Status and Actions - Material 3 Style */}
             {competitionStatus && (
-              <div className="text-right">
-                <div className="text-sm text-gray-500">Competition Status</div>
-                <div className="flex items-center gap-4 text-sm mb-2">
-                  <span className="text-green-600">{competitionStatus.players_active} In</span>
-                  <span className="text-gray-400">•</span>
-                  <span className="text-red-600">{competitionStatus.players_out} Out</span>
-                  <span className="text-gray-400">•</span>
-                  <span className="text-gray-600">{competitionStatus.total_players} Total</span>
+              <div className="flex flex-col items-end space-y-4">
+                <div className="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Competition Status</div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                      <span className="text-slate-900 font-semibold">{competitionStatus.players_active}</span>
+                      <span className="text-slate-600">In</span>
+                    </div>
+                    <div className="w-px h-4 bg-slate-300"></div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <span className="text-slate-900 font-semibold">{competitionStatus.players_out}</span>
+                      <span className="text-slate-600">Out</span>
+                    </div>
+                    <div className="w-px h-4 bg-slate-300"></div>
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                      <span className="text-slate-900 font-semibold">{competitionStatus.total_players}</span>
+                      <span className="text-slate-600">Total</span>
+                    </div>
+                  </div>
                 </div>
                 
-{/* Action Buttons */}
-                <div className="flex gap-2">
-                  {/* Confirm Results Button */}
-                  {isRoundLocked() && hasUnprocessedResults && (
-                    <button
-                      onClick={handleCalculateResults}
-                      disabled={calculatingResults}
-                      className={`px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2 text-sm ${
-                        calculatingResults ? 'cursor-not-allowed' : ''
-                      }`}
-                    >
-                      {calculatingResults ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Confirming...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircleIcon className="h-4 w-4" />
-                          Confirm Results
-                        </>
-                      )}
-                    </button>
-                  )}
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  {/* Confirm Results Button - Always visible to prevent layout shift */}
+                  <button
+                    onClick={handleCalculateResults}
+                    disabled={calculatingResults || !(isRoundLocked() && hasUnprocessedResults)}
+                    className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 border ${
+                      isRoundLocked() && hasUnprocessedResults && !calculatingResults
+                        ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
+                        : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    {calculatingResults ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent mr-2"></div>
+                        Confirming...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="h-4 w-4 mr-2" />
+                        Confirm Results
+                      </>
+                    )}
+                  </button>
 
                   {/* Set Player Pick Button - Show during active picking phase */}
                   {currentRound && currentRound.lock_time && new Date() < new Date(currentRound.lock_time) && (
                     <button
                       onClick={openAdminPickModal}
-                      className="px-4 py-2 bg-blue-50 border border-blue-300 text-blue-700 rounded-lg font-medium hover:bg-blue-100 hover:border-blue-400 transition-all duration-200 flex items-center gap-2 text-sm"
+                      className="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 hover:text-slate-900 transition-all duration-200 border border-slate-200 shadow-sm hover:shadow-md"
                     >
-                      <UserGroupIcon className="h-4 w-4" />
+                      <UserGroupIcon className="h-4 w-4 mr-2" />
                       Set Player Pick
                     </button>
                   )}
@@ -681,7 +695,7 @@ export default function CompetitionResultsPage() {
                       />
                       <button
                         onClick={handleSaveLockTime}
-                        className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors"
+                        className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                       >
                         Save
                       </button>
