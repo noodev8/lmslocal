@@ -60,7 +60,6 @@ const getCompetitionStandingsRoute = require('./routes/get-competition-standings
 const joinCompetitionByCodeRoute = require('./routes/join-competition-by-code');
 const getFixturePickCountRoute = require('./routes/get-fixture-pick-count');
 const getRoundHistoryRoute = require('./routes/get-round-history');
-const checkAndResetTeamsRoute = require('./routes/check-and-reset-teams');
 const addOfflinePlayerRoute = require('./routes/add-offline-player');
 const changePasswordRoute = require('./routes/change-password');
 const deleteAccountRoute = require('./routes/delete-account');
@@ -200,7 +199,6 @@ app.use('/get-competition-standings', getCompetitionStandingsRoute);
 app.use('/join-competition-by-code', joinCompetitionByCodeRoute);
 app.use('/get-fixture-pick-count', getFixturePickCountRoute);
 app.use('/get-round-history', getRoundHistoryRoute);
-app.use('/check-and-reset-teams', checkAndResetTeamsRoute);
 app.use('/add-offline-player', addOfflinePlayerRoute);
 app.use('/change-password', changePasswordRoute);
 app.use('/delete-account', deleteAccountRoute);

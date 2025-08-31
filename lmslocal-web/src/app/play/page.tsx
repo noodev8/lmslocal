@@ -8,13 +8,12 @@ import {
   UserGroupIcon,
   CheckCircleIcon,
   ClockIcon,
-  StarIcon,
-  FireIcon,
-  CogIcon,
   ChartBarIcon,
   ExclamationTriangleIcon,
   PlusCircleIcon,
-  XMarkIcon
+  XMarkIcon,
+  PlayCircleIcon,
+  FireIcon
 } from '@heroicons/react/24/outline';
 import { userApi } from '@/lib/api';
 import { logout } from '@/lib/auth';
@@ -35,7 +34,7 @@ interface Competition {
   my_pick?: string;
   is_organiser?: boolean;
   lives_remaining?: number;
-  user_status?: string; // User participation status: 'active', 'eliminated', etc.
+  user_status?: string;
   is_locked?: boolean;
   current_round_lock_time?: string;
   current_pick?: {
@@ -43,8 +42,12 @@ interface Competition {
     team_full_name: string;
     fixture: string;
   };
+  is_complete?: boolean;
+  winner?: {
+    display_name: string;
+  };
+  total_players?: number;
 }
-
 
 export default function PlayerDashboardPage() {
   const router = useRouter();
@@ -57,7 +60,6 @@ export default function PlayerDashboardPage() {
   const [joinError, setJoinError] = useState<string>('');
 
   useEffect(() => {
-    // Check authentication
     const token = localStorage.getItem('jwt_token');
     const userData = localStorage.getItem('user');
     
@@ -69,10 +71,7 @@ export default function PlayerDashboardPage() {
     try {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
-      
-      // Load player competitions from API
       loadPlayerCompetitions();
-      
     } catch (error) {
       console.error('Error parsing user data:', error);
       router.push('/login');
@@ -111,13 +110,11 @@ export default function PlayerDashboardPage() {
       const response = await userApi.joinCompetitionByCode(joinCode);
       
       if (response.data.return_code === 'SUCCESS') {
-        // Success - close dialog and refresh competitions
         setShowJoinDialog(false);
         setJoinCode('');
         setJoinError('');
-        await loadPlayerCompetitions(); // Refresh the page data
+        await loadPlayerCompetitions();
       } else {
-        // Handle error return codes from our API
         let errorMessage = response.data.message || 'Failed to join competition';
         
         if (response.data.return_code === 'COMPETITION_NOT_FOUND') {
@@ -132,11 +129,8 @@ export default function PlayerDashboardPage() {
         
         setJoinError(errorMessage);
       }
-      
     } catch (error: any) {
       console.error('Join competition error:', error);
-      
-      // Only network errors should reach here now
       if (error.response?.status === 401) {
         setJoinError('Please login again');
       } else {
@@ -149,37 +143,53 @@ export default function PlayerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200 shadow-sm">
+          <div className="px-4 sm:px-6">
+            <div className="flex items-center justify-between h-14">
+              <div className="flex items-center space-x-2">
+                <TrophyIcon className="h-6 w-6 text-blue-600" />
+                <h1 className="text-lg font-bold text-slate-900">LMSLocal</h1>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <div className="flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded-full mb-3">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
+                </div>
+                <p className="text-slate-600">Loading competitions...</p>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center">
-                <TrophyIcon className="h-8 w-8 text-blue-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">LMSLocal</span>
-              </Link>
+    <div className="min-h-screen bg-slate-50">
+      {/* Mobile-First Header */}
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="px-4 sm:px-6">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center space-x-2">
+              <TrophyIcon className="h-6 w-6 text-blue-600" />
+              <h1 className="text-lg font-bold text-slate-900">LMSLocal</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Welcome back, <span className="font-medium text-gray-900">{user?.display_name}</span>
-              </span>
+            <div className="flex items-center space-x-1">
               <Link
                 href="/profile"
-                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md"
+                className="text-xs text-slate-600 hover:text-slate-800 px-2 py-1 rounded"
               >
                 Profile
               </Link>
               <button
                 onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md"
+                className="text-xs text-slate-600 hover:text-slate-800 px-2 py-1 rounded"
               >
                 Sign out
               </button>
@@ -188,226 +198,165 @@ export default function PlayerDashboardPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Header with Competition Selection */}
-        <div className="mb-8">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="flex items-center">
-                <TrophyIcon className="h-8 w-8 text-blue-600 mr-4" />
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.display_name}!</h1>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setShowJoinDialog(true)}
-                  className="flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <PlusCircleIcon className="h-4 w-4 mr-1" />
-                  Join Competition
-                </button>
-              </div>
-            </div>
-          </div>
+      <main className="p-4 pb-20">
+        {/* Quick Welcome - Mobile Optimized */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-slate-900 mb-1">
+            Hi {user?.display_name?.split(' ')[0] || user?.display_name}
+          </h2>
+          <p className="text-slate-600 text-sm">Your competitions</p>
         </div>
 
-        {/* Competition Selector */}
-        {competitions.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Competitions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {competitions.map((competition) => {
-                const CardComponent = Link; // Always make it clickable to view current pick
-                
-                return (
-                  <CardComponent
-                    key={competition.id}
-                    href={`/play/${competition.id}`}
-                    className={`block p-6 rounded-lg border cursor-pointer transition-all ${
-                      competition.is_complete 
-                        ? 'border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50 hover:border-yellow-400 hover:shadow-lg'
-                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className={`text-lg font-semibold truncate ${
-                        competition.is_complete ? 'text-yellow-900' : 'text-gray-900'
-                      }`}>
-                        {competition.is_complete && '🏆 '}{competition.name}
+        {/* Competitions List - Mobile Optimized */}
+        {competitions.length > 0 ? (
+          <div className="space-y-4 mb-8">
+            {competitions.map((competition) => (
+              <Link
+                key={competition.id}
+                href={`/play/${competition.id}`}
+                className="block bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all"
+              >
+                <div className="p-5">
+                  {/* Competition Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-900 truncate text-lg">
+                        {competition.name}
                       </h3>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        competition.is_complete 
-                          ? 'bg-yellow-200 text-yellow-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {competition.is_complete ? 'Complete' : 'Active'}
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm mb-4">
-                      {competition.is_complete ? (
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-yellow-700">Winner:</span>
-                            <span className="font-bold text-yellow-900">
-                              {competition.winner?.display_name || 'Unknown'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-yellow-700">Players:</span>
-                            <span className="font-medium text-yellow-800">
-                              1 of {competition.total_players} remaining
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          {competition.current_round && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-600">Current Round</span>
-                              <span className="font-medium text-gray-900">{competition.current_round}</span>
-                            </div>
-                          )}
-                          {competition.current_round_lock_time && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-600">Lock Time</span>
-                              <span className="font-medium text-xs text-gray-900">
-                                {new Date(competition.current_round_lock_time).toLocaleString('en-GB', {
-                                  year: 'numeric',
-                                  month: '2-digit', 
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false
-                                }).replace(',', '')}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    
-                    {competition.is_complete ? (
-                      <div className="flex items-center justify-center bg-yellow-100 border border-yellow-300 rounded-lg p-3">
-                        <TrophyIcon className="h-4 w-4 text-yellow-700 mr-2" />
-                        <span className="text-sm font-bold text-yellow-800">Competition Complete!</span>
+                      <div className="flex items-center space-x-3 mt-2 text-sm text-slate-600">
+                        <span className="flex items-center">
+                          <UserGroupIcon className="h-4 w-4 mr-1" />
+                          {competition.player_count}
+                        </span>
+                        {competition.current_round && (
+                          <span className="flex items-center">
+                            <ChartBarIcon className="h-4 w-4 mr-1" />
+                            Round {competition.current_round}
+                          </span>
+                        )}
                       </div>
-                    ) : competition.is_locked ? (
-                      <div className="flex items-center justify-center bg-green-50 border border-green-200 rounded-lg p-3">
-                        <FireIcon className="h-4 w-4 text-green-600 mr-2" />
-                        <span className="text-sm font-medium text-green-700">In Play</span>
+                    </div>
+                    
+                    {/* Status Badge */}
+                    {competition.is_complete ? (
+                      <div className="flex items-center px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
+                        <TrophyIcon className="h-4 w-4 mr-1" />
+                        Complete
                       </div>
                     ) : competition.needs_pick ? (
-                      <div className="flex items-center justify-center bg-orange-50 border border-orange-200 rounded-lg p-3">
-                        <ExclamationTriangleIcon className="h-4 w-4 text-orange-600 mr-2" />
-                        <span className="text-sm font-medium text-orange-800">Pick Required</span>
+                      <div className="flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                        <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
+                        Pick Now
+                      </div>
+                    ) : competition.is_locked ? (
+                      <div className="flex items-center px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
+                        <PlayCircleIcon className="h-4 w-4 mr-1" />
+                        In Play
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <ClockIcon className="h-4 w-4 text-blue-600 mr-2" />
-                        <span className="text-sm font-medium text-blue-800">Waiting</span>
+                      <div className="flex items-center px-3 py-1.5 bg-slate-100 text-slate-600 rounded-full text-sm font-medium">
+                        <ClockIcon className="h-4 w-4 mr-1" />
+                        Waiting
                       </div>
                     )}
-                  </CardComponent>
-                );
-              })}
+                  </div>
+
+                  {/* Quick Info - Only show most important */}
+                  {competition.current_round_lock_time && !competition.is_complete && (
+                    <div className="text-sm text-slate-600 mb-3">
+                      Picks close: {new Date(competition.current_round_lock_time).toLocaleString('en-GB', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                  )}
+
+                  {competition.lives_remaining !== undefined && (
+                    <div className="flex items-center justify-between mt-3 text-sm">
+                      <span className="text-slate-600 font-medium">Lives:</span>
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(competition.lives_remaining, 5) }, (_, i) => (
+                          <div key={i} className="w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                        ))}
+                        {competition.lives_remaining > 5 && (
+                          <span className="text-slate-600 ml-1">+{competition.lives_remaining - 5}</span>
+                        )}
+                        <span className="font-semibold text-slate-900 ml-2 text-base">
+                          {competition.lives_remaining}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          /* Empty State - Simple */
+          <div className="text-center py-12 mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+              <UserGroupIcon className="h-8 w-8 text-slate-400" />
             </div>
+            <h3 className="text-lg font-medium text-slate-900 mb-2">No competitions yet</h3>
+            <p className="text-slate-500 text-sm mb-6">
+              Ask your organizer for a competition code to get started
+            </p>
           </div>
         )}
 
-        {/* Show message if no competitions */}
-        {competitions.length === 0 && (
-          <div className="text-center py-12">
-            <UserGroupIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-gray-900 mb-2">No Competitions Yet</h3>
-            <p className="text-gray-600 mb-6">Use the "Join Competition" link above to get started!</p>
-          </div>
-        )}
-
-        {/* Become an Organizer Banner */}
-        <div className="mb-8">
-          <div className={`rounded-lg border transition-all ${
-            competitions.length > 0 
-              ? 'bg-gray-50 border-gray-200 p-4' // Subtle styling for existing players
-              : 'bg-gradient-to-r from-green-50 to-blue-50 border-green-200 p-6' // Prominent for new users
-          }`}>
-            <div className="flex items-start">
-              {competitions.length === 0 && (
-                <div className="flex-shrink-0">
-                  <div className="bg-green-100 rounded-full p-2">
-                    <TrophyIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              )}
-              <div className={`flex-grow ${competitions.length === 0 ? 'ml-4' : ''}`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-                  <div>
-                    <h3 className={`font-semibold mb-2 ${
-                      competitions.length > 0 
-                        ? 'text-sm text-gray-700' // Smaller, muted for existing players
-                        : 'text-lg text-green-900' // Large, prominent for new users
-                    }`}>
-                      Want to organize your own competition?
-                    </h3>
-                    {competitions.length === 0 && (
-                      <p className="text-sm text-green-800 mb-3">
-                        Create engaging Last Man Standing competitions for your pub, workplace, or club. 
-                        Setup takes just 5 minutes and brings people together around the excitement of football!
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex-shrink-0">
-                    <Link 
-                      href="/competition/create"
-                      className={`inline-flex items-center rounded-lg font-medium transition-colors ${
-                        competitions.length > 0
-                          ? 'px-3 py-1 text-xs bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700' // Small, subtle button
-                          : 'px-4 py-2 bg-green-600 text-white hover:bg-green-700 shadow-sm' // Large, prominent button
-                      }`}
-                    >
-                      <PlusCircleIcon className={competitions.length > 0 ? 'h-3 w-3 mr-1' : 'h-4 w-4 mr-2'} />
-                      Create Competition
-                    </Link>
-                  </div>
-                </div>
-                {competitions.length === 0 && (
-                  <div className="flex items-center text-xs text-green-700 mt-2">
-                    <span className="mr-4">✓ Easy setup wizard</span>
-                    <span className="mr-4">✓ Automatic scoring</span>
-                    <span>✓ Player management tools</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+        {/* Join Competition CTA - At bottom, smaller */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowJoinDialog(true)}
+            className="w-full flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <PlusCircleIcon className="h-4 w-4 mr-2" />
+            Join Competition
+          </button>
         </div>
-        
+
+        {/* Subtle Organizer CTA - Only show if they have competitions */}
+        {competitions.length > 0 && (
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <div className="text-center">
+              <p className="text-xs text-slate-600 mb-1">Want to organize your own?</p>
+              <Link 
+                href="/competition/create"
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Create competition →
+              </Link>
+            </div>
+          </div>
+        )}
       </main>
 
-      {/* Join Competition Dialog */}
+      {/* Join Competition Modal - Mobile Optimized */}
       {showJoinDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Join Competition</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">Join Competition</h3>
                 <button
                   onClick={() => {
                     setShowJoinDialog(false);
                     setJoinCode('');
                     setJoinError('');
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-slate-400 hover:text-slate-600"
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
-              
-              <p className="text-sm text-gray-600 mb-4">
-                Enter the competition code to join:
+            </div>
+            
+            <div className="px-6 py-4">
+              <p className="text-slate-600 text-sm mb-4">
+                Enter your competition code:
               </p>
               
               <input
@@ -415,7 +364,7 @@ export default function PlayerDashboardPage() {
                 value={joinCode}
                 onChange={(e) => {
                   setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
-                  setJoinError(''); // Clear error when user starts typing
+                  setJoinError('');
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && joinCode.trim().length > 0 && !joinLoading) {
@@ -423,24 +372,26 @@ export default function PlayerDashboardPage() {
                   }
                 }}
                 placeholder="1234"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-lg font-mono tracking-widest"
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-lg font-mono tracking-widest"
                 autoFocus
               />
               
               {joinError && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-600">{joinError}</p>
                 </div>
               )}
-              
-              <div className="flex gap-3 mt-6">
+            </div>
+            
+            <div className="px-6 py-4 bg-slate-50 rounded-b-2xl">
+              <div className="flex space-x-3">
                 <button
                   onClick={() => {
                     setShowJoinDialog(false);
                     setJoinCode('');
                     setJoinError('');
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50"
                   disabled={joinLoading}
                 >
                   Cancel
@@ -448,7 +399,7 @@ export default function PlayerDashboardPage() {
                 <button
                   onClick={handleJoinCompetition}
                   disabled={joinCode.trim().length === 0 || joinLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
                 >
                   {joinLoading ? 'Joining...' : 'Join'}
                 </button>

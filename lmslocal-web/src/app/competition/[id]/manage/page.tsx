@@ -18,7 +18,10 @@ import {
   PauseIcon,
   PencilIcon,
   CheckIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChartBarIcon,
+  ClipboardDocumentIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, roundApi, fixtureApi, teamApi, adminApi } from '@/lib/api';
 
@@ -378,10 +381,10 @@ export default function ManageCompetitionPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'UNLOCKED': return 'text-green-600 bg-green-50';
-      case 'LOCKED': return 'text-orange-600 bg-orange-50';
-      case 'SETUP': return 'text-gray-600 bg-gray-50';
-      default: return 'text-gray-600 bg-gray-50';
+      case 'UNLOCKED': return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+      case 'LOCKED': return 'text-amber-700 bg-amber-50 border-amber-200';
+      case 'SETUP': return 'text-slate-600 bg-slate-50 border-slate-200';
+      default: return 'text-slate-600 bg-slate-50 border-slate-200';
     }
   };
 
@@ -437,30 +440,35 @@ export default function ManageCompetitionPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Show header immediately */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
-              <div className="flex items-center">
-                <Link href="/dashboard" className="flex items-center text-gray-600 hover:text-gray-900 mr-4">
-                  <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                  Dashboard
+      <div className="min-h-screen bg-slate-50">
+        {/* Header with loading state */}
+        <header className="bg-white border-b border-slate-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center space-x-4">
+                <Link href="/dashboard" className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
+                  <ArrowLeftIcon className="h-5 w-5" />
+                  <span className="font-medium">Dashboard</span>
                 </Link>
-                <TrophyIcon className="h-8 w-8 text-green-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">Manage Competition</span>
+                <div className="h-6 w-px bg-slate-300" />
+                <div className="flex items-center space-x-3">
+                  <TrophyIcon className="h-6 w-6 text-blue-600" />
+                  <h1 className="text-lg font-semibold text-slate-900">Competition Management</h1>
+                </div>
               </div>
             </div>
           </div>
         </header>
         
-        {/* Loading content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-center py-12">
+        <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+            <div className="flex items-center justify-center">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-                <p className="text-gray-500">Loading competition...</p>
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+                </div>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Competition</h3>
+                <p className="text-slate-500">Please wait while we fetch your competition data...</p>
               </div>
             </div>
           </div>
@@ -471,10 +479,17 @@ export default function ManageCompetitionPage() {
 
   if (!competition) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Competition Not Found</h1>
-          <Link href="/dashboard" className="text-green-600 hover:text-green-700">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-full mb-4">
+            <ExclamationTriangleIcon className="h-8 w-8 text-red-600" />
+          </div>
+          <h1 className="text-xl font-semibold text-slate-900 mb-2">Competition Not Found</h1>
+          <p className="text-slate-500 mb-6">The competition you're looking for doesn't exist or you don't have permission to access it.</p>
+          <Link 
+            href="/dashboard" 
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
             Return to Dashboard
           </Link>
         </div>
@@ -484,162 +499,220 @@ export default function ManageCompetitionPage() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <Link href="/dashboard" className="flex items-center text-gray-600 hover:text-gray-900 mr-4">
-                <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                Dashboard
-              </Link>
-              <TrophyIcon className="h-8 w-8 text-green-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Manage Competition</span>
-            </div>
-            <div className="flex items-center space-x-4">
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Competition Overview */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">{competition.name}</h1>
-              {competition.description && (
-                <p className="text-gray-600 mb-4">{competition.description}</p>
-              )}
-              <div className="flex items-center space-x-6 text-sm text-gray-600">
-                <div className="flex items-center">
-                  <UserGroupIcon className="h-4 w-4 mr-1" />
-                  <span>{competition.player_count || 0} players</span>
+      <div className="min-h-screen bg-slate-50">
+        {/* Material 3 Style Header */}
+        <header className="bg-white border-b border-slate-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center space-x-4">
+                <Link href="/dashboard" className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
+                  <ArrowLeftIcon className="h-5 w-5" />
+                  <span className="font-medium">Dashboard</span>
+                </Link>
+                <div className="h-6 w-px bg-slate-300" />
+                <div className="flex items-center space-x-3">
+                  <TrophyIcon className="h-6 w-6 text-blue-600" />
+                  <h1 className="text-lg font-semibold text-slate-900">Competition Management</h1>
                 </div>
-              </div>
-            </div>
-            <button
-              className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-            >
-              <Cog6ToothIcon className="h-4 w-4 mr-2" />
-              Competition Settings
-            </button>
-          </div>
-        </div>
-
-        {/* Current Round Section */}
-        {currentRound && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-4 mb-2">
-                  <h2 className="text-4xl font-bold text-gray-900">Round {currentRound.round_number}</h2>
-                </div>
-                
-                <div className="text-xl text-gray-600 mb-3">
-                  <ClockIcon className="h-6 w-6 inline mr-2" />
-                  {isEditingCutoff ? (
-                    <div className="inline-flex items-center gap-2">
-                      <span>Choose picks by:</span>
-                      <input
-                        type="datetime-local"
-                        value={newCutoffTime}
-                        onChange={(e) => setNewCutoffTime(e.target.value)}
-                        className="px-2 py-1 border border-gray-300 rounded text-base"
-                      />
-                      <button
-                        onClick={saveCutoffTime}
-                        className="p-1 text-green-600 hover:text-green-700"
-                      >
-                        <CheckIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={cancelEditingCutoff}
-                        className="p-1 text-red-600 hover:text-red-700"
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="inline-flex items-center gap-2">
-                      <span>Choose picks by: {currentRound.lock_time ? new Date(currentRound.lock_time).toLocaleString(undefined, { 
-                        weekday: 'long',
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      }) : 'Not set'}</span>
-                      <button
-                        onClick={startEditingCutoff}
-                        className="p-1 text-gray-400 hover:text-gray-600"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
               </div>
               
-              <div className="mt-6 lg:mt-0 flex gap-3 flex-wrap">
-                {currentRound && 
-                 currentRound.fixture_count > 0 && 
-                 new Date() < new Date(currentRound.lock_time) && (
-                  <button
-                    onClick={openAdminPickModal}
-                    className="inline-flex items-center px-4 py-2 border border-blue-300 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 hover:border-blue-400 transition-colors text-sm"
-                  >
-                    <UserGroupIcon className="h-4 w-4 mr-2" />
-                    Set Player Pick
-                  </button>
-                )}
-                {pendingFixtures.length > 0 && (
-                  <button
-                    onClick={savePendingFixtures}
-                    disabled={isSavingFixtures}
-                    className={`inline-flex items-center px-4 py-2 border rounded-lg font-medium transition-all duration-200 text-sm ${
-                      isSavingFixtures
-                        ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
-                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'
-                    }`}
-                  >
-                    {isSavingFixtures ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                        Saving Fixtures...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircleIcon className="h-4 w-4 mr-2 text-green-600" />
-                        Confirm Fixtures ({pendingFixtures.length})
-                      </>
-                    )}
-                  </button>
-                )}
+              <div className="flex items-center space-x-3">
+                <Link
+                  href={`/competition/${competitionId}/players`}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  <EyeIcon className="h-4 w-4 mr-2" />
+                  View Players
+                </Link>
+                <button className="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                  <Cog6ToothIcon className="h-4 w-4 mr-2" />
+                  Settings
+                </button>
               </div>
             </div>
           </div>
-        )}
+        </header>
 
-        <div className="grid grid-cols-1 gap-8">
-          {/* Fixtures Management Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            {!currentRound ? (
-              <div className="text-center py-12 text-gray-500">
-                <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <p>Creating your first round...</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Team Selection for Adding Fixtures */}
+        <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+          {/* Competition Overview Card - Material 3 Style */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-8">
+            <div className="px-8 py-6 border-b border-slate-100">
+              <div className="flex items-start justify-between">
                 <div>
-                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">{competition.name}</h2>
+                  {competition.description && (
+                    <p className="text-slate-600 mb-4">{competition.description}</p>
+                  )}
+                  <div className="flex items-center space-x-6">
+                    <div className="flex items-center space-x-2 text-slate-600">
+                      <UserGroupIcon className="h-5 w-5" />
+                      <span className="text-sm font-medium">{competition.player_count || 0} players</span>
+                    </div>
+                    {competition.invite_code && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-slate-500">Code:</span>
+                        <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-lg">
+                          <code className="text-sm font-mono font-semibold text-blue-700">{competition.invite_code}</code>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(competition.invite_code || '');
+                            }}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <ClipboardDocumentIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                    {/* Team Selection Cards - Smaller */}
-                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 mb-4">
+            {/* Current Round Status */}
+            {currentRound && (
+              <div className="px-8 py-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <h3 className="text-3xl font-bold text-slate-900">Round {currentRound.round_number}</h3>
+                      <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(currentRound.status || 'SETUP')}`}>
+                        {getStatusIcon(currentRound.status || 'SETUP')}
+                        <span className="ml-2">
+                          {currentRound.status === 'UNLOCKED' ? 'Active' :
+                           currentRound.status === 'LOCKED' ? 'Locked' : 'Setup'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 text-slate-600">
+                      <ClockIcon className="h-5 w-5" />
+                      {isEditingCutoff ? (
+                        <div className="flex items-center space-x-3">
+                          <span className="text-sm">Pick deadline:</span>
+                          <input
+                            type="datetime-local"
+                            value={newCutoffTime}
+                            onChange={(e) => setNewCutoffTime(e.target.value)}
+                            className="px-3 py-1 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <button
+                            onClick={saveCutoffTime}
+                            className="p-1 text-emerald-600 hover:text-emerald-700"
+                          >
+                            <CheckIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={cancelEditingCutoff}
+                            className="p-1 text-slate-400 hover:text-slate-600"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-3">
+                          <span className="text-sm">
+                            Pick deadline: {currentRound.lock_time ? new Date(currentRound.lock_time).toLocaleString(undefined, { 
+                              weekday: 'short',
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            }) : 'Not set'}
+                          </span>
+                          <button
+                            onClick={startEditingCutoff}
+                            className="p-1 text-slate-400 hover:text-slate-600"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    {currentRound && 
+                     currentRound.fixture_count > 0 && 
+                     new Date() < new Date(currentRound.lock_time) && (
+                      <button
+                        onClick={openAdminPickModal}
+                        className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors border border-blue-200"
+                      >
+                        <UserGroupIcon className="h-4 w-4 mr-2" />
+                        Set Player Pick
+                      </button>
+                    )}
+                    {pendingFixtures.length > 0 && (
+                      <button
+                        onClick={savePendingFixtures}
+                        disabled={isSavingFixtures}
+                        className={`inline-flex items-center px-6 py-2 rounded-lg font-medium transition-all ${
+                          isSavingFixtures
+                            ? 'bg-slate-50 text-slate-400 cursor-not-allowed border border-slate-200'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                        }`}
+                      >
+                        {isSavingFixtures ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-300 border-t-slate-600 mr-2"></div>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircleIcon className="h-4 w-4 mr-2" />
+                            Confirm {pendingFixtures.length} Fixtures
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Fixtures Management Section */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="px-8 py-6 border-b border-slate-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Fixture Management</h3>
+                  <p className="text-sm text-slate-500 mt-1">Select teams to create fixtures for this round</p>
+                </div>
+                {currentRound && (
+                  <div className="flex items-center space-x-2 text-sm text-slate-600">
+                    <ChartBarIcon className="h-4 w-4" />
+                    <span>{pendingFixtures.length} fixtures created</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-8">
+              {!currentRound ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+                    <CalendarIcon className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <h4 className="text-lg font-medium text-slate-900 mb-2">Setting up your first round</h4>
+                  <p className="text-slate-500">Please wait while we create Round 1...</p>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Team Selection Grid */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-medium text-slate-900">
+                        {nextSelection === 'home' ? 'Select Home Team' : selectedHomeTeam ? `Select Away Team (vs ${selectedHomeTeam})` : 'Select Teams'}
+                      </h4>
+                      <div className="text-sm text-slate-500">
+                        {nextSelection === 'home' ? 'Step 1 of 2' : 'Step 2 of 2'}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3">
                       {teams.map((team) => {
                         const isUsed = usedTeams.has(team.short_name);
                         const isSelectedHome = selectedHomeTeam === team.short_name;
@@ -649,210 +722,221 @@ export default function ManageCompetitionPage() {
                             key={team.id}
                             onClick={() => handleTeamSelect(team)}
                             disabled={isUsed && !isSelectedHome}
-                            className={`p-2 rounded-md border font-medium text-xs transition-all ${
+                            className={`relative p-3 rounded-xl border-2 font-semibold text-sm transition-all duration-200 ${
                               isSelectedHome
-                                ? 'border-gray-400 bg-gray-200 text-gray-800'
+                                ? 'border-blue-400 bg-blue-50 text-blue-700 shadow-sm'
                                 : isUsed
-                                ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                                ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm'
                             }`}
                           >
-                            <div className="font-bold text-sm">{team.short_name}</div>
+                            <div className="text-center">
+                              <div className="font-bold text-base">{team.short_name}</div>
+                            </div>
+                            {isSelectedHome && (
+                              <div className="absolute -top-2 -right-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                                <CheckIcon className="h-3 w-3 text-white" />
+                              </div>
+                            )}
                           </button>
                         );
                       })}
                     </div>
-
-                    {/* Pending Fixtures Preview */}
-                    {pendingFixtures.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                          {pendingFixtures.map((fixture, index) => (
-                            <div key={index} className="flex items-center justify-between bg-white border border-gray-200 rounded px-3 py-2">
-                              <span className="text-sm font-medium">
-                                {fixture.home_team} vs {fixture.away_team}
-                              </span>
-                              <button
-                                onClick={() => removePendingFixture(index)}
-                                className="text-red-500 hover:text-red-700 text-xs"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
+
+                  {/* Pending Fixtures Preview */}
+                  {pendingFixtures.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-slate-900 mb-4">Created Fixtures</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {pendingFixtures.map((fixture, index) => (
+                          <div key={index} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+                            <div className="flex items-center space-x-3">
+                              <span className="font-semibold text-slate-900">{fixture.home_team}</span>
+                              <span className="text-slate-400">vs</span>
+                              <span className="font-semibold text-slate-900">{fixture.away_team}</span>
+                            </div>
+                            <button
+                              onClick={() => removePendingFixture(index)}
+                              className="text-slate-400 hover:text-red-600 transition-colors"
+                            >
+                              <XMarkIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+
+        {/* Create New Round Modal - Material 3 Style */}
+        {showCreateRoundModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
+            <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl">
+              <div className="px-8 py-6 border-b border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold text-slate-900">
+                    {currentRound ? 'Create New Round' : 'Set Up Round 1'}
+                  </h3>
+                  <button
+                    onClick={cancelCreateRound}
+                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
                 </div>
               </div>
-            )}
-
-
-          </div>
-        </div>
-      </main>
-
-      {/* Create New Round Modal */}
-      {showCreateRoundModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                {currentRound ? 'Create New Round' : 'Set Up Your First Round'}
-              </h2>
-              <button
-                onClick={cancelCreateRound}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
-            </div>
-            
-            {!currentRound && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-semibold text-blue-900 mb-2">
-                      ⚠️ Important: Set Your Pick Deadline Carefully
-                    </h3>
-                    <div className="text-sm text-blue-800 space-y-1">
-                      <p>• <strong>Give players time to join</strong> your competition</p>
-                      <p>• <strong>Allow time for picks</strong> before fixtures start</p>
-                      <p>• <strong>Consider time zones</strong> if players are in different locations</p>
-                      <p>• <strong>You can change this later</strong> if needed</p>
+              
+              <div className="px-8 py-6">
+                {!currentRound && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <ExclamationTriangleIcon className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-blue-900 mb-2">Important: Set Your Pick Deadline Carefully</h4>
+                        <ul className="text-sm text-blue-800 space-y-1">
+                          <li>• Give players time to join your competition</li>
+                          <li>• Allow time for picks before fixtures start</li>
+                          <li>• Consider time zones if players are in different locations</li>
+                          <li>• You can change this later if needed</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
+                )}
+                
+                <div className="mb-6">
+                  {currentRound ? (
+                    <p className="text-slate-600 mb-4">
+                      This will create Round {currentRound.round_number + 1} and reset fixtures.
+                    </p>
+                  ) : (
+                    <p className="text-slate-700 mb-4 font-medium">
+                      When should players make their picks by?
+                    </p>
+                  )}
+                  
+                  <label className="block text-sm font-medium text-slate-700 mb-3">
+                    Pick Deadline
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={newRoundLockTime}
+                    onChange={(e) => setNewRoundLockTime(e.target.value)}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                    required
+                  />
+                  <p className="text-sm text-slate-500 mt-2">
+                    Recommended: Set this 1-2 hours before your first fixtures kick off
+                  </p>
                 </div>
               </div>
-            )}
-            
-            <div className="mb-6">
-              {currentRound ? (
-                <p className="text-gray-600 mb-4">
-                  This will create Round {currentRound.round_number + 1} and reset fixtures.
-                </p>
-              ) : (
-                <p className="text-gray-700 mb-4 font-medium">
-                  Setting up Round 1 - when should players make their picks by?
-                </p>
-              )}
               
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {currentRound ? 'Make picks by (deadline):' : 'Pick deadline (when fixtures start):'}
-              </label>
-              <input
-                type="datetime-local"
-                value={newRoundLockTime}
-                onChange={(e) => setNewRoundLockTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-                required
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                {currentRound 
-                  ? 'Players must make their picks before this time'
-                  : 'Recommended: Set this 1-2 hours before your first fixtures kick off'
-                }
-              </p>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={cancelCreateRound}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateRound}
-                disabled={!newRoundLockTime}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                Create Round
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admin Pick Modal */}
-      {showAdminPickModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Set Player Pick</h3>
-              <button
-                onClick={() => setShowAdminPickModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Player Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Player
-                </label>
-                <select
-                  value={selectedPlayer || ''}
-                  onChange={(e) => setSelectedPlayer(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                >
-                  <option value="">Choose a player...</option>
-                  {players.map((player, index) => (
-                    <option key={`player-${player.user_id}-${index}`} value={player.user_id}>
-                      {player.display_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Team Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Team
-                </label>
-                <select
-                  value={selectedTeam}
-                  onChange={(e) => setSelectedTeam(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                >
-                  <option value="">Choose a team...</option>
-                  {teams.map((team, index) => (
-                    <option key={`team-${team.id}-${index}`} value={team.name}>
-                      {team.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="px-8 py-6 bg-slate-50 rounded-b-2xl">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={cancelCreateRound}
+                    className="flex-1 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateRound}
+                    disabled={!newRoundLockTime}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Create Round
+                  </button>
+                </div>
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAdminPickModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSetPlayerPick}
-                disabled={!selectedPlayer || !selectedTeam || settingPick}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                {settingPick ? 'Setting Pick...' : 'Set Pick'}
-              </button>
+        {/* Admin Pick Modal - Material 3 Style */}
+        {showAdminPickModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+              <div className="px-8 py-6 border-b border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold text-slate-900">Set Player Pick</h3>
+                  <button
+                    onClick={() => setShowAdminPickModal(false)}
+                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-8 py-6">
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-3">
+                      Select Player
+                    </label>
+                    <select
+                      value={selectedPlayer || ''}
+                      onChange={(e) => setSelectedPlayer(e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="">Choose a player...</option>
+                      {players.map((player, index) => (
+                        <option key={`player-${player.user_id}-${index}`} value={player.user_id}>
+                          {player.display_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-3">
+                      Select Team
+                    </label>
+                    <select
+                      value={selectedTeam}
+                      onChange={(e) => setSelectedTeam(e.target.value)}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="">Choose a team...</option>
+                      {teams.map((team, index) => (
+                        <option key={`team-${team.id}-${index}`} value={team.name}>
+                          {team.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-8 py-6 bg-slate-50 rounded-b-2xl">
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowAdminPickModal(false)}
+                    className="flex-1 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSetPlayerPick}
+                    disabled={!selectedPlayer || !selectedTeam || settingPick}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {settingPick ? 'Setting Pick...' : 'Set Pick'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      
+        )}
       </div>
     </ErrorBoundary>
   );

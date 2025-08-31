@@ -14,7 +14,11 @@ import {
   Cog6ToothIcon,
   CalendarDaysIcon,
   ChartBarIcon,
-  UsersIcon
+  UsersIcon,
+  ClipboardDocumentIcon,
+  SparklesIcon,
+  PlayCircleIcon,
+  PauseCircleIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, userApi } from '@/lib/api';
 import { logout } from '@/lib/auth';
@@ -134,19 +138,19 @@ export default function DashboardPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'UNLOCKED': return 'text-green-600 bg-green-50';
-      case 'LOCKED': return 'text-orange-600 bg-orange-50';
-      case 'SETUP': return 'text-gray-600 bg-gray-50';
-      default: return 'text-gray-600 bg-gray-50';
+      case 'UNLOCKED': return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+      case 'LOCKED': return 'text-amber-700 bg-amber-50 border-amber-200';
+      case 'SETUP': return 'text-slate-600 bg-slate-50 border-slate-200';
+      default: return 'text-slate-600 bg-slate-50 border-slate-200';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'UNLOCKED': return <CheckCircleIcon className="h-5 w-5" />;
-      case 'LOCKED': return <ClockIcon className="h-5 w-5" />;
-      case 'SETUP': return <ExclamationTriangleIcon className="h-5 w-5" />;
-      default: return <ClockIcon className="h-5 w-5" />;
+      case 'UNLOCKED': return <PlayCircleIcon className="h-4 w-4" />;
+      case 'LOCKED': return <PauseCircleIcon className="h-4 w-4" />;
+      case 'SETUP': return <ExclamationTriangleIcon className="h-4 w-4" />;
+      default: return <ClockIcon className="h-4 w-4" />;
     }
   };
 
@@ -178,37 +182,61 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center space-x-3">
+                <TrophyIcon className="h-7 w-7 text-blue-600" />
+                <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+            <div className="flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+                </div>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Dashboard</h3>
+                <p className="text-slate-500">Please wait while we fetch your competitions...</p>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center">
-                <TrophyIcon className="h-8 w-8 text-green-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">LMSLocal</span>
+    <div className="min-h-screen bg-slate-50">
+      {/* Material 3 Header */}
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-3">
+              <Link href="/" className="flex items-center space-x-3">
+                <TrophyIcon className="h-7 w-7 text-blue-600" />
+                <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
               </Link>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Welcome back, <span className="font-medium text-gray-900">{user?.display_name}</span>
-              </span>
+              <div className="flex items-center space-x-3 text-slate-600">
+                <span className="text-sm">Welcome back,</span>
+                <span className="font-semibold text-slate-900">{user?.display_name}</span>
+              </div>
+              <div className="h-6 w-px bg-slate-300" />
               <Link
                 href="/profile"
-                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md"
+                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 Profile
               </Link>
               <button
                 onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md"
+                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 Sign out
               </button>
@@ -217,203 +245,238 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.display_name} 👋
-          </h1>
-          <p className="text-lg text-gray-600">
-            Ready to run some brilliant Last Man Standing competitions?
-          </p>
-        </div>
-        
-        {/* Organised Competitions */}
-        <section className="mb-12">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">My Organised Competitions</h2>
-            <p className="text-gray-600 text-sm mt-1">
-              Create engaging competitions that bring your customers together
+      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+        {/* Welcome Section - Material 3 Style */}
+        <div className="mb-10">
+          <div className="max-w-3xl">
+            <h2 className="text-4xl font-bold text-slate-900 mb-3">
+              Welcome back, {user?.display_name}
+            </h2>
+            <p className="text-xl text-slate-600 leading-relaxed">
+              Manage your Last Man Standing competitions with professional tools designed for pub landlords, 
+              workplace organizers, and club managers.
             </p>
           </div>
+        </div>
+        
+        {/* Section Header */}
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold text-slate-900">My Competitions</h3>
+          <p className="text-slate-600 mt-1">Create and manage engaging competitions for your community</p>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* New Competition Card */}
-            <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-dashed border-green-300 rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col items-center justify-center text-center relative overflow-hidden">
-              {/* Decorative background pattern */}
-              <div className="absolute inset-0 opacity-5">
-                <div className="absolute top-4 left-4">⚽</div>
-                <div className="absolute top-8 right-8">🏆</div>
-                <div className="absolute bottom-6 left-8">🎯</div>
-                <div className="absolute bottom-4 right-4">⭐</div>
-              </div>
-              
-              <div className="relative z-10">
-                <div className="bg-green-100 rounded-full p-3 mb-4 inline-flex">
-                  <PlusIcon className="h-8 w-8 text-green-600" />
+        {/* Competitions Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Create New Competition Card */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 rounded-xl p-8 hover:shadow-lg transition-all duration-200 group cursor-pointer">
+            <Link href="/competition/create" className="block">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-2xl mb-6 group-hover:bg-blue-200 transition-colors">
+                  <PlusIcon className="h-8 w-8 text-blue-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Start New Competition</h3>
-                <p className="text-gray-600 text-sm mb-6">
-                  Get your customers engaged with a thrilling Last Man Standing tournament. 
-                  <span className="block text-green-700 font-medium mt-1">Setup takes just 5 minutes! ⚡</span>
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">Start New Competition</h3>
+                <p className="text-slate-600 text-sm leading-relaxed mb-6">
+                  Create engaging Last Man Standing competitions that bring your community together. 
+                  Setup takes just minutes with our guided process.
                 </p>
-                <Link
-                  href="/competition/create"
-                  className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-md hover:shadow-lg"
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Create Competition
-                </Link>
-              </div>
-            </div>
-
-            {organizedCompetitions.map((competition) => {
-              const isNewCompetition = newCompetitionId && competition.id.toString() === newCompetitionId;
-              return (
-              <div key={competition.id} className={`rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col ${
-                isNewCompetition 
-                  ? 'bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-400 shadow-lg' 
-                  : 'bg-white border border-gray-200'
-              }`}>
-                {isNewCompetition && (
-                  <div className="flex items-center mb-3">
-                    <div className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center">
-                      <span className="animate-pulse mr-1">✨</span>
-                      NEW!
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">{competition.name}</h3>
+                <div className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm group-hover:bg-blue-700 transition-colors">
+                  <SparklesIcon className="h-4 w-4 mr-2" />
+                  Quick Setup
                 </div>
-                
-                {isNewCompetition && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium mb-1">🎯 Ready to set up your competition?</p>
-                      <p className="text-xs">Add rounds, fixtures, and start inviting players!</p>
-                    </div>
-                  </div>
-                )}
-                
-                {!isNewCompetition && competition.player_count === 0 && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                    <div className="text-sm text-amber-800">
-                      <p className="font-medium mb-1">📢 Ready for players!</p>
-                      <p className="text-xs">Competition is set up - share your access code to get players joining.</p>
-                    </div>
-                  </div>
-                )}
-                
-                {competition.current_round && competition.player_count > 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                    <div className="text-sm text-green-800">
-                      <p className="font-medium mb-1">🏃‍♂️ Competition running!</p>
-                      <p className="text-xs">Manage rounds, results and keep the excitement going.</p>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="space-y-2 text-sm text-gray-600 mb-6 flex-grow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <UserGroupIcon className="h-4 w-4 mr-2" />
-                      <span>{competition.player_count || 0} players</span>
-                    </div>
-                    {competition.current_round && (
-                      <div className="flex items-center">
-                        <ChartBarIcon className="h-4 w-4 mr-1" />
-                        <span>Round {competition.current_round}</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Competition Cards */}
+          {organizedCompetitions.map((competition) => {
+            const isNewCompetition = newCompetitionId && competition.id.toString() === newCompetitionId;
+            return (
+              <div
+                key={competition.id}
+                className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${
+                  isNewCompetition 
+                    ? 'border-blue-200 ring-2 ring-blue-100' 
+                    : 'border-slate-200'
+                }`}
+              >
+                {/* Card Header */}
+                <div className="p-6 border-b border-slate-100">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h4 className="text-lg font-semibold text-slate-900 truncate">{competition.name}</h4>
+                        {isNewCompetition && (
+                          <div className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                            <SparklesIcon className="h-3 w-3 mr-1" />
+                            NEW
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  
-                  {competition.total_rounds && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <CalendarDaysIcon className="h-4 w-4 mr-2" />
-                        <span>{competition.total_rounds} total rounds</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          competition.status === 'UNLOCKED' ? 'bg-green-100 text-green-700' :
-                          competition.status === 'LOCKED' ? 'bg-orange-100 text-orange-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {competition.status === 'UNLOCKED' ? 'Active' :
-                           competition.status === 'LOCKED' ? 'Locked' :
-                           'Setup'}
-                        </span>
+                      <div className="flex items-center space-x-4 text-sm text-slate-600">
+                        <div className="flex items-center space-x-2">
+                          <UserGroupIcon className="h-4 w-4" />
+                          <span>{competition.player_count || 0} players</span>
+                        </div>
+                        {competition.current_round && (
+                          <div className="flex items-center space-x-2">
+                            <ChartBarIcon className="h-4 w-4" />
+                            <span>Round {competition.current_round}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <ClockIcon className="h-4 w-4 mr-2" />
-                      <span className="text-xs">
-                        Created {new Date(competition.created_at).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric'
-                        })}
+                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(competition.status)}`}>
+                      {getStatusIcon(competition.status)}
+                      <span className="ml-1">
+                        {competition.status === 'UNLOCKED' ? 'Active' :
+                         competition.status === 'LOCKED' ? 'Locked' : 'Setup'}
                       </span>
                     </div>
                   </div>
-                  
-                  {competition.invite_code && (
-                    <div className="bg-gray-50 border border-gray-200 rounded p-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-medium text-gray-900 mb-1">Player Access Code</p>
-                          <p className="text-lg font-bold text-blue-600 tracking-wider">{competition.invite_code}</p>
+
+                  {/* Status Messages */}
+                  {isNewCompetition && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <CheckCircleIcon className="h-5 w-5 text-blue-600" />
                         </div>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(competition.invite_code);
-                            // Could add a toast notification here
-                          }}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
-                        >
-                          Copy
-                        </button>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">Competition Created Successfully!</p>
+                          <p className="text-xs text-blue-700 mt-1">Ready to add rounds, fixtures, and invite players</p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">Share this code with players to join</p>
+                    </div>
+                  )}
+                  
+                  {!isNewCompetition && competition.player_count === 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-amber-900">Waiting for Players</p>
+                          <p className="text-xs text-amber-700 mt-1">Share your access code to get players joining</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {competition.current_round && competition.player_count > 0 && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <PlayCircleIcon className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-emerald-900">Competition Active</p>
+                          <p className="text-xs text-emerald-700 mt-1">Players are engaged and competition is running</p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                <div className="flex mt-auto space-x-2">
-                  <button
-                    onClick={() => handleManageClick(competition.id)}
-                    className={`flex-1 inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
-                      isNewCompetition 
-                        ? 'bg-green-600 text-white hover:bg-green-700 shadow-md' 
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                    }`}
-                  >
-                    <Cog6ToothIcon className="h-4 w-4 mr-1" />
-                    Manage
-                  </button>
-                  <Link
-                    href={`/competition/${competition.id}/players`}
-                    className={`flex-1 inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
-                      isNewCompetition 
-                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    <UsersIcon className="h-4 w-4 mr-1" />
-                    Players
-                  </Link>
+                {/* Card Body */}
+                <div className="p-6">
+                  <div className="space-y-4">
+                    {/* Competition Stats */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center space-x-2 text-slate-600">
+                        <CalendarDaysIcon className="h-4 w-4" />
+                        <span>{competition.total_rounds || 0} rounds</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-slate-600">
+                        <ClockIcon className="h-4 w-4" />
+                        <span className="text-xs">
+                          Created {new Date(competition.created_at).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Access Code */}
+                    {competition.invite_code && (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-slate-700 mb-1">Player Access Code</p>
+                            <div className="flex items-center space-x-2">
+                              <code className="text-lg font-mono font-bold text-blue-600 tracking-wider">
+                                {competition.invite_code}
+                              </code>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  navigator.clipboard.writeText(competition.invite_code);
+                                }}
+                                className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                              >
+                                <ClipboardDocumentIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Actions */}
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => handleManageClick(competition.id)}
+                      className={`flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                        isNewCompetition 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
+                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Cog6ToothIcon className="h-4 w-4 mr-2" />
+                      Manage
+                    </button>
+                    <Link
+                      href={`/competition/${competition.id}/players`}
+                      className={`flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                        isNewCompetition 
+                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      <UsersIcon className="h-4 w-4 mr-2" />
+                      Players
+                    </Link>
+                  </div>
                 </div>
               </div>
-              );
-            })}
-          </div>
-        </section>
+            );
+          })}
+        </div>
 
+        {/* Empty State */}
+        {organizedCompetitions.length === 0 && (
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-100 rounded-full mb-6">
+              <TrophyIcon className="h-10 w-10 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-medium text-slate-900 mb-2">No Competitions Yet</h3>
+            <p className="text-slate-500 mb-8 max-w-md mx-auto">
+              Create your first Last Man Standing competition to start engaging your community. 
+              Setup is quick and easy with our guided process.
+            </p>
+            <Link
+              href="/competition/create"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Create Your First Competition
+            </Link>
+          </div>
+        )}
       </main>
     </div>
   );
