@@ -1,25 +1,41 @@
 /*
 =======================================================================================================================================
-Get Competition Status Route
+API Route: get-competition-status
 =======================================================================================================================================
 Method: POST
-Purpose: Get current round and fixture count to determine routing
+Purpose: Gets comprehensive competition status including rounds, fixtures, player counts and winner details for admin dashboard routing and display
 =======================================================================================================================================
 Request Payload:
 {
-  "competition_id": 123                   // number, required
+  "competition_id": 123                   // integer, required - ID of the competition to check
 }
 
-Success Response:
+Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "current_round": {
-    "id": 17,                            // number, current round ID
-    "round_number": 2,                   // number, round number
-    "lock_time": "2025-08-30T18:00:00Z"  // string, lock time
+    "id": 17,                            // integer, current round ID
+    "round_number": 2,                   // integer, round number
+    "lock_time": "2025-08-30T18:00:00Z", // string, ISO datetime when round locks
+    "calculated": true                   // boolean, true if round results processed
   },
-  "fixture_count": 5,                    // number, fixtures in current round
-  "should_route_to_results": true        // boolean, true if has fixtures
+  "fixture_count": 5,                    // integer, number of fixtures in current round
+  "should_route_to_results": true,       // boolean, true if has fixtures (routing logic)
+  "players_active": 8,                   // integer, number of active players
+  "players_out": 4,                      // integer, number of eliminated players
+  "total_players": 12,                   // integer, total players in competition
+  "round_calculated": true,              // boolean, true if current round processed
+  "winner": {                            // object, winner details (null if no winner)
+    "display_name": "John Smith",        // string, winner's display name
+    "email": "john@example.com",         // string, winner's email
+    "joined_at": "2025-01-01T12:00:00Z"  // string, ISO datetime when winner joined
+  }
+}
+
+Error Response (ALWAYS HTTP 200):
+{
+  "return_code": "ERROR_TYPE",
+  "message": "Descriptive error message"  // string, user-friendly error description
 }
 =======================================================================================================================================
 Return Codes:
@@ -32,169 +48,160 @@ Return Codes:
 */
 
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const { query } = require('../database');
+const { verifyToken } = require('../middleware/auth');
 const router = express.Router();
-
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        return_code: "UNAUTHORIZED",
-        message: "No token provided"
-      });
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Get user from database
-    const userId = decoded.user_id || decoded.userId; // Handle both formats
-    const result = await query('SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', [userId]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({
-        return_code: "UNAUTHORIZED",
-        message: "Invalid token"
-      });
-    }
-
-    req.user = result.rows[0];
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      return_code: "UNAUTHORIZED",
-      message: "Invalid token"
-    });
-  }
-};
 
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { competition_id } = req.body;
     const user_id = req.user.id;
 
-    // Basic validation
+    // Validate required input parameters
     if (!competition_id || !Number.isInteger(competition_id)) {
-      return res.status(400).json({
+      return res.json({
         return_code: "VALIDATION_ERROR",
         message: "Competition ID is required and must be a number"
       });
     }
 
-    // Verify user is the organiser
-    const competitionCheck = await query(
-      'SELECT organiser_id, name, invite_code FROM competition WHERE id = $1',
-      [competition_id]
-    );
+    // Get all competition status data in single comprehensive query to eliminate N+1 pattern
+    // This replaces 5-6 separate queries with one efficient query using LEFT JOINs and subqueries
+    const result = await query(`
+      SELECT 
+        -- Competition details and authorization
+        c.organiser_id,
+        c.name,
+        c.invite_code,
+        
+        -- Current round info (latest round by round_number)
+        r.round_id,
+        r.round_number,
+        r.lock_time,
+        
+        -- Fixture metrics for current round
+        COALESCE(fc.fixture_count, 0) as fixture_count,
+        COALESCE(fc.calculated_count, 0) as calculated_fixtures,
+        
+        -- Player status counts
+        COALESCE(pc.players_active, 0) as players_active,
+        COALESCE(pc.players_out, 0) as players_out,
+        COALESCE(pc.total_players, 0) as total_players,
+        
+        -- Winner details (only when exactly 1 active player and competition started)
+        w.winner_name,
+        w.winner_email,
+        w.winner_joined
+        
+      FROM competition c
+      
+      -- Get current round (latest by round_number) using window function to avoid LIMIT in JOIN
+      LEFT JOIN (
+        SELECT competition_id, id as round_id, round_number, lock_time,
+               ROW_NUMBER() OVER (PARTITION BY competition_id ORDER BY round_number DESC) as rn
+        FROM round
+      ) r ON c.id = r.competition_id AND r.rn = 1
+      
+      -- Get fixture counts and calculation status for current round
+      LEFT JOIN (
+        SELECT round_id,
+               COUNT(*) as fixture_count,
+               COUNT(CASE WHEN processed IS NOT NULL THEN 1 END) as calculated_count
+        FROM fixture
+        GROUP BY round_id
+      ) fc ON r.round_id = fc.round_id
+      
+      -- Get aggregated player status counts
+      LEFT JOIN (
+        SELECT competition_id,
+               COUNT(CASE WHEN status = 'active' THEN 1 END) as players_active,
+               COUNT(CASE WHEN status = 'OUT' THEN 1 END) as players_out,
+               COUNT(*) as total_players
+        FROM competition_user
+        GROUP BY competition_id
+      ) pc ON c.id = pc.competition_id
+      
+      -- Get winner details only when competition is complete (1 active player, no invite code)
+      LEFT JOIN (
+        SELECT cu.competition_id, 
+               u.display_name as winner_name, 
+               u.email as winner_email, 
+               cu.joined_at as winner_joined
+        FROM competition_user cu
+        INNER JOIN app_user u ON cu.user_id = u.id
+        WHERE cu.status = 'active'
+      ) w ON c.id = w.competition_id 
+         AND pc.players_active = 1 
+         AND c.invite_code IS NULL
+      
+      WHERE c.id = $1
+    `, [competition_id]);
 
-    if (competitionCheck.rows.length === 0) {
-      return res.status(404).json({
+    // Check if competition exists
+    if (result.rows.length === 0) {
+      return res.json({
         return_code: "COMPETITION_NOT_FOUND",
         message: "Competition not found"
       });
     }
 
-    if (competitionCheck.rows[0].organiser_id !== user_id) {
-      return res.status(403).json({
+    const data = result.rows[0];
+
+    // Verify user is the organiser (authorization check)
+    if (data.organiser_id !== user_id) {
+      return res.json({
         return_code: "UNAUTHORIZED",
         message: "Only the competition organiser can access this information"
       });
     }
 
-    // Get current round (latest round)
-    const roundResult = await query(`
-      SELECT id, round_number, lock_time
-      FROM round 
-      WHERE competition_id = $1 
-      ORDER BY round_number DESC 
-      LIMIT 1
-    `, [competition_id]);
+    // Parse numeric values to ensure correct types
+    const fixtureCount = parseInt(data.fixture_count);
+    const calculatedCount = parseInt(data.calculated_fixtures);
+    const playersActive = parseInt(data.players_active);
+    const playersOut = parseInt(data.players_out);
+    const totalPlayers = parseInt(data.total_players);
 
-    if (roundResult.rows.length === 0) {
-      // No rounds exist
-      return res.json({
-        return_code: "SUCCESS",
-        current_round: null,
-        fixture_count: 0,
-        should_route_to_results: false
-      });
-    }
+    // Determine if round has been calculated
+    const roundCalculated = calculatedCount > 0;
 
-    const currentRound = roundResult.rows[0];
-
-    // Get fixture count for current round
-    const fixtureCountResult = await query(`
-      SELECT COUNT(*) as count
-      FROM fixture
-      WHERE round_id = $1
-    `, [currentRound.id]);
-
-    const fixtureCount = parseInt(fixtureCountResult.rows[0].count);
-
-    // Get player counts
-    const statusCounts = await query(`
-      SELECT 
-        COUNT(*) FILTER (WHERE status = 'active') as players_active,
-        COUNT(*) FILTER (WHERE status = 'OUT') as players_out,
-        COUNT(*) as total_players
-      FROM competition_user 
-      WHERE competition_id = $1
-    `, [competition_id]);
-
-    const counts = statusCounts.rows[0];
-
-    // Check if round has been calculated (any fixtures have been processed)
-    const calculatedCheck = await query(`
-      SELECT COUNT(*) as count 
-      FROM fixture 
-      WHERE round_id = $1 AND processed IS NOT NULL
-    `, [currentRound.id]);
-
-    const roundCalculated = parseInt(calculatedCheck.rows[0].count) > 0;
-    
-    // If there's exactly 1 active player and no invite code (competition started), get the winner details
+    // Build winner object if winner data exists
     let winner = null;
-    const competition = competitionCheck.rows[0];
-    if (parseInt(counts.players_active) === 1 && !competition.invite_code) {
-      const winnerResult = await query(`
-        SELECT u.display_name, u.email, cu.joined_at
-        FROM competition_user cu
-        INNER JOIN app_user u ON cu.user_id = u.id
-        WHERE cu.competition_id = $1 AND cu.status = 'active'
-        LIMIT 1
-      `, [competition_id]);
-      
-      if (winnerResult.rows.length > 0) {
-        winner = {
-          display_name: winnerResult.rows[0].display_name,
-          email: winnerResult.rows[0].email,
-          joined_at: winnerResult.rows[0].joined_at
-        };
-      }
+    if (data.winner_name) {
+      winner = {
+        display_name: data.winner_name,
+        email: data.winner_email,
+        joined_at: data.winner_joined
+      };
     }
 
+    // Build current round object (null if no rounds exist)
+    let currentRound = null;
+    if (data.round_id) {
+      currentRound = {
+        id: data.round_id,
+        round_number: data.round_number,
+        lock_time: data.lock_time,
+        calculated: roundCalculated
+      };
+    }
+
+    // Return comprehensive competition status for admin dashboard
     res.json({
       return_code: "SUCCESS",
-      current_round: {
-        id: currentRound.id,
-        round_number: currentRound.round_number,
-        lock_time: currentRound.lock_time,
-        calculated: roundCalculated
-      },
+      current_round: currentRound,
       fixture_count: fixtureCount,
-      should_route_to_results: fixtureCount > 0,
-      players_active: parseInt(counts.players_active),
-      players_out: parseInt(counts.players_out), 
-      total_players: parseInt(counts.total_players),
+      should_route_to_results: fixtureCount > 0, // Frontend uses this for routing logic
+      players_active: playersActive,
+      players_out: playersOut,
+      total_players: totalPlayers,
       round_calculated: roundCalculated,
-      winner: winner
+      winner: winner // null if no winner yet
     });
 
   } catch (error) {
     console.error('Get competition status error:', error);
-    res.status(500).json({
+    res.json({
       return_code: "SERVER_ERROR",
       message: "Internal server error"
     });

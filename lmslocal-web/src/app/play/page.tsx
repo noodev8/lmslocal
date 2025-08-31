@@ -209,10 +209,6 @@ export default function PlayerDashboardPage() {
                   <PlusCircleIcon className="h-4 w-4 mr-1" />
                   Join Competition
                 </button>
-                <button className="flex items-center text-gray-600 hover:text-gray-900">
-                  <CogIcon className="h-5 w-5 mr-2" />
-                  Settings
-                </button>
               </div>
             </div>
           </div>
@@ -330,9 +326,64 @@ export default function PlayerDashboardPage() {
             <p className="text-gray-600 mb-6">Use the "Join Competition" link above to get started!</p>
           </div>
         )}
-        
 
-
+        {/* Become an Organizer Banner */}
+        <div className="mb-8">
+          <div className={`rounded-lg border transition-all ${
+            competitions.length > 0 
+              ? 'bg-gray-50 border-gray-200 p-4' // Subtle styling for existing players
+              : 'bg-gradient-to-r from-green-50 to-blue-50 border-green-200 p-6' // Prominent for new users
+          }`}>
+            <div className="flex items-start">
+              {competitions.length === 0 && (
+                <div className="flex-shrink-0">
+                  <div className="bg-green-100 rounded-full p-2">
+                    <TrophyIcon className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+              )}
+              <div className={`flex-grow ${competitions.length === 0 ? 'ml-4' : ''}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                  <div>
+                    <h3 className={`font-semibold mb-2 ${
+                      competitions.length > 0 
+                        ? 'text-sm text-gray-700' // Smaller, muted for existing players
+                        : 'text-lg text-green-900' // Large, prominent for new users
+                    }`}>
+                      Want to organize your own competition?
+                    </h3>
+                    {competitions.length === 0 && (
+                      <p className="text-sm text-green-800 mb-3">
+                        Create engaging Last Man Standing competitions for your pub, workplace, or club. 
+                        Setup takes just 5 minutes and brings people together around the excitement of football!
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0">
+                    <Link 
+                      href="/competition/create"
+                      className={`inline-flex items-center rounded-lg font-medium transition-colors ${
+                        competitions.length > 0
+                          ? 'px-3 py-1 text-xs bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-700' // Small, subtle button
+                          : 'px-4 py-2 bg-green-600 text-white hover:bg-green-700 shadow-sm' // Large, prominent button
+                      }`}
+                    >
+                      <PlusCircleIcon className={competitions.length > 0 ? 'h-3 w-3 mr-1' : 'h-4 w-4 mr-2'} />
+                      Create Competition
+                    </Link>
+                  </div>
+                </div>
+                {competitions.length === 0 && (
+                  <div className="flex items-center text-xs text-green-700 mt-2">
+                    <span className="mr-4">✓ Easy setup wizard</span>
+                    <span className="mr-4">✓ Automatic scoring</span>
+                    <span>✓ Player management tools</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
         
       </main>
 

@@ -378,12 +378,12 @@ export default function CompetitionPickPage() {
     }
   };
 
-  // Aggressive scroll detection for iPad
+  // Lighter scroll detection for iPad - more permissive
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
-  // Function to completely reset all touch states
+  // Function to reset touch states - less aggressive
   const resetTouchStates = () => {
     setIsScrolling(false);
     touchStartRef.current = null;
@@ -393,7 +393,7 @@ export default function CompetitionPickPage() {
     }
   };
 
-  // Global scroll detection
+  // Lighter scroll detection - shorter timeout and less aggressive
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolling(true);
@@ -403,23 +403,20 @@ export default function CompetitionPickPage() {
         clearTimeout(scrollTimeoutRef.current);
       }
       
-      // Set timeout to detect when scrolling stops
+      // Shorter timeout - reset scroll state faster (50ms instead of 100ms)
       scrollTimeoutRef.current = setTimeout(() => {
         setIsScrolling(false);
-      }, 100);
+      }, 50);
     };
 
-    const handleTouchMove = () => {
-      setIsScrolling(true);
-    };
+    // Remove global touchmove listener - only use scroll detection
+    // This prevents blocking touches that aren't actual scrolls
 
-    // Listen for scroll and touch events globally
+    // Listen for scroll events only
     window.addEventListener('scroll', handleScroll, { passive: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: true });
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      document.removeEventListener('touchmove', handleTouchMove);
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
@@ -439,14 +436,14 @@ export default function CompetitionPickPage() {
     // Prevent if round is locked  
     if (isRoundLocked) return;
     
-    // AGGRESSIVE: Block ALL interactions during any scrolling
+    // LIGHTER: Only block interactions during active scrolling (much more permissive)
     if (isScrolling) {
       event.preventDefault();
       event.stopPropagation();
       return;
     }
     
-    // For touch events, do additional verification
+    // For touch events, do lighter movement detection
     if (event.type === 'touchend' && touchStartRef.current) {
       const touch = 'changedTouches' in event ? event.changedTouches[0] : null;
       if (touch) {
@@ -454,8 +451,8 @@ export default function CompetitionPickPage() {
         const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
         const deltaTime = Date.now() - touchStartRef.current.time;
         
-        // Reasonable movement and time detection for normal taps
-        if (deltaX > 15 || deltaY > 15 || deltaTime < 50) {
+        // More lenient movement detection - allow bigger movements and shorter times
+        if (deltaX > 25 || deltaY > 25 || deltaTime < 30) {
           touchStartRef.current = null;
           event.preventDefault();
           event.stopPropagation();
@@ -465,13 +462,16 @@ export default function CompetitionPickPage() {
       touchStartRef.current = null;
     }
     
-    // Block touch events other than touchend
-    if (event.type !== 'click' && event.type !== 'touchend') {
+    // Allow more event types to pass through
+    if (event.type !== 'click' && event.type !== 'touchend' && event.type !== 'touchstart') {
       return;
     }
     
-    event.preventDefault();
-    event.stopPropagation();
+    // Don't preventDefault for touchstart to allow normal touch behavior
+    if (event.type !== 'touchstart') {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     
     // If there's already a current pick, don't allow any new selections
     // User must remove current pick first
@@ -703,7 +703,7 @@ export default function CompetitionPickPage() {
                       WebkitTapHighlightColor: 'transparent',
                       touchAction: 'manipulation',
                     }}
-                    className={`team-card-no-touch p-4 rounded-lg border-2 select-none transition-none ${isScrolling ? 'pointer-events-none touch-none' : 'touch-manipulation'} ${
+                    className={`team-card-no-touch p-4 rounded-lg border-2 select-none ${
                       isCurrentPick
                         ? 'border-blue-500 bg-blue-50 text-blue-900'
                         : currentPick || !isAllowed
@@ -712,7 +712,6 @@ export default function CompetitionPickPage() {
                             ? 'border-green-500 bg-green-50 transition-colors' 
                             : 'border-gray-200 transition-colors active:border-blue-300 active:bg-blue-50 md:hover:border-blue-300 md:hover:bg-blue-50'
                     }`}
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   <div className="text-center">
                     {/* Main team (large) */}
@@ -783,7 +782,11 @@ export default function CompetitionPickPage() {
                       {submitting ? 'Confirming...' : 'Confirm Pick'}
                     </button>
                     <button
-                      onClick={() => setSelectedTeam(null)}
+                      onClick={() => {
+                        // Reset touch states when cancelling to prevent blocking
+                        resetTouchStates();
+                        setSelectedTeam(null);
+                      }}
                       disabled={submitting}
                       className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-colors min-w-[120px]"
                     >

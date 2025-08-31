@@ -145,10 +145,6 @@ export const fixtureApi = {
 export const teamApi = {
   getTeams: () => api.post<ApiResponse<{ teams: any[] }>>('/get-teams', {}),
   getTeamLists: () => api.post<ApiResponse<{ team_lists: any[] }>>('/team-lists', {}),
-  checkAndResetTeams: (competition_id: number, user_id: number) => api.post<ApiResponse<{
-    teams_reset: boolean;
-    available_teams_count: number;
-  }>>('/check-and-reset-teams', { competition_id, user_id }),
 };
 
 // Player actions
@@ -200,7 +196,11 @@ export const userApi = {
   changePassword: (current_password: string, new_password: string) => api.post<ApiResponse<any>>('/change-password', { current_password, new_password }),
   deleteAccount: (confirmation: string) => api.post<ApiResponse<any>>('/delete-account', { confirmation }),
   getPlayerDashboard: () => api.post<ApiResponse<{ competitions: any[] }>>('/player-dashboard', {}),
-  getAllowedTeams: (competition_id: number, user_id?: number) => api.post<ApiResponse<{ allowed_teams: any[] }>>('/get-allowed-teams', { competition_id, ...(user_id && { user_id }) }),
+  getAllowedTeams: (competition_id: number, user_id?: number) => api.post<ApiResponse<{ 
+    allowed_teams: any[];
+    teams_reset: boolean;
+    reset_message: string | null;
+  }>>('/get-allowed-teams', { competition_id, ...(user_id && { user_id }) }),
   checkUserType: () => api.post<ApiResponse<{ user_type: string; suggested_route: string; organized_count: number; participating_count: number; has_organized: boolean; has_participated: boolean }>>('/check-user-type', {}),
   getCompetitionStandings: (competition_id: number) => api.post<ApiResponse<{ competition: any; players: any[] }>>('/get-competition-standings', { competition_id }),
   joinCompetitionByCode: (competition_code: string) => api.post<ApiResponse<{ competition: { id: number; name: string } }>>('/join-competition-by-code', { competition_code }),

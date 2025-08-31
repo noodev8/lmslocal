@@ -1,0 +1,71 @@
+================================================================================
+Can you analyse route "set-pick.js" please and let me know if it is optimised well, and in accordance to the below rules
+
+================================================================================
+
+API Routes - always use POST
+API Routes - return a machine readable return code "return_code" which is either "SUCCESS" or an error of some kind.
+API Routes - Always use HTTP 200 return
+
+Use extensive comments in your code so I can see what is going on
+
+Authentication - Use JWT Authentication throughout
+Middleware - "/middleware/auth_middleware.js"
+verifyToken - Always use a single verifyToken function. No duplicates.
+
+== Database ==
+Database uses direct PostgreSQL
+Always use central database pooling with "/lmslocal2_server/database.js"
+Single environnment file "/lmslocal2_server/.env"
+Use "/docs/DB-Schema.sql" database schema to identify the tables and fields needed.
+Do not use N+1 queries
+Use a transaction wrapper for atomic queries
+Use destructured database import
+
+== Tech Stack ==
+node.js
+Next.js
+expresss.js
+PostgreSQL
+postman
+Developing on Windows
+
+
+	
+
+
+== File Headers ==
+For each file, I would like to follow a structure to make it readable and maintanable
+
+/*
+=======================================================================================================================================
+API Route: login_user
+=======================================================================================================================================
+Method: POST
+Purpose: Authenticates a user using their email and password. Returns a token and basic user details upon success.
+=======================================================================================================================================
+Request Payload:
+{
+  "email": "user@example.com",         // string, required
+  "password": "securepassword123"      // string, required
+}
+
+Success Response:
+{
+  "return_code": "SUCCESS"
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", // string, JWT token for auth
+  "user": {
+    "id": 123,                         // integer, unique user ID
+    "name": "Andreas",                 // string, user’s name
+    "email": "user@example.com",       // string, user’s email
+    "account_level": "standard"        // string, e.g. 'standard', 'premium', 'admin'
+  }
+}
+=======================================================================================================================================
+Return Codes:
+"SUCCESS"
+"MISSING_FIELDS"
+"INVALID_CREDENTIALS"
+"SERVER_ERROR"
+=======================================================================================================================================
+*/

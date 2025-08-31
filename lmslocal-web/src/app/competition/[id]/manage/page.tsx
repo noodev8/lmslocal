@@ -144,8 +144,10 @@ export default function ManageCompetitionPage() {
           setCurrentRound(status.data.current_round);
           loadFixtures(status.data.current_round.id);
         } else {
-          // No rounds - create first round
-          createFirstRound();
+          // No rounds - show first round creation modal with important messaging
+          setShowCreateRoundModal(true);
+          const defaultTime = getNextFriday6PM().slice(0, 16);
+          setNewRoundLockTime(defaultTime);
         }
       }
 
@@ -365,7 +367,6 @@ export default function ManageCompetitionPage() {
         // Update local state
         setCurrentRound(prev => prev ? { ...prev, lock_time: isoDateTime } : null);
         setIsEditingCutoff(false);
-        alert('Cut-off time updated successfully!');
       } else {
         alert('Failed to update cut-off time: ' + (response.data.message || 'Unknown error'));
       }
@@ -695,9 +696,11 @@ export default function ManageCompetitionPage() {
       {/* Create New Round Modal */}
       {showCreateRoundModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+          <div className="bg-white rounded-lg max-w-lg w-full p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Create New Round</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                {currentRound ? 'Create New Round' : 'Set Up Your First Round'}
+              </h2>
               <button
                 onClick={cancelCreateRound}
                 className="text-gray-400 hover:text-gray-600"
@@ -706,13 +709,40 @@ export default function ManageCompetitionPage() {
               </button>
             </div>
             
+            {!currentRound && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <ExclamationTriangleIcon className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                      ⚠️ Important: Set Your Pick Deadline Carefully
+                    </h3>
+                    <div className="text-sm text-blue-800 space-y-1">
+                      <p>• <strong>Give players time to join</strong> your competition</p>
+                      <p>• <strong>Allow time for picks</strong> before fixtures start</p>
+                      <p>• <strong>Consider time zones</strong> if players are in different locations</p>
+                      <p>• <strong>You can change this later</strong> if needed</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="mb-6">
-              <p className="text-gray-600 mb-4">
-                This will create Round {currentRound ? currentRound.round_number + 1 : 1} and reset fixtures.
-              </p>
+              {currentRound ? (
+                <p className="text-gray-600 mb-4">
+                  This will create Round {currentRound.round_number + 1} and reset fixtures.
+                </p>
+              ) : (
+                <p className="text-gray-700 mb-4 font-medium">
+                  Setting up Round 1 - when should players make their picks by?
+                </p>
+              )}
               
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Make picks by (deadline):
+                {currentRound ? 'Make picks by (deadline):' : 'Pick deadline (when fixtures start):'}
               </label>
               <input
                 type="datetime-local"
@@ -722,7 +752,10 @@ export default function ManageCompetitionPage() {
                 required
               />
               <p className="text-sm text-gray-500 mt-1">
-                Players must make their picks before this time
+                {currentRound 
+                  ? 'Players must make their picks before this time'
+                  : 'Recommended: Set this 1-2 hours before your first fixtures kick off'
+                }
               </p>
             </div>
             

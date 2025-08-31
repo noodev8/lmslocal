@@ -60,8 +60,25 @@ async function query(text, params = []) {
   }
 }
 
-// Execute transaction
-async function transaction(queries) {
+// Execute transaction with callback function
+async function transaction(callback) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Transaction error:', error.message);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// Execute transaction (legacy array format - kept for backward compatibility)
+async function transactionQueries(queries) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -160,6 +177,7 @@ testConnection();
 module.exports = {
   query,
   transaction,
+  transactionQueries,
   testConnection,
   getPoolStatus,
   closePool,

@@ -1,33 +1,58 @@
 /*
 =======================================================================================================================================
-Get Competition Standings Route
+API Route: get-competition-standings
 =======================================================================================================================================
 Method: POST
-Purpose: Get all players' status and history for a competition (for standings view)
+Purpose: Retrieves comprehensive competition standings with player status, picks, and history with massive N+1 optimization
 =======================================================================================================================================
 Request Payload:
 {
-  "competition_id": 123
+  "competition_id": 123                   // integer, required - ID of the competition to get standings for
 }
 
-Success Response:
+Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "competition": {
-    "id": 123,
-    "name": "Premier League LMS",
-    "current_round": 3,
-    "is_locked": true
+    "id": 123,                            // integer, unique competition ID
+    "name": "Premier League LMS",         // string, competition name for display
+    "current_round": 3,                   // integer, current round number
+    "total_rounds": 10,                   // integer, total rounds created
+    "is_locked": true,                    // boolean, whether current round is locked
+    "current_round_lock_time": "2025-08-31T15:00:00Z", // string, ISO datetime when round locks
+    "active_players": 8,                  // integer, number of active players remaining
+    "total_players": 15                   // integer, total players in competition
   },
   "players": [
     {
-      "id": 456,
-      "display_name": "John Doe",
-      "lives_remaining": 2,
-      "status": "active",
-      "history": [...]
+      "id": 456,                          // integer, unique player user ID
+      "display_name": "John Doe",         // string, player's display name
+      "lives_remaining": 2,               // integer, player's remaining lives
+      "status": "active",                 // string, player status: 'active', 'OUT', etc.
+      "current_pick": {                   // object, current round pick (null if round not locked)
+        "team": "CHE",                    // string, picked team short name
+        "team_full_name": "Chelsea",      // string, full team name for display
+        "fixture": "Chelsea vs Arsenal",  // string, fixture description
+        "outcome": "pending"              // string, pick outcome: 'pending', 'WIN', 'LOSE', 'NO_PICK'
+      },
+      "history": [                        // array, previous rounds history
+        {
+          "round_number": 2,              // integer, round number
+          "pick_team": "MAN",             // string, team picked
+          "pick_team_full_name": "Manchester United", // string, full team name
+          "fixture": "Manchester United vs Liverpool", // string, fixture description
+          "pick_result": "win",           // string, result: 'win', 'loss', 'no_pick', 'pending'
+          "lock_time": "2025-08-24T15:00:00Z" // string, ISO datetime when round locked
+        }
+      ]
     }
   ]
+}
+
+Error Response (ALWAYS HTTP 200):
+{
+  "return_code": "ERROR_TYPE",
+  "message": "Descriptive error message"  // string, user-friendly error description
 }
 =======================================================================================================================================
 Return Codes:
@@ -40,199 +65,268 @@ Return Codes:
 */
 
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const { query } = require('../database');
+const { verifyToken } = require('../middleware/auth');
 const router = express.Router();
-
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        return_code: "UNAUTHORIZED",
-        message: "No token provided"
-      });
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Get user from database
-    const userId = decoded.user_id || decoded.userId;
-    const result = await query('SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', [userId]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({
-        return_code: "UNAUTHORIZED",
-        message: "Invalid token"
-      });
-    }
-
-    req.user = result.rows[0];
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      return_code: "UNAUTHORIZED",
-      message: "Invalid token"
-    });
-  }
-};
 
 router.post('/', verifyToken, async (req, res) => {
   try {
+    // Extract request parameters and authenticated user ID
     const { competition_id } = req.body;
     const user_id = req.user.id;
 
-    // Basic validation
+    // === INPUT VALIDATION ===
+    // Validate competition_id is provided and is a valid integer
     if (!competition_id || !Number.isInteger(competition_id)) {
-      return res.status(400).json({
+      return res.json({
         return_code: "VALIDATION_ERROR",
         message: "Competition ID is required and must be a number"
       });
     }
 
-    // Verify user is participating in this competition
-    const participantCheck = await query(
-      'SELECT id FROM competition_user WHERE competition_id = $1 AND user_id = $2',
-      [competition_id, user_id]
-    );
-
-    if (participantCheck.rows.length === 0) {
-      return res.status(403).json({
-        return_code: "UNAUTHORIZED",
-        message: "You are not participating in this competition"
-      });
-    }
-
-    // Get competition details
-    const competitionResult = await query(`
-      SELECT c.id, c.name, c.invite_code,
-             (SELECT MAX(round_number) FROM round WHERE competition_id = c.id) as current_round,
-             (SELECT lock_time FROM round WHERE competition_id = c.id ORDER BY round_number DESC LIMIT 1) as current_round_lock_time
+    // === QUERY 1: COMPREHENSIVE COMPETITION AND PLAYERS DATA ===
+    // This MASSIVE optimization replaces what used to be 200+ separate queries!
+    // Gets competition info, all players, and validates user access in ONE query
+    const mainResult = await query(`
+      SELECT 
+        -- === COMPETITION INFO ===
+        c.id as competition_id,                   -- Competition identifier for validation
+        c.name as competition_name,               -- Competition name for display
+        c.invite_code,                            -- Join code for reference
+        
+        -- === COMPETITION STATISTICS ===
+        comp_stats.total_players,                 -- Total number of players
+        comp_stats.active_players,                -- Number of active players remaining
+        
+        -- === CURRENT ROUND INFO ===
+        latest_round.current_round,               -- Current round number
+        latest_round.current_round_lock_time,     -- When current round locks
+        round_stats.total_rounds,                 -- Total rounds created
+        
+        -- === USER ACCESS VALIDATION ===
+        user_access.user_id as has_access,        -- Non-null if user is participant
+        
+        -- === PLAYER DETAILS ===
+        u.id as player_id,                        -- Player's user ID
+        u.display_name,                           -- Player's display name
+        cu.lives_remaining,                       -- Player's remaining lives
+        cu.status as player_status                -- Player's competition status
+        
       FROM competition c
-      WHERE c.id = $1
-    `, [competition_id]);
+      
+      -- === COMPETITION STATISTICS SUBQUERY ===
+      -- Get player counts for competition overview
+      LEFT JOIN (
+        SELECT competition_id,
+               COUNT(*) as total_players,                                    -- Total players who joined
+               COUNT(*) FILTER (WHERE status = 'active') as active_players  -- Active players remaining
+        FROM competition_user
+        GROUP BY competition_id
+      ) comp_stats ON c.id = comp_stats.competition_id
+      
+      -- === LATEST ROUND INFO ===
+      -- Get current round and lock time using window function for efficiency
+      LEFT JOIN (
+        SELECT r.competition_id,
+               r.round_number as current_round,                             -- Current round number
+               r.lock_time as current_round_lock_time,                      -- When round locks
+               ROW_NUMBER() OVER (PARTITION BY r.competition_id ORDER BY r.round_number DESC) as rn
+        FROM round r
+      ) latest_round ON c.id = latest_round.competition_id AND latest_round.rn = 1
+      
+      -- === TOTAL ROUNDS COUNT ===
+      -- Get total rounds created for this competition
+      LEFT JOIN (
+        SELECT competition_id, MAX(round_number) as total_rounds
+        FROM round
+        GROUP BY competition_id
+      ) round_stats ON c.id = round_stats.competition_id
+      
+      -- === USER ACCESS VALIDATION ===
+      -- Check if authenticated user is participant in this competition
+      LEFT JOIN competition_user user_access ON c.id = user_access.competition_id AND user_access.user_id = $2
+      
+      -- === ALL PLAYERS DATA ===
+      -- Get all players in competition with their status
+      LEFT JOIN competition_user cu ON c.id = cu.competition_id
+      LEFT JOIN app_user u ON cu.user_id = u.id
+      
+      WHERE c.id = $1  -- Filter to requested competition only
+      ORDER BY 
+        CASE WHEN cu.status = 'OUT' THEN 1 ELSE 0 END, -- Active players first
+        cu.lives_remaining DESC,                        -- More lives first
+        u.display_name ASC                              -- Then alphabetically
+    `, [competition_id, user_id]);
 
-    if (competitionResult.rows.length === 0) {
-      return res.status(404).json({
+    // === AUTHORIZATION VALIDATION ===
+    // Check if competition exists and user has access
+    if (mainResult.rows.length === 0) {
+      return res.json({
         return_code: "COMPETITION_NOT_FOUND",
         message: "Competition not found"
       });
     }
 
-    const competition = competitionResult.rows[0];
+    const firstRow = mainResult.rows[0];
     
-    // Check if current round is locked
-    const now = new Date();
-    const isLocked = competition.current_round_lock_time && now >= new Date(competition.current_round_lock_time);
-    competition.is_locked = isLocked;
-
-    // Get all players in this competition with their status
-    const playersResult = await query(`
-      SELECT u.id, u.display_name, cu.lives_remaining, cu.status
-      FROM competition_user cu
-      JOIN app_user u ON cu.user_id = u.id
-      WHERE cu.competition_id = $1
-      ORDER BY 
-        CASE WHEN cu.status = 'OUT' THEN 1 ELSE 0 END, -- Active players first
-        cu.lives_remaining DESC, -- More lives first
-        u.display_name ASC -- Then alphabetically
-    `, [competition_id]);
-
-    const players = playersResult.rows;
-
-    // Get current round history for each player - only show picks if round is locked
-    for (let player of players) {
-      if (isLocked) {
-        // Get current round pick for this player
-        const currentRoundPick = await query(`
-          SELECT p.team, p.outcome, f.home_team, f.away_team, f.home_team_short, f.away_team_short
-          FROM pick p
-          LEFT JOIN fixture f ON p.fixture_id = f.id
-          WHERE p.user_id = $1 AND p.round_id IN (
-            SELECT id FROM round WHERE competition_id = $2 AND round_number = $3
-          )
-        `, [player.id, competition_id, competition.current_round]);
-
-        if (currentRoundPick.rows.length > 0) {
-          const pick = currentRoundPick.rows[0];
-          player.current_pick = {
-            team: pick.team,
-            outcome: pick.outcome,
-            fixture: pick.home_team && pick.away_team ? `${pick.home_team} vs ${pick.away_team}` : null
-          };
-        } else {
-          // Check for NO_PICK entry
-          const noPickCheck = await query(`
-            SELECT outcome FROM pick 
-            WHERE user_id = $1 AND outcome = 'NO_PICK' AND round_id IN (
-              SELECT id FROM round WHERE competition_id = $2 AND round_number = $3
-            )
-          `, [player.id, competition_id, competition.current_round]);
-
-          if (noPickCheck.rows.length > 0) {
-            player.current_pick = {
-              team: null,
-              outcome: 'NO_PICK',
-              fixture: null
-            };
-          } else {
-            player.current_pick = null;
-          }
-        }
-      } else {
-        // Round not locked - don't show picks
-        player.current_pick = null;
-      }
-
-      // Get history for all completed rounds (not current round)
-      const historyResult = await query(`
-        SELECT 
-          r.id as round_id,
-          r.round_number,
-          r.lock_time,
-          p.team as pick_team,
-          p.outcome,
-          f.home_team,
-          f.away_team,
-          f.home_team_short,
-          f.away_team_short,
-          f.result as fixture_result
-        FROM round r
-        LEFT JOIN pick p ON p.user_id = $1 AND p.round_id = r.id
-        LEFT JOIN fixture f ON p.fixture_id = f.id
-        WHERE r.competition_id = $2 
-          AND r.round_number < $3
-          AND r.round_number IS NOT NULL
-        ORDER BY r.round_number DESC
-      `, [player.id, competition_id, competition.current_round]);
-
-      player.history = historyResult.rows.map(round => ({
-        round_id: round.round_id,
-        round_number: round.round_number,
-        lock_time: round.lock_time,
-        pick_team: round.pick_team,
-        pick_team_full_name: round.pick_team, // Using team name directly
-        visible_pick_team: round.pick_team,
-        visible_pick_team_full_name: round.pick_team,
-        home_team: round.home_team,
-        away_team: round.away_team,
-        result: round.fixture_result,
-        pick_result: round.outcome === 'WIN' ? 'win' : 
-                    round.outcome === 'LOSE' ? 'loss' : 
-                    round.outcome === 'NO_PICK' ? 'no_pick' : 'pending'
-      }));
+    // Verify user is participating in this competition
+    if (!firstRow.has_access) {
+      return res.json({
+        return_code: "UNAUTHORIZED", 
+        message: "You are not participating in this competition"
+      });
     }
 
+    // === COMPETITION DATA PREPARATION ===
+    // Build comprehensive competition overview
+    const now = new Date();
+    const isLocked = firstRow.current_round_lock_time && now >= new Date(firstRow.current_round_lock_time);
+    
+    const competition = {
+      id: firstRow.competition_id,               // Competition identifier
+      name: firstRow.competition_name,           // Competition name for display
+      current_round: firstRow.current_round || 0,      // Current round number
+      total_rounds: firstRow.total_rounds || 0,        // Total rounds created
+      is_locked: isLocked,                       // Whether current round is locked
+      current_round_lock_time: firstRow.current_round_lock_time, // Lock time
+      active_players: firstRow.active_players || 0,    // Active players count
+      total_players: firstRow.total_players || 0       // Total players count
+    };
+
+    // === EXTRACT PLAYER DATA ===
+    // Filter out competition-only rows and extract player info
+    const players = mainResult.rows
+      .filter(row => row.player_id !== null)
+      .map(row => ({
+        id: row.player_id,                       // Player's user ID
+        display_name: row.display_name,          // Player's display name
+        lives_remaining: row.lives_remaining,    // Remaining lives
+        status: row.player_status               // Competition status
+      }));
+
+    // === QUERY 2: ALL CURRENT ROUND PICKS (BULK QUERY - ELIMINATES N+1) ===
+    // Get current round picks for ALL players in ONE query instead of N queries
+    let currentPicksData = [];
+    if (isLocked && firstRow.current_round) {
+      const currentPicksResult = await query(`
+        SELECT 
+          p.user_id,                              -- Player ID for matching
+          p.team,                                 -- Picked team short name
+          p.outcome,                              -- Pick outcome
+          t.name as team_full_name,               -- Full team name for display
+          f.home_team,                            -- Home team in fixture
+          f.away_team,                            -- Away team in fixture
+          f.home_team_short,                      -- Home team short name
+          f.away_team_short                       -- Away team short name
+        FROM pick p
+        LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
+        LEFT JOIN fixture f ON p.fixture_id = f.id
+        WHERE p.round_id = (
+          SELECT id FROM round 
+          WHERE competition_id = $1 AND round_number = $2
+        )
+        AND p.user_id = ANY($3)                   -- Get picks for all players at once
+      `, [competition_id, firstRow.current_round, players.map(p => p.id)]);
+      
+      currentPicksData = currentPicksResult.rows;
+    }
+
+    // === QUERY 3: ALL PLAYER HISTORY (BULK QUERY - ELIMINATES MASSIVE N+1) ===
+    // Get complete history for ALL players in ONE query instead of N queries
+    let historyData = [];
+    if (firstRow.current_round && firstRow.current_round > 1) {
+      const historyResult = await query(`
+        SELECT 
+          -- === ROUND INFO ===
+          r.round_number,                         -- Round number for display
+          r.lock_time,                            -- When round locked
+          
+          -- === PICK INFO ===
+          p.user_id,                              -- Player ID for matching
+          p.team as pick_team,                    -- Team picked
+          p.outcome,                              -- Pick outcome
+          t.name as pick_team_full_name,          -- Full team name for display
+          
+          -- === FIXTURE INFO ===
+          f.home_team,                            -- Home team in fixture
+          f.away_team,                            -- Away team in fixture
+          f.result as fixture_result              -- Fixture result
+          
+        FROM round r
+        LEFT JOIN pick p ON p.round_id = r.id AND p.user_id = ANY($3) -- Get picks for all players
+        LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
+        LEFT JOIN fixture f ON p.fixture_id = f.id
+        WHERE r.competition_id = $1 
+          AND r.round_number < $2                 -- Only completed rounds
+          AND r.round_number IS NOT NULL
+        ORDER BY p.user_id, r.round_number DESC  -- Group by player, newest first
+      `, [competition_id, firstRow.current_round, players.map(p => p.id)]);
+      
+      historyData = historyResult.rows;
+    }
+
+    // === DATA ASSEMBLY (CLIENT-SIDE PROCESSING) ===
+    // Efficiently attach picks and history to each player using lookup maps
+    const currentPicksMap = {};
+    currentPicksData.forEach(pick => {
+      currentPicksMap[pick.user_id] = pick;
+    });
+
+    const historyMap = {};
+    historyData.forEach(history => {
+      if (!historyMap[history.user_id]) {
+        historyMap[history.user_id] = [];
+      }
+      historyMap[history.user_id].push(history);
+    });
+
+    // === FINAL PLAYER DATA ASSEMBLY ===
+    // Attach current picks and history to each player
+    players.forEach(player => {
+      // === CURRENT PICK ATTACHMENT ===
+      const currentPick = currentPicksMap[player.id];
+      if (currentPick && isLocked) {
+        player.current_pick = {
+          team: currentPick.team,                 // Short team name
+          team_full_name: currentPick.team_full_name, // Full team name for display
+          fixture: currentPick.home_team && currentPick.away_team 
+            ? `${currentPick.home_team} vs ${currentPick.away_team}` 
+            : null,                               // Human-readable fixture
+          outcome: currentPick.outcome || 'pending' // Pick outcome status
+        };
+      } else {
+        player.current_pick = null;               // Hide picks if round not locked
+      }
+
+      // === HISTORY ATTACHMENT ===
+      const playerHistory = historyMap[player.id] || [];
+      player.history = playerHistory.map(round => ({
+        round_number: round.round_number,         // Round number for display
+        pick_team: round.pick_team,              // Short team name
+        pick_team_full_name: round.pick_team_full_name || round.pick_team, // Full team name
+        fixture: round.home_team && round.away_team 
+          ? `${round.home_team} vs ${round.away_team}` 
+          : null,                                 // Human-readable fixture
+        pick_result: round.outcome === 'WIN' ? 'win' : 
+                    round.outcome === 'LOSE' ? 'loss' : 
+                    round.outcome === 'NO_PICK' ? 'no_pick' : 'pending', // Standardized result
+        lock_time: round.lock_time                // When round locked
+      }));
+    });
+
+    // === SUCCESS RESPONSE ===
+    // Return comprehensive standings data with optimal performance
     res.json({
       return_code: "SUCCESS",
-      competition: competition,
-      players: players
+      competition: competition,      // Competition overview with statistics
+      players: players              // Complete player data with picks and history
     });
 
   } catch (error) {
+    // === ERROR HANDLING ===
+    // Log detailed error for debugging but return generic message to client for security
     console.error('Get competition standings error:', error);
-    res.status(500).json({
+    res.json({
       return_code: "SERVER_ERROR",
       message: "Internal server error"
     });
