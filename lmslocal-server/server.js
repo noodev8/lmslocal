@@ -280,17 +280,40 @@ const getServerAddress = () => {
   const os = require('os');
   const interfaces = os.networkInterfaces();
   
-  // Try to find external IP first
+  console.log('Available network interfaces:');
+  for (const [name, addrs] of Object.entries(interfaces)) {
+    for (const addr of addrs) {
+      if (addr.family === 'IPv4') {
+        console.log(`  ${name}: ${addr.address} (internal: ${addr.internal})`);
+      }
+    }
+  }
+  
+  // Try common Linux server interface names first
+  const commonNames = ['eth0', 'ens3', 'ens5', 'enp0s3', 'enp0s8', 'ens4', 'ens6'];
+  
+  for (const name of commonNames) {
+    if (interfaces[name]) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          console.log(`Using interface ${name}: ${iface.address}`);
+          return iface.address;
+        }
+      }
+    }
+  }
+  
+  // Try any non-internal IPv4 address
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      // Skip internal (i.e. 127.0.0.1) and non-IPv4 addresses
       if (iface.family === 'IPv4' && !iface.internal) {
+        console.log(`Using interface ${name}: ${iface.address}`);
         return iface.address;
       }
     }
   }
   
-  // Fallback to localhost if no external IP found
+  console.log('No external IPv4 interface found, using localhost');
   return 'localhost';
 };
 
