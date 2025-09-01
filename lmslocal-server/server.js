@@ -13,6 +13,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { testConnection, getPoolStatus } = require('./database');
 
 // Import routes
 const loginRoute = require('./routes/login');
@@ -208,22 +209,53 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint for production monitoring
-app.get('/health', (req, res) => {
-  res.json({
-    return_code: "SUCCESS",
-    status: "healthy",
-    service: "LMSLocal API Server",
-    version: "1.0.0",
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    database: {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 5432,
-      name: process.env.DB_NAME || 'lmslocal'
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    const dbStatus = await testConnection();
+    const poolStatus = getPoolStatus();
+    
+    const healthData = {
+      return_code: "SUCCESS",
+      status: dbStatus.success ? "healthy" : "degraded",
+      service: "LMSLocal API Server",
+      version: "1.0.0",
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor(process.uptime()),
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+      },
+      database: {
+        host: process.env.DB_HOST || 'localhost',
+        port: process.env.DB_PORT || 5432,
+        name: process.env.DB_NAME || 'lmslocal',
+        status: dbStatus.success ? "connected" : "error",
+        connections: {
+          total: poolStatus.totalCount,
+          idle: poolStatus.idleCount,
+          waiting: poolStatus.waitingCount
+        }
+      }
+    };
+
+    // Add database error details if connection failed
+    if (!dbStatus.success) {
+      healthData.database.error = dbStatus.error;
     }
-  });
+
+    res.json(healthData);
+  } catch (error) {
+    res.json({
+      return_code: "ERROR",
+      status: "unhealthy",
+      service: "LMSLocal API Server",
+      timestamp: new Date().toISOString(),
+      error: "Health check failed",
+      details: error.message
+    });
+  }
 });
 
 // 404 handler
@@ -263,7 +295,7 @@ const getServerAddress = () => {
 };
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   const serverIP = getServerAddress();
   const isProduction = process.env.NODE_ENV === 'production';
   
@@ -271,6 +303,19 @@ app.listen(PORT, () => {
   console.log(`LMSLocal Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Database: ${process.env.DB_NAME}@${process.env.DB_HOST}:${process.env.DB_PORT}`);
+  
+  // Test database connection and show status
+  try {
+    const dbStatus = await testConnection();
+    if (dbStatus.success) {
+      console.log(`Database connection: HEALTHY`);
+      console.log(`Database time: ${new Date(dbStatus.timestamp).toLocaleString()}`);
+    } else {
+      console.log(`Database connection: FAILED - ${dbStatus.error}`);
+    }
+  } catch (error) {
+    console.log(`Database connection: ERROR - ${error.message}`);
+  }
   
   if (isProduction) {
     console.log(`Health check: http://${serverIP}:${PORT}/health`);

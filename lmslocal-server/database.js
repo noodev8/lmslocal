@@ -171,8 +171,7 @@ async function closePool() {
   console.log('Database pool closed');
 }
 
-// Initialize connection test on startup
-testConnection();
+// Connection test is now handled by server.js startup
 
 module.exports = {
   query,
