@@ -207,6 +207,25 @@ app.get('/', (req, res) => {
   });
 });
 
+// Health check endpoint for production monitoring
+app.get('/health', (req, res) => {
+  res.json({
+    return_code: "SUCCESS",
+    status: "healthy",
+    service: "LMSLocal API Server",
+    version: "1.0.0",
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    database: {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      name: process.env.DB_NAME || 'lmslocal'
+    }
+  });
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -224,13 +243,43 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Get server IP address for startup message
+const getServerAddress = () => {
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  
+  // Try to find external IP first
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      // Skip internal (i.e. 127.0.0.1) and non-IPv4 addresses
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  
+  // Fallback to localhost if no external IP found
+  return 'localhost';
+};
+
 // Start server
 app.listen(PORT, () => {
+  const serverIP = getServerAddress();
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   console.log(`=======================================================================`);
   console.log(`LMSLocal Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Database: ${process.env.DB_NAME}@${process.env.DB_HOST}:${process.env.DB_PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
+  
+  if (isProduction) {
+    console.log(`Health check: http://${serverIP}:${PORT}/health`);
+    console.log(`API endpoint: http://${serverIP}:${PORT}/`);
+  } else {
+    console.log(`Health check: http://localhost:${PORT}/health`);
+    console.log(`API endpoint: http://localhost:${PORT}/`);
+  }
+  
   console.log(`=======================================================================`);
 });
 
