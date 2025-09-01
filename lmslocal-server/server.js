@@ -289,13 +289,13 @@ const getServerAddress = () => {
     }
   }
   
-  // Try common Linux server interface names first
-  const commonNames = ['eth0', 'ens3', 'ens5', 'enp0s3', 'enp0s8', 'ens4', 'ens6'];
+  // Try common Linux server interface names first (ignore internal flag)
+  const commonNames = ['eth0', 'ens3', 'ens5', 'enp0s3', 'enp0s8', 'ens4', 'ens6', 'ens33'];
   
   for (const name of commonNames) {
     if (interfaces[name]) {
       for (const iface of interfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
+        if (iface.family === 'IPv4' && iface.address !== '127.0.0.1') {
           console.log(`Using interface ${name}: ${iface.address}`);
           return iface.address;
         }
@@ -303,17 +303,17 @@ const getServerAddress = () => {
     }
   }
   
-  // Try any non-internal IPv4 address
+  // Try any IPv4 address that's not localhost (ignore internal flag)
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
+      if (iface.family === 'IPv4' && iface.address !== '127.0.0.1' && !iface.address.startsWith('169.254.')) {
         console.log(`Using interface ${name}: ${iface.address}`);
         return iface.address;
       }
     }
   }
   
-  console.log('No external IPv4 interface found, using localhost');
+  console.log('No suitable IPv4 interface found, using localhost');
   return 'localhost';
 };
 
