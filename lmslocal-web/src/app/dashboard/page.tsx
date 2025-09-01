@@ -76,8 +76,17 @@ export default function DashboardPage() {
       localStorage.removeItem('new_competition_id');
     }
     
-    // Check user type for smart routing
-    checkUserTypeAndRoute();
+    // Check URL params to see if user is returning from competition page
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromCompetition = urlParams.get('from') === 'competition';
+    
+    // Only do smart routing if not returning from competition
+    if (!fromCompetition) {
+      checkUserTypeAndRoute();
+    } else {
+      // Just load competitions directly if returning from competition
+      loadCompetitions();
+    }
   }, [router]);
 
   const checkUserTypeAndRoute = async () => {
@@ -156,28 +165,6 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     logout(router);
-  };
-
-  const handleManageClick = async (competitionId: number) => {
-    try {
-      const status = await competitionApi.getStatus(competitionId);
-      if (status.data.return_code === 'SUCCESS') {
-        if (status.data.should_route_to_results) {
-          // Has fixtures - go to results
-          router.push(`/competition/${competitionId}/results`);
-        } else {
-          // No fixtures - go to fixture creation
-          router.push(`/competition/${competitionId}/manage`);
-        }
-      } else {
-        // Fallback to manage page
-        router.push(`/competition/${competitionId}/manage`);
-      }
-    } catch (error) {
-      console.error('Failed to get competition status:', error);
-      // Fallback to manage page
-      router.push(`/competition/${competitionId}/manage`);
-    }
   };
 
   if (loading) {
@@ -420,43 +407,19 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Card Actions */}
+                {/* Single Action - Open Competition Dashboard */}
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
-                  <div className="grid grid-cols-3 gap-3">
-                    <button
-                      onClick={() => handleManageClick(competition.id)}
-                      className={`inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
-                        isNewCompetition 
-                          ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      <Cog6ToothIcon className="h-4 w-4 mr-1" />
-                      Manage
-                    </button>
-                    <Link
-                      href={`/competition/${competition.id}/players`}
-                      className={`inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
-                        isNewCompetition 
-                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      <UsersIcon className="h-4 w-4 mr-1" />
-                      Players
-                    </Link>
-                    <Link
-                      href={`/play/${competition.id}/standings?from=admin`}
-                      className={`inline-flex items-center justify-center px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
-                        isNewCompetition 
-                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      <ChartBarIcon className="h-4 w-4 mr-1" />
-                      Standings
-                    </Link>
-                  </div>
+                  <Link
+                    href={`/competition/${competition.id}/dashboard`}
+                    className={`w-full inline-flex items-center justify-center px-4 py-3 rounded-lg font-medium transition-colors text-base ${
+                      isNewCompetition 
+                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
+                        : 'bg-slate-800 text-white hover:bg-slate-900'
+                    }`}
+                  >
+                    <ChartBarIcon className="h-5 w-5 mr-2" />
+                    Open Dashboard
+                  </Link>
                 </div>
               </div>
             );

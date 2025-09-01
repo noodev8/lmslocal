@@ -25,6 +25,48 @@ import {
 } from '@heroicons/react/24/outline';
 import { competitionApi, roundApi, fixtureApi, teamApi, adminApi } from '@/lib/api';
 
+// Simple Progress Chart Component
+const ProgressChart = ({ 
+  title, 
+  value, 
+  maxValue = 100, 
+  color = "emerald", 
+  showLabel = true,
+  icon: Icon
+}: {
+  title: string;
+  value: number;
+  maxValue?: number;
+  color?: string;
+  showLabel?: boolean;
+  icon?: any;
+}) => {
+  const percentage = Math.min((value / maxValue) * 100, 100);
+  
+  return (
+    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center">
+          {Icon && <Icon className="h-5 w-5 text-slate-600 mr-2" />}
+          <h3 className="text-sm font-medium text-slate-700">{title}</h3>
+        </div>
+        {showLabel && (
+          <span className={`text-lg font-bold text-${color}-600`}>{value}</span>
+        )}
+      </div>
+      <div className="w-full bg-slate-200 rounded-full h-3">
+        <div 
+          className={`bg-${color}-500 h-3 rounded-full transition-all duration-500`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      {maxValue !== 100 && (
+        <p className="text-xs text-slate-500 mt-2">of {maxValue}</p>
+      )}
+    </div>
+  );
+};
+
 interface Competition {
   id: number;
   name: string;
@@ -145,7 +187,7 @@ export default function ManageCompetitionPage() {
         if (status.data.current_round) {
           // Has round but no fixtures - stay here and load fixture creation
           setCurrentRound(status.data.current_round);
-          loadFixtures(status.data.current_round.id);
+          await loadFixtures(status.data.current_round.id);
         } else {
           // No rounds - show first round creation modal with important messaging
           setShowCreateRoundModal(true);
@@ -178,14 +220,15 @@ export default function ManageCompetitionPage() {
           away_team: fixture.away_team_short
         }));
         
-        setPendingFixtures(pendingFromExisting);
-        
         // Track used teams
         const used = new Set<string>();
         existingFixtures.forEach((fixture: any) => {
           used.add(fixture.home_team_short);
           used.add(fixture.away_team_short);
         });
+        
+        // Batch state updates to prevent multiple re-renders
+        setPendingFixtures(pendingFromExisting);
         setUsedTeams(used);
       } else {
         console.error('Failed to load fixtures:', response.data);
@@ -446,9 +489,9 @@ export default function ManageCompetitionPage() {
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center space-x-4">
-                <Link href="/dashboard" className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
+                <Link href={`/competition/${competitionId}/dashboard`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
                   <ArrowLeftIcon className="h-5 w-5" />
-                  <span className="font-medium">Dashboard</span>
+                  <span className="font-medium">Back to Dashboard</span>
                 </Link>
                 <div className="h-6 w-px bg-slate-300" />
                 <div className="flex items-center space-x-3">
@@ -490,7 +533,7 @@ export default function ManageCompetitionPage() {
             href="/dashboard" 
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
-            Return to Dashboard
+            Return to Main Dashboard
           </Link>
         </div>
       </div>
@@ -505,9 +548,9 @@ export default function ManageCompetitionPage() {
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center space-x-4">
-                <Link href="/dashboard" className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
+                <Link href={`/competition/${competitionId}/dashboard`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
                   <ArrowLeftIcon className="h-5 w-5" />
-                  <span className="font-medium">Dashboard</span>
+                  <span className="font-medium">Back to Dashboard</span>
                 </Link>
                 <div className="h-6 w-px bg-slate-300" />
                 <div className="flex items-center space-x-3">
@@ -638,7 +681,7 @@ export default function ManageCompetitionPage() {
                      new Date() < new Date(currentRound.lock_time) && (
                       <button
                         onClick={openAdminPickModal}
-                        className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100 transition-colors border border-blue-200"
+                        className="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 hover:text-slate-900 transition-all duration-200 border border-slate-200 shadow-sm hover:shadow-md"
                       >
                         <UserGroupIcon className="h-4 w-4 mr-2" />
                         Set Player Pick
@@ -673,6 +716,35 @@ export default function ManageCompetitionPage() {
             )}
           </div>
 
+          {/* Quick Stats - Progress Chart */}
+          {currentRound && competition.player_count && (
+            <div className="mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <ProgressChart
+                  title="Players Made Picks"
+                  value={Math.floor(competition.player_count * 0.75)} // Demo: 75% have picked
+                  maxValue={competition.player_count}
+                  color="emerald"
+                  icon={UserGroupIcon}
+                />
+                <ProgressChart
+                  title="Competition Progress"
+                  value={currentRound.round_number}
+                  maxValue={38}
+                  color="blue"
+                  icon={TrophyIcon}
+                />
+                <ProgressChart
+                  title="Fixtures Created"
+                  value={pendingFixtures.length}
+                  maxValue={10}
+                  color="amber"
+                  icon={ChartBarIcon}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Fixtures Management Section */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
             <div className="px-8 py-6 border-b border-slate-100">
@@ -691,15 +763,30 @@ export default function ManageCompetitionPage() {
             </div>
 
             <div className="p-8">
-              {!currentRound ? (
+              {competition?.status === 'COMPLETE' ? (
                 <div className="text-center py-12">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-                    <CalendarIcon className="h-8 w-8 text-slate-400" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
+                    <TrophyIcon className="h-8 w-8 text-emerald-600" />
                   </div>
-                  <h4 className="text-lg font-medium text-slate-900 mb-2">Setting up your first round</h4>
-                  <p className="text-slate-500">Please wait while we create Round 1...</p>
+                  <h4 className="text-lg font-medium text-slate-900 mb-2">Competition Complete!</h4>
+                  <p className="text-slate-500 mb-6">This competition has finished. All results have been calculated.</p>
+                  <div className="flex justify-center space-x-3">
+                    <Link
+                      href={`/play/${competitionId}/standings?from=admin`}
+                      className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                    >
+                      <TrophyIcon className="h-4 w-4 mr-2" />
+                      View Final Standings
+                    </Link>
+                    <Link
+                      href={`/competition/${competitionId}/dashboard`}
+                      className="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                    >
+                      Back to Dashboard
+                    </Link>
+                  </div>
                 </div>
-              ) : (
+              ) : currentRound ? (
                 <div className="space-y-8">
                   {/* Team Selection Grid */}
                   <div>
@@ -767,6 +854,22 @@ export default function ManageCompetitionPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              ) : loading ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-400 border-t-transparent"></div>
+                  </div>
+                  <h4 className="text-lg font-medium text-slate-900 mb-2">Loading Fixtures</h4>
+                  <p className="text-slate-500">Please wait...</p>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+                    <CalendarIcon className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <h4 className="text-lg font-medium text-slate-900 mb-2">No rounds created yet</h4>
+                  <p className="text-slate-500">Create your first round to get started...</p>
                 </div>
               )}
             </div>

@@ -32,11 +32,9 @@ const createRoundRoute = require('./routes/create-round');
 const updateRoundRoute = require('./routes/update-round');
 const getRoundsRoute = require('./routes/get-rounds');
 const addFixturesBulkRoute = require('./routes/add-fixtures-bulk');
-const replaceFixturesBulkRoute = require('./routes/replace-fixtures-bulk');
 const getFixturesRoute = require('./routes/get-fixtures');
 const setFixtureResultRoute = require('./routes/set-fixture-result');
 // const lockUnlockRoundRoute = require('./routes/lock-unlock-round'); // DISABLED: Round status removed
-const lockUnlockCompetitionRoute = require('./routes/lock-unlock-competition');
 const getCompetitionStatusRoute = require('./routes/get-competition-status');
 // const joinCompetitionBySlugRoute = require('./routes/join-competition-by-slug'); // DISABLED - using single login
 const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round');
@@ -46,9 +44,7 @@ const updatePaymentStatusRoute = require('./routes/update-payment-status');
 const calculateResultsRoute = require('./routes/calculate-results');
 const joinCompetitionRoute = require('./routes/join-competition');
 // const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
-const validateAccessCodeRoute = require('./routes/validate-access-code');
 // const registerAndJoinCompetitionRoute = require('./routes/register-and-join-competition'); // DISABLED - using single login
-const joinByAccessCodeRoute = require('./routes/join-by-access-code');
 // const joinByCodeRoute = require('./routes/join-by-code'); // DISABLED - using single login
 const playerDashboardRoute = require('./routes/player-dashboard');
 const checkUserTypeRoute = require('./routes/check-user-type');
@@ -63,6 +59,7 @@ const getRoundHistoryRoute = require('./routes/get-round-history');
 const addOfflinePlayerRoute = require('./routes/add-offline-player');
 const changePasswordRoute = require('./routes/change-password');
 const deleteAccountRoute = require('./routes/delete-account');
+const getPickStatisticsRoute = require('./routes/get-pick-statistics');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -171,11 +168,9 @@ app.use('/create-round', createRoundRoute);
 app.use('/update-round', updateRoundRoute);
 app.use('/get-rounds', getRoundsRoute);
 app.use('/add-fixtures-bulk', addFixturesBulkRoute);
-app.use('/replace-fixtures-bulk', replaceFixturesBulkRoute);
 app.use('/get-fixtures', getFixturesRoute);
 app.use('/set-fixture-result', setFixtureResultRoute);
 // app.use('/lock-unlock-round', lockUnlockRoundRoute); // DISABLED: Round status removed
-app.use('/lock-unlock-competition', lockUnlockCompetitionRoute);
 app.use('/get-competition-status', getCompetitionStatusRoute);
 // app.use('/join-competition-by-slug', joinCompetitionBySlugRoute); // DISABLED - using single login
 app.use('/get-player-current-round', getPlayerCurrentRoundRoute);
@@ -185,9 +180,7 @@ app.use('/update-payment-status', updatePaymentStatusRoute);
 app.use('/calculate-results', calculateResultsRoute);
 app.use('/join-competition', joinCompetitionRoute);
 // app.use('/player-login', playerLoginRoute); // DISABLED - using single login
-app.use('/validate-access-code', validateAccessCodeRoute);
 // app.use('/register-and-join-competition', registerAndJoinCompetitionRoute); // DISABLED - using single login
-app.use('/join-by-access-code', joinByAccessCodeRoute);
 // app.use('/join-by-code', joinByCodeRoute); // DISABLED - using single login
 app.use('/player-dashboard', playerDashboardRoute);
 app.use('/check-user-type', checkUserTypeRoute);
@@ -202,6 +195,7 @@ app.use('/get-round-history', getRoundHistoryRoute);
 app.use('/add-offline-player', addOfflinePlayerRoute);
 app.use('/change-password', changePasswordRoute);
 app.use('/delete-account', deleteAccountRoute);
+app.use('/get-pick-statistics', getPickStatisticsRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

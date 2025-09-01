@@ -186,7 +186,7 @@ router.post('/', verifyToken, async (req, res) => {
       display_name: row.display_name,
       email: row.email,
       is_managed: row.is_managed || false,
-      status: row.status === 'OUT' ? 'eliminated' : 'active', // Map database status to frontend expected values
+      status: row.status,
       lives_remaining: row.lives_remaining || 0,
       joined_at: row.joined_at,
       paid: row.paid || false,

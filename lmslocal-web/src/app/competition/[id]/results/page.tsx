@@ -87,7 +87,7 @@ export default function CompetitionResultsPage() {
         if (comp && comp.is_organiser) {
           setCompetition(comp);
         } else {
-          router.push('/dashboard');
+          router.push(`/competition/${competitionId}/dashboard`);
           return;
         }
       }
@@ -490,11 +490,11 @@ export default function CompetitionResultsPage() {
             <div className="flex justify-between items-center py-4">
               <div className="flex items-center">
                 <Link 
-                  href="/dashboard" 
+                  href={`/competition/${competitionId}/dashboard`} 
                   className="flex items-center text-gray-600 hover:text-gray-900 mr-4"
                 >
                   <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                  Dashboard
+                  Back to Dashboard
                 </Link>
                 <TrophyIcon className="h-8 w-8 text-green-600" />
                 <span className="ml-2 text-xl font-bold text-gray-900">Results Entry</span>
@@ -538,7 +538,7 @@ export default function CompetitionResultsPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Competition Not Found</h1>
-          <Link href="/dashboard" className="text-green-600 hover:text-green-700">
+          <Link href={`/competition/${competitionId}/dashboard`} className="text-green-600 hover:text-green-700">
             Return to Dashboard
           </Link>
         </div>
@@ -554,11 +554,11 @@ export default function CompetitionResultsPage() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <Link 
-                href="/dashboard" 
+                href={`/competition/${competitionId}/dashboard`} 
                 className="flex items-center text-gray-600 hover:text-gray-900 mr-4"
               >
                 <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                Dashboard
+                Back to Dashboard
               </Link>
               <TrophyIcon className="h-8 w-8 text-green-600" />
               <span className="ml-2 text-xl font-bold text-gray-900">Results Entry</span>

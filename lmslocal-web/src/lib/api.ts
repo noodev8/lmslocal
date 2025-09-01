@@ -1,13 +1,19 @@
 import axios from 'axios';
 
-// Dynamic API URL that works for both localhost development and network access
+// Dynamic API URL that works for development, mobile testing, and production
 const getApiBaseUrl = () => {
+  // Production: Use environment variable if available
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
   if (typeof window === 'undefined') {
-    // Server-side rendering
+    // Server-side rendering - use localhost for development
     return 'http://localhost:3015';
   }
   
-  // Client-side - use the same host as the frontend but with backend port
+  // Client-side development - use the same host as the frontend but with backend port
+  // This supports both localhost and IP address testing on mobile
   const hostname = window.location.hostname;
   return `http://${hostname}:3015`;
 };
@@ -100,9 +106,12 @@ export const competitionApi = {
   getStatus: (competition_id: number) => api.post<ApiResponse<{ current_round: any; fixture_count: number; should_route_to_results: boolean }>>('/get-competition-status', { competition_id }),
   getPlayers: (competition_id: number) => api.post<ApiResponse<{ competition: any; players: any[] }>>('/get-competition-players', { competition_id }),
   removePlayer: (competition_id: number, player_id: number) => api.post<ApiResponse<{ removed_data: any }>>('/remove-player', { competition_id, player_id }),
-  lockUnlock: (competition_id: string, is_locked: boolean) => api.post<ApiResponse<any>>('/lock-unlock-competition', { competition_id, is_locked }),
-  validateAccessCode: (access_code: string) => api.post<ApiResponse<{ competition: any }>>('/validate-access-code', { access_code }),
-  joinByAccessCode: (access_code: string) => api.post<ApiResponse<any>>('/join-by-access-code', { access_code }),
+  getPickStatistics: (competition_id: number) => api.post<ApiResponse<{ 
+    current_round: { round_id: number; round_number: number } | null; 
+    players_with_picks: number; 
+    total_active_players: number; 
+    pick_percentage: number 
+  }>>('/get-pick-statistics', { competition_id }),
 };
 
 // Round API calls
@@ -118,8 +127,6 @@ export const roundApi = {
 export const fixtureApi = {
   addBulk: (round_id: string, fixtures: { home_team: string; away_team: string; kickoff_time: string }[]) => 
     api.post<ApiResponse<any>>('/add-fixtures-bulk', { round_id: parseInt(round_id), fixtures }),
-  replaceBulk: (round_id: string, fixtures: { home_team: string; away_team: string; kickoff_time: string }[]) => 
-    api.post<ApiResponse<any>>('/replace-fixtures-bulk', { round_id: parseInt(round_id), fixtures }),
   get: (round_id: string) => api.post<ApiResponse<{ fixtures: any[] }>>('/get-fixtures', { round_id: parseInt(round_id) }),
   setResult: (fixture_id: number, result: 'home_win' | 'away_win' | 'draw') =>
     api.post<ApiResponse<any>>('/set-fixture-result', { fixture_id, result }),

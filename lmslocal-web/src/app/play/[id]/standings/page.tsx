@@ -134,12 +134,12 @@ export default function CompetitionStandingsPage() {
         setPlayers(response.data.players);
       } else {
         console.error('Failed to load standings:', response.data.message);
-        router.push(fromAdmin ? '/dashboard' : '/play');
+        router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
       }
     } catch (error) {
       if (abortControllerRef.current?.signal.aborted) return;
       console.error('Failed to load standings:', error);
-      router.push(fromAdmin ? '/dashboard' : '/play');
+      router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
     } finally {
       if (!abortControllerRef.current?.signal.aborted) {
         setLoading(false);
@@ -195,7 +195,7 @@ export default function CompetitionStandingsPage() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <Link 
-                href={fromAdmin ? '/dashboard' : `/play/${competitionId}`} 
+                href={fromAdmin ? `/competition/${competitionId}/dashboard` : `/play/${competitionId}`} 
                 className="mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeftIcon className="h-5 w-5 text-gray-600" />

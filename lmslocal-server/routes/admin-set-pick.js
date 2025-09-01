@@ -1,267 +1,360 @@
 /*
 =======================================================================================================================================
-Admin Set Pick Route
+API Route: admin-set-pick
 =======================================================================================================================================
 Method: POST
-Purpose: Allow admin to set a pick for any player in their competition
+Purpose: Allow competition organiser to set a pick for any player in their competition with optimized database operations and atomic transaction safety
 =======================================================================================================================================
 Request Payload:
 {
-  "competition_id": 123,
-  "user_id": 456,        // Player to set pick for
-  "team": "Arsenal"      // Team name
+  "competition_id": 123,               // integer, required - Competition ID where pick is being set
+  "user_id": 456,                      // integer, required - Player ID to set pick for
+  "team": "Arsenal"                    // string, required - Full team name to pick
 }
 
-Success Response:
+Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "message": "Pick set successfully for player",
+  "message": "Pick set successfully for player", // string, success confirmation message
   "pick": {
-    "id": 789,
-    "user_id": 456,
-    "team": "Arsenal",
-    "player_name": "Old Bill"
+    "id": 789,                         // integer, pick database ID
+    "user_id": 456,                    // integer, player ID pick was set for
+    "team": "Arsenal",                 // string, full team name picked
+    "team_short": "ARS",               // string, team short code stored in database
+    "player_name": "Old Bill",         // string, display name of player
+    "round_number": 3,                 // integer, round this pick applies to
+    "fixture_id": 123,                 // integer, fixture ID for this team (null if no fixture)
+    "was_updated": false,              // boolean, true if existing pick was updated, false if new pick created
+    "set_by_admin": true               // boolean, indicates this pick was set by admin override
   }
+}
+
+Error Response (ALWAYS HTTP 200):
+{
+  "return_code": "ERROR_TYPE",
+  "message": "Descriptive error message"  // string, user-friendly error description
 }
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
-"VALIDATION_ERROR" 
-"UNAUTHORIZED"
-"COMPETITION_NOT_FOUND"
-"ROUND_LOCKED"
-"TEAM_NOT_ALLOWED"
-"SERVER_ERROR"
+"VALIDATION_ERROR"      - Missing or invalid competition_id, user_id, or team parameters
+"COMPETITION_NOT_FOUND" - Competition does not exist in database
+"UNAUTHORIZED"          - Invalid JWT token or user is not competition organiser  
+"PLAYER_NOT_IN_COMPETITION" - Specified player is not participating in this competition
+"PLAYER_ELIMINATED"     - Cannot set pick for eliminated player
+"NO_CURRENT_ROUND"      - Competition has no active round to set picks for
+"ROUND_LOCKED"          - Cannot set picks after round lock time has passed
+"TEAM_NOT_ALLOWED"      - Team is not available for this player (already used or not in competition)
+"TEAM_NOT_FOUND"        - Team name does not exist in database
+"NO_FIXTURE_FOUND"      - No fixture exists for this team in current round
+"SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
 */
 
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const { query } = require('../database');
+const { query, transaction } = require('../database'); // Use central database with transaction support
+const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const router = express.Router();
 
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(200).json({
-        return_code: "UNAUTHORIZED",
-        message: "No token provided"
-      });
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const result = await query('SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', [decoded.user_id || decoded.userId]);
-    if (result.rows.length === 0) {
-      return res.status(200).json({
-        return_code: "UNAUTHORIZED",
-        message: "Invalid token"
-      });
-    }
-
-    req.user = result.rows[0];
-    next();
-  } catch (error) {
-    return res.status(200).json({
-      return_code: "UNAUTHORIZED", 
-      message: "Invalid token"
-    });
-  }
-};
-
+// POST endpoint with comprehensive authentication, validation and atomic transaction safety
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { competition_id, user_id, team } = req.body;
-    const admin_id = req.user.id;
+    const admin_id = req.user.id; // Set by verifyToken middleware
 
-    // Basic validation
+    // STEP 1: Validate required input parameters with strict type checking
     if (!competition_id || !Number.isInteger(competition_id)) {
-      return res.status(200).json({
+      return res.json({
         return_code: "VALIDATION_ERROR",
-        message: "Competition ID is required and must be a number"
+        message: "Competition ID is required and must be an integer"
       });
     }
 
     if (!user_id || !Number.isInteger(user_id)) {
-      return res.status(200).json({
+      return res.json({
         return_code: "VALIDATION_ERROR",
-        message: "User ID is required and must be a number"
+        message: "User ID is required and must be an integer"
       });
     }
 
     if (!team || typeof team !== 'string' || team.trim().length === 0) {
-      return res.status(200).json({
+      return res.json({
         return_code: "VALIDATION_ERROR",
-        message: "Team is required and must be a valid string"
+        message: "Team name is required and must be a non-empty string"
       });
     }
 
-    // Verify admin is organiser of this competition
-    const competitionResult = await query(`
-      SELECT c.id, c.name, c.organiser_id,
-             (SELECT MAX(round_number) FROM round WHERE competition_id = c.id) as current_round
-      FROM competition c
-      WHERE c.id = $1
-    `, [competition_id]);
+    // STEP 2: Use transaction wrapper to ensure atomic operations
+    // This ensures that either ALL database operations succeed or ALL are rolled back
+    const transactionResult = await transaction(async (queryTx) => {
+      
+      // Single comprehensive query to get all required data and perform validations
+      // This eliminates N+1 query problems by joining all necessary tables in one database call
+      const mainQuery = `
+        WITH competition_data AS (
+          -- Get competition info and verify organiser authorization
+          SELECT 
+            c.id as competition_id,
+            c.name as competition_name,
+            c.organiser_id,
+            -- Get current round info (latest round by round_number)
+            r.id as current_round_id,
+            r.round_number as current_round_number,
+            r.lock_time as current_round_lock_time,
+            -- Get current time for lock calculation
+            NOW() as current_time
+          FROM competition c
+          LEFT JOIN (
+            SELECT 
+              competition_id,
+              id,
+              round_number,
+              lock_time,
+              ROW_NUMBER() OVER (PARTITION BY competition_id ORDER BY round_number DESC) as rn
+            FROM round
+          ) r ON c.id = r.competition_id AND r.rn = 1
+          WHERE c.id = $1
+        ),
+        player_data AS (
+          -- Get player participation and status info
+          SELECT 
+            cu.user_id,
+            cu.status as player_status,
+            u.display_name as player_name
+          FROM competition_user cu
+          INNER JOIN app_user u ON cu.user_id = u.id
+          WHERE cu.competition_id = $1 AND cu.user_id = $2
+        ),
+        team_data AS (
+          -- Get team info and verify it's allowed for this player
+          SELECT 
+            t.id as team_id,
+            t.name as team_name,
+            t.short_name as team_short,
+            at.id as allowed_team_id
+          FROM team t
+          LEFT JOIN allowed_teams at ON t.id = at.team_id 
+            AND at.competition_id = $1 
+            AND at.user_id = $2
+          WHERE t.name = $3
+        ),
+        fixture_data AS (
+          -- Get fixture for this team in current round
+          SELECT f.id as fixture_id
+          FROM fixture f
+          INNER JOIN competition_data cd ON f.round_id = cd.current_round_id
+          WHERE (f.home_team = $3 OR f.away_team = $3)
+        ),
+        existing_pick_data AS (
+          -- Check if player already has a pick for current round
+          SELECT p.id as existing_pick_id
+          FROM pick p
+          INNER JOIN competition_data cd ON p.round_id = cd.current_round_id
+          WHERE p.user_id = $2
+        )
+        SELECT 
+          cd.*,
+          pd.player_status,
+          pd.player_name,
+          td.team_id,
+          td.team_name,
+          td.team_short,
+          td.allowed_team_id,
+          fd.fixture_id,
+          epd.existing_pick_id
+        FROM competition_data cd
+        CROSS JOIN player_data pd
+        CROSS JOIN team_data td
+        LEFT JOIN fixture_data fd ON true
+        LEFT JOIN existing_pick_data epd ON true
+      `;
 
-    if (competitionResult.rows.length === 0) {
-      return res.status(200).json({
-        return_code: "COMPETITION_NOT_FOUND",
-        message: "Competition not found"
-      });
-    }
+      const mainResult = await queryTx(mainQuery, [competition_id, user_id, team.trim()]);
 
-    const competition = competitionResult.rows[0];
-
-    if (competition.organiser_id !== admin_id) {
-      return res.status(200).json({
-        return_code: "UNAUTHORIZED",
-        message: "Only the competition organiser can set picks for players"
-      });
-    }
-
-    // Verify user is participating in this competition
-    const participantResult = await query(`
-      SELECT cu.id, cu.status, u.display_name
-      FROM competition_user cu
-      JOIN app_user u ON cu.user_id = u.id
-      WHERE cu.competition_id = $1 AND cu.user_id = $2
-    `, [competition_id, user_id]);
-
-    if (participantResult.rows.length === 0) {
-      return res.status(200).json({
-        return_code: "VALIDATION_ERROR",
-        message: "User is not participating in this competition"
-      });
-    }
-
-    const participant = participantResult.rows[0];
-
-    if (participant.status === 'OUT') {
-      return res.status(200).json({
-        return_code: "VALIDATION_ERROR",
-        message: "Cannot set pick for eliminated player"
-      });
-    }
-
-    // Get current round details
-    const currentRoundResult = await query(`
-      SELECT r.id, r.round_number, r.lock_time
-      FROM round r
-      WHERE r.competition_id = $1 AND r.round_number = $2
-    `, [competition_id, competition.current_round]);
-
-    if (currentRoundResult.rows.length === 0) {
-      return res.status(200).json({
-        return_code: "VALIDATION_ERROR",
-        message: "No current round found for this competition"
-      });
-    }
-
-    const currentRound = currentRoundResult.rows[0];
-
-    // Check if round is locked
-    const now = new Date();
-    const isLocked = currentRound.lock_time && now >= new Date(currentRound.lock_time);
-
-    if (isLocked) {
-      return res.status(200).json({
-        return_code: "ROUND_LOCKED",
-        message: "Cannot set pick - round is already locked"
-      });
-    }
-
-    // Verify team is allowed for this user
-    const allowedTeamResult = await query(`
-      SELECT at.id
-      FROM allowed_teams at
-      JOIN team t ON at.team_id = t.id
-      WHERE at.competition_id = $1 AND at.user_id = $2 AND t.name = $3
-    `, [competition_id, user_id, team.trim()]);
-
-    if (allowedTeamResult.rows.length === 0) {
-      return res.status(200).json({
-        return_code: "TEAM_NOT_ALLOWED",
-        message: "Team not allowed for this player or team does not exist"
-      });
-    }
-
-    // Convert full team name to short code (to match normal pick storage)
-    const teamShortResult = await query(`
-      SELECT short_name FROM team WHERE name = $1
-    `, [team.trim()]);
-
-    if (teamShortResult.rows.length === 0) {
-      return res.status(200).json({
-        return_code: "VALIDATION_ERROR",
-        message: "Team not found in system"
-      });
-    }
-
-    const teamShortCode = teamShortResult.rows[0].short_name;
-
-    // Get fixture for this team in current round
-    const fixtureResult = await query(`
-      SELECT id FROM fixture 
-      WHERE round_id = $1 
-        AND (home_team = $2 OR away_team = $2)
-    `, [currentRound.id, team.trim()]);
-
-    // Check if player already has a pick for this round
-    const existingPickResult = await query(`
-      SELECT id FROM pick
-      WHERE round_id = $1 AND user_id = $2
-    `, [currentRound.id, user_id]);
-
-    let pickResult;
-
-    if (existingPickResult.rows.length > 0) {
-      // Update existing pick (use short code to match normal picks)
-      pickResult = await query(`
-        UPDATE pick
-        SET team = $1, fixture_id = $2, set_by_admin = $3, created_at = CURRENT_TIMESTAMP
-        WHERE round_id = $4 AND user_id = $5
-        RETURNING id, team, user_id
-      `, [teamShortCode, fixtureResult.rows.length > 0 ? fixtureResult.rows[0].id : null, admin_id, currentRound.id, user_id]);
-    } else {
-      // Create new pick (use short code to match normal picks)
-      pickResult = await query(`
-        INSERT INTO pick (round_id, user_id, fixture_id, team, set_by_admin)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, team, user_id
-      `, [currentRound.id, user_id, fixtureResult.rows.length > 0 ? fixtureResult.rows[0].id : null, teamShortCode, admin_id]);
-    }
-
-    // Log the action (user_id = player it was done FOR, admin_id in details)
-    await query(`
-      INSERT INTO audit_log (competition_id, user_id, action, details)
-      VALUES ($1, $2, 'Admin Set Pick', $3)
-    `, [
-      competition_id,
-      user_id, // Player the action was done FOR
-      `Admin ${admin_id} set pick "${team.trim()}" for player "${participant.display_name}" in Round ${currentRound.round_number}`
-    ]);
-
-    res.status(200).json({
-      return_code: "SUCCESS",
-      message: "Pick set successfully for player",
-      pick: {
-        id: pickResult.rows[0].id,
-        user_id: user_id,
-        team: team.trim(),
-        player_name: participant.display_name,
-        round_number: currentRound.round_number
+      // Check if competition exists
+      if (mainResult.rows.length === 0) {
+        throw {
+          return_code: "COMPETITION_NOT_FOUND",
+          message: "Competition not found or player is not participating"
+        };
       }
+
+      const data = mainResult.rows[0];
+
+      // Verify user authorization - only competition organiser can set picks for players
+      if (data.organiser_id !== admin_id) {
+        throw {
+          return_code: "UNAUTHORIZED",
+          message: "Only the competition organiser can set picks for players"
+        };
+      }
+
+      // Check if player is participating in this competition
+      if (!data.player_name) {
+        throw {
+          return_code: "PLAYER_NOT_IN_COMPETITION",
+          message: "Specified player is not participating in this competition"
+        };
+      }
+
+      // Check if player is eliminated
+      if (data.player_status === 'OUT') {
+        throw {
+          return_code: "PLAYER_ELIMINATED",
+          message: "Cannot set pick for eliminated player"
+        };
+      }
+
+      // Check if competition has a current round
+      if (!data.current_round_id) {
+        throw {
+          return_code: "NO_CURRENT_ROUND",
+          message: "Competition has no active round to set picks for"
+        };
+      }
+
+      // Business rule: Check if round is locked (picks close at lock time)
+      const now = new Date(data.current_time);
+      const lockTime = new Date(data.current_round_lock_time);
+      const isLocked = data.current_round_lock_time && now >= lockTime;
+
+      if (isLocked) {
+        throw {
+          return_code: "ROUND_LOCKED",
+          message: `Cannot set picks after round lock time. Round locked at ${lockTime.toISOString()}`
+        };
+      }
+
+      // Check if team exists in the system
+      if (!data.team_id) {
+        throw {
+          return_code: "TEAM_NOT_FOUND",
+          message: "Team name does not exist in the system"
+        };
+      }
+
+      // Check if team is allowed for this player (hasn't been used before)
+      if (!data.allowed_team_id) {
+        throw {
+          return_code: "TEAM_NOT_ALLOWED",
+          message: "Team is not available for this player (may have been used in previous round)"
+        };
+      }
+
+      // Check if fixture exists for this team in current round (optional - some competitions may not have fixtures yet)
+      if (!data.fixture_id) {
+        console.warn('No fixture found for team in current round:', {
+          team: team.trim(),
+          round_id: data.current_round_id,
+          competition_id,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Determine if we're updating existing pick or creating new one
+      const wasUpdated = !!data.existing_pick_id;
+      let pickResult;
+
+      if (wasUpdated) {
+        // Update existing pick with new team selection
+        // Use team short code for consistency with normal pick storage format
+        const updateQuery = `
+          UPDATE pick
+          SET 
+            team = $1,
+            fixture_id = $2,
+            set_by_admin = $3,
+            created_at = NOW(),
+            updated_at = NOW()
+          WHERE round_id = $4 AND user_id = $5
+          RETURNING id, team, user_id, fixture_id
+        `;
+        
+        pickResult = await queryTx(updateQuery, [
+          data.team_short, // Store team short code (e.g., "ARS") for consistency
+          data.fixture_id, // May be null if no fixture exists yet
+          admin_id, // Track which admin set this pick
+          data.current_round_id,
+          user_id
+        ]);
+      } else {
+        // Create new pick record for this player and round
+        const insertQuery = `
+          INSERT INTO pick (round_id, user_id, fixture_id, team, set_by_admin, created_at)
+          VALUES ($1, $2, $3, $4, $5, NOW())
+          RETURNING id, team, user_id, fixture_id
+        `;
+        
+        pickResult = await queryTx(insertQuery, [
+          data.current_round_id,
+          user_id,
+          data.fixture_id, // May be null if no fixture exists yet
+          data.team_short, // Store team short code (e.g., "ARS") for consistency
+          admin_id // Track which admin set this pick
+        ]);
+      }
+
+      // Log the administrative action for audit trail and transparency
+      // This provides accountability for admin overrides and pick changes
+      const auditQuery = `
+        INSERT INTO audit_log (competition_id, user_id, action, details, created_at)
+        VALUES ($1, $2, $3, $4, NOW())
+      `;
+      
+      const auditDetails = `Admin ${admin_id} ${wasUpdated ? 'updated' : 'set'} pick "${data.team_name}" (${data.team_short}) for player "${data.player_name}" in Round ${data.current_round_number}`;
+      
+      await queryTx(auditQuery, [
+        competition_id,
+        user_id, // Player the action was performed FOR
+        wasUpdated ? 'ADMIN_UPDATE_PICK' : 'ADMIN_SET_PICK',
+        auditDetails
+      ]);
+
+      // Return comprehensive pick information for frontend display
+      return {
+        return_code: "SUCCESS",
+        message: `Pick ${wasUpdated ? 'updated' : 'set'} successfully for player`,
+        pick: {
+          id: pickResult.rows[0].id,
+          user_id: user_id,
+          team: data.team_name, // Return full team name for display
+          team_short: data.team_short, // Include short code for reference
+          player_name: data.player_name,
+          round_number: data.current_round_number,
+          fixture_id: data.fixture_id,
+          was_updated: wasUpdated,
+          set_by_admin: true
+        }
+      };
     });
 
+    // Return transaction result with HTTP 200 status as per API standards
+    return res.json(transactionResult);
+
   } catch (error) {
-    console.error('Admin set pick error:', error);
-    res.status(200).json({
-      return_code: "SERVER_ERROR",
-      message: "Internal server error"
+    // Handle custom business logic errors (thrown from transaction)
+    if (error.return_code) {
+      return res.json({
+        return_code: error.return_code,
+        message: error.message
+      });
+    }
+
+    // Log detailed error information for debugging while protecting sensitive data
+    console.error('Admin set pick error:', {
+      error: error.message,
+      stack: error.stack?.substring(0, 500), // Truncate stack trace
+      competition_id: req.body?.competition_id,
+      user_id: req.body?.user_id,
+      team: req.body?.team,
+      admin_id: req.user?.id,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Return standardized server error response with HTTP 200
+    return res.json({
+      return_code: "SERVER_ERROR", 
+      message: "Failed to set player pick"
     });
   }
 });

@@ -49,143 +49,125 @@ Return Codes:
 =======================================================================================================================================
 */
 
-const { Pool } = require('pg');
+const express = require('express');
+const { query } = require('../database');
+const { verifyToken } = require('../middleware/auth');
+const router = express.Router();
 
-// Database configuration
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { round_id } = req.body;
 
-module.exports = (req, res) => {
-  const getRoundHistory = async () => {
-    try {
-      const { round_id } = req.body;
-
-      // Validation
-      if (!round_id || typeof round_id !== 'number') {
-        return res.status(200).json({
-          return_code: "VALIDATION_ERROR",
-          message: "round_id is required and must be a number"
-        });
-      }
-
-      // Get user ID from JWT token (assuming middleware sets req.user)
-      const user_id = req.user?.id;
-      if (!user_id) {
-        return res.status(200).json({
-          return_code: "UNAUTHORIZED",
-          message: "User authentication required"
-        });
-      }
-
-      // Get round info
-      const roundQuery = `
-        SELECT round_number, competition_id
-        FROM round
-        WHERE id = $1
-      `;
-      const roundResult = await pool.query(roundQuery, [round_id]);
-
-      if (roundResult.rows.length === 0) {
-        return res.status(200).json({
-          return_code: "NOT_FOUND",
-          message: "Round not found"
-        });
-      }
-
-      const { round_number, competition_id } = roundResult.rows[0];
-
-      // Get all fixtures for this round
-      const fixturesQuery = `
-        SELECT id, home_team, away_team, home_team_short, away_team_short, result
-        FROM fixture
-        WHERE round_id = $1
-        ORDER BY home_team, away_team
-      `;
-      const fixturesResult = await pool.query(fixturesQuery, [round_id]);
-
-      // Get player's pick for this round
-      const playerPickQuery = `
-        SELECT team
-        FROM pick
-        WHERE round_id = $1 AND user_id = $2
-      `;
-      const playerPickResult = await pool.query(playerPickQuery, [round_id, user_id]);
-      const player_pick = playerPickResult.rows.length > 0 ? playerPickResult.rows[0].team : null;
-
-      // Determine player outcome (simplified for now)
-      let player_outcome = null;
-      if (player_pick) {
-        // TODO: This logic may need refinement based on your pick outcome calculation
-        const playerFixture = fixturesResult.rows.find(f => 
-          f.home_team_short === player_pick || f.away_team_short === player_pick
-        );
-        if (playerFixture && playerFixture.result) {
-          if (playerFixture.result === player_pick) {
-            player_outcome = "won";
-          } else if (playerFixture.result === "DRAW") {
-            player_outcome = "lost"; // or "draw" if you handle draws differently
-          } else {
-            player_outcome = "lost";
-          }
-        }
-      } else {
-        player_outcome = "no_pick";
-      }
-
-      // Get pick counts for each team in this round
-      const pickCountQuery = `
-        SELECT 
-          CASE 
-            WHEN p.team = 'home' THEN f.home_team_short
-            WHEN p.team = 'away' THEN f.away_team_short
-            ELSE p.team
-          END as team_short,
-          COUNT(*) as pick_count
-        FROM pick p
-        JOIN fixture f ON p.fixture_id = f.id
-        WHERE f.round_id = $1
-        GROUP BY 
-          CASE 
-            WHEN p.team = 'home' THEN f.home_team_short
-            WHEN p.team = 'away' THEN f.away_team_short
-            ELSE p.team
-          END
-      `;
-      const pickCountResult = await pool.query(pickCountQuery, [round_id]);
-
-      // Convert pick counts to object format
-      const pick_counts = {};
-      pickCountResult.rows.forEach(row => {
-        pick_counts[row.team_short] = parseInt(row.pick_count);
-      });
-
-      return res.status(200).json({
-        return_code: "SUCCESS",
-        round_data: {
-          round_number: round_number,
-          fixtures: fixturesResult.rows,
-          player_pick: player_pick,
-          player_outcome: player_outcome,
-          pick_counts: pick_counts
-        }
-      });
-
-    } catch (error) {
-      console.error('Error in get-round-history:', error);
-      return res.status(200).json({
-        return_code: "SERVER_ERROR",
-        message: "Internal server error"
+    // Validation
+    if (!round_id || typeof round_id !== 'number') {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "round_id is required and must be a number"
       });
     }
-  };
 
-  getRoundHistory();
-};
+    // Get user ID from JWT token (set by verifyToken middleware)
+    const user_id = req.user.id;
+    // Get round info
+    const roundQuery = `
+      SELECT round_number, competition_id
+      FROM round
+      WHERE id = $1
+    `;
+    const roundResult = await query(roundQuery, [round_id]);
+
+    if (roundResult.rows.length === 0) {
+      return res.json({
+        return_code: "NOT_FOUND",
+        message: "Round not found"
+      });
+    }
+
+    const { round_number, competition_id } = roundResult.rows[0];
+
+    // Get all fixtures for this round
+    const fixturesQuery = `
+      SELECT id, home_team, away_team, home_team_short, away_team_short, result
+      FROM fixture
+      WHERE round_id = $1
+      ORDER BY home_team, away_team
+    `;
+    const fixturesResult = await query(fixturesQuery, [round_id]);
+
+    // Get player's pick for this round
+    const playerPickQuery = `
+      SELECT team
+      FROM pick
+      WHERE round_id = $1 AND user_id = $2
+    `;
+    const playerPickResult = await query(playerPickQuery, [round_id, user_id]);
+    const player_pick = playerPickResult.rows.length > 0 ? playerPickResult.rows[0].team : null;
+
+    // Determine player outcome (simplified for now)
+    let player_outcome = null;
+    if (player_pick) {
+      // TODO: This logic may need refinement based on your pick outcome calculation
+      const playerFixture = fixturesResult.rows.find(f => 
+        f.home_team_short === player_pick || f.away_team_short === player_pick
+      );
+      if (playerFixture && playerFixture.result) {
+        if (playerFixture.result === player_pick) {
+          player_outcome = "won";
+        } else if (playerFixture.result === "DRAW") {
+          player_outcome = "lost"; // or "draw" if you handle draws differently
+        } else {
+          player_outcome = "lost";
+        }
+      }
+    } else {
+      player_outcome = "no_pick";
+    }
+
+    // Get pick counts for each team in this round
+    const pickCountQuery = `
+      SELECT 
+        CASE 
+          WHEN p.team = 'home' THEN f.home_team_short
+          WHEN p.team = 'away' THEN f.away_team_short
+          ELSE p.team
+        END as team_short,
+        COUNT(*) as pick_count
+      FROM pick p
+      JOIN fixture f ON p.fixture_id = f.id
+      WHERE f.round_id = $1
+      GROUP BY 
+        CASE 
+          WHEN p.team = 'home' THEN f.home_team_short
+          WHEN p.team = 'away' THEN f.away_team_short
+          ELSE p.team
+        END
+    `;
+    const pickCountResult = await query(pickCountQuery, [round_id]);
+
+    // Convert pick counts to object format
+    const pick_counts = {};
+    pickCountResult.rows.forEach(row => {
+      pick_counts[row.team_short] = parseInt(row.pick_count);
+    });
+
+    return res.json({
+      return_code: "SUCCESS",
+      round_data: {
+        round_number: round_number,
+        fixtures: fixturesResult.rows,
+        player_pick: player_pick,
+        player_outcome: player_outcome,
+        pick_counts: pick_counts
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in get-round-history:', error);
+    return res.json({
+      return_code: "SERVER_ERROR",
+      message: "Internal server error"
+    });
+  }
+});
+
+module.exports = router;

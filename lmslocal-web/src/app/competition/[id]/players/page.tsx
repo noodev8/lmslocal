@@ -121,7 +121,7 @@ export default function CompetitionPlayersPage() {
         setPlayers(response.data.players);
       } else {
         console.error('Failed to load players:', response.data.message);
-        router.push('/dashboard');
+        router.push(`/competition/${competitionId}/dashboard`);
       }
     } catch (error) {
       if (abortControllerRef.current?.signal.aborted) return;
@@ -283,7 +283,7 @@ export default function CompetitionPlayersPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <Link href="/dashboard" className="mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <Link href={`/competition/${competitionId}/dashboard`} className="mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
               </Link>
               <Link href="/" className="flex items-center">
