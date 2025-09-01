@@ -280,14 +280,15 @@ const getServerAddress = () => {
   const os = require('os');
   const interfaces = os.networkInterfaces();
   
-  console.log('Available network interfaces:');
-  for (const [name, addrs] of Object.entries(interfaces)) {
-    for (const addr of addrs) {
-      if (addr.family === 'IPv4') {
-        console.log(`  ${name}: ${addr.address} (internal: ${addr.internal})`);
-      }
-    }
-  }
+  // Debug: Log available network interfaces
+  // console.log('Available network interfaces:');
+  // for (const [name, addrs] of Object.entries(interfaces)) {
+  //   for (const addr of addrs) {
+  //     if (addr.family === 'IPv4') {
+  //       console.log(`  ${name}: ${addr.address} (internal: ${addr.internal})`);
+  //     }
+  //   }
+  // }
   
   // Try common Linux server interface names first (ignore internal flag)
   const commonNames = ['eth0', 'ens3', 'ens5', 'enp0s3', 'enp0s8', 'ens4', 'ens6', 'ens33'];
@@ -296,7 +297,6 @@ const getServerAddress = () => {
     if (interfaces[name]) {
       for (const iface of interfaces[name]) {
         if (iface.family === 'IPv4' && iface.address !== '127.0.0.1') {
-          console.log(`Using interface ${name}: ${iface.address}`);
           return iface.address;
         }
       }
@@ -307,7 +307,6 @@ const getServerAddress = () => {
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
       if (iface.family === 'IPv4' && iface.address !== '127.0.0.1' && !iface.address.startsWith('169.254.')) {
-        console.log(`Using interface ${name}: ${iface.address}`);
         return iface.address;
       }
     }
@@ -340,13 +339,8 @@ app.listen(PORT, async () => {
     console.log(`Database connection: ERROR - ${error.message}`);
   }
   
-  if (isProduction) {
-    console.log(`Health check: http://${serverIP}:${PORT}/health`);
-    console.log(`API endpoint: http://${serverIP}:${PORT}/`);
-  } else {
-    console.log(`Health check: http://localhost:${PORT}/health`);
-    console.log(`API endpoint: http://localhost:${PORT}/`);
-  }
+  console.log(`Health check: http://${serverIP}:${PORT}/health`);
+  console.log(`API endpoint: http://${serverIP}:${PORT}/`);
   
   console.log(`=======================================================================`);
 });
