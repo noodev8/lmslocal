@@ -15,8 +15,8 @@ verifyToken - Always use a single verifyToken function. No duplicates.
 
 == Database ==
 Database uses direct PostgreSQL
-Always use central database pooling with "/lmslocal2_server/database.js"
-Single environnment file "/lmslocal2_server/.env"
+Always use central database pooling with "/lmslocal-server/database.js"
+Single environnment file "/lmslocal-server/.env"
 Use "/docs/DB-Schema.sql" database schema to identify the tables and fields needed.
 Do not use N+1 queries
 Use a transaction wrapper for atomic queries
