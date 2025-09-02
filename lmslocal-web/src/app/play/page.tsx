@@ -299,44 +299,66 @@ export default function PlayerDashboardPage() {
             ))}
           </div>
         ) : (
-          /* Empty State - Simple */
+          /* Empty State - Big Create Competition CTA */
           <div className="text-center py-12 mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-              <UserGroupIcon className="h-8 w-8 text-slate-400" />
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
+              <TrophyIcon className="h-10 w-10 text-green-600" />
             </div>
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No competitions yet</h3>
-            <p className="text-slate-500 text-sm mb-6">
-              Ask your organizer for a competition code to get started
+            <h3 className="text-xl font-bold text-slate-900 mb-3">Start Your First Competition</h3>
+            <p className="text-slate-600 text-base mb-8 max-w-sm mx-auto">
+              Create a Last Man Standing competition and invite your friends to join the fun!
             </p>
+            
+            {/* BIG Create Competition Button */}
+            <Link 
+              href="/competition/create"
+              className="inline-flex items-center px-6 py-4 bg-green-600 text-white rounded-xl text-lg font-semibold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl mb-6"
+            >
+              <PlusCircleIcon className="h-6 w-6 mr-3" />
+              Create Competition
+            </Link>
+            
+            <div className="text-slate-400 text-sm mb-4">or</div>
+            
+            {/* Smaller Join Button */}
+            <button
+              onClick={() => setShowJoinDialog(true)}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <PlusCircleIcon className="h-4 w-4 mr-2" />
+              Join Existing Competition
+            </button>
           </div>
         )}
 
-        {/* Join Competition CTA - At bottom, smaller */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowJoinDialog(true)}
-            className="w-full flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            <PlusCircleIcon className="h-4 w-4 mr-2" />
-            Join Competition
-          </button>
-        </div>
+        {/* Only show join/create options if user already has competitions */}
+        {competitions.length > 0 && (
+          <>
+            {/* Join Competition CTA - Smaller when they have competitions */}
+            <div className="mb-4">
+              <button
+                onClick={() => setShowJoinDialog(true)}
+                className="w-full flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                <PlusCircleIcon className="h-4 w-4 mr-2" />
+                Join Another Competition
+              </button>
+            </div>
 
-        {/* Create Competition CTA - Always show */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-          <div className="text-center">
-            <p className="text-sm text-slate-600 mb-2">
-              {competitions.length > 0 ? "Want to organize another competition?" : "Want to create your own competition?"}
-            </p>
-            <Link 
-              href="/competition/create"
-              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-            >
-              <PlusCircleIcon className="h-4 w-4 mr-2" />
-              Create Competition
-            </Link>
-          </div>
-        </div>
+            {/* Small Create Competition CTA - Only show if they have competitions */}
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <div className="text-center">
+                <p className="text-xs text-slate-600 mb-1">Want to organize another?</p>
+                <Link 
+                  href="/competition/create"
+                  className="text-xs text-green-600 hover:text-green-700 font-medium"
+                >
+                  Create competition →
+                </Link>
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       {/* Join Competition Modal - Mobile Optimized */}
