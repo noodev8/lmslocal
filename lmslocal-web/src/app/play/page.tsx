@@ -322,20 +322,21 @@ export default function PlayerDashboardPage() {
           </button>
         </div>
 
-        {/* Subtle Organizer CTA - Only show if they have competitions */}
-        {competitions.length > 0 && (
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <div className="text-center">
-              <p className="text-xs text-slate-600 mb-1">Want to organize your own?</p>
-              <Link 
-                href="/competition/create"
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Create competition →
-              </Link>
-            </div>
+        {/* Create Competition CTA - Always show */}
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+          <div className="text-center">
+            <p className="text-sm text-slate-600 mb-2">
+              {competitions.length > 0 ? "Want to organize another competition?" : "Want to create your own competition?"}
+            </p>
+            <Link 
+              href="/competition/create"
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+            >
+              <PlusCircleIcon className="h-4 w-4 mr-2" />
+              Create Competition
+            </Link>
           </div>
-        )}
+        </div>
       </main>
 
       {/* Join Competition Modal - Mobile Optimized */}
