@@ -105,31 +105,17 @@ router.post('/', verifyToken, async (req, res) => {
     // Also get current user data for comparison and response
     const validationResult = await query(`
       SELECT 
-        -- === CURRENT USER DATA ===
-        current_user.id as current_user_id,         -- Current user's ID for verification
-        current_user.display_name as current_display_name, -- Current display name for comparison
-        current_user.email as current_email,        -- Current email for comparison
-        current_user.email_verified,                -- Email verification status
-        current_user.updated_at as current_updated_at, -- Last update timestamp
-        
-        -- === DUPLICATE CHECKS ===
-        duplicate_name.id as duplicate_name_user_id, -- Non-null if display name is taken
-        duplicate_email.id as duplicate_email_user_id -- Non-null if email is taken
-        
+        current_user.id as current_user_id,
+        current_user.display_name as current_display_name,
+        current_user.email as current_email,
+        current_user.email_verified,
+        current_user.updated_at as current_updated_at,
+        duplicate_name.id as duplicate_name_user_id,
+        duplicate_email.id as duplicate_email_user_id
       FROM app_user current_user
-      
-      -- === DISPLAY NAME DUPLICATE CHECK ===
-      -- Check if another user already has this display name
-      LEFT JOIN app_user duplicate_name ON duplicate_name.display_name = $2 
-                                        AND duplicate_name.id != $1
-      
-      -- === EMAIL DUPLICATE CHECK ===
-      -- Check if another user already has this email (if email is being changed)
-      LEFT JOIN app_user duplicate_email ON duplicate_email.email = $3 
-                                         AND duplicate_email.id != $1
-                                         AND $3 IS NOT NULL
-      
-      WHERE current_user.id = $1  -- Get current user's data
+      LEFT JOIN app_user duplicate_name ON duplicate_name.display_name = $2 AND duplicate_name.id != $1
+      LEFT JOIN app_user duplicate_email ON duplicate_email.email = $3 AND duplicate_email.id != $1 AND $3 IS NOT NULL
+      WHERE current_user.id = $1
     `, [user_id, trimmedDisplayName, trimmedEmail]);
 
     // Check if user exists (should always be true due to JWT verification)
