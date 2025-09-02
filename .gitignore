@@ -87,3 +87,4 @@ venv/
 # Any Private Keys
 splitdine-ocr-6921886ed122.json
 
+.vercel

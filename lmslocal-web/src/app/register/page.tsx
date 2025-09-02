@@ -3,15 +3,16 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { TrophyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authApi, RegisterRequest } from '@/lib/api';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const {
     register,
@@ -33,8 +34,9 @@ export default function RegisterPage() {
       });
       
       if (response.data.return_code === 'SUCCESS') {
-        setError(''); // Clear any previous errors
-        setSuccess('Account created successfully! Please check your email and click the verification link before logging in.');
+        // Redirect to login page with success message in URL params
+        router.push('/login?message=Account created successfully! Please check your email and click the verification link to complete your registration.');
+        return;
       } else {
         switch (response.data.return_code) {
           case 'EMAIL_EXISTS':
@@ -96,11 +98,6 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {success && (
-              <div className="rounded-xl bg-green-50 border border-green-200 p-4">
-                <div className="text-sm text-green-700 font-medium">{success}</div>
-              </div>
-            )}
 
             <div className="space-y-2">
               <label htmlFor="name" className="block text-sm font-semibold text-slate-900">

@@ -1,24 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { TrophyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authApi, userApi, LoginRequest } from '@/lib/api';
 import { setAuthData } from '@/lib/auth';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const {
     register,
     handleSubmit,
     formState: { errors }
   } = useForm<LoginRequest>();
+
+  useEffect(() => {
+    const message = searchParams.get('message');
+    if (message) {
+      setSuccessMessage(decodeURIComponent(message));
+    }
+  }, [searchParams]);
 
   const onSubmit = async (data: LoginRequest) => {
     setIsLoading(true);
@@ -96,6 +105,12 @@ export default function LoginPage() {
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+            {successMessage && (
+              <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+                <div className="text-sm text-green-700 font-medium">{successMessage}</div>
+              </div>
+            )}
+
             {error && (
               <div className="rounded-xl bg-red-50 border border-red-200 p-4">
                 <div className="text-sm text-red-700 font-medium">{error}</div>
@@ -201,5 +216,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
