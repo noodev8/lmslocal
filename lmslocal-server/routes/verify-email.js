@@ -171,7 +171,7 @@ router.get('/', async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL email verification operations succeed or ALL changes are rolled back
     // Critical for email verification where token clearing must be consistent with verification flag update
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
 
       // Single comprehensive query to get user data and token validation information
       // This provides all necessary information for email verification validation
@@ -196,12 +196,12 @@ router.get('/', async (req, res) => {
         WHERE auth_token = $1 AND auth_token LIKE 'verify_%'
       `;
 
-      const userResult = await queryTx(userQuery, [token]);
+      const userResult = await client.query(userQuery, [token]);
 
       // Check if token exists and is a valid verification token
       if (userResult.rows.length === 0) {
         // Log failed verification attempt for security monitoring
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (action, details, created_at)
           VALUES ($1, $2, $3)
         `, [
@@ -231,7 +231,7 @@ router.get('/', async (req, res) => {
       // STEP 3: Check if email is already verified
       if (user.email_verified) {
         // Log already verified attempt for audit tracking
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (user_id, action, details, created_at)
           VALUES ($1, $2, $3, $4)
         `, [
@@ -267,7 +267,7 @@ router.get('/', async (req, res) => {
       // STEP 4: Token expiration validation using built-in function
       if (isTokenExpired(user.auth_token_expires)) {
         // Log expired token attempt for security monitoring
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (user_id, action, details, created_at)
           VALUES ($1, $2, $3, $4)
         `, [
@@ -314,11 +314,11 @@ router.get('/', async (req, res) => {
         RETURNING id, email, display_name, updated_at
       `;
 
-      const verifyResult = await queryTx(verifyEmailQuery, [user.id]);
+      const verifyResult = await client.query(verifyEmailQuery, [user.id]);
       const verifiedUser = verifyResult.rows[0];
 
       // STEP 6: Create comprehensive audit log entry for successful email verification
-      await queryTx(`
+      await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, $2, $3, $4)
       `, [
