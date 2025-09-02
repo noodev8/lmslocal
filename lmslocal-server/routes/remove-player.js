@@ -79,7 +79,7 @@ router.post('/', verifyToken, async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL database operations succeed or ALL are rolled back
     // Critical for player removal where all associated data must be consistently removed
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
       
       // Single comprehensive query to get competition info, verify authorization, and get player data
       // This eliminates N+1 query problems by joining all necessary tables in one database call
@@ -126,7 +126,7 @@ router.post('/', verifyToken, async (req, res) => {
         LEFT JOIN player_data pd ON true
       `;
 
-      const validationResult = await queryTx(validationQuery, [competition_id, player_id]);
+      const validationResult = await client.query(validationQuery, [competition_id, player_id]);
 
       // Check if competition exists
       if (validationResult.rows.length === 0) {
@@ -164,28 +164,28 @@ router.post('/', verifyToken, async (req, res) => {
           SELECT id FROM round WHERE competition_id = $2
         )
       `;
-      const picksResult = await queryTx(picksDeleteQuery, [player_id, competition_id]);
+      const picksResult = await client.query(picksDeleteQuery, [player_id, competition_id]);
 
       // 2. Delete allowed teams for this player in this competition
       const allowedTeamsDeleteQuery = `
         DELETE FROM allowed_teams 
         WHERE user_id = $1 AND competition_id = $2
       `;
-      const allowedTeamsResult = await queryTx(allowedTeamsDeleteQuery, [player_id, competition_id]);
+      const allowedTeamsResult = await client.query(allowedTeamsDeleteQuery, [player_id, competition_id]);
 
       // 3. Delete player progress records for this competition
       const progressDeleteQuery = `
         DELETE FROM player_progress 
         WHERE player_id = $1 AND competition_id = $2
       `;
-      const progressResult = await queryTx(progressDeleteQuery, [player_id, competition_id]);
+      const progressResult = await client.query(progressDeleteQuery, [player_id, competition_id]);
 
       // 4. Finally, remove the player from competition membership
       const membershipDeleteQuery = `
         DELETE FROM competition_user 
         WHERE user_id = $1 AND competition_id = $2
       `;
-      const membershipResult = await queryTx(membershipDeleteQuery, [player_id, competition_id]);
+      const membershipResult = await client.query(membershipDeleteQuery, [player_id, competition_id]);
 
       // Calculate total records removed for audit purposes
       const totalRecordsDeleted = 
@@ -225,7 +225,7 @@ router.post('/', verifyToken, async (req, res) => {
         VALUES ($1, $2, $3, $4, NOW())
       `;
       
-      await queryTx(auditQuery, [
+      await client.query(auditQuery, [
         competition_id,
         player_id,
         'PLAYER_REMOVED',

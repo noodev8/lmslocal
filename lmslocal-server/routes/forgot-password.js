@@ -100,7 +100,7 @@ router.post('/', async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL reset operations succeed or ALL changes are rolled back
     // Critical for password reset where token generation must be consistent with audit logging
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
 
       // Single comprehensive query to get user data and account status
       // This provides all necessary information for password reset validation
@@ -124,7 +124,7 @@ router.post('/', async (req, res) => {
         WHERE email = $1
       `;
 
-      const userResult = await queryTx(userQuery, [normalizedEmail]);
+      const userResult = await client.query(userQuery, [normalizedEmail]);
 
       // Always log password reset attempts for security monitoring
       // This helps detect potential attacks or unauthorized access attempts
@@ -138,7 +138,7 @@ router.post('/', async (req, res) => {
 
       if (userResult.rows.length === 0) {
         // User not found - log attempt but return generic success message for security
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (action, details, created_at)
           VALUES ($1, $2, $3)
         `, [
@@ -179,11 +179,11 @@ router.post('/', async (req, res) => {
         RETURNING auth_token_expires, updated_at
       `;
 
-      const updateResult = await queryTx(updateTokenQuery, [resetToken, tokenExpiry, user.id]);
+      const updateResult = await client.query(updateTokenQuery, [resetToken, tokenExpiry, user.id]);
       const updatedTokenExpiry = updateResult.rows[0].auth_token_expires;
 
       // STEP 5: Create comprehensive audit log entry for password reset request
-      await queryTx(`
+      await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, $2, $3, $4)
       `, [
@@ -224,7 +224,7 @@ router.post('/', async (req, res) => {
       }
 
       // Log email sending result for debugging and monitoring
-      await queryTx(`
+      await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, $2, $3, $4)
       `, [

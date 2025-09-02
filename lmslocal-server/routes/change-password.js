@@ -123,7 +123,7 @@ router.post('/', verifyToken, async (req, res) => {
     // STEP 3: Use transaction wrapper to ensure atomic operations
     // This ensures that either BOTH password update AND audit logging succeed or BOTH are rolled back
     // Critical for security operations where audit trail must be consistent with actual changes
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
 
       // Generate secure password hash with industry-standard salt rounds
       // Salt rounds = 10 provides good security/performance balance (approx 100ms to hash)
@@ -140,7 +140,7 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING id, email, display_name, updated_at
       `;
       
-      const updateResult = await queryTx(updateQuery, [newPasswordHash, user_id]);
+      const updateResult = await client.query(updateQuery, [newPasswordHash, user_id]);
       const updatedUser = updateResult.rows[0];
 
       // Create comprehensive audit log entry within the same transaction
@@ -168,7 +168,7 @@ router.post('/', verifyToken, async (req, res) => {
         VALUES ($1, $2, $3, NOW())
       `;
       
-      await queryTx(auditQuery, [
+      await client.query(auditQuery, [
         user_id,
         'PASSWORD_CHANGED',
         JSON.stringify(auditDetails)

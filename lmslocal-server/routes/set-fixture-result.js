@@ -72,7 +72,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL database operations succeed or ALL are rolled back
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
       
       // Get fixture details, verify existence, and check organiser authorization in single query
       // This optimized query joins all necessary tables to avoid N+1 query problems
@@ -99,7 +99,7 @@ router.post('/', verifyToken, async (req, res) => {
         WHERE f.id = $1
       `;
 
-      const fixtureResult = await queryTx(fixtureQuery, [fixture_id]);
+      const fixtureResult = await client.query(fixtureQuery, [fixture_id]);
 
       // Check if fixture exists
       if (fixtureResult.rows.length === 0) {
@@ -152,7 +152,7 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING *
       `;
       
-      const updateResult = await queryTx(updateQuery, [resultString, fixture_id]);
+      const updateResult = await client.query(updateQuery, [resultString, fixture_id]);
       const updatedFixture = updateResult.rows[0];
 
       // Log the administrative action for audit trail (optional - only if audit_log table exists)
@@ -165,7 +165,7 @@ router.post('/', verifyToken, async (req, res) => {
         
         const auditDetails = `Set result for ${fixture.home_team} vs ${fixture.away_team} in Round ${fixture.round_number}: ${resultString}`;
         
-        await queryTx(auditQuery, [
+        await client.query(auditQuery, [
           fixture.competition_id,
           user_id,
           'FIXTURE_RESULT_SET',

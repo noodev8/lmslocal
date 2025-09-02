@@ -107,7 +107,7 @@ router.post('/', verifyToken, async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL database operations succeed or ALL are rolled back
     // Critical for payment operations where audit trail and payment update must be consistent
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
       
       // Single comprehensive query to get competition info, verify authorization, and get player data
       // This eliminates N+1 query problems by joining all necessary tables in one database call
@@ -146,7 +146,7 @@ router.post('/', verifyToken, async (req, res) => {
         LEFT JOIN player_data pd ON true
       `;
 
-      const validationResult = await queryTx(validationQuery, [competition_id, user_id]);
+      const validationResult = await client.query(validationQuery, [competition_id, user_id]);
 
       // Check if competition exists
       if (validationResult.rows.length === 0) {
@@ -212,7 +212,7 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING paid, paid_amount, paid_date, updated_at
       `;
       
-      const updateResult = await queryTx(updateQuery, [
+      const updateResult = await client.query(updateQuery, [
         paid,
         finalPaidAmount,
         finalPaidDate,
@@ -245,7 +245,7 @@ router.post('/', verifyToken, async (req, res) => {
         VALUES ($1, $2, $3, $4, NOW())
       `;
       
-      await queryTx(auditQuery, [
+      await client.query(auditQuery, [
         competition_id,
         user_id,
         'PAYMENT_STATUS_UPDATE',

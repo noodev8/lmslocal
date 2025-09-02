@@ -86,7 +86,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL database operations succeed or ALL are rolled back
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
       
       // Single comprehensive query to get all required data and perform validations
       // This eliminates N+1 query problems by joining all necessary tables in one database call
@@ -169,7 +169,7 @@ router.post('/', verifyToken, async (req, res) => {
         LEFT JOIN existing_pick_data epd ON true
       `;
 
-      const mainResult = await queryTx(mainQuery, [competition_id, user_id, team.trim()]);
+      const mainResult = await client.query(mainQuery, [competition_id, user_id, team.trim()]);
 
       // Check if competition exists
       if (mainResult.rows.length === 0) {
@@ -270,7 +270,7 @@ router.post('/', verifyToken, async (req, res) => {
           RETURNING id, team, user_id, fixture_id
         `;
         
-        pickResult = await queryTx(updateQuery, [
+        pickResult = await client.query(updateQuery, [
           data.team_short, // Store team short code (e.g., "ARS") for consistency
           data.fixture_id, // May be null if no fixture exists yet
           admin_id, // Track which admin set this pick
@@ -285,7 +285,7 @@ router.post('/', verifyToken, async (req, res) => {
           RETURNING id, team, user_id, fixture_id
         `;
         
-        pickResult = await queryTx(insertQuery, [
+        pickResult = await client.query(insertQuery, [
           data.current_round_id,
           user_id,
           data.fixture_id, // May be null if no fixture exists yet
@@ -303,7 +303,7 @@ router.post('/', verifyToken, async (req, res) => {
       
       const auditDetails = `Admin ${admin_id} ${wasUpdated ? 'updated' : 'set'} pick "${data.team_name}" (${data.team_short}) for player "${data.player_name}" in Round ${data.current_round_number}`;
       
-      await queryTx(auditQuery, [
+      await client.query(auditQuery, [
         competition_id,
         user_id, // Player the action was performed FOR
         wasUpdated ? 'ADMIN_UPDATE_PICK' : 'ADMIN_SET_PICK',

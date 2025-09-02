@@ -104,7 +104,7 @@ router.post('/', async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL login operations succeed or ALL changes are rolled back
     // Critical for login operations where activity tracking must be consistent
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
 
       // Single comprehensive query to get user data and account status
       // This provides all necessary information for authentication and validation
@@ -127,12 +127,12 @@ router.post('/', async (req, res) => {
         WHERE email = $1
       `;
 
-      const userResult = await queryTx(userQuery, [normalizedEmail]);
+      const userResult = await client.query(userQuery, [normalizedEmail]);
 
       // Check if user exists
       if (userResult.rows.length === 0) {
         // Log failed login attempt for security monitoring
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (action, details, created_at)
           VALUES ($1, $2, $3)
         `, [
@@ -157,7 +157,7 @@ router.post('/', async (req, res) => {
       // STEP 3: Password verification with comprehensive security checks
       if (!user.password_hash) {
         // Account exists but has no password (shouldn't happen in normal flow)
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (user_id, action, details, created_at)
           VALUES ($1, $2, $3, $4)
         `, [
@@ -182,7 +182,7 @@ router.post('/', async (req, res) => {
       const passwordValid = await bcrypt.compare(password, user.password_hash);
       if (!passwordValid) {
         // Log failed password attempt for security monitoring
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (user_id, action, details, created_at)
           VALUES ($1, $2, $3, $4)
         `, [
@@ -206,7 +206,7 @@ router.post('/', async (req, res) => {
       // STEP 4: Account status validation
       if (!user.email_verified) {
         // Log unverified email login attempt
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (user_id, action, details, created_at)
           VALUES ($1, $2, $3, $4)
         `, [
@@ -252,11 +252,11 @@ router.post('/', async (req, res) => {
         RETURNING last_active_at
       `;
 
-      const activityResult = await queryTx(updateActivityQuery, [loginTimestamp, user.id]);
+      const activityResult = await client.query(updateActivityQuery, [loginTimestamp, user.id]);
       const updatedLastLogin = activityResult.rows[0].last_active_at;
 
       // STEP 7: Create comprehensive audit log entry for successful login
-      await queryTx(`
+      await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, $2, $3, $4)
       `, [

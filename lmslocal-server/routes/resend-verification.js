@@ -93,7 +93,7 @@ router.post('/', async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL verification operations succeed or ALL changes are rolled back
     // Critical for verification where token generation must be consistent with user update
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
 
       // Single comprehensive query to get user data and current verification status
       // This provides all necessary information for verification resend validation
@@ -118,12 +118,12 @@ router.post('/', async (req, res) => {
         WHERE email = $1
       `;
 
-      const userResult = await queryTx(userQuery, [email.toLowerCase()]);
+      const userResult = await client.query(userQuery, [email.toLowerCase()]);
 
       // Check if user exists (with security-first approach)
       if (userResult.rows.length === 0) {
         // Log failed verification attempt for security monitoring
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (action, details, created_at)
           VALUES ($1, $2, $3)
         `, [
@@ -158,7 +158,7 @@ router.post('/', async (req, res) => {
       // STEP 3: Check if email is already verified
       if (user.email_verified) {
         // Log already verified attempt for audit tracking
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (user_id, action, details, created_at)
           VALUES ($1, $2, $3, $4)
         `, [
@@ -201,7 +201,7 @@ router.post('/', async (req, res) => {
         RETURNING id, email, display_name, updated_at
       `;
 
-      const updateResult = await queryTx(updateTokenQuery, [
+      const updateResult = await client.query(updateTokenQuery, [
         verificationToken, 
         tokenExpiry, 
         user.id
@@ -234,7 +234,7 @@ router.post('/', async (req, res) => {
       // STEP 7: Create comprehensive audit log entry for verification resend attempt
       const auditAction = emailSent ? 'VERIFICATION_RESEND_COMPLETED' : 'VERIFICATION_RESEND_EMAIL_FAILED';
       
-      await queryTx(`
+      await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, $2, $3, $4)
       `, [

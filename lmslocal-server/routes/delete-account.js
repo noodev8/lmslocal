@@ -88,7 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL data deletion succeeds or ALL changes are rolled back
     // Critical for GDPR compliance where partial deletion is not acceptable
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
       
       // Get comprehensive user data statistics before deletion for audit purposes
       // This query provides detailed breakdown of what will be deleted
@@ -115,7 +115,7 @@ router.post('/', verifyToken, async (req, res) => {
         SELECT * FROM user_stats
       `;
 
-      const statsResult = await queryTx(dataAnalysisQuery, [user_id, user_email]);
+      const statsResult = await client.query(dataAnalysisQuery, [user_id, user_email]);
       const stats = statsResult.rows[0];
 
       // Business Rule: Check if user has active competitions as organiser
@@ -128,7 +128,7 @@ router.post('/', verifyToken, async (req, res) => {
         GROUP BY c.id, c.name
       `;
 
-      const activeCompsResult = await queryTx(activeCompetitionsQuery, [user_id]);
+      const activeCompsResult = await client.query(activeCompetitionsQuery, [user_id]);
 
       // Optional: Uncomment this block to prevent deletion if user has active competitions with players
       // if (activeCompsResult.rows.length > 0) {
@@ -172,7 +172,7 @@ router.post('/', verifyToken, async (req, res) => {
         VALUES ($1, $2, $3, $4)
       `;
       
-      await queryTx(auditQuery, [
+      await client.query(auditQuery, [
         user_id,
         'ACCOUNT_DELETION_COMPLETE',
         JSON.stringify(auditDetails),
@@ -198,69 +198,69 @@ router.post('/', verifyToken, async (req, res) => {
       // This handles all foreign key relationships for organized competitions
       if (parseInt(stats.competitions_organized) > 0) {
         // Get list of organized competitions for detailed deletion
-        const organizedCompsResult = await queryTx('SELECT id FROM competition WHERE organiser_id = $1', [user_id]);
+        const organizedCompsResult = await client.query('SELECT id FROM competition WHERE organiser_id = $1', [user_id]);
         
         for (const comp of organizedCompsResult.rows) {
           const competitionId = comp.id;
           
           // Delete all picks for rounds in this competition
-          await queryTx('DELETE FROM pick WHERE round_id IN (SELECT id FROM round WHERE competition_id = $1)', [competitionId]);
+          await client.query('DELETE FROM pick WHERE round_id IN (SELECT id FROM round WHERE competition_id = $1)', [competitionId]);
           
           // Delete all fixtures in this competition
-          await queryTx('DELETE FROM fixture WHERE round_id IN (SELECT id FROM round WHERE competition_id = $1)', [competitionId]);
+          await client.query('DELETE FROM fixture WHERE round_id IN (SELECT id FROM round WHERE competition_id = $1)', [competitionId]);
           
           // Delete all rounds in this competition
-          await queryTx('DELETE FROM round WHERE competition_id = $1', [competitionId]);
+          await client.query('DELETE FROM round WHERE competition_id = $1', [competitionId]);
           
           // Delete all competition memberships
-          await queryTx('DELETE FROM competition_user WHERE competition_id = $1', [competitionId]);
+          await client.query('DELETE FROM competition_user WHERE competition_id = $1', [competitionId]);
           
           // Delete all allowed teams for this competition
-          await queryTx('DELETE FROM allowed_teams WHERE competition_id = $1', [competitionId]);
+          await client.query('DELETE FROM allowed_teams WHERE competition_id = $1', [competitionId]);
           
           // Delete all player progress for this competition
-          await queryTx('DELETE FROM player_progress WHERE competition_id = $1', [competitionId]);
+          await client.query('DELETE FROM player_progress WHERE competition_id = $1', [competitionId]);
           
           // Delete all user activities for this competition
-          await queryTx('DELETE FROM user_activity WHERE competition_id = $1', [competitionId]);
+          await client.query('DELETE FROM user_activity WHERE competition_id = $1', [competitionId]);
           
           // Delete all invitations for this competition
-          await queryTx('DELETE FROM invitation WHERE competition_id = $1', [competitionId]);
+          await client.query('DELETE FROM invitation WHERE competition_id = $1', [competitionId]);
           
           // Delete audit logs for this competition (except our deletion record)
-          await queryTx('DELETE FROM audit_log WHERE competition_id = $1 AND action != $2', [competitionId, 'ACCOUNT_DELETION_COMPLETE']);
+          await client.query('DELETE FROM audit_log WHERE competition_id = $1 AND action != $2', [competitionId, 'ACCOUNT_DELETION_COMPLETE']);
         }
         
         // Finally delete the competitions themselves
-        const deleteCompetitionsResult = await queryTx('DELETE FROM competition WHERE organiser_id = $1', [user_id]);
+        const deleteCompetitionsResult = await client.query('DELETE FROM competition WHERE organiser_id = $1', [user_id]);
         deletionCounts.competitions_organized = deleteCompetitionsResult.rowCount || 0;
       }
 
       // 2. Delete user's personal data (picks, memberships, etc.)
-      const deletePicksResult = await queryTx('DELETE FROM pick WHERE user_id = $1', [user_id]);
+      const deletePicksResult = await client.query('DELETE FROM pick WHERE user_id = $1', [user_id]);
       deletionCounts.picks_made = deletePicksResult.rowCount || 0;
 
-      const deleteAllowedTeamsResult = await queryTx('DELETE FROM allowed_teams WHERE user_id = $1', [user_id]);
+      const deleteAllowedTeamsResult = await client.query('DELETE FROM allowed_teams WHERE user_id = $1', [user_id]);
       deletionCounts.allowed_teams = deleteAllowedTeamsResult.rowCount || 0;
 
-      const deleteCompetitionUserResult = await queryTx('DELETE FROM competition_user WHERE user_id = $1', [user_id]);
+      const deleteCompetitionUserResult = await client.query('DELETE FROM competition_user WHERE user_id = $1', [user_id]);
       deletionCounts.competition_memberships = deleteCompetitionUserResult.rowCount || 0;
 
-      const deleteProgressResult = await queryTx('DELETE FROM player_progress WHERE player_id = $1', [user_id]);
+      const deleteProgressResult = await client.query('DELETE FROM player_progress WHERE player_id = $1', [user_id]);
       deletionCounts.progress_records = deleteProgressResult.rowCount || 0;
 
-      const deleteActivitiesResult = await queryTx('DELETE FROM user_activity WHERE user_id = $1', [user_id]);
+      const deleteActivitiesResult = await client.query('DELETE FROM user_activity WHERE user_id = $1', [user_id]);
       deletionCounts.user_activities = deleteActivitiesResult.rowCount || 0;
 
-      const deleteInvitationsResult = await queryTx('DELETE FROM invitation WHERE email = $1', [user_email]);
+      const deleteInvitationsResult = await client.query('DELETE FROM invitation WHERE email = $1', [user_email]);
       deletionCounts.invitations = deleteInvitationsResult.rowCount || 0;
 
       // 3. Delete user's audit logs (except our deletion record)
-      const deleteAuditLogsResult = await queryTx('DELETE FROM audit_log WHERE user_id = $1 AND action != $2', [user_id, 'ACCOUNT_DELETION_COMPLETE']);
+      const deleteAuditLogsResult = await client.query('DELETE FROM audit_log WHERE user_id = $1 AND action != $2', [user_id, 'ACCOUNT_DELETION_COMPLETE']);
       deletionCounts.audit_logs = deleteAuditLogsResult.rowCount || 0;
 
       // 4. Finally, delete the user account itself
-      const deleteUserResult = await queryTx('DELETE FROM app_user WHERE id = $1', [user_id]);
+      const deleteUserResult = await client.query('DELETE FROM app_user WHERE id = $1', [user_id]);
 
       // Calculate total records deleted
       const totalRecordsDeleted = Object.values(deletionCounts).reduce((sum, count) => sum + count, 0) + (deleteUserResult.rowCount || 0);

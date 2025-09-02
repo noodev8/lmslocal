@@ -100,7 +100,7 @@ router.post('/', async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL password reset operations succeed or ALL changes are rolled back
     // Critical for password reset where token clearing must be consistent with password update
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
 
       // Single comprehensive query to get user data and token validation information
       // This provides all necessary information for password reset validation
@@ -124,12 +124,12 @@ router.post('/', async (req, res) => {
         WHERE auth_token = $1 AND auth_token LIKE 'reset_%'
       `;
 
-      const userResult = await queryTx(userQuery, [token]);
+      const userResult = await client.query(userQuery, [token]);
 
       // Check if token exists and is a valid reset token
       if (userResult.rows.length === 0) {
         // Log failed reset attempt for security monitoring
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (action, details, created_at)
           VALUES ($1, $2, $3)
         `, [
@@ -155,7 +155,7 @@ router.post('/', async (req, res) => {
       // STEP 3: Token expiration validation
       if (isTokenExpired(user.auth_token_expires)) {
         // Log expired token attempt for security monitoring
-        await queryTx(`
+        await client.query(`
           INSERT INTO audit_log (user_id, action, details, created_at)
           VALUES ($1, $2, $3, $4)
         `, [
@@ -193,11 +193,11 @@ router.post('/', async (req, res) => {
         RETURNING id, email, display_name, updated_at
       `;
 
-      const updateResult = await queryTx(updatePasswordQuery, [hashedPassword, user.id]);
+      const updateResult = await client.query(updatePasswordQuery, [hashedPassword, user.id]);
       const updatedUser = updateResult.rows[0];
 
       // STEP 6: Create comprehensive audit log entry for successful password reset
-      await queryTx(`
+      await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, $2, $3, $4)
       `, [

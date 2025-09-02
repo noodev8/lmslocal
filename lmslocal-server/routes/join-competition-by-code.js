@@ -66,7 +66,7 @@ router.post('/', verifyToken, async (req, res) => {
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL database operations succeed or ALL are rolled back
     // Critical for competition joining where allowed teams population must be consistent with membership
-    const transactionResult = await transaction(async (queryTx) => {
+    const transactionResult = await transaction(async (client) => {
       
       // Single comprehensive query to get competition info, round status, and existing membership
       // This eliminates N+1 query problems by combining all validation checks in one database call
@@ -112,7 +112,7 @@ router.post('/', verifyToken, async (req, res) => {
         LEFT JOIN membership_check mc ON true
       `;
 
-      const mainResult = await queryTx(mainQuery, [code, user_id]);
+      const mainResult = await client.query(mainQuery, [code, user_id]);
 
       // Check if competition exists with the provided code
       if (mainResult.rows.length === 0) {
@@ -160,7 +160,7 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING id, status, lives_remaining, joined_at
       `;
       
-      const joinResult = await queryTx(joinQuery, [
+      const joinResult = await client.query(joinQuery, [
         data.competition_id,
         user_id,
         data.lives_per_player
@@ -171,7 +171,7 @@ router.post('/', verifyToken, async (req, res) => {
       // Populate allowed teams for new member using central database function
       // This ensures the player has access to team selection functionality
       const { populateAllowedTeams } = require('../database');
-      await populateAllowedTeams(data.competition_id, user_id, queryTx);
+      await populateAllowedTeams(data.competition_id, user_id);
 
       // Return comprehensive success response with both competition and membership details
       return {
