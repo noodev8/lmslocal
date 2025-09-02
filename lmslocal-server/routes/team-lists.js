@@ -62,7 +62,6 @@ router.post('/', verifyToken, async (req, res) => {
         tl.name,
         tl.type,
         tl.season,
-        tl.description,
         tl.created_at,
         -- Count active teams in each list
         COUNT(t.id) as team_count,
@@ -73,7 +72,7 @@ router.post('/', verifyToken, async (req, res) => {
       -- LEFT JOIN to include team lists even if they have no teams yet
       LEFT JOIN team t ON t.team_list_id = tl.id AND t.is_active = true
       WHERE tl.is_active = true  -- Only show active team lists
-      GROUP BY tl.id, tl.name, tl.type, tl.season, tl.description, tl.created_at, tl.is_active, tl.updated_at
+      GROUP BY tl.id, tl.name, tl.type, tl.season, tl.created_at, tl.is_active, tl.updated_at
       ORDER BY tl.name ASC  -- Alphabetical order for consistent frontend display
     `;
 
@@ -91,7 +90,6 @@ router.post('/', verifyToken, async (req, res) => {
         type: row.type,
         season: row.season,
         team_count: teamCount,
-        description: row.description || null, // Handle null descriptions gracefully
         created_at: row.created_at
       };
     });
