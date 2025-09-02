@@ -6,14 +6,12 @@ import Link from 'next/link';
 import { 
   TrophyIcon,
   UserGroupIcon,
-  CheckCircleIcon,
   ClockIcon,
   ChartBarIcon,
   ExclamationTriangleIcon,
   PlusCircleIcon,
   XMarkIcon,
   PlayCircleIcon,
-  FireIcon
 } from '@heroicons/react/24/outline';
 import { userApi } from '@/lib/api';
 import { logout } from '@/lib/auth';
@@ -84,7 +82,7 @@ export default function PlayerDashboardPage() {
     try {
       const response = await userApi.getPlayerDashboard();
       if (response.data.return_code === 'SUCCESS') {
-        setCompetitions(response.data.competitions || []);
+        setCompetitions((response.data.competitions as Competition[]) || []);
       } else {
         console.error('Failed to load player competitions:', response.data.message);
         setCompetitions([]);
@@ -130,9 +128,9 @@ export default function PlayerDashboardPage() {
         
         setJoinError(errorMessage);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Join competition error:', error);
-      if (error.response?.status === 401) {
+      if ((error as {response?: {status: number}}).response?.status === 401) {
         setJoinError('Please login again');
       } else {
         setJoinError('Network error. Please try again.');

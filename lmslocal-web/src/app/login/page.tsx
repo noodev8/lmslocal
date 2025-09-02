@@ -29,7 +29,8 @@ export default function LoginPage() {
       
       if (response.data.return_code === 'SUCCESS') {
         // Store token and user data consistently
-        setAuthData(response.data.token, response.data.user);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setAuthData(response.data.token as string, response.data.user as any);
         
         // Check user type to determine redirect
         try {
@@ -58,8 +59,8 @@ export default function LoginPage() {
           ? 'Invalid email or password' 
           : 'Login failed. Please try again.');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -187,7 +188,7 @@ export default function LoginPage() {
           <div className="mt-8 pt-6 border-t border-slate-100">
             <div className="text-center">
               <p className="text-slate-600">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link
                   href="/register"
                   className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"

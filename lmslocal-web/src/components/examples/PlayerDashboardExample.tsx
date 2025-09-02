@@ -2,8 +2,6 @@
 
 import { 
   TrophyIcon, 
-  UserGroupIcon, 
-  StarIcon, 
   ClockIcon,
   CheckCircleIcon,
   FireIcon
@@ -173,7 +171,7 @@ export default function PlayerDashboardExample() {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-3">
-              You've already used: Liverpool, Man United, Brighton, Leicester, West Ham, Everton, Wolves, Crystal Palace, Burnley
+              You&apos;ve already used: Liverpool, Man United, Brighton, Leicester, West Ham, Everton, Wolves, Crystal Palace, Burnley
             </p>
           </div>
         </div>

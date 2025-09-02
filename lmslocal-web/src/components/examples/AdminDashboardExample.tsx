@@ -5,8 +5,6 @@ import {
   UserGroupIcon, 
   ClockIcon, 
   ChartBarIcon,
-  BanknotesIcon,
-  StarIcon 
 } from '@heroicons/react/24/outline';
 import {
   ProgressChart,

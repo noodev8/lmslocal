@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Link from 'next/link';
 import { 
   TrophyIcon,
-  PlusIcon,
   UserGroupIcon,
   ClockIcon,
   CheckCircleIcon,
@@ -23,7 +22,7 @@ import {
   ClipboardDocumentIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, roundApi, fixtureApi, teamApi, adminApi } from '@/lib/api';
+import { competitionApi, roundApi, fixtureApi, teamApi, adminApi, Competition, Team, Player } from '@/lib/api';
 
 // Simple Progress Chart Component
 const ProgressChart = ({ 
@@ -39,7 +38,7 @@ const ProgressChart = ({
   maxValue?: number;
   color?: string;
   showLabel?: boolean;
-  icon?: any;
+  icon?: React.ComponentType<{ className?: string }>;
 }) => {
   const percentage = Math.min((value / maxValue) * 100, 100);
   
@@ -67,15 +66,6 @@ const ProgressChart = ({
   );
 };
 
-interface Competition {
-  id: number;
-  name: string;
-  status: 'LOCKED' | 'UNLOCKED' | 'SETUP';
-  player_count?: number;
-  description?: string;
-  invite_code?: string;
-  slug?: string;
-}
 
 interface Round {
   id: number;
@@ -87,11 +77,6 @@ interface Round {
 }
 
 
-interface Team {
-  id: number;
-  name: string;
-  short_name: string;
-}
 
 interface PendingFixture {
   home_team: string;
@@ -110,7 +95,7 @@ export default function ManageCompetitionPage() {
   const [newRoundLockTime, setNewRoundLockTime] = useState('');
   
   // Admin pick management state
-  const [players, setPlayers] = useState<any[]>([]);
+  const [players, setPlayers] = useState<Array<{ id: number; display_name: string; email?: string }>>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
   const [selectedTeam, setSelectedTeam] = useState('');
   const [settingPick, setSettingPick] = useState(false);
@@ -155,9 +140,9 @@ export default function ManageCompetitionPage() {
     hasInitialized.current = true;
     loadCompetitionData();
     loadTeams();
-  }, [competitionId, router]);
+  }, [competitionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadCompetitionData = async () => {
+  const loadCompetitionData = useCallback(async () => {
     try {
       // Load competition details and status in one go
       const [competitions, status] = await Promise.all([
@@ -167,7 +152,7 @@ export default function ManageCompetitionPage() {
 
       // Check competition access
       if (competitions.data.return_code === 'SUCCESS') {
-        const comp = competitions.data.competitions.find(c => c.id.toString() === competitionId);
+        const comp = (competitions.data.competitions as Competition[]).find((c: Competition) => c.id.toString() === competitionId);
         if (comp && comp.is_organiser) {
           setCompetition(comp);
         } else {
@@ -186,8 +171,8 @@ export default function ManageCompetitionPage() {
         
         if (status.data.current_round) {
           // Has round but no fixtures - stay here and load fixture creation
-          setCurrentRound(status.data.current_round);
-          await loadFixtures(status.data.current_round.id);
+          setCurrentRound(status.data.current_round as Round);
+          await loadFixtures((status.data.current_round as Round).id);
         } else {
           // No rounds - show first round creation modal with important messaging
           setShowCreateRoundModal(true);
@@ -201,7 +186,7 @@ export default function ManageCompetitionPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [competitionId, router]);
 
   const loadFixtures = async (roundId: number) => {
     if (!roundId) {
@@ -212,17 +197,17 @@ export default function ManageCompetitionPage() {
     try {
       const response = await fixtureApi.get(roundId.toString());
       if (response.data.return_code === 'SUCCESS') {
-        const existingFixtures = response.data.fixtures || [];
+        const existingFixtures = (response.data.fixtures as { home_team_short: string; away_team_short: string }[]) || [];
         
         // Convert existing fixtures to pending fixtures format
-        const pendingFromExisting = existingFixtures.map((fixture: any) => ({
+        const pendingFromExisting = existingFixtures.map((fixture: { home_team_short: string; away_team_short: string }) => ({
           home_team: fixture.home_team_short,
           away_team: fixture.away_team_short
         }));
         
         // Track used teams
         const used = new Set<string>();
-        existingFixtures.forEach((fixture: any) => {
+        existingFixtures.forEach((fixture: { home_team_short: string; away_team_short: string }) => {
           used.add(fixture.home_team_short);
           used.add(fixture.away_team_short);
         });
@@ -241,18 +226,19 @@ export default function ManageCompetitionPage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const createFirstRound = async () => {
     try {
       const response = await roundApi.create(competitionId, getNextFriday6PM());
       
       if (response.data.return_code === 'SUCCESS') {
         // Set the round directly instead of reloading (prevents race condition)
+        const roundData = response.data.round as { id: number; round_number: number; lock_time: string; status: string; created_at: string };
         setCurrentRound({
-          id: response.data.round.id,
-          round_number: response.data.round.round_number,
-          lock_time: response.data.round.lock_time,
-          status: response.data.round.status || 'UNLOCKED',
-          created_at: response.data.round.created_at
+          id: roundData.id,
+          round_number: roundData.round_number,
+          lock_time: roundData.lock_time,
+          status: roundData.status || 'UNLOCKED'
         });
         // Round created successfully
       }
@@ -261,6 +247,7 @@ export default function ManageCompetitionPage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const openCreateRoundModal = () => {
     if (!currentRound) return;
     
@@ -295,6 +282,7 @@ export default function ManageCompetitionPage() {
     setNewRoundLockTime('');
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const toggleRoundLock = async () => {
     if (!currentRound) return;
     
@@ -303,16 +291,16 @@ export default function ManageCompetitionPage() {
     // TODO: Implement lock/unlock API call
   };
 
-  const loadTeams = async () => {
+  const loadTeams = useCallback(async () => {
     try {
       const response = await teamApi.getTeams();
       if (response.data.return_code === 'SUCCESS') {
-        setTeams(response.data.teams || []);
+        setTeams((response.data.teams as Team[]) || []);
       }
     } catch (error) {
       console.error('Failed to load teams:', error);
     }
-  };
+  }, []);
 
   const handleTeamSelect = (team: Team) => {
     if (usedTeams.has(team.short_name)) {
@@ -447,7 +435,7 @@ export default function ManageCompetitionPage() {
     try {
       const response = await competitionApi.getPlayers(parseInt(competitionId));
       if (response.data.return_code === 'SUCCESS') {
-        setPlayers(response.data.players.filter(p => p.status !== 'OUT'));
+        setPlayers((response.data.players as Player[]).filter(p => p.status !== 'OUT'));
       }
     } catch (error) {
       console.error('Failed to load players:', error);
@@ -461,7 +449,8 @@ export default function ManageCompetitionPage() {
     try {
       const response = await adminApi.setPlayerPick(competition.id, selectedPlayer, selectedTeam);
       if (response.data.return_code === 'SUCCESS') {
-        alert(`Pick set successfully for ${response.data.pick.player_name}: ${response.data.pick.team}`);
+        const pick = response.data.pick as { player_name: string; team: string };
+        alert(`Pick set successfully for ${pick.player_name}: ${pick.team}`);
         setShowAdminPickModal(false);
         setSelectedPlayer(null);
         setSelectedTeam('');
@@ -528,7 +517,7 @@ export default function ManageCompetitionPage() {
             <ExclamationTriangleIcon className="h-8 w-8 text-red-600" />
           </div>
           <h1 className="text-xl font-semibold text-slate-900 mb-2">Competition Not Found</h1>
-          <p className="text-slate-500 mb-6">The competition you're looking for doesn't exist or you don't have permission to access it.</p>
+          <p className="text-slate-500 mb-6">The competition you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to access it.</p>
           <Link 
             href="/dashboard" 
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -591,14 +580,14 @@ export default function ManageCompetitionPage() {
                       <UserGroupIcon className="h-5 w-5" />
                       <span className="text-sm font-medium">{competition.player_count || 0} players</span>
                     </div>
-                    {competition.invite_code && (
+                    {competition.access_code && (
                       <div className="flex items-center space-x-2">
                         <span className="text-sm text-slate-500">Code:</span>
                         <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-lg">
-                          <code className="text-sm font-mono font-semibold text-blue-700">{competition.invite_code}</code>
+                          <code className="text-sm font-mono font-semibold text-blue-700">{competition.access_code}</code>
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(competition.invite_code || '');
+                              navigator.clipboard.writeText(competition.access_code || '');
                             }}
                             className="text-blue-600 hover:text-blue-700"
                           >
@@ -677,8 +666,8 @@ export default function ManageCompetitionPage() {
                   
                   <div className="flex items-center space-x-3">
                     {currentRound && 
-                     currentRound.fixture_count > 0 && 
-                     new Date() < new Date(currentRound.lock_time) && (
+                     (currentRound.fixture_count || 0) > 0 && 
+                     currentRound.lock_time && new Date() < new Date(currentRound.lock_time) && (
                       <button
                         onClick={openAdminPickModal}
                         className="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 hover:text-slate-900 transition-all duration-200 border border-slate-200 shadow-sm hover:shadow-md"
@@ -992,7 +981,7 @@ export default function ManageCompetitionPage() {
                     >
                       <option value="">Choose a player...</option>
                       {players.map((player, index) => (
-                        <option key={`player-${player.user_id}-${index}`} value={player.user_id}>
+                        <option key={`player-${player.id}-${index}`} value={player.id}>
                           {player.display_name}
                         </option>
                       ))}

@@ -419,7 +419,7 @@ export default function ProfilePage() {
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1 mb-4">
                   <li>• Your account and profile information</li>
-                  <li>• All competitions you've organized</li>
+                  <li>• All competitions you&apos;ve organized</li>
                   <li>• All your game picks and history</li>
                   <li>• All associated data from our servers</li>
                 </ul>

@@ -2,6 +2,8 @@
  * Authentication utilities
  */
 
+import type { User } from './api';
+
 /**
  * Clears all authentication and session data from localStorage
  */
@@ -20,7 +22,7 @@ export const clearAuthData = () => {
 /**
  * Stores authentication data consistently, clearing old tokens first
  */
-export const setAuthData = (token: string, user: any, additionalData: Record<string, any> = {}) => {
+export const setAuthData = (token: string, user: User, additionalData: Record<string, unknown> = {}) => {
   // First clear any existing tokens to prevent conflicts
   clearAuthData();
   

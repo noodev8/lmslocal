@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TrophyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { authApi, RegisterRequest } from '@/lib/api';
+import { authApi, RegisterRequest, User } from '@/lib/api';
 import { setAuthData } from '@/lib/auth';
 
 export default function RegisterPage() {
@@ -36,7 +36,7 @@ export default function RegisterPage() {
       
       if (response.data.return_code === 'SUCCESS') {
         // Store token and user data consistently
-        setAuthData(response.data.token, response.data.user);
+        setAuthData(response.data.token as string, response.data.user as User);
         
         // Redirect to dashboard
         router.push('/dashboard');
@@ -52,8 +52,8 @@ export default function RegisterPage() {
             setError('Registration failed. Please try again.');
         }
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+    } catch (err: unknown) {
+      setError((err as {response?: {data?: {message?: string}}}).response?.data?.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, UserGroupIcon, QrCodeIcon, GiftIcon, CameraIcon, ChartBarIcon, MapPinIcon, CalendarIcon, SpeakerWaveIcon, PhoneIcon, StarIcon, ArrowTrendingUpIcon, BanknotesIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, UserGroupIcon, StarIcon } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
   // Simple chart component for visual data representation
@@ -334,7 +334,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <p className="text-slate-300 mb-4">
-                "I've been both a player and organizer on LMSLocal. It's the easiest system I've used - players love how simple it is, and managing the competition takes no time at all."
+                &quot;I&apos;ve been both a player and organizer on LMSLocal. It&apos;s the easiest system I&apos;ve used - players love how simple it is, and managing the competition takes no time at all.&quot;
               </p>
               <div className="flex space-x-1 justify-center">
                 {[...Array(5)].map((_, i) => (
@@ -354,7 +354,7 @@ export default function LandingPage() {
             Ready to Get Started?
           </h2>
           <p className="text-xl text-slate-600 mb-12">
-            Join thousands of players and organizers who've made LMSLocal their go-to competition platform
+            Join thousands of players and organizers who&apos;ve made LMSLocal their go-to competition platform
           </p>
 
           <div className="grid md:grid-cols-2 gap-8 mb-12">
@@ -530,7 +530,7 @@ export default function LandingPage() {
             Ready to Start Your Competition?
           </h2>
           <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-            Join thousands of organizers and players who've made LMSLocal their favorite competition platform.
+            Join thousands of organizers and players who&apos;ve made LMSLocal their favorite competition platform.
           </p>
           
           <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">

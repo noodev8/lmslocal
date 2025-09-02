@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -11,7 +11,7 @@ import {
   UserGroupIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { competitionApi, roundApi, fixtureApi, playerActionApi, adminApi, teamApi, userApi } from '@/lib/api';
+import { competitionApi, roundApi, fixtureApi, playerActionApi, adminApi, userApi } from '@/lib/api';
 
 interface Competition {
   id: number;
@@ -44,18 +44,20 @@ export default function CompetitionResultsPage() {
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [savingResults, setSavingResults] = useState<Set<number>>(new Set());
   const [editingLockTime, setEditingLockTime] = useState(false);
   const [newLockTime, setNewLockTime] = useState('');
   const [calculatingResults, setCalculatingResults] = useState(false);
-  const [calculationResults, setCalculationResults] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [calculationResults, setCalculationResults] = useState<{ message: string; affected_players?: number; players_active?: number; players_out?: number; total_players?: number } | null>(null);
   const [calculatedFixtures, setCalculatedFixtures] = useState<Set<number>>(new Set());
-  const [competitionStatus, setCompetitionStatus] = useState<any>(null);
+  const [competitionStatus, setCompetitionStatus] = useState<{ current_round: Round | null; fixture_count: number; should_route_to_results: boolean; players_active?: number; players_out?: number; total_players?: number; winner?: { display_name: string } } | null>(null);
   const [hasUnprocessedResults, setHasUnprocessedResults] = useState(false);
   
   // Admin pick management state
-  const [players, setPlayers] = useState<any[]>([]);
-  const [allowedTeams, setAllowedTeams] = useState<any[]>([]);
+  const [players, setPlayers] = useState<Array<{ id: number; display_name: string; email?: string }>>([]);
+  const [allowedTeams, setAllowedTeams] = useState<Array<{ team_id: number; team_name: string }>>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<number | null>(null);
   const [selectedTeam, setSelectedTeam] = useState('');
   const [settingPick, setSettingPick] = useState(false);
@@ -71,19 +73,19 @@ export default function CompetitionResultsPage() {
     }
 
     loadData();
-  }, [competitionId, router]);
+  }, [competitionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Check for unprocessed results whenever fixtures or calculated fixtures change
     checkUnprocessedResults();
-  }, [fixtures, calculatedFixtures]);
+  }, [fixtures, calculatedFixtures]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       // Load competition details
       const competitions = await competitionApi.getMyCompetitions();
       if (competitions.data.return_code === 'SUCCESS') {
-        const comp = competitions.data.competitions.find(c => c.id.toString() === competitionId);
+        const comp = (competitions.data.competitions as (Competition & { is_organiser: boolean })[]).find((c: { id: number }) => c.id.toString() === competitionId);
         if (comp && comp.is_organiser) {
           setCompetition(comp);
         } else {
@@ -95,7 +97,7 @@ export default function CompetitionResultsPage() {
       // Load current round (latest round)
       const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
       if (roundsResponse.data.return_code === 'SUCCESS') {
-        const sortedRounds = roundsResponse.data.rounds.sort((a, b) => b.round_number - a.round_number);
+        const sortedRounds = (roundsResponse.data.rounds as { round_number: number; id: number }[]).sort((a, b) => b.round_number - a.round_number);
         
         if (sortedRounds.length > 0) {
           const currentRound = sortedRounds[0];
@@ -110,13 +112,13 @@ export default function CompetitionResultsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [competitionId, router]);
 
   const loadFixtures = async (roundId: number) => {
     try {
       const response = await fixtureApi.get(roundId.toString());
       if (response.data.return_code === 'SUCCESS') {
-        setFixtures(response.data.fixtures || []);
+        setFixtures((response.data.fixtures as Fixture[]) || []);
       }
     } catch (error) {
       console.error('Failed to load fixtures:', error);
@@ -128,7 +130,7 @@ export default function CompetitionResultsPage() {
     try {
       const response = await fixtureApi.getCalculated(roundId);
       if (response.data.return_code === 'SUCCESS') {
-        setCalculatedFixtures(new Set(response.data.calculated_fixture_ids));
+        setCalculatedFixtures(new Set(response.data.calculated_fixture_ids as number[]));
       }
     } catch (error) {
       console.error('Failed to check calculated fixtures:', error);
@@ -139,25 +141,33 @@ export default function CompetitionResultsPage() {
     try {
       const response = await competitionApi.getStatus(competitionId);
       if (response.data.return_code === 'SUCCESS') {
-        setCompetitionStatus(response.data);
+        setCompetitionStatus({
+          current_round: response.data.current_round as Round | null,
+          fixture_count: response.data.fixture_count as number,
+          should_route_to_results: response.data.should_route_to_results as boolean,
+          players_active: response.data.players_active as number | undefined,
+          players_out: response.data.players_out as number | undefined,
+          total_players: response.data.total_players as number | undefined
+        });
       }
     } catch (error) {
       console.error('Failed to load competition status:', error);
     }
   };
 
-  const checkUnprocessedResults = () => {
+  const checkUnprocessedResults = useCallback(() => {
     // Check if any fixtures have results but are not processed (calculated)
     const unprocessed = fixtures.some(fixture => 
       fixture.result && !calculatedFixtures.has(fixture.id)
     );
     setHasUnprocessedResults(unprocessed);
-  };
+  }, [fixtures, calculatedFixtures]);
 
   const hasAllResults = () => {
     return fixtures.length > 0 && fixtures.every(f => f.result);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const needsResults = () => {
     // Round is locked but we don't have all results yet
     return isRoundLocked() && !hasAllResults();
@@ -173,6 +183,7 @@ export default function CompetitionResultsPage() {
     
     const activePlayers = competitionStatus.players_active;
     
+    if (activePlayers === undefined) return null;
     if (activePlayers === 1) return 'WINNER';
     if (activePlayers === 0) return 'DRAW';
     if (activePlayers > 1) return 'CONTINUE';
@@ -187,7 +198,7 @@ export default function CompetitionResultsPage() {
     try {
       const response = await competitionApi.getPlayers(parseInt(competitionId));
       if (response.data.return_code === 'SUCCESS') {
-        setPlayers(response.data.players.filter(p => p.status !== 'OUT'));
+        setPlayers((response.data.players as Array<{ id: number; display_name: string; email?: string; status?: string }>).filter(p => p.status !== 'OUT'));
       }
     } catch (error) {
       console.error('Failed to load players:', error);
@@ -202,7 +213,7 @@ export default function CompetitionResultsPage() {
       // Use enhanced API that supports getting allowed teams for another player (admin only)
       const response = await userApi.getAllowedTeams(competition.id, playerId);
       if (response.data.return_code === 'SUCCESS') {
-        setAllowedTeams(response.data.allowed_teams.map((team: any) => ({
+        setAllowedTeams((response.data.allowed_teams as Array<{ team_id: number; name: string }>).map((team: { team_id: number; name: string }) => ({
           team_id: team.team_id,
           team_name: team.name
         })));
@@ -327,7 +338,7 @@ export default function CompetitionResultsPage() {
       // Clear the result in UI only - no API call
       setFixtures(prev => prev.map(f => 
         f.id === fixture.id 
-          ? { ...f, result: null }
+          ? { ...f, result: undefined }
           : f
       ));
       return;
@@ -457,18 +468,25 @@ export default function CompetitionResultsPage() {
         
         if (statusResponse.data.return_code === 'SUCCESS') {
           setCalculationResults({
-            ...response.data.results,
-            players_active: statusResponse.data.players_active,
-            players_out: statusResponse.data.players_out,
-            total_players: statusResponse.data.total_players
+            ...(response.data.results as { message: string; affected_players?: number }),
+            players_active: statusResponse.data.players_active as number,
+            players_out: statusResponse.data.players_out as number,
+            total_players: statusResponse.data.total_players as number
           });
           // Refresh calculated fixtures and status
-          setCompetitionStatus(statusResponse.data);
+          setCompetitionStatus({
+            current_round: statusResponse.data.current_round as Round | null,
+            fixture_count: statusResponse.data.fixture_count as number,
+            should_route_to_results: statusResponse.data.should_route_to_results as boolean,
+            players_active: statusResponse.data.players_active as number | undefined,
+            players_out: statusResponse.data.players_out as number | undefined,
+            total_players: statusResponse.data.total_players as number | undefined
+          });
           if (currentRound) {
             checkCalculatedFixtures(currentRound.id);
           }
         } else {
-          setCalculationResults(response.data.results);
+          setCalculationResults(response.data.results as { message: string; affected_players?: number });
         }
       } else {
         alert('Failed to calculate results: ' + (response.data.message || 'Unknown error'));

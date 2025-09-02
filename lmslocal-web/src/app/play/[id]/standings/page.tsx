@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -24,7 +24,7 @@ interface Competition {
   name: string;
   current_round: number;
   is_locked: boolean;
-  invite_code?: string;
+  access_code?: string;
 }
 
 interface RoundHistory {
@@ -74,8 +74,34 @@ export default function CompetitionStandingsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isUserOrganizer, setIsUserOrganizer] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const loadStandings = useCallback(async () => {
+    if (abortControllerRef.current?.signal.aborted) return;
+    
+    try {
+      const response = await userApi.getCompetitionStandings(parseInt(competitionId));
+      if (abortControllerRef.current?.signal.aborted) return;
+      
+      if (response.data.return_code === 'SUCCESS') {
+        setCompetition(response.data.competition as Competition);
+        setPlayers(response.data.players as Player[]);
+      } else {
+        console.error('Failed to load standings:', response.data.message);
+        router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
+      }
+    } catch (error) {
+      if (abortControllerRef.current?.signal.aborted) return;
+      console.error('Failed to load standings:', error);
+      router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
+    } finally {
+      if (!abortControllerRef.current?.signal.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [competitionId, router, fromAdmin]);
 
   useEffect(() => {
     // Create abort controller for this effect
@@ -120,32 +146,7 @@ export default function CompetitionStandingsPage() {
       window.removeEventListener('auth-expired', handleAuthExpired);
       abortControllerRef.current = null;
     };
-  }, [competitionId, router]);
-
-  const loadStandings = async () => {
-    if (abortControllerRef.current?.signal.aborted) return;
-    
-    try {
-      const response = await userApi.getCompetitionStandings(parseInt(competitionId));
-      if (abortControllerRef.current?.signal.aborted) return;
-      
-      if (response.data.return_code === 'SUCCESS') {
-        setCompetition(response.data.competition);
-        setPlayers(response.data.players);
-      } else {
-        console.error('Failed to load standings:', response.data.message);
-        router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
-      }
-    } catch (error) {
-      if (abortControllerRef.current?.signal.aborted) return;
-      console.error('Failed to load standings:', error);
-      router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
-    } finally {
-      if (!abortControllerRef.current?.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  };
+  }, [competitionId, router, loadStandings]);
 
   const togglePlayerExpansion = (playerId: number) => {
     setExpandedPlayers(prev => {
@@ -229,7 +230,7 @@ export default function CompetitionStandingsPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{competition.name}</h1>
               <p className="text-gray-600">
-                {activePlayers.length === 1 && !competition.invite_code
+                {activePlayers.length === 1 && !competition.access_code
                   ? `🏆 Competition Complete - We have a winner!`
                   : `Round ${competition.current_round || 1} Standings - ${activePlayers.length} players remaining`
                 }
@@ -241,12 +242,12 @@ export default function CompetitionStandingsPage() {
         {/* Winner/Active Players */}
         {activePlayers.length > 0 && (
           <div className={`rounded-lg border p-4 sm:p-6 mb-6 ${
-            activePlayers.length === 1 && !competition.invite_code
+            activePlayers.length === 1 && !competition.access_code
               ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200' 
               : 'bg-white border-gray-200'
           }`}>
             <h2 className="text-lg font-semibold mb-4 flex items-center">
-              {activePlayers.length === 1 && !competition.invite_code ? (
+              {activePlayers.length === 1 && !competition.access_code ? (
                 <>
                   <span className="text-2xl mr-3">🏆</span>
                   <span className="text-yellow-800">Competition Winner!</span>
@@ -262,32 +263,32 @@ export default function CompetitionStandingsPage() {
             <div className="space-y-3">
               {activePlayers.map((player) => (
                 <div key={player.id} className={`border rounded-lg ${
-                  activePlayers.length === 1 && !competition.invite_code
+                  activePlayers.length === 1 && !competition.access_code
                     ? 'border-yellow-300 bg-yellow-50' 
                     : 'border-gray-200'
                 }`}>
                   <div 
                     className={`flex items-center justify-between p-4 cursor-pointer ${
-                      activePlayers.length === 1 && !competition.invite_code
+                      activePlayers.length === 1 && !competition.access_code
                         ? 'hover:bg-yellow-100' 
                         : 'hover:bg-gray-50'
                     }`}
                     onClick={() => togglePlayerExpansion(player.id)}
                   >
                     <div className="flex items-center gap-3">
-                      {activePlayers.length === 1 && !competition.invite_code ? (
+                      {activePlayers.length === 1 && !competition.access_code ? (
                         <span className="text-xl">👑</span>
                       ) : (
                         <UserIcon className="h-5 w-5 text-gray-400" />
                       )}
                       <div>
                         <span className={`font-medium ${
-                          activePlayers.length === 1 && !competition.invite_code
+                          activePlayers.length === 1 && !competition.access_code
                             ? 'text-yellow-900 text-lg' 
                             : 'text-gray-900'
                         }`}>
                           {player.display_name}
-                          {activePlayers.length === 1 && !competition.invite_code && (
+                          {activePlayers.length === 1 && !competition.access_code && (
                             <span className="ml-2 text-sm font-bold text-yellow-700">WINNER</span>
                           )}
                         </span>
@@ -320,7 +321,7 @@ export default function CompetitionStandingsPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`px-3 py-1 text-sm rounded-full font-bold ${
-                        activePlayers.length === 1 && !competition.invite_code
+                        activePlayers.length === 1 && !competition.access_code
                           ? 'bg-yellow-200 text-yellow-900'
                           : player.lives_remaining === 0 
                             ? 'bg-red-100 text-red-800' 
@@ -328,7 +329,7 @@ export default function CompetitionStandingsPage() {
                               ? 'bg-orange-100 text-orange-800' 
                               : 'bg-green-100 text-green-800'
                       }`}>
-                        {activePlayers.length === 1 && !competition.invite_code
+                        {activePlayers.length === 1 && !competition.access_code
                           ? 'CHAMPION' 
                           : `${player.lives_remaining} ${player.lives_remaining === 1 ? 'life' : 'lives'}`
                         }

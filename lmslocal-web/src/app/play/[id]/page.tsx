@@ -1,18 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   TrophyIcon,
   ArrowLeftIcon,
-  CheckIcon,
   ExclamationTriangleIcon,
   ClockIcon,
-  Bars3Icon,
-  Bars3BottomLeftIcon
 } from '@heroicons/react/24/outline';
-import { fixtureApi, userApi, roundApi, playerActionApi } from '@/lib/api';
+import { fixtureApi, userApi, roundApi, playerActionApi, Fixture, Team, Round } from '@/lib/api';
 import { logout } from '@/lib/auth';
 
 interface User {
@@ -45,15 +42,6 @@ interface RoundHistory {
   player_status?: string; // 'active' or 'OUT'
 }
 
-interface Fixture {
-  id: number;
-  home_team: string;
-  away_team: string;
-  home_team_short: string;
-  away_team_short: string;
-  kickoff_time: string;
-  result?: string;
-}
 
 export default function CompetitionPickPage() {
   const router = useRouter();
@@ -105,11 +93,74 @@ export default function CompetitionPickPage() {
   const [currentPick, setCurrentPick] = useState<string | null>(null); // Current pick for this round
   const [isRoundLocked, setIsRoundLocked] = useState<boolean>(false);
   const [teamPickCounts, setTeamPickCounts] = useState<Record<string, number>>({}); // Pick counts per team
-  const [previousRoundData, setPreviousRoundData] = useState<any>(null);
+  const [previousRoundData, setPreviousRoundData] = useState<{ round_number: number; fixtures: Array<{ id: number; home_team: string; away_team: string; home_team_short: string; away_team_short: string; result?: string }>; player_pick?: string; player_outcome?: string; pick_counts: Record<string, number> } | null>(null);
   const [loadingPreviousRound, setLoadingPreviousRound] = useState(false);
   const [showPreviousRound, setShowPreviousRound] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const previousRoundAbortControllerRef = useRef<AbortController | null>(null);
+
+  const getRoundId = useCallback(async (competitionId: number, roundNumber: number) => {
+    try {
+      // Get all rounds for this competition to find the correct round ID
+      const response = await roundApi.getRounds(competitionId);
+      if (response.data.return_code === 'SUCCESS') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rounds = (response.data.rounds as any[]) || [];
+        const currentRound = rounds.find(r => r.round_number === roundNumber);
+        if (currentRound) {
+          setCurrentRoundId(currentRound.id);
+          setRoundLockTime(currentRound.lock_time);
+          
+          // Check if round is locked
+          const now = new Date();
+          const lockTime = new Date(currentRound.lock_time);
+          const locked = now >= lockTime;
+          setIsRoundLocked(locked);
+          
+          // Now load fixtures and current pick with the correct round ID
+          loadFixtures(currentRound.id);
+          loadCurrentPick(currentRound.id);
+          
+          // Load pick counts only when round is locked (for fairness)
+          if (locked) {
+            loadTeamPickCounts(currentRound.id);
+          }
+          
+          // Don't automatically load previous round - only when user requests it
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get round ID:', error);
+    }
+  }, []);
+
+  const loadCompetitionData = useCallback(async () => {
+    try {
+      // Get competition data from player dashboard (includes history)
+      const response = await userApi.getPlayerDashboard();
+      if (response.data.return_code === 'SUCCESS') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const comp = (response.data.competitions as any[]).find(c => c.id.toString() === competitionId);
+        if (comp) {
+          setCompetition(comp); // This now includes the history data
+          // Load allowed teams for this competition
+          loadAllowedTeams(comp.id);
+          if (comp.current_round) {
+            // First get the actual round ID from round number
+            getRoundId(comp.id, comp.current_round);
+          }
+        } else {
+          router.push('/play');
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load competition data:', error);
+      router.push('/play');
+    } finally {
+      setLoading(false);
+    }
+  }, [competitionId, router, getRoundId]);
 
   useEffect(() => {
     // Create abort controller for this effect
@@ -160,74 +211,13 @@ export default function CompetitionPickPage() {
         previousRoundAbortControllerRef.current = null;
       }
     };
-  }, [competitionId, router]);
-
-  const loadCompetitionData = async () => {
-    try {
-      // Get competition data from player dashboard (includes history)
-      const response = await userApi.getPlayerDashboard();
-      if (response.data.return_code === 'SUCCESS') {
-        const comp = response.data.competitions.find(c => c.id.toString() === competitionId);
-        if (comp) {
-          setCompetition(comp); // This now includes the history data
-          // Load allowed teams for this competition
-          loadAllowedTeams(comp.id);
-          if (comp.current_round) {
-            // First get the actual round ID from round number
-            getRoundId(comp.id, comp.current_round);
-          }
-        } else {
-          router.push('/play');
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load competition data:', error);
-      router.push('/play');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getRoundId = async (competitionId: number, roundNumber: number) => {
-    try {
-      // Get all rounds for this competition to find the correct round ID
-      const response = await roundApi.getRounds(competitionId);
-      if (response.data.return_code === 'SUCCESS') {
-        const rounds = response.data.rounds || [];
-        const currentRound = rounds.find(r => r.round_number === roundNumber);
-        if (currentRound) {
-          setCurrentRoundId(currentRound.id);
-          setRoundLockTime(currentRound.lock_time);
-          
-          // Check if round is locked
-          const now = new Date();
-          const lockTime = new Date(currentRound.lock_time);
-          const locked = now >= lockTime;
-          setIsRoundLocked(locked);
-          
-          // Now load fixtures and current pick with the correct round ID
-          loadFixtures(currentRound.id);
-          loadCurrentPick(currentRound.id);
-          
-          // Load pick counts only when round is locked (for fairness)
-          if (locked) {
-            loadTeamPickCounts(currentRound.id);
-          }
-          
-          // Don't automatically load previous round - only when user requests it
-        }
-      }
-    } catch (error) {
-      console.error('Failed to get round ID:', error);
-    }
-  };
+  }, [competitionId, router, loadCompetitionData]);
 
   const loadFixtures = async (roundId: number) => {
     try {
       const response = await fixtureApi.get(roundId.toString());
       if (response.data.return_code === 'SUCCESS') {
-        setFixtures(response.data.fixtures || []);
+        setFixtures((response.data.fixtures as Fixture[]) || []);
       }
     } catch (error) {
       console.error('Failed to load fixtures:', error);
@@ -240,7 +230,7 @@ export default function CompetitionPickPage() {
       const response = await userApi.getAllowedTeams(competitionId);
       if (response.data.return_code === 'SUCCESS') {
         // Extract short names from allowed teams
-        const allowedShortNames = response.data.allowed_teams.map(team => team.short_name);
+        const allowedShortNames = (response.data.allowed_teams as Team[]).map(team => team.short_name);
         setAllowedTeams(allowedShortNames);
       }
     } catch (error) {
@@ -253,7 +243,7 @@ export default function CompetitionPickPage() {
     try {
       const response = await playerActionApi.getCurrentPick(roundId);
       if (response.data.return_code === 'SUCCESS') {
-        const pickTeam = response.data.pick?.team || null;
+        const pickTeam = (response.data.pick as {team?: string})?.team || null;
         setCurrentPick(pickTeam);
       }
     } catch (error) {
@@ -266,7 +256,7 @@ export default function CompetitionPickPage() {
     try {
       const response = await fixtureApi.getPickCounts(roundId);
       if (response.data.return_code === 'SUCCESS') {
-        setTeamPickCounts(response.data.pick_counts || {});
+        setTeamPickCounts((response.data.pick_counts as Record<string, number>) || {});
       }
     } catch (error) {
       console.error('Failed to load team pick counts:', error);
@@ -294,7 +284,7 @@ export default function CompetitionPickPage() {
       const roundsResponse = await roundApi.getRounds(parseInt(compId));
       
       if (roundsResponse.data.return_code === 'SUCCESS') {
-        const previousRound = roundsResponse.data.rounds.find(r => r.round_number === previousRoundNumber);
+        const previousRound = (roundsResponse.data.rounds as Round[]).find(r => r.round_number === previousRoundNumber);
         
         if (previousRound) {
           // Get fixtures for previous round
@@ -310,10 +300,10 @@ export default function CompetitionPickPage() {
             // Build the previous round data
             const previousRoundData = {
               round_number: previousRoundNumber,
-              fixtures: fixturesResponse.data.fixtures || [],
-              player_pick: pickResponse.data.pick?.team || null,
-              player_outcome: null, // We'll calculate this
-              pick_counts: pickCountResponse.data.pick_counts || {}
+              fixtures: (fixturesResponse.data.fixtures as Fixture[]) || [],
+              player_pick: (pickResponse.data.pick as {team?: string})?.team || undefined,
+              player_outcome: undefined as string | undefined, // We'll calculate this
+              pick_counts: (pickCountResponse.data.pick_counts as Record<string, number>) || {}
             };
             
             // Calculate player outcome if they had a pick
@@ -324,7 +314,7 @@ export default function CompetitionPickPage() {
               if (playerFixture?.result) {
                 if (playerFixture.result === previousRoundData.player_pick) {
                   previousRoundData.player_outcome = 'won';
-                } else if (playerFixture.result === 'DRAW') {
+                } else if (playerFixture.result === 'draw') {
                   previousRoundData.player_outcome = 'lost'; // Draw counts as loss in Last Man Standing
                 } else {
                   previousRoundData.player_outcome = 'lost';
@@ -648,7 +638,7 @@ export default function CompetitionPickPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">No fixtures yet</h2>
             <p className="text-gray-600 mb-4">
-              The organiser hasn't added fixtures for this round yet. Check back soon!
+              The organiser hasn&apos;t added fixtures for this round yet. Check back soon!
             </p>
             <div className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-lg">
               <ClockIcon className="h-5 w-5 mr-2" />
@@ -689,7 +679,7 @@ export default function CompetitionPickPage() {
                 // Disable teams if:
                 // 1. Team not in allowed list
                 // 2. There's already a current pick (user must remove it first)
-                const isDisabled = !isAllowed || (currentPick && !isCurrentPick);
+                const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick);
                 
                 return (
                   <button
@@ -966,9 +956,6 @@ export default function CompetitionPickPage() {
             </div>
           </div>
         )}
-        
-        {/* Previous Round Toggle Button - Debug */}
-        {console.log('Toggle check - competition:', competition, 'current_round:', competition?.current_round)}
         
         {/* Previous Round Toggle Button - Only show when round is NOT locked (not in-play) */}
         {!isRoundLocked && competition?.current_round && competition.current_round > 1 && (

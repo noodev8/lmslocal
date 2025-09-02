@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -11,10 +11,8 @@ import {
   ArrowLeftIcon,
   Cog6ToothIcon,
   CalendarDaysIcon,
-  DocumentTextIcon,
-  ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi } from '@/lib/api';
+import { competitionApi, Competition as CompetitionType } from '@/lib/api';
 
 // Simple Progress Chart Component
 const ProgressChart = ({ 
@@ -30,7 +28,7 @@ const ProgressChart = ({
   maxValue?: number;
   color?: string;
   showLabel?: boolean;
-  icon?: any;
+  icon?: React.ComponentType<{ className?: string }>;
 }) => {
   const percentage = Math.min((value / maxValue) * 100, 100);
   
@@ -58,44 +56,26 @@ const ProgressChart = ({
   );
 };
 
-interface Competition {
-  id: number;
-  name: string;
-  status: 'LOCKED' | 'UNLOCKED' | 'SETUP';
-  player_count?: number;
-  description?: string;
-  invite_code?: string;
-}
 
 export default function AdminDashboard() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
 
-  const [competition, setCompetition] = useState<Competition | null>(null);
+  const [competition, setCompetition] = useState<CompetitionType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentRound, setCurrentRound] = useState<any>(null);
-  const [pickStatistics, setPickStatistics] = useState<any>(null);
+  const [currentRound, setCurrentRound] = useState<{ round_id: number; round_number: number } | null>(null);
+  const [pickStatistics, setPickStatistics] = useState<{ current_round: { round_id: number; round_number: number } | null; players_with_picks: number; total_active_players: number; pick_percentage: number } | null>(null);
 
-  useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('jwt_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
-    loadCompetitionData();
-  }, [competitionId, router]);
-
-  const loadCompetitionData = async () => {
+  const loadCompetitionData = useCallback(async () => {
     try {
       // Load competition details
       const competitions = await competitionApi.getMyCompetitions();
 
       // Check competition access
       if (competitions.data.return_code === 'SUCCESS') {
-        const comp = competitions.data.competitions.find(c => c.id.toString() === competitionId);
+        const competitions_list = competitions.data.competitions as CompetitionType[];
+        const comp = competitions_list.find(c => c.id.toString() === competitionId);
         if (comp && comp.is_organiser) {
           setCompetition(comp);
           
@@ -103,7 +83,7 @@ export default function AdminDashboard() {
           try {
             const status = await competitionApi.getStatus(parseInt(competitionId));
             if (status.data.return_code === 'SUCCESS') {
-              setCurrentRound(status.data.current_round);
+              setCurrentRound(status.data.current_round as { round_id: number; round_number: number } | null);
             }
           } catch (statusError) {
             console.warn('Could not load competition status:', statusError);
@@ -114,7 +94,12 @@ export default function AdminDashboard() {
           try {
             const statistics = await competitionApi.getPickStatistics(parseInt(competitionId));
             if (statistics.data.return_code === 'SUCCESS') {
-              setPickStatistics(statistics.data);
+              setPickStatistics({
+                current_round: statistics.data.current_round as { round_id: number; round_number: number } | null,
+                players_with_picks: statistics.data.players_with_picks as number,
+                total_active_players: statistics.data.total_active_players as number,
+                pick_percentage: statistics.data.pick_percentage as number
+              });
             }
           } catch (statsError) {
             console.warn('Could not load pick statistics:', statsError);
@@ -138,7 +123,18 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [competitionId, router]);
+
+  useEffect(() => {
+    // Check authentication
+    const token = localStorage.getItem('jwt_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    loadCompetitionData();
+  }, [loadCompetitionData, router]);
 
   if (loading) {
     return (
@@ -362,7 +358,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Competition Code - Only show for active competitions */}
-        {competition.invite_code && competition.status !== 'COMPLETE' && (
+        {competition.access_code && competition.status !== 'COMPLETE' && (
           <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -371,10 +367,10 @@ export default function AdminDashboard() {
               </div>
               <div className="text-right">
                 <code className="text-2xl font-mono font-bold text-blue-600 tracking-wider">
-                  {competition.invite_code}
+                  {competition.access_code}
                 </code>
                 <button
-                  onClick={() => navigator.clipboard.writeText(competition.invite_code || '')}
+                  onClick={() => navigator.clipboard.writeText(competition.access_code || '')}
                   className="block mt-2 text-sm text-blue-600 hover:text-blue-800"
                 >
                   Click to copy

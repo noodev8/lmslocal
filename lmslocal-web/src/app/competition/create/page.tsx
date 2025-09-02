@@ -67,7 +67,7 @@ export default function CreateCompetitionPage() {
     try {
       const response = await teamApi.getTeamLists();
       if (response.data.return_code === 'SUCCESS') {
-        setTeamLists(response.data.team_lists || []);
+        setTeamLists((response.data.team_lists as TeamList[]) || []);
       }
     } catch (error) {
       console.error('Failed to load team lists:', error);
@@ -90,14 +90,15 @@ export default function CreateCompetitionPage() {
 
       if (response.data.return_code === 'SUCCESS') {
         // Store the new competition ID for highlighting on dashboard
-        localStorage.setItem('new_competition_id', response.data.competition.id.toString());
+        localStorage.setItem('new_competition_id', (response.data.competition as { id: number }).id.toString());
         // Redirect back to dashboard to show the new competition
         router.push('/dashboard');
       } else {
         setError(response.data.message || 'Failed to create competition');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+    } catch (err: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setError((err as any)?.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -320,7 +321,7 @@ export default function CreateCompetitionPage() {
                         Join as Player
                       </div>
                       <div className="text-sm text-gray-500">
-                        You'll participate in the competition as well as organise it
+                        You&apos;ll participate in the competition as well as organise it
                       </div>
                     </div>
                   </label>
@@ -382,7 +383,7 @@ export default function CreateCompetitionPage() {
                       </dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-sm text-gray-600">You're Playing:</dt>
+                      <dt className="text-sm text-gray-600">You&apos;re Playing:</dt>
                       <dd className="text-sm font-medium text-gray-900">
                         {watchedValues.organiser_joins_as_player ? 'Yes' : 'No'}
                       </dd>

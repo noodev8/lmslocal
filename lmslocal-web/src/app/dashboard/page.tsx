@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -10,11 +10,7 @@ import {
   ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  ArrowRightIcon,
-  Cog6ToothIcon,
-  CalendarDaysIcon,
   ChartBarIcon,
-  UsersIcon,
   ClipboardDocumentIcon,
   SparklesIcon,
   PlayCircleIcon,
@@ -35,17 +31,74 @@ interface Competition {
   needs_pick?: boolean;
   my_pick?: string;
   is_organiser?: boolean;
-  invite_code?: string;
+  access_code?: string;
   slug?: string;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: number; email: string; display_name: string } | null>(null);
   const [organizedCompetitions, setOrganizedCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCompetitionId, setNewCompetitionId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
+
+  const loadCompetitions = useCallback(async () => {
+    try {
+      // Load all competitions (both organized and playing)
+      const response = await competitionApi.getMyCompetitions();
+      if (response.data.return_code === 'SUCCESS') {
+        const competitions = (response.data.competitions as Competition[]) || [];
+        
+        // Only show competitions where user is organiser
+        const organized = competitions.filter(comp => comp.is_organiser);
+        
+        setOrganizedCompetitions(organized);
+      }
+
+    } catch (error) {
+      console.error('Failed to load competitions:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const checkUserTypeAndRoute = useCallback(async () => {
+    try {
+      const response = await userApi.checkUserType();
+      if (response.data.return_code === 'SUCCESS') {
+        const { user_type, suggested_route, has_organized } = response.data;
+        setUserType(user_type as string);
+        
+        // Smart routing logic
+        if (user_type === 'player' && !has_organized) {
+          // Pure player - redirect to player dashboard
+          router.push('/play');
+          return;
+        } else if (user_type === 'both' && suggested_route === '/play') {
+          // User participates more than organizes - suggest player dashboard
+          const shouldRedirect = window.confirm(
+            'You participate in more competitions than you organize. Would you like to go to your player dashboard instead?'
+          );
+          if (shouldRedirect) {
+            router.push('/play');
+            return;
+          }
+        }
+        
+        // Stay on admin dashboard for organisers or if user chooses to
+        loadCompetitions();
+      } else {
+        // Fallback to loading competitions if check fails
+        loadCompetitions();
+      }
+    } catch (error) {
+      console.error('Failed to check user type:', error);
+      // Fallback to loading competitions
+      loadCompetitions();
+    }
+  }, [router, loadCompetitions]);
 
   useEffect(() => {
     // Check authentication
@@ -87,64 +140,9 @@ export default function DashboardPage() {
       // Just load competitions directly if returning from competition
       loadCompetitions();
     }
-  }, [router]);
+  }, [router, checkUserTypeAndRoute, loadCompetitions]);
 
-  const checkUserTypeAndRoute = async () => {
-    try {
-      const response = await userApi.checkUserType();
-      if (response.data.return_code === 'SUCCESS') {
-        const { user_type, suggested_route, has_organized } = response.data;
-        setUserType(user_type);
-        
-        // Smart routing logic
-        if (user_type === 'player' && !has_organized) {
-          // Pure player - redirect to player dashboard
-          router.push('/play');
-          return;
-        } else if (user_type === 'both' && suggested_route === '/play') {
-          // User participates more than organizes - suggest player dashboard
-          const shouldRedirect = window.confirm(
-            'You participate in more competitions than you organize. Would you like to go to your player dashboard instead?'
-          );
-          if (shouldRedirect) {
-            router.push('/play');
-            return;
-          }
-        }
-        
-        // Stay on admin dashboard for organisers or if user chooses to
-        loadCompetitions();
-      } else {
-        // Fallback to loading competitions if check fails
-        loadCompetitions();
-      }
-    } catch (error) {
-      console.error('Failed to check user type:', error);
-      // Fallback to loading competitions
-      loadCompetitions();
-    }
-  };
-
-  const loadCompetitions = async () => {
-    try {
-      // Load all competitions (both organized and playing)
-      const response = await competitionApi.getMyCompetitions();
-      if (response.data.return_code === 'SUCCESS') {
-        const competitions = response.data.competitions || [];
-        
-        // Only show competitions where user is organiser
-        const organized = competitions.filter(comp => comp.is_organiser);
-        
-        setOrganizedCompetitions(organized);
-      }
-
-    } catch (error) {
-      console.error('Failed to load competitions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'UNLOCKED': return 'text-emerald-700 bg-emerald-50 border-emerald-200';
@@ -154,6 +152,7 @@ export default function DashboardPage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'UNLOCKED': return <PlayCircleIcon className="h-4 w-4" />;
@@ -330,7 +329,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                   
-                  {!isNewCompetition && competition.player_count === 0 && competition.status !== 'COMPLETE' && (
+                  {!isNewCompetition && competition.player_count === 0 && (competition.status as string) !== 'COMPLETE' && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
@@ -345,7 +344,7 @@ export default function DashboardPage() {
                   )}
                   
                   {/* Competition Status Display */}
-                  {competition.status === 'COMPLETE' ? (
+                  {(competition.status as string) === 'COMPLETE' ? (
                     <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
@@ -357,7 +356,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                  ) : competition.current_round && competition.player_count > 0 ? (
+                  ) : competition.current_round && competition.player_count && competition.player_count > 0 ? (
                     <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
@@ -381,19 +380,19 @@ export default function DashboardPage() {
                     </div>
                     
                     {/* Access Code */}
-                    {competition.invite_code && (
+                    {competition.access_code && (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <p className="text-xs font-medium text-slate-700 mb-1">Player Access Code</p>
                             <div className="flex items-center space-x-2">
                               <code className="text-lg font-mono font-bold text-blue-600 tracking-wider">
-                                {competition.invite_code}
+                                {competition.access_code}
                               </code>
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  navigator.clipboard.writeText(competition.invite_code);
+                                  navigator.clipboard.writeText(competition.access_code || '');
                                 }}
                                 className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
                               >

@@ -1,6 +1,6 @@
 'use client';
 
-import { TrophyIcon, UserGroupIcon, ClockIcon, CheckCircleIcon, XCircleIcon, StarIcon } from '@heroicons/react/24/outline';
+import { TrophyIcon, UserGroupIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 
 // Enhanced Chart Components for Admin & Player Dashboards
 export interface ChartData {
@@ -24,7 +24,7 @@ export const ProgressChart = ({
   maxValue?: number;
   color?: string;
   showLabel?: boolean;
-  icon?: any;
+  icon?: React.ComponentType<{ className?: string }>;
 }) => {
   const percentage = Math.min((value / maxValue) * 100, 100);
   
@@ -169,8 +169,10 @@ export const ActivityFeedChart = ({
 
 // Player Performance Chart (for individual player dashboard)
 export const PlayerPerformanceChart = ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   playerName,
   roundsPlayed,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   roundsRemaining,
   correctPicks,
   status
@@ -293,7 +295,7 @@ export const QuickStatsGrid = ({
     title: string;
     value: string | number;
     change?: number;
-    icon: any;
+    icon: React.ComponentType<{ className?: string }>;
     color?: string;
   }>;
 }) => {

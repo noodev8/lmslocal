@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -15,7 +15,7 @@ import {
   XCircleIcon,
   FunnelIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, adminApi, offlinePlayerApi } from '@/lib/api';
+import { competitionApi, adminApi, offlinePlayerApi, Competition, Player } from '@/lib/api';
 import { logout } from '@/lib/auth';
 import ConfirmationModal from '@/components/ConfirmationModal';
 
@@ -25,25 +25,7 @@ interface User {
   email: string;
 }
 
-interface Competition {
-  id: number;
-  name: string;
-  player_count: number;
-  invite_code?: string;
-}
 
-interface Player {
-  id: number;
-  display_name: string;
-  email: string;
-  status: 'active' | 'eliminated';
-  lives_remaining: number;
-  joined_at: string;
-  paid: boolean;
-  paid_amount?: number;
-  paid_date?: string;
-  is_managed?: boolean;
-}
 
 export default function CompetitionPlayersPage() {
   const router = useRouter();
@@ -107,9 +89,9 @@ export default function CompetitionPlayersPage() {
       window.removeEventListener('auth-expired', handleAuthExpired);
       abortControllerRef.current = null;
     };
-  }, [competitionId, router]);
+  }, [competitionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadPlayers = async () => {
+  const loadPlayers = useCallback(async () => {
     if (abortControllerRef.current?.signal.aborted) return;
     
     try {
@@ -117,8 +99,8 @@ export default function CompetitionPlayersPage() {
       if (abortControllerRef.current?.signal.aborted) return;
       
       if (response.data.return_code === 'SUCCESS') {
-        setCompetition(response.data.competition);
-        setPlayers(response.data.players);
+        setCompetition(response.data.competition as Competition);
+        setPlayers(response.data.players as Player[]);
       } else {
         console.error('Failed to load players:', response.data.message);
         router.push(`/competition/${competitionId}/dashboard`);
@@ -132,7 +114,7 @@ export default function CompetitionPlayersPage() {
         setLoading(false);
       }
     }
-  };
+  }, [competitionId, router]);
 
   const handleRemovePlayerClick = (playerId: number, playerName: string) => {
     setPlayerToRemove({ id: playerId, name: playerName });
@@ -142,7 +124,9 @@ export default function CompetitionPlayersPage() {
   const handleConfirmRemove = async () => {
     if (!playerToRemove) return;
 
-    const { id: playerId, name: playerName } = playerToRemove;
+    const { id: playerId } = playerToRemove;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { name: playerName } = playerToRemove;
     setRemoving(prev => new Set(prev).add(playerId));
     
     try {
@@ -155,7 +139,7 @@ export default function CompetitionPlayersPage() {
         // Update competition player count if available
         setCompetition(prev => prev ? { 
           ...prev, 
-          player_count: prev.player_count - 1 
+          player_count: (prev.player_count || 0) - 1 
         } : null);
       } else {
         console.error('Failed to remove player:', response.data.message);
@@ -313,7 +297,7 @@ export default function CompetitionPlayersPage() {
         <div className="mb-8">
           <div className="flex justify-between items-start mb-2">
             <h1 className="text-3xl font-bold text-gray-900">Player Management</h1>
-            {competition?.invite_code && (
+            {competition?.access_code && (
               <button
                 onClick={() => setShowAddPlayerModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
@@ -350,16 +334,16 @@ export default function CompetitionPlayersPage() {
               </div>
             </div>
             
-            {competition?.invite_code && (
+            {competition?.access_code && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-900">Access Code (Still Recruiting)</p>
-                    <p className="text-lg font-bold text-blue-600 tracking-wider">{competition.invite_code}</p>
+                    <p className="text-lg font-bold text-blue-600 tracking-wider">{competition.access_code}</p>
                   </div>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(competition.invite_code!);
+                      navigator.clipboard.writeText(competition.access_code!);
                     }}
                     className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
                   >
@@ -607,10 +591,10 @@ export default function CompetitionPlayersPage() {
             <p className="text-gray-600 mb-4">
               Share your access code to start getting players to join your competition.
             </p>
-            {competition?.invite_code && (
+            {competition?.access_code && (
               <div className="bg-gray-50 rounded-lg p-4 inline-block">
                 <p className="text-sm font-medium text-gray-900 mb-1">Access Code</p>
-                <p className="text-xl font-bold text-blue-600 tracking-wider">{competition.invite_code}</p>
+                <p className="text-xl font-bold text-blue-600 tracking-wider">{competition.access_code}</p>
               </div>
             )}
           </div>
