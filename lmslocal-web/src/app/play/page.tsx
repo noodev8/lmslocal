@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -9,11 +9,11 @@ import {
   ClockIcon,
   ChartBarIcon,
   ExclamationTriangleIcon,
-  PlusCircleIcon,
   XMarkIcon,
   PlayCircleIcon,
 } from '@heroicons/react/24/outline';
 import { userApi } from '@/lib/api';
+import { useAppData } from '@/contexts/AppDataContext';
 import { logout } from '@/lib/auth';
 
 interface User {
@@ -50,6 +50,15 @@ interface Competition {
 
 export default function PlayerDashboardPage() {
   const router = useRouter();
+  
+  // Use AppDataProvider context to avoid redundant getPlayerDashboard call
+  const { competitions: contextCompetitions, user: contextUser, loading: contextLoading } = useAppData();
+  
+  // Memoize player competitions to prevent unnecessary re-renders
+  const playerCompetitions = useMemo(() => {
+    return contextCompetitions?.filter(comp => !comp.is_organiser) || [];
+  }, [contextCompetitions]);
+  
   const [user, setUser] = useState<User | null>(null);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,23 +69,23 @@ export default function PlayerDashboardPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
-    const userData = localStorage.getItem('user');
     
-    if (!token || !userData) {
+    if (!token) {
       router.push('/login');
       return;
     }
 
-    try {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      loadPlayerCompetitions();
-    } catch (error) {
-      console.error('Error parsing user data:', error);
-      router.push('/login');
-      return;
+    // Use context data instead of API calls
+    if (contextUser) {
+      setUser(contextUser);
     }
-  }, [router]);
+    
+    if (playerCompetitions) {
+      setCompetitions(playerCompetitions);
+    }
+    
+    setLoading(contextLoading);
+  }, [router, contextUser, playerCompetitions, contextLoading]);
 
   const loadPlayerCompetitions = async () => {
     try {
@@ -308,15 +317,21 @@ export default function PlayerDashboardPage() {
                       <span className="text-slate-700 font-semibold">Lives Remaining:</span>
                       <div className="flex items-center space-x-2">
                         <div className="flex items-center space-x-1">
-                          {Array.from({ length: Math.min(competition.lives_remaining, 5) }, (_, i) => (
-                            <div key={i} className="w-3 h-3 bg-gradient-to-r from-red-500 to-red-600 rounded-full shadow-sm"></div>
+                          {Array.from({ length: Math.min(competition.lives_remaining ?? 0, 5) }, (_, i) => (
+                            <div key={i} className={`w-3 h-3 rounded-full shadow-sm ${
+                              (competition.lives_remaining ?? 0) > 1 
+                                ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                : (competition.lives_remaining ?? 0) === 1 
+                                ? 'bg-gradient-to-r from-amber-500 to-amber-600' 
+                                : 'bg-gradient-to-r from-red-500 to-red-600'
+                            }`}></div>
                           ))}
-                          {competition.lives_remaining > 5 && (
-                            <span className="text-slate-600 ml-1 text-sm">+{competition.lives_remaining - 5}</span>
+                          {(competition.lives_remaining ?? 0) > 5 && (
+                            <span className="text-slate-600 ml-1 text-sm">+{(competition.lives_remaining ?? 0) - 5}</span>
                           )}
                         </div>
                         <span className="font-bold text-slate-900 text-lg ml-2">
-                          {competition.lives_remaining}
+                          {competition.lives_remaining ?? 0}
                         </span>
                       </div>
                     </div>
@@ -364,11 +379,11 @@ export default function PlayerDashboardPage() {
 
         {/* Action Section for Existing Users */}
         {competitions.length > 0 && (
-          <div className="grid sm:grid-cols-2 gap-4 mb-8">
+          <div className="flex justify-center space-x-4 mb-4">
             {/* Join Another Competition */}
             <button
               onClick={() => setShowJoinDialog(true)}
-              className="flex items-center justify-center px-6 py-4 bg-white border-2 border-slate-300 text-slate-700 rounded-3xl font-semibold hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5"
+              className="px-3 py-2 text-sm text-slate-600 hover:text-slate-800 transition-colors"
             >
               Join Another Competition
             </button>
@@ -376,7 +391,7 @@ export default function PlayerDashboardPage() {
             {/* Create Another Competition */}
             <Link 
               href="/competition/create"
-              className="flex items-center justify-center px-6 py-4 bg-slate-800 text-white rounded-3xl font-semibold hover:bg-slate-900 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5"
+              className="px-3 py-2 text-sm text-slate-600 hover:text-slate-800 transition-colors"
             >
               Create Competition
             </Link>

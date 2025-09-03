@@ -16,53 +16,22 @@ import {
   PlayCircleIcon,
   PauseCircleIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, userApi } from '@/lib/api';
+import { userApi, Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
+import { useAppData } from '@/contexts/AppDataContext';
 
-interface Competition {
-  id: number;
-  name: string;
-  status: 'LOCKED' | 'UNLOCKED' | 'SETUP';
-  player_count?: number;
-  current_round?: number;
-  total_rounds?: number;
-  organiser_id: number;
-  created_at: string;
-  needs_pick?: boolean;
-  my_pick?: string;
-  is_organiser?: boolean;
-  invite_code?: string;
-  slug?: string;
-}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<{ id: number; email: string; display_name: string } | null>(null);
-  const [organizedCompetitions, setOrganizedCompetitions] = useState<Competition[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use app-level data from context instead of local API calls
+  const { competitions, user, loading } = useAppData();
+  
+  // Filter to only show competitions where user is organiser
+  const organizedCompetitions = competitions?.filter(comp => comp.is_organiser) || [];
   const [newCompetitionId, setNewCompetitionId] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
 
-  const loadCompetitions = useCallback(async () => {
-    try {
-      // Load all competitions (both organized and playing)
-      const response = await competitionApi.getMyCompetitions();
-      if (response.data.return_code === 'SUCCESS') {
-        const competitions = (response.data.competitions as Competition[]) || [];
-        
-        // Only show competitions where user is organiser
-        const organized = competitions.filter(comp => comp.is_organiser);
-        
-        setOrganizedCompetitions(organized);
-      }
-
-    } catch (error) {
-      console.error('Failed to load competitions:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const checkUserTypeAndRoute = useCallback(async () => {
     try {
@@ -88,17 +57,15 @@ export default function DashboardPage() {
         }
         
         // Stay on admin dashboard for organisers or if user chooses to
-        loadCompetitions();
+        // Competitions are now loaded via AppDataProvider
       } else {
-        // Fallback to loading competitions if check fails
-        loadCompetitions();
+        // Competitions are now loaded via AppDataProvider
       }
     } catch (error) {
       console.error('Failed to check user type:', error);
-      // Fallback to loading competitions
-      loadCompetitions();
+      // Competitions are now loaded via AppDataProvider
     }
-  }, [router, loadCompetitions]);
+  }, [router]);
 
   useEffect(() => {
     // Check authentication
@@ -111,8 +78,8 @@ export default function DashboardPage() {
     }
 
     try {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
+      JSON.parse(userData); // Just validate the user data is valid JSON
+      // User data is now loaded via AppDataProvider, no need to set local state
     } catch (error) {
       console.error('Failed to parse user data:', error);
       localStorage.removeItem('jwt_token');
@@ -137,10 +104,9 @@ export default function DashboardPage() {
     if (!fromCompetition) {
       checkUserTypeAndRoute();
     } else {
-      // Just load competitions directly if returning from competition
-      loadCompetitions();
+      // Competitions are now loaded via AppDataProvider
     }
-  }, [router, checkUserTypeAndRoute, loadCompetitions]);
+  }, [router, checkUserTypeAndRoute]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getStatusColor = (status: string) => {

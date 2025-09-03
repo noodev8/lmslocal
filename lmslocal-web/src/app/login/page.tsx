@@ -30,16 +30,28 @@ function LoginForm() {
   }, [searchParams]);
 
   const onSubmit = async (data: LoginRequest) => {
+    console.log('Login form submitted:', data);
     setIsLoading(true);
     setError('');
 
     try {
+      console.log('Calling authApi.login...');
       const response = await authApi.login(data);
+      console.log('Login response:', response);
       
       if (response.data.return_code === 'SUCCESS') {
+        // Clear any cached data from previous sessions
+        if (typeof window !== 'undefined') {
+          const { cacheUtils } = await import('@/lib/api');
+          cacheUtils.clearAll();
+        }
+        
         // Store token and user data consistently
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setAuthData(response.data.token as string, response.data.user as any);
+        
+        // Trigger AppDataProvider to reload data
+        window.dispatchEvent(new CustomEvent('auth-success'));
         
         // Check user type to determine redirect
         try {
@@ -129,6 +141,7 @@ function LoginForm() {
                     message: 'Please enter a valid email address'
                   }
                 })}
+                id="email"
                 type="email"
                 autoComplete="email"
                 className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
@@ -152,6 +165,7 @@ function LoginForm() {
                       message: 'Password must be at least 6 characters'
                     }
                   })}
+                  id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"

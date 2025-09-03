@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -13,6 +13,7 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { competitionApi, Competition as CompetitionType } from '@/lib/api';
+import { useAppData } from '@/contexts/AppDataContext';
 
 // Simple Progress Chart Component
 const ProgressChart = ({ 
@@ -61,38 +62,56 @@ export default function AdminDashboard() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
+  
+  // Use AppDataProvider context for competitions data
+  const { competitions, loading: contextLoading } = useAppData();
+  
+  // Memoize the specific competition to prevent unnecessary re-renders
+  const competition = useMemo(() => {
+    return competitions?.find(c => c.id.toString() === competitionId);
+  }, [competitions, competitionId]);
 
-  const [competition, setCompetition] = useState<CompetitionType | null>(null);
+  const [competitionState, setCompetitionState] = useState<CompetitionType | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentRound, setCurrentRound] = useState<{ round_id: number; round_number: number } | null>(null);
   const [pickStatistics, setPickStatistics] = useState<{ current_round: { round_id: number; round_number: number } | null; players_with_picks: number; total_active_players: number; pick_percentage: number } | null>(null);
+  const hasLoadedData = useRef(false);
 
-  const loadCompetitionData = useCallback(async () => {
-    try {
-      // Load competition details
-      const competitions = await competitionApi.getMyCompetitions();
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Check authentication
+        const token = localStorage.getItem('jwt_token');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
 
-      // Check competition access
-      if (competitions.data.return_code === 'SUCCESS') {
-        const competitions_list = competitions.data.competitions as CompetitionType[];
-        const comp = competitions_list.find(c => c.id.toString() === competitionId);
-        if (comp && comp.is_organiser) {
-          setCompetition(comp);
+        // Only load data when competitions are available from context
+        if (!competitions) {
+          return;
+        }
+
+        // Prevent duplicate API calls
+        if (hasLoadedData.current) {
+          return;
+        }
+        hasLoadedData.current = true;
+
+        if (competition && competition.is_organiser) {
+          setCompetitionState(competition);
           
-          // Try to get status, but don't fail if it doesn't work
+          // Load status and statistics (cached for 30 seconds)
           try {
-            const status = await competitionApi.getStatus(parseInt(competitionId));
+            const [status, statistics] = await Promise.all([
+              competitionApi.getStatus(parseInt(competitionId)),
+              competitionApi.getPickStatistics(parseInt(competitionId))
+            ]);
+
             if (status.data.return_code === 'SUCCESS') {
               setCurrentRound(status.data.current_round as { round_id: number; round_number: number } | null);
             }
-          } catch (statusError) {
-            console.warn('Could not load competition status:', statusError);
-            // Continue without status - not critical for dashboard
-          }
 
-          // Try to get pick statistics
-          try {
-            const statistics = await competitionApi.getPickStatistics(parseInt(competitionId));
             if (statistics.data.return_code === 'SUCCESS') {
               setPickStatistics({
                 current_round: statistics.data.current_round as { round_id: number; round_number: number } | null,
@@ -101,8 +120,9 @@ export default function AdminDashboard() {
                 pick_percentage: statistics.data.pick_percentage as number
               });
             }
-          } catch (statsError) {
-            console.warn('Could not load pick statistics:', statsError);
+            
+          } catch (error) {
+            console.warn('Could not load competition statistics:', error);
             // Continue without statistics - not critical for dashboard
           }
         } else {
@@ -110,31 +130,22 @@ export default function AdminDashboard() {
           router.push('/dashboard');
           return;
         }
-      } else {
-        console.error('Failed to load competitions:', competitions.data);
+
+      } catch (error) {
+        console.error('Failed to load competition data:', error);
         router.push('/dashboard');
-        return;
+      } finally {
+        setLoading(false);
       }
+    };
 
-    } catch (error) {
-      console.error('Failed to load competition data:', error);
-      // Try to go back to dashboard instead of crashing
-      router.push('/dashboard');
-    } finally {
-      setLoading(false);
-    }
-  }, [competitionId, router]);
-
-  useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('jwt_token');
-    if (!token) {
-      router.push('/login');
-      return;
+    // Reset hasLoadedData when competitionId changes
+    if (hasLoadedData.current) {
+      hasLoadedData.current = false;
     }
 
-    loadCompetitionData();
-  }, [loadCompetitionData, router]);
+    loadData();
+  }, [competitionId, router, competition]);
 
   if (loading) {
     return (
@@ -207,7 +218,7 @@ export default function AdminDashboard() {
                 <div>
                   <h1 className="text-lg font-semibold text-slate-900">Competition Dashboard</h1>
                   {competition && (
-                    <p className="text-sm text-slate-500">{competition.name}</p>
+                    <p className="text-sm text-slate-500">{competitionState?.name}</p>
                   )}
                 </div>
               </div>
@@ -219,7 +230,7 @@ export default function AdminDashboard() {
       <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         {/* Competition Info */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">{competition.name}</h2>
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">{competitionState?.name}</h2>
           {competition.description && (
             <p className="text-slate-600 mb-4">{competition.description}</p>
           )}
@@ -238,7 +249,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Competition Code - Only show for active competitions */}
-        {competition.invite_code && competition.status !== 'COMPLETE' && (
+        {competition.access_code && competition.status !== 'COMPLETE' && (
           <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -247,10 +258,10 @@ export default function AdminDashboard() {
               </div>
               <div className="text-right">
                 <code className="text-2xl font-mono font-bold text-blue-600 tracking-wider">
-                  {competition.invite_code}
+                  {competition.access_code}
                 </code>
                 <button
-                  onClick={() => navigator.clipboard.writeText(competition.invite_code || '')}
+                  onClick={() => navigator.clipboard.writeText(competition.access_code || '')}
                   className="block mt-2 text-sm text-blue-600 hover:text-blue-800"
                 >
                   Click to copy

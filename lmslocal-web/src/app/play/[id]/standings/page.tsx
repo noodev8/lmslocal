@@ -146,7 +146,7 @@ export default function CompetitionStandingsPage() {
       window.removeEventListener('auth-expired', handleAuthExpired);
       abortControllerRef.current = null;
     };
-  }, [competitionId, router, loadStandings]);
+  }, [competitionId, router]);
 
   const togglePlayerExpansion = (playerId: number) => {
     setExpandedPlayers(prev => {

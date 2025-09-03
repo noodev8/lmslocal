@@ -17,6 +17,7 @@ import {
   UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, offlinePlayerApi, Competition, Player } from '@/lib/api';
+import { useAppData } from '@/contexts/AppDataContext';
 import { logout } from '@/lib/auth';
 import ConfirmationModal from '@/components/ConfirmationModal';
 
@@ -35,6 +36,9 @@ export default function CompetitionPlayersPage() {
   
   const [user, setUser] = useState<User | null>(null);
   const [competition, setCompetition] = useState<Competition | null>(null);
+  
+  // Use AppDataProvider context to avoid redundant API calls
+  const { competitions } = useAppData();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<Set<number>>(new Set());
@@ -96,11 +100,14 @@ export default function CompetitionPlayersPage() {
     if (abortControllerRef.current?.signal.aborted) return;
     
     try {
+      // Use cached API call with 30-second TTL for player data
       const response = await competitionApi.getPlayers(competitionId);
       if (abortControllerRef.current?.signal.aborted) return;
       
       if (response.data.return_code === 'SUCCESS') {
-        setCompetition(response.data.competition as Competition);
+        // Get competition from context if available, otherwise from API response
+        const competitionFromContext = competitions?.find(c => c.id === competitionId);
+        setCompetition(competitionFromContext || response.data.competition as Competition);
         setPlayers(response.data.players as Player[]);
       } else {
         console.error('Failed to load players:', response.data.message);
@@ -115,7 +122,7 @@ export default function CompetitionPlayersPage() {
         setLoading(false);
       }
     }
-  }, [competitionId, router]);
+  }, [competitionId, router, competitions]);
 
   const handleRemovePlayerClick = (playerId: number, playerName: string) => {
     setPlayerToRemove({ id: playerId, name: playerName });
@@ -645,7 +652,7 @@ export default function CompetitionPlayersPage() {
             </div>
             <h3 className="text-2xl font-bold text-slate-900 mb-4">Ready to Build Your Competition</h3>
             <p className="text-lg text-slate-600 mb-8 max-w-lg mx-auto">
-              Share your access code with players to get started. They'll be able to join instantly and start making picks.
+              Share your access code with players to get started. They&apos;ll be able to join instantly and start making picks.
             </p>
             {competition?.access_code && (
               <div className="bg-white/70 backdrop-blur-sm rounded-xl p-8 inline-block border border-slate-200/50 shadow-sm">

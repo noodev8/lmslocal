@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Link from 'next/link';
@@ -23,6 +23,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, roundApi, fixtureApi, teamApi, adminApi, Competition, Team, Player } from '@/lib/api';
+import { useAppData } from '@/contexts/AppDataContext';
 
 // Simple Progress Chart Component
 const ProgressChart = ({ 
@@ -87,6 +88,14 @@ export default function ManageCompetitionPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
+  
+  // Use AppDataProvider context to avoid redundant getMyCompetitions call
+  const { competitions } = useAppData();
+  
+  // Memoize the specific competition to prevent unnecessary re-renders
+  const contextCompetition = useMemo(() => {
+    return competitions?.find(c => c.id.toString() === competitionId);
+  }, [competitions, competitionId]);
 
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
@@ -144,23 +153,21 @@ export default function ManageCompetitionPage() {
 
   const loadCompetitionData = useCallback(async () => {
     try {
-      // Load competition details and status in one go
-      const [competitions, status] = await Promise.all([
-        competitionApi.getMyCompetitions(),
-        competitionApi.getStatus(parseInt(competitionId))
-      ]);
-
-      // Check competition access
-      if (competitions.data.return_code === 'SUCCESS') {
-        const comp = (competitions.data.competitions as Competition[]).find((c: Competition) => c.id.toString() === competitionId);
-        if (comp && comp.is_organiser) {
-          setCompetition(comp);
-        } else {
-          router.push('/dashboard');
-          return;
-        }
+      // Get competition from context and load status
+      if (!contextCompetition) {
+        return; // Wait for context to load
       }
-
+      
+      if (!(contextCompetition as Competition & { is_organiser: boolean }).is_organiser) {
+        router.push('/dashboard');
+        return;
+      }
+      
+      setCompetition(contextCompetition);
+      
+      // Load status separately (now cached)
+      const status = await competitionApi.getStatus(parseInt(competitionId));
+      
       // Handle routing based on status
       if (status.data.return_code === 'SUCCESS') {
         if (status.data.should_route_to_results) {
@@ -186,7 +193,7 @@ export default function ManageCompetitionPage() {
     } finally {
       setLoading(false);
     }
-  }, [competitionId, router]);
+  }, [competitionId, router, contextCompetition]);
 
   const loadFixtures = async (roundId: number) => {
     if (!roundId) {
@@ -580,14 +587,14 @@ export default function ManageCompetitionPage() {
                       <UserGroupIcon className="h-5 w-5" />
                       <span className="text-sm font-medium">{competition.player_count || 0} players</span>
                     </div>
-                    {competition.invite_code && (
+                    {competition.access_code && (
                       <div className="flex items-center space-x-2">
                         <span className="text-sm text-slate-500">Code:</span>
                         <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-lg">
-                          <code className="text-sm font-mono font-semibold text-blue-700">{competition.invite_code}</code>
+                          <code className="text-sm font-mono font-semibold text-blue-700">{competition.access_code}</code>
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(competition.invite_code || '');
+                              navigator.clipboard.writeText(competition.access_code || '');
                             }}
                             className="text-blue-600 hover:text-blue-700"
                           >
@@ -705,34 +712,6 @@ export default function ManageCompetitionPage() {
             )}
           </div>
 
-          {/* Quick Stats - Progress Chart */}
-          {currentRound && competition.player_count && (
-            <div className="mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <ProgressChart
-                  title="Players Made Picks"
-                  value={Math.floor(competition.player_count * 0.75)} // Demo: 75% have picked
-                  maxValue={competition.player_count}
-                  color="emerald"
-                  icon={UserGroupIcon}
-                />
-                <ProgressChart
-                  title="Competition Progress"
-                  value={currentRound.round_number}
-                  maxValue={38}
-                  color="blue"
-                  icon={TrophyIcon}
-                />
-                <ProgressChart
-                  title="Fixtures Created"
-                  value={pendingFixtures.length}
-                  maxValue={10}
-                  color="amber"
-                  icon={ChartBarIcon}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Fixtures Management Section */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm">

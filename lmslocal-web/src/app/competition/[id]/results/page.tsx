@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -12,6 +12,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { competitionApi, roundApi, fixtureApi, playerActionApi, adminApi, userApi } from '@/lib/api';
+import { useAppData } from '@/contexts/AppDataContext';
 
 interface Competition {
   id: number;
@@ -39,6 +40,14 @@ export default function CompetitionResultsPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
+  
+  // Use AppDataProvider context to avoid redundant getMyCompetitions call
+  const { competitions } = useAppData();
+  
+  // Memoize the specific competition to prevent unnecessary re-renders
+  const contextCompetition = useMemo(() => {
+    return competitions?.find(c => c.id.toString() === competitionId);
+  }, [competitions, competitionId]);
 
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
@@ -82,16 +91,16 @@ export default function CompetitionResultsPage() {
 
   const loadData = useCallback(async () => {
     try {
-      // Load competition details
-      const competitions = await competitionApi.getMyCompetitions();
-      if (competitions.data.return_code === 'SUCCESS') {
-        const comp = (competitions.data.competitions as (Competition & { is_organiser: boolean })[]).find((c: { id: number }) => c.id.toString() === competitionId);
-        if (comp && comp.is_organiser) {
-          setCompetition(comp);
-        } else {
-          router.push(`/competition/${competitionId}/dashboard`);
-          return;
-        }
+      // Get competition from context instead of redundant API call
+      if (!contextCompetition) {
+        return; // Wait for context to load
+      }
+      
+      if (contextCompetition && (contextCompetition as Competition & { is_organiser: boolean }).is_organiser) {
+        setCompetition(contextCompetition);
+      } else {
+        router.push(`/competition/${competitionId}/dashboard`);
+        return;
       }
 
       // Load current round (latest round)
@@ -112,7 +121,7 @@ export default function CompetitionResultsPage() {
     } finally {
       setLoading(false);
     }
-  }, [competitionId, router]);
+  }, [competitionId, router, contextCompetition]);
 
   const loadFixtures = async (roundId: number) => {
     try {

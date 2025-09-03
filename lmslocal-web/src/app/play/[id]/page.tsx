@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -10,6 +10,7 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import { fixtureApi, userApi, roundApi, playerActionApi, Fixture, Team, Round } from '@/lib/api';
+import { useAppData } from '@/contexts/AppDataContext';
 import { logout } from '@/lib/auth';
 
 interface User {
@@ -47,6 +48,14 @@ export default function CompetitionPickPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
+  
+  // Use AppDataProvider context to avoid redundant getPlayerDashboard call
+  const { competitions } = useAppData();
+  
+  // Memoize the specific competition to prevent unnecessary re-renders
+  const contextCompetition = useMemo(() => {
+    return competitions?.find(c => c.id.toString() === competitionId);
+  }, [competitions, competitionId]);
 
   // Helper function to get full team name from short name
   const getFullTeamName = (shortName: string): string => {
@@ -136,23 +145,17 @@ export default function CompetitionPickPage() {
 
   const loadCompetitionData = useCallback(async () => {
     try {
-      // Get competition data from player dashboard (includes history)
-      const response = await userApi.getPlayerDashboard();
-      if (response.data.return_code === 'SUCCESS') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const comp = (response.data.competitions as any[]).find(c => c.id.toString() === competitionId);
-        if (comp) {
-          setCompetition(comp); // This now includes the history data
-          // Load allowed teams for this competition
-          loadAllowedTeams(comp.id);
-          if (comp.current_round) {
-            // First get the actual round ID from round number
-            getRoundId(comp.id, comp.current_round);
-          }
-        } else {
-          router.push('/play');
-          return;
-        }
+      // Get competition from context instead of redundant API call
+      if (!contextCompetition) {
+        return; // Wait for context to load
+      }
+      
+      setCompetition(contextCompetition); // Competition from context
+      // Load allowed teams for this competition
+      loadAllowedTeams(contextCompetition.id);
+      if (contextCompetition.current_round) {
+        // First get the actual round ID from round number
+        getRoundId(contextCompetition.id, contextCompetition.current_round);
       }
     } catch (error) {
       console.error('Failed to load competition data:', error);
@@ -160,7 +163,7 @@ export default function CompetitionPickPage() {
     } finally {
       setLoading(false);
     }
-  }, [competitionId, router, getRoundId]);
+  }, [contextCompetition, router, getRoundId, loadAllowedTeams]);
 
   useEffect(() => {
     // Create abort controller for this effect
