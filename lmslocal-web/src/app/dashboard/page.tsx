@@ -31,7 +31,7 @@ interface Competition {
   needs_pick?: boolean;
   my_pick?: string;
   is_organiser?: boolean;
-  access_code?: string;
+  invite_code?: string;
   slug?: string;
 }
 
@@ -380,19 +380,19 @@ export default function DashboardPage() {
                     </div>
                     
                     {/* Access Code */}
-                    {competition.access_code && (
+                    {competition.invite_code && (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <p className="text-xs font-medium text-slate-700 mb-1">Player Access Code</p>
                             <div className="flex items-center space-x-2">
                               <code className="text-lg font-mono font-bold text-blue-600 tracking-wider">
-                                {competition.access_code}
+                                {competition.invite_code}
                               </code>
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  navigator.clipboard.writeText(competition.access_code || '');
+                                  navigator.clipboard.writeText(competition.invite_code || '');
                                 }}
                                 className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
                               >

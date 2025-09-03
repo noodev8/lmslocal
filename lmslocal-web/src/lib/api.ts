@@ -184,7 +184,6 @@ export const authApi = {
 // Player auth API calls (magic link system)
 export const playerApi = {
   login: (email: string, competition_slug?: string) => api.post<ApiResponse<MessageResponse>>('/player-login', { email, competition_slug }),
-  joinCompetition: (access_code: string) => api.post<ApiResponse<{ competition: Competition }>>('/join-competition', { access_code }),
   joinBySlug: (slug: string) => api.post<ApiResponse<{ competition: Competition }>>('/join-competition-by-slug', { slug }),
   registerAndJoin: (name: string, email: string, access_code: string) => api.post<ApiResponse<{ token: string; user: User; competition: Competition }>>('/register-and-join-competition', { name, email, access_code }),
 };

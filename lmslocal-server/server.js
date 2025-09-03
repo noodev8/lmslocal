@@ -43,7 +43,7 @@ const setPickRoute = require('./routes/set-pick');
 const adminSetPickRoute = require('./routes/admin-set-pick');
 const updatePaymentStatusRoute = require('./routes/update-payment-status');
 const calculateResultsRoute = require('./routes/calculate-results');
-const joinCompetitionRoute = require('./routes/join-competition');
+
 // const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
 // const registerAndJoinCompetitionRoute = require('./routes/register-and-join-competition'); // DISABLED - using single login
 // const joinByCodeRoute = require('./routes/join-by-code'); // DISABLED - using single login
@@ -177,7 +177,7 @@ app.use('/set-pick', setPickRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/update-payment-status', updatePaymentStatusRoute);
 app.use('/calculate-results', calculateResultsRoute);
-app.use('/join-competition', joinCompetitionRoute);
+
 // app.use('/player-login', playerLoginRoute); // DISABLED - using single login
 // app.use('/register-and-join-competition', registerAndJoinCompetitionRoute); // DISABLED - using single login
 // app.use('/join-by-code', joinByCodeRoute); // DISABLED - using single login

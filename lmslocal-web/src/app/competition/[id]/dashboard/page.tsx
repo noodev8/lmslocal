@@ -237,6 +237,29 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Competition Code - Only show for active competitions */}
+        {competition.invite_code && competition.status !== 'COMPLETE' && (
+          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900 mb-1">Player Access Code</h3>
+                <p className="text-blue-700">Share this code with players to join your competition</p>
+              </div>
+              <div className="text-right">
+                <code className="text-2xl font-mono font-bold text-blue-600 tracking-wider">
+                  {competition.invite_code}
+                </code>
+                <button
+                  onClick={() => navigator.clipboard.writeText(competition.invite_code || '')}
+                  className="block mt-2 text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Click to copy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Progress Charts */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <ProgressChart
@@ -357,28 +380,6 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Competition Code - Only show for active competitions */}
-        {competition.access_code && competition.status !== 'COMPLETE' && (
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-blue-900 mb-1">Player Access Code</h3>
-                <p className="text-blue-700">Share this code with players to join your competition</p>
-              </div>
-              <div className="text-right">
-                <code className="text-2xl font-mono font-bold text-blue-600 tracking-wider">
-                  {competition.access_code}
-                </code>
-                <button
-                  onClick={() => navigator.clipboard.writeText(competition.access_code || '')}
-                  className="block mt-2 text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Click to copy
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

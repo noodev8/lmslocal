@@ -168,10 +168,26 @@ router.post('/', verifyToken, async (req, res) => {
 
       const newMembership = joinResult.rows[0];
 
-      // Populate allowed teams for new member using central database function
+      // Populate allowed teams for new member within the same transaction
       // This ensures the player has access to team selection functionality
-      const { populateAllowedTeams } = require('../database');
-      await populateAllowedTeams(data.competition_id, user_id);
+      // and maintains transaction atomicity
+      const allowedTeamsQuery = `
+        INSERT INTO allowed_teams (competition_id, user_id, team_id)
+        SELECT $1, $2, t.id
+        FROM team t
+        JOIN competition c ON t.team_list_id = c.team_list_id
+        WHERE c.id = $1 AND t.is_active = true
+        ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
+        RETURNING team_id
+      `;
+
+      const allowedTeamsResult = await client.query(allowedTeamsQuery, [data.competition_id, user_id]);
+
+      if (allowedTeamsResult.rows.length > 0) {
+        console.log(`✅ Populated ${allowedTeamsResult.rows.length} allowed teams for user ${user_id} in competition ${data.competition_id}`);
+      } else {
+        console.log(`⚠️ No teams found to populate for user ${user_id} in competition ${data.competition_id} - check if competition has teams`);
+      }
 
       // Return comprehensive success response with both competition and membership details
       return {

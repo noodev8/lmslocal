@@ -580,14 +580,14 @@ export default function ManageCompetitionPage() {
                       <UserGroupIcon className="h-5 w-5" />
                       <span className="text-sm font-medium">{competition.player_count || 0} players</span>
                     </div>
-                    {competition.access_code && (
+                    {competition.invite_code && (
                       <div className="flex items-center space-x-2">
                         <span className="text-sm text-slate-500">Code:</span>
                         <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-lg">
-                          <code className="text-sm font-mono font-semibold text-blue-700">{competition.access_code}</code>
+                          <code className="text-sm font-mono font-semibold text-blue-700">{competition.invite_code}</code>
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(competition.access_code || '');
+                              navigator.clipboard.writeText(competition.invite_code || '');
                             }}
                             className="text-blue-600 hover:text-blue-700"
                           >
