@@ -13,6 +13,8 @@ import {
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, teamApi } from '@/lib/api';
+import { invalidateCache } from '@/lib/cache';
+import { useAppData } from '@/contexts/AppDataContext';
 
 interface TeamList {
   id: number;
@@ -32,6 +34,7 @@ interface CreateCompetitionForm {
 
 export default function CreateCompetitionPage() {
   const router = useRouter();
+  const { refreshCompetitions } = useAppData();
   const [teamLists, setTeamLists] = useState<TeamList[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -91,8 +94,15 @@ export default function CreateCompetitionPage() {
       if (response.data.return_code === 'SUCCESS') {
         // Store the new competition ID for highlighting on dashboard
         localStorage.setItem('new_competition_id', (response.data.competition as { id: number }).id.toString());
+        
+        // Clear competitions cache and refresh competitions to show new competition immediately
+        invalidateCache.competitions();
+        await refreshCompetitions();
+        
+        // Keep loading state while navigating to prevent flicker
         // Redirect back to dashboard to show the new competition
         router.push('/dashboard');
+        return; // Don't set loading to false on success
       } else {
         setError(response.data.message || 'Failed to create competition');
       }
@@ -100,6 +110,7 @@ export default function CreateCompetitionPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setError((err as any)?.response?.data?.message || 'An error occurred. Please try again.');
     } finally {
+      // Only set loading to false on error - success keeps loading state until navigation
       setLoading(false);
     }
   };
@@ -108,22 +119,23 @@ export default function CreateCompetitionPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
               <Link 
                 href="/dashboard" 
-                className="inline-flex items-center text-slate-500 hover:text-slate-700 px-3 py-2 rounded-2xl hover:bg-slate-50 transition-colors"
+                className="inline-flex items-center text-slate-500 hover:text-slate-700 px-2 sm:px-3 py-2 rounded-2xl hover:bg-slate-50 transition-colors text-sm sm:text-base"
               >
-                <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                Back to Dashboard
+                <ArrowLeftIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Back to Dashboard</span>
+                <span className="xs:hidden">Back</span>
               </Link>
-              <div className="p-3 bg-slate-100 rounded-2xl">
-                <TrophyIcon className="h-8 w-8 text-slate-600" />
+              <div className="p-2 sm:p-3 bg-slate-100 rounded-2xl">
+                <TrophyIcon className="h-6 w-6 sm:h-8 sm:w-8 text-slate-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">Create Competition</h1>
-                <p className="text-sm text-slate-500">Set up your tournament</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Create Competition</h1>
+                <p className="text-xs sm:text-sm text-slate-500">Set up your tournament</p>
               </div>
             </div>
           </div>
@@ -131,44 +143,44 @@ export default function CreateCompetitionPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Progress Steps */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+            <div className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium ${
               step >= 1 ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'
             }`}>
               1
             </div>
-            <div className={`flex-1 h-1 mx-4 ${
+            <div className={`flex-1 h-0.5 sm:h-1 mx-2 sm:mx-4 ${
               step >= 2 ? 'bg-slate-800' : 'bg-slate-200'
             }`}></div>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+            <div className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium ${
               step >= 2 ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'
             }`}>
               2
             </div>
-            <div className={`flex-1 h-1 mx-4 ${
+            <div className={`flex-1 h-0.5 sm:h-1 mx-2 sm:mx-4 ${
               step >= 3 ? 'bg-slate-800' : 'bg-slate-200'
             }`}></div>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+            <div className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium ${
               step >= 3 ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-600'
             }`}>
               3
             </div>
           </div>
-          <div className="flex justify-between mt-2 text-sm text-slate-600">
-            <span>Basic Details</span>
-            <span>Rules & Settings</span>
-            <span>Review & Create</span>
+          <div className="flex justify-between mt-2 text-xs sm:text-sm text-slate-600 px-1">
+            <span className="text-center flex-1">Basic Details</span>
+            <span className="text-center flex-1">Rules & Settings</span>
+            <span className="text-center flex-1">Review & Create</span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Step 1: Basic Details */}
           {step === 1 && (
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200 p-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Competition Details</h2>
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 lg:p-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Competition Details</h2>
               
               {error && (
                 <div className="mb-6 rounded-md bg-red-50 p-4">
@@ -176,7 +188,7 @@ export default function CreateCompetitionPage() {
                 </div>
               )}
 
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
                     Competition Name *
@@ -190,7 +202,7 @@ export default function CreateCompetitionPage() {
                       }
                     })}
                     type="text"
-                    className="block w-full appearance-none rounded-xl border border-slate-300 px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 sm:text-sm"
+                    className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
                     placeholder="e.g., Premier League Last Man Standing 2025"
                   />
                   {errors.name && (
@@ -205,7 +217,7 @@ export default function CreateCompetitionPage() {
                   <textarea
                     {...register('description')}
                     rows={3}
-                    className="block w-full appearance-none rounded-xl border border-slate-300 px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 sm:text-sm"
+                    className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
                     placeholder="Tell your players what this competition is about..."
                   />
                 </div>
@@ -219,7 +231,7 @@ export default function CreateCompetitionPage() {
                       required: 'Please select a team list',
                       valueAsNumber: true
                     })}
-                    className="block w-full appearance-none rounded-xl border border-slate-300 px-4 py-3 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 sm:text-sm"
+                    className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
                   >
                     <option value="">Choose team list...</option>
                     {teamLists.map((teamList) => (
@@ -237,14 +249,15 @@ export default function CreateCompetitionPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end mt-8">
+              <div className="flex justify-end mt-6 sm:mt-8">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
                   disabled={!watchedValues.name || !watchedValues.team_list_id}
-                  className="inline-flex items-center px-6 py-3 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                  className="inline-flex items-center px-4 sm:px-6 py-3 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all text-sm sm:text-base"
                 >
-                  Next: Rules & Settings
+                  <span className="hidden sm:inline">Next: Rules & Settings</span>
+                  <span className="sm:hidden">Next: Rules</span>
                 </button>
               </div>
             </div>
@@ -252,17 +265,17 @@ export default function CreateCompetitionPage() {
 
           {/* Step 2: Rules & Settings */}
           {step === 2 && (
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200 p-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Competition Rules</h2>
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 lg:p-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Competition Rules</h2>
 
-              <div className="space-y-8">
+              <div className="space-y-6 sm:space-y-8">
                 {/* Lives per player */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-3">
                     <HeartIcon className="h-5 w-5 inline mr-2 text-slate-500" />
                     Lives per Player
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                     {[0, 1, 2, 3].map((lives) => (
                       <label key={lives} className="relative">
                         <input
@@ -271,10 +284,10 @@ export default function CreateCompetitionPage() {
                           value={lives}
                           className="sr-only peer"
                         />
-                        <div className="p-4 border border-slate-300 rounded-xl cursor-pointer peer-checked:border-slate-500 peer-checked:bg-slate-50 hover:bg-slate-50 transition-colors">
+                        <div className="p-3 sm:p-4 border border-slate-300 rounded-xl cursor-pointer peer-checked:border-slate-800 peer-checked:bg-slate-50 peer-checked:shadow-md hover:bg-slate-50 transition-all">
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-slate-900">{lives}</div>
-                            <div className="text-sm text-slate-600">
+                            <div className="text-xl sm:text-2xl font-bold text-slate-900">{lives}</div>
+                            <div className="text-xs sm:text-sm text-slate-600">
                               {lives === 0 ? 'Knockout' : lives === 1 ? 'Life' : 'Lives'}
                             </div>
                           </div>
@@ -333,20 +346,22 @@ export default function CreateCompetitionPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between mt-8">
+              <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-3 sm:gap-0">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="inline-flex items-center px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all"
+                  className="inline-flex items-center justify-center px-4 sm:px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all text-sm sm:text-base order-2 sm:order-1"
                 >
-                  Back: Competition Details
+                  <span className="hidden sm:inline">Back: Competition Details</span>
+                  <span className="sm:hidden">Back</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="inline-flex items-center px-6 py-3 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 shadow-md hover:shadow-lg transition-all"
+                  className="inline-flex items-center justify-center px-4 sm:px-6 py-3 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 shadow-md hover:shadow-lg transition-all text-sm sm:text-base order-1 sm:order-2"
                 >
-                  Next: Review & Create
+                  <span className="hidden sm:inline">Next: Review & Create</span>
+                  <span className="sm:hidden">Next: Review</span>
                 </button>
               </div>
             </div>
@@ -354,54 +369,54 @@ export default function CreateCompetitionPage() {
 
           {/* Step 3: Review & Create */}
           {step === 3 && (
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200 p-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Review Your Competition</h2>
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 lg:p-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Review Your Competition</h2>
 
-              <div className="space-y-6">
-                <div className="bg-slate-50 rounded-xl p-6">
-                  <h3 className="font-medium text-slate-900 mb-3">Competition Summary</h3>
-                  <dl className="space-y-2">
-                    <div className="flex justify-between">
-                      <dt className="text-sm text-slate-600">Name:</dt>
-                      <dd className="text-sm font-medium text-slate-900">{watchedValues.name}</dd>
+              <div className="space-y-4 sm:space-y-6">
+                <div className="bg-slate-50 rounded-xl p-4 sm:p-6">
+                  <h3 className="font-medium text-slate-900 mb-3 text-sm sm:text-base">Competition Summary</h3>
+                  <dl className="space-y-2 sm:space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <dt className="text-xs sm:text-sm text-slate-600">Name:</dt>
+                      <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">{watchedValues.name}</dd>
                     </div>
                     {watchedValues.description && (
-                      <div className="flex justify-between">
-                        <dt className="text-sm text-slate-600">Description:</dt>
-                        <dd className="text-sm text-slate-900 text-right max-w-xs">{watchedValues.description}</dd>
+                      <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                        <dt className="text-xs sm:text-sm text-slate-600">Description:</dt>
+                        <dd className="text-xs sm:text-sm text-slate-900 sm:text-right sm:max-w-xs">{watchedValues.description}</dd>
                       </div>
                     )}
-                    <div className="flex justify-between">
-                      <dt className="text-sm text-slate-600">Team List:</dt>
-                      <dd className="text-sm font-medium text-slate-900">
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <dt className="text-xs sm:text-sm text-slate-600">Team List:</dt>
+                      <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">
                         {teamLists.find(tl => tl.id === watchedValues.team_list_id)?.name}
                       </dd>
                     </div>
-                    <div className="flex justify-between">
-                      <dt className="text-sm text-slate-600">Lives per Player:</dt>
-                      <dd className="text-sm font-medium text-slate-900">{watchedValues.lives_per_player}</dd>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <dt className="text-xs sm:text-sm text-slate-600">Lives per Player:</dt>
+                      <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">{watchedValues.lives_per_player}</dd>
                     </div>
-                    <div className="flex justify-between">
-                      <dt className="text-sm text-slate-600">No Team Twice:</dt>
-                      <dd className="text-sm font-medium text-slate-900">
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <dt className="text-xs sm:text-sm text-slate-600">No Team Twice:</dt>
+                      <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">
                         {watchedValues.no_team_twice ? 'Yes' : 'No'}
                       </dd>
                     </div>
-                    <div className="flex justify-between">
-                      <dt className="text-sm text-slate-600">You&apos;re Playing:</dt>
-                      <dd className="text-sm font-medium text-slate-900">
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <dt className="text-xs sm:text-sm text-slate-600">You&apos;re Playing:</dt>
+                      <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">
                         {watchedValues.organiser_joins_as_player ? 'Yes' : 'No'}
                       </dd>
                     </div>
                   </dl>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-6">
                   <div className="flex items-start">
-                    <InformationCircleIcon className="h-5 w-5 text-slate-600 mt-0.5 mr-3 flex-shrink-0" />
-                    <div className="text-sm text-slate-800">
-                      <p className="font-medium mb-1">What happens next?</p>
-                      <ul className="list-disc list-inside space-y-1">
+                    <InformationCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 mt-0.5 mr-2 sm:mr-3 flex-shrink-0" />
+                    <div className="text-xs sm:text-sm text-slate-800">
+                      <p className="font-medium mb-2">What happens next?</p>
+                      <ul className="list-disc list-inside space-y-1 text-xs sm:text-sm">
                         <li>Your competition will be created with a unique access code</li>
                         <li>You can invite players using the access code or link</li>
                         <li>Start by creating rounds and adding fixtures</li>
@@ -412,28 +427,31 @@ export default function CreateCompetitionPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between mt-8">
+              <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-3 sm:gap-0">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="inline-flex items-center px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all"
+                  className="inline-flex items-center justify-center px-4 sm:px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all text-sm sm:text-base order-2 sm:order-1"
                 >
-                  Back: Rules & Settings
+                  <span className="hidden sm:inline">Back: Rules & Settings</span>
+                  <span className="sm:hidden">Back</span>
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center px-8 py-3 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all"
+                  className="inline-flex items-center justify-center px-6 sm:px-8 py-3 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all text-sm sm:text-base order-1 sm:order-2"
                 >
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Competition...
+                      <span className="hidden sm:inline">Creating Competition...</span>
+                      <span className="sm:hidden">Creating...</span>
                     </div>
                   ) : (
                     <>
-                      <TrophyIcon className="h-5 w-5 mr-2" />
-                      Create Competition
+                      <TrophyIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                      <span className="hidden sm:inline">Create Competition</span>
+                      <span className="sm:hidden">Create</span>
                     </>
                   )}
                 </button>

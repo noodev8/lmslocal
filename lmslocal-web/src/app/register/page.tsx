@@ -57,13 +57,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       {/* Header Section - Material 3 Style */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="p-3 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
-              <TrophyIcon className="h-8 w-8 text-blue-600" />
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <Link href="/" className="flex items-center space-x-2 sm:space-x-3 group">
+            <div className="p-3 bg-slate-100 rounded-2xl group-hover:bg-slate-200 transition-colors">
+              <TrophyIcon className="h-8 w-8 text-slate-700" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">LMSLocal</h1>
@@ -80,7 +80,7 @@ export default function RegisterPage() {
             Already have an account?{' '}
             <Link
               href="/login"
-              className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+              className="font-semibold text-slate-700 hover:text-slate-900 transition-colors"
             >
               Sign in
             </Link>
@@ -89,8 +89,8 @@ export default function RegisterPage() {
       </div>
 
       {/* Register Form - Material 3 Card */}
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+      <div className="mt-6 sm:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {error && (
               <div className="rounded-xl bg-red-50 border border-red-200 p-4">
@@ -114,7 +114,7 @@ export default function RegisterPage() {
                 })}
                 type="text"
                 autoComplete="name"
-                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
                 placeholder="Enter your full name"
               />
               {errors.name && (
@@ -137,7 +137,7 @@ export default function RegisterPage() {
                 })}
                 type="email"
                 autoComplete="email"
-                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
                 placeholder="Enter your email"
               />
               {errors.email && (
@@ -161,7 +161,7 @@ export default function RegisterPage() {
                   })}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
                   placeholder="Create a password"
                 />
                 <button
@@ -198,7 +198,7 @@ export default function RegisterPage() {
                   })}
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
                   placeholder="Confirm your password"
                 />
                 <button
@@ -221,7 +221,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-full flex justify-center items-center rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isLoading ? (
                 <>
@@ -238,11 +238,11 @@ export default function RegisterPage() {
           <div className="mt-8 pt-6 border-t border-slate-100">
             <p className="text-xs text-slate-500 text-center leading-relaxed">
               By creating an account, you agree to our{' '}
-              <a href="https://www.noodev8.com/terms-of-service/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium">
+              <a href="https://www.noodev8.com/terms-of-service/" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-800 font-medium">
                 Terms of Service
               </a>{' '}
               and{' '}
-              <a href="https://www.noodev8.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 font-medium">
+              <a href="https://www.noodev8.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-800 font-medium">
                 Privacy Policy
               </a>
             </p>

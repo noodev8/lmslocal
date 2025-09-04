@@ -42,11 +42,11 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 text-center">
             <div className="flex justify-center mb-6">
-              <TrophyIcon className="h-12 w-12 text-green-600" />
+              <TrophyIcon className="h-12 w-12 text-emerald-600" />
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mb-4">Check Your Email</h2>
             <p className="text-slate-600 mb-6">
@@ -54,7 +54,7 @@ export default function ForgotPasswordPage() {
             </p>
             <Link
               href="/login"
-              className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+              className="inline-flex items-center text-slate-600 hover:text-slate-800 font-medium"
             >
               <ArrowLeftIcon className="h-4 w-4 mr-1" />
               Back to Login
@@ -66,13 +66,13 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       {/* Header Section */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="p-3 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
-              <TrophyIcon className="h-8 w-8 text-blue-600" />
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <Link href="/" className="flex items-center space-x-2 sm:space-x-3 group">
+            <div className="p-3 bg-slate-100 rounded-2xl group-hover:bg-slate-200 transition-colors">
+              <TrophyIcon className="h-8 w-8 text-slate-700" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">LMSLocal</h1>
@@ -92,8 +92,8 @@ export default function ForgotPasswordPage() {
       </div>
 
       {/* Form */}
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+      <div className="mt-6 sm:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {error && (
               <div className="rounded-xl bg-red-50 border border-red-200 p-4">
@@ -116,7 +116,7 @@ export default function ForgotPasswordPage() {
                 })}
                 type="email"
                 autoComplete="email"
-                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
                 placeholder="Enter your email"
               />
               {errors.email && (
@@ -127,7 +127,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-full flex justify-center items-center rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isLoading ? (
                 <>
@@ -144,7 +144,7 @@ export default function ForgotPasswordPage() {
             <div className="text-center">
               <Link
                 href="/login"
-                className="inline-flex items-center text-slate-600 hover:text-slate-900 font-medium"
+                className="inline-flex items-center text-slate-600 hover:text-slate-800 font-medium"
               >
                 <ArrowLeftIcon className="h-4 w-4 mr-1" />
                 Back to Login

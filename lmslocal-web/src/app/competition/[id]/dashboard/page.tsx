@@ -64,7 +64,7 @@ export default function AdminDashboard() {
             const statsResponse = await competitionApi.getDashboardStats(parseInt(competitionId));
             
             if (statsResponse.data.return_code === 'SUCCESS') {
-              setDashboardStats(statsResponse.data.data);
+              setDashboardStats(statsResponse.data.data || null);
             } else {
               console.warn('Failed to load dashboard stats:', statsResponse.data.message);
               // Continue without stats - not critical for basic dashboard functionality

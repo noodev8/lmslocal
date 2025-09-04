@@ -136,21 +136,21 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-slate-50">
         <header className="bg-white border-b border-slate-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center space-x-3">
-                <TrophyIcon className="h-7 w-7 text-blue-600" />
+                <TrophyIcon className="h-7 w-7 text-slate-700" />
                 <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
               </div>
             </div>
           </div>
         </header>
-        <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
             <div className="flex items-center justify-center">
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-700 border-t-transparent"></div>
                 </div>
                 <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Dashboard</h3>
                 <p className="text-slate-500">Please wait while we fetch your competitions...</p>
@@ -166,29 +166,24 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-50">
       {/* Material 3 Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
               <Link href="/" className="flex items-center space-x-3">
-                <TrophyIcon className="h-7 w-7 text-blue-600" />
+                <TrophyIcon className="h-7 w-7 text-slate-700" />
                 <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
               </Link>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3 text-slate-600">
-                <span className="text-sm">Welcome back,</span>
-                <span className="font-semibold text-slate-900">{user?.display_name}</span>
-              </div>
-              <div className="h-6 w-px bg-slate-300" />
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Link
                 href="/profile"
-                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-2 sm:px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 Profile
               </Link>
               <button
                 onClick={handleLogout}
-                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-2 sm:px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 Sign out
               </button>
@@ -197,14 +192,14 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Welcome Section - Material 3 Style */}
-        <div className="mb-10">
+        <div className="mb-8 sm:mb-10">
           <div className="max-w-3xl">
-            <h2 className="text-4xl font-bold text-slate-900 mb-3">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-3">
               Welcome back, {user?.display_name}
             </h2>
-            <p className="text-xl text-slate-600 leading-relaxed">
+            <p className="text-lg sm:text-xl text-slate-600 leading-relaxed">
               Manage your Last Man Standing competitions with professional tools designed for pub landlords, 
               workplace organizers, and club managers.
             </p>
@@ -218,20 +213,20 @@ export default function DashboardPage() {
         </div>
 
         {/* Competitions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Create New Competition Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 rounded-xl p-8 hover:shadow-lg transition-all duration-200 group cursor-pointer">
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-dashed border-slate-300 rounded-xl p-6 sm:p-8 hover:shadow-lg transition-all duration-200 group cursor-pointer">
             <Link href="/competition/create" className="block">
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-2xl mb-6 group-hover:bg-blue-200 transition-colors">
-                  <PlusIcon className="h-8 w-8 text-blue-600" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-200 rounded-2xl mb-6 group-hover:bg-slate-300 transition-colors">
+                  <PlusIcon className="h-8 w-8 text-slate-700" />
                 </div>
                 <h3 className="text-xl font-semibold text-slate-900 mb-3">Start New Competition</h3>
                 <p className="text-slate-600 text-sm leading-relaxed mb-6">
                   Create engaging Last Man Standing competitions that bring your community together. 
                   Setup takes just minutes with our guided process.
                 </p>
-                <div className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm group-hover:bg-blue-700 transition-colors">
+                <div className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-lg font-medium text-sm group-hover:bg-slate-900 transition-colors">
                   <SparklesIcon className="h-4 w-4 mr-2" />
                   Quick Setup
                 </div>
@@ -247,18 +242,18 @@ export default function DashboardPage() {
                 key={competition.id}
                 className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${
                   isNewCompetition 
-                    ? 'border-blue-200 ring-2 ring-blue-100' 
+                    ? 'border-emerald-200 ring-2 ring-emerald-100' 
                     : 'border-slate-200'
                 }`}
               >
                 {/* Card Header */}
-                <div className="p-6 border-b border-slate-100">
+                <div className="p-4 sm:p-6 border-b border-slate-100">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h4 className="text-lg font-semibold text-slate-900 truncate">{competition.name}</h4>
                         {isNewCompetition && (
-                          <div className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                          <div className="inline-flex items-center px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
                             <SparklesIcon className="h-3 w-3 mr-1" />
                             NEW
                           </div>
@@ -282,14 +277,14 @@ export default function DashboardPage() {
 
                   {/* Status Messages */}
                   {isNewCompetition && (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
-                          <CheckCircleIcon className="h-5 w-5 text-blue-600" />
+                          <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-blue-900">Competition Created Successfully!</p>
-                          <p className="text-xs text-blue-700 mt-1">Ready to add rounds, fixtures, and invite players</p>
+                          <p className="text-sm font-medium text-emerald-900">Competition Created Successfully!</p>
+                          <p className="text-xs text-emerald-700 mt-1">Ready to add rounds, fixtures, and invite players</p>
                         </div>
                       </div>
                     </div>
@@ -338,7 +333,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Card Body */}
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <div className="space-y-4">
                     {/* Competition Stats */}
                     <div className="grid grid-cols-1 gap-4 text-sm">
@@ -352,7 +347,7 @@ export default function DashboardPage() {
                           <div className="flex-1">
                             <p className="text-xs font-medium text-slate-700 mb-1">Player Access Code</p>
                             <div className="flex items-center space-x-2">
-                              <code className="text-lg font-mono font-bold text-blue-600 tracking-wider">
+                              <code className="text-lg font-mono font-bold text-slate-800 tracking-wider">
                                 {competition.access_code}
                               </code>
                               <button
@@ -373,12 +368,12 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Single Action - Open Competition Dashboard */}
-                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
+                <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-100">
                   <Link
                     href={`/competition/${competition.id}/dashboard`}
                     className={`w-full inline-flex items-center justify-center px-4 py-3 rounded-lg font-medium transition-colors text-base ${
                       isNewCompetition 
-                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm' 
                         : 'bg-slate-800 text-white hover:bg-slate-900'
                     }`}
                   >
@@ -404,7 +399,7 @@ export default function DashboardPage() {
             </p>
             <Link
               href="/competition/create"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+              className="inline-flex items-center px-6 py-3 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-900 transition-colors shadow-sm"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Your First Competition

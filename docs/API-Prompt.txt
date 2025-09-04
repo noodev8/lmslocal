@@ -1,6 +1,9 @@
 ================================================================================
-Can you analyse route "verify-email.js" please and let me know if it is optimised well, and in accordance to the below rules
-
+Can you create a stats API which takes input for a competition and returns
+- Current round
+- Players In
+- Total Players
+- Player count that have made picks this round
 ================================================================================
 
 API Routes - always use POST
@@ -30,8 +33,6 @@ PostgreSQL
 postman
 Developing on Windows
 
-
-	
 
 
 == File Headers ==

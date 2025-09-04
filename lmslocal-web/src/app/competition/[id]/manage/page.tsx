@@ -59,6 +59,7 @@ export default function ManageCompetitionPage() {
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const [showCreateRoundModal, setShowCreateRoundModal] = useState(false);
   const [newRoundLockTime, setNewRoundLockTime] = useState('');
   
@@ -131,6 +132,7 @@ export default function ManageCompetitionPage() {
       if (status.data.return_code === 'SUCCESS') {
         if (status.data.should_route_to_results) {
           // Has fixtures - go to results
+          setRedirecting(true);
           router.push(`/competition/${competitionId}/results`);
           return;
         }
@@ -436,7 +438,7 @@ export default function ManageCompetitionPage() {
     setShowAdminPickModal(true);
   };
 
-  if (loading) {
+  if (loading || redirecting) {
     return (
       <div className="min-h-screen bg-slate-50">
         {/* Header with loading state */}
@@ -465,8 +467,12 @@ export default function ManageCompetitionPage() {
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
                 </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Competition</h3>
-                <p className="text-slate-500">Please wait while we fetch your competition data...</p>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">
+                  {redirecting ? 'Loading Fixtures...' : 'Loading Competition'}
+                </h3>
+                <p className="text-slate-500">
+                  {redirecting ? 'Redirecting to fixtures page...' : 'Please wait while we fetch your competition data...'}
+                </p>
               </div>
             </div>
           </div>
@@ -782,13 +788,17 @@ export default function ManageCompetitionPage() {
                     </div>
                   )}
                 </div>
-              ) : loading ? (
+              ) : loading || redirecting ? (
                 <div className="text-center py-12">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
                     <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-400 border-t-transparent"></div>
                   </div>
-                  <h4 className="text-lg font-medium text-slate-900 mb-2">Loading Fixtures</h4>
-                  <p className="text-slate-500">Please wait...</p>
+                  <h4 className="text-lg font-medium text-slate-900 mb-2">
+                    {redirecting ? 'Loading Fixtures...' : 'Loading Competition...'}
+                  </h4>
+                  <p className="text-slate-500">
+                    {redirecting ? 'Redirecting to fixtures page...' : 'Please wait...'}
+                  </p>
                 </div>
               ) : (
                 <div className="text-center py-12">

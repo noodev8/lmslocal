@@ -17,6 +17,7 @@ interface AppDataContextType {
   
   // Actions
   refreshData: () => void;
+  refreshCompetitions: () => void;
   
   // Metadata
   lastUpdated: number | null;
@@ -95,6 +96,26 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     loadAppData();
   };
 
+  const refreshCompetitions = async () => {
+    try {
+      // Check if user is authenticated
+      const token = localStorage.getItem('jwt_token');
+      if (!token) return;
+      
+      // Load only competitions data
+      const competitionsData = await competitionApi.getMyCompetitions();
+      
+      if (competitionsData.data.return_code === 'SUCCESS') {
+        setCompetitions((competitionsData.data.competitions as Competition[]) || []);
+        setLastUpdated(Date.now());
+      } else {
+        console.error('Failed to refresh competitions:', competitionsData.data.message);
+      }
+    } catch (err) {
+      console.error('Error refreshing competitions:', err);
+    }
+  };
+
   // Load data on mount
   useEffect(() => {
     loadAppData();
@@ -130,6 +151,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     loading,
     error,
     refreshData,
+    refreshCompetitions,
     lastUpdated
   };
 

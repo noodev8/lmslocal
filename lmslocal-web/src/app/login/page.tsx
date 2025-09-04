@@ -88,13 +88,13 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
       {/* Header Section - Material 3 Style */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="p-3 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
-              <TrophyIcon className="h-8 w-8 text-blue-600" />
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <Link href="/" className="flex items-center space-x-2 sm:space-x-3 group">
+            <div className="p-3 bg-slate-100 rounded-2xl group-hover:bg-slate-200 transition-colors">
+              <TrophyIcon className="h-8 w-8 text-slate-700" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">LMSLocal</h1>
@@ -114,8 +114,8 @@ function LoginForm() {
       </div>
 
       {/* Login Form - Material 3 Card */}
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+      <div className="mt-6 sm:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {successMessage && (
               <div className="rounded-xl bg-green-50 border border-green-200 p-4">
@@ -144,7 +144,7 @@ function LoginForm() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
                 placeholder="Enter your email"
               />
               {errors.email && (
@@ -168,7 +168,7 @@ function LoginForm() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
                   placeholder="Enter your password"
                 />
                 <button
@@ -191,7 +191,7 @@ function LoginForm() {
             <div className="flex items-center justify-end">
               <Link
                 href="/forgot-password"
-                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                className="text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
               >
                 Forgot password?
               </Link>
@@ -200,7 +200,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-full flex justify-center items-center rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {isLoading ? (
                 <>
@@ -220,7 +220,7 @@ function LoginForm() {
                 Don&apos;t have an account?{' '}
                 <Link
                   href="/register"
-                  className="font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                  className="font-semibold text-slate-700 hover:text-slate-900 transition-colors"
                 >
                   Create account
                 </Link>

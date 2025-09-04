@@ -80,6 +80,29 @@ class SimpleCache {
   }
 
   /**
+   * Delete cache entries that match a pattern
+   * @param pattern - Pattern to match against keys (supports wildcards with *)
+   */
+  deletePattern(pattern: string): void {
+    const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+    const keysToDelete: string[] = [];
+    
+    for (const key of this.cache.keys()) {
+      if (regex.test(key)) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    keysToDelete.forEach(key => {
+      this.cache.delete(key);
+    });
+    
+    if (keysToDelete.length > 0) {
+      console.log(`🗑️ Cache DELETE PATTERN: ${pattern} (${keysToDelete.length} entries removed)`);
+    }
+  }
+
+  /**
    * Clear all cache entries
    */
   clear(): void {
@@ -181,6 +204,18 @@ export function debugCache(): void {
     console.log(`  ${entry.key}: age=${entry.age}s, ttl=${ttlDisplay}`);
   });
 }
+
+/**
+ * Utility function to invalidate specific data caches
+ * Use this when you know data has changed and needs to be refetched
+ */
+export const invalidateCache = {
+  competitions: () => apiCache.delete('my-competitions'),
+  teams: () => apiCache.delete('teams'),
+  teamLists: () => apiCache.delete('team-lists'),
+  competition: (id: number) => apiCache.deletePattern(`competition-${id}-*`),
+  all: () => apiCache.clear()
+};
 
 // Make debugCache available globally for browser console debugging
 if (typeof window !== 'undefined') {

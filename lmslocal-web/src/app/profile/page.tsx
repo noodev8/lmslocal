@@ -172,8 +172,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b border-green-600"></div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b border-slate-700"></div>
       </div>
     );
   }
@@ -183,25 +183,25 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center">
               <Link 
                 href="/dashboard" 
-                className="inline-flex items-center text-gray-500 hover:text-gray-700 mr-4"
+                className="inline-flex items-center text-slate-500 hover:text-slate-700 mr-4"
               >
                 <ArrowLeftIcon className="h-5 w-5 mr-1" />
                 Back to Dashboard
               </Link>
-              <UserIcon className="h-8 w-8 text-green-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Profile</span>
+              <UserIcon className="h-8 w-8 text-slate-700" />
+              <span className="ml-2 text-xl font-bold text-slate-900">Profile</span>
             </div>
             <button
               onClick={handleLogout}
-              className="text-gray-500 hover:text-gray-700 text-sm"
+              className="text-slate-500 hover:text-slate-700 text-sm"
             >
               Sign Out
             </button>
@@ -210,15 +210,15 @@ export default function ProfilePage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Profile</h2>
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+          <div className="p-4 sm:p-6">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Your Profile</h2>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Display Name */}
               <div>
-                <label htmlFor="display_name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="display_name" className="block text-sm font-medium text-slate-700 mb-2">
                   Display Name
                 </label>
                 <input
@@ -234,7 +234,7 @@ export default function ProfilePage() {
                     }
                   })}
                   type="text"
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500 sm:text-sm"
                   placeholder="Your display name"
                   disabled={saving}
                 />
@@ -245,16 +245,16 @@ export default function ProfilePage() {
 
               {/* Email (read-only) */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
                   Email
                 </label>
                 <input
                   type="email"
                   value={user.email || 'No email'}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 sm:text-sm"
+                  className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm bg-slate-50 text-slate-500 sm:text-sm"
                   disabled
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-slate-500">
                   {user.is_managed ? 'Managed player account' : 'Email cannot be changed'}
                 </p>
               </div>
@@ -264,7 +264,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={saving || !isDirty}
-                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-md font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? (
                     <>
@@ -287,14 +287,14 @@ export default function ProfilePage() {
 
         {/* Change Password Section - Only for online users */}
         {!user.is_managed && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
-            <div className="p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 mt-6">
+            <div className="p-4 sm:p-6">
+              <h3 className="text-lg font-medium text-slate-900 mb-4">Change Password</h3>
 
               <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
                 {/* Current Password */}
                 <div>
-                  <label htmlFor="current_password" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="current_password" className="block text-sm font-medium text-slate-700 mb-1">
                     Current Password
                   </label>
                   <input
@@ -302,7 +302,7 @@ export default function ProfilePage() {
                       required: 'Current password is required'
                     })}
                     type="password"
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500 sm:text-sm"
                     disabled={changingPassword}
                   />
                   {passwordErrors.current_password && (
@@ -312,7 +312,7 @@ export default function ProfilePage() {
 
                 {/* New Password */}
                 <div>
-                  <label htmlFor="new_password" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="new_password" className="block text-sm font-medium text-slate-700 mb-1">
                     New Password
                   </label>
                   <input
@@ -324,7 +324,7 @@ export default function ProfilePage() {
                       }
                     })}
                     type="password"
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500 sm:text-sm"
                     disabled={changingPassword}
                   />
                   {passwordErrors.new_password && (
@@ -334,7 +334,7 @@ export default function ProfilePage() {
 
                 {/* Confirm New Password */}
                 <div>
-                  <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="confirm_password" className="block text-sm font-medium text-slate-700 mb-1">
                     Confirm New Password
                   </label>
                   <input
@@ -346,7 +346,7 @@ export default function ProfilePage() {
                       }
                     })}
                     type="password"
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-slate-500 focus:border-slate-500 sm:text-sm"
                     disabled={changingPassword}
                   />
                   {passwordErrors.confirm_password && (
@@ -359,7 +359,7 @@ export default function ProfilePage() {
                   <button
                     type="submit"
                     disabled={changingPassword}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-md font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {changingPassword ? (
                       <>
@@ -384,7 +384,7 @@ export default function ProfilePage() {
         {/* Danger Zone - Delete Account - Only for online users */}
         {!user.is_managed && (
           <div className="bg-red-50 border border-red-200 rounded-lg shadow-sm mt-6">
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-medium text-red-900 mb-2 flex items-center">
                 <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
                 Danger Zone
@@ -407,17 +407,17 @@ export default function ProfilePage() {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="flex items-center mb-4">
                 <ExclamationTriangleIcon className="h-8 w-8 text-red-600 mr-3" />
-                <h3 className="text-lg font-medium text-gray-900">Delete Account</h3>
+                <h3 className="text-lg font-medium text-slate-900">Delete Account</h3>
               </div>
               
               <div className="mb-6">
-                <p className="text-sm text-gray-700 mb-4">
+                <p className="text-sm text-slate-700 mb-4">
                   <strong>This will permanently delete:</strong>
                 </p>
-                <ul className="text-sm text-gray-600 space-y-1 mb-4">
+                <ul className="text-sm text-slate-600 space-y-1 mb-4">
                   <li>• Your account and profile information</li>
                   <li>• All competitions you&apos;ve organized</li>
                   <li>• All your game picks and history</li>
@@ -429,14 +429,14 @@ export default function ProfilePage() {
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   Type <strong>DELETE_MY_ACCOUNT</strong> to confirm:
                 </label>
                 <input
                   type="text"
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                  className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
                   placeholder="DELETE_MY_ACCOUNT"
                   disabled={deletingAccount}
                 />
@@ -449,7 +449,7 @@ export default function ProfilePage() {
                     setDeleteConfirmation('');
                   }}
                   disabled={deletingAccount}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
                 >
                   Cancel
                 </button>

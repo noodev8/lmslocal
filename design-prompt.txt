@@ -1,0 +1,9 @@
+Please refer to FRONTEND_SCREENS.md for design principals and apply the design to the below screens
+
+- Think Mobile first
+- Can you think hard to ensure no code is broken and check ESLint when complete
+
+- `/dashboard` - Admin main dashboard with competitions list
+- `/profile` - User profile management
+
+
