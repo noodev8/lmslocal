@@ -25,47 +25,6 @@ import {
 import { competitionApi, roundApi, fixtureApi, teamApi, adminApi, Competition, Team, Player } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
-// Simple Progress Chart Component
-const ProgressChart = ({ 
-  title, 
-  value, 
-  maxValue = 100, 
-  color = "emerald", 
-  showLabel = true,
-  icon: Icon
-}: {
-  title: string;
-  value: number;
-  maxValue?: number;
-  color?: string;
-  showLabel?: boolean;
-  icon?: React.ComponentType<{ className?: string }>;
-}) => {
-  const percentage = Math.min((value / maxValue) * 100, 100);
-  
-  return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          {Icon && <Icon className="h-5 w-5 text-slate-600 mr-2" />}
-          <h3 className="text-sm font-medium text-slate-700">{title}</h3>
-        </div>
-        {showLabel && (
-          <span className={`text-lg font-bold text-${color}-600`}>{value}</span>
-        )}
-      </div>
-      <div className="w-full bg-slate-200 rounded-full h-3">
-        <div 
-          className={`bg-${color}-500 h-3 rounded-full transition-all duration-500`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      {maxValue !== 100 && (
-        <p className="text-xs text-slate-500 mt-2">of {maxValue}</p>
-      )}
-    </div>
-  );
-};
 
 
 interface Round {

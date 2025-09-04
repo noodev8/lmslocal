@@ -64,7 +64,7 @@ export default function AdminDashboard() {
   const competitionId = params.id as string;
   
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading } = useAppData();
+  const { competitions } = useAppData();
   
   // Memoize the specific competition to prevent unnecessary re-renders
   const competition = useMemo(() => {
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
     }
 
     loadData();
-  }, [competitionId, router, competition]);
+  }, [competitionId, router, competition, competitions]);
 
   if (loading) {
     return (

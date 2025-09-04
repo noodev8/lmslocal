@@ -1,8 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { competitionApi, teamApi, userApi } from '@/lib/api';
+import { competitionApi, teamApi } from '@/lib/api';
 import { Competition, Team, User } from '@/lib/api';
+import '@/lib/cache';
 
 interface AppDataContextType {
   // Data
@@ -66,7 +67,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       
       // Handle competitions response
       if (competitionsData.data.return_code === 'SUCCESS') {
-        setCompetitions(competitionsData.data.competitions || []);
+        setCompetitions((competitionsData.data.competitions as Competition[]) || []);
       } else {
         console.error('Failed to load competitions:', competitionsData.data.message);
         setCompetitions([]);
@@ -74,7 +75,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       
       // Handle teams response
       if (teamsData.data.return_code === 'SUCCESS') {
-        setTeams(teamsData.data.teams || []);
+        setTeams((teamsData.data.teams as Team[]) || []);
       } else {
         console.error('Failed to load teams:', teamsData.data.message);
         setTeams([]);

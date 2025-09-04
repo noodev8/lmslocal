@@ -10,7 +10,7 @@ interface CacheEntry<T> {
 }
 
 class SimpleCache {
-  private cache: Map<string, CacheEntry<any>> = new Map();
+  private cache: Map<string, CacheEntry<unknown>> = new Map();
 
   // Cache durations based on data update frequency (from FRONTEND_OPTIMIZATION.md)
   static readonly TTL = {
@@ -40,7 +40,7 @@ class SimpleCache {
     }
 
     console.log(`📦 Cache HIT: ${key} (age: ${Math.floor((now - entry.timestamp) / 1000)}s)`);
-    return entry.data;
+    return entry.data as T;
   }
 
   /**
@@ -55,7 +55,17 @@ class SimpleCache {
       timestamp: Date.now(),
       ttl
     });
-    console.log(`💾 Cache SET: ${key} (TTL: ${Math.floor(ttl / 1000)}s)`);
+    const ttlMinutes = Math.floor(ttl / (1000 * 60));
+    const ttlSeconds = Math.floor(ttl / 1000);
+
+    if (ttlMinutes >= 60) {
+      const ttlHours = Math.floor(ttlMinutes / 60);
+      console.log(`💾 Cache SET: ${key} (TTL: ${ttlHours}h ${ttlMinutes % 60}m)`);
+    } else if (ttlMinutes > 0) {
+      console.log(`💾 Cache SET: ${key} (TTL: ${ttlMinutes}m ${ttlSeconds % 60}s)`);
+    } else {
+      console.log(`💾 Cache SET: ${key} (TTL: ${ttlSeconds}s)`);
+    }
   }
 
   /**
@@ -139,9 +149,40 @@ export async function withCache<T>(
   // Cache miss - make API call
   console.log(`🌐 Cache MISS: ${key} - Making API call`);
   const data = await apiCall();
-  
+
   // Cache the result
   apiCache.set(key, data, ttl);
-  
+
   return data;
+}
+
+/**
+ * Debug function to log all current cache entries and their TTLs
+ * Call this in browser console: window.debugCache()
+ */
+export function debugCache(): void {
+  const stats = apiCache.getStats();
+  console.log('🔍 Cache Debug Report:');
+  console.log(`Total entries: ${stats.size}`);
+
+  if (stats.entries.length === 0) {
+    console.log('No cache entries found');
+    return;
+  }
+
+  stats.entries.forEach(entry => {
+    const ttlMinutes = Math.floor(entry.ttl / 60);
+    const ttlDisplay = ttlMinutes >= 60
+      ? `${Math.floor(ttlMinutes / 60)}h ${ttlMinutes % 60}m`
+      : ttlMinutes > 0
+        ? `${ttlMinutes}m ${entry.ttl % 60}s`
+        : `${entry.ttl}s`;
+
+    console.log(`  ${entry.key}: age=${entry.age}s, ttl=${ttlDisplay}`);
+  });
+}
+
+// Make debugCache available globally for browser console debugging
+if (typeof window !== 'undefined') {
+  (window as typeof window & { debugCache: typeof debugCache }).debugCache = debugCache;
 }

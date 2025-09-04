@@ -47,7 +47,7 @@ npx tsc --noEmit   # TypeScript type checking only (no build output)
 ```
 
 ### Testing
-No test framework is currently configured. The package.json test scripts show placeholder commands.
+No test framework is currently configured.
 
 ## API Development Standards
 
@@ -149,14 +149,14 @@ if (error) {
 lmslocal-server/
 ├── server.js              # Express server with security middleware
 ├── database.js            # PostgreSQL pool and query utilities  
-├── routes/                 # API endpoints (50+ single-function routes)
+├── routes/                 # API endpoints (41 single-function routes)
 ├── middleware/verifyToken.js  # JWT verification middleware
 └── services/emailService.js   # Resend email integration
 
 lmslocal-web/
 ├── src/app/               # Next.js App Router pages and layouts
 ├── src/lib/api.ts         # Axios HTTP client with JWT injection and TypeScript types
-└── next.config.ts         # Next.js configuration
+└── next.config.js         # Next.js configuration
 ```
 
 ## Environment Configuration
@@ -164,13 +164,13 @@ lmslocal-web/
 - **Environment Files**: Both lmslocal-server/.env and lmslocal-web/.env exist (check both locations)
 - **Backend .env**: Contains database and server configuration
 - **Required variables**: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, PORT, JWT_SECRET
-- **Optional variables**: CLIENT_URL (for CORS), NODE_ENV, RESEND_API_KEY
+- **Optional variables**: CLIENT_URL (for CORS), NODE_ENV, RESEND_API_KEY, NEXT_PUBLIC_API_URL (frontend API endpoint)
 - **Access via**: `process.env.VARIABLE_NAME`
-- **Frontend API**: Hardcoded to http://localhost:3015 in src/lib/api.ts
+- **Frontend API**: Configure via NEXT_PUBLIC_API_URL environment variable in .env file
 
 ## Security Guidelines
 
-- **Rate limiting**: General limit (100 req/15min), DB-intensive endpoints (5 req/10sec)
+- **Rate limiting**: General limit (300 req/15min), DB-intensive endpoints (5 req/10sec)
 - **CORS**: Configured for localhost:3000-3003 and CLIENT_URL environment variable
 - **Helmet**: CSP, security headers with unsafe-inline allowances for React dev
 - **Authentication**: JWT tokens with bcrypt password hashing
@@ -226,11 +226,15 @@ lmslocal-web/
 **CRITICAL**: Always check `/docs/DB-Schema.sql` when making SQL database calls to ensure correct table names and column references. This file contains the complete database structure including:
 
 - `competitions` - Competition definitions and settings
-- `users` - User accounts (admins and players)
 - `rounds` - Competition rounds and fixtures
 - `picks` - Player picks for each round
 - `allowed_teams` - Teams available to players per competition
 - `teams` - Master list of teams and fixtures
+- `app_user` - User accounts table (uses `app_user`, not `users`)  
+- `team_list` - Team list definitions by competition type
+- `fixture` - Individual fixtures within rounds
+- `player_progress` - Track player outcomes by round
+- `audit_log` - System audit logging
 
 ## Important Development Notes
 
@@ -241,3 +245,18 @@ See `/docs/api-migration-plan.md` for current status of migrating APIs from HTTP
 - **Frontend TypeScript**: Strict mode enabled with Next.js plugin integration
 - **Path Mapping**: `@/*` maps to `./src/*` for clean imports
 - **Type Checking**: Run `npx tsc --noEmit` for standalone type checking without build
+- **Development Configuration**: Includes Next.js plugin integration for optimal type checking
+
+## Additional Implementation Details
+
+### Frontend App Structure
+- **Route Organization**: Uses Next.js 15.5 App Router with nested route structure
+- **Key Routes**: `/dashboard`, `/competition`, `/play`, `/login`, `/register`, `/profile`, `/forgot-password`
+- **Responsive Design**: Mobile-first approach with Tailwind CSS utilities
+- **Client-Side Caching**: Implements request caching system in `src/lib/cache.ts` for performance optimization
+
+### Backend Route Architecture  
+- **Comprehensive API Coverage**: 41 individual route files, each handling a specific function
+- **Route Naming**: Consistent kebab-case naming (e.g., `get-competition-players.js`, `add-fixtures-bulk.js`)
+- **Header Documentation**: Each route includes comprehensive header documentation with request/response formats
+- **Token Verification**: Uses middleware for JWT verification across protected endpoints

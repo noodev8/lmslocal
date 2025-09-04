@@ -274,7 +274,7 @@ export const roundApi = {
     api.post<ApiResponse<{ round_id: string }>>('/create-round', { competition_id: parseInt(competition_id), lock_time }),
   getRounds: (competition_id: number) => withCache(
     `rounds-${competition_id}`,
-    5 * 60 * 1000, // 5 minutes cache - rounds change when admin creates new rounds
+    30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
     () => api.post<ApiResponse<{ rounds: Round[] }>>('/get-rounds', { competition_id })
   ),
   update: (round_id: string, lock_time: string) => api.post<ApiResponse<MessageResponse>>('/update-round', { round_id: parseInt(round_id), lock_time }),
@@ -287,14 +287,14 @@ export const fixtureApi = {
     api.post<ApiResponse<MessageResponse>>('/add-fixtures-bulk', { round_id: parseInt(round_id), fixtures }),
   get: (round_id: string) => withCache(
     `fixtures-${round_id}`,
-    5 * 60 * 1000, // 5 minutes cache - fixtures change when admin adds/modifies fixtures
+    30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
     () => api.post<ApiResponse<{ fixtures: Fixture[] }>>('/get-fixtures', { round_id: parseInt(round_id) })
   ),
   setResult: (fixture_id: number, result: 'home_win' | 'away_win' | 'draw') =>
     api.post<ApiResponse<MessageResponse>>('/set-fixture-result', { fixture_id, result }),
   getCalculated: (round_id: number) => withCache(
     `calculated-fixtures-${round_id}`,
-    2 * 60 * 1000, // 2 minutes cache - calculated status changes as results are processed
+    30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
     () => api.post<ApiResponse<{ calculated_fixture_ids: number[] }>>('/get-calculated-fixtures', { round_id })
   ),
   getPickCounts: (round_id: number) => api.post<ApiResponse<{ pick_counts: Record<string, number> }>>('/get-fixture-pick-count', { round_id }),

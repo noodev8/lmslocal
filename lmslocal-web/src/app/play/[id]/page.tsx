@@ -143,6 +143,20 @@ export default function CompetitionPickPage() {
     }
   }, []);
 
+  const loadAllowedTeams = useCallback(async (competitionId: number) => {
+    try {
+      const response = await userApi.getAllowedTeams(competitionId);
+      if (response.data.return_code === 'SUCCESS') {
+        // Extract short names from allowed teams
+        const allowedShortNames = (response.data.allowed_teams as Team[]).map(team => team.short_name);
+        setAllowedTeams(allowedShortNames);
+      }
+    } catch (error) {
+      console.error('Failed to load allowed teams:', error);
+      setAllowedTeams([]);
+    }
+  }, []);
+
   const loadCompetitionData = useCallback(async () => {
     try {
       // Get competition from context instead of redundant API call
@@ -228,19 +242,6 @@ export default function CompetitionPickPage() {
     }
   };
 
-  const loadAllowedTeams = async (competitionId: number) => {
-    try {
-      const response = await userApi.getAllowedTeams(competitionId);
-      if (response.data.return_code === 'SUCCESS') {
-        // Extract short names from allowed teams
-        const allowedShortNames = (response.data.allowed_teams as Team[]).map(team => team.short_name);
-        setAllowedTeams(allowedShortNames);
-      }
-    } catch (error) {
-      console.error('Failed to load allowed teams:', error);
-      setAllowedTeams([]);
-    }
-  };
 
   const loadCurrentPick = async (roundId: number) => {
     try {

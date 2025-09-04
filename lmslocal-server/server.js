@@ -163,7 +163,7 @@ app.use('/mycompetitions', mycompetitionsRoute);
 app.use('/create-competition', createCompetitionRoute);
 app.use('/team-lists', teamListsRoute);
 app.use('/get-teams', getTeamsRoute);
-app.use('/get-competition-players', getCompetitionPlayersRoute);
+app.use('/get-competition-players', dbIntensiveLimit, getCompetitionPlayersRoute);
 app.use('/remove-player', removePlayerRoute);
 app.use('/create-round', createRoundRoute);
 app.use('/update-round', updateRoundRoute);
