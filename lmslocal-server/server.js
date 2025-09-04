@@ -61,6 +61,7 @@ const addOfflinePlayerRoute = require('./routes/add-offline-player');
 const changePasswordRoute = require('./routes/change-password');
 const deleteAccountRoute = require('./routes/delete-account');
 const getPickStatisticsRoute = require('./routes/get-pick-statistics');
+const getDashboardStatsRoute = require('./routes/get-dashboard-stats');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -197,6 +198,7 @@ app.use('/add-offline-player', addOfflinePlayerRoute);
 app.use('/change-password', changePasswordRoute);
 app.use('/delete-account', deleteAccountRoute);
 app.use('/get-pick-statistics', getPickStatisticsRoute);
+app.use('/get-dashboard-stats', getDashboardStatsRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

@@ -146,6 +146,31 @@ export interface Round {
   fixture_count?: number;
 }
 
+// Dashboard stats interfaces
+export interface DashboardStats {
+  competition_info: {
+    total_players: number;
+    current_round: {
+      round_id: number;
+      round_number: number;
+      lock_time: string | null;
+      is_locked: boolean;
+    } | null;
+  };
+  player_status: {
+    still_active: number;
+    eliminated: number;
+    completion_percentage: number;
+    total_registered: number;
+  };
+  pick_status: {
+    picks_made: number;
+    picks_required: number;
+    completion_percentage: number;
+    missing_picks_count: number;
+  };
+}
+
 // Player interfaces
 export interface Player {
   id: number;
@@ -265,6 +290,11 @@ export const competitionApi = {
       total_active_players: number; 
       pick_percentage: number 
     }>>('/get-pick-statistics', { competition_id })
+  ),
+  getDashboardStats: (competition_id: number) => withCache(
+    `dashboard-stats-${competition_id}`,
+    1 * 60 * 60 * 1000, // 1 hour cache - dashboard stats refreshed hourly as requested
+    () => api.post<ApiResponse<DashboardStats>>('/get-dashboard-stats', { competition_id })
   ),
 };
 
