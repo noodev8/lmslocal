@@ -38,9 +38,13 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
+  // Log API call if enabled
+  logApiCall('get-teams');
+  
   try {
     // Extract optional team list filter from request payload
     const { team_list_id } = req.body;

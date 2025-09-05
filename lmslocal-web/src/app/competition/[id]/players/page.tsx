@@ -8,25 +8,11 @@ import {
   ArrowLeftIcon,
   UserIcon,
   TrashIcon,
-  CalendarIcon,
-  ExclamationTriangleIcon,
-  CurrencyDollarIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  FunnelIcon,
-  UserGroupIcon
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, offlinePlayerApi, Competition, Player } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
-import { logout } from '@/lib/auth';
 import ConfirmationModal from '@/components/ConfirmationModal';
-
-interface User {
-  id: number;
-  display_name: string;
-  email: string;
-}
-
 
 
 export default function CompetitionPlayersPage() {
@@ -34,7 +20,6 @@ export default function CompetitionPlayersPage() {
   const params = useParams();
   const competitionId = parseInt(params.id as string);
   
-  const [user, setUser] = useState<User | null>(null);
   const [competition, setCompetition] = useState<Competition | null>(null);
   
   // Use AppDataProvider context to avoid redundant API calls
@@ -59,21 +44,18 @@ export default function CompetitionPlayersPage() {
     const initializeData = async () => {
       // Check authentication
       const token = localStorage.getItem('jwt_token');
-      const userData = localStorage.getItem('user');
       
-      if (!token || !userData) {
+      if (!token) {
         if (!controller.signal.aborted) router.push('/login');
         return;
       }
 
       try {
-        const parsedUser = JSON.parse(userData);
         if (!controller.signal.aborted) {
-          setUser(parsedUser);
           await loadPlayers();
         }
       } catch (error) {
-        console.error('Error parsing user data:', error);
+        console.error('Error initializing data:', error);
         if (!controller.signal.aborted) router.push('/login');
         return;
       }
@@ -172,9 +154,6 @@ export default function CompetitionPlayersPage() {
     setPlayerToRemove(null);
   };
 
-  const handleLogout = () => {
-    logout(router);
-  };
 
   const handleAddOfflinePlayer = async () => {
     if (!competition || !addPlayerForm.display_name.trim()) return;
@@ -255,414 +234,217 @@ export default function CompetitionPlayersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-400 border-t-transparent"></div>
+          </div>
+          <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Players</h3>
+          <p className="text-slate-500">Please wait while we fetch player data...</p>
+        </div>
       </div>
     );
   }
 
   const activePlayers = filteredPlayers.filter(p => p.status === 'active');
-  const eliminatedPlayers = filteredPlayers.filter(p => p.status === 'eliminated');
   
   // Payment summary
   const paidCount = players.filter(p => p.paid).length;
-  const unpaidCount = players.filter(p => !p.paid).length;
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white/95 backdrop-blur-sm shadow-sm border-b border-slate-200/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Link href={`/competition/${competitionId}/dashboard`} className="mr-4 p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
-              </Link>
-              <Link href="/" className="flex items-center">
-                <TrophyIcon className="h-8 w-8 text-slate-700" />
-                <span className="ml-2 text-2xl font-bold text-slate-900">LMSLocal</span>
-              </Link>
-            </div>
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-slate-600">
-                Welcome, <span className="font-medium text-slate-900">{user?.display_name}</span>
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                Sign out
-              </button>
+              <Link href={`/competition/${competitionId}/dashboard`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
+                <ArrowLeftIcon className="h-5 w-5" />
+                <span className="font-medium">Back to Dashboard</span>
+              </Link>
+              <div className="h-6 w-px bg-slate-300" />
+              <div className="flex items-center space-x-3">
+                <TrophyIcon className="h-6 w-6 text-slate-800" />
+                <h1 className="text-lg font-semibold text-slate-900">Player Management</h1>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              {competition?.access_code && (
+                <button
+                  onClick={() => setShowAddPlayerModal(true)}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors"
+                >
+                  <UserIcon className="h-4 w-4 mr-2" />
+                  Add Player
+                </button>
+              )}
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         
-        {/* Title & Competition Info */}
-        <div className="mb-8">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">Player Management</h1>
-              <p className="text-xl text-slate-600">{competition?.name}</p>
+        {/* Header with Competition Info & Quick Stats */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">{competition?.name}</h1>
+              <div className="flex items-center space-x-4 text-sm text-slate-600">
+                <span>{players.length} total</span>
+                <span>•</span>
+                <span>{activePlayers.length} active</span>
+                <span>•</span>
+                <span>{paidCount}/{players.length} paid</span>
+              </div>
             </div>
-            {competition?.access_code && (
-              <button
-                onClick={() => setShowAddPlayerModal(true)}
-                className="inline-flex items-center px-6 py-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all shadow-sm"
-              >
-                <UserIcon className="h-5 w-5 mr-2" />
-                Add Offline Player
-              </button>
-            )}
           </div>
-          
-          {/* Competition Stats - Premium Design */}
-          <div className="bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100 rounded-2xl border border-slate-200/50 p-8 shadow-sm">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <UserIcon className="h-8 w-8 text-emerald-600" />
-                </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{activePlayers.length}</div>
-                <div className="text-sm font-medium text-slate-600">Active Players</div>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <ExclamationTriangleIcon className="h-8 w-8 text-red-600" />
-                </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{eliminatedPlayers.length}</div>
-                <div className="text-sm font-medium text-slate-600">Eliminated</div>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <UserGroupIcon className="h-8 w-8 text-slate-600" />
-                </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{players.length}</div>
-                <div className="text-sm font-medium text-slate-600">Total Players</div>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <CheckCircleIcon className="h-8 w-8 text-green-600" />
-                </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{paidCount}</div>
-                <div className="text-sm font-medium text-slate-600">Paid Up</div>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-amber-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <CurrencyDollarIcon className="h-8 w-8 text-amber-600" />
-                </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{unpaidCount}</div>
-                <div className="text-sm font-medium text-slate-600">Pending Payment</div>
-              </div>
+        </div>
+
+        {/* Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          {/* Access Code */}
+          {competition?.access_code && (
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-slate-600">Join code:</span>
+              <code className="px-2 py-1 bg-slate-100 text-slate-900 rounded font-mono text-sm font-medium">{competition.access_code}</code>
+              <button
+                onClick={() => navigator.clipboard.writeText(competition.access_code!)}
+                className="text-xs text-slate-500 hover:text-slate-700 underline"
+              >
+                copy
+              </button>
             </div>
-            
-            {competition?.access_code && (
-              <div className="mt-8 pt-8 border-t border-slate-200/50">
-                <div className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-slate-200/50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-700 mb-2">Competition Access Code</p>
-                      <p className="text-2xl font-bold text-slate-800 tracking-wider font-mono">{competition.access_code}</p>
-                      <p className="text-xs text-slate-500 mt-1">Share this code for players to join</p>
+          )}
+          
+          {/* Filter Buttons */}
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setPaymentFilter('all')}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                paymentFilter === 'all'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setPaymentFilter('paid')}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                paymentFilter === 'paid'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Paid
+            </button>
+            <button
+              onClick={() => setPaymentFilter('unpaid')}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                paymentFilter === 'unpaid'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Unpaid
+            </button>
+          </div>
+        </div>
+
+        {/* Players List - Simplified */}
+        <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+          {filteredPlayers.map((player) => (
+            <div key={player.id} className="p-4 hover:bg-slate-50 transition-colors">
+              <div className="flex items-center justify-between">
+                {/* Player Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-slate-900 truncate">{player.display_name}</p>
+                        {player.status === 'eliminated' && (
+                          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">OUT</span>
+                        )}
+                        {player.is_managed && (
+                          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Managed</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-600 truncate">{player.email || 'No email'}</p>
                     </div>
+                  </div>
+                </div>
+                
+                {/* Status & Actions */}
+                <div className="flex items-center space-x-4">
+                  {/* Lives */}
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-slate-900">{player.lives_remaining}</p>
+                    <p className="text-xs text-slate-500">lives</p>
+                  </div>
+
+                  {/* Payment Status */}
+                  <div className="text-center">
+                    <p className="text-sm font-medium">
+                      {player.paid ? (
+                        <span className="text-slate-600">Paid</span>
+                      ) : (
+                        <span className="text-slate-600">Unpaid</span>
+                      )}
+                    </p>
+                  </div>
+                  
+                  {/* Actions */}
+                  <div className="flex items-center space-x-1">
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(competition.access_code!);
-                      }}
-                      className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-semibold hover:bg-slate-900 transition-colors shadow-sm"
+                      onClick={() => handlePaymentToggle(player.id, player.paid)}
+                      disabled={updatingPayment.has(player.id)}
+                      className="p-1 text-slate-500 hover:text-slate-700 rounded transition-colors disabled:opacity-50"
+                      title={player.paid ? 'Mark unpaid' : 'Mark paid'}
                     >
-                      Copy Code
+                      {updatingPayment.has(player.id) ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent"></div>
+                      ) : (
+                        <CurrencyDollarIcon className="h-4 w-4" strokeWidth={1.5} />
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={() => handleRemovePlayerClick(player.id, player.display_name)}
+                      disabled={removing.has(player.id)}
+                      className="p-1 text-slate-500 hover:text-red-600 rounded transition-colors disabled:opacity-50"
+                      title="Remove player"
+                    >
+                      {removing.has(player.id) ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent"></div>
+                      ) : (
+                        <TrashIcon className="h-4 w-4" strokeWidth={1.5} />
+                      )}
                     </button>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          ))}
         </div>
-
-        {/* Payment Filter - Enhanced Design */}
-        <div className="mb-8">
-          <div className="bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 p-6 shadow-sm">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center">
-                <FunnelIcon className="h-5 w-5 text-slate-500 mr-2" />
-                <span className="text-sm font-semibold text-slate-700">Filter Players</span>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setPaymentFilter('all')}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    paymentFilter === 'all'
-                      ? 'bg-slate-800 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  All Players ({players.length})
-                </button>
-                <button
-                  onClick={() => setPaymentFilter('paid')}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    paymentFilter === 'paid'
-                      ? 'bg-green-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  Paid ({paidCount})
-                </button>
-                <button
-                  onClick={() => setPaymentFilter('unpaid')}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    paymentFilter === 'unpaid'
-                      ? 'bg-amber-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  Pending Payment ({unpaidCount})
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Active Players */}
-        {activePlayers.length > 0 && (
-          <section className="mb-8">
-            <div className="flex items-center mb-6">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mr-4">
-                <UserIcon className="h-6 w-6 text-emerald-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Active Players</h2>
-                <p className="text-slate-600">{activePlayers.length} players still in the competition</p>
-              </div>
-            </div>
-            
-            <div className="bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 divide-y divide-slate-200/50 shadow-sm">
-              {activePlayers.map((player) => (
-                <div key={player.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mr-4">
-                      <UserIcon className="h-6 w-6 text-emerald-600" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <p className="font-semibold text-slate-900 text-lg">{player.display_name}</p>
-                        {player.is_managed && (
-                          <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium">Managed</span>
-                        )}
-                      </div>
-                      <p className="text-slate-600">{player.email || 'No email provided'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-6">
-                    {/* Payment Status Badge */}
-                    <div className="text-center">
-                      {player.paid ? (
-                        <div className="space-y-2">
-                          <div className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-semibold bg-green-100 text-green-800">
-                            <CheckCircleIcon className="h-4 w-4 mr-2" />
-                            Paid
-                          </div>
-                          {player.paid_date && (
-                            <p className="text-xs text-slate-500">
-                              {new Date(player.paid_date).toLocaleDateString('en-GB')}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-semibold bg-amber-100 text-amber-800">
-                          <XCircleIcon className="h-4 w-4 mr-2" />
-                          Pending
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-slate-900 mb-1">
-                        {player.lives_remaining}
-                      </p>
-                      <p className="text-xs font-medium text-slate-600">
-                        {player.lives_remaining === 1 ? 'Life Left' : 'Lives Left'}
-                      </p>
-                    </div>
-
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-slate-900 mb-1">Joined</p>
-                      <p className="text-xs text-slate-600 flex items-center">
-                        <CalendarIcon className="h-3 w-3 mr-1" />
-                        {new Date(player.joined_at).toLocaleDateString('en-GB')}
-                      </p>
-                    </div>
-                    
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handlePaymentToggle(player.id, player.paid)}
-                        disabled={updatingPayment.has(player.id)}
-                        className={`p-3 rounded-xl transition-all disabled:opacity-50 shadow-sm ${
-                          player.paid 
-                            ? 'text-amber-600 hover:bg-amber-50 bg-amber-50/50' 
-                            : 'text-green-600 hover:bg-green-50 bg-green-50/50'
-                        }`}
-                        title={player.paid ? 'Mark as unpaid' : 'Mark as paid'}
-                      >
-                        {updatingPayment.has(player.id) ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent"></div>
-                        ) : (
-                          <CurrencyDollarIcon className="h-5 w-5" />
-                        )}
-                      </button>
-                      
-                      <button
-                        onClick={() => handleRemovePlayerClick(player.id, player.display_name)}
-                        disabled={removing.has(player.id)}
-                        className="p-3 text-red-600 hover:bg-red-50 bg-red-50/50 rounded-xl transition-all disabled:opacity-50 shadow-sm"
-                        title="Remove player"
-                      >
-                        {removing.has(player.id) ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-red-600 border-t-transparent"></div>
-                        ) : (
-                          <TrashIcon className="h-5 w-5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Eliminated Players */}
-        {eliminatedPlayers.length > 0 && (
-          <section className="mb-8">
-            <div className="flex items-center mb-6">
-              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mr-4">
-                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Eliminated Players</h2>
-                <p className="text-slate-600">{eliminatedPlayers.length} players knocked out of the competition</p>
-              </div>
-            </div>
-            
-            <div className="bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/50 divide-y divide-slate-200/50 shadow-sm opacity-75">
-              {eliminatedPlayers.map((player) => (
-                <div key={player.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mr-4">
-                      <UserIcon className="h-6 w-6 text-red-600" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <p className="font-semibold text-slate-700 text-lg">{player.display_name}</p>
-                        {player.is_managed && (
-                          <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-xs font-medium">Managed</span>
-                        )}
-                        <span className="px-2 py-1 bg-red-100 text-red-600 rounded-lg text-xs font-semibold">ELIMINATED</span>
-                      </div>
-                      <p className="text-slate-500">{player.email || 'No email provided'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-6">
-                    {/* Payment Status Badge */}
-                    <div className="text-center">
-                      {player.paid ? (
-                        <div className="space-y-2">
-                          <div className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-semibold bg-green-100 text-green-800">
-                            <CheckCircleIcon className="h-4 w-4 mr-2" />
-                            Paid
-                          </div>
-                          {player.paid_date && (
-                            <p className="text-xs text-slate-500">
-                              {new Date(player.paid_date).toLocaleDateString('en-GB')}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-semibold bg-amber-100 text-amber-800">
-                          <XCircleIcon className="h-4 w-4 mr-2" />
-                          Pending
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-red-600 mb-1">0</p>
-                      <p className="text-xs font-medium text-slate-600">Lives Left</p>
-                    </div>
-
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-slate-700 mb-1">Joined</p>
-                      <p className="text-xs text-slate-500 flex items-center">
-                        <CalendarIcon className="h-3 w-3 mr-1" />
-                        {new Date(player.joined_at).toLocaleDateString('en-GB')}
-                      </p>
-                    </div>
-                    
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handlePaymentToggle(player.id, player.paid)}
-                        disabled={updatingPayment.has(player.id)}
-                        className={`p-3 rounded-xl transition-all disabled:opacity-50 shadow-sm ${
-                          player.paid 
-                            ? 'text-amber-600 hover:bg-amber-50 bg-amber-50/50' 
-                            : 'text-green-600 hover:bg-green-50 bg-green-50/50'
-                        }`}
-                        title={player.paid ? 'Mark as unpaid' : 'Mark as paid'}
-                      >
-                        {updatingPayment.has(player.id) ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent"></div>
-                        ) : (
-                          <CurrencyDollarIcon className="h-5 w-5" />
-                        )}
-                      </button>
-                      
-                      <button
-                        onClick={() => handleRemovePlayerClick(player.id, player.display_name)}
-                        disabled={removing.has(player.id)}
-                        className="p-3 text-red-600 hover:bg-red-50 bg-red-50/50 rounded-xl transition-all disabled:opacity-50 shadow-sm"
-                        title="Remove player"
-                      >
-                        {removing.has(player.id) ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-red-600 border-t-transparent"></div>
-                        ) : (
-                          <TrashIcon className="h-5 w-5" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* No Players State */}
         {players.length === 0 && (
-          <div className="bg-gradient-to-br from-slate-50 via-stone-50 to-slate-100 rounded-2xl border border-slate-200/50 p-16 text-center">
-            <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <UserIcon className="h-10 w-10 text-slate-400" />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-4">Ready to Build Your Competition</h3>
-            <p className="text-lg text-slate-600 mb-8 max-w-lg mx-auto">
-              Share your access code with players to get started. They&apos;ll be able to join instantly and start making picks.
+          <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+            <h3 className="text-lg font-medium text-slate-900 mb-2">No players yet</h3>
+            <p className="text-slate-600 mb-4">
+              Share your join code to get players started.
             </p>
             {competition?.access_code && (
-              <div className="bg-white/70 backdrop-blur-sm rounded-xl p-8 inline-block border border-slate-200/50 shadow-sm">
-                <p className="text-sm font-semibold text-slate-700 mb-3">Competition Access Code</p>
-                <p className="text-3xl font-bold text-slate-800 tracking-wider font-mono mb-4">{competition.access_code}</p>
+              <div className="inline-flex items-center space-x-2">
+                <code className="px-3 py-1 bg-slate-100 text-slate-900 rounded font-mono font-medium">{competition.access_code}</code>
                 <button
                   onClick={() => navigator.clipboard.writeText(competition.access_code!)}
-                  className="px-6 py-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-900 transition-colors shadow-sm"
+                  className="text-slate-500 hover:text-slate-700 underline text-sm"
                 >
-                  Copy Code to Share
+                  copy
                 </button>
               </div>
             )}
@@ -705,7 +487,7 @@ export default function CompetitionPlayersPage() {
                     value={addPlayerForm.display_name}
                     onChange={(e) => setAddPlayerForm(prev => ({ ...prev, display_name: e.target.value }))}
                     placeholder="Enter player name"
-                    className="block w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm bg-slate-50/50 transition-colors"
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm transition-colors"
                     disabled={addingPlayer}
                   />
                 </div>
@@ -720,7 +502,7 @@ export default function CompetitionPlayersPage() {
                     value={addPlayerForm.email}
                     onChange={(e) => setAddPlayerForm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="player@email.com"
-                    className="block w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm bg-slate-50/50 transition-colors"
+                    className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm transition-colors"
                     disabled={addingPlayer}
                   />
                 </div>

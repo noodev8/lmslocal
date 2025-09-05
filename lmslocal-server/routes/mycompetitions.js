@@ -47,10 +47,14 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 
 router.post('/', verifyToken, async (req, res) => {
+  // Log API call if enabled
+  logApiCall('mycompetitions');
+  
   try {
     const user_id = req.user.id;
 

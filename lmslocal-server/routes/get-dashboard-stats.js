@@ -50,6 +50,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 
 const router = express.Router();
 
@@ -58,6 +59,9 @@ const router = express.Router();
  * Retrieves comprehensive dashboard statistics for a competition
  */
 router.post('/', verifyToken, async (req, res) => {
+  // Log API call if enabled
+  logApiCall('get-dashboard-stats');
+  
   try {
     // Extract and validate request data
     const { competition_id } = req.body;
@@ -126,53 +130,29 @@ router.post('/', verifyToken, async (req, res) => {
         };
       }
 
-      // 3. Get total registered players count
-      const totalPlayersResult = await client.query(
-        `SELECT COUNT(DISTINCT user_id) as total_count
-         FROM allowed_teams 
+      // 3. Get total registered players count will be updated from competition_user query
+      let totalPlayers = 0;
+
+      // 4. Get player status breakdown (active vs eliminated) using competition_user status
+      const playerStatusResult = await client.query(
+        `SELECT 
+           COUNT(*) FILTER (WHERE status = 'active') as still_active,
+           COUNT(*) FILTER (WHERE status = 'OUT') as eliminated
+         FROM competition_user
          WHERE competition_id = $1`,
         [competitionId]
       );
-      
-      const totalPlayers = parseInt(totalPlayersResult.rows[0].total_count) || 0;
 
-      // 4. Get player status breakdown (active vs eliminated)
       let stillActive = 0;
       let eliminated = 0;
 
-      if (currentRound) {
-        // Count players who are still active (haven't been eliminated)
-        const playerStatusResult = await client.query(
-          `WITH latest_outcomes AS (
-             SELECT DISTINCT pp.player_id,
-                    LAST_VALUE(pp.outcome) OVER (
-                      PARTITION BY pp.player_id 
-                      ORDER BY pp.round_id 
-                      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-                    ) as latest_outcome
-             FROM player_progress pp
-             WHERE pp.competition_id = $1
-           )
-           SELECT 
-             SUM(CASE WHEN latest_outcome IN ('WIN', 'DRAW') OR latest_outcome IS NULL THEN 1 ELSE 0 END) as still_active,
-             SUM(CASE WHEN latest_outcome = 'LOSS' THEN 1 ELSE 0 END) as eliminated
-           FROM latest_outcomes`,
-          [competitionId]
-        );
-
-        if (playerStatusResult.rows.length > 0) {
-          stillActive = parseInt(playerStatusResult.rows[0].still_active) || 0;
-          eliminated = parseInt(playerStatusResult.rows[0].eliminated) || 0;
-        }
-
-        // If no player_progress records exist yet, all players are still active
-        if (stillActive === 0 && eliminated === 0) {
-          stillActive = totalPlayers;
-        }
-      } else {
-        // No rounds exist yet, all players are still active
-        stillActive = totalPlayers;
+      if (playerStatusResult.rows.length > 0) {
+        stillActive = parseInt(playerStatusResult.rows[0].still_active) || 0;
+        eliminated = parseInt(playerStatusResult.rows[0].eliminated) || 0;
       }
+      
+      // Calculate total players in memory (more efficient)
+      totalPlayers = stillActive + eliminated;
 
       // 5. Get pick completion status for current round
       let picksMade = 0;

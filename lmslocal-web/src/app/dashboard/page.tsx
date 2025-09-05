@@ -340,20 +340,20 @@ export default function DashboardPage() {
                       {/* Removed rounds count and created date as requested */}
                     </div>
                     
-                    {/* Access Code */}
-                    {competition.access_code && (
+                    {/* Invite Code */}
+                    {competition.invite_code && (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <p className="text-xs font-medium text-slate-700 mb-1">Player Access Code</p>
+                            <p className="text-xs font-medium text-slate-700 mb-1">Player Invite Code</p>
                             <div className="flex items-center space-x-2">
                               <code className="text-lg font-mono font-bold text-slate-800 tracking-wider">
-                                {competition.access_code}
+                                {competition.invite_code}
                               </code>
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  navigator.clipboard.writeText(competition.access_code || '');
+                                  navigator.clipboard.writeText(competition.invite_code || '');
                                 }}
                                 className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
                               >
@@ -386,26 +386,6 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Empty State */}
-        {organizedCompetitions.length === 0 && (
-          <div className="text-center py-12">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-100 rounded-full mb-6">
-              <TrophyIcon className="h-10 w-10 text-slate-400" />
-            </div>
-            <h3 className="text-xl font-medium text-slate-900 mb-2">No Competitions Yet</h3>
-            <p className="text-slate-500 mb-8 max-w-md mx-auto">
-              Create your first Last Man Standing competition to start engaging your community. 
-              Setup is quick and easy with our guided process.
-            </p>
-            <Link
-              href="/competition/create"
-              className="inline-flex items-center px-6 py-3 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-900 transition-colors shadow-sm"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Create Your First Competition
-            </Link>
-          </div>
-        )}
       </main>
     </div>
   );

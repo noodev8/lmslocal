@@ -1,9 +1,8 @@
-Please refer to FRONTEND_SCREENS.md for design principals and apply the design to the below screens
+Please refer to FRONTEND_SCREENS.md for design principals and apply the design to the below screen
 
-- Think Mobile first
+- Think for Mobile too but ensure the style is consistent with the rest of the app
 - Can you think hard to ensure no code is broken and check ESLint when complete
 
-- `/dashboard` - Admin main dashboard with competitions list
-- `/profile` - User profile management
+- `/competition/[id]/players` - Player management and status
 
 

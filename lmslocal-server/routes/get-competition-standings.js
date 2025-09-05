@@ -211,7 +211,7 @@ router.post('/', verifyToken, async (req, res) => {
     // === QUERY 2: ALL CURRENT ROUND PICKS (BULK QUERY - ELIMINATES N+1) ===
     // Get current round picks for ALL players in ONE query instead of N queries
     let currentPicksData = [];
-    if (isLocked && firstRow.current_round) {
+    if (firstRow.current_round) {
       const currentPicksResult = await query(`
         SELECT 
           p.user_id,                              -- Player ID for matching
@@ -225,11 +225,10 @@ router.post('/', verifyToken, async (req, res) => {
         FROM pick p
         LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
         LEFT JOIN fixture f ON p.fixture_id = f.id
-        WHERE p.round_id = (
-          SELECT id FROM round 
-          WHERE competition_id = $1 AND round_number = $2
-        )
-        AND p.user_id = ANY($3)                   -- Get picks for all players at once
+        LEFT JOIN round r ON p.round_id = r.id
+        WHERE r.competition_id = $1 
+          AND r.round_number = $2
+          AND p.user_id = ANY($3)                 -- Get picks for all players at once
       `, [competition_id, firstRow.current_round, players.map(p => p.id)]);
       
       currentPicksData = currentPicksResult.rows;
@@ -288,8 +287,9 @@ router.post('/', verifyToken, async (req, res) => {
     // Attach current picks and history to each player
     players.forEach(player => {
       // === CURRENT PICK ATTACHMENT ===
+      // Always return current pick data if it exists - let frontend handle visibility
       const currentPick = currentPicksMap[player.id];
-      if (currentPick && isLocked) {
+      if (currentPick) {
         player.current_pick = {
           team: currentPick.team,                 // Short team name
           team_full_name: currentPick.team_full_name, // Full team name for display
@@ -299,7 +299,7 @@ router.post('/', verifyToken, async (req, res) => {
           outcome: currentPick.outcome || 'pending' // Pick outcome status
         };
       } else {
-        player.current_pick = null;               // Hide picks if round not locked
+        player.current_pick = null;               // No pick exists for this player
       }
 
       // === HISTORY ATTACHMENT ===

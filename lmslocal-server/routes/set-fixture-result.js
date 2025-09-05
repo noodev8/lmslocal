@@ -146,8 +146,7 @@ router.post('/', verifyToken, async (req, res) => {
       const updateQuery = `
         UPDATE fixture 
         SET 
-          result = $1,
-          updated_at = NOW()
+          result = $1
         WHERE id = $2
         RETURNING *
       `;

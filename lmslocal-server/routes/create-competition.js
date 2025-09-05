@@ -193,7 +193,6 @@ router.post('/', verifyToken, async (req, res) => {
           WHERE id = $2
         `, [newUserType, organiser_id]);
         
-        console.log(`Updated user ${organiser_id} type to '${newUserType}' (first competition created)`);
       }
 
       // 6. Create audit log entry (same transaction ensures consistency)

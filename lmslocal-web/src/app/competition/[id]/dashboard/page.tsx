@@ -96,15 +96,14 @@ export default function AdminDashboard() {
     }, 5000); // 5 second timeout after context loads
 
     // Reset hasLoadedData when competitionId changes
-    if (hasLoadedData.current) {
-      hasLoadedData.current = false;
-    }
-
+    hasLoadedData.current = false;
+    
     loadData();
 
     // Cleanup timeout on unmount or dependency change
     return () => clearTimeout(loadTimeout);
-  }, [competitionId, router, competition, competitions, contextLoading, loading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [competitionId, router, competition, competitions, contextLoading]);
 
   if (loading) {
     return (
@@ -196,20 +195,20 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Competition Code - Only show for active competitions */}
-        {competition.access_code && competition.status !== 'COMPLETE' && (
+        {/* Invite Code - Only show for competitions that haven't started */}
+        {competition.invite_code && competition.status !== 'COMPLETE' && (
           <div className="mb-6 sm:mb-8 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
               <div className="flex-1">
-                <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">Player Access Code</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">Player Invite Code</h3>
                 <p className="text-sm sm:text-base text-slate-600">Share this code with players to join your competition</p>
               </div>
               <div className="text-center sm:text-right">
                 <code className="text-xl sm:text-2xl font-mono font-bold text-slate-800 tracking-wider block">
-                  {competition.access_code}
+                  {competition.invite_code}
                 </code>
                 <button
-                  onClick={() => navigator.clipboard.writeText(competition.access_code || '')}
+                  onClick={() => navigator.clipboard.writeText(competition.invite_code || '')}
                   className="mt-2 px-3 py-1 text-xs sm:text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
                 >
                   Click to copy

@@ -1,14 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { competitionApi, teamApi } from '@/lib/api';
-import { Competition, Team, User } from '@/lib/api';
+import { competitionApi } from '@/lib/api';
+import { Competition, User } from '@/lib/api';
 import '@/lib/cache';
 
 interface AppDataContextType {
   // Data
   competitions: Competition[] | null;
-  teams: Team[] | null;
   user: User | null;
   
   // Loading states
@@ -31,7 +30,6 @@ interface AppDataProviderProps {
 
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
   const [competitions, setCompetitions] = useState<Competition[] | null>(null);
-  const [teams, setTeams] = useState<Team[] | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,10 +59,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       }
       
       // Load app-level data using our cached API calls
-      const [competitionsData, teamsData] = await Promise.all([
-        competitionApi.getMyCompetitions(),
-        teamApi.getTeams()
-      ]);
+      const competitionsData = await competitionApi.getMyCompetitions();
       
       // Handle competitions response
       if (competitionsData.data.return_code === 'SUCCESS') {
@@ -72,14 +67,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       } else {
         console.error('Failed to load competitions:', competitionsData.data.message);
         setCompetitions([]);
-      }
-      
-      // Handle teams response
-      if (teamsData.data.return_code === 'SUCCESS') {
-        setTeams((teamsData.data.teams as Team[]) || []);
-      } else {
-        console.error('Failed to load teams:', teamsData.data.message);
-        setTeams([]);
       }
       
       setLastUpdated(Date.now());
@@ -126,7 +113,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     const handleAuthExpired = () => {
       setUser(null);
       setCompetitions(null);
-      setTeams(null);
       setLoading(false);
     };
 
@@ -146,7 +132,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
 
   const value: AppDataContextType = {
     competitions,
-    teams,
     user,
     loading,
     error,
@@ -177,10 +162,6 @@ export const useCompetitions = () => {
   return { competitions, loading, error };
 };
 
-export const useTeams = () => {
-  const { teams, loading, error } = useAppData();
-  return { teams, loading, error };
-};
 
 export const useAppUser = () => {
   const { user, loading, error } = useAppData();

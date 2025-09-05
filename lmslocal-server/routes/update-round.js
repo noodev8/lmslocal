@@ -3,7 +3,7 @@
 API Route: update-round
 =======================================================================================================================================
 Method: POST
-Purpose: Updates round lock time and automatically manages competition invite codes based on Round 1 lock status
+Purpose: Updates round lock time and automatically manages competition status and invite codes based on Round 1 lock status
 =======================================================================================================================================
 Request Payload:
 {
@@ -108,17 +108,29 @@ router.post('/', verifyToken, async (req, res) => {
 
       const round = result.rows[0];
 
-      // === BUSINESS LOGIC: AUTO-CLOSE REGISTRATION ===
+      // === BUSINESS LOGIC: AUTO-CLOSE REGISTRATION & STATUS MANAGEMENT ===
       // Special handling for Round 1: If lock time is now in the past (competition has started),
       // automatically remove the invite code to prevent new players from joining mid-competition
-      if (roundData.round_number === 1 && new Date(lock_time) <= new Date()) {
-        await client.query(`
-          UPDATE competition 
-          SET invite_code = NULL 
-          WHERE id = $1
-        `, [roundData.competition_id]);
+      // Also update competition status based on lock time
+      if (roundData.round_number === 1) {
+        const lockTimeDate = new Date(lock_time);
+        const now = new Date();
         
-        console.log(`Deleted invite code for competition ${roundData.competition_id} as Round 1 is now locked`);
+        if (lockTimeDate <= now) {
+          // Competition has started - remove invite code and set status to active
+          await client.query(`
+            UPDATE competition 
+            SET invite_code = NULL, status = 'active'
+            WHERE id = $1
+          `, [roundData.competition_id]);
+        } else {
+          // Lock time is in the future - ensure competition is in setup status
+          await client.query(`
+            UPDATE competition 
+            SET status = 'setup'
+            WHERE id = $1
+          `, [roundData.competition_id]);
+        }
       }
 
       // === AUDIT LOGGING ===

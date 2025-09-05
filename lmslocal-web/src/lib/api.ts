@@ -127,6 +127,7 @@ export interface Competition {
   name: string;
   description?: string;
   access_code?: string;
+  invite_code?: string;
   slug?: string;
   is_organiser: boolean;
   organiser_id: number;
@@ -438,6 +439,11 @@ export const cacheUtils = {
   // Clear competition-related cache when competitions change
   invalidateCompetitions: () => {
     apiCache.delete('my-competitions');
+  },
+  
+  // Clear specific cache key
+  invalidateKey: (key: string) => {
+    apiCache.delete(key);
   },
   
   // Clear all cache entries

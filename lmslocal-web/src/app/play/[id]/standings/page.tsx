@@ -7,17 +7,10 @@ import {
   TrophyIcon,
   ArrowLeftIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
-  UserIcon
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { userApi } from '@/lib/api';
-import { logout } from '@/lib/auth';
-
-interface User {
-  id: number;
-  display_name: string;
-  email: string;
-}
+import { getCurrentUser } from '@/lib/auth';
 
 interface Competition {
   id: number;
@@ -43,6 +36,7 @@ interface RoundHistory {
 
 interface CurrentPick {
   team: string | null;
+  team_full_name?: string | null;
   outcome: string | null;
   fixture: string | null;
 }
@@ -69,13 +63,10 @@ export default function CompetitionStandingsPage() {
     setFromAdmin(urlParams.get('from') === 'admin');
   }, []);
   
-  const [user, setUser] = useState<User | null>(null);
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isUserOrganizer, setIsUserOrganizer] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadStandings = useCallback(async () => {
@@ -111,21 +102,18 @@ export default function CompetitionStandingsPage() {
     const initializeData = async () => {
       // Check authentication
       const token = localStorage.getItem('jwt_token');
-      const userData = localStorage.getItem('user');
       
-      if (!token || !userData) {
+      if (!token) {
         if (!controller.signal.aborted) router.push('/login');
         return;
       }
 
       try {
-        const parsedUser = JSON.parse(userData);
         if (!controller.signal.aborted) {
-          setUser(parsedUser);
           await loadStandings();
         }
       } catch (error) {
-        console.error('Error parsing user data:', error);
+        console.error('Error initializing data:', error);
         if (!controller.signal.aborted) router.push('/login');
         return;
       }
@@ -160,24 +148,38 @@ export default function CompetitionStandingsPage() {
     });
   };
 
-  const handleLogout = () => {
-    logout(router);
+  // Determine if a player's current pick should be visible
+  const isPickVisible = (playerId: number) => {
+    const currentUser = getCurrentUser();
+    const isAdmin = fromAdmin;
+    const isOwnPlayer = currentUser && currentUser.id === playerId;
+    const isRoundLocked = competition?.is_locked || false;
+    
+    // Show pick if: Admin (always) OR own player (always) OR deadline passed (everyone sees all)
+    return isAdmin || isOwnPlayer || isRoundLocked;
   };
+
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-400 border-t-transparent"></div>
+          </div>
+          <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Standings</h3>
+          <p className="text-slate-500">Please wait...</p>
+        </div>
       </div>
     );
   }
 
   if (!competition) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <h3 className="text-xl font-medium text-gray-900 mb-2">Competition Not Found</h3>
-          <Link href="/play" className="text-blue-600 hover:text-blue-700">
+          <h3 className="text-lg font-medium text-slate-900 mb-2">Competition Not Found</h3>
+          <Link href="/play" className="text-slate-600 hover:text-slate-900 underline">
             Back to Competitions
           </Link>
         </div>
@@ -189,494 +191,422 @@ export default function CompetitionStandingsPage() {
   const eliminatedPlayers = players.filter(p => p.status === 'OUT');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
               <Link 
                 href={fromAdmin ? `/competition/${competitionId}/dashboard` : `/play/${competitionId}`} 
-                className="mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors"
               >
-                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+                <ArrowLeftIcon className="h-5 w-5" />
+                <span className="font-medium">Back</span>
               </Link>
-              <Link href="/" className="flex items-center">
-                <TrophyIcon className="h-8 w-8 text-blue-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">LMSLocal</span>
-              </Link>
+              <div className="h-6 w-px bg-slate-300" />
+              <div className="flex items-center space-x-3">
+                <TrophyIcon className="h-6 w-6 text-slate-800" />
+                <h1 className="text-lg font-semibold text-slate-900">Standings</h1>
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {user?.display_name}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md"
-              >
-                Sign out
-              </button>
-            </div>
+            
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         
-        {/* Title */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{competition.name}</h1>
-              <p className="text-gray-600">
-                {activePlayers.length === 1 && !competition.access_code
-                  ? `🏆 Competition Complete - We have a winner!`
-                  : `Round ${competition.current_round || 1} Standings - ${activePlayers.length} players remaining`
-                }
-              </p>
+        {/* Header with Competition Info & Quick Stats */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">{competition.name}</h1>
+              <div className="flex items-center space-x-4 text-sm text-slate-600">
+                <span>Round {competition.current_round || 1}</span>
+                <span>•</span>
+                <span>{activePlayers.length} active</span>
+                {eliminatedPlayers.length > 0 && (
+                  <>
+                    <span>•</span>
+                    <span>{eliminatedPlayers.length} out</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Winner/Active Players */}
-        {activePlayers.length > 0 && (
-          <div className={`rounded-lg border p-4 sm:p-6 mb-6 ${
-            activePlayers.length === 1 && !competition.access_code
-              ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200' 
-              : 'bg-white border-gray-200'
-          }`}>
-            <h2 className="text-lg font-semibold mb-4 flex items-center">
-              {activePlayers.length === 1 && !competition.access_code ? (
-                <>
-                  <span className="text-2xl mr-3">🏆</span>
-                  <span className="text-yellow-800">Competition Winner!</span>
-                </>
-              ) : (
-                <>
-                  <span className="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
-                  <span className="text-gray-900">Active Players ({activePlayers.length})</span>
-                </>
-              )}
-            </h2>
-            
-            <div className="space-y-3">
-              {activePlayers.map((player) => (
-                <div key={player.id} className={`border rounded-lg ${
-                  activePlayers.length === 1 && !competition.access_code
-                    ? 'border-yellow-300 bg-yellow-50' 
-                    : 'border-gray-200'
-                }`}>
-                  <div 
-                    className={`flex items-center justify-between p-4 cursor-pointer ${
-                      activePlayers.length === 1 && !competition.access_code
-                        ? 'hover:bg-yellow-100' 
-                        : 'hover:bg-gray-50'
-                    }`}
-                    onClick={() => togglePlayerExpansion(player.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      {activePlayers.length === 1 && !competition.access_code ? (
-                        <span className="text-xl">👑</span>
-                      ) : (
-                        <UserIcon className="h-5 w-5 text-gray-400" />
-                      )}
-                      <div>
-                        <span className={`font-medium ${
-                          activePlayers.length === 1 && !competition.access_code
-                            ? 'text-yellow-900 text-lg' 
-                            : 'text-gray-900'
-                        }`}>
+        {/* Players List - Simplified */}
+        <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+          {/* Active Players */}
+          {activePlayers.map((player) => (
+            <div key={player.id} className="p-4 hover:bg-slate-50 transition-colors">
+              <div 
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => togglePlayerExpansion(player.id)}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-slate-900 truncate">
                           {player.display_name}
                           {activePlayers.length === 1 && !competition.access_code && (
-                            <span className="ml-2 text-sm font-bold text-yellow-700">WINNER</span>
+                            <span className="ml-2 text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">WINNER</span>
                           )}
-                        </span>
-                        {competition.is_locked && player.current_pick && (
-                          <div className="text-sm text-gray-600 mt-1">
-                            {player.current_pick.outcome === 'NO_PICK' ? (
-                              <span className="text-red-600 font-medium">No Pick</span>
-                            ) : (
-                              <span>
-                                Pick: <span className="font-medium text-blue-600">{player.current_pick.team}</span>
-                                {player.current_pick.outcome && (
-                                  <span className={`ml-2 px-2 py-0.5 text-xs rounded font-medium ${
-                                    player.current_pick.outcome === 'WIN' ? 'bg-green-100 text-green-800' :
-                                    player.current_pick.outcome === 'LOSE' ? 'bg-red-100 text-red-800' :
-                                    'bg-gray-100 text-gray-600'
-                                  }`}>
-                                    {player.current_pick.outcome}
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {competition.is_locked && !player.current_pick && (
-                          <div className="text-sm text-red-600 mt-1 font-medium">
-                            No Pick
-                          </div>
-                        )}
+                        </p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 text-sm rounded-full font-bold ${
-                        activePlayers.length === 1 && !competition.access_code
-                          ? 'bg-yellow-200 text-yellow-900'
-                          : player.lives_remaining === 0 
-                            ? 'bg-red-100 text-red-800' 
-                            : player.lives_remaining === 1 
-                              ? 'bg-orange-100 text-orange-800' 
-                              : 'bg-green-100 text-green-800'
-                      }`}>
-                        {activePlayers.length === 1 && !competition.access_code
-                          ? 'CHAMPION' 
-                          : `${player.lives_remaining} ${player.lives_remaining === 1 ? 'life' : 'lives'}`
-                        }
-                      </span>
-                      {expandedPlayers.has(player.id) ? (
-                        <ChevronDownIcon className="h-4 w-4 text-gray-400" />
-                      ) : (
-                        <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                      {isPickVisible(player.id) && player.current_pick && (
+                        <p className="text-sm text-slate-600 truncate">
+                          {player.current_pick.outcome === 'NO_PICK' ? (
+                            <span className="text-slate-500">No Pick</span>
+                          ) : (
+                            <span>Pick: {player.current_pick.team_full_name || player.current_pick.team}</span>
+                          )}
+                        </p>
+                      )}
+                      {isPickVisible(player.id) && !player.current_pick && (
+                        <p className="text-sm text-slate-500">No Pick</p>
                       )}
                     </div>
                   </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-slate-900">
+                      {activePlayers.length === 1 && !competition.access_code
+                        ? 'Winner' 
+                        : `${player.lives_remaining} lives`
+                      }
+                    </p>
+                  </div>
                   
-                  {/* Expanded History */}
-                  {expandedPlayers.has(player.id) && (
-                    <div className="border-t border-gray-200 p-4 bg-gray-50">
-                      <h4 className="font-medium text-gray-900 mb-3">Round History</h4>
-                      
-                      {/* Desktop History Table */}
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-gray-200">
-                              <th className="text-left py-2 font-medium text-gray-700">Round</th>
-                              <th className="text-left py-2 font-medium text-gray-700">Pick</th>
-                              <th className="text-left py-2 font-medium text-gray-700">Fixture</th>
-                              <th className="text-left py-2 font-medium text-gray-700">Result</th>
-                              <th className="text-left py-2 font-medium text-gray-700">Outcome</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {player.history.length > 0 ? (
-                              player.history.map((round) => (
-                                <tr key={round.round_id} className="border-b border-gray-100">
-                                  <td className="py-2">
-                                    <span className="font-medium">Round {round.round_number}</span>
-                                  </td>
-                                  <td className="py-2">
-                                    {round.visible_pick_team_full_name ? (
-                                      <span className="text-blue-600 font-medium">{round.visible_pick_team_full_name}</span>
-                                    ) : (
-                                      <span className="text-red-600 font-medium">No Pick</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2">
-                                    {round.home_team && round.away_team ? (
-                                      <span className="text-gray-700">{round.home_team} vs {round.away_team}</span>
-                                    ) : (
-                                      <span className="text-gray-400">-</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2">
-                                    {round.result ? (
-                                      <span className="text-gray-700">
-                                        {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
-                                         round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
-                                         round.result === 'DRAW' ? 'Draw' : round.result}
-                                      </span>
-                                    ) : (
-                                      <span className="text-gray-400">Pending</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2">
-                                    <span className={`px-2 py-1 text-xs rounded font-medium ${
-                                      round.pick_result === 'win' ? 'bg-green-100 text-green-800' :
-                                      round.pick_result === 'loss' ? 'bg-red-100 text-red-800' :
-                                      round.pick_result === 'no_pick' ? 'bg-gray-100 text-gray-600' :
-                                      'bg-gray-100 text-gray-600'
-                                    }`}>
-                                      {round.pick_result === 'win' ? 'WIN' :
-                                       round.pick_result === 'loss' ? 'LOSE' :
-                                       round.pick_result === 'no_pick' ? 'NO PICK' :
-                                       'PENDING'}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={5} className="py-4 text-center text-gray-500">
-                                  No previous rounds completed
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Mobile History Cards */}
-                      <div className="md:hidden space-y-3">
+                  {expandedPlayers.has(player.id) ? (
+                    <ChevronDownIcon className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
+                  ) : (
+                    <ChevronRightIcon className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
+                  )}
+                </div>
+              </div>
+              
+              {/* Expanded History */}
+              {expandedPlayers.has(player.id) && (
+                <div className="border-t border-slate-200 p-4 bg-slate-50 mt-4">
+                  <h4 className="font-medium text-slate-900 mb-3">Round History</h4>
+                  
+                  {/* Desktop History Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="text-left py-2 font-medium text-slate-700">Round</th>
+                          <th className="text-left py-2 font-medium text-slate-700">Pick</th>
+                          <th className="text-left py-2 font-medium text-slate-700">Fixture</th>
+                          <th className="text-left py-2 font-medium text-slate-700">Result</th>
+                          <th className="text-left py-2 font-medium text-slate-700">Outcome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
                         {player.history.length > 0 ? (
                           player.history.map((round) => (
-                            <div key={round.round_id} className="border border-gray-200 rounded-lg p-3 bg-white">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="font-medium text-gray-900">Round {round.round_number}</span>
+                            <tr key={round.round_id} className="border-b border-slate-100">
+                              <td className="py-2">
+                                <span className="font-medium">Round {round.round_number}</span>
+                              </td>
+                              <td className="py-2">
+                                {round.visible_pick_team_full_name ? (
+                                  <span className="text-slate-900 font-medium">{round.visible_pick_team_full_name}</span>
+                                ) : (
+                                  <span className="text-slate-500 font-medium">No Pick</span>
+                                )}
+                              </td>
+                              <td className="py-2">
+                                {round.home_team && round.away_team ? (
+                                  <span className="text-slate-700">{round.home_team} vs {round.away_team}</span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
+                                )}
+                              </td>
+                              <td className="py-2">
+                                {round.result ? (
+                                  <span className="text-slate-700">
+                                    {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
+                                     round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
+                                     round.result === 'DRAW' ? 'Draw' : round.result}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">Pending</span>
+                                )}
+                              </td>
+                              <td className="py-2">
                                 <span className={`px-2 py-1 text-xs rounded font-medium ${
-                                  round.pick_result === 'win' ? 'bg-green-100 text-green-800' :
-                                  round.pick_result === 'loss' ? 'bg-red-100 text-red-800' :
-                                  round.pick_result === 'no_pick' ? 'bg-gray-100 text-gray-600' :
-                                  'bg-gray-100 text-gray-600'
+                                  round.pick_result === 'win' ? 'bg-slate-100 text-slate-800' :
+                                  round.pick_result === 'loss' ? 'bg-slate-100 text-slate-800' :
+                                  round.pick_result === 'no_pick' ? 'bg-slate-100 text-slate-600' :
+                                  'bg-slate-100 text-slate-600'
                                 }`}>
                                   {round.pick_result === 'win' ? 'WIN' :
                                    round.pick_result === 'loss' ? 'LOSE' :
                                    round.pick_result === 'no_pick' ? 'NO PICK' :
                                    'PENDING'}
                                 </span>
-                              </div>
-                              
-                              <div className="space-y-1 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Pick:</span>
-                                  {round.visible_pick_team_full_name ? (
-                                    <span className="text-blue-600 font-medium">{round.visible_pick_team_full_name}</span>
-                                  ) : (
-                                    <span className="text-red-600 font-medium">No Pick</span>
-                                  )}
-                                </div>
-                                
-                                {round.home_team && round.away_team && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Fixture:</span>
-                                    <span className="text-gray-700 text-right">{round.home_team} vs {round.away_team}</span>
-                                  </div>
-                                )}
-
-                                {round.result && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Result:</span>
-                                    <span className="text-gray-700 text-right">
-                                      {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
-                                       round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
-                                       round.result === 'DRAW' ? 'Draw' : round.result}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                              </td>
+                            </tr>
                           ))
                         ) : (
-                          <div className="text-center text-gray-500 py-4">
-                            No previous rounds completed
-                          </div>
+                          <tr>
+                            <td colSpan={5} className="py-4 text-center text-slate-500">
+                              No previous rounds completed
+                            </td>
+                          </tr>
                         )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-        {/* Eliminated Players */}
-        {eliminatedPlayers.length > 0 && (
-          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <span className="w-3 h-3 bg-red-500 rounded-full mr-2"></span>
-              Eliminated Players ({eliminatedPlayers.length})
-            </h2>
-            
-            <div className="space-y-3">
-              {eliminatedPlayers.map((player) => (
-                <div key={player.id} className="border border-gray-200 rounded-lg">
-                  <div 
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
-                    onClick={() => togglePlayerExpansion(player.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <UserIcon className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <span className="font-medium text-gray-500">{player.display_name}</span>
-                        {competition.is_locked && player.current_pick && (
-                          <div className="text-sm text-gray-500 mt-1">
-                            {player.current_pick.outcome === 'NO_PICK' ? (
-                              <span className="text-red-600 font-medium">No Pick</span>
-                            ) : (
-                              <span>
-                                Pick: <span className="font-medium text-blue-600">{player.current_pick.team}</span>
-                                {player.current_pick.outcome && (
-                                  <span className={`ml-2 px-2 py-0.5 text-xs rounded font-medium ${
-                                    player.current_pick.outcome === 'WIN' ? 'bg-green-100 text-green-800' :
-                                    player.current_pick.outcome === 'LOSE' ? 'bg-red-100 text-red-800' :
-                                    'bg-gray-100 text-gray-600'
-                                  }`}>
-                                    {player.current_pick.outcome}
-                                  </span>
-                                )}
-                              </span>
+                  {/* Mobile History Cards */}
+                  <div className="md:hidden space-y-3">
+                    {player.history.length > 0 ? (
+                      player.history.map((round) => (
+                        <div key={round.round_id} className="border border-slate-200 rounded-lg p-3 bg-white">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-slate-900">Round {round.round_number}</span>
+                            <span className={`px-2 py-1 text-xs rounded font-medium ${
+                              round.pick_result === 'win' ? 'bg-slate-100 text-slate-800' :
+                              round.pick_result === 'loss' ? 'bg-slate-100 text-slate-800' :
+                              round.pick_result === 'no_pick' ? 'bg-slate-100 text-slate-600' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                              {round.pick_result === 'win' ? 'WIN' :
+                               round.pick_result === 'loss' ? 'LOSE' :
+                               round.pick_result === 'no_pick' ? 'NO PICK' :
+                               'PENDING'}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Pick:</span>
+                              {round.visible_pick_team_full_name ? (
+                                <span className="text-slate-900 font-medium">{round.visible_pick_team_full_name}</span>
+                              ) : (
+                                <span className="text-slate-500 font-medium">No Pick</span>
+                              )}
+                            </div>
+                            
+                            {round.home_team && round.away_team && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-600">Fixture:</span>
+                                <span className="text-slate-700 text-right">{round.home_team} vs {round.away_team}</span>
+                              </div>
+                            )}
+
+                            {round.result && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-600">Result:</span>
+                                <span className="text-slate-700 text-right">
+                                  {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
+                                   round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
+                                   round.result === 'DRAW' ? 'Draw' : round.result}
+                                </span>
+                              </div>
                             )}
                           </div>
-                        )}
-                        {competition.is_locked && !player.current_pick && (
-                          <div className="text-sm text-red-600 mt-1 font-medium">
-                            No Pick
-                          </div>
-                        )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-slate-500 py-4">
+                        No previous rounds completed
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="px-2 py-1 text-xs rounded font-medium bg-red-100 text-red-800">
-                        OUT
-                      </span>
-                      {expandedPlayers.has(player.id) ? (
-                        <ChevronDownIcon className="h-4 w-4 text-gray-400" />
-                      ) : (
-                        <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          
+          {/* Eliminated Players */}
+          {eliminatedPlayers.map((player) => (
+            <div key={player.id} className="p-4 hover:bg-slate-50 transition-colors opacity-75">
+              <div 
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => togglePlayerExpansion(player.id)}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-slate-600 truncate">{player.display_name}</p>
+                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">OUT</span>
+                      </div>
+                      {isPickVisible(player.id) && player.current_pick && (
+                        <p className="text-sm text-slate-500 truncate">
+                          {player.current_pick.outcome === 'NO_PICK' ? (
+                            <span>No Pick</span>
+                          ) : (
+                            <span>Pick: {player.current_pick.team_full_name || player.current_pick.team}</span>
+                          )}
+                        </p>
+                      )}
+                      {isPickVisible(player.id) && !player.current_pick && (
+                        <p className="text-sm text-slate-500">No Pick</p>
                       )}
                     </div>
                   </div>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-slate-500">0 lives</p>
+                  </div>
                   
-                  {/* Expanded History */}
-                  {expandedPlayers.has(player.id) && (
-                    <div className="border-t border-gray-200 p-4 bg-gray-50">
-                      <h4 className="font-medium text-gray-900 mb-3">Round History</h4>
-                      
-                      {/* Desktop History Table - Same as active players */}
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-gray-200">
-                              <th className="text-left py-2 font-medium text-gray-700">Round</th>
-                              <th className="text-left py-2 font-medium text-gray-700">Pick</th>
-                              <th className="text-left py-2 font-medium text-gray-700">Fixture</th>
-                              <th className="text-left py-2 font-medium text-gray-700">Result</th>
-                              <th className="text-left py-2 font-medium text-gray-700">Outcome</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {player.history.length > 0 ? (
-                              player.history.map((round) => (
-                                <tr key={round.round_id} className="border-b border-gray-100">
-                                  <td className="py-2">
-                                    <span className="font-medium">Round {round.round_number}</span>
-                                  </td>
-                                  <td className="py-2">
-                                    {round.visible_pick_team_full_name ? (
-                                      <span className="text-blue-600 font-medium">{round.visible_pick_team_full_name}</span>
-                                    ) : (
-                                      <span className="text-red-600 font-medium">No Pick</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2">
-                                    {round.home_team && round.away_team ? (
-                                      <span className="text-gray-700">{round.home_team} vs {round.away_team}</span>
-                                    ) : (
-                                      <span className="text-gray-400">-</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2">
-                                    {round.result ? (
-                                      <span className="text-gray-700">
-                                        {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
-                                         round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
-                                         round.result === 'DRAW' ? 'Draw' : round.result}
-                                      </span>
-                                    ) : (
-                                      <span className="text-gray-400">Pending</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2">
-                                    <span className={`px-2 py-1 text-xs rounded font-medium ${
-                                      round.pick_result === 'win' ? 'bg-green-100 text-green-800' :
-                                      round.pick_result === 'loss' ? 'bg-red-100 text-red-800' :
-                                      round.pick_result === 'no_pick' ? 'bg-gray-100 text-gray-600' :
-                                      'bg-gray-100 text-gray-600'
-                                    }`}>
-                                      {round.pick_result === 'win' ? 'WIN' :
-                                       round.pick_result === 'loss' ? 'LOSE' :
-                                       round.pick_result === 'no_pick' ? 'NO PICK' :
-                                       'PENDING'}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={5} className="py-4 text-center text-gray-500">
-                                  No previous rounds completed
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Mobile History Cards */}
-                      <div className="md:hidden space-y-3">
+                  {expandedPlayers.has(player.id) ? (
+                    <ChevronDownIcon className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
+                  ) : (
+                    <ChevronRightIcon className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
+                  )}
+                </div>
+              </div>
+              
+              {/* Expanded History */}
+              {expandedPlayers.has(player.id) && (
+                <div className="border-t border-slate-200 p-4 bg-slate-50 mt-4">
+                  <h4 className="font-medium text-slate-900 mb-3">Round History</h4>
+                  
+                  {/* Desktop History Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="text-left py-2 font-medium text-slate-700">Round</th>
+                          <th className="text-left py-2 font-medium text-slate-700">Pick</th>
+                          <th className="text-left py-2 font-medium text-slate-700">Fixture</th>
+                          <th className="text-left py-2 font-medium text-slate-700">Result</th>
+                          <th className="text-left py-2 font-medium text-slate-700">Outcome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
                         {player.history.length > 0 ? (
                           player.history.map((round) => (
-                            <div key={round.round_id} className="border border-gray-200 rounded-lg p-3 bg-white">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="font-medium text-gray-900">Round {round.round_number}</span>
+                            <tr key={round.round_id} className="border-b border-slate-100">
+                              <td className="py-2">
+                                <span className="font-medium">Round {round.round_number}</span>
+                              </td>
+                              <td className="py-2">
+                                {round.visible_pick_team_full_name ? (
+                                  <span className="text-slate-700 font-medium">{round.visible_pick_team_full_name}</span>
+                                ) : (
+                                  <span className="text-slate-500 font-medium">No Pick</span>
+                                )}
+                              </td>
+                              <td className="py-2">
+                                {round.home_team && round.away_team ? (
+                                  <span className="text-slate-600">{round.home_team} vs {round.away_team}</span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
+                                )}
+                              </td>
+                              <td className="py-2">
+                                {round.result ? (
+                                  <span className="text-slate-600">
+                                    {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
+                                     round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
+                                     round.result === 'DRAW' ? 'Draw' : round.result}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">Pending</span>
+                                )}
+                              </td>
+                              <td className="py-2">
                                 <span className={`px-2 py-1 text-xs rounded font-medium ${
-                                  round.pick_result === 'win' ? 'bg-green-100 text-green-800' :
-                                  round.pick_result === 'loss' ? 'bg-red-100 text-red-800' :
-                                  round.pick_result === 'no_pick' ? 'bg-gray-100 text-gray-600' :
-                                  'bg-gray-100 text-gray-600'
+                                  round.pick_result === 'win' ? 'bg-slate-100 text-slate-700' :
+                                  round.pick_result === 'loss' ? 'bg-slate-100 text-slate-700' :
+                                  round.pick_result === 'no_pick' ? 'bg-slate-100 text-slate-600' :
+                                  'bg-slate-100 text-slate-600'
                                 }`}>
                                   {round.pick_result === 'win' ? 'WIN' :
                                    round.pick_result === 'loss' ? 'LOSE' :
                                    round.pick_result === 'no_pick' ? 'NO PICK' :
                                    'PENDING'}
                                 </span>
-                              </div>
-                              
-                              <div className="space-y-1 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Pick:</span>
-                                  {round.visible_pick_team_full_name ? (
-                                    <span className="text-blue-600 font-medium">{round.visible_pick_team_full_name}</span>
-                                  ) : (
-                                    <span className="text-red-600 font-medium">No Pick</span>
-                                  )}
-                                </div>
-                                
-                                {round.home_team && round.away_team && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Fixture:</span>
-                                    <span className="text-gray-700 text-right">{round.home_team} vs {round.away_team}</span>
-                                  </div>
-                                )}
-
-                                {round.result && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Result:</span>
-                                    <span className="text-gray-700 text-right">
-                                      {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
-                                       round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
-                                       round.result === 'DRAW' ? 'Draw' : round.result}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                              </td>
+                            </tr>
                           ))
                         ) : (
-                          <div className="text-center text-gray-500 py-4">
-                            No previous rounds completed
-                          </div>
+                          <tr>
+                            <td colSpan={5} className="py-4 text-center text-slate-500">
+                              No previous rounds completed
+                            </td>
+                          </tr>
                         )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile History Cards */}
+                  <div className="md:hidden space-y-3">
+                    {player.history.length > 0 ? (
+                      player.history.map((round) => (
+                        <div key={round.round_id} className="border border-slate-200 rounded-lg p-3 bg-white">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-slate-900">Round {round.round_number}</span>
+                            <span className={`px-2 py-1 text-xs rounded font-medium ${
+                              round.pick_result === 'win' ? 'bg-slate-100 text-slate-700' :
+                              round.pick_result === 'loss' ? 'bg-slate-100 text-slate-700' :
+                              round.pick_result === 'no_pick' ? 'bg-slate-100 text-slate-600' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                              {round.pick_result === 'win' ? 'WIN' :
+                               round.pick_result === 'loss' ? 'LOSE' :
+                               round.pick_result === 'no_pick' ? 'NO PICK' :
+                               'PENDING'}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Pick:</span>
+                              {round.visible_pick_team_full_name ? (
+                                <span className="text-slate-700 font-medium">{round.visible_pick_team_full_name}</span>
+                              ) : (
+                                <span className="text-slate-500 font-medium">No Pick</span>
+                              )}
+                            </div>
+                            
+                            {round.home_team && round.away_team && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-600">Fixture:</span>
+                                <span className="text-slate-600 text-right">{round.home_team} vs {round.away_team}</span>
+                              </div>
+                            )}
+
+                            {round.result && (
+                              <div className="flex justify-between">
+                                <span className="text-slate-600">Result:</span>
+                                <span className="text-slate-600 text-right">
+                                  {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
+                                   round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
+                                   round.result === 'DRAW' ? 'Draw' : round.result}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-slate-500 py-4">
+                        No previous rounds completed
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        )}
+          ))}
+        </div>
       </main>
     </div>
   );

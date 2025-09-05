@@ -11,7 +11,6 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowLeftIcon,
-  Cog6ToothIcon,
   CalendarIcon,
   PlayIcon,
   PauseIcon,
@@ -19,10 +18,9 @@ import {
   CheckIcon,
   XMarkIcon,
   ChartBarIcon,
-  ClipboardDocumentIcon,
-  EyeIcon
+  ClipboardDocumentIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, roundApi, fixtureApi, teamApi, adminApi, Competition, Team, Player } from '@/lib/api';
+import { competitionApi, roundApi, fixtureApi, teamApi, adminApi, Competition, Team, Player, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
 
@@ -60,6 +58,7 @@ export default function ManageCompetitionPage() {
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
+  const [hasValidatedAccess, setHasValidatedAccess] = useState(false);
   const [showCreateRoundModal, setShowCreateRoundModal] = useState(false);
   const [newRoundLockTime, setNewRoundLockTime] = useState('');
   
@@ -113,44 +112,57 @@ export default function ManageCompetitionPage() {
 
   const loadCompetitionData = useCallback(async () => {
     try {
-      // Get competition from context and load status
-      if (!contextCompetition) {
-        return; // Wait for context to load
-      }
+      const competitionData = contextCompetition;
       
-      if (!(contextCompetition as Competition & { is_organiser: boolean }).is_organiser) {
+      // Load status first to check access and get competition state
+      const status = await competitionApi.getStatus(parseInt(competitionId));
+      
+      // Handle different return codes from status API
+      if (status.data.return_code === 'COMPETITION_NOT_FOUND') {
+        router.push('/dashboard');
+        return;
+      } else if (status.data.return_code === 'UNAUTHORIZED') {
+        router.push('/dashboard');
+        return;
+      } else if (status.data.return_code !== 'SUCCESS') {
+        console.error('Unexpected status API response:', status.data);
         router.push('/dashboard');
         return;
       }
       
-      setCompetition(contextCompetition);
+      // At this point, status API returned SUCCESS, so we have access to the competition
+      setHasValidatedAccess(true);
       
-      // Load status separately (now cached)
-      const status = await competitionApi.getStatus(parseInt(competitionId));
+      // Set competition from context if available
+      if (competitionData) {
+        setCompetition(competitionData);
+      }
       
-      // Handle routing based on status
-      if (status.data.return_code === 'SUCCESS') {
-        if (status.data.should_route_to_results) {
-          // Has fixtures - go to results
-          setRedirecting(true);
-          router.push(`/competition/${competitionId}/results`);
-          return;
-        }
-        
-        if (status.data.current_round) {
-          // Has round but no fixtures - stay here and load fixture creation
-          setCurrentRound(status.data.current_round as Round);
-          await loadFixtures((status.data.current_round as Round).id);
-        } else {
-          // No rounds - show first round creation modal with important messaging
-          setShowCreateRoundModal(true);
-          const defaultTime = getNextFriday6PM().slice(0, 16);
-          setNewRoundLockTime(defaultTime);
-        }
+      // Handle routing based on status and user role
+      // Check if current user is the competition organiser (admin)
+      const isAdmin = competitionData?.is_organiser || false;
+      
+      if (status.data.should_route_to_results && !isAdmin) {
+        // Has fixtures - regular users go to results, admins stay on manage page
+        setRedirecting(true);
+        router.push(`/competition/${competitionId}/results`);
+        return;
+      }
+      
+      if (status.data.current_round) {
+        // Has round but no fixtures - stay here and load fixture creation
+        setCurrentRound(status.data.current_round as Round);
+        await loadFixtures((status.data.current_round as Round).id);
+      } else {
+        // No rounds - show first round creation modal
+        setShowCreateRoundModal(true);
+        const defaultTime = getNextFriday6PM().slice(0, 16);
+        setNewRoundLockTime(defaultTime);
       }
 
     } catch (error) {
       console.error('Failed to load competition data:', error);
+      router.push('/dashboard');
     } finally {
       setLoading(false);
     }
@@ -233,9 +245,25 @@ export default function ManageCompetitionPage() {
       const response = await roundApi.create(competitionId, isoDateTime);
       
       if (response.data.return_code === 'SUCCESS') {
+        // Set the round directly instead of reloading (prevents race condition)
+        const roundData = response.data.round as { id: number; round_number: number; lock_time: string; status: string };
+        setCurrentRound({
+          id: roundData.id,
+          round_number: roundData.round_number,
+          lock_time: roundData.lock_time,
+          status: roundData.status || 'UNLOCKED'
+        });
+        
+        // Close modal and reset form
         setShowCreateRoundModal(false);
         setNewRoundLockTime('');
-        loadCompetitionData(); // Reload to show new round
+        
+        // Clear competition-status cache so it reflects the new round
+        const { apiCache } = await import('@/lib/cache');
+        apiCache.delete(`competition-status-${competitionId}`);
+        
+        // Load teams for fixture creation
+        await loadTeams();
       } else {
         alert('Failed to create round: ' + (response.data.message || 'Unknown error'));
       }
@@ -326,6 +354,9 @@ export default function ManageCompetitionPage() {
       const response = await fixtureApi.addBulk(currentRound.id.toString(), fixturesWithTime);
       
       if (response.data.return_code === 'SUCCESS') {
+        // Clear fixture cache to ensure fresh data loads on results page
+        cacheUtils.invalidateKey(`fixtures-${currentRound.id}`);
+        
         // Go straight to results page after confirming fixtures
         router.push(`/competition/${competitionId}/results`);
       } else {
@@ -452,7 +483,7 @@ export default function ManageCompetitionPage() {
                 </Link>
                 <div className="h-6 w-px bg-slate-300" />
                 <div className="flex items-center space-x-3">
-                  <TrophyIcon className="h-6 w-6 text-blue-600" />
+                  <TrophyIcon className="h-6 w-6 text-slate-700" />
                   <h1 className="text-lg font-semibold text-slate-900">Competition Management</h1>
                 </div>
               </div>
@@ -481,7 +512,8 @@ export default function ManageCompetitionPage() {
     );
   }
 
-  if (!competition) {
+  // Only show "Not Found" if we've tried to validate and failed - not when just missing context data
+  if (!competition && !hasValidatedAccess && !loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -492,7 +524,7 @@ export default function ManageCompetitionPage() {
           <p className="text-slate-500 mb-6">The competition you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to access it.</p>
           <Link 
             href="/dashboard" 
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-900 transition-colors"
           >
             Return to Main Dashboard
           </Link>
@@ -515,23 +547,9 @@ export default function ManageCompetitionPage() {
                 </Link>
                 <div className="h-6 w-px bg-slate-300" />
                 <div className="flex items-center space-x-3">
-                  <TrophyIcon className="h-6 w-6 text-blue-600" />
+                  <TrophyIcon className="h-6 w-6 text-slate-700" />
                   <h1 className="text-lg font-semibold text-slate-900">Competition Management</h1>
                 </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Link
-                  href={`/competition/${competitionId}/players`}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                >
-                  <EyeIcon className="h-4 w-4 mr-2" />
-                  View Players
-                </Link>
-                <button className="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
-                  <Cog6ToothIcon className="h-4 w-4 mr-2" />
-                  Settings
-                </button>
               </div>
             </div>
           </div>
@@ -543,23 +561,19 @@ export default function ManageCompetitionPage() {
             <div className="px-8 py-6 border-b border-slate-100">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">{competition.name}</h2>
-                  {competition.description && (
-                    <p className="text-slate-600 mb-4">{competition.description}</p>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">{competition?.name || 'Competition'}</h2>
+                  {competition?.description && (
+                    <p className="text-slate-600 mb-4">{competition?.description}</p>
                   )}
                   <div className="flex items-center space-x-6">
-                    <div className="flex items-center space-x-2 text-slate-600">
-                      <UserGroupIcon className="h-5 w-5" />
-                      <span className="text-sm font-medium">{competition.player_count || 0} players</span>
-                    </div>
-                    {competition.access_code && (
+                    {competition?.access_code && (
                       <div className="flex items-center space-x-2">
                         <span className="text-sm text-slate-500">Code:</span>
                         <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-lg">
-                          <code className="text-sm font-mono font-semibold text-blue-700">{competition.access_code}</code>
+                          <code className="text-sm font-mono font-semibold text-blue-700">{competition?.access_code}</code>
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(competition.access_code || '');
+                              navigator.clipboard.writeText(competition?.access_code || '');
                             }}
                             className="text-blue-600 hover:text-blue-700"
                           >
@@ -652,15 +666,15 @@ export default function ManageCompetitionPage() {
                       <button
                         onClick={savePendingFixtures}
                         disabled={isSavingFixtures}
-                        className={`inline-flex items-center px-6 py-2 rounded-lg font-medium transition-all ${
+                        className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 border ${
                           isSavingFixtures
-                            ? 'bg-slate-50 text-slate-400 cursor-not-allowed border border-slate-200'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                            ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md'
                         }`}
                       >
                         {isSavingFixtures ? (
                           <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-300 border-t-slate-600 mr-2"></div>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent mr-2"></div>
                             Saving...
                           </>
                         ) : (
@@ -744,7 +758,7 @@ export default function ManageCompetitionPage() {
                             disabled={isUsed && !isSelectedHome}
                             className={`relative p-3 rounded-xl border-2 font-semibold text-sm transition-all duration-200 ${
                               isSelectedHome
-                                ? 'border-blue-400 bg-blue-50 text-blue-700 shadow-sm'
+                                ? 'border-slate-400 bg-slate-50 text-slate-700 shadow-sm'
                                 : isUsed
                                 ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
                                 : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm'
@@ -754,7 +768,7 @@ export default function ManageCompetitionPage() {
                               <div className="font-bold text-base">{team.short_name}</div>
                             </div>
                             {isSelectedHome && (
-                              <div className="absolute -top-2 -right-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                              <div className="absolute -top-2 -right-2 w-5 h-5 bg-slate-600 rounded-full flex items-center justify-center">
                                 <CheckIcon className="h-3 w-3 text-white" />
                               </div>
                             )}
@@ -833,17 +847,16 @@ export default function ManageCompetitionPage() {
               
               <div className="px-8 py-6">
                 {!currentRound && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
                     <div className="flex items-start space-x-3">
                       <div className="flex-shrink-0">
-                        <ExclamationTriangleIcon className="h-6 w-6 text-blue-600" />
+                        <ExclamationTriangleIcon className="h-6 w-6 text-slate-600" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-blue-900 mb-2">Important: Set Your Pick Deadline Carefully</h4>
-                        <ul className="text-sm text-blue-800 space-y-1">
+                        <h4 className="font-semibold text-slate-900 mb-2">Set your first pick deadline</h4>
+                        <ul className="text-sm text-slate-700 space-y-1">
                           <li>• Give players time to join your competition</li>
                           <li>• Allow time for picks before fixtures start</li>
-                          <li>• Consider time zones if players are in different locations</li>
                           <li>• You can change this later if needed</li>
                         </ul>
                       </div>
@@ -869,7 +882,7 @@ export default function ManageCompetitionPage() {
                     type="datetime-local"
                     value={newRoundLockTime}
                     onChange={(e) => setNewRoundLockTime(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-base"
                     required
                   />
                   <p className="text-sm text-slate-500 mt-2">
@@ -889,7 +902,7 @@ export default function ManageCompetitionPage() {
                   <button
                     onClick={handleCreateRound}
                     disabled={!newRoundLockTime}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
                   >
                     Create Round
                   </button>

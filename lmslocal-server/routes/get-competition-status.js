@@ -50,9 +50,13 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
+  // Log API call if enabled
+  logApiCall('get-competition-status');
+  
   try {
     const { competition_id } = req.body;
     const user_id = req.user.id;
@@ -136,6 +140,7 @@ router.post('/', verifyToken, async (req, res) => {
       
       WHERE c.id = $1
     `, [competition_id]);
+
 
     // Check if competition exists
     if (result.rows.length === 0) {
