@@ -961,8 +961,8 @@ export default function CompetitionPickPage() {
           </div>
         )}
         
-        {/* Previous Round Toggle Button - Only show when round is NOT locked (not in-play) */}
-        {!isRoundLocked && competition?.current_round && competition.current_round > 1 && (
+        {/* Previous Round Toggle Button - Show when multiple rounds exist */}
+        {competition?.current_round && competition.current_round > 1 && (
           <div className="mt-6 text-center">
             <button
               onClick={handleTogglePreviousRound}

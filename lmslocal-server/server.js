@@ -31,6 +31,8 @@ const getCompetitionPlayersRoute = require('./routes/get-competition-players');
 const removePlayerRoute = require('./routes/remove-player');
 const createRoundRoute = require('./routes/create-round');
 const updateRoundRoute = require('./routes/update-round');
+const updateCompetitionRoute = require('./routes/update-competition');
+const resetCompetitionRoute = require('./routes/reset-competition');
 const getRoundsRoute = require('./routes/get-rounds');
 const addFixturesBulkRoute = require('./routes/add-fixtures-bulk');
 const getFixturesRoute = require('./routes/get-fixtures');
@@ -168,6 +170,8 @@ app.use('/get-competition-players', dbIntensiveLimit, getCompetitionPlayersRoute
 app.use('/remove-player', removePlayerRoute);
 app.use('/create-round', createRoundRoute);
 app.use('/update-round', updateRoundRoute);
+app.use('/update-competition', updateCompetitionRoute);
+app.use('/reset-competition', resetCompetitionRoute);
 app.use('/get-rounds', getRoundsRoute);
 app.use('/add-fixtures-bulk', addFixturesBulkRoute);
 app.use('/get-fixtures', getFixturesRoute);

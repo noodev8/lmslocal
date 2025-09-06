@@ -1,6 +1,13 @@
 ================================================================================
-Can you create the stats API which takes input for a competition and returns the results you require and use the bwlow rules.
-Also ensure any font end work makes use of our cache framework and strategy. We only need to refresh the cache for these stats evey 1hr
+Can you create an update competition API please. Allowing us to update the competition table.
+Allow updates to these field sin the competiion table
+Name, description, lives_per_player, no_team_twice
+
+Name and Description can be changed at any time
+
+Lives per player and no team twice can only be updated if the competition hasnt started. 
+We know if a competition hasnt started, if there is an invite_code still in the competition table. If it is NULL it is too late.
+And if the lives_per_player has changed, must also UPDATE any existing players in the competetion_user table lives_remaining field for those players.
 ================================================================================
 
 API Routes - always use POST

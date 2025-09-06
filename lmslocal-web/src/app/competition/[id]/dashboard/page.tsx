@@ -367,13 +367,16 @@ export default function AdminDashboard() {
                   <p className="text-sm text-slate-600">View and manage players</p>
                 </Link>
                 
-                <div className="group text-center opacity-50 cursor-not-allowed">
+                <Link
+                  href={`/competition/${competitionId}/settings`}
+                  className="group text-center hover:opacity-80 transition-opacity duration-200"
+                >
                   <div className="mb-4">
-                    <Cog6ToothIcon className="h-12 w-12 text-slate-400 mx-auto" />
+                    <Cog6ToothIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-500 mb-2">Settings</h3>
-                  <p className="text-sm text-slate-400">Restart or copy competition</p>
-                </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Settings</h3>
+                  <p className="text-sm text-slate-600">Manage competition settings</p>
+                </Link>
               </div>
             </>
           ) : (
@@ -416,13 +419,16 @@ export default function AdminDashboard() {
                   <p className="text-sm text-slate-600">View competition results</p>
                 </Link>
                 
-                <div className="group text-center opacity-50 cursor-not-allowed">
+                <Link
+                  href={`/competition/${competitionId}/settings`}
+                  className="group text-center hover:opacity-80 transition-opacity duration-200"
+                >
                   <div className="mb-4">
-                    <Cog6ToothIcon className="h-12 w-12 text-slate-400 mx-auto" />
+                    <Cog6ToothIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-500 mb-2">Settings</h3>
-                  <p className="text-sm text-slate-400">Coming soon</p>
-                </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Settings</h3>
+                  <p className="text-sm text-slate-600">Manage competition settings</p>
+                </Link>
               </div>
             </>
           )}

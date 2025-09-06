@@ -137,12 +137,7 @@ router.post('/', async (req, res) => {
           VALUES ($1, $2, $3)
         `, [
           'LOGIN_FAILED_USER_NOT_FOUND',
-          JSON.stringify({
-            email: normalizedEmail,
-            ip: clientIp,
-            user_agent: userAgent,
-            failure_reason: 'user_not_found'
-          }),
+          `attempted login: ${normalizedEmail}`,
           loginTimestamp
         ]);
 
@@ -163,12 +158,7 @@ router.post('/', async (req, res) => {
         `, [
           user.id,
           'LOGIN_FAILED_NO_PASSWORD',
-          JSON.stringify({
-            email: normalizedEmail,
-            ip: clientIp,
-            user_agent: userAgent,
-            failure_reason: 'no_password_hash'
-          }),
+          'login failed: no password',
           loginTimestamp
         ]);
 
@@ -188,12 +178,7 @@ router.post('/', async (req, res) => {
         `, [
           user.id,
           'LOGIN_FAILED_WRONG_PASSWORD',
-          JSON.stringify({
-            email: normalizedEmail,
-            ip: clientIp,
-            user_agent: userAgent,
-            failure_reason: 'incorrect_password'
-          }),
+          'login failed: wrong password',
           loginTimestamp
         ]);
 
@@ -212,12 +197,7 @@ router.post('/', async (req, res) => {
         `, [
           user.id,
           'LOGIN_FAILED_EMAIL_UNVERIFIED',
-          JSON.stringify({
-            email: normalizedEmail,
-            ip: clientIp,
-            user_agent: userAgent,
-            failure_reason: 'email_not_verified'
-          }),
+          'login failed: email unverified',
           loginTimestamp
         ]);
 
@@ -255,21 +235,14 @@ router.post('/', async (req, res) => {
       const activityResult = await client.query(updateActivityQuery, [loginTimestamp, user.id]);
       const updatedLastLogin = activityResult.rows[0].last_active_at;
 
-      // STEP 7: Create comprehensive audit log entry for successful login
+      // STEP 7: Create simple audit log entry for successful login
       await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, $2, $3, $4)
       `, [
         user.id,
         'LOGIN_SUCCESSFUL',
-        JSON.stringify({
-          email: normalizedEmail,
-          ip: clientIp,
-          user_agent: userAgent,
-          login_timestamp: loginTimestamp.toISOString(),
-          token_expires_at: expiresAt.toISOString(),
-          account_status: user.account_status
-        }),
+        'logged in',
         loginTimestamp
       ]);
 
