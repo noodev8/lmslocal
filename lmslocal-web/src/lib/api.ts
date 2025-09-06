@@ -135,6 +135,8 @@ export interface Competition {
   current_round?: number;
   status: 'LOCKED' | 'UNLOCKED' | 'SETUP' | 'COMPLETE';
   team_list_id?: number;
+  lives_per_player?: number;
+  no_team_twice?: boolean;
 }
 
 // Round interfaces
@@ -246,6 +248,41 @@ export interface CreateCompetitionRequest {
   organiser_joins_as_player: boolean;
 }
 
+export interface UpdateCompetitionRequest {
+  competition_id: number;
+  name?: string;
+  description?: string;
+  lives_per_player?: number;
+  no_team_twice?: boolean;
+}
+
+export interface UpdateCompetitionResponse {
+  competition: {
+    id: number;
+    name: string;
+    description?: string;
+    lives_per_player: number;
+    no_team_twice: boolean;
+    has_started: boolean;
+    updated_at: string;
+  };
+}
+
+export interface ResetCompetitionRequest {
+  competition_id: number;
+}
+
+export interface ResetCompetitionResponse {
+  competition: {
+    id: number;
+    name: string;
+    status: string;
+    invite_code: string;
+    reset_at: string;
+    players_affected: number;
+  };
+}
+
 // Auth API calls
 export const authApi = {
   login: (data: LoginRequest) => api.post<ApiResponse<{ token: string; user: User }>>('/login', data),
@@ -297,6 +334,8 @@ export const competitionApi = {
     1 * 60 * 60 * 1000, // 1 hour cache - dashboard stats refreshed hourly as requested
     () => api.post<ApiResponse<DashboardStats>>('/get-dashboard-stats', { competition_id })
   ),
+  update: (data: UpdateCompetitionRequest) => api.post<ApiResponse<UpdateCompetitionResponse>>('/update-competition', data),
+  reset: (data: ResetCompetitionRequest) => api.post<ApiResponse<ResetCompetitionResponse>>('/reset-competition', data),
 };
 
 // Round API calls
