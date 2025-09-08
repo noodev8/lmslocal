@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -35,6 +35,10 @@ export default function AdminDashboard() {
   const loading = contextLoading || !competition;
   const [winnerName, setWinnerName] = useState<string>('Loading...');
   
+  // Prevent duplicate API calls using refs
+  const statsLoadedRef = useRef(false);
+  const winnerLoadedRef = useRef(false);
+  
   // Simple winner detection using existing player_count and status
   const getWinnerStatus = (comp: CompetitionType) => {
     const playerCount = comp.player_count || 0;
@@ -59,29 +63,40 @@ export default function AdminDashboard() {
     if (competition && competition.is_organiser) {
       setCompetitionState(competition);
       
+      // Prevent duplicate API calls using ref guard
+      if (!statsLoadedRef.current) {
+        statsLoadedRef.current = true;
+        console.log('🔍 Loading dashboard stats (first time)');
+        
         // Load stats without blocking the UI
-      competitionApi.getDashboardStats(parseInt(competitionId))
-        .then(response => {
-          if (response.data.return_code === 'SUCCESS') {
-            setDashboardStats(response.data.data || null);
-          }
-        })
-        .catch(() => {
-          // Stats are optional - continue without them
-        });
+        competitionApi.getDashboardStats(parseInt(competitionId))
+          .then(response => {
+            if (response.data.return_code === 'SUCCESS') {
+              setDashboardStats(response.data.data || null);
+            }
+          })
+          .catch(() => {
+            // Stats are optional - continue without them
+            statsLoadedRef.current = false; // Reset on error to allow retry
+          });
+      }
       
       // Load winner name if competition has 1 player and is not in setup
-      if (competition.player_count === 1 && competition.status !== 'SETUP') {
+      if (competition.player_count === 1 && competition.status !== 'SETUP' && !winnerLoadedRef.current) {
+        winnerLoadedRef.current = true;
+        console.log('🏆 Loading winner name (first time)');
+        
         userApi.getCompetitionStandings(parseInt(competitionId))
           .then(response => {
             if (response.data.return_code === 'SUCCESS') {
-              const players = (response.data.players as any[]) || [];
+              const players = (response.data.players as { status: string; display_name: string }[]) || [];
               const activePlayer = players.find(p => p.status !== 'OUT');
               setWinnerName(activePlayer?.display_name || 'Unknown Winner');
             }
           })
           .catch(() => {
             setWinnerName('Unknown Winner');
+            winnerLoadedRef.current = false; // Reset on error to allow retry
           });
       }
     }

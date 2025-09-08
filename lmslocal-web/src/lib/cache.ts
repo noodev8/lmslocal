@@ -206,16 +206,53 @@ export function debugCache(): void {
 }
 
 /**
- * Utility function to invalidate specific data caches
- * Use this when you know data has changed and needs to be refetched
+ * Utility functions for cache management
+ * Simplified approach: Clear all cache on login for clean slate
  */
-export const invalidateCache = {
-  competitions: () => apiCache.delete('my-competitions'),
-  teams: () => apiCache.delete('teams'),
-  teamLists: () => apiCache.delete('team-lists'),
-  competition: (id: number) => apiCache.deletePattern(`competition-${id}-*`),
-  all: () => apiCache.clear()
+export const cacheUtils = {
+  // Clear all cache - used on login for fresh start
+  clearAll: () => {
+    apiCache.clear();
+    console.log('🧹 Cache cleared: All entries removed');
+  },
+  
+  // Individual cache operations
+  invalidateKey: (key: string) => apiCache.delete(key),
+  invalidatePattern: (pattern: string) => apiCache.deletePattern(pattern),
+  
+  // Competition-specific cleanup (still useful during session)
+  invalidateCompetition: (id: number) => apiCache.deletePattern(`competition-${id}-*`),
+  
+  // Current user's competitions (for manual refresh)
+  invalidateCompetitions: () => {
+    const userId = getCurrentUserId();
+    if (userId) {
+      apiCache.delete(`competitions-user-${userId}`);
+    }
+  },
+  
+  // Debug utilities
+  getStats: () => apiCache.getStats(),
+  debug: () => debugCache()
 };
+
+// Helper to get current user ID for cache keys
+function getCurrentUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      return user.id?.toString() || null;
+    }
+  } catch (error) {
+    console.warn('Failed to get current user ID:', error);
+  }
+  return null;
+}
+
+// Legacy export for backward compatibility
+export const invalidateCache = cacheUtils;
 
 // Make debugCache available globally for browser console debugging
 if (typeof window !== 'undefined') {

@@ -110,8 +110,8 @@ export default function CompetitionPickPage() {
   // Simple winner detection using existing player_count and status
   const getWinnerStatus = (comp: Competition | null) => {
     if (!comp) return { isComplete: false };
-    const playerCount = (comp as any).player_count || 0;
-    const isNotSetup = (comp as any).status !== 'SETUP';
+    const playerCount = (comp as Competition & { player_count?: number; status?: string }).player_count || 0;
+    const isNotSetup = (comp as Competition & { player_count?: number; status?: string }).status !== 'SETUP';
     
     if (playerCount === 1 && isNotSetup) return { isComplete: true, winner: winnerName, isDraw: false };
     if (playerCount === 0 && isNotSetup) return { isComplete: true, winner: undefined, isDraw: true };
@@ -127,8 +127,7 @@ export default function CompetitionPickPage() {
       // Get all rounds for this competition to find the correct round ID
       const response = await roundApi.getRounds(competitionId);
       if (response.data.return_code === 'SUCCESS') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rounds = (response.data.rounds as any[]) || [];
+        const rounds = (response.data.rounds as { id: number; round_number: number; lock_time: string }[]) || [];
         const currentRound = rounds.find(r => r.round_number === roundNumber);
         if (currentRound) {
           setCurrentRoundId(currentRound.id);
@@ -184,11 +183,11 @@ export default function CompetitionPickPage() {
       loadAllowedTeams(contextCompetition.id);
       
       // Load winner name if competition has 1 player and is not in setup
-      if (contextCompetition.player_count === 1 && (contextCompetition as any).status !== 'SETUP') {
+      if (contextCompetition.player_count === 1 && (contextCompetition as Competition & { status?: string }).status !== 'SETUP') {
         userApi.getCompetitionStandings(contextCompetition.id)
           .then(response => {
             if (response.data.return_code === 'SUCCESS') {
-              const players = (response.data.players as any[]) || [];
+              const players = (response.data.players as { status: string; display_name: string }[]) || [];
               const activePlayer = players.find(p => p.status !== 'OUT');
               setWinnerName(activePlayer?.display_name || 'Unknown Winner');
             }

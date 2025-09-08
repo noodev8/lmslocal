@@ -70,7 +70,7 @@ export default function CompetitionStandingsPage() {
   const abortControllerRef = useRef<AbortController | null>(null);
   
   // Get active player count from competition object
-  const activePlayerCount = competition?.player_count ?? 0;
+  const activePlayerCount = (competition as Competition & { player_count?: number })?.player_count ?? 0;
 
   const loadStandings = useCallback(async () => {
     if (abortControllerRef.current?.signal.aborted) return;

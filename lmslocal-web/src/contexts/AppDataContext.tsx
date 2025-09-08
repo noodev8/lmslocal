@@ -103,9 +103,29 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     }
   };
 
-  // Load data on mount
+  // Load data only when authenticated and on appropriate pages
   useEffect(() => {
-    loadAppData();
+    // Don't load data on public pages
+    if (typeof window !== 'undefined') {
+      const publicPages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+      const currentPath = window.location.pathname;
+      const isPublicPage = publicPages.some(page => currentPath.startsWith(page));
+      
+      if (isPublicPage) {
+        setLoading(false);
+        return;
+      }
+    }
+    
+    // Only load if we have authentication data
+    const token = localStorage.getItem('jwt_token');
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      loadAppData();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   // Listen for auth state changes
@@ -116,7 +136,12 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       setLoading(false);
     };
 
-    const handleAuthSuccess = () => {
+    const handleAuthSuccess = async () => {
+      // Clear all cache on login for fresh start
+      const { cacheUtils } = await import('@/lib/cache');
+      cacheUtils.clearAll();
+      console.log('🧹 Fresh login - cleared all cache for clean start');
+      
       // Reload data after successful login
       loadAppData();
     };

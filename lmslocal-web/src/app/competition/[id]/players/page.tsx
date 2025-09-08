@@ -515,7 +515,7 @@ export default function CompetitionPlayersPage() {
 
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                   <p className="text-sm text-slate-600">
-                    💡 This creates a player that you can set picks for on the fixtures page. Perfect for customers who need assistance or don't have access to join themselves.
+                    💡 This creates a player that you can set picks for on the fixtures page. Perfect for customers who need assistance or don&apos;t have access to join themselves.
                   </p>
                 </div>
               </div>
