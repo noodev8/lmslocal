@@ -70,7 +70,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 1. Get current competition details and verify organiser access with row lock
       const competitionResult = await client.query(`
-        SELECT id, name, organiser_id, team_list_id, status, created_at
+        SELECT id, name, organiser_id, team_list_id, status, created_at, lives_per_player
         FROM competition 
         WHERE id = $1
         FOR UPDATE
@@ -163,10 +163,10 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING id
       `, [competition_id]);
 
-      // 6. Update competition status and generate new invite code
+      // 6. Update competition status and generate new invite code  
       const updatedCompetitionResult = await client.query(`
         UPDATE competition 
-        SET status = 'LOCKED', 
+        SET status = 'SETUP', 
             created_at = CURRENT_TIMESTAMP,
             invite_code = $1
         WHERE id = $2
@@ -175,12 +175,11 @@ router.post('/', verifyToken, async (req, res) => {
 
       const updatedCompetition = updatedCompetitionResult.rows[0];
 
-      // 7. Reset all player states for the fresh competition (payment, status, lives, join date)
+      // 7. Reset all player states for the fresh competition (payment status, lives, join date)
       const resetPlayerResult = await client.query(`
         UPDATE competition_user 
         SET paid = false, 
             paid_date = NULL,
-            paid_amount = NULL,
             status = 'active',
             lives_remaining = $2,
             joined_at = CURRENT_TIMESTAMP
@@ -217,7 +216,7 @@ router.post('/', verifyToken, async (req, res) => {
         `Deleted ${deletedPicksResult.rows.length} picks`,
         `Deleted ${deletedProgressResult.rows.length} player progress records`,
         `Deleted ${deletedAllowedTeamsResult.rows.length} allowed team entries`,
-        `Reset player states (payment, status, lives, join date) for ${resetPlayerResult.rows.length} players`,
+        `Reset player states (payment status, lives, join date) for ${resetPlayerResult.rows.length} players`,
         `Generated new invite code: ${newInviteCode}`,
         `Affected ${playersAffected} players`,
         `Repopulated allowed teams for all players`

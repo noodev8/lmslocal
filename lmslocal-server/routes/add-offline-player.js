@@ -3,24 +3,24 @@
 API Route: add-offline-player
 =======================================================================================================================================
 Method: POST
-Purpose: Create managed offline player (like "Old Bill") and add them to competition with full team initialization
+Purpose: Create player with standard password and add them to competition with full team initialization and email generation
 =======================================================================================================================================
 Request Payload:
 {
   "competition_id": 123,                   // integer, required - ID of competition to add player to
-  "display_name": "Old Bill",             // string, required - Player's display name (2-100 characters)
-  "email": "bill@pub.com"                 // string, optional - Player's email address for communication
+  "display_name": "John Smith",           // string, required - Player's display name (2-100 characters)
+  "email": "john@example.com"             // string, optional - Player's email address (if not provided, generates {ID}@lmslocal.com)
 }
 
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "message": "Offline player added successfully", // string, confirmation message
+  "message": "Player added successfully", // string, confirmation message
   "player": {                             // object, created player information
-    "id": 456,                            // integer, unique user ID for the managed player
-    "display_name": "Old Bill",           // string, player's display name
-    "email": "bill@pub.com",              // string, player's email (null if not provided)
-    "is_managed": true,                   // boolean, indicates this is an admin-managed player
+    "id": 456,                            // integer, unique user ID for the player
+    "display_name": "John Smith",         // string, player's display name
+    "email": "456@lmslocal.com",          // string, player's email (generated if not provided)
+    "is_managed": false,                  // boolean, always false since admin can set picks for any player
     "joined_competition": true            // boolean, confirmation player was added to competition
   }
 }
@@ -102,7 +102,8 @@ router.post('/', verifyToken, async (req, res) => {
         c.name,                  -- Competition name for audit logging
         c.organiser_id,          -- Competition owner for authorization check
         c.team_list_id,          -- Team list for initializing player's allowed teams
-        c.invite_code            -- Join status indicator (null = closed to new players)
+        c.invite_code,           -- Join status indicator (null = closed to new players)
+        c.lives_per_player       -- Lives setting for new players
       FROM competition c
       WHERE c.id = $1
     `, [competition_id]);
@@ -121,7 +122,7 @@ router.post('/', verifyToken, async (req, res) => {
     if (competition.organiser_id !== admin_id) {
       return res.json({
         return_code: "UNAUTHORIZED",
-        message: "Only the competition organiser can add offline players"
+        message: "Only the competition organiser can add players"
       });
     }
 
@@ -135,42 +136,60 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // === ATOMIC TRANSACTION EXECUTION ===
-    // Create managed user, add to competition, initialize teams, and log action atomically
+    // Create user, add to competition, initialize teams, and log action atomically
     let newPlayer = null;
 
     await transaction(async (client) => {
-      // Step 1: Create the managed user account
-      // is_managed = true indicates this is an admin-controlled player (like "Old Bill")
-      // created_by_user_id tracks which admin created this managed player
+      // Step 1: Create the user account
+      // is_managed = false since admin can set picks for ANY player  
+      // created_by_user_id tracks which admin created this player
       const userResult = await client.query(`
         INSERT INTO app_user (
           display_name,           -- Player's chosen display name
-          email,                  -- Optional email for communication
-          is_managed,             -- Flag indicating admin-managed player
-          created_by_user_id,     -- Admin who created this managed player
-          email_verified,         -- Managed players don't need email verification
+          email,                  -- Email (will be updated if not provided)
+          password_hash,          -- Standard password hash for admin-added players
+          is_managed,             -- Set to false since admin can set picks for any player
+          created_by_user_id,     -- Admin who created this player
+          email_verified,         -- Mark as verified for admin-added players
           user_type,              -- Standard player type for competition participation
           created_at,             -- Account creation timestamp
           updated_at              -- Last update timestamp
         )
-        VALUES ($1, $2, true, $3, false, 'player', NOW(), NOW())
+        VALUES ($1, $2, $3, false, $4, true, 'player', NOW(), NOW())
         RETURNING id, display_name, email, is_managed
-      `, [display_name.trim(), email || null, admin_id]);
+      `, [display_name.trim(), email || null, '$2b$12$PwWL.rUjgbzUAhPEAAGlUOwVdr9oqHpFyBITEr9NCLR7BKOZSoWn2', admin_id]);
 
       newPlayer = userResult.rows[0];
 
+      // Step 1.5: Generate unique email if not provided
+      if (!email) {
+        // Generate unique email using the user ID
+        const generatedEmail = `${newPlayer.id}@lmslocal.com`;
+        
+        // Update the user record with generated email
+        const updateResult = await client.query(`
+          UPDATE app_user 
+          SET email = $1, updated_at = NOW()
+          WHERE id = $2
+          RETURNING email
+        `, [generatedEmail, newPlayer.id]);
+        
+        // Update the newPlayer object with generated email
+        newPlayer.email = updateResult.rows[0].email;
+      }
+
       // Step 2: Add user to competition with active status
-      // Default to 1 life remaining and active status for new players
+      // Set lives_remaining to competition's configured value
       await client.query(`
         INSERT INTO competition_user (
           competition_id,         -- Competition they're joining
           user_id,                -- Newly created user ID
           status,                 -- Active status for participation
-          lives_remaining,        -- Default 1 life for Last Man Standing rules
+          lives_remaining,        -- Competition's configured lives per player
           joined_at               -- Timestamp of joining
         )
-        VALUES ($1, $2, 'active', 1, NOW())
-      `, [competition_id, newPlayer.id]);
+        VALUES ($1, $2, 'active', $3, NOW())
+      `, [competition_id, newPlayer.id, competition.lives_per_player]);
 
       // Step 3: Initialize allowed teams for this player
       // All active teams from competition's team list are initially available
@@ -186,11 +205,11 @@ router.post('/', verifyToken, async (req, res) => {
       // Records who added what player to which competition for compliance
       await client.query(`
         INSERT INTO audit_log (competition_id, user_id, action, details, created_at)
-        VALUES ($1, $2, 'Offline Player Added', $3, NOW())
+        VALUES ($1, $2, 'Player Added', $3, NOW())
       `, [
         competition_id, 
         newPlayer.id, 
-        `Offline player "${display_name.trim()}" added to "${competition.name}" by Admin ${admin_id} (${req.user.display_name || req.user.email})`
+        `Player "${display_name.trim()}" added to "${competition.name}" by Admin ${admin_id} (${req.user.display_name || req.user.email}). Email: ${newPlayer.email}`
       ]);
     });
 
@@ -198,12 +217,12 @@ router.post('/', verifyToken, async (req, res) => {
     // Return comprehensive player data for frontend display and state updates
     res.json({
       return_code: "SUCCESS",
-      message: "Offline player added successfully",
+      message: "Player added successfully",
       player: {
         id: newPlayer.id,                           // Unique user ID for future operations
         display_name: newPlayer.display_name,       // Confirmed display name
-        email: newPlayer.email,                     // Email (null if not provided)
-        is_managed: newPlayer.is_managed,           // Indicates admin-managed player
+        email: newPlayer.email,                     // Email (generated if not provided)
+        is_managed: newPlayer.is_managed,           // Always false - admin can set picks for any player
         joined_competition: true                    // Confirmation of successful competition join
       }
     });

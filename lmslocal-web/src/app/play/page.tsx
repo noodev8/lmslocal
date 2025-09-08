@@ -66,6 +66,7 @@ export default function PlayerDashboardPage() {
   const [joinCode, setJoinCode] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string>('');
+  const [winnerNames, setWinnerNames] = useState<Record<number, string>>({});
 
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
@@ -86,6 +87,51 @@ export default function PlayerDashboardPage() {
     
     setLoading(contextLoading);
   }, [router, contextUser, playerCompetitions, contextLoading]);
+
+
+  // Simple winner detection function using existing player_count and status
+  const getWinnerStatus = (competition: Competition) => {
+    const playerCount = competition.player_count || 0;
+    const isNotSetup = (competition as any).status !== 'SETUP';
+    
+    if (playerCount === 1 && isNotSetup) {
+      const winnerName = winnerNames[competition.id] || 'Loading...';
+      return { isComplete: true, winner: winnerName, isDraw: false };
+    }
+    if (playerCount === 0 && isNotSetup) return { isComplete: true, winner: undefined, isDraw: true };
+    return { isComplete: false };
+  };
+  
+  // Load winner names for competitions with 1 player
+  useEffect(() => {
+    const loadWinnerNames = async () => {
+      const competitionsWithWinner = competitions.filter(comp => comp.player_count === 1 && (comp as any).status !== 'SETUP');
+      
+      for (const competition of competitionsWithWinner) {
+        if (!winnerNames[competition.id]) {
+          try {
+            const response = await userApi.getCompetitionStandings(competition.id);
+            if (response.data.return_code === 'SUCCESS') {
+              const players = (response.data.players as any[]) || [];
+              const activePlayer = players.find(p => p.status !== 'OUT');
+              const winnerName = activePlayer?.display_name || 'Unknown Winner';
+              
+              setWinnerNames(prev => ({
+                ...prev,
+                [competition.id]: winnerName
+              }));
+            }
+          } catch (error) {
+            console.warn(`Failed to get winner name for competition ${competition.id}:`, error);
+          }
+        }
+      }
+    };
+
+    if (competitions.length > 0) {
+      loadWinnerNames();
+    }
+  }, [competitions, winnerNames]);
 
   const loadPlayerCompetitions = async () => {
     try {

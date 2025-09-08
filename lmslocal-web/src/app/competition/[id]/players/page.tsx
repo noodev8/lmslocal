@@ -168,6 +168,10 @@ export default function CompetitionPlayersPage() {
       );
       
       if (response.data.return_code === 'SUCCESS') {
+        // Clear players cache to ensure fresh data
+        const { cacheUtils } = await import('@/lib/api');
+        cacheUtils.invalidateKey(`competition-players-${competition.id}`);
+        
         // Reload players list to show the new player
         await loadPlayers();
         
@@ -175,11 +179,11 @@ export default function CompetitionPlayersPage() {
         setAddPlayerForm({ display_name: '', email: '' });
         setShowAddPlayerModal(false);
       } else {
-        alert(`Failed to add offline player: ${response.data.message || 'Unknown error'}`);
+        alert(`Failed to add player: ${response.data.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Failed to add offline player:', error);
-      alert('Failed to add offline player. Please try again.');
+      console.error('Failed to add player:', error);
+      alert('Failed to add player. Please try again.');
     } finally {
       setAddingPlayer(false);
     }
@@ -270,7 +274,7 @@ export default function CompetitionPlayersPage() {
             </div>
             
             <div className="flex items-center space-x-3">
-              {competition?.access_code && (
+              {competition?.invite_code && (
                 <button
                   onClick={() => setShowAddPlayerModal(true)}
                   className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors"
@@ -411,18 +415,20 @@ export default function CompetitionPlayersPage() {
                       )}
                     </button>
                     
-                    <button
-                      onClick={() => handleRemovePlayerClick(player.id, player.display_name)}
-                      disabled={removing.has(player.id)}
-                      className="p-1 text-slate-500 hover:text-red-600 rounded transition-colors disabled:opacity-50"
-                      title="Remove player"
-                    >
-                      {removing.has(player.id) ? (
-                        <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent"></div>
-                      ) : (
-                        <TrashIcon className="h-4 w-4" strokeWidth={1.5} />
-                      )}
-                    </button>
+                    {competition?.invite_code && (
+                      <button
+                        onClick={() => handleRemovePlayerClick(player.id, player.display_name)}
+                        disabled={removing.has(player.id)}
+                        className="p-1 text-slate-500 hover:text-red-600 rounded transition-colors disabled:opacity-50"
+                        title="Remove player"
+                      >
+                        {removing.has(player.id) ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent"></div>
+                        ) : (
+                          <TrashIcon className="h-4 w-4" strokeWidth={1.5} />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -473,7 +479,7 @@ export default function CompetitionPlayersPage() {
                 <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mr-4">
                   <UserIcon className="h-6 w-6 text-slate-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900">Add Offline Player</h3>
+                <h3 className="text-2xl font-bold text-slate-900">Add Player</h3>
               </div>
               
               <div className="space-y-6">
@@ -509,7 +515,7 @@ export default function CompetitionPlayersPage() {
 
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                   <p className="text-sm text-slate-600">
-                    💡 This creates a managed player that you can set picks for on the fixtures page. Perfect for customers without smartphones.
+                    💡 This creates a player that you can set picks for on the fixtures page. Perfect for customers who need assistance or don't have access to join themselves.
                   </p>
                 </div>
               </div>

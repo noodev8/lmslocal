@@ -217,19 +217,31 @@ export default function CompetitionSettings() {
       const response = await competitionApi.reset(resetData);
 
       if (response.data.return_code === 'SUCCESS') {
-        // Reset successful - refresh data and show success
+        // Reset successful - clear cache and refresh data
+        // Clear all relevant caches to ensure fresh data after reset
+        const { cacheUtils } = await import('@/lib/api');
+        cacheUtils.invalidateCompetitions();
+        
+        // Clear competition-specific caches
+        const competitionId = competition.id;
+        cacheUtils.invalidateKey(`competition-standings-${competitionId}`);
+        cacheUtils.invalidateKey(`competition-status-${competitionId}`);
+        cacheUtils.invalidateKey(`competition-players-${competitionId}`);
+        cacheUtils.invalidateKey(`pick-statistics-${competitionId}`);
+        cacheUtils.invalidateKey(`dashboard-stats-${competitionId}`);
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+        cacheUtils.invalidateKey(`allowed-teams-${competitionId}-current`);
+        
         refreshCompetitions();
         
         // Close modal and reset form
         setShowResetModal(false);
         setResetConfirmText('');
         
-        // Show success message
-        setSuccess(true);
-        setError(null);
-        
-        // Auto-hide success message after 5 seconds
-        setTimeout(() => setSuccess(false), 5000);
+        // Small delay to ensure context updates before navigation
+        setTimeout(() => {
+          router.push(`/competition/${competitionId}/dashboard`);
+        }, 200);
       } else {
         setError(response.data.message || 'Failed to reset competition');
       }
