@@ -61,7 +61,7 @@ const verifyToken = async (req, res, next) => {
     
     // Database lookup - only when not cached
     const result = await query(
-      'SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1', 
+      'SELECT id, email, display_name, email_verified, password_hash FROM app_user WHERE id = $1', 
       [userId]
     );
     
