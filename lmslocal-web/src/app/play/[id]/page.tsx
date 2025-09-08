@@ -105,6 +105,20 @@ export default function CompetitionPickPage() {
   const [previousRoundData, setPreviousRoundData] = useState<{ round_number: number; fixtures: Array<{ id: number; home_team: string; away_team: string; home_team_short: string; away_team_short: string; result?: string }>; player_pick?: string; player_outcome?: string; pick_counts: Record<string, number> } | null>(null);
   const [loadingPreviousRound, setLoadingPreviousRound] = useState(false);
   const [showPreviousRound, setShowPreviousRound] = useState(false);
+  const [winnerName, setWinnerName] = useState<string>('Loading...');
+  
+  // Simple winner detection using existing player_count and status
+  const getWinnerStatus = (comp: Competition | null) => {
+    if (!comp) return { isComplete: false };
+    const playerCount = (comp as any).player_count || 0;
+    const isNotSetup = (comp as any).status !== 'SETUP';
+    
+    if (playerCount === 1 && isNotSetup) return { isComplete: true, winner: winnerName, isDraw: false };
+    if (playerCount === 0 && isNotSetup) return { isComplete: true, winner: undefined, isDraw: true };
+    return { isComplete: false };
+  };
+  
+  const competitionComplete = getWinnerStatus(competition);
   const abortControllerRef = useRef<AbortController | null>(null);
   const previousRoundAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -157,6 +171,7 @@ export default function CompetitionPickPage() {
     }
   }, []);
 
+
   const loadCompetitionData = useCallback(async () => {
     try {
       // Get competition from context instead of redundant API call
@@ -165,8 +180,23 @@ export default function CompetitionPickPage() {
       }
       
       setCompetition(contextCompetition); // Competition from context
-      // Load allowed teams for this competition
+      // Load allowed teams for this competition  
       loadAllowedTeams(contextCompetition.id);
+      
+      // Load winner name if competition has 1 player and is not in setup
+      if (contextCompetition.player_count === 1 && (contextCompetition as any).status !== 'SETUP') {
+        userApi.getCompetitionStandings(contextCompetition.id)
+          .then(response => {
+            if (response.data.return_code === 'SUCCESS') {
+              const players = (response.data.players as any[]) || [];
+              const activePlayer = players.find(p => p.status !== 'OUT');
+              setWinnerName(activePlayer?.display_name || 'Unknown Winner');
+            }
+          })
+          .catch(() => {
+            setWinnerName('Unknown Winner');
+          });
+      }
       if (contextCompetition.current_round) {
         // First get the actual round ID from round number
         getRoundId(contextCompetition.id, contextCompetition.current_round);
@@ -557,6 +587,87 @@ export default function CompetitionPickPage() {
             Back to Competitions
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  // Check for competition completion first - prevents flicker and shows winner/draw
+  if (competitionComplete.isComplete) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <div className="flex items-center">
+                <Link href="/play" className="mr-3 p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+                </Link>
+                <Link href="/" className="flex items-center">
+                  <TrophyIcon className="h-8 w-8 text-blue-600" />
+                  <span className="ml-2 text-xl font-bold text-gray-900">LMSLocal</span>
+                </Link>
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">
+                  {user?.display_name}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Competition Complete Display */}
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm">
+              <TrophyIcon className="h-16 w-16 text-yellow-500 mx-auto mb-6" />
+              
+              {competitionComplete.winner ? (
+                <>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-4">Competition Complete!</h1>
+                  <div className="mb-6">
+                    <p className="text-xl text-gray-700 mb-2">🎉 Winner</p>
+                    <p className="text-2xl font-bold text-yellow-600">{competitionComplete.winner}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-4">Competition Complete!</h1>
+                  <div className="mb-6">
+                    <p className="text-xl text-gray-700 mb-2">🤝 Draw</p>
+                    <p className="text-lg text-gray-600">No players remaining</p>
+                  </div>
+                </>
+              )}
+              
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">{competition.name}</h2>
+              
+              <div className="flex justify-center space-x-4 mt-6">
+                <Link 
+                  href={`/play/${competitionId}/standings`}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <TrophyIcon className="h-4 w-4" />
+                  View Final Standings
+                </Link>
+                
+                <Link 
+                  href="/play"
+                  className="px-6 py-3 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                >
+                  Back to Competitions
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }

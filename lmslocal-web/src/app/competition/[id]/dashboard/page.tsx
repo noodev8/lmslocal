@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -11,7 +11,7 @@ import {
   Cog6ToothIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, competitionApi, DashboardStats } from '@/lib/api';
+import { Competition as CompetitionType, competitionApi, DashboardStats, userApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
 
@@ -31,79 +31,62 @@ export default function AdminDashboard() {
 
   const [competitionState, setCompetitionState] = useState<CompetitionType | null>(null);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const hasLoadedData = useRef(false);
+  // Simple loading based on context availability
+  const loading = contextLoading || !competition;
+  const [winnerName, setWinnerName] = useState<string>('Loading...');
+  
+  // Simple winner detection using existing player_count and status
+  const getWinnerStatus = (comp: CompetitionType) => {
+    const playerCount = comp.player_count || 0;
+    const isNotSetup = comp.status !== 'SETUP';
+    
+    if (playerCount === 1 && isNotSetup) return { isComplete: true, winner: winnerName, isDraw: false };
+    if (playerCount === 0 && isNotSetup) return { isComplete: true, winner: undefined, isDraw: true };
+    return { isComplete: false };
+  };
+
+  const competitionComplete = competition ? getWinnerStatus(competition) : { isComplete: false };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Check authentication
-        const token = localStorage.getItem('jwt_token');
-        if (!token) {
-          router.push('/login');
-          return;
-        }
-
-        // Wait for competitions data to load from context
-        if (contextLoading || !competitions) {
-          // Context is still loading or competitions not available yet
-          return;
-        }
-
-        // Prevent duplicate API calls
-        if (hasLoadedData.current) {
-          return;
-        }
-        hasLoadedData.current = true;
-
-        if (competition && competition.is_organiser) {
-          setCompetitionState(competition);
-          
-          // Load dashboard statistics with 1-hour caching
-          try {
-            const statsResponse = await competitionApi.getDashboardStats(parseInt(competitionId));
-            
-            if (statsResponse.data.return_code === 'SUCCESS') {
-              setDashboardStats(statsResponse.data.data || null);
-            } else {
-              console.warn('Failed to load dashboard stats:', statsResponse.data.message);
-              // Continue without stats - not critical for basic dashboard functionality
-            }
-          } catch (error) {
-            console.warn('Could not load dashboard statistics:', error);
-            // Continue without statistics - not critical for dashboard
-          }
-        } else {
-          console.warn('Competition not found or no access');
-          router.push('/dashboard');
-          return;
-        }
-
-      } catch (error) {
-        console.error('Failed to load competition data:', error);
-        router.push('/dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Add timeout fallback to prevent infinite loading
-    const loadTimeout = setTimeout(() => {
-      if (loading && !contextLoading) {
-        console.warn('Loading timeout - competitions data not available after context loaded');
-        setLoading(false);
-      }
-    }, 5000); // 5 second timeout after context loads
-
-    // Reset hasLoadedData when competitionId changes
-    hasLoadedData.current = false;
+    // Simple auth check
+    const token = localStorage.getItem('jwt_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
     
-    loadData();
+    // Load dashboard stats only if we have the competition
+    if (competition && competition.is_organiser) {
+      setCompetitionState(competition);
+      
+        // Load stats without blocking the UI
+      competitionApi.getDashboardStats(parseInt(competitionId))
+        .then(response => {
+          if (response.data.return_code === 'SUCCESS') {
+            setDashboardStats(response.data.data || null);
+          }
+        })
+        .catch(() => {
+          // Stats are optional - continue without them
+        });
+      
+      // Load winner name if competition has 1 player and is not in setup
+      if (competition.player_count === 1 && competition.status !== 'SETUP') {
+        userApi.getCompetitionStandings(parseInt(competitionId))
+          .then(response => {
+            if (response.data.return_code === 'SUCCESS') {
+              const players = (response.data.players as any[]) || [];
+              const activePlayer = players.find(p => p.status !== 'OUT');
+              setWinnerName(activePlayer?.display_name || 'Unknown Winner');
+            }
+          })
+          .catch(() => {
+            setWinnerName('Unknown Winner');
+          });
+      }
+    }
+  }, [competition, competitionId, router]);
 
-    // Cleanup timeout on unmount or dependency change
-    return () => clearTimeout(loadTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [competitionId, router, competition, competitions, contextLoading]);
 
   if (loading) {
     return (
@@ -194,6 +177,45 @@ export default function AdminDashboard() {
             <p className="text-slate-600 mb-4 text-sm sm:text-base">{competition.description}</p>
           )}
         </div>
+
+        {/* Competition Completion Banner */}
+        {competitionComplete.isComplete && (
+          <div className="mb-6 sm:mb-8 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm">
+            <div className="flex items-center justify-center">
+              <div className="text-center">
+                <TrophyIcon className="h-12 w-12 sm:h-16 sm:w-16 text-slate-600 mx-auto mb-3" />
+                
+                {competitionComplete.winner ? (
+                  <>
+                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">🎉 Competition Complete!</h3>
+                    <div className="mb-2">
+                      <p className="text-lg font-medium text-slate-700">Winner</p>
+                      <p className="text-xl sm:text-2xl font-bold text-slate-800">{competitionComplete.winner}</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">🤝 Competition Complete!</h3>
+                    <div className="mb-2">
+                      <p className="text-lg font-medium text-slate-700">Result: Draw</p>
+                      <p className="text-base text-slate-600">No players remaining</p>
+                    </div>
+                  </>
+                )}
+                
+                <div className="mt-4">
+                  <Link 
+                    href={`/play/${competitionId}/standings?from=admin`}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-700 transition-colors text-sm sm:text-base"
+                  >
+                    <TrophyIcon className="h-4 w-4" />
+                    View Final Standings
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Invite Code - Only show for competitions that haven't started */}
         {competition.invite_code && competition.status !== 'COMPLETE' && (

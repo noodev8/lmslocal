@@ -283,6 +283,7 @@ export interface ResetCompetitionResponse {
   };
 }
 
+
 // Auth API calls
 export const authApi = {
   login: (data: LoginRequest) => api.post<ApiResponse<{ token: string; user: User }>>('/login', data),

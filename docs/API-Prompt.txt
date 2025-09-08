@@ -1,18 +1,11 @@
 ================================================================================
-Can you create an update competition API please. Allowing us to update the competition table.
-Allow updates to these field sin the competiion table
-Name, description, lives_per_player, no_team_twice
-
-Name and Description can be changed at any time
-
-Lives per player and no team twice can only be updated if the competition hasnt started. 
-We know if a competition hasnt started, if there is an invite_code still in the competition table. If it is NULL it is too late.
-And if the lives_per_player has changed, must also UPDATE any existing players in the competetion_user table lives_remaining field for those players.
+yes please - Produce a simple API to return number of players in a compeition (player count total and left in)
 ================================================================================
 
 API Routes - always use POST
 API Routes - return a machine readable return code "return_code" which is either "SUCCESS" or an error of some kind.
 API Routes - Always use HTTP 200 return
+API Routes - Add the call to the API log using utils/apiLogger.js
 
 Use extensive comments in your code so I can see what is going on
 

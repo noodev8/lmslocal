@@ -31,7 +31,52 @@ export default function DashboardPage() {
   const [newCompetitionId, setNewCompetitionId] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
+  const [winnerNames, setWinnerNames] = useState<Record<number, string>>({});
 
+  // Simple winner detection based on player count and competition status
+  const getWinnerStatus = (competition: any) => {
+    const playerCount = competition.player_count || 0;
+    const isNotSetup = competition.status !== 'SETUP';
+    
+    if (playerCount === 1 && isNotSetup) {
+      const winnerName = winnerNames[competition.id] || 'Loading...';
+      return { isComplete: true, winner: winnerName, isDraw: false };
+    } else if (playerCount === 0 && isNotSetup) {
+      return { isComplete: true, winner: undefined, isDraw: true };
+    }
+    return { isComplete: false };
+  };
+
+  // Load winner names for competitions with 1 player
+  useEffect(() => {
+    const loadWinnerNames = async () => {
+      const competitionsWithWinner = organizedCompetitions.filter(comp => comp.player_count === 1 && comp.status !== 'SETUP');
+      
+      for (const competition of competitionsWithWinner) {
+        if (!winnerNames[competition.id]) {
+          try {
+            const response = await userApi.getCompetitionStandings(competition.id);
+            if (response.data.return_code === 'SUCCESS') {
+              const players = (response.data.players as any[]) || [];
+              const activePlayer = players.find(p => p.status !== 'OUT');
+              const winnerName = activePlayer?.display_name || 'Unknown Winner';
+              
+              setWinnerNames(prev => ({
+                ...prev,
+                [competition.id]: winnerName
+              }));
+            }
+          } catch (error) {
+            console.warn(`Failed to get winner name for competition ${competition.id}:`, error);
+          }
+        }
+      }
+    };
+
+    if (organizedCompetitions.length > 0) {
+      loadWinnerNames();
+    }
+  }, [organizedCompetitions, winnerNames]);
 
   const checkUserTypeAndRoute = useCallback(async () => {
     try {
@@ -107,6 +152,8 @@ export default function DashboardPage() {
       // Competitions are now loaded via AppDataProvider
     }
   }, [router, checkUserTypeAndRoute]);
+
+  // No complex useEffect needed - winner detection is now simple and inline
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getStatusColor = (status: string) => {
@@ -237,6 +284,7 @@ export default function DashboardPage() {
           {/* Competition Cards */}
           {organizedCompetitions.map((competition) => {
             const isNewCompetition = newCompetitionId && competition.id.toString() === newCompetitionId;
+            const competitionStatus = getWinnerStatus(competition);
             return (
               <div
                 key={competition.id}
@@ -304,20 +352,31 @@ export default function DashboardPage() {
                     </div>
                   )}
                   
-                  {/* Competition Status Display */}
-                  {(competition.status as string) === 'COMPLETE' ? (
+                  {/* Competition Completion Status - Winner/Draw Display */}
+                  {competitionStatus.isComplete ? (
                     <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
                           <TrophyIcon className="h-5 w-5 text-slate-600" />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900">Competition Complete</p>
-                          <p className="text-xs text-slate-600 mt-1">This competition has finished - all results have been calculated</p>
+                        <div className="flex-1">
+                          {competitionStatus.winner ? (
+                            <>
+                              <p className="text-sm font-medium text-slate-900">🏆 Winner: {competitionStatus.winner}</p>
+                              <p className="text-xs text-slate-600 mt-1">Competition complete - view final standings for details</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-sm font-medium text-slate-900">🤝 Competition Draw</p>
+                              <p className="text-xs text-slate-600 mt-1">No players remaining - competition ended in a draw</p>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
-                  ) : competition.current_round && competition.player_count && competition.player_count > 0 ? (
+                  ) : null}
+                  
+                  {!competitionStatus.isComplete && competition.current_round && competition.player_count && competition.player_count > 0 && (
                     <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
@@ -329,7 +388,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                  ) : null}
+                  )}
                 </div>
 
                 {/* Card Body */}

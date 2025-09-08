@@ -68,19 +68,24 @@ export default function CompetitionStandingsPage() {
   const [loading, setLoading] = useState(true);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Get active player count from competition object
+  const activePlayerCount = competition?.player_count ?? 0;
 
   const loadStandings = useCallback(async () => {
     if (abortControllerRef.current?.signal.aborted) return;
     
     try {
-      const response = await userApi.getCompetitionStandings(parseInt(competitionId));
+      // Load both standings and player count in parallel for efficiency
+      const standingsResponse = await userApi.getCompetitionStandings(parseInt(competitionId));
+      
       if (abortControllerRef.current?.signal.aborted) return;
       
-      if (response.data.return_code === 'SUCCESS') {
-        setCompetition(response.data.competition as Competition);
-        setPlayers(response.data.players as Player[]);
+      if (standingsResponse.data.return_code === 'SUCCESS') {
+        setCompetition(standingsResponse.data.competition as Competition);
+        setPlayers(standingsResponse.data.players as Player[]);
       } else {
-        console.error('Failed to load standings:', response.data.message);
+        console.error('Failed to load standings:', standingsResponse.data.message);
         router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
       }
     } catch (error) {
@@ -151,12 +156,15 @@ export default function CompetitionStandingsPage() {
   // Determine if a player's current pick should be visible
   const isPickVisible = (playerId: number) => {
     const currentUser = getCurrentUser();
-    const isAdmin = fromAdmin;
     const isOwnPlayer = currentUser && currentUser.id === playerId;
     const isRoundLocked = competition?.is_locked || false;
     
-    // Show pick if: Admin (always) OR own player (always) OR deadline passed (everyone sees all)
-    return isAdmin || isOwnPlayer || isRoundLocked;
+    // Use competition player count for pick visibility logic
+    // Show picks only when there are 4+ active players (prevents copycat strategies in final rounds)
+    const hasEnoughPlayers = activePlayerCount >= 4;
+    
+    // Show picks if: (enough active players) OR own player OR round locked
+    return hasEnoughPlayers || isOwnPlayer || isRoundLocked;
   };
 
 
