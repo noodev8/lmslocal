@@ -26,12 +26,15 @@ export default function DashboardPage() {
   // Use app-level data from context instead of local API calls
   const { competitions, user, loading } = useAppData();
   
-  // Filter to only show competitions where user is organiser
-  const organizedCompetitions = competitions?.filter(comp => comp.is_organiser) || [];
   const [newCompetitionId, setNewCompetitionId] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
   const [winnerNames, setWinnerNames] = useState<Record<number, string>>({});
+
+  // Memoize organized competitions to prevent dependency issues
+  const organizedCompetitions = useMemo(() => {
+    return competitions?.filter(comp => comp.is_organiser) || [];
+  }, [competitions]);
 
   // Simple winner detection based on player count and competition status
   const getWinnerStatus = (competition: Competition) => {
@@ -47,15 +50,10 @@ export default function DashboardPage() {
     return { isComplete: false };
   };
 
-  // Memoize organized competitions to prevent useEffect deps issue
-  const memoizedCompetitions = useMemo(() => {
-    return organizedCompetitions;
-  }, [organizedCompetitions]);
-
   // Load winner names for competitions with 1 player
   useEffect(() => {
     const loadWinnerNames = async () => {
-      const competitionsWithWinner = memoizedCompetitions.filter(comp => comp.player_count === 1 && comp.status !== 'SETUP');
+      const competitionsWithWinner = organizedCompetitions.filter(comp => comp.player_count === 1 && comp.status !== 'SETUP');
       
       for (const competition of competitionsWithWinner) {
         if (!winnerNames[competition.id]) {
@@ -78,10 +76,10 @@ export default function DashboardPage() {
       }
     };
 
-    if (memoizedCompetitions.length > 0) {
+    if (organizedCompetitions.length > 0) {
       loadWinnerNames();
     }
-  }, [memoizedCompetitions, winnerNames]);
+  }, [organizedCompetitions, winnerNames]);
 
   const checkUserTypeAndRoute = useCallback(async () => {
     try {

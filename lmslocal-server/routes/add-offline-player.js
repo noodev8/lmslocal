@@ -162,7 +162,7 @@ router.post('/', verifyToken, async (req, res) => {
       // Step 1.5: Generate unique email if not provided
       if (!email) {
         // Generate unique email using the user ID
-        const generatedEmail = `${newPlayer.id}@lmslocal.com`;
+        const generatedEmail = `${newPlayer.id}@lms-guest.com`;
         
         // Update the user record with generated email
         const updateResult = await client.query(`
