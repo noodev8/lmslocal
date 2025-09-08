@@ -106,7 +106,7 @@ export default function CreateCompetitionPage() {
         }
         
         // Clear cache to ensure fresh data after user becomes admin
-        invalidateCache.competitions();
+        invalidateCache.invalidateCompetitions();
         // Clear user-type cache so dashboard sees admin status
         const { apiCache } = await import('@/lib/cache');
         apiCache.delete('user-type');

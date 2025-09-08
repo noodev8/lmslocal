@@ -115,12 +115,10 @@ router.post('/', async (req, res) => {
           display_name,
           password_hash,
           email_verified,
-          is_managed,
           created_at,
           last_active_at,
           -- Account status checks
           CASE WHEN email_verified = false THEN 'unverified'
-               WHEN is_managed = true THEN 'managed'
                ELSE 'active'
           END as account_status
         FROM app_user 
@@ -288,6 +286,14 @@ router.post('/', async (req, res) => {
       user_agent: req.get('User-Agent') || 'Unknown',
       timestamp: new Date().toISOString()
     });
+    
+    // Handle database schema errors more gracefully
+    if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
+      return res.json({
+        return_code: 'SERVER_ERROR', 
+        message: 'System is being updated. Please try logging in again in a few moments.'
+      });
+    }
     
     // Return standardized server error response with HTTP 200
     return res.json({

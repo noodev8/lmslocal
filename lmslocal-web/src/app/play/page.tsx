@@ -90,9 +90,10 @@ export default function PlayerDashboardPage() {
 
 
   // Simple winner detection function using existing player_count and status
-  const getWinnerStatus = (competition: Competition) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getWinnerStatus = (competition: Competition & { status?: string }) => {
     const playerCount = competition.player_count || 0;
-    const isNotSetup = (competition as any).status !== 'SETUP';
+    const isNotSetup = competition.status !== 'SETUP';
     
     if (playerCount === 1 && isNotSetup) {
       const winnerName = winnerNames[competition.id] || 'Loading...';
@@ -105,14 +106,14 @@ export default function PlayerDashboardPage() {
   // Load winner names for competitions with 1 player
   useEffect(() => {
     const loadWinnerNames = async () => {
-      const competitionsWithWinner = competitions.filter(comp => comp.player_count === 1 && (comp as any).status !== 'SETUP');
+      const competitionsWithWinner = competitions.filter(comp => comp.player_count === 1 && (comp as Competition & { status?: string }).status !== 'SETUP');
       
       for (const competition of competitionsWithWinner) {
         if (!winnerNames[competition.id]) {
           try {
             const response = await userApi.getCompetitionStandings(competition.id);
             if (response.data.return_code === 'SUCCESS') {
-              const players = (response.data.players as any[]) || [];
+              const players = (response.data.players as { status: string; display_name: string }[]) || [];
               const activePlayer = players.find(p => p.status !== 'OUT');
               const winnerName = activePlayer?.display_name || 'Unknown Winner';
               

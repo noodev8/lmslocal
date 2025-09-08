@@ -20,7 +20,6 @@ Success Response (ALWAYS HTTP 200):
     "id": 456,                            // integer, unique user ID for the player
     "display_name": "John Smith",         // string, player's display name
     "email": "456@lmslocal.com",          // string, player's email (generated if not provided)
-    "is_managed": false,                  // boolean, always false since admin can set picks for any player
     "joined_competition": true            // boolean, confirmation player was added to competition
   }
 }
@@ -141,22 +140,21 @@ router.post('/', verifyToken, async (req, res) => {
 
     await transaction(async (client) => {
       // Step 1: Create the user account
-      // is_managed = false since admin can set picks for ANY player  
+      // Admin can set picks for ANY player - no special management fields needed
       // created_by_user_id tracks which admin created this player
       const userResult = await client.query(`
         INSERT INTO app_user (
           display_name,           -- Player's chosen display name
           email,                  -- Email (will be updated if not provided)
           password_hash,          -- Standard password hash for admin-added players
-          is_managed,             -- Set to false since admin can set picks for any player
           created_by_user_id,     -- Admin who created this player
           email_verified,         -- Mark as verified for admin-added players
           user_type,              -- Standard player type for competition participation
           created_at,             -- Account creation timestamp
           updated_at              -- Last update timestamp
         )
-        VALUES ($1, $2, $3, false, $4, true, 'player', NOW(), NOW())
-        RETURNING id, display_name, email, is_managed
+        VALUES ($1, $2, $3, $4, true, 'player', NOW(), NOW())
+        RETURNING id, display_name, email
       `, [display_name.trim(), email || null, '$2b$12$PwWL.rUjgbzUAhPEAAGlUOwVdr9oqHpFyBITEr9NCLR7BKOZSoWn2', admin_id]);
 
       newPlayer = userResult.rows[0];
@@ -222,7 +220,6 @@ router.post('/', verifyToken, async (req, res) => {
         id: newPlayer.id,                           // Unique user ID for future operations
         display_name: newPlayer.display_name,       // Confirmed display name
         email: newPlayer.email,                     // Email (generated if not provided)
-        is_managed: newPlayer.is_managed,           // Always false - admin can set picks for any player
         joined_competition: true                    // Confirmation of successful competition join
       }
     });

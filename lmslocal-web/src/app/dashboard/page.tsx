@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -16,7 +16,7 @@ import {
   PlayCircleIcon,
   PauseCircleIcon
 } from '@heroicons/react/24/outline';
-import { userApi } from '@/lib/api';
+import { userApi, Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
 import { useAppData } from '@/contexts/AppDataContext';
 
@@ -34,7 +34,7 @@ export default function DashboardPage() {
   const [winnerNames, setWinnerNames] = useState<Record<number, string>>({});
 
   // Simple winner detection based on player count and competition status
-  const getWinnerStatus = (competition: any) => {
+  const getWinnerStatus = (competition: Competition) => {
     const playerCount = competition.player_count || 0;
     const isNotSetup = competition.status !== 'SETUP';
     
@@ -47,17 +47,22 @@ export default function DashboardPage() {
     return { isComplete: false };
   };
 
+  // Memoize organized competitions to prevent useEffect deps issue
+  const memoizedCompetitions = useMemo(() => {
+    return organizedCompetitions;
+  }, [organizedCompetitions]);
+
   // Load winner names for competitions with 1 player
   useEffect(() => {
     const loadWinnerNames = async () => {
-      const competitionsWithWinner = organizedCompetitions.filter(comp => comp.player_count === 1 && comp.status !== 'SETUP');
+      const competitionsWithWinner = memoizedCompetitions.filter(comp => comp.player_count === 1 && comp.status !== 'SETUP');
       
       for (const competition of competitionsWithWinner) {
         if (!winnerNames[competition.id]) {
           try {
             const response = await userApi.getCompetitionStandings(competition.id);
             if (response.data.return_code === 'SUCCESS') {
-              const players = (response.data.players as any[]) || [];
+              const players = (response.data.players as { status: string; display_name: string }[]) || [];
               const activePlayer = players.find(p => p.status !== 'OUT');
               const winnerName = activePlayer?.display_name || 'Unknown Winner';
               
@@ -73,10 +78,10 @@ export default function DashboardPage() {
       }
     };
 
-    if (organizedCompetitions.length > 0) {
+    if (memoizedCompetitions.length > 0) {
       loadWinnerNames();
     }
-  }, [organizedCompetitions, winnerNames]);
+  }, [memoizedCompetitions, winnerNames]);
 
   const checkUserTypeAndRoute = useCallback(async () => {
     try {

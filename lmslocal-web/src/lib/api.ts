@@ -95,8 +95,10 @@ api.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('jwt_token');
         localStorage.removeItem('user');
-        // Clear cache when auth expires since cached data is no longer valid
+        
+        // Clear all cache when auth expires - simple and safe
         apiCache.clear();
+        
         window.dispatchEvent(new CustomEvent('auth-expired'));
       }
     }
@@ -301,14 +303,32 @@ export const playerApi = {
   registerAndJoin: (name: string, email: string, access_code: string) => api.post<ApiResponse<{ token: string; user: User; competition: Competition }>>('/register-and-join-competition', { name, email, access_code }),
 };
 
+// Helper to get current user ID for cache keys
+const getUserId = (): string => {
+  if (typeof window === 'undefined') return 'ssr';
+  try {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      return user.id?.toString() || 'unknown';
+    }
+  } catch (error) {
+    console.warn('Failed to get user ID for cache key:', error);
+  }
+  return 'anonymous';
+};
+
 // Competition API calls
 export const competitionApi = {
   create: (data: CreateCompetitionRequest) => api.post<ApiResponse<{ competition_id: string }>>('/create-competition', data),
-  getMyCompetitions: () => withCache(
-    'my-competitions',
-    1 * 24 * 60 * 60 * 1000, // 1 day cache - competitions change infrequently
-    () => api.post<ApiResponse<{ competitions: Competition[] }>>('/mycompetitions', {})
-  ),
+  getMyCompetitions: () => {
+    const userId = getUserId();
+    return withCache(
+      `competitions-user-${userId}`, // User-specific cache key
+      1 * 24 * 60 * 60 * 1000, // 1 day cache - competitions change infrequently
+      () => api.post<ApiResponse<{ competitions: Competition[] }>>('/mycompetitions', {})
+    );
+  },
   getStatus: (competition_id: number) => withCache(
     `competition-status-${competition_id}`,
     30 * 60 * 1000, // 30 minutes cache - status rarely changes during admin work
