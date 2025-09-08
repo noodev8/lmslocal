@@ -9,7 +9,7 @@ Request Payload:
 {
   "competition_id": 123,                   // integer, required - ID of competition to add player to
   "display_name": "John Smith",           // string, required - Player's display name (2-100 characters)
-  "email": "john@example.com"             // string, optional - Player's email address (if not provided, generates {ID}@lmslocal.com)
+  "email": "john@example.com"             // string, optional - Player's email address (if not provided, generates {ID}@lms-guest.com)
 }
 
 Success Response (ALWAYS HTTP 200):
