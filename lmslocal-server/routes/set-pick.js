@@ -48,8 +48,11 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('set-pick');
+  
   try {
     // Extract request parameters and authenticated user ID
     const { fixture_id, team, user_id } = req.body;

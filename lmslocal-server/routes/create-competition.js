@@ -23,7 +23,7 @@ Success Response (ALWAYS HTTP 200):
     "id": 123,                                  // integer, unique competition ID
     "name": "Premier League LMS 2025",         // string, competition name
     "description": "Our annual football competition", // string, competition description
-    "status": "LOCKED",                        // string, competition status
+    "status": "SETUP",                         // string, competition status
     "team_list_id": 1,                         // integer, associated team list ID
     "lives_per_player": 1,                     // integer, lives per player
     "no_team_twice": true,                     // boolean, team reuse prevention
@@ -126,7 +126,7 @@ router.post('/', verifyToken, async (req, res) => {
           invite_code,
           created_at
         )
-        VALUES ($1, $2, $3, 'LOCKED', $4, $5, $6, $7, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, 'SETUP', $4, $5, $6, $7, CURRENT_TIMESTAMP)
         RETURNING *
       `, [
         name.trim(),

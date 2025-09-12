@@ -93,6 +93,7 @@ router.post('/', verifyToken, async (req, res) => {
         c.id as competition_id,                   -- Competition identifier for validation
         c.name as competition_name,               -- Competition name for display
         c.invite_code,                            -- Join code for reference
+        c.status as competition_status,           -- Competition status for winner logic
         
         -- === COMPETITION STATISTICS ===
         comp_stats.total_players,                 -- Total number of players
@@ -154,7 +155,7 @@ router.post('/', verifyToken, async (req, res) => {
       
       WHERE c.id = $1  -- Filter to requested competition only
       ORDER BY 
-        CASE WHEN cu.status = 'OUT' THEN 1 ELSE 0 END, -- Active players first
+        CASE WHEN cu.status = 'out' THEN 1 ELSE 0 END, -- Active players first
         cu.lives_remaining DESC,                        -- More lives first
         u.display_name ASC                              -- Then alphabetically
     `, [competition_id, user_id]);
@@ -183,18 +184,14 @@ router.post('/', verifyToken, async (req, res) => {
 
     // === COMPETITION DATA PREPARATION ===
     // Build comprehensive competition overview
-    const now = new Date();
-    const isLocked = firstRow.current_round_lock_time && now >= new Date(firstRow.current_round_lock_time);
-    
     const competition = {
       id: firstRow.competition_id,               // Competition identifier
       name: firstRow.competition_name,           // Competition name for display
       current_round: firstRow.current_round || 0,      // Current round number
       total_rounds: firstRow.total_rounds || 0,        // Total rounds created
-      is_locked: isLocked,                       // Whether current round is locked
-      current_round_lock_time: firstRow.current_round_lock_time, // Lock time
       active_players: firstRow.active_players || 0,    // Active players count
-      total_players: firstRow.total_players || 0       // Total players count
+      total_players: firstRow.total_players || 0,      // Total players count
+      status: firstRow.competition_status        // Competition status for winner logic
     };
 
     // === EXTRACT PLAYER DATA ===

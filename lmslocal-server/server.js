@@ -23,7 +23,6 @@ const forgotPasswordRoute = require('./routes/forgot-password');
 const resetPasswordRoute = require('./routes/reset-password');
 const verifyEmailRoute = require('./routes/verify-email');
 const resendVerificationRoute = require('./routes/resend-verification');
-const mycompetitionsRoute = require('./routes/mycompetitions');
 const createCompetitionRoute = require('./routes/create-competition');
 const teamListsRoute = require('./routes/team-lists');
 const getTeamsRoute = require('./routes/get-teams');
@@ -33,12 +32,14 @@ const createRoundRoute = require('./routes/create-round');
 const updateRoundRoute = require('./routes/update-round');
 const updateCompetitionRoute = require('./routes/update-competition');
 const resetCompetitionRoute = require('./routes/reset-competition');
+const deleteCompetitionRoute = require('./routes/delete-competition');
 const getRoundsRoute = require('./routes/get-rounds');
 const addFixturesBulkRoute = require('./routes/add-fixtures-bulk');
 const getFixturesRoute = require('./routes/get-fixtures');
-const setFixtureResultRoute = require('./routes/set-fixture-result');
+const resetFixturesRoute = require('./routes/reset-fixtures');
+const setFixtureResultRoute = require('./routes/set-fixture-result'); // RE-ENABLED temporarily
 // const lockUnlockRoundRoute = require('./routes/lock-unlock-round'); // DISABLED: Round status removed
-const getCompetitionStatusRoute = require('./routes/get-competition-status');
+// const getCompetitionStatusRoute = require('./routes/get-competition-status'); // DISABLED: Superseded by get-user-dashboard
 // const joinCompetitionBySlugRoute = require('./routes/join-competition-by-slug'); // DISABLED - using single login
 const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round');
 const setPickRoute = require('./routes/set-pick');
@@ -49,7 +50,7 @@ const calculateResultsRoute = require('./routes/calculate-results');
 // const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
 // const registerAndJoinCompetitionRoute = require('./routes/register-and-join-competition'); // DISABLED - using single login
 // const joinByCodeRoute = require('./routes/join-by-code'); // DISABLED - using single login
-const playerDashboardRoute = require('./routes/player-dashboard');
+const getUserDashboardRoute = require('./routes/get-user-dashboard');
 const checkUserTypeRoute = require('./routes/check-user-type');
 const getAllowedTeamsRoute = require('./routes/get-allowed-teams');
 const unselectPickRoute = require('./routes/unselect-pick');
@@ -63,7 +64,8 @@ const addOfflinePlayerRoute = require('./routes/add-offline-player');
 const changePasswordRoute = require('./routes/change-password');
 const deleteAccountRoute = require('./routes/delete-account');
 const getPickStatisticsRoute = require('./routes/get-pick-statistics');
-const getDashboardStatsRoute = require('./routes/get-dashboard-stats');
+// const getDashboardStatsRoute = require('./routes/get-dashboard-stats'); // DISABLED - consolidated into get-user-dashboard
+const submitResultsRoute = require('./routes/submit-results');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -144,7 +146,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma']
 }));
 
 // Body parser middleware
@@ -162,7 +164,6 @@ app.use('/forgot-password', forgotPasswordRoute);
 app.use('/reset-password', resetPasswordRoute);
 app.use('/verify-email', verifyEmailRoute);
 app.use('/resend-verification', resendVerificationRoute);
-app.use('/mycompetitions', mycompetitionsRoute);
 app.use('/create-competition', createCompetitionRoute);
 app.use('/team-lists', teamListsRoute);
 app.use('/get-teams', getTeamsRoute);
@@ -172,12 +173,14 @@ app.use('/create-round', createRoundRoute);
 app.use('/update-round', updateRoundRoute);
 app.use('/update-competition', updateCompetitionRoute);
 app.use('/reset-competition', resetCompetitionRoute);
+app.use('/delete-competition', deleteCompetitionRoute);
 app.use('/get-rounds', getRoundsRoute);
 app.use('/add-fixtures-bulk', addFixturesBulkRoute);
 app.use('/get-fixtures', getFixturesRoute);
-app.use('/set-fixture-result', setFixtureResultRoute);
+app.use('/reset-fixtures', resetFixturesRoute);
+app.use('/set-fixture-result', setFixtureResultRoute); // RE-ENABLED temporarily
 // app.use('/lock-unlock-round', lockUnlockRoundRoute); // DISABLED: Round status removed
-app.use('/get-competition-status', getCompetitionStatusRoute);
+// app.use('/get-competition-status', getCompetitionStatusRoute); // DISABLED: Superseded by get-user-dashboard
 // app.use('/join-competition-by-slug', joinCompetitionBySlugRoute); // DISABLED - using single login
 app.use('/get-player-current-round', getPlayerCurrentRoundRoute);
 app.use('/set-pick', setPickRoute);
@@ -188,7 +191,7 @@ app.use('/calculate-results', calculateResultsRoute);
 // app.use('/player-login', playerLoginRoute); // DISABLED - using single login
 // app.use('/register-and-join-competition', registerAndJoinCompetitionRoute); // DISABLED - using single login
 // app.use('/join-by-code', joinByCodeRoute); // DISABLED - using single login
-app.use('/player-dashboard', playerDashboardRoute);
+app.use('/get-user-dashboard', getUserDashboardRoute);
 app.use('/check-user-type', checkUserTypeRoute);
 app.use('/get-allowed-teams', getAllowedTeamsRoute);
 app.use('/unselect-pick', unselectPickRoute);
@@ -202,7 +205,8 @@ app.use('/add-offline-player', addOfflinePlayerRoute);
 app.use('/change-password', changePasswordRoute);
 app.use('/delete-account', deleteAccountRoute);
 app.use('/get-pick-statistics', getPickStatisticsRoute);
-app.use('/get-dashboard-stats', getDashboardStatsRoute);
+// app.use('/get-dashboard-stats', getDashboardStatsRoute); // DISABLED - consolidated into get-user-dashboard
+app.use('/submit-results', submitResultsRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

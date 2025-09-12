@@ -44,8 +44,11 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('get-allowed-teams');
+  
   try {
     // Extract request parameters and authenticated user ID
     const { competition_id, user_id: requested_user_id } = req.body;
@@ -198,6 +201,7 @@ router.post('/', verifyToken, async (req, res) => {
             SELECT $1, $2, t.id, NOW()
             FROM team t
             WHERE t.team_list_id = $3 AND t.is_active = true
+            ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
           `, [competition_id, target_user_id, validation.team_list_id]);
 
           // Step 3: Add audit log for auto-reset event (compliance and debugging)

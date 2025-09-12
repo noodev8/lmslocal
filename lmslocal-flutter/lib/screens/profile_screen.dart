@@ -82,9 +82,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         // Clear any profile-related cache
         await CachedApiService.instance.clearAllCache();
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully!')),
+          );
+        }
       }
 
     } catch (e) {
@@ -124,9 +126,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _newPasswordController.clear();
         _confirmPasswordController.clear();
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password changed successfully!')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Password changed successfully!')),
+          );
+        }
       }
 
     } catch (e) {
@@ -452,7 +456,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               
               // Delete Account (Danger Zone)
               Card(
-                color: theme.colorScheme.errorContainer.withOpacity(0.3),
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Form(

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { competitionApi } from '@/lib/api';
+import { userApi } from '@/lib/api';
 import { Competition, User } from '@/lib/api';
 import '@/lib/cache';
 
@@ -17,6 +17,7 @@ interface AppDataContextType {
   // Actions
   refreshData: () => void;
   refreshCompetitions: () => void;
+  forceRefresh: () => Promise<void>;
   
   // Metadata
   lastUpdated: number | null;
@@ -58,8 +59,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         setUser(null);
       }
       
-      // Load app-level data using our cached API calls
-      const competitionsData = await competitionApi.getMyCompetitions();
+      // Load app-level data using unified user dashboard API
+      const competitionsData = await userApi.getUserDashboard();
       
       // Handle competitions response
       if (competitionsData.data.return_code === 'SUCCESS') {
@@ -83,14 +84,81 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     loadAppData();
   };
 
-  const refreshCompetitions = async () => {
+  const forceRefresh = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Clear all dashboard-related cache
+      const { cacheUtils } = await import('@/lib/cache');
+      const userId = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!).id : null;
+      
+      if (userId) {
+        cacheUtils.invalidateKey(`user-dashboard-${userId}`);
+        cacheUtils.invalidatePattern(`competition-*`);
+        cacheUtils.invalidatePattern(`dashboard-*`);
+      }
+      
+      // Force fresh API call with cache-busting parameters and headers
+      const { default: axios } = await import('axios');
+      const timestamp = Date.now();
+      
+      // Create a new axios instance for this force refresh with cache-busting headers
+      const freshApi = axios.create({
+        baseURL: `http://${window.location.hostname}:3015`,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      });
+      
+      // Add JWT token to fresh API
+      const token = localStorage.getItem('jwt_token');
+      if (token) {
+        freshApi.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const competitionsData = await freshApi.post('/get-user-dashboard', {
+        _t: timestamp, // Cache buster
+        _mobile: true  // Mobile refresh flag
+      });
+      
+      if (competitionsData.data.return_code === 'SUCCESS') {
+        setCompetitions((competitionsData.data.competitions as Competition[]) || []);
+        setLastUpdated(timestamp);
+        setError(null); // Clear any previous errors
+        console.log('✅ Force refresh successful');
+      } else {
+        console.error('Failed to force refresh:', competitionsData.data.message);
+        setError(`Refresh failed: ${competitionsData.data.message}`);
+      }
+      
+    } catch (err) {
+      console.error('Error during force refresh:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Network error';
+      setError(`Force refresh failed: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshCompetitions = async (bypassCache = false) => {
     try {
       // Check if user is authenticated
       const token = localStorage.getItem('jwt_token');
       if (!token) return;
       
-      // Load only competitions data
-      const competitionsData = await competitionApi.getMyCompetitions();
+      let competitionsData;
+      
+      if (bypassCache) {
+        // Make direct API call bypassing cache completely
+        const api = (await import('@/lib/api')).default;
+        competitionsData = await api.post('/get-user-dashboard', {});
+      } else {
+        // Use normal cached API call
+        competitionsData = await userApi.getUserDashboard();
+      }
       
       if (competitionsData.data.return_code === 'SUCCESS') {
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
@@ -162,6 +230,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     error,
     refreshData,
     refreshCompetitions,
+    forceRefresh,
     lastUpdated
   };
 

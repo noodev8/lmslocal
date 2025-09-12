@@ -12,7 +12,6 @@ export const clearAuthData = () => {
   localStorage.removeItem('jwt_token');
   localStorage.removeItem('user');
   localStorage.removeItem('current_competition');
-  localStorage.removeItem('new_competition_id');
   
   // NOTE: We deliberately do NOT clear these potential rogue tokens:
   // - auth_token, lms_jwt, token

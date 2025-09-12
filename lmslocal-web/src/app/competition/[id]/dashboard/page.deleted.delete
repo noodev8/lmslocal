@@ -11,7 +11,7 @@ import {
   Cog6ToothIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, competitionApi, DashboardStats, userApi } from '@/lib/api';
+import { Competition as CompetitionType, competitionApi, userApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
 
@@ -30,7 +30,7 @@ export default function AdminDashboard() {
   }, [competitions, competitionId]);
 
   const [competitionState, setCompetitionState] = useState<CompetitionType | null>(null);
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<Record<string, unknown> | null>(null);
   // Simple loading based on context availability
   const loading = contextLoading || !competition;
   const [winnerName, setWinnerName] = useState<string>('Loading...');

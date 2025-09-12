@@ -10,11 +10,9 @@ import {
   InformationCircleIcon,
   UserGroupIcon,
   HeartIcon,
-  ShieldCheckIcon,
-  CheckCircleIcon
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, teamApi } from '@/lib/api';
-import { invalidateCache } from '@/lib/cache';
+import { competitionApi, teamApi, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
 interface TeamList {
@@ -38,7 +36,6 @@ export default function CreateCompetitionPage() {
   const { refreshCompetitions } = useAppData();
   const [teamLists, setTeamLists] = useState<TeamList[]>([]);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1);
 
@@ -94,8 +91,6 @@ export default function CreateCompetitionPage() {
       });
 
       if (response.data.return_code === 'SUCCESS') {
-        // Store the new competition ID for highlighting on dashboard
-        localStorage.setItem('new_competition_id', (response.data.competition as { id: number }).id.toString());
         
         // Update user data in localStorage since they're now an admin
         const currentUser = localStorage.getItem('user');
@@ -105,27 +100,16 @@ export default function CreateCompetitionPage() {
           localStorage.setItem('user', JSON.stringify(userData));
         }
         
-        // Clear cache to ensure fresh data after user becomes admin
-        invalidateCache.invalidateCompetitions();
-        // Clear user-type cache so dashboard sees admin status
-        const { apiCache } = await import('@/lib/cache');
-        apiCache.delete('user-type');
-        // Clear fixtures and round cache to ensure manage page shows correct state
-        const competitionId = (response.data.competition as { id: number }).id;
-        apiCache.deletePattern(`fixtures-${competitionId}`);
-        apiCache.deletePattern(`rounds-${competitionId}`);
-        apiCache.deletePattern(`calculated-fixtures-${competitionId}`);
+        // Clear cache and refresh data properly
+        setError('');
+        cacheUtils.invalidateCompetitions();
+        
+        // Refresh the context data before navigation (bypass cache)
         await refreshCompetitions();
         
-        // Show success state briefly, then navigate
-        setError(''); // Clear any previous errors
-        setSuccess(true);
-        
-        // Small delay to show success, then navigate while keeping loading state
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 800);
-        return; // Don't set loading to false on success - keeps loading state during navigation
+        // Navigate smoothly without page reload
+        router.push('/dashboard');
+        return;
       } else {
         setError(response.data.message || 'Failed to create competition');
       }
@@ -462,27 +446,13 @@ export default function CreateCompetitionPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`inline-flex items-center justify-center px-6 sm:px-8 py-3 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed shadow-md transition-all text-sm sm:text-base order-1 sm:order-2 ${
-                    success 
-                      ? 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg' 
-                      : 'bg-slate-800 text-white hover:bg-slate-900 disabled:opacity-50 hover:shadow-lg'
-                  }`}
+                  className="inline-flex items-center justify-center px-6 sm:px-8 py-3 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed shadow-md transition-all text-sm sm:text-base order-1 sm:order-2 bg-slate-800 text-white hover:bg-slate-900 disabled:opacity-50 hover:shadow-lg"
                 >
                   {loading ? (
                     <div className="flex items-center">
-                      {success ? (
-                        <>
-                          <CheckCircleIcon className="h-4 w-4 mr-2" />
-                          <span className="hidden sm:inline">Competition Created! Redirecting...</span>
-                          <span className="sm:hidden">Success!</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          <span className="hidden sm:inline">Creating Competition...</span>
-                          <span className="sm:hidden">Creating...</span>
-                        </>
-                      )}
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <span className="hidden sm:inline">Creating Competition...</span>
+                      <span className="sm:hidden">Creating...</span>
                     </div>
                   ) : (
                     <>

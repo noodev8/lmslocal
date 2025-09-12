@@ -4,14 +4,14 @@ class AppConfig {
   
   // Development - Local server
   // static const String baseUrl = 'http://localhost:3015';
-  static const String baseUrl = 'http://10.0.136.121:3015';
+  static const String baseUrl = 'http://192.168.1.136:3015';
   // static const String baseUrl = 'http://10.0.2.2:3015'; // Android emulator host
   // static const String baseUrl = 'http://192.168.1.100:3015'; // Real device on WiFi
   // static const String baseUrl = 'https://api.lmslocal.com';
   
   // API Configuration
-  static const Duration connectTimeout = Duration(seconds: 5);
-  static const Duration receiveTimeout = Duration(seconds: 10);
+  static const Duration connectTimeout = Duration(seconds: 10);
+  static const Duration receiveTimeout = Duration(seconds: 15);
   static const Duration sendTimeout = Duration(seconds: 10);
   
   // Cache Configuration (in hours) - Conservative for admin changes

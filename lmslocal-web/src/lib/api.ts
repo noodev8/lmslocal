@@ -107,12 +107,6 @@ api.interceptors.response.use(
   }
 );
 
-export interface ApiResponse<T = unknown> {
-  return_code: string;
-  data?: T;
-  message?: string;
-  [key: string]: unknown;
-}
 
 // User interfaces
 export interface User {
@@ -128,14 +122,45 @@ export interface Competition {
   id: number;
   name: string;
   description?: string;
-  access_code?: string;
   invite_code?: string;
+  access_code?: string;
   slug?: string;
   is_organiser: boolean;
-  organiser_id: number;
-  player_count?: number;
-  current_round?: number;
-  status: 'LOCKED' | 'UNLOCKED' | 'SETUP' | 'COMPLETE';
+  is_participant?: boolean;
+  organiser_id?: number;
+  player_count: number;
+  total_players?: number;
+  current_round: number;
+  current_round_lock_time?: string;
+  total_rounds?: number;
+  picks_made?: number;
+  picks_required?: number;
+  pick_completion_percentage?: number;
+  needs_pick?: boolean;
+  current_pick?: {
+    team: string;
+    team_full_name: string;
+    fixture: string;
+  };
+  lives_remaining?: number;
+  user_status: string | null;
+  joined_at?: string;
+  team_list_name?: string;
+  created_at?: string;
+  is_complete?: boolean;
+  winner?: {
+    display_name: string;
+    email?: string;
+    joined_at?: string;
+  };
+  history?: Array<{
+    round_number: number;
+    pick_team: string;
+    pick_team_full_name?: string;
+    pick_result: string;
+    fixture?: string;
+  }>;
+  status?: 'LOCKED' | 'UNLOCKED' | 'SETUP' | 'COMPLETE';
   team_list_id?: number;
   lives_per_player?: number;
   no_team_twice?: boolean;
@@ -146,35 +171,13 @@ export interface Round {
   id: number;
   round_number: number;
   lock_time: string;
-  status: string;
+  is_locked?: boolean;
+  fixture_count: number;
+  completed_fixtures?: number;
   created_at?: string;
-  fixture_count?: number;
+  status?: string;
 }
 
-// Dashboard stats interfaces
-export interface DashboardStats {
-  competition_info: {
-    total_players: number;
-    current_round: {
-      round_id: number;
-      round_number: number;
-      lock_time: string | null;
-      is_locked: boolean;
-    } | null;
-  };
-  player_status: {
-    still_active: number;
-    eliminated: number;
-    completion_percentage: number;
-    total_registered: number;
-  };
-  pick_status: {
-    picks_made: number;
-    picks_required: number;
-    completion_percentage: number;
-    missing_picks_count: number;
-  };
-}
 
 // Player interfaces
 export interface Player {
@@ -191,6 +194,9 @@ export interface Player {
   paid_amount?: number;
   paid_date?: string;
   joined_at: string;
+  // Additional fields for standings/detailed views
+  current_pick?: unknown;
+  history?: unknown[];
 }
 
 // Fixture interfaces
@@ -201,7 +207,7 @@ export interface Fixture {
   home_team_short: string;
   away_team_short: string;
   kickoff_time: string;
-  result?: 'home_win' | 'away_win' | 'draw';
+  result?: 'home_win' | 'away_win' | 'draw' | string | null;
 }
 
 // Team interfaces
@@ -285,22 +291,40 @@ export interface ResetCompetitionResponse {
   };
 }
 
+export interface DeleteCompetitionRequest {
+  competition_id: number;
+}
+
+export interface DeleteCompetitionResponse {
+  deletion_summary: {
+    competition_id: number;
+    competition_name: string;
+    players_removed: number;
+    rounds_deleted: number;
+    fixtures_deleted: number;
+    picks_deleted: number;
+    progress_records_deleted: number;
+    allowed_teams_deleted: number;
+    deleted_at: string;
+  };
+}
+
 
 // Auth API calls
 export const authApi = {
-  login: (data: LoginRequest) => api.post<ApiResponse<{ token: string; user: User }>>('/login', data),
-  register: (data: RegisterRequest) => api.post<ApiResponse<{ token: string; user: User }>>('/register', data),
-  forgotPassword: (email: string) => api.post<ApiResponse<MessageResponse>>('/forgot-password', { email }),
-  resetPassword: (token: string, password: string) => api.post<ApiResponse<MessageResponse>>('/reset-password', { token, password }),
-  verifyEmail: (token: string) => api.post<ApiResponse<MessageResponse>>('/verify-email', { token }),
-  resendVerification: (email: string) => api.post<ApiResponse<MessageResponse>>('/resend-verification', { email }),
+  login: (data: LoginRequest) => api.post<{ return_code: string; token: string; user: User }>('/login', data),
+  register: (data: RegisterRequest) => api.post<{ return_code: string; token: string; user: User }>('/register', data),
+  forgotPassword: (email: string) => api.post<{ return_code: string; message: string }>('/forgot-password', { email }),
+  resetPassword: (token: string, password: string) => api.post<{ return_code: string; message: string }>('/reset-password', { token, password }),
+  verifyEmail: (token: string) => api.post<{ return_code: string; message: string }>('/verify-email', { token }),
+  resendVerification: (email: string) => api.post<{ return_code: string; message: string }>('/resend-verification', { email }),
 };
 
 // Player auth API calls (magic link system)
 export const playerApi = {
-  login: (email: string, competition_slug?: string) => api.post<ApiResponse<MessageResponse>>('/player-login', { email, competition_slug }),
-  joinBySlug: (slug: string) => api.post<ApiResponse<{ competition: Competition }>>('/join-competition-by-slug', { slug }),
-  registerAndJoin: (name: string, email: string, access_code: string) => api.post<ApiResponse<{ token: string; user: User; competition: Competition }>>('/register-and-join-competition', { name, email, access_code }),
+  login: (email: string, competition_slug?: string) => api.post<{ return_code: string; message: string }>('/player-login', { email, competition_slug }),
+  joinBySlug: (slug: string) => api.post<{ return_code: string; competition: Competition }>('/join-competition-by-slug', { slug }),
+  registerAndJoin: (name: string, email: string, access_code: string) => api.post<{ return_code: string; token: string; user: User; competition: Competition }>('/register-and-join-competition', { name, email, access_code }),
 };
 
 // Helper to get current user ID for cache keys
@@ -320,76 +344,65 @@ const getUserId = (): string => {
 
 // Competition API calls
 export const competitionApi = {
-  create: (data: CreateCompetitionRequest) => api.post<ApiResponse<{ competition_id: string }>>('/create-competition', data),
-  getMyCompetitions: () => {
-    const userId = getUserId();
-    return withCache(
-      `competitions-user-${userId}`, // User-specific cache key
-      1 * 24 * 60 * 60 * 1000, // 1 day cache - competitions change infrequently
-      () => api.post<ApiResponse<{ competitions: Competition[] }>>('/mycompetitions', {})
-    );
-  },
+  create: (data: CreateCompetitionRequest) => api.post<{ return_code: string; message?: string; competition?: Competition; competition_id?: string }>('/create-competition', data),
   getStatus: (competition_id: number) => withCache(
     `competition-status-${competition_id}`,
     30 * 60 * 1000, // 30 minutes cache - status rarely changes during admin work
-    () => api.post<ApiResponse<{ current_round: Round | null; fixture_count: number; should_route_to_results: boolean }>>('/get-competition-status', { competition_id })
+    () => api.post<{ return_code: string; current_round: Round | null; fixture_count: number; should_route_to_results: boolean }>('/get-competition-status', { competition_id })
   ),
   getPlayers: (competition_id: number) => withCache(
     `competition-players-${competition_id}`,
     1 * 60 * 60 * 1000, // 1 hour cache - player data rarely changes during admin sessions
-    () => api.post<ApiResponse<{ competition: Competition; players: Player[] }>>('/get-competition-players', { competition_id })
+    () => api.post<{ return_code: string; message?: string; competition?: Competition; players?: Player[] }>('/get-competition-players', { competition_id })
   ),
-  removePlayer: (competition_id: number, player_id: number) => api.post<ApiResponse<{ removed_data: Player }>>('/remove-player', { competition_id, player_id }),
+  removePlayer: (competition_id: number, player_id: number) => api.post<{ return_code: string; message?: string; removed_data?: Player }>('/remove-player', { competition_id, player_id }),
   getPickStatistics: (competition_id: number) => withCache(
     `pick-statistics-${competition_id}`,
     1 * 60 * 60 * 1000, // 1 hour cache - pick stats less critical for admin work
-    () => api.post<ApiResponse<{ 
+    () => api.post<{ 
+      return_code: string;
       current_round: { round_id: number; round_number: number } | null; 
       players_with_picks: number; 
       total_active_players: number; 
       pick_percentage: number 
-    }>>('/get-pick-statistics', { competition_id })
+    }>('/get-pick-statistics', { competition_id })
   ),
-  getDashboardStats: (competition_id: number) => withCache(
-    `dashboard-stats-${competition_id}`,
-    1 * 60 * 60 * 1000, // 1 hour cache - dashboard stats refreshed hourly as requested
-    () => api.post<ApiResponse<DashboardStats>>('/get-dashboard-stats', { competition_id })
-  ),
-  update: (data: UpdateCompetitionRequest) => api.post<ApiResponse<UpdateCompetitionResponse>>('/update-competition', data),
-  reset: (data: ResetCompetitionRequest) => api.post<ApiResponse<ResetCompetitionResponse>>('/reset-competition', data),
+  update: (data: UpdateCompetitionRequest) => api.post<UpdateCompetitionResponse & { return_code: string; message?: string }>('/update-competition', data),
+  reset: (data: ResetCompetitionRequest) => api.post<ResetCompetitionResponse & { return_code: string; message?: string }>('/reset-competition', data),
+  delete: (data: DeleteCompetitionRequest) => api.post<DeleteCompetitionResponse & { return_code: string; message?: string }>('/delete-competition', data),
 };
 
 // Round API calls
 export const roundApi = {
   create: (competition_id: string, lock_time: string) => 
-    api.post<ApiResponse<{ round_id: string }>>('/create-round', { competition_id: parseInt(competition_id), lock_time }),
+    api.post<{ return_code: string; message?: string; round?: Round }>('/create-round', { competition_id: parseInt(competition_id), lock_time }),
   getRounds: (competition_id: number) => withCache(
     `rounds-${competition_id}`,
     30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
-    () => api.post<ApiResponse<{ rounds: Round[] }>>('/get-rounds', { competition_id })
+    () => api.post<{ return_code: string; message?: string; rounds?: Round[] }>('/get-rounds', { competition_id })
   ),
-  update: (round_id: string, lock_time: string) => api.post<ApiResponse<MessageResponse>>('/update-round', { round_id: parseInt(round_id), lock_time }),
-  getPlayerCurrentRound: (competition_id: string) => api.post<ApiResponse<{ round: Round }>>('/get-player-current-round', { competition_id }),
+  update: (round_id: string, lock_time: string) => api.post<{ return_code: string; message: string }>('/update-round', { round_id: parseInt(round_id), lock_time }),
+  getPlayerCurrentRound: (competition_id: string) => api.post<{ return_code: string; round: Round }>('/get-player-current-round', { competition_id }),
 };
 
 // Fixture API calls
 export const fixtureApi = {
   addBulk: (round_id: string, fixtures: { home_team: string; away_team: string; kickoff_time: string }[]) => 
-    api.post<ApiResponse<MessageResponse>>('/add-fixtures-bulk', { round_id: parseInt(round_id), fixtures }),
+    api.post<{ return_code: string; message: string }>('/add-fixtures-bulk', { round_id: parseInt(round_id), fixtures }),
   get: (round_id: string) => withCache(
     `fixtures-${round_id}`,
     30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
-    () => api.post<ApiResponse<{ fixtures: Fixture[] }>>('/get-fixtures', { round_id: parseInt(round_id) })
+    () => api.post<{ return_code: string; message?: string; fixtures?: Fixture[]; round_info?: { round_number: number; lock_time: string | null; is_locked: boolean; all_processed: boolean } }>('/get-fixtures', { round_id: parseInt(round_id) })
   ),
   setResult: (fixture_id: number, result: 'home_win' | 'away_win' | 'draw') =>
-    api.post<ApiResponse<MessageResponse>>('/set-fixture-result', { fixture_id, result }),
+    api.post<{ return_code: string; message: string }>('/set-fixture-result', { fixture_id, result }),
   getCalculated: (round_id: number) => withCache(
     `calculated-fixtures-${round_id}`,
     30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
-    () => api.post<ApiResponse<{ calculated_fixture_ids: number[] }>>('/get-calculated-fixtures', { round_id })
+    () => api.post<{ return_code: string; calculated_fixture_ids: number[] }>('/get-calculated-fixtures', { round_id })
   ),
-  getPickCounts: (round_id: number) => api.post<ApiResponse<{ pick_counts: Record<string, number> }>>('/get-fixture-pick-count', { round_id }),
-  getRoundHistory: (round_id: number) => api.post<ApiResponse<{ round_data: {
+  getPickCounts: (round_id: number) => api.post<{ return_code: string; pick_counts: Record<string, number> }>('/get-fixture-pick-count', { round_id }),
+  getRoundHistory: (round_id: number) => api.post<{ return_code: string; round_data: {
     round_number: number;
     fixtures: Array<{
       id: number;
@@ -402,7 +415,30 @@ export const fixtureApi = {
     player_pick?: string;
     player_outcome?: string;
     pick_counts: Record<string, number>;
-  } }>>('/get-round-history', { round_id }),
+  } }>('/get-round-history', { round_id }),
+  reset: (round_id: number) => api.post<{
+    return_code: string;
+    message?: string;
+    reset_summary?: {
+      round_number: number;
+      fixtures_removed: number;
+      picks_removed: number;
+      teams_restored: number;
+      players_affected: number;
+    }
+  }>('/reset-fixtures', { round_id }),
+  submitResults: (competition_id: number, results: Array<{ fixture_id: number; result: string }>) => 
+    api.post<{
+      return_code: string;
+      message: string;
+      fixtures_processed?: number;
+      players_affected?: number;
+      round_number?: number;
+      active_players?: number;
+      winner_name?: string;
+      winner_id?: number;
+      total_rounds?: number;
+    }>('/submit-results', { competition_id, results }),
 };
 
 // Team API calls
@@ -410,39 +446,42 @@ export const teamApi = {
   getTeams: () => withCache(
     'teams',
     1 * 24 * 60 * 60 * 1000, // 1 day cache - team rosters change seasonally
-    () => api.post<ApiResponse<{ teams: Team[] }>>('/get-teams', {})
+    () => api.post<{ return_code: string; teams: Team[] }>('/get-teams', {})
   ),
   getTeamLists: () => withCache(
     'team-lists',
     1 * 60 * 60 * 1000, // 1 hour cache - team lists for competitions, may be edited
-    () => api.post<ApiResponse<{ team_lists: TeamList[] }>>('/team-lists', {})
+    () => api.post<{ return_code: string; team_lists: TeamList[]; summary: { total_lists: number; total_teams: number } }>('/team-lists', {})
   ),
 };
 
 // Player actions
 export const playerActionApi = {
-  setPick: (fixture_id: number, team: string) => api.post<ApiResponse<MessageResponse>>('/set-pick', { fixture_id, team }),
-  unselectPick: (round_id: number) => api.post<ApiResponse<{ warning?: string }>>('/unselect-pick', { round_id }),
-  getCurrentPick: (round_id: number) => api.post<ApiResponse<{ pick?: { team: string, fixture_id: number } }>>('/get-current-pick', { round_id }),
-  calculateResults: (round_id: number) => api.post<ApiResponse<MessageResponse>>('/calculate-results', { round_id: parseInt(round_id.toString()) }),
+  setPick: (fixture_id: number, team: string) => api.post<{ return_code: string; message: string }>('/set-pick', { fixture_id, team }),
+  unselectPick: (round_id: number) => api.post<{ return_code: string; message?: string; warning?: string }>('/unselect-pick', { round_id }),
+  getCurrentPick: (round_id: number) => api.post<{ return_code: string; pick?: { team: string, fixture_id: number } }>('/get-current-pick', { round_id }),
+  calculateResults: (round_id: number) => api.post<{ return_code: string; message: string }>('/calculate-results', { round_id: parseInt(round_id.toString()) }),
 };
 
 // Offline player management
 export const offlinePlayerApi = {
-  addOfflinePlayer: (competition_id: number, display_name: string, email?: string) => api.post<ApiResponse<{
-    player: {
+  addOfflinePlayer: (competition_id: number, display_name: string, email?: string) => api.post<{
+    return_code: string;
+    message?: string;
+    player?: {
       id: number;
       display_name: string;
       email?: string;
       is_managed: boolean;
       joined_competition: boolean;
     };
-  }>>('/add-offline-player', { competition_id, display_name, email }),
+  }>('/add-offline-player', { competition_id, display_name, email }),
 };
 
 // Admin actions
 export const adminApi = {
-  setPlayerPick: (competition_id: number, user_id: number, team: string) => api.post<ApiResponse<{
+  setPlayerPick: (competition_id: number, user_id: number, team: string) => api.post<{
+    return_code: string;
     pick: {
       id: number;
       user_id: number;
@@ -450,55 +489,62 @@ export const adminApi = {
       player_name: string;
       round_number: number;
     }
-  }>>('/admin-set-pick', { competition_id, user_id, team }),
-  updatePaymentStatus: (competition_id: number, user_id: number, paid: boolean, paid_amount?: number, paid_date?: string) => api.post<ApiResponse<{
-    payment_status: {
+  }>('/admin-set-pick', { competition_id, user_id, team }),
+  updatePaymentStatus: (competition_id: number, user_id: number, paid: boolean, paid_amount?: number, paid_date?: string) => api.post<{
+    return_code: string;
+    message?: string;
+    payment_status?: {
       user_id: number;
       player_name: string;
       paid: boolean;
       paid_amount?: number;
       paid_date?: string;
     }
-  }>>('/update-payment-status', { competition_id, user_id, paid, paid_amount, paid_date }),
+  }>('/update-payment-status', { competition_id, user_id, paid, paid_amount, paid_date }),
 };
 
 // User profile
 export const userApi = {
-  updateProfile: (updates: Partial<User>) => api.post<ApiResponse<{ user: User }>>('/update-profile', updates),
-  changePassword: (current_password: string, new_password: string) => api.post<ApiResponse<MessageResponse>>('/change-password', { current_password, new_password }),
-  deleteAccount: (confirmation: string) => api.post<ApiResponse<MessageResponse>>('/delete-account', { confirmation }),
-  getPlayerDashboard: () => withCache(
-    'player-dashboard',
-    5 * 60 * 1000, // 5 minutes cache - player view, different usage pattern
-    () => api.post<ApiResponse<{ competitions: Competition[] }>>('/player-dashboard', {})
-  ),
+  updateProfile: (updates: Partial<User>) => api.post<{ return_code: string; message?: string; user?: User }>('/update-profile', updates),
+  changePassword: (current_password: string, new_password: string) => api.post<{ return_code: string; message: string }>('/change-password', { current_password, new_password }),
+  deleteAccount: (confirmation: string) => api.post<{ return_code: string; message: string }>('/delete-account', { confirmation }),
+  getUserDashboard: () => {
+    const userId = getUserId();
+    return withCache(
+      `user-dashboard-${userId}`, // User-specific cache key
+      5 * 60 * 1000, // 5 minutes cache - optimal for dashboard data
+      () => api.post<{ return_code: string; message?: string; competitions?: Competition[] }>('/get-user-dashboard', {})
+    );
+  },
   getAllowedTeams: (competition_id: number, user_id?: number) => withCache(
     `allowed-teams-${competition_id}-${user_id || 'current'}`,
     1 * 60 * 60 * 1000, // 1 hour cache - allowed teams change less frequently
-    () => api.post<ApiResponse<{ 
+    () => api.post<{ 
+      return_code: string;
       allowed_teams: Team[];
       teams_reset: boolean;
       reset_message: string | null;
-    }>>('/get-allowed-teams', { competition_id, ...(user_id && { user_id }) })
+    }>('/get-allowed-teams', { competition_id, ...(user_id && { user_id }) })
   ),
   checkUserType: () => withCache(
     'user-type',
     1 * 24 * 60 * 60 * 1000, // 1 day cache - user permissions rarely change mid-session
-    () => api.post<ApiResponse<{ user_type: string; suggested_route: string; organized_count: number; participating_count: number; has_organized: boolean; has_participated: boolean }>>('/check-user-type', {})
+    () => api.post<{ return_code: string; user_type: string; suggested_route: string; organized_count: number; participating_count: number; has_organized: boolean; has_participated: boolean }>('/check-user-type', {})
   ),
   getCompetitionStandings: (competition_id: number) => withCache(
     `competition-standings-${competition_id}`,
     1 * 60 * 60 * 1000, // 1 hour cache - standings rarely needed during typical admin work
-    () => api.post<ApiResponse<{ competition: Competition; players: Player[] }>>('/get-competition-standings', { competition_id })
+    () => api.post<{ return_code: string; message?: string; competition?: Competition; players?: Player[] }>('/get-competition-standings', { competition_id })
   ),
-  joinCompetitionByCode: (competition_code: string) => api.post<ApiResponse<{ competition: { id: number; name: string } }>>('/join-competition-by-code', { competition_code }),
+  joinCompetitionByCode: (competition_code: string) => api.post<{ return_code: string; message?: string; competition?: { id: number; name: string } }>('/join-competition-by-code', { competition_code }),
 };
 
 // Cache utilities
 export const cacheUtils = {
   // Clear competition-related cache when competitions change
   invalidateCompetitions: () => {
-    apiCache.delete('my-competitions');
+    const userId = getUserId();
+    apiCache.delete(`user-dashboard-${userId}`);
   },
   
   // Clear specific cache key

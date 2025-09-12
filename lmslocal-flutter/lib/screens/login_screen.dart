@@ -129,11 +129,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           if (!_isLoginMode) ...[
                             TextFormField(
                               controller: _displayNameController,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Display Name',
                                 hintText: 'How you\'ll appear to other players',
-                                prefixIcon: const Icon(Icons.person),
-                                border: const OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.person),
+                                border: OutlineInputBorder(),
                               ),
                               textCapitalization: TextCapitalization.words,
                               textInputAction: TextInputAction.next,
