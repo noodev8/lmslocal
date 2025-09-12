@@ -24,11 +24,8 @@ interface RoundHistory {
   lock_time: string;
   pick_team: string | null;
   pick_team_full_name: string | null;
-  visible_pick_team: string | null;
-  visible_pick_team_full_name: string | null;
-  home_team: string | null;
-  away_team: string | null;
-  result: string | null;
+  fixture: string | null;
+  fixture_result: string | null;
   pick_result: 'no_pick' | 'pending' | 'win' | 'draw' | 'loss';
 }
 
@@ -58,6 +55,8 @@ export default function CompetitionStandingsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
+  const [showFullHistory, setShowFullHistory] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   
   const loadStandings = useCallback(async () => {
@@ -65,7 +64,7 @@ export default function CompetitionStandingsPage() {
     
     try {
       // Load both standings and player count in parallel for efficiency
-      const standingsResponse = await userApi.getCompetitionStandings(parseInt(competitionId));
+      const standingsResponse = await userApi.getCompetitionStandings(parseInt(competitionId), showFullHistory);
       
       if (abortControllerRef.current?.signal.aborted) return;
       
@@ -85,7 +84,7 @@ export default function CompetitionStandingsPage() {
         setLoading(false);
       }
     }
-  }, [competitionId, router]);
+  }, [competitionId, router, showFullHistory]);
 
   useEffect(() => {
     // Create abort controller for this effect
@@ -102,6 +101,12 @@ export default function CompetitionStandingsPage() {
       }
 
       try {
+        // Get current user
+        const user = await getCurrentUser();
+        if (user && !controller.signal.aborted) {
+          setCurrentUser(user);
+        }
+        
         if (!controller.signal.aborted) {
           await loadStandings();
         }
@@ -131,14 +136,20 @@ export default function CompetitionStandingsPage() {
 
   const togglePlayerExpansion = (playerId: number) => {
     setExpandedPlayers(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(playerId)) {
+      if (prev.has(playerId)) {
+        // If this player is already expanded, collapse them
+        const newSet = new Set(prev);
         newSet.delete(playerId);
+        return newSet;
       } else {
-        newSet.add(playerId);
+        // If expanding a new player, collapse all others and expand this one
+        return new Set([playerId]);
       }
-      return newSet;
     });
+  };
+
+  const toggleFullHistory = () => {
+    setShowFullHistory(!showFullHistory);
   };
 
 
@@ -213,6 +224,14 @@ export default function CompetitionStandingsPage() {
                 <ArrowLeftIcon className="h-5 w-5" />
                 <span className="font-medium">Back</span>
               </Link>
+              <div className="h-4 sm:h-6 w-px bg-slate-300 flex-shrink-0" />
+              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+                <div className="min-w-0">
+                  <h1 className="text-base sm:text-lg font-semibold text-slate-900 truncate">
+                    Standings
+                  </h1>
+                </div>
+              </div>
             </div>
             
           </div>
@@ -226,7 +245,6 @@ export default function CompetitionStandingsPage() {
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-slate-900 mb-1">{competition.name}</h1>
               <div className="flex items-center space-x-4 text-sm text-slate-600">
                 <span>Round {competition.current_round || 1}</span>
                 <span>•</span>
@@ -241,6 +259,18 @@ export default function CompetitionStandingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Full History Toggle - Only for authenticated users */}
+        {currentUser && (
+          <div className="mb-4 flex justify-end">
+            <button
+              onClick={toggleFullHistory}
+              className="text-sm text-slate-600 hover:text-slate-900 font-medium"
+            >
+              {showFullHistory ? '📊 Show Recent History Only' : '📜 View My Full History'}
+            </button>
+          </div>
+        )}
 
         {/* Players List - Simplified */}
         <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
@@ -316,45 +346,41 @@ export default function CompetitionStandingsPage() {
                       <tbody>
                         {player.history.length > 0 ? (
                           player.history.map((round) => (
-                            <tr key={round.round_id} className="border-b border-slate-100">
+                            <tr key={`${player.id}-${round.round_id}`} className="border-b border-slate-100">
                               <td className="py-2">
                                 <span className="font-medium">Round {round.round_number}</span>
                               </td>
                               <td className="py-2">
-                                {round.visible_pick_team_full_name ? (
-                                  <span className="text-slate-900 font-medium">{round.visible_pick_team_full_name}</span>
+                                {round.pick_team_full_name ? (
+                                  <span className="text-slate-900 font-medium">{round.pick_team_full_name}</span>
                                 ) : (
                                   <span className="text-slate-500 font-medium">No Pick</span>
                                 )}
                               </td>
                               <td className="py-2">
-                                {round.home_team && round.away_team ? (
-                                  <span className="text-slate-700">{round.home_team} vs {round.away_team}</span>
+                                {round.pick_team_full_name && round.fixture ? (
+                                  <span className="text-slate-700">{round.fixture}</span>
                                 ) : (
                                   <span className="text-slate-400">-</span>
                                 )}
                               </td>
                               <td className="py-2">
-                                {round.result ? (
-                                  <span className="text-slate-700">
-                                    {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
-                                     round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
-                                     round.result === 'DRAW' ? 'Draw' : round.result}
-                                  </span>
-                                ) : (
+                                {round.pick_team_full_name && round.fixture_result ? (
+                                  <span className="text-slate-700">{round.fixture_result}</span>
+                                ) : round.pick_team_full_name && !round.fixture_result ? (
                                   <span className="text-slate-400">Pending</span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
                                 )}
                               </td>
                               <td className="py-2">
                                 <span className={`px-2 py-1 text-xs rounded font-medium ${
-                                  round.pick_result === 'win' ? 'bg-slate-100 text-slate-800' :
-                                  round.pick_result === 'loss' ? 'bg-slate-100 text-slate-800' :
-                                  round.pick_result === 'no_pick' ? 'bg-slate-100 text-slate-600' :
+                                  round.pick_result === 'win' ? 'bg-green-100 text-green-800' :
+                                  round.pick_result === 'loss' ? 'bg-red-100 text-red-800' :
                                   'bg-slate-100 text-slate-600'
                                 }`}>
                                   {round.pick_result === 'win' ? 'WIN' :
                                    round.pick_result === 'loss' ? 'LOSE' :
-                                   round.pick_result === 'no_pick' ? 'NO PICK' :
                                    'PENDING'}
                                 </span>
                               </td>
@@ -375,7 +401,7 @@ export default function CompetitionStandingsPage() {
                   <div className="md:hidden space-y-3">
                     {player.history.length > 0 ? (
                       player.history.map((round) => (
-                        <div key={round.round_id} className="border border-slate-200 rounded-lg p-3 bg-white">
+                        <div key={`${player.id}-${round.round_id}`} className="border border-slate-200 rounded-lg p-3 bg-white">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-medium text-slate-900">Round {round.round_number}</span>
                             <span className={`px-2 py-1 text-xs rounded font-medium ${
@@ -394,27 +420,25 @@ export default function CompetitionStandingsPage() {
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between">
                               <span className="text-slate-600">Pick:</span>
-                              {round.visible_pick_team_full_name ? (
-                                <span className="text-slate-900 font-medium">{round.visible_pick_team_full_name}</span>
+                              {round.pick_team_full_name ? (
+                                <span className="text-slate-900 font-medium">{round.pick_team_full_name}</span>
                               ) : (
                                 <span className="text-slate-500 font-medium">No Pick</span>
                               )}
                             </div>
                             
-                            {round.home_team && round.away_team && (
+                            {round.pick_team_full_name && round.fixture && (
                               <div className="flex justify-between">
                                 <span className="text-slate-600">Fixture:</span>
-                                <span className="text-slate-700 text-right">{round.home_team} vs {round.away_team}</span>
+                                <span className="text-slate-700 text-right">{round.fixture}</span>
                               </div>
                             )}
 
-                            {round.result && (
+                            {round.fixture_result && (
                               <div className="flex justify-between">
                                 <span className="text-slate-600">Result:</span>
                                 <span className="text-slate-700 text-right">
-                                  {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
-                                   round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
-                                   round.result === 'DRAW' ? 'Draw' : round.result}
+                                  {round.fixture_result}
                                 </span>
                               </div>
                             )}
@@ -495,45 +519,41 @@ export default function CompetitionStandingsPage() {
                       <tbody>
                         {player.history.length > 0 ? (
                           player.history.map((round) => (
-                            <tr key={round.round_id} className="border-b border-slate-100">
+                            <tr key={`${player.id}-${round.round_id}`} className="border-b border-slate-100">
                               <td className="py-2">
                                 <span className="font-medium">Round {round.round_number}</span>
                               </td>
                               <td className="py-2">
-                                {round.visible_pick_team_full_name ? (
-                                  <span className="text-slate-700 font-medium">{round.visible_pick_team_full_name}</span>
+                                {round.pick_team_full_name ? (
+                                  <span className="text-slate-700 font-medium">{round.pick_team_full_name}</span>
                                 ) : (
                                   <span className="text-slate-500 font-medium">No Pick</span>
                                 )}
                               </td>
                               <td className="py-2">
-                                {round.home_team && round.away_team ? (
-                                  <span className="text-slate-600">{round.home_team} vs {round.away_team}</span>
+                                {round.pick_team_full_name && round.fixture ? (
+                                  <span className="text-slate-600">{round.fixture}</span>
                                 ) : (
                                   <span className="text-slate-400">-</span>
                                 )}
                               </td>
                               <td className="py-2">
-                                {round.result ? (
-                                  <span className="text-slate-600">
-                                    {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
-                                     round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
-                                     round.result === 'DRAW' ? 'Draw' : round.result}
-                                  </span>
-                                ) : (
+                                {round.pick_team_full_name && round.fixture_result ? (
+                                  <span className="text-slate-600">{round.fixture_result}</span>
+                                ) : round.pick_team_full_name && !round.fixture_result ? (
                                   <span className="text-slate-400">Pending</span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
                                 )}
                               </td>
                               <td className="py-2">
                                 <span className={`px-2 py-1 text-xs rounded font-medium ${
-                                  round.pick_result === 'win' ? 'bg-slate-100 text-slate-700' :
-                                  round.pick_result === 'loss' ? 'bg-slate-100 text-slate-700' :
-                                  round.pick_result === 'no_pick' ? 'bg-slate-100 text-slate-600' :
+                                  round.pick_result === 'win' ? 'bg-green-100 text-green-800' :
+                                  round.pick_result === 'loss' ? 'bg-red-100 text-red-800' :
                                   'bg-slate-100 text-slate-600'
                                 }`}>
                                   {round.pick_result === 'win' ? 'WIN' :
                                    round.pick_result === 'loss' ? 'LOSE' :
-                                   round.pick_result === 'no_pick' ? 'NO PICK' :
                                    'PENDING'}
                                 </span>
                               </td>
@@ -554,7 +574,7 @@ export default function CompetitionStandingsPage() {
                   <div className="md:hidden space-y-3">
                     {player.history.length > 0 ? (
                       player.history.map((round) => (
-                        <div key={round.round_id} className="border border-slate-200 rounded-lg p-3 bg-white">
+                        <div key={`${player.id}-${round.round_id}`} className="border border-slate-200 rounded-lg p-3 bg-white">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-medium text-slate-900">Round {round.round_number}</span>
                             <span className={`px-2 py-1 text-xs rounded font-medium ${
@@ -573,27 +593,25 @@ export default function CompetitionStandingsPage() {
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between">
                               <span className="text-slate-600">Pick:</span>
-                              {round.visible_pick_team_full_name ? (
-                                <span className="text-slate-700 font-medium">{round.visible_pick_team_full_name}</span>
+                              {round.pick_team_full_name ? (
+                                <span className="text-slate-700 font-medium">{round.pick_team_full_name}</span>
                               ) : (
                                 <span className="text-slate-500 font-medium">No Pick</span>
                               )}
                             </div>
                             
-                            {round.home_team && round.away_team && (
+                            {round.pick_team_full_name && round.fixture && (
                               <div className="flex justify-between">
                                 <span className="text-slate-600">Fixture:</span>
-                                <span className="text-slate-600 text-right">{round.home_team} vs {round.away_team}</span>
+                                <span className="text-slate-600 text-right">{round.fixture}</span>
                               </div>
                             )}
 
-                            {round.result && (
+                            {round.fixture_result && (
                               <div className="flex justify-between">
                                 <span className="text-slate-600">Result:</span>
                                 <span className="text-slate-600 text-right">
-                                  {round.result === 'HOME_WIN' ? `${round.home_team} Win` :
-                                   round.result === 'AWAY_WIN' ? `${round.away_team} Win` :
-                                   round.result === 'DRAW' ? 'Draw' : round.result}
+                                  {round.fixture_result}
                                 </span>
                               </div>
                             )}

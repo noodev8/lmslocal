@@ -49,6 +49,7 @@ export default function PickPage() {
   const [currentPick, setCurrentPick] = useState<string | null>(null);
   const [isRoundLocked, setIsRoundLocked] = useState<boolean>(false);
   const [teamPickCounts, setTeamPickCounts] = useState<Record<string, number>>({});
+  const [pickDataLoaded, setPickDataLoaded] = useState<boolean>(false);
   
   const hasInitialized = useRef(false);
 
@@ -66,6 +67,7 @@ export default function PickPage() {
   // Combined function to load all data for a specific round
   const loadRoundData = useCallback(async (roundId: number, isCurrentRound = true) => {
     console.log('📊 Loading round data:', { roundId, isCurrentRound, currentRoundId, viewMode });
+    setPickDataLoaded(false);
     
     try {
       await Promise.all([
@@ -103,6 +105,7 @@ export default function PickPage() {
         }
       }
       
+      setPickDataLoaded(true);
       console.log('✅ Round data loaded successfully for round:', roundId);
     } catch (error) {
       console.error('Failed to load round data:', error);
@@ -301,7 +304,7 @@ export default function PickPage() {
     }
   };
 
-  if (loading || contextLoading) {
+  if (loading || contextLoading || !pickDataLoaded) {
     return (
       <div className="min-h-screen bg-slate-50">
         <header className="bg-white border-b border-slate-200 shadow-sm">
@@ -454,12 +457,16 @@ export default function PickPage() {
                   onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
                   disabled={isDisabled}
                   className={`relative p-4 rounded-lg border-2 transition-all duration-200 ${
-                    isSelected
+                    teamResult === 'win'
+                      ? 'bg-green-600 border-slate-800 shadow-md text-white'
+                      : teamResult === 'lose'
+                      ? 'bg-red-600 border-slate-800 shadow-md text-white'
+                      : isSelected
                       ? 'bg-white border-blue-500 shadow-md'
                       : isCurrentPick
                       ? 'bg-white border-blue-500 shadow-md'
                       : isDisabled
-                      ? 'bg-white border-slate-200 text-slate-400 cursor-not-allowed'
+                      ? 'bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-50'
                       : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
                   }`}
                 >
@@ -480,25 +487,23 @@ export default function PickPage() {
                   
                   <div className="text-center">
                     {/* Team name */}
-                    <div className="text-base font-bold mb-2 text-black">
+                    <div className={`text-base font-bold mb-2 ${
+                      teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
+                    }`}>
                       {team.short}
                     </div>
                     
                     {/* Fixture information */}
-                    <div className="text-xs font-medium text-slate-600">
+                    <div className={`text-xs font-medium ${
+                      teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-slate-600'
+                    }`}>
                       {team.fixtureDisplay}
                     </div>
                     
-                    {/* Result box - WIN (green), LOSE (red), or empty grey box */}
-                    {isRoundLocked && (
-                      <div className={`text-xs font-bold mt-2 px-2 py-1 rounded ${
-                        teamResult === 'win' 
-                          ? 'text-white bg-green-600' 
-                          : teamResult === 'lose'
-                          ? 'text-white bg-red-600'
-                          : 'text-white bg-slate-500'
-                      }`}>
-                        {teamResult === 'win' ? 'WIN' : teamResult === 'lose' ? 'LOSE' : ''}
+                    {/* Result box - only show for pending (no result) fixtures */}
+                    {isRoundLocked && !teamResult && (
+                      <div className="text-xs font-bold mt-2 px-2 py-1 rounded text-white bg-slate-500">
+                        
                       </div>
                     )}
                   </div>

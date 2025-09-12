@@ -132,6 +132,7 @@ router.post('/', verifyToken, async (req, res) => {
       -- LEFT JOIN to include competition even if no rounds exist
       LEFT JOIN round_details rd ON ca.competition_id = $1
       ORDER BY rd.round_number DESC  -- Most recent rounds first for frontend display
+      LIMIT 3                        -- Only show latest 3 rounds in dropdown
     `;
 
     const mainResult = await query(mainQuery, [competition_id, user_id]);

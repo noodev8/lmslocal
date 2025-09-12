@@ -475,7 +475,7 @@ export default function FixturesPage() {
                 </Link>
                 <div className="h-6 w-px bg-slate-300" />
                 <div>
-                  <h1 className="text-lg font-semibold text-slate-900">Fixtures</h1>
+                  <h1 className="text-lg text-slate-900">Fixtures</h1>
                 </div>
               </div>
             </div>
@@ -512,7 +512,7 @@ export default function FixturesPage() {
               </Link>
               <div className="h-6 w-px bg-slate-300" />
               <div>
-                <h1 className="text-lg font-semibold text-slate-900">Fixtures</h1>
+                <h1 className="text-lg text-slate-900">Fixtures</h1>
               </div>
             </div>
           </div>
@@ -553,7 +553,7 @@ export default function FixturesPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Create First Round</h3>
+                <h3 className="text-lg text-slate-900 mb-4">Create First Round</h3>
                 <div className="mb-4">
                   <label htmlFor="lockTime" className="block text-sm font-medium text-slate-700 mb-2">
                     Lock Time (when picks close)
@@ -591,7 +591,7 @@ export default function FixturesPage() {
             <div className="px-6 py-4 border-b border-slate-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900">
+                  <h3 className="text-lg text-slate-900">
                     {currentRound.fixture_count && currentRound.fixture_count > 0 ? 'Fixtures Management' : 'Fixture Management'}
                   </h3>
                   <p className="text-sm text-slate-500 mt-1">
@@ -675,9 +675,9 @@ export default function FixturesPage() {
                         {pendingFixtures.map((fixture, index) => (
                           <div key={index} className="flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
                             <div className="flex items-center space-x-3">
-                              <span className="font-semibold text-slate-900">{fixture.home_team}</span>
+                              <span className="text-slate-900">{fixture.home_team}</span>
                               <span className="text-slate-400">vs</span>
-                              <span className="font-semibold text-slate-900">{fixture.away_team}</span>
+                              <span className="text-slate-900">{fixture.away_team}</span>
                             </div>
                           </div>
                         ))}
@@ -732,9 +732,9 @@ export default function FixturesPage() {
                         {pendingFixtures.map((fixture, index) => (
                           <div key={index} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
                             <div className="flex items-center space-x-3">
-                              <span className="font-semibold text-slate-900">{fixture.home_team}</span>
+                              <span className="text-slate-900">{fixture.home_team}</span>
                               <span className="text-slate-400">vs</span>
-                              <span className="font-semibold text-slate-900">{fixture.away_team}</span>
+                              <span className="text-slate-900">{fixture.away_team}</span>
                             </div>
                             <button
                               onClick={() => removePendingFixture(index)}
@@ -869,7 +869,7 @@ export default function FixturesPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                <h3 className="text-lg text-slate-900 mb-4">
                   Round {extendedRound.round_number} Lock Time Extended
                 </h3>
                 
