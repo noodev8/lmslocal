@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TrophyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { authApi, userApi, LoginRequest } from '@/lib/api';
+import { authApi, LoginRequest } from '@/lib/api';
 import { setAuthData } from '@/lib/auth';
 
 function LoginForm() {
@@ -29,7 +29,8 @@ function LoginForm() {
     }
   }, [searchParams]);
 
-  const onSubmit = async (data: LoginRequest) => {
+  const onSubmit = async (data: LoginRequest, e?: React.BaseSyntheticEvent) => {
+    e?.preventDefault();
     console.log('Login form submitted:', data);
     setIsLoading(true);
     setError('');
@@ -53,28 +54,8 @@ function LoginForm() {
         // Trigger AppDataProvider to reload data
         window.dispatchEvent(new CustomEvent('auth-success'));
         
-        // Check user type to determine redirect
-        try {
-          const userTypeResponse = await userApi.checkUserType();
-          if (userTypeResponse.data.return_code === 'SUCCESS') {
-            const userType = userTypeResponse.data.user_type;
-            
-            // Redirect based on user type
-            if (userType === 'player') {
-              router.push('/play');
-            } else {
-              // Default to dashboard for organisers and mixed users
-              router.push('/dashboard');
-            }
-          } else {
-            // Fallback to dashboard if user type check fails
-            router.push('/dashboard');
-          }
-        } catch (error) {
-          console.error('User type check failed:', error);
-          // Fallback to dashboard if user type check fails
-          router.push('/dashboard');
-        }
+        // All users now go to unified dashboard
+        router.push('/dashboard');
       } else {
         setError(response.data.return_code === 'INVALID_CREDENTIALS' 
           ? 'Invalid email or password' 
@@ -116,7 +97,7 @@ function LoginForm() {
       {/* Login Form - Material 3 Card */}
       <div className="mt-6 sm:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit)(e); }}>
             {successMessage && (
               <div className="rounded-xl bg-green-50 border border-green-200 p-4">
                 <div className="text-sm text-green-700 font-medium">{successMessage}</div>

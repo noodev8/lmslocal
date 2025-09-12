@@ -42,9 +42,12 @@ Return Codes:
 const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('create-round');
+  
   try {
     const { competition_id, lock_time } = req.body;
     const user_id = req.user.id;

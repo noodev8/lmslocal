@@ -1,8 +1,3 @@
-== lmslocal
--- Vercel
-c:/lmslocal
-vercel --prod
-
 -- putty (express)
 cd /apps/lmslocal/
 git pull
@@ -10,3 +5,8 @@ rsync -av --delete --exclude='.env' --exclude='node_modules' --exclude='.git' --
 cd /apps/production/lmslocal-server
 npm install
 pm2 restart server.js --name lmslocal_prod
+
+== lmslocal
+-- Vercel
+c:/lmslocal
+vercel --prod

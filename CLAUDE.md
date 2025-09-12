@@ -57,7 +57,7 @@ No test framework is currently configured.
 - **ALWAYS return HTTP 200** - Use `return_code` for success/error status (prevents frontend crashes)
 - **Single route file per function** - no combining multiple endpoints
 - **Lowercase filenames with hyphens** (e.g., `set-pick.js`, `add-fixtures-bulk.js`)
-- **Database connections**: Each route creates its own Pool instance (anti-pattern - should use database.js)
+- **Database connections**: All routes properly use shared `database.js` utilities (✅ FIXED)
 - **File naming**: Use lowercase with hyphens, not underscores
 
 ### Standard API Route Header Format
@@ -119,7 +119,7 @@ if (error) {
 }
 ```
 
-**Migration**: Existing APIs will be gradually migrated to this pattern. See `docs/api-migration-plan.md` for tracking progress.
+**Migration**: Most APIs have been migrated to this pattern. The unified `/get-user-dashboard` API exemplifies the current standard.
 
 ## Database Configuration
 
@@ -149,7 +149,7 @@ if (error) {
 lmslocal-server/
 ├── server.js              # Express server with security middleware
 ├── database.js            # PostgreSQL pool and query utilities  
-├── routes/                 # API endpoints (41 single-function routes)
+├── routes/                 # API endpoints (42 single-function routes)
 ├── middleware/verifyToken.js  # JWT verification middleware
 └── services/emailService.js   # Resend email integration
 
@@ -192,9 +192,9 @@ lmslocal-web/
 - **Interceptors**: Automatic JWT token injection and 401 handling with localStorage cleanup
 - **Consistent Response Format**: All API responses follow `ApiResponse<T>` interface with `return_code`
 
-### Database Anti-Pattern
-- **Current Issue**: Each route creates its own database Pool instance
-- **Better Approach**: Should use shared `database.js` utilities for all database operations
+### Database Architecture (✅ RESOLVED)
+- **Proper Implementation**: All 42 routes consistently use shared `database.js` utilities
+- **Connection Pattern**: `const { query, transaction } = require('../database');`
 - **Connection Details**: Max 20 connections, 30s idle timeout, 2s connection timeout
 
 ### Authentication Architecture
@@ -238,8 +238,11 @@ lmslocal-web/
 
 ## Important Development Notes
 
-### API Migration Status
-See `/docs/api-migration-plan.md` for current status of migrating APIs from HTTP status codes to the standardized 200 + return_code pattern. When modifying existing APIs, check this file to understand which routes still need migration.
+### Unified User Data Architecture
+- **Single API Endpoint**: `/get-user-dashboard` provides unified competition data for all user types
+- **Comprehensive Data**: Returns competitions where user is organizer OR participant with role-specific fields
+- **Smart Caching**: User-specific cache keys with proper TTL management
+- **Frontend Integration**: AppDataContext serves as single source of truth for all competition data
 
 ### TypeScript Configuration
 - **Frontend TypeScript**: Strict mode enabled with Next.js plugin integration
@@ -256,7 +259,17 @@ See `/docs/api-migration-plan.md` for current status of migrating APIs from HTTP
 - **Client-Side Caching**: Implements request caching system in `src/lib/cache.ts` for performance optimization
 
 ### Backend Route Architecture  
-- **Comprehensive API Coverage**: 41 individual route files, each handling a specific function
+- **Comprehensive API Coverage**: 42 individual route files, each handling a specific function
 - **Route Naming**: Consistent kebab-case naming (e.g., `get-competition-players.js`, `add-fixtures-bulk.js`)
 - **Header Documentation**: Each route includes comprehensive header documentation with request/response formats
 - **Token Verification**: Uses middleware for JWT verification across protected endpoints
+- **Database Pattern**: All routes use shared `database.js` utilities (no anti-patterns present)
+
+## Mobile Application
+
+### Flutter App (lmslocal-flutter/)
+- **Technology**: Flutter with Dart for cross-platform mobile experience
+- **Architecture**: Provider pattern for state management with comprehensive user authentication
+- **Key Features**: Offline-capable player dashboard, cached competition data, responsive UI
+- **Authentication**: Integrated with main backend JWT system
+- **Development**: Use `flutter pub get` for dependencies, `dart run build_runner build` for code generation

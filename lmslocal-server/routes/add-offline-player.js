@@ -19,7 +19,7 @@ Success Response (ALWAYS HTTP 200):
   "player": {                             // object, created player information
     "id": 456,                            // integer, unique user ID for the player
     "display_name": "John Smith",         // string, player's display name
-    "email": "456@lmslocal.com",          // string, player's email (generated if not provided)
+    "email": "456@lms-guest.com",          // string, player's email (generated if not provided)
     "joined_competition": true            // boolean, confirmation player was added to competition
   }
 }

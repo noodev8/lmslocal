@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -8,32 +8,38 @@ import {
   PlusIcon, 
   UserGroupIcon,
   ClockIcon,
-  CheckCircleIcon,
   ExclamationTriangleIcon,
   ChartBarIcon,
   ClipboardDocumentIcon,
-  SparklesIcon,
   PlayCircleIcon,
-  PauseCircleIcon
+  PauseCircleIcon,
+  UserIcon,
+  Cog6ToothIcon,
+  ArrowRightOnRectangleIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { userApi, Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
 import { useAppData } from '@/contexts/AppDataContext';
+import JoinCompetitionModal from '@/components/JoinCompetitionModal';
 
 
 export default function DashboardPage() {
   const router = useRouter();
   // Use app-level data from context instead of local API calls
-  const { competitions, user, loading } = useAppData();
+  const { competitions, loading } = useAppData();
   
-  const [newCompetitionId, setNewCompetitionId] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
   const [winnerNames, setWinnerNames] = useState<Record<number, string>>({});
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
 
-  // Memoize organized competitions to prevent dependency issues
-  const organizedCompetitions = useMemo(() => {
-    return competitions?.filter(comp => comp.is_organiser) || [];
+  // Memoize all user competitions (organized + participating) to prevent dependency issues
+  const userCompetitions = useMemo(() => {
+    return competitions?.filter(comp => comp.is_organiser || comp.is_participant) || [];
   }, [competitions]);
 
   // Simple winner detection based on player count and competition status
@@ -53,7 +59,7 @@ export default function DashboardPage() {
   // Load winner names for competitions with 1 player
   useEffect(() => {
     const loadWinnerNames = async () => {
-      const competitionsWithWinner = organizedCompetitions.filter(comp => comp.player_count === 1 && comp.status !== 'SETUP');
+      const competitionsWithWinner = userCompetitions.filter(comp => comp.player_count === 1 && comp.status !== 'SETUP');
       
       for (const competition of competitionsWithWinner) {
         if (!winnerNames[competition.id]) {
@@ -76,35 +82,19 @@ export default function DashboardPage() {
       }
     };
 
-    if (organizedCompetitions.length > 0) {
+    if (userCompetitions.length > 0) {
       loadWinnerNames();
     }
-  }, [organizedCompetitions, winnerNames]);
+  }, [userCompetitions, winnerNames]);
 
   const checkUserTypeAndRoute = useCallback(async () => {
     try {
       const response = await userApi.checkUserType();
       if (response.data.return_code === 'SUCCESS') {
-        const { user_type, suggested_route, has_organized } = response.data;
+        const { user_type } = response.data;
         setUserType(user_type as string);
         
-        // Smart routing logic
-        if (user_type === 'player' && !has_organized) {
-          // Pure player - redirect to player dashboard
-          router.push('/play');
-          return;
-        } else if (user_type === 'both' && suggested_route === '/play') {
-          // User participates more than organizes - suggest player dashboard
-          const shouldRedirect = window.confirm(
-            'You participate in more competitions than you organize. Would you like to go to your player dashboard instead?'
-          );
-          if (shouldRedirect) {
-            router.push('/play');
-            return;
-          }
-        }
-        
-        // Stay on admin dashboard for organisers or if user chooses to
+        // Smart routing logic removed - all users stay on unified dashboard
         // Competitions are now loaded via AppDataProvider
       } else {
         // Competitions are now loaded via AppDataProvider
@@ -113,7 +103,7 @@ export default function DashboardPage() {
       console.error('Failed to check user type:', error);
       // Competitions are now loaded via AppDataProvider
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     // Check authentication
@@ -136,25 +126,23 @@ export default function DashboardPage() {
       return;
     }
     
-    // Check if we just created a new competition
-    const newCompId = localStorage.getItem('new_competition_id');
-    if (newCompId) {
-      setNewCompetitionId(newCompId);
-      // Clear it after showing
-      localStorage.removeItem('new_competition_id');
-    }
-    
-    // Check URL params to see if user is returning from competition page
-    const urlParams = new URLSearchParams(window.location.search);
-    const fromCompetition = urlParams.get('from') === 'competition';
-    
-    // Only do smart routing if not returning from competition
-    if (!fromCompetition) {
-      checkUserTypeAndRoute();
-    } else {
-      // Competitions are now loaded via AppDataProvider
-    }
+    // No smart routing - all users stay on unified dashboard
+    checkUserTypeAndRoute();
   }, [router, checkUserTypeAndRoute]);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    }
+
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showProfileMenu]);
 
   // No complex useEffect needed - winner detection is now simple and inline
 
@@ -180,6 +168,25 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     logout(router);
+  };
+
+  const handleJoinCompetition = async (inviteCode: string) => {
+    setJoinLoading(true);
+    try {
+      const response = await userApi.joinCompetitionByCode(inviteCode);
+      if (response.data.return_code === 'SUCCESS') {
+        setShowJoinModal(false);
+        // Refresh the page to show the newly joined competition
+        window.location.reload();
+      } else {
+        alert(response.data.message || 'Failed to join competition');
+      }
+    } catch (error) {
+      console.error('Error joining competition:', error);
+      alert('Failed to join competition. Please check the invite code and try again.');
+    } finally {
+      setJoinLoading(false);
+    }
   };
 
   if (loading) {
@@ -224,78 +231,57 @@ export default function DashboardPage() {
                 <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
               </Link>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <Link
-                href="/profile"
-                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-2 sm:px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                Profile
-              </Link>
+            <div className="flex items-center relative" ref={profileMenuRef}>
               <button
-                onClick={handleLogout}
-                className="text-sm font-medium text-slate-700 hover:text-slate-900 px-2 sm:px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center space-x-2 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
               >
-                Sign out
+                <UserIcon className="h-5 w-5" />
+                <span className="text-sm font-medium">Profile</span>
+                <ChevronDownIcon className="h-4 w-4" />
               </button>
+              
+              {/* Dropdown Menu */}
+              {showProfileMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
+                  <div className="py-1">
+                    <Link
+                      href="/profile"
+                      className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      <Cog6ToothIcon className="h-4 w-4 mr-3" />
+                      Settings
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        handleLogout();
+                      }}
+                      className="w-full flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 transition-colors"
+                    >
+                      <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Welcome Section - Material 3 Style */}
-        <div className="mb-8 sm:mb-10">
-          <div className="max-w-3xl">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-3">
-              Welcome back, {user?.display_name}
-            </h2>
-            <p className="text-lg sm:text-xl text-slate-600 leading-relaxed">
-              Manage your Last Man Standing competitions with professional tools designed for pub landlords, 
-              workplace organizers, and club managers.
-            </p>
-          </div>
-        </div>
-        
-        {/* Section Header */}
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold text-slate-900">My Competitions</h3>
-          <p className="text-slate-600 mt-1">Create and manage engaging competitions for your community</p>
-        </div>
 
         {/* Competitions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Create New Competition Card */}
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-dashed border-slate-300 rounded-xl p-6 sm:p-8 hover:shadow-lg transition-all duration-200 group cursor-pointer">
-            <Link href="/competition/create" className="block">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-200 rounded-2xl mb-6 group-hover:bg-slate-300 transition-colors">
-                  <PlusIcon className="h-8 w-8 text-slate-700" />
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-3">Start New Competition</h3>
-                <p className="text-slate-600 text-sm leading-relaxed mb-6">
-                  Create engaging Last Man Standing competitions that bring your community together. 
-                  Setup takes just minutes with our guided process.
-                </p>
-                <div className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-lg font-medium text-sm group-hover:bg-slate-900 transition-colors">
-                  <SparklesIcon className="h-4 w-4 mr-2" />
-                  Quick Setup
-                </div>
-              </div>
-            </Link>
-          </div>
-
           {/* Competition Cards */}
-          {organizedCompetitions.map((competition) => {
-            const isNewCompetition = newCompetitionId && competition.id.toString() === newCompetitionId;
+          {userCompetitions.map((competition) => {
             const competitionStatus = getWinnerStatus(competition);
             return (
               <div
                 key={competition.id}
-                className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${
-                  isNewCompetition 
-                    ? 'border-emerald-200 ring-2 ring-emerald-100' 
-                    : 'border-slate-200'
-                }`}
+                className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
               >
                 {/* Card Header */}
                 <div className="p-4 sm:p-6 border-b border-slate-100">
@@ -303,10 +289,9 @@ export default function DashboardPage() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h4 className="text-lg font-semibold text-slate-900 truncate">{competition.name}</h4>
-                        {isNewCompetition && (
-                          <div className="inline-flex items-center px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
-                            <SparklesIcon className="h-3 w-3 mr-1" />
-                            NEW
+                        {competition.is_organiser && (
+                          <div className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                            ORGANISER
                           </div>
                         )}
                       </div>
@@ -327,21 +312,8 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Status Messages */}
-                  {isNewCompetition && (
-                    <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-emerald-900">Competition Created Successfully!</p>
-                          <p className="text-xs text-emerald-700 mt-1">Ready to add rounds, fixtures, and invite players</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                   
-                  {!isNewCompetition && competition.player_count === 0 && (competition.status as string) !== 'COMPLETE' && (
+                  {competition.player_count === 0 && (competition.status as string) !== 'COMPLETE' && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
@@ -402,7 +374,7 @@ export default function DashboardPage() {
                       {/* Removed rounds count and created date as requested */}
                     </div>
                     
-                    {/* Invite Code */}
+                    {/* Invite Code - Show for all users */}
                     {competition.invite_code && (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                         <div className="flex items-center justify-between">
@@ -429,26 +401,51 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Single Action - Open Competition Dashboard */}
+                {/* Action Button - Unified Game Dashboard */}
                 <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-100">
                   <Link
-                    href={`/competition/${competition.id}/dashboard`}
-                    className={`w-full inline-flex items-center justify-center px-4 py-3 rounded-lg font-medium transition-colors text-base ${
-                      isNewCompetition 
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm' 
-                        : 'bg-slate-800 text-white hover:bg-slate-900'
-                    }`}
+                    href={`/game/${competition.id}`}
+                    className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg font-medium transition-colors text-base bg-slate-800 text-white hover:bg-slate-900"
                   >
                     <ChartBarIcon className="h-5 w-5 mr-2" />
-                    Open Dashboard
+                    {competition.is_organiser ? 'Manage Competition' : 'View Competition'}
                   </Link>
                 </div>
               </div>
             );
           })}
+          
+        </div>
+
+        {/* Action Links - Create and Join */}
+        <div className="text-center mt-8 pt-6 border-t border-slate-200">
+          <div className="flex items-center justify-center space-x-8">
+            <Link 
+              href="/competition/create"
+              className="inline-flex items-center space-x-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <PlusIcon className="h-4 w-4" />
+              <span>Create New Competition</span>
+            </Link>
+            <button
+              onClick={() => setShowJoinModal(true)}
+              className="inline-flex items-center space-x-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <UserGroupIcon className="h-4 w-4" />
+              <span>Join Competition</span>
+            </button>
+          </div>
         </div>
 
       </main>
+
+      {/* Join Competition Modal */}
+      <JoinCompetitionModal
+        isOpen={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        onJoin={handleJoinCompetition}
+        isLoading={joinLoading}
+      />
     </div>
   );
 }

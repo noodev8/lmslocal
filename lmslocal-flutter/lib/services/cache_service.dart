@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../config/app_config.dart';
 
 class CacheService {
   static CacheService? _instance;
@@ -26,9 +25,6 @@ class CacheService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('cache_$key', jsonEncode(cacheItem.toJson()));
 
-    if (AppConfig.enableCacheLogging) {
-      print('📦 Cached: $key (TTL: ${ttl.inHours}h)');
-    }
   }
 
   /// Get cached response if still valid
@@ -37,9 +33,6 @@ class CacheService {
     if (_memoryCache.containsKey(key)) {
       final item = _memoryCache[key]!;
       if (item.isValid) {
-        if (AppConfig.enableCacheLogging) {
-          print('🚀 Cache HIT (memory): $key');
-        }
         return item.data;
       } else {
         // Remove expired item from memory
@@ -57,9 +50,6 @@ class CacheService {
         if (cacheItem.isValid) {
           // Restore to memory cache
           _memoryCache[key] = cacheItem;
-          if (AppConfig.enableCacheLogging) {
-            print('💾 Cache HIT (persistent): $key');
-          }
           return cacheItem.data;
         } else {
           // Remove expired persistent cache
@@ -68,15 +58,9 @@ class CacheService {
       } catch (e) {
         // Remove corrupted cache
         await prefs.remove('cache_$key');
-        if (AppConfig.enableCacheLogging) {
-          print('🗑️ Removed corrupted cache: $key');
-        }
       }
     }
 
-    if (AppConfig.enableCacheLogging) {
-      print('❌ Cache MISS: $key');
-    }
     return null;
   }
 
@@ -93,9 +77,6 @@ class CacheService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cache_$key');
 
-    if (AppConfig.enableCacheLogging) {
-      print('🗑️ Cleared cache: $key');
-    }
   }
 
   /// Clear all cached data
@@ -109,9 +90,6 @@ class CacheService {
       await prefs.remove(key);
     }
 
-    if (AppConfig.enableCacheLogging) {
-      print('🧹 Cleared all cache');
-    }
   }
 
   /// Get cache statistics

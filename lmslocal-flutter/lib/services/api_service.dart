@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
+import '../models/competition.dart';
 import '../config/app_config.dart';
 
 class ApiService {
@@ -42,21 +44,12 @@ class ApiService {
         handler.next(options);
       },
       onResponse: (response, handler) {
-        // Log successful requests (only if enabled)
-        if (AppConfig.enableApiLogging) {
-          print('✅ API Success: ${response.requestOptions.method} ${response.requestOptions.path}');
-        }
         handler.next(response);
       },
       onError: (error, handler) {
         // Handle auth errors
         if (error.response?.statusCode == 401) {
           _clearAuth();
-        }
-        
-        // Log error details (only if enabled)
-        if (AppConfig.enableApiLogging) {
-          print('🚨 API Error: ${error.response?.statusCode} ${error.message}');
         }
         handler.next(error);
       },
@@ -86,19 +79,26 @@ class ApiService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', loginResponse.token!);
         if (loginResponse.user != null) {
-          await prefs.setString('user', loginResponse.user!.toJson().toString());
+          await prefs.setString('user', jsonEncode(loginResponse.user!.toJson()));
         }
       }
       
       return loginResponse;
     } on DioException catch (e) {
-      // Handle network/server errors
+      String errorMessage = 'Network error';
+      if (e.type == DioExceptionType.connectionTimeout) {
+        errorMessage = 'Connection timeout - check server is running';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Server response timeout';
+      } else if (e.type == DioExceptionType.connectionError) {
+        errorMessage = 'Cannot connect to server - check network/URL';
+      }
+      
       return LoginResponse(
         returnCode: 'SERVER_ERROR',
-        message: 'Network error: ${e.message}',
+        message: '$errorMessage: ${e.message}',
       );
     } catch (e) {
-      // Handle unexpected errors
       return LoginResponse(
         returnCode: 'CLIENT_ERROR',
         message: 'Unexpected error: $e',
@@ -123,7 +123,7 @@ class ApiService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwt_token', loginResponse.token!);
         if (loginResponse.user != null) {
-          await prefs.setString('user', loginResponse.user!.toJson().toString());
+          await prefs.setString('user', jsonEncode(loginResponse.user!.toJson()));
         }
       }
       
@@ -155,12 +155,12 @@ class ApiService {
     final userString = prefs.getString('user');
     if (userString != null) {
       try {
-        return User.fromJson(Map<String, dynamic>.from(
-          // This is a simplified approach - in production you'd use proper JSON parsing
-          {'id': 1, 'email': '', 'display_name': ''}
-        ));
+        // Parse the actual stored user JSON data
+        final userJson = jsonDecode(userString) as Map<String, dynamic>;
+        return User.fromJson(userJson);
       } catch (e) {
-        print('Error parsing stored user: $e');
+        // Clear corrupted user data
+        await prefs.remove('user');
         return null;
       }
     }
@@ -247,4 +247,56 @@ class ApiService {
       );
     }
   }
+
+  Future<CompetitionsResponse> getMyCompetitions() async {
+    try {
+      final response = await _dio.post('/get-user-dashboard', data: {});
+      
+      return CompetitionsResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      String errorMessage = 'Network error';
+      if (e.type == DioExceptionType.connectionTimeout) {
+        errorMessage = 'Connection timeout - check server is running';
+      } else if (e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Server response timeout';
+      } else if (e.type == DioExceptionType.connectionError) {
+        errorMessage = 'Cannot connect to server - check network/URL';
+      } else if (e.response?.statusCode == 401) {
+        errorMessage = 'Unauthorized - check login status';
+      }
+      
+      return CompetitionsResponse(
+        returnCode: 'SERVER_ERROR',
+        competitions: [],
+        message: '$errorMessage: ${e.message}',
+      );
+    } catch (e) {
+      return CompetitionsResponse(
+        returnCode: 'CLIENT_ERROR',
+        competitions: [],
+        message: 'Unexpected error: $e',
+      );
+    }
+  }
+
+  Future<CompetitionsResponse> getPlayerDashboard() async {
+    try {
+      final response = await _dio.post('/player-dashboard', data: {});
+      
+      return CompetitionsResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      return CompetitionsResponse(
+        returnCode: 'SERVER_ERROR',
+        competitions: [],
+        message: 'Network error: ${e.message}',
+      );
+    } catch (e) {
+      return CompetitionsResponse(
+        returnCode: 'CLIENT_ERROR',
+        competitions: [],
+        message: 'Unexpected error: $e',
+      );
+    }
+  }
+
 }

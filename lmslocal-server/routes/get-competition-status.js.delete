@@ -25,6 +25,8 @@ Success Response (ALWAYS HTTP 200):
   "players_out": 4,                      // integer, number of eliminated players
   "total_players": 12,                   // integer, total players in competition
   "round_calculated": true,              // boolean, true if current round processed
+  "all_results_processed": true,         // boolean, true if ALL fixtures have results AND are processed
+  "competition_status": "winner",        // string, competition state: "in_progress", "winner", or "draw"
   "winner": {                            // object, winner details (null if no winner)
     "display_name": "John Smith",        // string, winner's display name
     "email": "john@example.com",         // string, winner's email
@@ -110,22 +112,23 @@ router.post('/', verifyToken, async (req, res) => {
       LEFT JOIN (
         SELECT round_id,
                COUNT(*) as fixture_count,
-               COUNT(CASE WHEN processed IS NOT NULL THEN 1 END) as calculated_count
+               COUNT(CASE WHEN processed IS NOT NULL THEN 1 END) as calculated_count,
+               COUNT(CASE WHEN result IS NOT NULL AND processed IS NOT NULL THEN 1 END) as results_processed_count
         FROM fixture
         GROUP BY round_id
       ) fc ON r.round_id = fc.round_id
       
-      -- Get aggregated player status counts
+      -- Get aggregated player status counts based on lives remaining
       LEFT JOIN (
         SELECT competition_id,
-               COUNT(CASE WHEN status = 'active' THEN 1 END) as players_active,
-               COUNT(CASE WHEN status = 'OUT' THEN 1 END) as players_out,
+               COUNT(CASE WHEN status = 'active' AND lives_remaining > 0 THEN 1 END) as players_active,
+               COUNT(CASE WHEN status = 'out' OR lives_remaining <= 0 THEN 1 END) as players_out,
                COUNT(*) as total_players
         FROM competition_user
         GROUP BY competition_id
       ) pc ON c.id = pc.competition_id
       
-      -- Get winner details only when competition is complete (1 active player, no invite code)
+      -- Get winner details when exactly 1 player has lives remaining
       LEFT JOIN (
         SELECT cu.competition_id, 
                u.display_name as winner_name, 
@@ -133,10 +136,8 @@ router.post('/', verifyToken, async (req, res) => {
                cu.joined_at as winner_joined
         FROM competition_user cu
         INNER JOIN app_user u ON cu.user_id = u.id
-        WHERE cu.status = 'active'
-      ) w ON c.id = w.competition_id 
-         AND pc.players_active = 1 
-         AND c.invite_code IS NULL
+        WHERE cu.status = 'active' AND cu.lives_remaining > 0
+      ) w ON c.id = w.competition_id
       
       WHERE c.id = $1
     `, [competition_id]);
@@ -160,24 +161,76 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Check if Round 1 lock time has passed and set invite_code to NULL if needed
+    // This transitions the competition from "setup" to "active" automatically
+    if (data.invite_code) {
+      // Get Round 1 specifically (not current round) to check lock time
+      const round1Result = await query(`
+        SELECT lock_time 
+        FROM round 
+        WHERE competition_id = $1 AND round_number = 1
+      `, [competition_id]);
+      
+      if (round1Result.rows.length > 0) {
+        const round1LockTime = new Date(round1Result.rows[0].lock_time);
+        const currentTime = new Date();
+        
+        if (currentTime >= round1LockTime) {
+          // Round 1 lock time has passed - set invite_code to NULL and status to active
+          await query(`
+            UPDATE competition 
+            SET invite_code = NULL, status = 'active'
+            WHERE id = $1 AND invite_code IS NOT NULL
+          `, [competition_id]);
+          
+          // Update the data object for the response
+          data.invite_code = null;
+        }
+      }
+    }
+
     // Parse numeric values to ensure correct types
     const fixtureCount = parseInt(data.fixture_count);
     const calculatedCount = parseInt(data.calculated_fixtures);
+    const resultsProcessedCount = parseInt(data.results_processed_count || 0);
     const playersActive = parseInt(data.players_active);
     const playersOut = parseInt(data.players_out);
     const totalPlayers = parseInt(data.total_players);
 
     // Determine if round has been calculated
     const roundCalculated = calculatedCount > 0;
+    
+    // Determine if ALL results are processed (fixtures have results AND are processed)
+    const allResultsProcessed = fixtureCount > 0 && resultsProcessedCount === fixtureCount;
 
-    // Build winner object if winner data exists
+    // Build winner object if exactly 1 active player remains AND competition has started
     let winner = null;
-    if (data.winner_name) {
+    if (playersActive === 1 && data.winner_name && data.invite_code === null) {
       winner = {
         display_name: data.winner_name,
         email: data.winner_email,
         joined_at: data.winner_joined
       };
+    }
+    
+    // Determine competition status
+    // Only declare winner/draw if competition has started (no invite code)
+    let competitionStatus = "in_progress";
+    if (data.invite_code === null) { // Competition has started
+      if (playersActive === 1) {
+        competitionStatus = "winner";
+      } else if (playersActive === 0) {
+        competitionStatus = "draw";
+      }
+    }
+
+    // Update competition status to 'complete' when winner or draw is detected
+    if ((competitionStatus === "winner" || competitionStatus === "draw") && data.invite_code === null) {
+      await query(`
+        UPDATE competition 
+        SET status = 'complete'
+        WHERE id = $1 AND status != 'complete'
+      `, [competition_id]);
     }
 
     // Build current round object (null if no rounds exist)
@@ -201,7 +254,9 @@ router.post('/', verifyToken, async (req, res) => {
       players_out: playersOut,
       total_players: totalPlayers,
       round_calculated: roundCalculated,
-      winner: winner // null if no winner yet
+      all_results_processed: allResultsProcessed, // True when ALL fixtures have results and are processed
+      competition_status: competitionStatus, // "in_progress", "winner", or "draw"
+      winner: winner // Winner details if competition_status is "winner", null otherwise
     });
 
   } catch (error) {

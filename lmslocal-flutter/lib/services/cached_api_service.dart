@@ -1,5 +1,6 @@
 import '../config/app_config.dart';
 import '../models/user.dart';
+import '../models/competition.dart';
 import 'api_service.dart';
 import 'cache_service.dart';
 
@@ -13,48 +14,6 @@ class CachedApiService {
   
   CachedApiService._();
 
-  /// Helper to execute cached API calls
-  Future<T> _cachedCall<T>(
-    String cacheKey,
-    Duration cacheDuration,
-    Future<T> Function() apiCall,
-    T Function(Map<String, dynamic>) fromJson,
-  ) async {
-    // Try cache first
-    final cachedData = await _cacheService.getCachedResponse(cacheKey);
-    if (cachedData != null) {
-      return fromJson(cachedData);
-    }
-
-    // Cache miss - make API call
-    final result = await apiCall();
-    
-    // Cache the response if it's successful
-    if (result is LoginResponse && result.isSuccess) {
-      // Don't cache auth responses (contain sensitive tokens)
-    } else {
-      // Cache other API responses
-      try {
-        // Convert result to JSON for caching
-        Map<String, dynamic> jsonData;
-        if (result is Map<String, dynamic>) {
-          jsonData = result;
-        } else if (result.toString().contains('return_code')) {
-          // This is an API response - we'll need to handle this properly
-          // For now, skip caching complex objects
-        } else {
-          // Skip caching for now - we'll implement per-response type
-        }
-      } catch (e) {
-        // If we can't serialize for caching, just return the result
-        if (AppConfig.enableCacheLogging) {
-          print('⚠️ Could not cache response for $cacheKey: $e');
-        }
-      }
-    }
-
-    return result;
-  }
 
   /// Authentication - no caching (security sensitive)
   Future<LoginResponse> login(String email, String password) {
@@ -93,8 +52,86 @@ class CachedApiService {
     return _apiService.deleteAccount(confirmation);
   }
 
+  /// Get user's competitions with smart caching using unified API
+  /// Uses /get-user-dashboard for all competition data
+  Future<CompetitionsResponse> getMyCompetitions() async {
+    const cacheKey = 'my_competitions_hybrid';
+    const cacheDuration = Duration(hours: AppConfig.competitionsCacheHours);
+    
+    // Try cache first
+    final cachedData = await _cacheService.getCachedResponse(cacheKey);
+    if (cachedData != null) {
+      try {
+        return CompetitionsResponse.fromJson(cachedData);
+      } catch (e) {
+        // Clear corrupted cache and continue to API call
+        await _cacheService.clearCache(cacheKey);
+      }
+    }
+
+    // Cache miss - make hybrid API calls
+    try {
+      // Get competitions where user is organizer (without player status)
+      final organizedResult = await _apiService.getMyCompetitions();
+      
+      // Get competitions where user is participant (with player status)
+      final participantResult = await _apiService.getPlayerDashboard();
+      
+      if (!organizedResult.isSuccess && !participantResult.isSuccess) {
+        // Both calls failed
+        return CompetitionsResponse(
+          returnCode: 'SERVER_ERROR',
+          competitions: [],
+          message: organizedResult.message ?? participantResult.message ?? 'Failed to load competitions',
+        );
+      }
+      
+      // Merge results with participant data taking precedence for dual-role users
+      final allCompetitions = <Competition>[];
+      final participantCompIds = participantResult.competitions.map((c) => c.id).toSet();
+      
+      // Add participant competitions (these have user_status)
+      if (participantResult.isSuccess) {
+        allCompetitions.addAll(participantResult.competitions);
+      }
+      
+      // Add organizer-only competitions (not already included as participant)
+      if (organizedResult.isSuccess) {
+        for (final comp in organizedResult.competitions) {
+          if (!participantCompIds.contains(comp.id)) {
+            allCompetitions.add(comp);
+          }
+        }
+      }
+      
+      // Sort by creation date (most recent first)
+      allCompetitions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      final result = CompetitionsResponse(
+        returnCode: 'SUCCESS',
+        competitions: allCompetitions,
+        message: null,
+      );
+      
+      // Cache the merged response
+      try {
+        await _cacheService.cacheResponse(cacheKey, result.toJson(), cacheDuration);
+      } catch (e) {
+        // Silently handle caching errors
+      }
+      
+      return result;
+      
+    } catch (e) {
+      return CompetitionsResponse(
+        returnCode: 'CLIENT_ERROR',
+        competitions: [],
+        message: 'Unexpected error: $e',
+      );
+    }
+  }
+
   // TODO: Add cached methods for:
-  // - getMyCompetitions() with 4 hour cache
   // - getCurrentRound() with 2 hour cache  
   // - getCompetitionHistory() with 8 hour cache
   // - getAllowedTeams() with 1 hour cache
@@ -104,6 +141,11 @@ class CachedApiService {
   /// Force refresh a specific cache entry
   Future<void> invalidateCache(String cacheKey) {
     return _cacheService.clearCache(cacheKey);
+  }
+  
+  /// Force refresh competitions cache
+  Future<void> invalidateCompetitionsCache() {
+    return _cacheService.clearCache('my_competitions_hybrid');
   }
 
   /// Clear all cached data (for logout or manual refresh)

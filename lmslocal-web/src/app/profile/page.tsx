@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { 
-  UserIcon,
   ArrowLeftIcon,
   CheckIcon,
   ExclamationTriangleIcon
@@ -41,6 +40,7 @@ export default function ProfilePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [dashboardLink, setDashboardLink] = useState('/dashboard');
 
   const {
     register,
@@ -78,6 +78,8 @@ export default function ProfilePage() {
       }
     }
 
+    // All users now go to unified dashboard
+    setDashboardLink('/dashboard');
     setLoading(false);
   }, [router, reset]);
 
@@ -188,23 +190,13 @@ export default function ProfilePage() {
       <header className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
-            <div className="flex items-center">
-              <Link 
-                href="/dashboard" 
-                className="inline-flex items-center text-slate-500 hover:text-slate-700 mr-4"
-              >
-                <ArrowLeftIcon className="h-5 w-5 mr-1" />
-                Back to Dashboard
-              </Link>
-              <UserIcon className="h-8 w-8 text-slate-700" />
-              <span className="ml-2 text-xl font-bold text-slate-900">Profile</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-slate-500 hover:text-slate-700 text-sm"
+            <Link 
+              href={dashboardLink} 
+              className="inline-flex items-center text-slate-500 hover:text-slate-700"
             >
-              Sign Out
-            </button>
+              <ArrowLeftIcon className="h-5 w-5 mr-2" />
+              Dashboard
+            </Link>
           </div>
         </div>
       </header>
@@ -264,7 +256,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={saving || !isDirty}
-                  className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-md font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-md font-medium hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? (
                     <>
@@ -282,6 +274,26 @@ export default function ProfilePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        {/* Sign Out Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 mt-6">
+          <div className="p-4 sm:p-6">
+            <h3 className="text-lg font-medium text-slate-900 mb-4">Account Actions</h3>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-slate-600">
+                  Sign out of your account on this device
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-6 py-3 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-700 transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
 
@@ -359,7 +371,7 @@ export default function ProfilePage() {
                   <button
                     type="submit"
                     disabled={changingPassword}
-                    className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-md font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-md font-medium hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {changingPassword ? (
                       <>
@@ -394,7 +406,7 @@ export default function ProfilePage() {
               </p>
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="px-4 py-2 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                className="px-4 py-2 bg-slate-600 text-white rounded-md font-medium hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors"
               >
                 Delete My Account
               </button>
@@ -456,7 +468,7 @@ export default function ProfilePage() {
                 <button
                   onClick={handleDeleteAccount}
                   disabled={deletingAccount || deleteConfirmation !== 'DELETE_MY_ACCOUNT'}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white bg-slate-600 rounded-md hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
                 >
                   {deletingAccount ? (
                     <div className="flex items-center">

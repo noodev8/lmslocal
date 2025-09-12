@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  TrophyIcon,
   ArrowLeftIcon,
   ChevronDownIcon,
   ChevronRightIcon
@@ -69,9 +68,6 @@ export default function CompetitionStandingsPage() {
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
   
-  // Get active player count from competition object
-  const activePlayerCount = (competition as Competition & { player_count?: number })?.player_count ?? 0;
-
   const loadStandings = useCallback(async () => {
     if (abortControllerRef.current?.signal.aborted) return;
     
@@ -86,12 +82,12 @@ export default function CompetitionStandingsPage() {
         setPlayers(standingsResponse.data.players as Player[]);
       } else {
         console.error('Failed to load standings:', standingsResponse.data.message);
-        router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
+        router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/dashboard');
       }
     } catch (error) {
       if (abortControllerRef.current?.signal.aborted) return;
       console.error('Failed to load standings:', error);
-      router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/play');
+      router.push(fromAdmin ? `/competition/${competitionId}/dashboard` : '/dashboard');
     } finally {
       if (!abortControllerRef.current?.signal.aborted) {
         setLoading(false);
@@ -153,19 +149,6 @@ export default function CompetitionStandingsPage() {
     });
   };
 
-  // Determine if a player's current pick should be visible
-  const isPickVisible = (playerId: number) => {
-    const currentUser = getCurrentUser();
-    const isOwnPlayer = currentUser && currentUser.id === playerId;
-    const isRoundLocked = competition?.is_locked || false;
-    
-    // Use competition player count for pick visibility logic
-    // Show picks only when there are 4+ active players (prevents copycat strategies in final rounds)
-    const hasEnoughPlayers = activePlayerCount >= 4;
-    
-    // Show picks if: (enough active players) OR own player OR round locked
-    return hasEnoughPlayers || isOwnPlayer || isRoundLocked;
-  };
 
 
   if (loading) {
@@ -187,8 +170,8 @@ export default function CompetitionStandingsPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <h3 className="text-lg font-medium text-slate-900 mb-2">Competition Not Found</h3>
-          <Link href="/play" className="text-slate-600 hover:text-slate-900 underline">
-            Back to Competitions
+          <Link href="/dashboard" className="text-slate-600 hover:text-slate-900 underline">
+            Back to Dashboard
           </Link>
         </div>
       </div>
@@ -197,6 +180,20 @@ export default function CompetitionStandingsPage() {
 
   const activePlayers = players.filter(p => p.status !== 'OUT');
   const eliminatedPlayers = players.filter(p => p.status === 'OUT');
+
+  // Determine if a player's current pick should be visible
+  const isPickVisible = (playerId: number) => {
+    const currentUser = getCurrentUser();
+    const isOwnPlayer = currentUser && currentUser.id === playerId;
+    const isRoundLocked = competition?.is_locked || false;
+    
+    // Use actual active player count for pick visibility logic
+    // Show picks only when there are 4+ active players (prevents copycat strategies in final rounds)
+    const hasEnoughPlayers = activePlayers.length >= 4;
+    
+    // Show picks if: (enough active players) OR own player OR round locked
+    return hasEnoughPlayers || isOwnPlayer || isRoundLocked;
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -212,11 +209,6 @@ export default function CompetitionStandingsPage() {
                 <ArrowLeftIcon className="h-5 w-5" />
                 <span className="font-medium">Back</span>
               </Link>
-              <div className="h-6 w-px bg-slate-300" />
-              <div className="flex items-center space-x-3">
-                <TrophyIcon className="h-6 w-6 text-slate-800" />
-                <h1 className="text-lg font-semibold text-slate-900">Standings</h1>
-              </div>
             </div>
             
           </div>

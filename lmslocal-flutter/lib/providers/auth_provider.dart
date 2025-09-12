@@ -18,11 +18,12 @@ class AuthState {
     User? user,
     bool? isLoading,
     String? error,
+    bool clearError = false,
   }) {
     return AuthState(
       user: user ?? this.user,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 
@@ -33,22 +34,30 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final CachedApiService _apiService;
 
-  AuthNotifier(this._apiService) : super(const AuthState()) {
+  AuthNotifier(this._apiService) : super(const AuthState(isLoading: true)) {
     _checkAuthStatus();
   }
 
   Future<void> _checkAuthStatus() async {
-    final isLoggedIn = await _apiService.isLoggedIn();
-    if (isLoggedIn) {
-      final user = await _apiService.getCurrentUser();
-      if (user != null) {
-        state = state.copyWith(user: user);
+    try {
+      final isLoggedIn = await _apiService.isLoggedIn();
+      if (isLoggedIn) {
+        final user = await _apiService.getCurrentUser();
+        if (user != null) {
+          state = state.copyWith(user: user, isLoading: false);
+          return;
+        }
       }
+      // No valid auth found
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      // Auth check failed
+      state = state.copyWith(isLoading: false, error: 'Failed to check authentication');
     }
   }
 
   Future<bool> login(String email, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true, clearError: true);
     
     try {
       final response = await _apiService.login(email, password);
@@ -76,7 +85,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> register(String email, String password, String displayName) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true, clearError: true);
     
     try {
       final response = await _apiService.register(email, password, displayName);
@@ -111,7 +120,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith(clearError: true);
   }
 
   /// Update user profile data after successful profile update

@@ -88,13 +88,6 @@ router.post('/', async (req, res) => {
     // Email format validation using comprehensive regex
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(normalizedEmail)) {
-      // Log failed validation attempt for security monitoring
-      console.log('Login attempt with invalid email format:', {
-        email: email.substring(0, 3) + '***', // Partially obscure email for logging
-        ip: clientIp,
-        timestamp: loginTimestamp.toISOString()
-      });
-      
       return res.json({
         return_code: 'INVALID_CREDENTIALS',
         message: 'Invalid email or password' // Generic message for security
@@ -275,17 +268,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Log detailed error information for debugging while protecting sensitive data
-    // Note: Never log passwords or password hashes in error logs
-    console.error('Login error:', {
-      error: error.message,
-      stack: error.stack?.substring(0, 500), // Truncate stack trace
-      email: req.body?.email ? req.body.email.substring(0, 3) + '***' : 'not_provided', // Partially obscure email
-      has_password: !!req.body?.password, // Boolean only, not the actual password
-      ip: req.ip || 'Unknown',
-      user_agent: req.get('User-Agent') || 'Unknown',
-      timestamp: new Date().toISOString()
-    });
     
     // Handle database schema errors more gracefully
     if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {

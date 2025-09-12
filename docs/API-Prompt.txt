@@ -1,5 +1,4 @@
 ================================================================================
-yes please - Produce a simple API to return number of players in a compeition (player count total and left in)
 ================================================================================
 
 API Routes - always use POST

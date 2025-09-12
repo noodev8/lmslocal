@@ -31,12 +31,20 @@ export default function UnifiedGameDashboard() {
   }, [competitions, competitionId]);
 
   const [winnerName, setWinnerName] = useState<string>('Loading...');
+  const [currentRoundInfo, setCurrentRoundInfo] = useState<{
+    round_number: number;
+    lock_time?: string;
+    fixture_count: number;
+    is_locked: boolean;
+  } | null>(null);
+  const [loadingRound, setLoadingRound] = useState(true);
   
   // Simple loading based on context availability
   const loading = contextLoading || !competition;
   
   // Prevent duplicate API calls using refs
   const winnerLoadedRef = useRef(false);
+  const roundLoadedRef = useRef(false);
   
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
@@ -143,6 +151,37 @@ export default function UnifiedGameDashboard() {
     
     // Load data only if we have the competition
     if (competition) {
+      
+      // Load current round info
+      if (!roundLoadedRef.current) {
+        roundLoadedRef.current = true;
+        roundApi.getRounds(parseInt(competitionId))
+          .then(response => {
+            if (response.data.return_code === 'SUCCESS') {
+              const rounds = response.data.rounds || [];
+              if (rounds.length > 0) {
+                const latestRound = rounds[0];
+                const now = new Date();
+                const lockTime = new Date(latestRound.lock_time || '');
+                const isLocked = !!(latestRound.lock_time && now >= lockTime);
+                
+                setCurrentRoundInfo({
+                  round_number: latestRound.round_number,
+                  lock_time: latestRound.lock_time,
+                  fixture_count: latestRound.fixture_count || 0,
+                  is_locked: isLocked
+                });
+              } else {
+                setCurrentRoundInfo(null);
+              }
+            }
+            setLoadingRound(false);
+          })
+          .catch(() => {
+            setLoadingRound(false);
+            roundLoadedRef.current = false; // Reset on error to allow retry
+          });
+      }
       
       // Load winner name if competition has 1 player and is not in setup
       if (competition.player_count === 1 && competition.status !== 'SETUP' && !winnerLoadedRef.current) {
@@ -252,6 +291,87 @@ export default function UnifiedGameDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
 
+        {/* Round Status Banner */}
+        <div className="mb-6 sm:mb-8">
+          <div className="rounded-xl p-4 sm:p-6 border border-slate-200 shadow-sm bg-slate-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {/* Round Number */}
+                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full font-bold text-lg ${
+                  loadingRound
+                    ? 'bg-slate-400 text-white' // Loading
+                    : !currentRoundInfo
+                    ? 'bg-amber-500 text-white' // No rounds yet - amber
+                    : currentRoundInfo.fixture_count === 0
+                    ? 'bg-orange-500 text-white' // Round exists but no fixtures - orange
+                    : currentRoundInfo.is_locked
+                    ? 'bg-purple-600 text-white' // Round locked - purple
+                    : 'bg-green-600 text-white' // Picks open - green
+                }`}>
+                  {loadingRound ? '...' : currentRoundInfo?.round_number || '—'}
+                </div>
+                
+                {/* Status Text */}
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                    {loadingRound 
+                      ? 'Loading Round Info...'
+                      : currentRoundInfo 
+                      ? `Round ${currentRoundInfo.round_number}`
+                      : 'Waiting for Round 1'
+                    }
+                  </h2>
+                  <p className="text-sm sm:text-base font-medium text-slate-600">
+                    {loadingRound
+                      ? 'Fetching latest round information...'
+                      : !currentRoundInfo
+                      ? 'Organizer will create fixtures to start'
+                      : currentRoundInfo.fixture_count === 0
+                      ? 'Waiting for fixtures to be created'
+                      : currentRoundInfo.is_locked
+                      ? 'Round Locked - Results Processing'
+                      : `Picks Open - Closes ${new Date(currentRoundInfo.lock_time!).toLocaleString('en-GB', {
+                          weekday: 'short',
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false
+                        })}`
+                    }
+                  </p>
+                </div>
+              </div>
+              
+              {/* Time Remaining (if applicable) */}
+              {currentRoundInfo && currentRoundInfo.lock_time && !currentRoundInfo.is_locked && currentRoundInfo.fixture_count > 0 && (
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-slate-700">
+                    {(() => {
+                      const lockTime = new Date(currentRoundInfo.lock_time);
+                      const now = new Date();
+                      const diffMs = lockTime.getTime() - now.getTime();
+                      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                      
+                      if (diffHours > 24) {
+                        return `${Math.floor(diffHours / 24)}d ${diffHours % 24}h`;
+                      } else if (diffHours > 0) {
+                        return `${diffHours}h ${diffMinutes}m`;
+                      } else if (diffMinutes > 0) {
+                        return `${diffMinutes}m`;
+                      } else {
+                        return 'Soon';
+                      }
+                    })()}
+                  </div>
+                  <div className="text-sm text-slate-600 font-medium">remaining</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Competition Completion Banner */}
         {competitionComplete.isComplete && (
           <div className="mb-6 sm:mb-8 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm">
@@ -347,32 +467,59 @@ export default function UnifiedGameDashboard() {
             </div>
           )}
 
-          {/* Pick Progress Card - for organizers */}
+          {/* Round Activity Card - for organizers */}
           {isOrganiser && (
             <div className="bg-white rounded-xl p-6 border border-slate-200">
               <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
                 <UserGroupIcon className="h-5 w-5 mr-2" />
-                Pick Progress
+                Player Activity
               </h3>
               
               <div className="text-center">
-                {competition?.current_round_lock_time && new Date(competition.current_round_lock_time) <= new Date() ? (
+                {loadingRound ? (
+                  <>
+                    <div className="text-2xl font-bold text-slate-400 mb-1">
+                      ...
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      loading player activity
+                    </div>
+                  </>
+                ) : !currentRoundInfo ? (
+                  <>
+                    <div className="text-2xl font-bold text-slate-500 mb-1">
+                      {competition?.player_count || 0}
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      players waiting for Round 1
+                    </div>
+                  </>
+                ) : currentRoundInfo.fixture_count === 0 ? (
+                  <>
+                    <div className="text-2xl font-bold text-slate-500 mb-1">
+                      {competition?.player_count || 0}
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      players waiting for fixtures
+                    </div>
+                  </>
+                ) : currentRoundInfo.is_locked ? (
                   <>
                     <div className="text-2xl font-bold text-slate-600 mb-1">
                       <ClockIcon className="h-6 w-6 inline mr-2" />
-                      Round Locked
+                      Awaiting Results
                     </div>
                     <div className="text-sm text-slate-600">
-                      Final: {competition?.picks_made || 0} of {competition?.picks_required || 0} picks made
+                      {competition?.picks_made || 0} of {competition?.player_count || 0} players made picks
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="text-3xl font-bold text-blue-600 mb-1">
-                      {competition?.pick_completion_percentage || 0}%
+                      {Math.round((competition?.picks_made || 0) / Math.max(competition?.player_count || 1, 1) * 100)}%
                     </div>
                     <div className="text-sm text-slate-600">
-                      {competition?.picks_made || 0} of {competition?.picks_required || 0} picks made
+                      {competition?.picks_made || 0} of {competition?.player_count || 0} players picked
                     </div>
                   </>
                 )}
@@ -504,39 +651,6 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Recent Activity for players only */}
-        {!isOrganiser && competition.history && competition.history.length > 0 && (
-          <div className="bg-white rounded-xl p-6 border border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-              <ClockIcon className="h-5 w-5 mr-2" />
-              Recent Activity
-            </h3>
-            
-            <div className="space-y-3">
-              {competition.history.slice(0, 3).map((round, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      Round {round.round_number}: {round.pick_team_full_name || round.pick_team || 'No pick'}
-                    </p>
-                    <p className="text-xs text-slate-500">{round.fixture}</p>
-                  </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    round.pick_result === 'win' ? 'bg-emerald-100 text-emerald-700' :
-                    round.pick_result === 'loss' ? 'bg-red-100 text-red-700' :
-                    round.pick_result === 'no_pick' ? 'bg-gray-100 text-gray-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>
-                    {round.pick_result === 'win' ? 'Won' :
-                     round.pick_result === 'loss' ? 'Lost' :
-                     round.pick_result === 'no_pick' ? 'No Pick' :
-                     'Pending'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

@@ -48,9 +48,12 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
+const { logApiCall } = require('../utils/apiLogger'); // API call logging utility
 const router = express.Router();
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('set-fixture-result');
+  
   try {
     const { fixture_id, result } = req.body;
     const user_id = req.user.id; // Set by verifyToken middleware
@@ -63,10 +66,10 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    if (!result || typeof result !== 'string' || !['home_win', 'away_win', 'draw'].includes(result)) {
+    if (!result || typeof result !== 'string' || !['home_win', 'away_win', 'draw', 'clear'].includes(result)) {
       return res.json({
         return_code: "VALIDATION_ERROR",
-        message: "Result is required and must be one of: 'home_win', 'away_win', 'draw'"
+        message: "Result is required and must be one of: 'home_win', 'away_win', 'draw', 'clear'"
       });
     }
 
@@ -85,6 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
           f.away_team_short,
           f.kickoff_time,
           f.result as current_result,
+          f.processed,
           f.round_id,
           r.competition_id,
           r.round_number,
@@ -131,6 +135,15 @@ router.post('/', verifyToken, async (req, res) => {
         };
       }
 
+      // Business rule: Cannot modify results that have already been processed
+      // This prevents changing results after eliminations have been calculated
+      if (fixture.processed) {
+        throw {
+          return_code: "RESULT_ALREADY_PROCESSED",
+          message: "Cannot modify results that have already been processed"
+        };
+      }
+
       // Convert human-readable result to database storage format
       // Database stores winning team short code or "DRAW" for consistency with pick logic
       let resultString;
@@ -138,8 +151,10 @@ router.post('/', verifyToken, async (req, res) => {
         resultString = fixture.home_team_short; // Store winning team short code (e.g., "ARS")
       } else if (result === 'away_win') {
         resultString = fixture.away_team_short; // Store winning team short code (e.g., "CHE")
-      } else { // result === 'draw'
+      } else if (result === 'draw') {
         resultString = 'DRAW'; // Store literal "DRAW" string
+      } else { // result === 'clear'
+        resultString = null; // Clear the result by setting to null
       }
 
       // Update fixture with result using atomic transaction

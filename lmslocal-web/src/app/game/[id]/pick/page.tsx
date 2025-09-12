@@ -7,7 +7,7 @@ import {
   ArrowLeftIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
-import { roundApi, fixtureApi, playerActionApi, userApi } from '@/lib/api';
+import { roundApi, fixtureApi, playerActionApi, userApi, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
 interface Fixture {
@@ -64,28 +64,50 @@ export default function PickPage() {
   };
 
   // Combined function to load all data for a specific round
-  const loadRoundData = useCallback(async (roundId: number) => {
-    const isCurrentRound = roundId === currentRoundId;
+  const loadRoundData = useCallback(async (roundId: number, isCurrentRound = true) => {
+    console.log('📊 Loading round data:', { roundId, isCurrentRound, currentRoundId, viewMode });
     
     try {
       await Promise.all([
         loadFixtures(roundId),
+        // Load allowed teams only for current round, but always load current pick
         isCurrentRound ? loadAllowedTeams(parseInt(competitionId)) : Promise.resolve(),
-        isCurrentRound ? loadCurrentPick(roundId) : Promise.resolve(),
+        loadCurrentPick(roundId),
         loadTeamPickCounts(roundId)
       ]);
 
-      // When viewing previous rounds, clear selections and pick data
+      // When viewing previous rounds, clear selections and allowed teams but keep the pick
       if (!isCurrentRound) {
         setSelectedTeam(null);
-        setCurrentPick(null);
         setAllowedTeams([]);
         setIsRoundLocked(true); // Previous rounds are always "locked" for display
+      } else {
+        // For current round, check lock status in real-time
+        const response = await roundApi.getRounds(parseInt(competitionId));
+        if (response.data.return_code === 'SUCCESS' && response.data.rounds) {
+          const currentRound = response.data.rounds.find((r: { id: number; lock_time?: string }) => r.id === roundId);
+          if (currentRound && currentRound.lock_time) {
+            const now = new Date();
+            const lockTime = new Date(currentRound.lock_time);
+            const locked = now >= lockTime;
+            console.log('🕒 Real-time lock check:', {
+              now: now.toISOString(),
+              lockTime: lockTime.toISOString(), 
+              locked,
+              roundId
+            });
+            setIsRoundLocked(locked);
+          } else {
+            setIsRoundLocked(false);
+          }
+        }
       }
+      
+      console.log('✅ Round data loaded successfully for round:', roundId);
     } catch (error) {
       console.error('Failed to load round data:', error);
     }
-  }, [currentRoundId, competitionId]);
+  }, [competitionId, viewMode]);
 
   useEffect(() => {
     // Prevent double execution from React Strict Mode
@@ -106,7 +128,8 @@ export default function PickPage() {
       try {
         hasInitialized.current = true;
         
-        // Get rounds to find current round
+        // Get rounds to find current round (invalidate cache first to get latest data)
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
         const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
         
         if (roundsResponse.data.return_code !== 'SUCCESS') {
@@ -136,12 +159,19 @@ export default function PickPage() {
         const lockTime = new Date(latestRound.lock_time || '');
         const locked = !!(latestRound.lock_time && now >= lockTime);
         
+        console.log('🕒 Lock time check:', {
+          now: now.toISOString(),
+          lockTime: lockTime.toISOString(), 
+          locked,
+          latestRound: latestRound.lock_time
+        });
+        
         setCurrentRoundId(latestRound.id);
         setViewingRoundId(latestRound.id); // Initially view the current round
         setIsRoundLocked(locked);
         
         // Load data for the current round (initially)
-        await loadRoundData(latestRound.id);
+        await loadRoundData(latestRound.id, true);
         
       } catch (error) {
         console.error('Failed to load pick data:', error);
@@ -156,13 +186,19 @@ export default function PickPage() {
 
   const loadAllowedTeams = async (competitionId: number) => {
     try {
+      console.log('🔍 Loading allowed teams for competition:', competitionId);
       const response = await userApi.getAllowedTeams(competitionId);
+      console.log('📥 Allowed teams API response:', response.data);
+      
       if (response.data.return_code === 'SUCCESS') {
         const teamShorts = (response.data.allowed_teams || []).map((team: { short_name: string }) => team.short_name);
+        console.log('✅ Processed team shorts:', teamShorts);
         setAllowedTeams(teamShorts);
+      } else {
+        console.error('❌ API returned error:', response.data.return_code, (response.data as { message?: string }).message);
       }
     } catch (error) {
-      console.error('Failed to load allowed teams:', error);
+      console.error('💥 Failed to load allowed teams:', error);
     }
   };
 
@@ -311,7 +347,7 @@ export default function PickPage() {
             <div className="flex items-center space-x-4">
               <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
                 <ArrowLeftIcon className="h-5 w-5" />
-                <span className="font-medium">Back</span>
+                <span className="font-medium">Dashboard</span>
               </Link>
               <div className="h-6 w-px bg-slate-300" />
               <div>
@@ -345,9 +381,11 @@ export default function PickPage() {
                   onChange={async (e) => {
                     const roundId = parseInt(e.target.value);
                     setViewingRoundId(roundId);
-                    const newViewMode = roundId === currentRoundId ? 'current' : 'previous';
+                    // Use the actual current round from rounds array to avoid stale state
+                    const actualCurrentRoundId = rounds.length > 0 ? rounds[0].id : null;
+                    const newViewMode = roundId === actualCurrentRoundId ? 'current' : 'previous';
                     setViewMode(newViewMode);
-                    await loadRoundData(roundId);
+                    await loadRoundData(roundId, newViewMode === 'current');
                   }}
                   className="appearance-none bg-white border border-slate-300 rounded-lg px-4 py-2 pr-8 text-sm font-medium text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
@@ -363,6 +401,8 @@ export default function PickPage() {
           </div>
         </div>
 
+
+        {/* Debug logging removed - console.log returns void and can't be in JSX */}
 
         {/* Team Selection Grid */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
@@ -391,15 +431,13 @@ export default function PickPage() {
               const fixture = fixtures.find(f => f.id === team.fixtureId);
               const fixtureResult = fixture?.result;
               
-              // Determine if this team won, lost, or drew
-              let teamResult: 'win' | 'loss' | 'draw' | null = null;
+              // Determine game result: WIN = player advances, LOSE = player eliminated  
+              let teamResult: 'win' | 'lose' | null = null;
               if (fixtureResult && isRoundLocked) {
-                if (fixtureResult === 'DRAW') {
-                  teamResult = 'draw';
-                } else if (fixtureResult === team.short) {
-                  teamResult = 'win'; // This team's short code matches the result
+                if (fixtureResult === team.short) {
+                  teamResult = 'win'; // Team won = Player advances
                 } else {
-                  teamResult = 'loss'; // Result is the opponent's short code
+                  teamResult = 'lose'; // Team lost or drew = Player eliminated  
                 }
               }
               
@@ -417,32 +455,18 @@ export default function PickPage() {
                   disabled={isDisabled}
                   className={`relative p-4 rounded-lg border-2 transition-all duration-200 ${
                     isSelected
-                      ? 'bg-blue-100 border-blue-500 shadow-md'
-                      : isCurrentPick && !isRoundLocked
-                      ? 'bg-green-100 border-green-500 shadow-md'
-                      : isCurrentPick && teamResult === 'win'
-                      ? 'bg-green-50 border-green-300 shadow-md'
-                      : isCurrentPick && teamResult === 'loss'
-                      ? 'bg-red-50 border-red-300 shadow-md'
-                      : isCurrentPick && teamResult === 'draw'
-                      ? 'bg-yellow-50 border-yellow-300 shadow-md'
-                      : isCurrentPick && isRoundLocked
-                      ? 'bg-blue-50 border-blue-300 shadow-md'
-                      : teamResult === 'win'
-                      ? 'bg-green-50 border-green-200'
-                      : teamResult === 'loss'
-                      ? 'bg-red-50 border-red-200'
-                      : teamResult === 'draw'
-                      ? 'bg-yellow-50 border-yellow-200'
+                      ? 'bg-white border-blue-500 shadow-md'
+                      : isCurrentPick
+                      ? 'bg-white border-blue-500 shadow-md'
                       : isDisabled
-                      ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                      : 'bg-white border-slate-300 hover:bg-slate-50 hover:border-slate-400 cursor-pointer'
+                      ? 'bg-white border-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
                   }`}
                 >
                   {/* Current pick indicator */}
                   {isCurrentPick && (
-                    <div className="absolute -top-2 -left-2 bg-green-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
-                      YOUR PICK
+                    <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
+                      PICK
                     </div>
                   )}
                   
@@ -456,41 +480,25 @@ export default function PickPage() {
                   
                   <div className="text-center">
                     {/* Team name */}
-                    <div className={`text-base font-bold mb-2 ${
-                      isCurrentPick
-                        ? 'text-green-900'
-                        : isSelected
-                        ? 'text-blue-900'
-                        : isDisabled
-                        ? 'text-slate-400'
-                        : 'text-slate-900'
-                    }`}>
+                    <div className="text-base font-bold mb-2 text-black">
                       {team.short}
                     </div>
                     
                     {/* Fixture information */}
-                    <div className={`text-xs font-medium ${
-                      isCurrentPick
-                        ? 'text-green-700'
-                        : isSelected
-                        ? 'text-blue-700'
-                        : isDisabled
-                        ? 'text-slate-400'
-                        : 'text-slate-700'
-                    }`}>
+                    <div className="text-xs font-medium text-slate-600">
                       {team.fixtureDisplay}
                     </div>
                     
-                    {/* Result text at bottom */}
-                    {teamResult && (
-                      <div className={`text-xs font-bold mt-2 px-2 py-1 rounded border ${
+                    {/* Result box - WIN (green), LOSE (red), or empty grey box */}
+                    {isRoundLocked && (
+                      <div className={`text-xs font-bold mt-2 px-2 py-1 rounded ${
                         teamResult === 'win' 
-                          ? 'text-green-800 bg-green-100 border-green-300' 
-                          : teamResult === 'loss'
-                          ? 'text-red-800 bg-red-100 border-red-300'
-                          : 'text-yellow-800 bg-yellow-100 border-yellow-300'
+                          ? 'text-white bg-green-600' 
+                          : teamResult === 'lose'
+                          ? 'text-white bg-red-600'
+                          : 'text-white bg-slate-500'
                       }`}>
-                        {teamResult === 'win' ? 'WIN' : teamResult === 'loss' ? 'LOSE' : 'DRAW'}
+                        {teamResult === 'win' ? 'WIN' : teamResult === 'lose' ? 'LOSE' : ''}
                       </div>
                     )}
                   </div>
@@ -499,6 +507,17 @@ export default function PickPage() {
             })}
           </div>
         </div>
+
+        {/* No Pick Indicator - shown when viewing previous rounds and no pick was made */}
+        {viewMode === 'previous' && !currentPick && (
+          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="text-center">
+              <div className="text-amber-800 font-medium">
+                NO PICK - You did not make a selection for this round
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Confirmation Banner - shown when team is selected and viewing current round */}
         {selectedTeam && !isRoundLocked && viewMode === 'current' && (
@@ -511,7 +530,7 @@ export default function PickPage() {
                 <button
                   onClick={submitPick}
                   disabled={submitting}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium transition-colors min-w-[120px]"
+                  className="bg-slate-600 hover:bg-slate-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium transition-colors min-w-[120px]"
                 >
                   {submitting ? 'Confirming...' : 'Confirm Pick'}
                 </button>

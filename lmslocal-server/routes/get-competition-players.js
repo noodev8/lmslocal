@@ -28,7 +28,6 @@ Success Response (ALWAYS HTTP 200):
       "id": 456,                          // integer, unique player user ID
       "display_name": "John Doe",         // string, player's display name
       "email": "john@example.com",        // string, player's email address
-      "is_managed": false,                // boolean, whether this is a managed account
       "status": "active",                 // string, player status: 'active', 'OUT', etc.
       "lives_remaining": 2,               // integer, player's remaining lives
       "joined_at": "2025-01-01T10:00:00Z", // string, ISO datetime when player joined
@@ -130,7 +129,6 @@ router.post('/', verifyToken, async (req, res) => {
         u.id as player_id,
         u.display_name,
         u.email,
-        u.is_managed,
         cu.status,
         cu.lives_remaining,
         cu.joined_at,
@@ -185,7 +183,6 @@ router.post('/', verifyToken, async (req, res) => {
       id: row.player_id,
       display_name: row.display_name,
       email: row.email,
-      is_managed: row.is_managed || false,
       status: row.status === 'OUT' ? 'eliminated' : 'active', // Map database status to frontend expected values
       lives_remaining: row.lives_remaining || 0,
       joined_at: row.joined_at,

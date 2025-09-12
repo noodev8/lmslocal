@@ -49,6 +49,9 @@ export default function FixturesPage() {
   const [editedLockTime, setEditedLockTime] = useState('');
   const [showResetModal, setShowResetModal] = useState(false);
   const [isResettingFixtures, setIsResettingFixtures] = useState(false);
+  const [showExtendTimeModal, setShowExtendTimeModal] = useState(false);
+  const [extendingRound, setExtendingRound] = useState(false);
+  const [extendedRound, setExtendedRound] = useState<Round | null>(null);
   
   // Fixture creation state
   const [teams, setTeams] = useState<Team[]>([]);
@@ -126,10 +129,11 @@ export default function FixturesPage() {
               await loadFixtures(latestRound.id);
               await loadTeams();
             } else {
-              // Round is locked but has no fixtures - need a new round
-              setShowCreateRoundModal(true);
-              const defaultTime = getNextFriday6PM().slice(0, 16);
-              setNewRoundLockTime(defaultTime);
+              // Round is locked but has no fixtures - auto-extend the lock time
+              setExtendedRound(latestRound);
+              setShowExtendTimeModal(true);
+              // Auto-extend the round in the background
+              handleExtendRoundTime(latestRound);
             }
           } else {
             // Round has fixtures - show read-only view (no editing allowed)
@@ -182,6 +186,76 @@ export default function FixturesPage() {
       console.error('Failed to load fixtures:', error);
       setPendingFixtures([]);
       setUsedTeams(new Set());
+    }
+  };
+
+  const handleExtendRoundTime = async (round: Round) => {
+    setExtendingRound(true);
+    
+    try {
+      // Calculate new lock time (next Friday 6PM - guaranteed future)
+      const getNextFriday6PM = () => {
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 5 = Friday
+        
+        let daysUntilFriday;
+        if (dayOfWeek < 5) {
+          // Before Friday - use this week's Friday
+          daysUntilFriday = 5 - dayOfWeek;
+        } else if (dayOfWeek === 5) {
+          // It's Friday - check if it's already past 6 PM
+          if (now.getHours() >= 18) {
+            // Past 6 PM on Friday - use NEXT Friday (7 days)
+            daysUntilFriday = 7;
+          } else {
+            // Before 6 PM on Friday - use today
+            daysUntilFriday = 0;
+          }
+        } else {
+          // Weekend (Saturday/Sunday) - use next Friday
+          daysUntilFriday = 5 + (7 - dayOfWeek);
+        }
+        
+        const nextFriday = new Date(now);
+        nextFriday.setDate(now.getDate() + daysUntilFriday);
+        nextFriday.setHours(18, 0, 0, 0); // 6:00 PM
+        
+        return nextFriday.toISOString();
+      };
+
+      const newLockTime = getNextFriday6PM();
+      console.log('🔄 Extending round lock time:', { 
+        roundId: round.id, 
+        oldLockTime: round.lock_time,
+        newLockTime 
+      });
+      
+      const response = await roundApi.update(round.id.toString(), newLockTime);
+      console.log('📡 Update round API response:', response.data);
+      
+      if (response.data.return_code === 'SUCCESS') {
+        // Clear cache and proceed to fixture creation
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+        console.log('✅ Cache cleared and round extended successfully');
+        
+        // Update the round with new lock time and proceed
+        const extendedRound = { ...round, lock_time: newLockTime };
+        setCurrentRound(extendedRound);
+        await loadFixtures(round.id);
+        await loadTeams();
+        
+        // Keep modal open until user clicks continue
+      } else {
+        console.error('Failed to extend round time:', response.data.message);
+        alert('Failed to extend round time: ' + response.data.message);
+        setShowExtendTimeModal(false);
+      }
+    } catch (error) {
+      console.error('Error extending round time:', error);
+      alert('Failed to extend round time');
+      setShowExtendTimeModal(false);
+    } finally {
+      setExtendingRound(false);
     }
   };
 
@@ -783,6 +857,52 @@ export default function FixturesPage() {
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-medium transition-colors"
                   >
                     Update
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Round Lock Time Extended Modal */}
+        {showExtendTimeModal && extendedRound && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                  Round {extendedRound.round_number} Lock Time Extended
+                </h3>
+                
+                <div className="mb-6">
+                  <p className="text-slate-600 mb-3">
+                    Round {extendedRound.round_number} was created but the lock time had expired before fixtures were added.
+                  </p>
+                  
+                  {extendingRound ? (
+                    <div className="flex items-center text-blue-600 mb-3">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                      <span className="text-sm">Extending lock time...</span>
+                    </div>
+                  ) : (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                      <p className="text-green-700 text-sm font-medium">
+                        ✓ Lock time has been automatically extended to next Friday at 6:00 PM so you can add fixtures.
+                      </p>
+                    </div>
+                  )}
+                  
+                  <p className="text-slate-500 text-sm">
+                    You can change the lock time later if needed using the settings.
+                  </p>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowExtendTimeModal(false)}
+                    disabled={extendingRound}
+                    className="px-6 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed font-medium transition-colors"
+                  >
+                    {extendingRound ? 'Extending...' : 'Continue to Add Fixtures'}
                   </button>
                 </div>
               </div>

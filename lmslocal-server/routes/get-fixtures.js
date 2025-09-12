@@ -13,7 +13,7 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "fixtures": [                                // array, fixtures in chronological order
+  "fixtures": [                                // array, fixtures in database order
     {
       "id": 1,                                 // integer, unique fixture ID
       "home_team": "Arsenal",                  // string, full home team name
@@ -21,9 +21,16 @@ Success Response (ALWAYS HTTP 200):
       "home_team_short": "ARS",                // string, abbreviated home team name
       "away_team_short": "CHE",                // string, abbreviated away team name
       "kickoff_time": "2025-08-25T15:00:00Z", // string, ISO datetime for fixture kickoff
-      "result": "ARS"                          // string, winning team short name, "DRAW", or null if pending
+      "result": "ARS",                         // string, winning team short name, "DRAW", or null if pending
+      "processed": "2025-08-25T17:30:00Z"     // string, ISO datetime when processed, or null if not processed
     }
-  ]
+  ],
+  "round_info": {                              // object, round status information
+    "round_number": 2,                         // integer, current round number
+    "lock_time": "2025-08-25T15:00:00Z",      // string, ISO datetime when round locks, or null
+    "is_locked": true,                         // boolean, whether round is past lock time
+    "all_processed": true                      // boolean, whether all fixtures have been processed
+  }
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -44,9 +51,12 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('get-fixtures');
+  
   try {
     // Extract request parameters and authenticated user ID
     const { round_id } = req.body;
@@ -85,38 +95,68 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // === ROUND INFORMATION RETRIEVAL ===
+    // Get round lock status information for round completion detection
+    const roundResult = await query(`
+      SELECT 
+        r.round_number,
+        r.lock_time,
+        CASE 
+          WHEN r.lock_time IS NULL THEN false
+          WHEN r.lock_time <= NOW() THEN true
+          ELSE false
+        END as is_locked
+      FROM round r
+      WHERE r.id = $1
+    `, [round_id]);
+
     // === FIXTURE RETRIEVAL ===
-    // Get all fixtures for the specified round in chronological order
+    // Get all fixtures for the specified round in database order (no sorting)
     // This is used by both admin (results management) and players (viewing fixtures/results)
     // Teams are stored as both full names and short names for different display needs
-    const result = await query(`
+    const fixtureResult = await query(`
       SELECT 
         f.id,                     -- Unique fixture identifier for database operations
         f.kickoff_time,           -- ISO datetime when fixture kicks off
         f.result,                 -- Winner: team short name (e.g., "ARS"), "DRAW", or null if pending
+        f.processed,              -- Timestamp when result was processed, null if not processed yet
         f.home_team,              -- Full home team name for display (e.g., "Arsenal")
         f.away_team,              -- Full away team name for display (e.g., "Chelsea")
         f.home_team_short,        -- Abbreviated home team name for compact UI (e.g., "ARS")
         f.away_team_short         -- Abbreviated away team name for compact UI (e.g., "CHE")
       FROM fixture f
       WHERE f.round_id = $1       -- Filter to specific round only
-      ORDER BY f.kickoff_time ASC -- Chronological order for logical display
     `, [round_id]);
 
+    // === PROCESS RESULTS ===
+    // Extract fixtures and round information
+    const fixtures = fixtureResult.rows;
+    const roundInfo = roundResult.rows[0]; // Should exist since we validated access
+    
+    // Calculate if all fixtures are processed (have non-null processed timestamp)
+    const allProcessed = fixtures.length > 0 && fixtures.every(fixture => fixture.processed !== null);
+    
     // === SUCCESS RESPONSE ===
     // Transform database results into clean API response format
     // Map each fixture row to frontend-friendly object structure
     res.json({
       return_code: "SUCCESS",
-      fixtures: result.rows.map(row => ({
+      fixtures: fixtures.map(row => ({
         id: row.id,                            // For fixture management operations
         home_team: row.home_team,              // Full team name for detailed displays
         away_team: row.away_team,              // Full team name for detailed displays
         home_team_short: row.home_team_short,  // Short name for space-constrained UI
         away_team_short: row.away_team_short,  // Short name for space-constrained UI
+        processed: row.processed,              // Processed timestamp, null if not processed yet
         kickoff_time: row.kickoff_time,        // ISO datetime for scheduling
         result: row.result                     // Winner short name, "DRAW", or null if pending
-      }))
+      })),
+      round_info: {
+        round_number: roundInfo.round_number,  // Round number for display
+        lock_time: roundInfo.lock_time,        // Lock time for reference
+        is_locked: roundInfo.is_locked,        // Whether round is locked
+        all_processed: allProcessed            // Whether all fixtures are processed
+      }
     });
 
   } catch (error) {

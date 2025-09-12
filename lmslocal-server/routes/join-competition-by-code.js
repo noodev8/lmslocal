@@ -134,6 +134,19 @@ router.post('/', verifyToken, async (req, res) => {
         };
       }
 
+      // Check if Round 1 lock time has passed - prevent joining after lock time
+      if (data.latest_lock_time) {
+        const lockTime = new Date(data.latest_lock_time);
+        const currentTime = new Date();
+        
+        if (currentTime >= lockTime) {
+          throw {
+            return_code: "COMPETITION_STARTED",
+            message: "Cannot join - Round 1 has locked and competition has started"
+          };
+        }
+      }
+
       // Check if user is already a member of this competition
       if (data.membership_id) {
         // User is already a member - return success with existing membership info

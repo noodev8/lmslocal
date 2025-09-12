@@ -56,9 +56,13 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
+const { logApiCall } = require('../utils/apiLogger'); // API call logging utility
 const router = express.Router();
 // POST endpoint with comprehensive authentication, authorization and enhanced round information
 router.post('/', verifyToken, async (req, res) => {
+  // Log API call for monitoring/debugging when enabled
+  logApiCall('get-rounds');
+  
   try {
     const { competition_id } = req.body;
     const user_id = req.user.id; // Set by verifyToken middleware

@@ -1,0 +1,46 @@
+========================================================================
+To start the Flutter app, please take a look at the project outline
+However, the flutter app is purely based from the player perspective so we are not interested in admin or organiser functionality
+
+What I want to start with is the infrastructure for us to build from. Lets start with a working login page that goes to a dummy dashboard
+========================================================================
+
+- Outline tech stack for prohect
+Flutter - Mobile App
+Node.js - Server
+Express.js - Server
+Tailwind - Website CSS
+Next.js - Web front end
+Postgres - Database
+Resend - Emails
+JWT - Auth
+BCrypt - Password hashing and comparison
+Crypto - verification token generation
+
+- Flutter
+The Flutter Mobile development is kept in /lmslocal-flutter
+
+- Database
+The schema is kept in /docs/DB-Schema.sql if you need it to plan cache
+
+- APIs
+The API routes are in /lmslocal-server
+
+When designing/developing screens keep all the UI code in it's individual file. This allows us to make changes without breaking the whole app.
+
+Use an app_config.dart file
+This is where I would like to switch environments manually. Keep it simple and allow me to switch IP manually in the code depending on where I am running from.
+
+Example
+class AppConfig {
+  // Change this URL for your environment
+  // static const String baseUrl = 'http://192.168.1.88:3000/api'; // Home
+  // static const String baseUrl = 'http://192.168.1.108:3000/api'; // Work
+  static const String baseUrl = 'https://lmslocal.noodev8.com/api'; // Production
+
+  static const String appName = 'LMS Local';
+  static const Duration apiTimeout = Duration(seconds: 30);
+}
+
+- Keep the UI clean, clear and modern
+- Use Material 3 design
