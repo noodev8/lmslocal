@@ -230,8 +230,9 @@ export default function ResultsPage() {
       const response = await roundApi.create(competitionId, lockTime);
       
       if (response.data.return_code === 'SUCCESS') {
-        // Clear rounds cache to ensure fixtures page sees the new round
+        // Clear caches to ensure fresh data is loaded
         cacheUtils.invalidateKey(`rounds-${competitionId}`);
+        cacheUtils.invalidateKey(`user-dashboard`); // Refresh competition data with new round info
         
         // Successfully created round - redirect to fixtures page
         router.push(`/game/${competitionId}/fixtures`);

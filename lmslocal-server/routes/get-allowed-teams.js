@@ -131,6 +131,7 @@ router.post('/', verifyToken, async (req, res) => {
       ORDER BY t.name ASC                 -- Alphabetical order for consistent UI
     `, [competition_id, authenticated_user_id, target_user_id]);
 
+    
     // === AUTHORIZATION AND AUTO-RESET VALIDATION ===
     // Check if competition exists and user has permission to access it
     if (result.rows.length === 0) {
@@ -195,12 +196,21 @@ router.post('/', verifyToken, async (req, res) => {
             WHERE competition_id = $1 AND user_id = $2
           `, [competition_id, target_user_id]);
 
-          // Step 2: Insert all active teams from the competition's team list (full reset)
+
+          // Step 2: Insert teams not already picked by this user (smart reset)
+          
           await client.query(`
             INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
             SELECT $1, $2, t.id, NOW()
             FROM team t
             WHERE t.team_list_id = $3 AND t.is_active = true
+              AND t.short_name NOT IN (
+                SELECT DISTINCT p.team 
+                FROM pick p
+                JOIN round r ON p.round_id = r.id
+                WHERE r.competition_id = $1 AND p.user_id = $2
+                  AND p.team IS NOT NULL
+              )
             ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
           `, [competition_id, target_user_id, validation.team_list_id]);
 

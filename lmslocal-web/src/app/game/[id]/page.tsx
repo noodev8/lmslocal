@@ -12,7 +12,8 @@ import {
   ClipboardDocumentIcon,
   Cog6ToothIcon,
   CalendarDaysIcon,
-  PlayIcon
+  PlayIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { Competition as CompetitionType, userApi, roundApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -36,6 +37,8 @@ export default function UnifiedGameDashboard() {
     lock_time?: string;
     fixture_count: number;
     is_locked: boolean;
+    completed_fixtures?: number;
+    status?: string;
   } | null>(null);
   const [loadingRound, setLoadingRound] = useState(true);
   
@@ -169,7 +172,9 @@ export default function UnifiedGameDashboard() {
                   round_number: latestRound.round_number,
                   lock_time: latestRound.lock_time,
                   fixture_count: latestRound.fixture_count || 0,
-                  is_locked: isLocked
+                  is_locked: isLocked,
+                  completed_fixtures: latestRound.completed_fixtures || 0,
+                  status: latestRound.status
                 });
               } else {
                 setCurrentRoundInfo(null);
@@ -304,6 +309,8 @@ export default function UnifiedGameDashboard() {
                     ? 'bg-amber-500 text-white' // No rounds yet - amber
                     : currentRoundInfo.fixture_count === 0
                     ? 'bg-orange-500 text-white' // Round exists but no fixtures - orange
+                    : currentRoundInfo.status === 'COMPLETE'
+                    ? 'bg-blue-600 text-white' // Round complete, waiting for next - blue
                     : currentRoundInfo.is_locked
                     ? 'bg-purple-600 text-white' // Round locked - purple
                     : 'bg-green-600 text-white' // Picks open - green
@@ -328,6 +335,8 @@ export default function UnifiedGameDashboard() {
                       ? 'Organizer will create fixtures to start'
                       : currentRoundInfo.fixture_count === 0
                       ? 'Waiting for fixtures to be created'
+                      : currentRoundInfo.status === 'COMPLETE'
+                      ? 'Complete - Waiting for next round'
                       : currentRoundInfo.is_locked
                       ? 'Round Locked - Results Processing'
                       : `Picks Open - Closes ${new Date(currentRoundInfo.lock_time!).toLocaleString('en-GB', {
@@ -430,15 +439,9 @@ export default function UnifiedGameDashboard() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-600">Eliminated</span>
-                <span className="font-bold text-red-500">
-                  {(competition?.total_players || 0) - (competition?.player_count || 0)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600">Current Round</span>
+                <span className="text-slate-600">Total Players</span>
                 <span className="font-bold text-slate-800">
-                  {competition.current_round || 'Not Started'}
+                  {competition?.total_players || 0}
                 </span>
               </div>
             </div>
@@ -501,6 +504,16 @@ export default function UnifiedGameDashboard() {
                     </div>
                     <div className="text-sm text-slate-600">
                       players waiting for fixtures
+                    </div>
+                  </>
+                ) : currentRoundInfo.status === 'COMPLETE' ? (
+                  <>
+                    <div className="text-2xl font-bold text-blue-600 mb-1">
+                      <CheckCircleIcon className="h-6 w-6 inline mr-2" />
+                      Round Complete
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {competition?.player_count || 0} players waiting for next round
                     </div>
                   </>
                 ) : currentRoundInfo.is_locked ? (

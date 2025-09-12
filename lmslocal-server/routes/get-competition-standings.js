@@ -7,7 +7,8 @@ Purpose: Retrieves comprehensive competition standings with player status, picks
 =======================================================================================================================================
 Request Payload:
 {
-  "competition_id": 123                   // integer, required - ID of the competition to get standings for
+  "competition_id": 123,                  // integer, required - ID of the competition to get standings for
+  "show_full_user_history": false        // boolean, optional - if true, show ALL rounds for authenticated user
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -72,7 +73,7 @@ const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id } = req.body;
+    const { competition_id, show_full_user_history = false } = req.body;
     const user_id = req.user.id;
 
     // === INPUT VALIDATION ===
@@ -234,17 +235,22 @@ router.post('/', verifyToken, async (req, res) => {
     // === QUERY 3: ALL PLAYER HISTORY (BULK QUERY - ELIMINATES MASSIVE N+1) ===
     // Get complete history for ALL players in ONE query instead of N queries
     let historyData = [];
-    if (firstRow.current_round && firstRow.current_round > 1) {
+    console.log('DEBUG: Current round for history query:', firstRow.current_round);
+    if (firstRow.current_round) {
+      console.log('DEBUG: Running history query for rounds < ', firstRow.current_round);
       const historyResult = await query(`
         SELECT 
           -- === ROUND INFO ===
           r.round_number,                         -- Round number for display
           r.lock_time,                            -- When round locked
+          r.id as round_id,                       -- Round ID for uniqueness
+          
+          -- === PLAYER INFO ===
+          player_ids.user_id,                     -- Player ID for matching
           
           -- === PICK INFO ===
-          p.user_id,                              -- Player ID for matching
-          p.team as pick_team,                    -- Team picked
-          p.outcome,                              -- Pick outcome
+          p.team as pick_team,                    -- Team picked (null if no pick)
+          p.outcome,                              -- Pick outcome (null if no pick)
           t.name as pick_team_full_name,          -- Full team name for display
           
           -- === FIXTURE INFO ===
@@ -252,15 +258,34 @@ router.post('/', verifyToken, async (req, res) => {
           f.away_team,                            -- Away team in fixture
           f.result as fixture_result              -- Fixture result
           
-        FROM round r
-        LEFT JOIN pick p ON p.round_id = r.id AND p.user_id = ANY($3) -- Get picks for all players
+        FROM (
+          SELECT unnest($3::int[]) as user_id  -- All players
+        ) player_ids
+        CROSS JOIN round r                      -- All qualifying rounds
+        LEFT JOIN pick p ON p.round_id = r.id AND p.user_id = player_ids.user_id
         LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
         LEFT JOIN fixture f ON p.fixture_id = f.id
         WHERE r.competition_id = $1 
-          AND r.round_number < $2                 -- Only completed rounds
           AND r.round_number IS NOT NULL
-        ORDER BY p.user_id, r.round_number DESC  -- Group by player, newest first
-      `, [competition_id, firstRow.current_round, players.map(p => p.id)]);
+          AND (
+            $4 = true AND player_ids.user_id = $5 OR  -- Show all rounds for authenticated user if requested
+            r.round_number >= GREATEST(1, $2 - 4)     -- Otherwise limit to last 5 rounds for performance
+          )
+          AND (
+            r.round_number < $2 OR                -- Previous rounds (always show)
+            (
+              r.round_number = $2                 -- Current round IF it's complete
+              AND r.lock_time IS NOT NULL 
+              AND NOW() >= r.lock_time            -- Round is locked
+              AND EXISTS (                        -- AND has some results
+                SELECT 1 FROM fixture f2 
+                WHERE f2.round_id = r.id 
+                AND f2.result IS NOT NULL
+              )
+            )
+          )
+        ORDER BY player_ids.user_id, r.round_number DESC  -- Group by player, newest first
+      `, [competition_id, firstRow.current_round, players.map(p => p.id), show_full_user_history, user_id]);
       
       historyData = historyResult.rows;
     }
@@ -302,15 +327,18 @@ router.post('/', verifyToken, async (req, res) => {
       // === HISTORY ATTACHMENT ===
       const playerHistory = historyMap[player.id] || [];
       player.history = playerHistory.map(round => ({
+        round_id: round.round_id,                 // Round ID for unique keys
         round_number: round.round_number,         // Round number for display
         pick_team: round.pick_team,              // Short team name
-        pick_team_full_name: round.pick_team_full_name || round.pick_team, // Full team name
+        pick_team_full_name: round.pick_team, // Use short team name for display
         fixture: round.home_team && round.away_team 
           ? `${round.home_team} vs ${round.away_team}` 
           : null,                                 // Human-readable fixture
+        fixture_result: round.fixture_result,     // Actual match result
         pick_result: round.outcome === 'WIN' ? 'win' : 
                     round.outcome === 'LOSE' ? 'loss' : 
-                    round.outcome === 'NO_PICK' ? 'no_pick' : 'pending', // Standardized result
+                    round.outcome === 'NO_PICK' ? 'loss' : 
+                    !round.pick_team ? 'loss' : 'pending', // No pick = loss in our game
         lock_time: round.lock_time                // When round locked
       }));
     });
