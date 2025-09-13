@@ -197,7 +197,6 @@ router.post('/', verifyToken, async (req, res) => {
       const allowedTeamsResult = await client.query(allowedTeamsQuery, [data.competition_id, user_id]);
 
       if (allowedTeamsResult.rows.length > 0) {
-        console.log(`✅ Populated ${allowedTeamsResult.rows.length} allowed teams for user ${user_id} in competition ${data.competition_id}`);
       } else {
         console.log(`⚠️ No teams found to populate for user ${user_id} in competition ${data.competition_id} - check if competition has teams`);
       }

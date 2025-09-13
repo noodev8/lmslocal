@@ -153,7 +153,6 @@ async function populateAllowedTeams(competition_id, user_id) {
     `, [competition_id, user_id]);
     
     if (result.rows.length > 0) {
-      console.log(`✅ Populated ${result.rows.length} allowed teams for user ${user_id} in competition ${competition_id}`);
     } else {
       console.log(`⚠️ No teams found to populate for user ${user_id} in competition ${competition_id} - check if competition has fixtures`);
     }

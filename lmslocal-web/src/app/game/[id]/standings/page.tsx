@@ -55,19 +55,18 @@ export default function CompetitionStandingsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
-  const [showFullHistory, setShowFullHistory] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   
   const loadStandings = useCallback(async () => {
     if (abortControllerRef.current?.signal.aborted) return;
-    
+
     try {
-      // Load both standings and player count in parallel for efficiency
-      const standingsResponse = await userApi.getCompetitionStandings(parseInt(competitionId), showFullHistory);
-      
+      // Always load full user history - let frontend control display
+      const standingsResponse = await userApi.getCompetitionStandings(parseInt(competitionId), true);
+
       if (abortControllerRef.current?.signal.aborted) return;
-      
+
       if (standingsResponse.data.return_code === 'SUCCESS') {
         setCompetition(standingsResponse.data.competition as Competition);
         setPlayers(standingsResponse.data.players as Player[]);
@@ -84,7 +83,7 @@ export default function CompetitionStandingsPage() {
         setLoading(false);
       }
     }
-  }, [competitionId, router, showFullHistory]);
+  }, [competitionId, router]);
 
   useEffect(() => {
     // Create abort controller for this effect
@@ -105,6 +104,8 @@ export default function CompetitionStandingsPage() {
         const user = await getCurrentUser();
         if (user && !controller.signal.aborted) {
           setCurrentUser(user);
+          // Auto-expand current user's history
+          setExpandedPlayers(prev => new Set([...prev, user.id]));
         }
         
         if (!controller.signal.aborted) {
@@ -148,9 +149,6 @@ export default function CompetitionStandingsPage() {
     });
   };
 
-  const toggleFullHistory = () => {
-    setShowFullHistory(!showFullHistory);
-  };
 
 
 
@@ -184,13 +182,15 @@ export default function CompetitionStandingsPage() {
   const activePlayers = players.filter(p => p.status !== 'out');
   const eliminatedPlayers = players.filter(p => p.status === 'out');
 
-  // Winner detection logic - matches dashboard logic
+  // Winner detection logic - only show winner when competition status is COMPLETE
   const getWinnerStatus = () => {
     const playerCount = activePlayers.length;
-    const isNotSetup = competition?.status !== 'SETUP';
+    const isComplete = competition?.status === 'COMPLETE';
     
-    if (playerCount === 1 && isNotSetup) {
+    if (isComplete && playerCount === 1) {
       return { isComplete: true, winner: true };
+    } else if (isComplete && playerCount === 0) {
+      return { isComplete: true, winner: false };
     }
     return { isComplete: false, winner: false };
   };
@@ -199,15 +199,24 @@ export default function CompetitionStandingsPage() {
 
   // Determine if a player's current pick should be visible
   const isPickVisible = (playerId: number) => {
-    const currentUser = getCurrentUser();
     const isOwnPlayer = currentUser && currentUser.id === playerId;
-    
+
     // NEW LOGIC: Show picks ALL the time, unless there are 3 or less players left
     // Exception: Always show your own pick
     const hasEnoughPlayersToHide = activePlayers.length <= 3;
-    
+
     // Show picks if: (more than 3 players) OR own player
     return !hasEnoughPlayersToHide || isOwnPlayer;
+  };
+
+  // Always show full history for current user, recent history for others
+  const getFilteredHistory = (player: Player) => {
+    const isOwnPlayer = currentUser && currentUser.id === player.id;
+    if (isOwnPlayer) {
+      return player.history; // Show all history for current user
+    }
+    // Show recent history only (last 3 rounds) for other players
+    return player.history.slice(-3);
   };
 
   return (
@@ -260,17 +269,6 @@ export default function CompetitionStandingsPage() {
           </div>
         </div>
 
-        {/* Full History Toggle - Only for authenticated users */}
-        {currentUser && (
-          <div className="mb-4 flex justify-end">
-            <button
-              onClick={toggleFullHistory}
-              className="text-sm text-slate-600 hover:text-slate-900 font-medium"
-            >
-              {showFullHistory ? '📊 Show Recent History Only' : '📜 View My Full History'}
-            </button>
-          </div>
-        )}
 
         {/* Players List - Simplified */}
         <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
@@ -344,8 +342,8 @@ export default function CompetitionStandingsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {player.history.length > 0 ? (
-                          player.history.map((round) => (
+                        {getFilteredHistory(player).length > 0 ? (
+                          getFilteredHistory(player).map((round) => (
                             <tr key={`${player.id}-${round.round_id}`} className="border-b border-slate-100">
                               <td className="py-2">
                                 <span className="font-medium">Round {round.round_number}</span>
@@ -399,8 +397,8 @@ export default function CompetitionStandingsPage() {
 
                   {/* Mobile History Cards */}
                   <div className="md:hidden space-y-3">
-                    {player.history.length > 0 ? (
-                      player.history.map((round) => (
+                    {getFilteredHistory(player).length > 0 ? (
+                      getFilteredHistory(player).map((round) => (
                         <div key={`${player.id}-${round.round_id}`} className="border border-slate-200 rounded-lg p-3 bg-white">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-medium text-slate-900">Round {round.round_number}</span>
@@ -517,8 +515,8 @@ export default function CompetitionStandingsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {player.history.length > 0 ? (
-                          player.history.map((round) => (
+                        {getFilteredHistory(player).length > 0 ? (
+                          getFilteredHistory(player).map((round) => (
                             <tr key={`${player.id}-${round.round_id}`} className="border-b border-slate-100">
                               <td className="py-2">
                                 <span className="font-medium">Round {round.round_number}</span>
@@ -572,8 +570,8 @@ export default function CompetitionStandingsPage() {
 
                   {/* Mobile History Cards */}
                   <div className="md:hidden space-y-3">
-                    {player.history.length > 0 ? (
-                      player.history.map((round) => (
+                    {getFilteredHistory(player).length > 0 ? (
+                      getFilteredHistory(player).map((round) => (
                         <div key={`${player.id}-${round.round_id}`} className="border border-slate-200 rounded-lg p-3 bg-white">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-medium text-slate-900">Round {round.round_number}</span>
