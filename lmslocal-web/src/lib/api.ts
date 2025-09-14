@@ -445,6 +445,13 @@ export const fixtureApi = {
       winner_name?: string;
       winner_id?: number;
       total_rounds?: number;
+      round_stats?: {
+        round_number: number;
+        eliminated_this_round: number;
+        survivors: number;
+        total_eliminated: number;
+        total_players: number;
+      };
     }>('/submit-results', { competition_id, results }),
 };
 
@@ -539,7 +546,23 @@ export const userApi = {
     return withCache(
       `user-dashboard-${userId}`, // User-specific cache key
       5 * 60 * 1000, // 5 minutes cache - optimal for dashboard data
-      () => api.post<{ return_code: string; message?: string; competitions?: Competition[] }>('/get-user-dashboard', {})
+      () => api.post<{
+        return_code: string;
+        message?: string;
+        competitions?: Competition[];
+        latest_round_stats?: {
+          competition_id: number;
+          competition_name: string;
+          round_number: number;
+          eliminated_this_round: number;
+          survivors: number;
+          total_eliminated: number;
+          total_players: number;
+          user_outcome: string | null;
+          user_status: string;
+          user_picked_team: string | null;
+        };
+      }>('/get-user-dashboard', {})
     );
   },
   getAllowedTeams: (competition_id: number, user_id?: number) => withCache(

@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  TrophyIcon, 
-  PlusIcon, 
+import {
+  TrophyIcon,
+  PlusIcon,
   UserGroupIcon,
   ClockIcon,
   ExclamationTriangleIcon,
@@ -44,6 +44,8 @@ export default function DashboardPage() {
   const userCompetitions = useMemo(() => {
     return competitions?.filter(comp => comp.is_organiser || comp.is_participant) || [];
   }, [competitions]);
+
+  // No complex timing logic - just show the latest round stats if available
 
   // Winner detection only shows when competition status is COMPLETE
   const getWinnerStatus = (competition: Competition) => {
@@ -311,6 +313,7 @@ export default function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
+
         {/* Competitions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Competition Cards */}
@@ -542,6 +545,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

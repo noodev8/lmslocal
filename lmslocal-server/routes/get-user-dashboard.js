@@ -334,10 +334,99 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // === LATEST ROUND STATISTICS ===
+    // Get the latest round stats across all competitions user participates in
+    let latestRoundStats = null;
+    try {
+      // Find the most recent round with processed results across all user's competitions
+      const latestRoundResult = await query(`
+        SELECT DISTINCT
+          c.id as competition_id,
+          c.name as competition_name,
+          r.round_number,
+          cu.status as user_status,
+          pp.outcome as user_outcome,
+          pp.chosen_team,
+          r.id as round_id
+        FROM competition c
+        INNER JOIN competition_user cu ON c.id = cu.competition_id
+        INNER JOIN round r ON c.id = r.competition_id
+        LEFT JOIN player_progress pp ON r.id = pp.round_id AND pp.player_id = cu.user_id
+        WHERE cu.user_id = $1
+        AND cu.hidden IS NOT TRUE
+        AND r.id IN (
+          SELECT DISTINCT round_id
+          FROM fixture
+          WHERE processed IS NOT NULL
+        )
+        ORDER BY r.round_number DESC, c.id DESC
+        LIMIT 1
+      `, [user_id]);
+
+      if (latestRoundResult.rows.length > 0) {
+        const latestRound = latestRoundResult.rows[0];
+
+        // Get statistics for this round
+        const roundStatsResult = await query(`
+          SELECT
+            COUNT(CASE WHEN cu.status = 'out' THEN 1 END) as total_eliminated,
+            COUNT(CASE WHEN cu.status = 'active' THEN 1 END) as survivors,
+            COUNT(*) as total_players
+          FROM competition_user cu
+          WHERE cu.competition_id = $1
+        `, [latestRound.competition_id]);
+
+        // Get players eliminated in this specific round
+        const thisRoundEliminatedResult = await query(`
+          SELECT COUNT(DISTINCT pp.player_id) as eliminated_this_round
+          FROM player_progress pp
+          WHERE pp.round_id = $1
+          AND pp.outcome = 'LOSE'
+          AND EXISTS (
+            SELECT 1 FROM competition_user cu
+            WHERE cu.user_id = pp.player_id
+            AND cu.competition_id = $2
+            AND cu.status = 'out'
+          )
+        `, [latestRound.round_id, latestRound.competition_id]);
+
+        const stats = roundStatsResult.rows[0];
+        const eliminatedThisRound = parseInt(thisRoundEliminatedResult.rows[0].eliminated_this_round) || 0;
+
+        console.log(`🎭 SERVER: Round ${latestRound.round_number} stats:`, {
+          eliminatedThisRound,
+          survivors: parseInt(stats.survivors) || 0,
+          totalEliminated: parseInt(stats.total_eliminated) || 0,
+          roundId: latestRound.round_id,
+          competitionId: latestRound.competition_id
+        });
+
+        // Always return stats, let frontend decide when to show announcements
+        latestRoundStats = {
+          competition_id: latestRound.competition_id,
+          competition_name: latestRound.competition_name,
+          round_number: latestRound.round_number,
+          eliminated_this_round: eliminatedThisRound,
+          survivors: parseInt(stats.survivors) || 0,
+          total_eliminated: parseInt(stats.total_eliminated) || 0,
+          total_players: parseInt(stats.total_players) || 0,
+          user_outcome: latestRound.user_outcome, // 'WIN', 'LOSE', or null
+          user_status: latestRound.user_status, // 'active' or 'out'
+          user_picked_team: latestRound.chosen_team
+        };
+
+        console.log('🎭 SERVER: Created latestRoundStats:', latestRoundStats);
+      }
+    } catch (error) {
+      console.error('Error fetching latest round stats:', error);
+      // Don't fail the whole response if round stats fail
+    }
+
     // === SUCCESS RESPONSE ===
     res.json({
       return_code: "SUCCESS",
-      competitions: competitions
+      competitions: competitions,
+      latest_round_stats: latestRoundStats
     });
 
   } catch (error) {

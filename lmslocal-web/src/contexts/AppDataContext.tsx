@@ -9,16 +9,28 @@ interface AppDataContextType {
   // Data
   competitions: Competition[] | null;
   user: User | null;
-  
+  latestRoundStats: {
+    competition_id: number;
+    competition_name: string;
+    round_number: number;
+    eliminated_this_round: number;
+    survivors: number;
+    total_eliminated: number;
+    total_players: number;
+    user_outcome: string | null;
+    user_status: string;
+    user_picked_team: string | null;
+  } | null;
+
   // Loading states
   loading: boolean;
   error: string | null;
-  
+
   // Actions
   refreshData: () => void;
   refreshCompetitions: () => void;
   forceRefresh: () => Promise<void>;
-  
+
   // Metadata
   lastUpdated: number | null;
 }
@@ -32,6 +44,7 @@ interface AppDataProviderProps {
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
   const [competitions, setCompetitions] = useState<Competition[] | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [latestRoundStats, setLatestRoundStats] = useState<AppDataContextType['latestRoundStats']>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -65,6 +78,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       // Handle competitions response
       if (competitionsData.data.return_code === 'SUCCESS') {
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
+        setLatestRoundStats(competitionsData.data.latest_round_stats || null);
       } else {
         console.error('Failed to load competitions:', competitionsData.data.message);
         setCompetitions([]);
@@ -126,6 +140,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       
       if (competitionsData.data.return_code === 'SUCCESS') {
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
+        setLatestRoundStats(competitionsData.data.latest_round_stats || null);
         setLastUpdated(timestamp);
         setError(null); // Clear any previous errors
         console.log('✅ Force refresh successful');
@@ -162,6 +177,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       
       if (competitionsData.data.return_code === 'SUCCESS') {
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
+        setLatestRoundStats(competitionsData.data.latest_round_stats || null);
         setLastUpdated(Date.now());
       } else {
         console.error('Failed to refresh competitions:', competitionsData.data.message);
@@ -226,6 +242,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   const value: AppDataContextType = {
     competitions,
     user,
+    latestRoundStats,
     loading,
     error,
     refreshData,
