@@ -3,9 +3,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import {
   ArrowLeftIcon,
-  ChevronDownIcon,
+  FireIcon,
+  ClockIcon,
+  TrophyIcon,
+  HeartIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  MinusCircleIcon,
+  LockClosedIcon,
+  LockOpenIcon,
+  ChevronLeftIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { userApi } from '@/lib/api';
@@ -50,20 +59,22 @@ export default function CompetitionStandingsPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
-  
-  
+
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
   const [currentUser, setCurrentUser] = useState<{ id: number; email: string; display_name: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const playersPerPage = 25;
+  const paginationThreshold = 50;
+
   const loadStandings = useCallback(async () => {
     if (abortControllerRef.current?.signal.aborted) return;
 
     try {
-      // Always load full user history - let frontend control display
       const standingsResponse = await userApi.getCompetitionStandings(parseInt(competitionId), true);
 
       if (abortControllerRef.current?.signal.aborted) return;
@@ -71,6 +82,7 @@ export default function CompetitionStandingsPage() {
       if (standingsResponse.data.return_code === 'SUCCESS') {
         setCompetition(standingsResponse.data.competition as Competition);
         setPlayers(standingsResponse.data.players as Player[]);
+        setCurrentPage(1); // Reset to first page when data changes
       } else {
         console.error('Failed to load standings:', standingsResponse.data.message);
         router.push(`/game/${competitionId}`);
@@ -87,81 +99,139 @@ export default function CompetitionStandingsPage() {
   }, [competitionId, router]);
 
   useEffect(() => {
-    // Create abort controller for this effect
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     const initializeData = async () => {
-      // Check authentication
       const token = localStorage.getItem('jwt_token');
-      
+
       if (!token) {
         if (!controller.signal.aborted) router.push('/login');
         return;
       }
 
       try {
-        // Get current user
-        const user = await getCurrentUser();
-        if (user && !controller.signal.aborted) {
-          setCurrentUser(user);
-          // Auto-expand current user's history
-          setExpandedPlayers(prev => new Set([...prev, user.id]));
-        }
-        
+        const user = getCurrentUser();
         if (!controller.signal.aborted) {
+          setCurrentUser(user);
           await loadStandings();
         }
       } catch (error) {
-        console.error('Error initializing data:', error);
+        console.warn('Failed to load standings data:', error);
         if (!controller.signal.aborted) router.push('/login');
-        return;
       }
     };
 
-    // Handle auth expiration
-    const handleAuthExpired = () => {
-      if (!controller.signal.aborted) {
-        router.push('/login');
-      }
-    };
-
-    window.addEventListener('auth-expired', handleAuthExpired);
     initializeData();
 
     return () => {
       controller.abort();
-      window.removeEventListener('auth-expired', handleAuthExpired);
-      abortControllerRef.current = null;
     };
-  }, [competitionId, router, loadStandings]);
+  }, [router, loadStandings]);
 
-  const togglePlayerExpansion = (playerId: number) => {
-    setExpandedPlayers(prev => {
-      if (prev.has(playerId)) {
-        // If this player is already expanded, collapse them
-        const newSet = new Set(prev);
-        newSet.delete(playerId);
-        return newSet;
-      } else {
-        // If expanding a new player, collapse all others and expand this one
-        return new Set([playerId]);
-      }
-    });
+  const activePlayers = players.filter(p => p.status === 'active');
+  const eliminatedPlayers = players.filter(p => p.status !== 'active');
+
+  // Determine if pagination is needed
+  const totalPlayers = players.length;
+  const needsPagination = totalPlayers >= paginationThreshold;
+
+  // Sort all players with current user first, then by name
+  const sortedAllPlayers = [...activePlayers, ...eliminatedPlayers].sort((a, b) => {
+    const aIsCurrentUser = currentUser?.id === a.id;
+    const bIsCurrentUser = currentUser?.id === b.id;
+    if (aIsCurrentUser && !bIsCurrentUser) return -1;
+    if (!aIsCurrentUser && bIsCurrentUser) return 1;
+
+    // Then by status (active first)
+    if (a.status === 'active' && b.status !== 'active') return -1;
+    if (a.status !== 'active' && b.status === 'active') return 1;
+
+    // Then alphabetically
+    return a.display_name.localeCompare(b.display_name);
+  });
+
+  // Calculate pagination
+  const totalPages = needsPagination ? Math.ceil(totalPlayers / playersPerPage) : 1;
+  const startIndex = needsPagination ? (currentPage - 1) * playersPerPage : 0;
+  const endIndex = needsPagination ? startIndex + playersPerPage : totalPlayers;
+
+  // Get players for current page
+  const currentPagePlayers = needsPagination ? sortedAllPlayers.slice(startIndex, endIndex) : sortedAllPlayers;
+  const currentPageActivePlayers = currentPagePlayers.filter(p => p.status === 'active');
+  const currentPageEliminatedPlayers = currentPagePlayers.filter(p => p.status !== 'active');
+
+  // Check if current round is locked
+  const isCurrentRoundLocked = (() => {
+    if (!competition?.current_round_lock_time) return false;
+    const now = new Date();
+    const lockTime = new Date(competition.current_round_lock_time);
+    return now >= lockTime;
+  })();
+
+  // Determine if picks should be visible
+  const isPickVisible = (playerId: number) => {
+    const isOwnPlayer = currentUser && currentUser.id === playerId;
+    const hasEnoughPlayersToHide = activePlayers.length <= 3;
+    return isCurrentRoundLocked || !hasEnoughPlayersToHide || isOwnPlayer;
   };
 
+  // Calculate player streaks and stats
+  const getPlayerStats = (player: Player) => {
+    const recentHistory = player.history.slice(-5); // Last 5 rounds
+    let currentStreak = 0;
+    let streakType: 'win' | 'loss' | null = null;
 
+    if (recentHistory.length > 0) {
+      const latestResult = recentHistory[recentHistory.length - 1]?.pick_result;
+      if (latestResult === 'win' || latestResult === 'loss') {
+        streakType = latestResult;
 
+        // Count consecutive results of same type from the end
+        for (let i = recentHistory.length - 1; i >= 0; i--) {
+          if (recentHistory[i].pick_result === streakType) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    const totalWins = recentHistory.filter(h => h.pick_result === 'win').length;
+    const totalRounds = recentHistory.length;
+
+    return {
+      currentStreak,
+      streakType,
+      recentWins: totalWins,
+      recentTotal: totalRounds,
+      winRate: totalRounds > 0 ? Math.round((totalWins / totalRounds) * 100) : 0,
+      recentForm: recentHistory.slice(-3).map(h => h.pick_result) // Last 3 for form display
+    };
+  };
+
+  // Get winner status
+  const getWinnerStatus = () => {
+    if (competition?.status === 'COMPLETE' && activePlayers.length === 1) {
+      return { isComplete: true, winner: activePlayers[0]?.display_name };
+    } else if (competition?.status === 'COMPLETE' && activePlayers.length === 0) {
+      return { isComplete: true, winner: null };
+    }
+    return { isComplete: false };
+  };
+
+  const winnerStatus = getWinnerStatus();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-lg mb-4">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-400 border-t-transparent"></div>
           </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Standings</h3>
-          <p className="text-slate-500">Please wait...</p>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">Loading Standings</h3>
+          <p className="text-slate-600">Getting the latest results...</p>
         </div>
       </div>
     );
@@ -172,470 +242,395 @@ export default function CompetitionStandingsPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <h3 className="text-lg font-medium text-slate-900 mb-2">Competition Not Found</h3>
-          <Link href={`/game/${competitionId}`} className="text-slate-600 hover:text-slate-900 underline">
-            Back to Game
-          </Link>
+          <p className="text-slate-500">Unable to load competition data.</p>
         </div>
       </div>
     );
   }
 
-  const activePlayers = players.filter(p => p.status !== 'out');
-  const eliminatedPlayers = players.filter(p => p.status === 'out');
-
-  // Winner detection logic - only show winner when competition status is COMPLETE
-  const getWinnerStatus = () => {
-    const playerCount = activePlayers.length;
-    const isComplete = competition?.status === 'COMPLETE';
-    
-    if (isComplete && playerCount === 1) {
-      return { isComplete: true, winner: true };
-    } else if (isComplete && playerCount === 0) {
-      return { isComplete: true, winner: false };
-    }
-    return { isComplete: false, winner: false };
-  };
-
-  const winnerStatus = getWinnerStatus();
-
-  // Determine if a player's current pick should be visible
-  const isPickVisible = (playerId: number) => {
-    const isOwnPlayer = currentUser && currentUser.id === playerId;
-
-    // Check if current round is locked using the competition's current_round_lock_time
-    const isCurrentRoundLocked = (() => {
-      if (!competition?.current_round_lock_time) return false;
-
-      const now = new Date();
-      const lockTime = new Date(competition.current_round_lock_time);
-      return now >= lockTime;
-    })();
-
-    // Hide picks only if: (3 or fewer players) AND (round not locked) AND (not own pick)
-    const hasEnoughPlayersToHide = activePlayers.length <= 3;
-
-    // Show picks if: (round is locked) OR (more than 3 players) OR (own player)
-    return isCurrentRoundLocked || !hasEnoughPlayersToHide || isOwnPlayer;
-  };
-
-  // Always show full history for current user, recent history for others
-  const getFilteredHistory = (player: Player) => {
-    const isOwnPlayer = currentUser && currentUser.id === player.id;
-    if (isOwnPlayer) {
-      return player.history; // Show all history for current user
-    }
-    // Show recent history only (last 3 rounds) for other players
-    return player.history.slice(-3);
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <Link 
-                href={`/game/${competitionId}`} 
-                className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors"
+              <Link
+                href={`/game/${competitionId}`}
+                className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors group"
               >
-                <ArrowLeftIcon className="h-5 w-5" />
+                <ArrowLeftIcon className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform" />
                 <span className="font-medium">Back</span>
               </Link>
-              <div className="h-4 sm:h-6 w-px bg-slate-300 flex-shrink-0" />
-              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-                <div className="min-w-0">
-                  <h1 className="text-base sm:text-lg font-semibold text-slate-900 truncate">
-                    Standings
-                  </h1>
-                </div>
+              <div className="h-6 w-px bg-slate-300" />
+              <div>
+                <h1 className="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                  <TrophyIcon className="h-5 w-5 text-amber-500" />
+                  <span>Standings</span>
+                </h1>
               </div>
             </div>
-            
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        
-        {/* Header with Competition Info & Quick Stats */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
-            <div className="flex-1">
-              <div className="flex items-center space-x-4 text-sm text-slate-600">
-                <span>Round {competition.current_round || 1}</span>
-                <span>•</span>
-                <span>{activePlayers.length} active</span>
-                {eliminatedPlayers.length > 0 && (
-                  <>
-                    <span>•</span>
-                    <span>{eliminatedPlayers.length} out</span>
-                  </>
-                )}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        {/* Competition Status Hero */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">{competition.name}</h2>
+                <div className="flex items-center space-x-4 text-blue-100">
+                  <span className="flex items-center space-x-1">
+                    <span className="font-medium">Round {competition.current_round}</span>
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center space-x-1">
+                    {isCurrentRoundLocked ? (
+                      <LockClosedIcon className="h-4 w-4" />
+                    ) : (
+                      <LockOpenIcon className="h-4 w-4" />
+                    )}
+                    <span>{isCurrentRoundLocked ? 'Locked' : 'Open'}</span>
+                  </span>
+                  <span>•</span>
+                  <span>{activePlayers.length} players remaining</span>
+                </div>
+              </div>
+              {winnerStatus.isComplete && (
+                <div className="text-center">
+                  <TrophyIcon className="h-8 w-8 text-yellow-300 mx-auto mb-1" />
+                  <div className="text-sm font-medium">
+                    {winnerStatus.winner ? `${winnerStatus.winner} Wins!` : 'Draw!'}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {competition.current_round_lock_time && (
+            <div className="px-6 py-3 bg-slate-50 border-t border-slate-100">
+              <div className="flex items-center space-x-2 text-sm text-slate-600">
+                <ClockIcon className="h-4 w-4" />
+                <span>
+                  Round {isCurrentRoundLocked ? 'locked' : 'locks'}: {' '}
+                  {new Date(competition.current_round_lock_time).toLocaleString('en-GB', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                  })}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Active Players */}
+        {currentPageActivePlayers.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
+              <HeartIcon className="h-5 w-5 text-red-500" />
+              <span>IN ({activePlayers.length} / {players.length}){needsPagination ? ` - Page ${currentPage} of ${totalPages}` : ''}</span>
+            </h3>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {currentPageActivePlayers.map((player) => {
+                const stats = getPlayerStats(player);
+                const isCurrentUser = currentUser?.id === player.id;
+
+                return (
+                  <div
+                    key={player.id}
+                    className={`bg-white rounded-xl shadow-sm border-2 transition-all hover:shadow-md ${
+                      isCurrentUser
+                        ? 'border-blue-200 bg-blue-50/30'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {/* Player Header */}
+                    <div className="p-4 pb-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className={`font-semibold text-lg ${isCurrentUser ? 'text-blue-900' : 'text-slate-900'}`}>
+                          {player.display_name}
+                          {isCurrentUser && (
+                            <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                              You
+                            </span>
+                          )}
+                        </h4>
+
+                        {/* Lives Display */}
+                        <div className="flex items-center space-x-2">
+                          <div className="flex space-x-1">
+                            {[...Array(3)].map((_, i) => (
+                              <HeartIcon
+                                key={i}
+                                className={`h-4 w-4 ${
+                                  i < player.lives_remaining
+                                    ? 'text-red-500 fill-current'
+                                    : 'text-slate-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-sm font-medium text-slate-600">
+                            {player.lives_remaining}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Current Pick */}
+                      {isPickVisible(player.id) && (
+                        <div className="mb-3">
+                          {player.current_pick && player.current_pick.outcome !== 'NO_PICK' ? (
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium text-green-800">Current Pick</span>
+                              </div>
+                              <div className="text-green-900 font-semibold">
+                                {player.current_pick.team_full_name || player.current_pick.team}
+                              </div>
+                              {player.current_pick.fixture && (
+                                <div className="text-sm text-green-700 mt-1">
+                                  {player.current_pick.fixture}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <MinusCircleIcon className="h-4 w-4 text-slate-400" />
+                                <span className="text-sm font-medium text-slate-600">No Pick</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Stats & Streak */}
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-3">
+                          {/* Recent Form */}
+                          <div className="flex items-center space-x-1">
+                            <span className="text-slate-600">Form:</span>
+                            <div className="flex space-x-0.5">
+                              {stats.recentForm.slice(-3).map((result, i) => (
+                                <div
+                                  key={i}
+                                  className={`w-2 h-2 rounded-full ${
+                                    result === 'win' ? 'bg-green-500' :
+                                    result === 'loss' ? 'bg-red-500' :
+                                    'bg-slate-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Win Rate */}
+                          <div className="text-slate-600">
+                            <span className="font-medium">{stats.winRate}%</span> win rate
+                          </div>
+                        </div>
+
+                        {/* Streak */}
+                        {stats.currentStreak > 1 && (
+                          <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+                            stats.streakType === 'win'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {stats.streakType === 'win' && <FireIcon className="h-3 w-3" />}
+                            <span>
+                              {stats.currentStreak} {stats.streakType === 'win' ? 'wins' : 'losses'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recent History */}
+                    {player.history.length > 0 && (
+                      <div className="border-t border-slate-100 px-4 py-3 bg-slate-50/50">
+                        <h5 className="text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">
+                          Recent History
+                        </h5>
+                        <div className="space-y-2">
+                          {player.history.sort((a, b) => b.round_number - a.round_number).slice(0, 3).map((round) => (
+                            <div key={round.round_id} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-slate-600 font-medium">R{round.round_number}</span>
+                                <span className="text-slate-900">
+                                  {round.pick_team_full_name || 'No Pick'}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                {round.pick_result === 'win' ? (
+                                  <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                                ) : round.pick_result === 'loss' ? (
+                                  <XCircleIcon className="h-4 w-4 text-red-500" />
+                                ) : (
+                                  <ClockIcon className="h-4 w-4 text-slate-400" />
+                                )}
+                                <span className={`text-xs font-medium ${
+                                  round.pick_result === 'win' ? 'text-green-600' :
+                                  round.pick_result === 'loss' ? 'text-red-600' :
+                                  'text-slate-500'
+                                }`}>
+                                  {round.pick_result === 'win' ? 'WIN' :
+                                   round.pick_result === 'loss' ? 'LOSE' :
+                                   'PENDING'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Eliminated Players */}
+        {currentPageEliminatedPlayers.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-600 flex items-center space-x-2">
+              <XCircleIcon className="h-5 w-5 text-slate-500" />
+              <span>Eliminated ({eliminatedPlayers.length})</span>
+            </h3>
+
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+              {currentPageEliminatedPlayers.map((player) => {
+                const stats = getPlayerStats(player);
+                const isCurrentUser = currentUser?.id === player.id;
+
+                return (
+                  <div
+                    key={player.id}
+                    className={`relative rounded-lg border-2 p-4 transition-all ${
+                      isCurrentUser
+                        ? 'bg-red-50/50 border-red-200 shadow-sm'
+                        : 'bg-slate-50 border-slate-200 opacity-75'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className={`font-medium ${
+                        isCurrentUser ? 'text-red-800' : 'text-slate-700'
+                      }`}>
+                        {player.display_name}
+                        {isCurrentUser && (
+                          <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                            You
+                          </span>
+                        )}
+                      </h4>
+                      <div className="flex items-center space-x-1">
+                        <XCircleIcon className="h-4 w-4 text-red-500" />
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${
+                          isCurrentUser
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          OUT
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Elimination Reason */}
+                    <div className={`text-xs mb-2 px-2 py-1 rounded ${
+                      isCurrentUser
+                        ? 'bg-red-100 text-red-700 border border-red-200'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      Eliminated
+                    </div>
+
+                    {isPickVisible(player.id) && player.current_pick && (
+                      <div className={`text-sm mb-2 ${
+                        isCurrentUser ? 'text-red-700' : 'text-slate-600'
+                      }`}>
+                        Final pick: {player.current_pick.team_full_name || player.current_pick.team || 'None'}
+                      </div>
+                    )}
+
+                    <div className={`text-xs ${
+                      isCurrentUser ? 'text-red-600' : 'text-slate-500'
+                    }`}>
+                      {stats.winRate}% win rate • Lasted {player.history.length} round{player.history.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {needsPagination && (
+          <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-slate-600">
+                  Showing {startIndex + 1}-{Math.min(endIndex, totalPlayers)} of {totalPlayers} players
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      currentPage === 1
+                        ? 'text-slate-400 cursor-not-allowed'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <ChevronLeftIcon className="h-4 w-4 mr-1" />
+                    Previous
+                  </button>
+
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          currentPage === page
+                            ? 'bg-slate-900 text-white'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      currentPage === totalPages
+                        ? 'text-slate-400 cursor-not-allowed'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    Next
+                    <ChevronRightIcon className="h-4 w-4 ml-1" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-
-        {/* Players List - Simplified */}
-        <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
-          {/* Active Players */}
-          {activePlayers.map((player) => (
-            <div key={player.id} className="p-4 hover:bg-slate-50 transition-colors">
-              <div 
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => togglePlayerExpansion(player.id)}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <p className="font-medium text-slate-900 truncate">
-                          {player.display_name}
-                          {winnerStatus.winner && (
-                            <span className="ml-2 text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">WINNER</span>
-                          )}
-                        </p>
-                      </div>
-                      {isPickVisible(player.id) && player.current_pick && (
-                        <p className="text-sm text-slate-600 truncate">
-                          {player.current_pick.outcome === 'NO_PICK' ? (
-                            <span className="text-slate-500">No Pick</span>
-                          ) : (
-                            <span>Pick: {player.current_pick.team_full_name || player.current_pick.team}</span>
-                          )}
-                        </p>
-                      )}
-                      {isPickVisible(player.id) && !player.current_pick && (
-                        <p className="text-sm text-slate-500">No Pick</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-slate-900">
-                      {winnerStatus.winner
-                        ? 'Winner' 
-                        : `${player.lives_remaining} lives`
-                      }
-                    </p>
-                  </div>
-                  
-                  {expandedPlayers.has(player.id) ? (
-                    <ChevronDownIcon className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
-                  ) : (
-                    <ChevronRightIcon className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
-                  )}
-                </div>
-              </div>
-              
-              {/* Expanded History */}
-              {expandedPlayers.has(player.id) && (
-                <div className="border-t border-slate-200 p-4 bg-slate-50 mt-4">
-                  <h4 className="font-medium text-slate-900 mb-3">Round History</h4>
-                  
-                  {/* Desktop History Table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200">
-                          <th className="text-left py-2 font-medium text-slate-700">Round</th>
-                          <th className="text-left py-2 font-medium text-slate-700">Pick</th>
-                          <th className="text-left py-2 font-medium text-slate-700">Fixture</th>
-                          <th className="text-left py-2 font-medium text-slate-700">Result</th>
-                          <th className="text-left py-2 font-medium text-slate-700">Outcome</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getFilteredHistory(player).length > 0 ? (
-                          getFilteredHistory(player).map((round) => (
-                            <tr key={`${player.id}-${round.round_id}`} className="border-b border-slate-100">
-                              <td className="py-2">
-                                <span className="font-medium">Round {round.round_number}</span>
-                              </td>
-                              <td className="py-2">
-                                {round.pick_team_full_name ? (
-                                  <span className="text-slate-900 font-medium">{round.pick_team_full_name}</span>
-                                ) : (
-                                  <span className="text-slate-500 font-medium">No Pick</span>
-                                )}
-                              </td>
-                              <td className="py-2">
-                                {round.pick_team_full_name && round.fixture ? (
-                                  <span className="text-slate-700">{round.fixture}</span>
-                                ) : (
-                                  <span className="text-slate-400">-</span>
-                                )}
-                              </td>
-                              <td className="py-2">
-                                {round.pick_team_full_name && round.fixture_result ? (
-                                  <span className="text-slate-700">{round.fixture_result}</span>
-                                ) : round.pick_team_full_name && !round.fixture_result ? (
-                                  <span className="text-slate-400">Pending</span>
-                                ) : (
-                                  <span className="text-slate-400">-</span>
-                                )}
-                              </td>
-                              <td className="py-2">
-                                <span className={`px-2 py-1 text-xs rounded font-medium ${
-                                  round.pick_result === 'win' ? 'bg-green-100 text-green-800' :
-                                  round.pick_result === 'loss' ? 'bg-red-100 text-red-800' :
-                                  'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {round.pick_result === 'win' ? 'WIN' :
-                                   round.pick_result === 'loss' ? 'LOSE' :
-                                   'PENDING'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="py-4 text-center text-slate-500">
-                              No previous rounds completed
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Mobile History Cards */}
-                  <div className="md:hidden space-y-3">
-                    {getFilteredHistory(player).length > 0 ? (
-                      getFilteredHistory(player).map((round) => (
-                        <div key={`${player.id}-${round.round_id}`} className="border border-slate-200 rounded-lg p-3 bg-white">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-slate-900">Round {round.round_number}</span>
-                            <span className={`px-2 py-1 text-xs rounded font-medium ${
-                              round.pick_result === 'win' ? 'bg-slate-100 text-slate-800' :
-                              round.pick_result === 'loss' ? 'bg-slate-100 text-slate-800' :
-                              round.pick_result === 'no_pick' ? 'bg-slate-100 text-slate-600' :
-                              'bg-slate-100 text-slate-600'
-                            }`}>
-                              {round.pick_result === 'win' ? 'WIN' :
-                               round.pick_result === 'loss' ? 'LOSE' :
-                               round.pick_result === 'no_pick' ? 'NO PICK' :
-                               'PENDING'}
-                            </span>
-                          </div>
-                          
-                          <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-slate-600">Pick:</span>
-                              {round.pick_team_full_name ? (
-                                <span className="text-slate-900 font-medium">{round.pick_team_full_name}</span>
-                              ) : (
-                                <span className="text-slate-500 font-medium">No Pick</span>
-                              )}
-                            </div>
-                            
-                            {round.pick_team_full_name && round.fixture && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-600">Fixture:</span>
-                                <span className="text-slate-700 text-right">{round.fixture}</span>
-                              </div>
-                            )}
-
-                            {round.fixture_result && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-600">Result:</span>
-                                <span className="text-slate-700 text-right">
-                                  {round.fixture_result}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center text-slate-500 py-4">
-                        No previous rounds completed
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          
-          {/* Eliminated Players */}
-          {eliminatedPlayers.map((player) => (
-            <div key={player.id} className="p-4 hover:bg-slate-50 transition-colors opacity-75">
-              <div 
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => togglePlayerExpansion(player.id)}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <p className="font-medium text-slate-600 truncate">{player.display_name}</p>
-                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">OUT</span>
-                      </div>
-                      {isPickVisible(player.id) && player.current_pick && (
-                        <p className="text-sm text-slate-500 truncate">
-                          {player.current_pick.outcome === 'NO_PICK' ? (
-                            <span>No Pick</span>
-                          ) : (
-                            <span>Pick: {player.current_pick.team_full_name || player.current_pick.team}</span>
-                          )}
-                        </p>
-                      )}
-                      {isPickVisible(player.id) && !player.current_pick && (
-                        <p className="text-sm text-slate-500">No Pick</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-slate-500">0 lives</p>
-                  </div>
-                  
-                  {expandedPlayers.has(player.id) ? (
-                    <ChevronDownIcon className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
-                  ) : (
-                    <ChevronRightIcon className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
-                  )}
-                </div>
-              </div>
-              
-              {/* Expanded History */}
-              {expandedPlayers.has(player.id) && (
-                <div className="border-t border-slate-200 p-4 bg-slate-50 mt-4">
-                  <h4 className="font-medium text-slate-900 mb-3">Round History</h4>
-                  
-                  {/* Desktop History Table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200">
-                          <th className="text-left py-2 font-medium text-slate-700">Round</th>
-                          <th className="text-left py-2 font-medium text-slate-700">Pick</th>
-                          <th className="text-left py-2 font-medium text-slate-700">Fixture</th>
-                          <th className="text-left py-2 font-medium text-slate-700">Result</th>
-                          <th className="text-left py-2 font-medium text-slate-700">Outcome</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getFilteredHistory(player).length > 0 ? (
-                          getFilteredHistory(player).map((round) => (
-                            <tr key={`${player.id}-${round.round_id}`} className="border-b border-slate-100">
-                              <td className="py-2">
-                                <span className="font-medium">Round {round.round_number}</span>
-                              </td>
-                              <td className="py-2">
-                                {round.pick_team_full_name ? (
-                                  <span className="text-slate-700 font-medium">{round.pick_team_full_name}</span>
-                                ) : (
-                                  <span className="text-slate-500 font-medium">No Pick</span>
-                                )}
-                              </td>
-                              <td className="py-2">
-                                {round.pick_team_full_name && round.fixture ? (
-                                  <span className="text-slate-600">{round.fixture}</span>
-                                ) : (
-                                  <span className="text-slate-400">-</span>
-                                )}
-                              </td>
-                              <td className="py-2">
-                                {round.pick_team_full_name && round.fixture_result ? (
-                                  <span className="text-slate-600">{round.fixture_result}</span>
-                                ) : round.pick_team_full_name && !round.fixture_result ? (
-                                  <span className="text-slate-400">Pending</span>
-                                ) : (
-                                  <span className="text-slate-400">-</span>
-                                )}
-                              </td>
-                              <td className="py-2">
-                                <span className={`px-2 py-1 text-xs rounded font-medium ${
-                                  round.pick_result === 'win' ? 'bg-green-100 text-green-800' :
-                                  round.pick_result === 'loss' ? 'bg-red-100 text-red-800' :
-                                  'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {round.pick_result === 'win' ? 'WIN' :
-                                   round.pick_result === 'loss' ? 'LOSE' :
-                                   'PENDING'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="py-4 text-center text-slate-500">
-                              No previous rounds completed
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Mobile History Cards */}
-                  <div className="md:hidden space-y-3">
-                    {getFilteredHistory(player).length > 0 ? (
-                      getFilteredHistory(player).map((round) => (
-                        <div key={`${player.id}-${round.round_id}`} className="border border-slate-200 rounded-lg p-3 bg-white">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-slate-900">Round {round.round_number}</span>
-                            <span className={`px-2 py-1 text-xs rounded font-medium ${
-                              round.pick_result === 'win' ? 'bg-slate-100 text-slate-700' :
-                              round.pick_result === 'loss' ? 'bg-slate-100 text-slate-700' :
-                              round.pick_result === 'no_pick' ? 'bg-slate-100 text-slate-600' :
-                              'bg-slate-100 text-slate-600'
-                            }`}>
-                              {round.pick_result === 'win' ? 'WIN' :
-                               round.pick_result === 'loss' ? 'LOSE' :
-                               round.pick_result === 'no_pick' ? 'NO PICK' :
-                               'PENDING'}
-                            </span>
-                          </div>
-                          
-                          <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-slate-600">Pick:</span>
-                              {round.pick_team_full_name ? (
-                                <span className="text-slate-700 font-medium">{round.pick_team_full_name}</span>
-                              ) : (
-                                <span className="text-slate-500 font-medium">No Pick</span>
-                              )}
-                            </div>
-                            
-                            {round.pick_team_full_name && round.fixture && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-600">Fixture:</span>
-                                <span className="text-slate-600 text-right">{round.fixture}</span>
-                              </div>
-                            )}
-
-                            {round.fixture_result && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-600">Result:</span>
-                                <span className="text-slate-600 text-right">
-                                  {round.fixture_result}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center text-slate-500 py-4">
-                        No previous rounds completed
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
       </main>
     </div>
   );
