@@ -53,21 +53,27 @@ export default function UnifiedGameDashboard() {
   const isOrganiser = competition?.is_organiser || false;
   const isParticipant = competition?.is_participant || false;
   
-  // Simple winner detection using existing player_count and status
+  // Winner detection only shows when competition status is COMPLETE
   const getWinnerStatus = (comp: CompetitionType) => {
     const playerCount = comp.player_count || 0;
-    const isNotSetup = comp.status !== 'SETUP';
+    const isComplete = comp.status === 'COMPLETE';
     
-    if (playerCount === 1 && isNotSetup) return { isComplete: true, winner: winnerName, isDraw: false };
-    if (playerCount === 0 && isNotSetup) return { isComplete: true, winner: undefined, isDraw: true };
+    if (isComplete && playerCount === 1) return { isComplete: true, winner: winnerName, isDraw: false };
+    if (isComplete && playerCount === 0) return { isComplete: true, winner: undefined, isDraw: true };
     return { isComplete: false };
   };
 
   const competitionComplete = competition ? getWinnerStatus(competition) : { isComplete: false };
 
 
-  // Handle play button click - check for rounds and fixtures before routing
+  // Handle play button click - check player status first, then rounds and fixtures before routing
   const handlePlayClick = async () => {
+    // Check if player is eliminated before allowing play
+    if (competition?.user_status && competition.user_status !== 'active') {
+      router.push(`/game/${competitionId}/standings`);
+      return;
+    }
+
     try {
       const response = await roundApi.getRounds(parseInt(competitionId));
       
@@ -188,8 +194,8 @@ export default function UnifiedGameDashboard() {
           });
       }
       
-      // Load winner name if competition has 1 player and is not in setup
-      if (competition.player_count === 1 && competition.status !== 'SETUP' && !winnerLoadedRef.current) {
+      // Load winner name if competition is COMPLETE
+      if (competition.status === 'COMPLETE' && competition.player_count === 1 && !winnerLoadedRef.current) {
         winnerLoadedRef.current = true;
         userApi.getCompetitionStandings(parseInt(competitionId))
           .then(response => {
@@ -296,7 +302,8 @@ export default function UnifiedGameDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
 
-        {/* Round Status Banner */}
+        {/* Round Status Banner - Hide when competition is complete */}
+        {!competitionComplete.isComplete && (
         <div className="mb-6 sm:mb-8">
           <div className="rounded-xl p-4 sm:p-6 border border-slate-200 shadow-sm bg-slate-50">
             <div className="flex items-center justify-between">
@@ -380,6 +387,7 @@ export default function UnifiedGameDashboard() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Competition Completion Banner */}
         {competitionComplete.isComplete && (
@@ -408,7 +416,7 @@ export default function UnifiedGameDashboard() {
                 
                 <div className="mt-4">
                   <Link 
-                    href={`/play/${competitionId}/standings`}
+                    href={`/game/${competitionId}/standings`}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-700 transition-colors text-sm sm:text-base"
                   >
                     <TrophyIcon className="h-4 w-4" />
@@ -443,6 +451,43 @@ export default function UnifiedGameDashboard() {
                 <span className="font-bold text-slate-800">
                   {competition?.total_players || 0}
                 </span>
+              </div>
+              
+              {/* Visual Progress Bar */}
+              <div className="pt-2">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="flex-1 flex space-x-0.5">
+                    {(() => {
+                      const totalPlayers = competition?.total_players || 0;
+                      const activePlayers = competition?.player_count || 0;
+                      const maxSegments = 20;
+                      
+                      // Calculate segments to show (max 20, min actual player count)
+                      const segmentsToShow = Math.min(maxSegments, Math.max(1, totalPlayers));
+                      const playersPerSegment = totalPlayers / segmentsToShow;
+                      
+                      return [...Array(segmentsToShow)].map((_, index) => {
+                        // Calculate how many players this segment represents
+                        const segmentStartPlayer = index * playersPerSegment;
+
+                        // Segment is active if any of its players are active
+                        const isActive = segmentStartPlayer < activePlayers;
+                        
+                        return (
+                          <div
+                            key={index}
+                            className={`h-3 flex-1 rounded-sm ${
+                              isActive ? 'bg-emerald-500' : 'bg-slate-200'
+                            }`}
+                          />
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+                <div className="text-xs text-slate-500 text-center">
+                  {competition?.player_count || 0} of {competition?.total_players || 0} remaining
+                </div>
               </div>
             </div>
           </div>
@@ -510,10 +555,13 @@ export default function UnifiedGameDashboard() {
                   <>
                     <div className="text-2xl font-bold text-blue-600 mb-1">
                       <CheckCircleIcon className="h-6 w-6 inline mr-2" />
-                      Round Complete
+                      {competitionComplete.isComplete ? 'Final Round Complete' : 'Round Complete'}
                     </div>
                     <div className="text-sm text-slate-600">
-                      {competition?.player_count || 0} players waiting for next round
+                      {competitionComplete.isComplete 
+                        ? 'Competition has ended' 
+                        : `${competition?.player_count || 0} players waiting for next round`
+                      }
                     </div>
                   </>
                 ) : currentRoundInfo.is_locked ? (
@@ -556,13 +604,15 @@ export default function UnifiedGameDashboard() {
                       ? 'text-emerald-600' 
                       : 'text-red-500'
                   }`}>
-                    {competition.user_status === 'active' ? 'Active' : 'Eliminated'}
+                    {competition.user_status === 'active' ? 'Active' : 'Out'}
                   </span>
                 </div>
-                {competition.lives_remaining !== undefined && (
+                {competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600">Lives Remaining</span>
-                    <span className="font-bold text-slate-800">{competition.lives_remaining}</span>
+                    <span className="font-bold text-slate-800">
+                      {competition.lives_remaining}
+                    </span>
                   </div>
                 )}
               </div>

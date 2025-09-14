@@ -115,7 +115,7 @@ router.post('/', verifyToken, async (req, res) => {
       SELECT 
         COUNT(*) as total_players,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_players,
-        COUNT(CASE WHEN status = 'OUT' THEN 1 END) as eliminated_players
+        COUNT(CASE WHEN status = 'out' THEN 1 END) as eliminated_players
       FROM competition_user
       WHERE competition_id = $1
     `, [competition_id]);
@@ -183,7 +183,7 @@ router.post('/', verifyToken, async (req, res) => {
       id: row.player_id,
       display_name: row.display_name,
       email: row.email,
-      status: row.status === 'OUT' ? 'eliminated' : 'active', // Map database status to frontend expected values
+      status: row.status || 'active', // Return database status as-is ('active' or 'out')
       lives_remaining: row.lives_remaining || 0,
       joined_at: row.joined_at,
       paid: row.paid || false,

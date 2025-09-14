@@ -46,6 +46,7 @@ const setPickRoute = require('./routes/set-pick');
 const adminSetPickRoute = require('./routes/admin-set-pick');
 const updatePaymentStatusRoute = require('./routes/update-payment-status');
 const updatePlayerLivesRoute = require('./routes/update-player-lives');
+const updatePlayerStatusRoute = require('./routes/update-player-status');
 const calculateResultsRoute = require('./routes/calculate-results');
 
 // const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
@@ -188,6 +189,7 @@ app.use('/set-pick', setPickRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/update-payment-status', updatePaymentStatusRoute);
 app.use('/update-player-lives', updatePlayerLivesRoute);
+app.use('/update-player-status', updatePlayerStatusRoute);
 app.use('/calculate-results', calculateResultsRoute);
 
 // app.use('/player-login', playerLoginRoute); // DISABLED - using single login
