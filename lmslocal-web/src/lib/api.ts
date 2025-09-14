@@ -501,6 +501,16 @@ export const adminApi = {
       paid_date?: string;
     }
   }>('/update-payment-status', { competition_id, user_id, paid, paid_amount, paid_date }),
+
+  // Lives management - allows admins to add/subtract/set player lives with audit logging
+  updatePlayerLives: (competition_id: number, player_id: number, operation: 'add' | 'subtract' | 'set', amount: number, reason?: string) => api.post<{
+    return_code: string;
+    message?: string;
+    lives_remaining?: number;        // New lives count after operation
+    previous_lives?: number;         // Lives count before operation
+    player_name?: string;           // Player display name
+    operation_performed?: string;   // Operation that was performed
+  }>('/update-player-lives', { competition_id, player_id, operation, amount, reason }),
 };
 
 // User profile

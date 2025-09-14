@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import {
   ArrowLeftIcon,
   UserIcon,
   TrashIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  PlusIcon,
+  MinusIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, offlinePlayerApi, Competition, Player } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -33,6 +35,11 @@ export default function CompetitionPlayersPage() {
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '', email: '' });
+
+  // Lives management state - track pending changes before saving
+  const [pendingLivesChanges, setPendingLivesChanges] = useState<Map<number, number>>(new Map());
+  const [savingLivesChanges, setSavingLivesChanges] = useState(false);
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -190,9 +197,9 @@ export default function CompetitionPlayersPage() {
 
   const handlePaymentToggle = async (playerId: number, currentPaid: boolean) => {
     if (!competition || updatingPayment.has(playerId)) return;
-    
+
     setUpdatingPayment(prev => new Set([...prev, playerId]));
-    
+
     try {
       const response = await adminApi.updatePaymentStatus(
         competition.id,
@@ -201,13 +208,13 @@ export default function CompetitionPlayersPage() {
         undefined, // No amount for now
         !currentPaid ? new Date().toISOString() : undefined // Set current time if marking as paid
       );
-      
+
       if (response.data.return_code === 'SUCCESS') {
         // Update the local state
-        setPlayers(prev => prev.map(player => 
-          player.id === playerId 
-            ? { 
-                ...player, 
+        setPlayers(prev => prev.map(player =>
+          player.id === playerId
+            ? {
+                ...player,
                 paid: !currentPaid,
                 paid_date: !currentPaid ? new Date().toISOString() : undefined
               }
@@ -226,6 +233,95 @@ export default function CompetitionPlayersPage() {
         return newSet;
       });
     }
+  };
+
+  // Local lives management - update UI immediately, track changes for batch save
+  const handleLivesChange = (playerId: number, operation: 'add' | 'subtract') => {
+    if (!competition || savingLivesChanges) return;
+
+    setPlayers(prev => prev.map(player => {
+      if (player.id === playerId) {
+        const newLives = operation === 'add'
+          ? Math.min(3, player.lives_remaining + 1)
+          : Math.max(0, player.lives_remaining - 1);
+
+        // Track this change for batch save
+        setPendingLivesChanges(prevPending => {
+          const newPending = new Map(prevPending);
+          newPending.set(playerId, newLives);
+          return newPending;
+        });
+
+        return { ...player, lives_remaining: newLives };
+      }
+      return player;
+    }));
+  };
+
+  // Save all pending lives changes to the server
+  const handleSaveLivesChanges = async () => {
+    if (!competition || pendingLivesChanges.size === 0 || savingLivesChanges) return;
+
+    setSavingLivesChanges(true);
+
+    try {
+      // Send all changes to the server sequentially
+      const results = [];
+      for (const [playerId, newLives] of pendingLivesChanges) {
+        // Find the original lives count to determine the operation
+        const originalPlayer = players.find(p => p.id === playerId);
+        if (!originalPlayer) continue;
+
+        const response = await adminApi.updatePlayerLives(
+          competition.id,
+          playerId,
+          'set',
+          newLives,
+          `Admin batch update: set to ${newLives} lives`
+        );
+
+        results.push({
+          playerId,
+          success: response.data.return_code === 'SUCCESS',
+          error: response.data.message
+        });
+      }
+
+      // Check for any failures
+      const failures = results.filter(r => !r.success);
+      if (failures.length > 0) {
+        alert(`Failed to update ${failures.length} player(s). Please try again.`);
+        // Keep failed changes in pending list
+        setPendingLivesChanges(prev => {
+          const newPending = new Map();
+          failures.forEach(f => {
+            if (prev.has(f.playerId)) {
+              newPending.set(f.playerId, prev.get(f.playerId));
+            }
+          });
+          return newPending;
+        });
+      } else {
+        // All successful - clear pending changes
+        setPendingLivesChanges(new Map());
+        console.log(`Successfully updated lives for ${results.length} players`);
+      }
+
+    } catch (error) {
+      console.error('Failed to save lives changes:', error);
+      alert('Failed to save lives changes. Please try again.');
+    } finally {
+      setSavingLivesChanges(false);
+    }
+  };
+
+  // Reset any unsaved lives changes back to original values
+  const handleCancelLivesChanges = () => {
+    if (savingLivesChanges) return;
+
+    // Reload the original player data to reset any pending changes
+    loadPlayers();
+    setPendingLivesChanges(new Map());
   };
 
   // Filter players based on payment status
@@ -320,7 +416,7 @@ export default function CompetitionPlayersPage() {
               </button>
             </div>
           )}
-          
+
           {/* Filter Buttons */}
           <div className="flex space-x-2">
             <button
@@ -356,6 +452,46 @@ export default function CompetitionPlayersPage() {
           </div>
         </div>
 
+        {/* Lives Changes Save/Cancel Bar - Show when there are pending changes */}
+        {pendingLivesChanges.size > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-blue-900">
+                  {pendingLivesChanges.size} player{pendingLivesChanges.size !== 1 ? 's' : ''} with unsaved lives changes
+                </span>
+                <span className="text-xs text-blue-600">
+                  (* indicates changed)
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleCancelLivesChanges}
+                  disabled={savingLivesChanges}
+                  className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded hover:bg-blue-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel Changes
+                </button>
+                <button
+                  onClick={handleSaveLivesChanges}
+                  disabled={savingLivesChanges}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  {savingLivesChanges ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent mr-1"></div>
+                      Saving...
+                    </div>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Players List - Simplified */}
         <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
           {filteredPlayers.map((player) => (
@@ -381,24 +517,51 @@ export default function CompetitionPlayersPage() {
                 
                 {/* Status & Actions */}
                 <div className="flex items-center space-x-4">
-                  {/* Lives */}
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-slate-900">{player.lives_remaining}</p>
-                    <p className="text-xs text-slate-500">lives</p>
+                  {/* Lives Management - Immediate UI Updates with Pending Changes */}
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() => handleLivesChange(player.id, 'subtract')}
+                      disabled={savingLivesChanges || player.lives_remaining <= 0}
+                      className="p-1 text-red-500 hover:text-red-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Remove 1 life"
+                    >
+                      <MinusIcon className="h-4 w-4" strokeWidth={2} />
+                    </button>
+
+                    <div className="flex items-center space-x-1 px-2">
+                      <span className={`text-sm font-medium min-w-[1rem] text-center ${
+                        pendingLivesChanges.has(player.id) ? 'text-blue-600 font-bold' : 'text-slate-900'
+                      }`}>
+                        {player.lives_remaining}
+                      </span>
+                      <span className="text-xs text-slate-500">lives</span>
+                      {pendingLivesChanges.has(player.id) && (
+                        <span className="text-xs text-blue-500">*</span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => handleLivesChange(player.id, 'add')}
+                      disabled={savingLivesChanges || player.lives_remaining >= 3}
+                      className="p-1 text-green-500 hover:text-green-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Add 1 life"
+                    >
+                      <PlusIcon className="h-4 w-4" strokeWidth={2} />
+                    </button>
                   </div>
 
                   {/* Payment Status */}
                   <div className="text-center">
                     <p className="text-sm font-medium">
                       {player.paid ? (
-                        <span className="text-slate-600">Paid</span>
+                        <span className="text-green-600">Paid</span>
                       ) : (
-                        <span className="text-slate-600">Unpaid</span>
+                        <span className="text-orange-600">Unpaid</span>
                       )}
                     </p>
                   </div>
-                  
-                  {/* Actions */}
+
+                  {/* Other Actions */}
                   <div className="flex items-center space-x-1">
                     <button
                       onClick={() => handlePaymentToggle(player.id, player.paid)}
@@ -412,7 +575,7 @@ export default function CompetitionPlayersPage() {
                         <CurrencyDollarIcon className="h-4 w-4" strokeWidth={1.5} />
                       )}
                     </button>
-                    
+
                     {competition?.invite_code && (
                       <button
                         onClick={() => handleRemovePlayerClick(player.id, player.display_name)}
@@ -548,6 +711,7 @@ export default function CompetitionPlayersPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
