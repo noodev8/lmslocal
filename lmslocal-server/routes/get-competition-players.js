@@ -125,7 +125,7 @@ router.post('/', verifyToken, async (req, res) => {
     // STEP 3: Get detailed player data
     // Separate query for actual player data to avoid LEFT JOIN complications
     const playersResult = await query(`
-      SELECT 
+      SELECT
         u.id as player_id,
         u.display_name,
         u.email,
@@ -134,6 +134,7 @@ router.post('/', verifyToken, async (req, res) => {
         cu.joined_at,
         cu.paid,
         cu.paid_date,
+        cu.hidden,
         -- Get pick statistics for each player
         pick_stats.total_picks,
         pick_stats.successful_picks,
@@ -188,6 +189,7 @@ router.post('/', verifyToken, async (req, res) => {
       joined_at: row.joined_at,
       paid: row.paid || false,
       paid_date: row.paid_date,
+      hidden: row.hidden || false, // Include hidden status for admin visibility
       total_picks: parseInt(row.total_picks) || 0,
       successful_picks: parseInt(row.successful_picks) || 0,
       pick_success_rate: parseFloat(row.pick_success_rate) || 0,

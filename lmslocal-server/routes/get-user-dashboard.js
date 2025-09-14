@@ -206,8 +206,8 @@ router.post('/', verifyToken, async (req, res) => {
       
       WHERE (
         -- User has access as organizer OR participant
-        c.organiser_id = $1 OR 
-        cu.user_id IS NOT NULL
+        c.organiser_id = $1 OR
+        (cu.user_id IS NOT NULL AND (cu.hidden IS NULL OR cu.hidden = false))
       )
       
       ORDER BY c.created_at DESC

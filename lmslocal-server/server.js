@@ -68,6 +68,8 @@ const deleteAccountRoute = require('./routes/delete-account');
 const getPickStatisticsRoute = require('./routes/get-pick-statistics');
 // const getDashboardStatsRoute = require('./routes/get-dashboard-stats'); // DISABLED - consolidated into get-user-dashboard
 const submitResultsRoute = require('./routes/submit-results');
+const hideCompetitionRoute = require('./routes/hide-competition');
+const unhidePlayerRoute = require('./routes/unhide-player');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -211,6 +213,8 @@ app.use('/delete-account', deleteAccountRoute);
 app.use('/get-pick-statistics', getPickStatisticsRoute);
 // app.use('/get-dashboard-stats', getDashboardStatsRoute); // DISABLED - consolidated into get-user-dashboard
 app.use('/submit-results', submitResultsRoute);
+app.use('/hide-competition', hideCompetitionRoute);
+app.use('/unhide-player', unhidePlayerRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

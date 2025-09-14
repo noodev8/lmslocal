@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 import { AppDataProvider } from "@/contexts/AppDataContext";
 
 const geistSans = Geist({
@@ -30,6 +31,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ErrorBoundary>
+          <GlobalErrorHandler />
           <AppDataProvider>
             {children}
           </AppDataProvider>
