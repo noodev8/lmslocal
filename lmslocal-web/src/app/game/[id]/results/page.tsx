@@ -75,13 +75,21 @@ export default function ResultsPage() {
 
     const initializeData = async () => {
       if (!competition || contextLoading) return;
-      
+
+      // Check if competition is complete
+      if (competition.status === 'COMPLETE') {
+        // Redirect to standings page for completed competitions
+        router.push(`/game/${competitionId}/standings`);
+        return;
+      }
+
       try {
         hasInitialized.current = true;
         
         // Get rounds to find current round
         const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
-        
+        console.log('🔄 RESULTS PAGE: Loaded round data:', roundsResponse.data);
+
         if (roundsResponse.data.return_code !== 'SUCCESS') {
           console.error('Failed to get rounds:', roundsResponse.data.message);
           router.push(`/game/${competitionId}`);
@@ -183,11 +191,22 @@ export default function ResultsPage() {
         }));
       
       const response = await fixtureApi.submitResults(parseInt(competitionId), results);
-      
+
+      // Debug: Log the full response to see what we're getting
+      console.log('🔍 Submit results response:', response.data);
+
       if (response.data.return_code === 'SUCCESS' ||
-          response.data.return_code === 'NEW_ROUND_CREATED' ||
-          response.data.return_code === 'WINNER' ||
-          response.data.return_code === 'DRAW') {
+          response.data.return_code === 'NEW_ROUND_CREATED') {
+
+        // Check if competition completed
+        const competitionCompleted = response.data.competition_status === 'COMPLETE';
+        console.log('🏁 Competition completed?', competitionCompleted, 'Status:', response.data.competition_status);
+
+        // If competition completed, redirect to game dashboard to show completion banner
+        if (competitionCompleted) {
+          router.push(`/game/${competitionId}`);
+          return;
+        }
 
         // Clear caches to ensure fresh data is loaded after results submission
         cacheUtils.invalidateKey(`rounds-${competitionId}`);
@@ -240,6 +259,9 @@ export default function ResultsPage() {
   };
 
   const isRoundCompleted = () => {
+    // Check competition status first - if competition is complete, round is definitely complete
+    if (competition?.status === 'COMPLETE') return true;
+
     // Check local state first - if all fixtures have results and are processed locally,
     // and the round is locked, then the round is completed
     const allFixturesCompleteLocally = fixtures.length > 0 &&
@@ -283,6 +305,11 @@ export default function ResultsPage() {
         
         // Successfully created round - redirect to fixtures page
         router.push(`/game/${competitionId}/fixtures`);
+      } else if (response.data.return_code === 'COMPETITION_COMPLETE') {
+        // Competition was completed while we were trying to create next round
+        alert(response.data.message || 'Competition has been completed');
+        router.push(`/game/${competitionId}/standings`);
+        return;
       } else {
         console.error('Failed to create round:', response.data.message);
         alert('Failed to create next round: ' + (response.data.message || 'Unknown error'));
@@ -540,6 +567,7 @@ export default function ResultsPage() {
           </div>
         </div>
       </main>
+
     </div>
   );
 }

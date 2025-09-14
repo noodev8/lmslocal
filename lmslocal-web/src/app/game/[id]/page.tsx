@@ -3,17 +3,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import {
   TrophyIcon,
   ArrowLeftIcon,
   UserGroupIcon,
-  ChartBarIcon,
-  ClockIcon,
   ClipboardDocumentIcon,
   Cog6ToothIcon,
   CalendarDaysIcon,
-  PlayIcon,
-  CheckCircleIcon
+  PlayIcon
 } from '@heroicons/react/24/outline';
 import { Competition as CompetitionType, userApi, roundApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -24,7 +21,7 @@ export default function UnifiedGameDashboard() {
   const competitionId = params.id as string;
   
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading } = useAppData();
+  const { competitions, loading: contextLoading, latestRoundStats } = useAppData();
   
   // Memoize the specific competition to prevent unnecessary re-renders
   const competition = useMemo(() => {
@@ -40,7 +37,7 @@ export default function UnifiedGameDashboard() {
     completed_fixtures?: number;
     status?: string;
   } | null>(null);
-  const [loadingRound, setLoadingRound] = useState(true);
+  const [, setLoadingRound] = useState(true);
   
   // Simple loading based on context availability
   const loading = contextLoading || !competition;
@@ -302,91 +299,137 @@ export default function UnifiedGameDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
 
-        {/* Round Status Banner - Hide when competition is complete */}
-        {!competitionComplete.isComplete && (
-        <div className="mb-6 sm:mb-8">
-          <div className="rounded-xl p-4 sm:p-6 border border-slate-200 shadow-sm bg-slate-50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {/* Round Number */}
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full font-bold text-lg ${
-                  loadingRound
-                    ? 'bg-slate-400 text-white' // Loading
-                    : !currentRoundInfo
-                    ? 'bg-amber-500 text-white' // No rounds yet - amber
-                    : currentRoundInfo.fixture_count === 0
-                    ? 'bg-orange-500 text-white' // Round exists but no fixtures - orange
-                    : currentRoundInfo.status === 'COMPLETE'
-                    ? 'bg-blue-600 text-white' // Round complete, waiting for next - blue
-                    : currentRoundInfo.is_locked
-                    ? 'bg-purple-600 text-white' // Round locked - purple
-                    : 'bg-green-600 text-white' // Picks open - green
-                }`}>
-                  {loadingRound ? '...' : currentRoundInfo?.round_number || '—'}
-                </div>
-                
-                {/* Status Text */}
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                    {loadingRound 
-                      ? 'Loading Round Info...'
-                      : currentRoundInfo 
-                      ? `Round ${currentRoundInfo.round_number}`
-                      : 'Waiting for Round 1'
-                    }
-                  </h2>
-                  <p className="text-sm sm:text-base font-medium text-slate-600">
-                    {loadingRound
-                      ? 'Fetching latest round information...'
-                      : !currentRoundInfo
-                      ? 'Organizer will create fixtures to start'
-                      : currentRoundInfo.fixture_count === 0
-                      ? 'Waiting for fixtures to be created'
-                      : currentRoundInfo.status === 'COMPLETE'
-                      ? 'Complete - Waiting for next round'
-                      : currentRoundInfo.is_locked
-                      ? 'Round Locked - Results Processing'
-                      : `Picks Open - Closes ${new Date(currentRoundInfo.lock_time!).toLocaleString('en-GB', {
-                          weekday: 'short',
-                          month: 'short', 
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: false
-                        })}`
-                    }
-                  </p>
+
+        {/* Latest Round Results Card */}
+        {latestRoundStats &&
+         latestRoundStats.competition_id === parseInt(competitionId) && (
+          <div className="mb-6 sm:mb-8">
+            <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <TrophyIcon className="h-6 w-6 text-yellow-400 mr-3" />
+                    <h2 className="text-lg font-bold text-white">
+                      Round {latestRoundStats.round_number} Results
+                    </h2>
+                  </div>
+                  <span className="text-slate-200 text-sm font-medium">
+                    {currentRoundInfo?.status === 'COMPLETE' ? 'Round Complete' : 'Latest Eliminations'}
+                  </span>
                 </div>
               </div>
-              
-              {/* Time Remaining (if applicable) */}
-              {currentRoundInfo && currentRoundInfo.lock_time && !currentRoundInfo.is_locked && currentRoundInfo.fixture_count > 0 && (
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-slate-700">
-                    {(() => {
-                      const lockTime = new Date(currentRoundInfo.lock_time);
-                      const now = new Date();
-                      const diffMs = lockTime.getTime() - now.getTime();
-                      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                      
-                      if (diffHours > 24) {
-                        return `${Math.floor(diffHours / 24)}d ${diffHours % 24}h`;
-                      } else if (diffHours > 0) {
-                        return `${diffHours}h ${diffMinutes}m`;
-                      } else if (diffMinutes > 0) {
-                        return `${diffMinutes}m`;
-                      } else {
-                        return 'Soon';
-                      }
-                    })()}
-                  </div>
-                  <div className="text-sm text-slate-600 font-medium">remaining</div>
+
+              {/* Main Content */}
+              <div className="px-6 py-6">
+                {/* Status Messages - Now prominent */}
+                <div className="text-center mb-6">
+                  {latestRoundStats.survivors > 1 && (
+                    <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-300 shadow-sm">
+                      <p className="text-3xl text-blue-700 font-bold mb-1">
+                        {latestRoundStats.survivors} players still in
+                      </p>
+                      <p className="text-base text-blue-600">
+                        {latestRoundStats.eliminated_this_round === 0
+                          ? `All players survived Round ${latestRoundStats.round_number}`
+                          : `Advance to Round ${latestRoundStats.round_number + 1}`
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  {latestRoundStats.survivors === 1 && (
+                    <div className="bg-green-50 rounded-xl p-6 border-2 border-green-300 shadow-sm">
+                      <p className="text-3xl text-green-800 font-bold">
+                        👑 We have a champion!
+                      </p>
+                    </div>
+                  )}
+
+                  {latestRoundStats.survivors === 0 && (
+                    <div className="bg-slate-50 rounded-xl p-6 border-2 border-slate-300 shadow-sm">
+                      <p className="text-3xl text-slate-700 font-bold">
+                        😱 Everyone&apos;s out! Draw game!
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                  {/* Eliminated This Round */}
+                  <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                    <p className="text-2xl font-bold text-red-600 mb-1">
+                      {latestRoundStats.eliminated_this_round}
+                    </p>
+                    <p className="text-xs text-red-700 font-medium">
+                      {latestRoundStats.eliminated_this_round === 1 ? 'Player Eliminated' : 'Players Eliminated'}
+                    </p>
+                  </div>
+
+                  {/* Started With */}
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <p className="text-2xl font-bold text-blue-600 mb-1">
+                      {latestRoundStats.total_players}
+                    </p>
+                    <p className="text-xs text-blue-700 font-medium">
+                      Started With
+                    </p>
+                  </div>
+
+                  {/* Total Eliminated */}
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <p className="text-2xl font-bold text-slate-600 mb-1">
+                      {latestRoundStats.total_eliminated}
+                    </p>
+                    <p className="text-xs text-slate-700 font-medium">Total Out</p>
+                  </div>
+                </div>
+
+                {/* Personal Status for Participants */}
+                {isParticipant && (
+                  <div className="mt-6 p-6 rounded-xl border-2 border-slate-300 bg-white shadow-sm">
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold mb-2 ${
+                        competition.user_status === 'active' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {latestRoundStats.survivors === 1 && competition.user_status === 'active'
+                          ? '🏆 You Are The Winner!'
+                          : competition.user_status === 'active'
+                          ? '✅ You Advanced!'
+                          : '❌ You Were Eliminated'}
+                      </div>
+
+                      {/* Show round-specific result if available */}
+                      {latestRoundStats.user_outcome && (
+                        <div className="text-lg text-slate-700 mb-1">
+                          Round {latestRoundStats.round_number}: {
+                            latestRoundStats.user_outcome === 'WIN' ? 'Advanced' :
+                            latestRoundStats.user_outcome === 'LOSS' ? 'Eliminated' :
+                            'Draw'
+                          }
+                        </div>
+                      )}
+
+                      {/* Show picked team if available */}
+                      {latestRoundStats.user_picked_team && (
+                        <div className="text-base text-slate-600 font-medium">
+                          Picked: {latestRoundStats.user_picked_team}
+                        </div>
+                      )}
+
+                      {/* Show lives remaining if applicable */}
+                      {competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
+                        <div className="text-base text-slate-600 font-medium mt-1">
+                          Lives Remaining: {competition.lives_remaining}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              </div>
             </div>
           </div>
-        </div>
         )}
 
         {/* Competition Completion Banner */}
@@ -428,79 +471,15 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Key Stats Grid */}
-        <div className={`grid grid-cols-1 gap-6 mb-6 sm:mb-8 ${
-          isOrganiser && isParticipant ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
-        }`}>
-          {/* Competition Status */}
-          <div className="bg-white rounded-xl p-6 border border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-              <ChartBarIcon className="h-5 w-5 mr-2" />
-              Competition Status
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600">Active Players</span>
-                <span className="font-bold text-emerald-600">
-                  {competition?.player_count || 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600">Total Players</span>
-                <span className="font-bold text-slate-800">
-                  {competition?.total_players || 0}
-                </span>
-              </div>
-              
-              {/* Visual Progress Bar */}
-              <div className="pt-2">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="flex-1 flex space-x-0.5">
-                    {(() => {
-                      const totalPlayers = competition?.total_players || 0;
-                      const activePlayers = competition?.player_count || 0;
-                      const maxSegments = 20;
-                      
-                      // Calculate segments to show (max 20, min actual player count)
-                      const segmentsToShow = Math.min(maxSegments, Math.max(1, totalPlayers));
-                      const playersPerSegment = totalPlayers / segmentsToShow;
-                      
-                      return [...Array(segmentsToShow)].map((_, index) => {
-                        // Calculate how many players this segment represents
-                        const segmentStartPlayer = index * playersPerSegment;
-
-                        // Segment is active if any of its players are active
-                        const isActive = segmentStartPlayer < activePlayers;
-                        
-                        return (
-                          <div
-                            key={index}
-                            className={`h-3 flex-1 rounded-sm ${
-                              isActive ? 'bg-emerald-500' : 'bg-slate-200'
-                            }`}
-                          />
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-                <div className="text-xs text-slate-500 text-center">
-                  {competition?.player_count || 0} of {competition?.total_players || 0} remaining
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Invite Code Card */}
-          {competition.invite_code && (
-            <div className="bg-white rounded-xl p-6 border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                <ClipboardDocumentIcon className="h-5 w-5 mr-2" />
-                Invite Code
-              </h3>
-              
+        {/* Invite Code - Keep this handy */}
+        {competition.invite_code && (
+          <div className="mb-6 sm:mb-8">
+            <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200 shadow-sm">
               <div className="text-center">
+                <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center justify-center">
+                  <ClipboardDocumentIcon className="h-5 w-5 mr-2" />
+                  Invite Code
+                </h3>
                 <code className="text-2xl font-mono font-bold text-slate-800 tracking-wider block mb-2">
                   {competition.invite_code}
                 </code>
@@ -513,112 +492,8 @@ export default function UnifiedGameDashboard() {
                 <p className="text-xs text-slate-500 mt-2">Share this code to invite players</p>
               </div>
             </div>
-          )}
-
-          {/* Round Activity Card - for organizers */}
-          {isOrganiser && (
-            <div className="bg-white rounded-xl p-6 border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                <UserGroupIcon className="h-5 w-5 mr-2" />
-                Player Activity
-              </h3>
-              
-              <div className="text-center">
-                {loadingRound ? (
-                  <>
-                    <div className="text-2xl font-bold text-slate-400 mb-1">
-                      ...
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      loading player activity
-                    </div>
-                  </>
-                ) : !currentRoundInfo ? (
-                  <>
-                    <div className="text-2xl font-bold text-slate-500 mb-1">
-                      {competition?.player_count || 0}
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      players waiting for Round 1
-                    </div>
-                  </>
-                ) : currentRoundInfo.fixture_count === 0 ? (
-                  <>
-                    <div className="text-2xl font-bold text-slate-500 mb-1">
-                      {competition?.player_count || 0}
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      players waiting for fixtures
-                    </div>
-                  </>
-                ) : currentRoundInfo.status === 'COMPLETE' ? (
-                  <>
-                    <div className="text-2xl font-bold text-blue-600 mb-1">
-                      <CheckCircleIcon className="h-6 w-6 inline mr-2" />
-                      {competitionComplete.isComplete ? 'Final Round Complete' : 'Round Complete'}
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      {competitionComplete.isComplete 
-                        ? 'Competition has ended' 
-                        : `${competition?.player_count || 0} players waiting for next round`
-                      }
-                    </div>
-                  </>
-                ) : currentRoundInfo.is_locked ? (
-                  <>
-                    <div className="text-2xl font-bold text-slate-600 mb-1">
-                      <ClockIcon className="h-6 w-6 inline mr-2" />
-                      Awaiting Results
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      {competition?.picks_made || 0} of {competition?.player_count || 0} players made picks
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-3xl font-bold text-blue-600 mb-1">
-                      {Math.round((competition?.picks_made || 0) / Math.max(competition?.player_count || 1, 1) * 100)}%
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      {competition?.picks_made || 0} of {competition?.player_count || 0} players picked
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Your Status Card - for participants */}
-          {isParticipant && (
-            <div className="bg-white rounded-xl p-6 border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                <UserGroupIcon className="h-5 w-5 mr-2" />
-                Your Status
-              </h3>
-              
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Status</span>
-                  <span className={`font-bold ${
-                    competition.user_status === 'active' 
-                      ? 'text-emerald-600' 
-                      : 'text-red-500'
-                  }`}>
-                    {competition.user_status === 'active' ? 'Active' : 'Out'}
-                  </span>
-                </div>
-                {competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Lives Remaining</span>
-                    <span className="font-bold text-slate-800">
-                      {competition.lives_remaining}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
 {/* Organizer Action Buttons */}
         {isOrganiser && (

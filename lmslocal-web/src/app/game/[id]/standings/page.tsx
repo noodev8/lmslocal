@@ -176,6 +176,25 @@ export default function CompetitionStandingsPage() {
     return isCurrentRoundLocked || !hasEnoughPlayersToHide || isOwnPlayer;
   };
 
+  // Find the elimination pick (last losing pick that eliminated the player)
+  const getEliminationPick = (player: Player) => {
+    if (player.status === 'active') return null;
+
+    // Find the last losing pick in their history
+    for (let i = player.history.length - 1; i >= 0; i--) {
+      const round = player.history[i];
+      if (round.pick_result === 'loss' && round.pick_team_full_name) {
+        return {
+          team: round.pick_team_full_name,
+          round: round.round_number,
+          fixture: round.fixture,
+          result: round.fixture_result
+        };
+      }
+    }
+    return null;
+  };
+
   // Calculate player streaks and stats
   const getPlayerStats = (player: Player) => {
     const recentHistory = player.history.slice(-5); // Last 5 rounds
@@ -251,25 +270,31 @@ export default function CompetitionStandingsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
+      <header className="bg-gradient-to-r from-slate-700 to-slate-800 shadow-lg sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <Link
                 href={`/game/${competitionId}`}
-                className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors group"
+                className="flex items-center space-x-2 text-slate-200 hover:text-white transition-colors group"
               >
                 <ArrowLeftIcon className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform" />
                 <span className="font-medium">Back</span>
               </Link>
-              <div className="h-6 w-px bg-slate-300" />
+              <div className="h-6 w-px bg-slate-500" />
               <div>
-                <h1 className="text-lg font-bold text-slate-900 flex items-center space-x-2">
-                  <TrophyIcon className="h-5 w-5 text-amber-500" />
-                  <span>Standings</span>
+                <h1 className="text-lg font-bold text-white flex items-center space-x-2">
+                  <TrophyIcon className="h-5 w-5 text-yellow-400" />
+                  <span>Final Standings</span>
                 </h1>
               </div>
             </div>
+            {winnerStatus.isComplete && winnerStatus.winner && (
+              <div className="flex items-center space-x-2 text-green-300">
+                <TrophyIcon className="h-6 w-6 text-yellow-400" />
+                <span className="font-bold text-white">Champion: {winnerStatus.winner}</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -279,11 +304,11 @@ export default function CompetitionStandingsPage() {
 
         {/* Competition Status Hero */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+          <div className="bg-slate-50 p-6 border-b border-slate-200">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold mb-2">{competition.name}</h2>
-                <div className="flex items-center space-x-4 text-blue-100">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">{competition.name}</h2>
+                <div className="flex items-center space-x-4 text-slate-600">
                   <span className="flex items-center space-x-1">
                     <span className="font-medium">Round {competition.current_round}</span>
                   </span>
@@ -302,8 +327,8 @@ export default function CompetitionStandingsPage() {
               </div>
               {winnerStatus.isComplete && (
                 <div className="text-center">
-                  <TrophyIcon className="h-8 w-8 text-yellow-300 mx-auto mb-1" />
-                  <div className="text-sm font-medium">
+                  <TrophyIcon className="h-8 w-8 text-green-600 mx-auto mb-1" />
+                  <div className="text-sm font-medium text-slate-700">
                     {winnerStatus.winner ? `${winnerStatus.winner} Wins!` : 'Draw!'}
                   </div>
                 </div>
@@ -513,6 +538,7 @@ export default function CompetitionStandingsPage() {
               {currentPageEliminatedPlayers.map((player) => {
                 const stats = getPlayerStats(player);
                 const isCurrentUser = currentUser?.id === player.id;
+                const eliminationPick = getEliminationPick(player);
 
                 return (
                   <div
@@ -546,20 +572,32 @@ export default function CompetitionStandingsPage() {
                       </div>
                     </div>
 
-                    {/* Elimination Reason */}
-                    <div className={`text-xs mb-2 px-2 py-1 rounded ${
-                      isCurrentUser
-                        ? 'bg-red-100 text-red-700 border border-red-200'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      Eliminated
-                    </div>
-
-                    {isPickVisible(player.id) && player.current_pick && (
-                      <div className={`text-sm mb-2 ${
-                        isCurrentUser ? 'text-red-700' : 'text-slate-600'
+                    {/* Elimination Pick */}
+                    {eliminationPick ? (
+                      <div className={`text-sm mb-2 p-2 rounded border ${
+                        isCurrentUser
+                          ? 'bg-red-50 border-red-200 text-red-800'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
                       }`}>
-                        Final pick: {player.current_pick.team_full_name || player.current_pick.team || 'None'}
+                        <div className="font-medium text-xs mb-1">
+                          Eliminated in Round {eliminationPick.round}
+                        </div>
+                        <div className="font-semibold">
+                          {eliminationPick.team}
+                        </div>
+                        {eliminationPick.fixture && (
+                          <div className="text-xs mt-1 opacity-75">
+                            {eliminationPick.fixture} • {eliminationPick.result || 'Lost'}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={`text-xs mb-2 px-2 py-1 rounded ${
+                        isCurrentUser
+                          ? 'bg-red-100 text-red-700 border border-red-200'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        Eliminated
                       </div>
                     )}
 
