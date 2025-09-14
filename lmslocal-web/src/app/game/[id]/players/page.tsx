@@ -9,7 +9,8 @@ import {
   TrashIcon,
   CurrencyDollarIcon,
   PlusIcon,
-  MinusIcon
+  MinusIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, offlinePlayerApi, Competition, Player } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -42,6 +43,9 @@ export default function CompetitionPlayersPage() {
 
   // Player status management state
   const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set());
+
+  // Player unhide management state
+  const [unhidingPlayer, setUnhidingPlayer] = useState<Set<number>>(new Set());
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -99,7 +103,8 @@ export default function CompetitionPlayersPage() {
         // Get competition from context if available, otherwise from API response
         const competitionFromContext = competitions?.find(c => c.id === competitionId);
         setCompetition(competitionFromContext || response.data.competition as Competition);
-        setPlayers(response.data.players as Player[]);
+        const playersData = response.data.players as Player[];
+        setPlayers(playersData);
       } else {
         console.error('Failed to load players:', response.data.message);
         router.push(`/game/${competitionId}/dashboard`);
@@ -382,6 +387,40 @@ export default function CompetitionPlayersPage() {
     }
   };
 
+  // Handle unhiding competition for a specific player
+  const handleUnhidePlayer = async (playerId: number) => {
+    if (!competition) return;
+
+    setUnhidingPlayer(prev => new Set(prev).add(playerId));
+
+    try {
+      const response = await competitionApi.unhidePlayer(competition.id, playerId);
+
+      if (response.data.return_code === 'SUCCESS') {
+        // Update the local state to remove hidden flag
+        setPlayers(prev => prev.map(player =>
+          player.id === playerId
+            ? { ...player, hidden: false }
+            : player
+        ));
+
+        // Clear the players cache to ensure fresh data on page reload
+        const { apiCache } = await import('@/lib/cache');
+        apiCache.delete(`competition-players-${competition.id}`);
+      } else {
+        console.error(`Failed to unhide player: ${response.data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to unhide player:', error);
+    } finally {
+      setUnhidingPlayer(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(playerId);
+        return newSet;
+      });
+    }
+  };
+
   // Filter players based on payment status
   const filteredPlayers = players.filter(player => {
     if (paymentFilter === 'paid') return player.paid;
@@ -553,7 +592,9 @@ export default function CompetitionPlayersPage() {
         {/* Players List - Simplified */}
         <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
           {filteredPlayers.map((player) => (
-            <div key={player.id} className="p-4 hover:bg-slate-50 transition-colors">
+            <div key={player.id} className={`p-4 hover:bg-slate-50 transition-colors ${
+              player.hidden ? 'bg-red-50 border-l-4 border-red-200' : ''
+            }`}>
               <div className="flex items-center justify-between">
                 {/* Player Info */}
                 <div className="flex-1 min-w-0">
@@ -566,6 +607,9 @@ export default function CompetitionPlayersPage() {
                         )}
                         {player.is_managed && (
                           <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Managed</span>
+                        )}
+                        {player.hidden && (
+                          <span className="text-xs text-red-700 bg-red-100 px-2 py-0.5 rounded">Hidden</span>
                         )}
                       </div>
                       <p className="text-sm text-slate-600 truncate">{player.email || 'No email'}</p>
@@ -652,6 +696,22 @@ export default function CompetitionPlayersPage() {
                         <CurrencyDollarIcon className="h-4 w-4" strokeWidth={1.5} />
                       )}
                     </button>
+
+                    {/* Unhide Player - Only show for hidden players */}
+                    {player.hidden && (
+                      <button
+                        onClick={() => handleUnhidePlayer(player.id)}
+                        disabled={unhidingPlayer.has(player.id)}
+                        className="p-1 text-red-600 hover:text-green-600 rounded transition-colors disabled:opacity-50"
+                        title="Unhide competition for this player"
+                      >
+                        {unhidingPlayer.has(player.id) ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent"></div>
+                        ) : (
+                          <EyeIcon className="h-4 w-4" strokeWidth={1.5} />
+                        )}
+                      </button>
+                    )}
 
                     {/* Remove Player */}
                     {competition?.invite_code && (

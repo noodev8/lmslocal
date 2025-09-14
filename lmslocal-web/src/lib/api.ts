@@ -194,6 +194,8 @@ export interface Player {
   paid_amount?: number;
   paid_date?: string;
   joined_at: string;
+  // Visibility tracking
+  hidden?: boolean;
   // Additional fields for standings/detailed views
   current_pick?: unknown;
   history?: unknown[];
@@ -370,6 +372,8 @@ export const competitionApi = {
   update: (data: UpdateCompetitionRequest) => api.post<UpdateCompetitionResponse & { return_code: string; message?: string }>('/update-competition', data),
   reset: (data: ResetCompetitionRequest) => api.post<ResetCompetitionResponse & { return_code: string; message?: string }>('/reset-competition', data),
   delete: (data: DeleteCompetitionRequest) => api.post<DeleteCompetitionResponse & { return_code: string; message?: string }>('/delete-competition', data),
+  hide: (competition_id: number) => api.post<{ return_code: string; message: string }>('/hide-competition', { competition_id }),
+  unhidePlayer: (competition_id: number, player_id: number) => api.post<{ return_code: string; message: string }>('/unhide-player', { competition_id, player_id }),
 };
 
 // Round API calls
@@ -427,11 +431,14 @@ export const fixtureApi = {
       players_affected: number;
     }
   }>('/reset-fixtures', { round_id }),
-  submitResults: (competition_id: number, results: Array<{ fixture_id: number; result: string }>) => 
+  submitResults: (competition_id: number, results: Array<{ fixture_id: number; result: string }>) =>
     api.post<{
       return_code: string;
       message: string;
+      fixtures_updated?: number;
       fixtures_processed?: number;
+      competition_status?: string;
+      winner_status?: string;
       players_affected?: number;
       round_number?: number;
       active_players?: number;

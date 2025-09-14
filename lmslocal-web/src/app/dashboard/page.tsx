@@ -18,7 +18,7 @@ import {
   ArrowRightOnRectangleIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
-import { userApi, Competition } from '@/lib/api';
+import { userApi, competitionApi, Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
 import { useAppData } from '@/contexts/AppDataContext';
 import JoinCompetitionModal from '@/components/JoinCompetitionModal';
@@ -36,6 +36,9 @@ export default function DashboardPage() {
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
+  const [hidingCompetition, setHidingCompetition] = useState<number | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [competitionToDelete, setCompetitionToDelete] = useState<Competition | null>(null);
 
   // Memoize all user competitions (organized + participating) to prevent dependency issues
   const userCompetitions = useMemo(() => {
@@ -187,6 +190,41 @@ export default function DashboardPage() {
     } finally {
       setJoinLoading(false);
     }
+  };
+
+  // Show confirmation modal for hiding competition
+  const handleDeleteClick = (competition: Competition) => {
+    setCompetitionToDelete(competition);
+    setShowDeleteModal(true);
+  };
+
+  // Handle confirmed hiding of competition
+  const handleConfirmDelete = async () => {
+    if (!competitionToDelete) return;
+
+    setHidingCompetition(competitionToDelete.id);
+    setShowDeleteModal(false);
+
+    try {
+      const response = await competitionApi.hide(competitionToDelete.id);
+      if (response.data.return_code === 'SUCCESS') {
+        // Refresh the page to remove the hidden competition from view
+        window.location.reload();
+      } else {
+        console.error('Failed to hide competition:', response.data.message);
+      }
+    } catch (error) {
+      console.error('Error hiding competition:', error);
+    } finally {
+      setHidingCompetition(null);
+      setCompetitionToDelete(null);
+    }
+  };
+
+  // Cancel deletion
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setCompetitionToDelete(null);
   };
 
   if (loading) {
@@ -401,15 +439,35 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Action Button - Unified Game Dashboard */}
+                {/* Action Buttons - Unified Game Dashboard and Hide */}
                 <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-100">
-                  <Link
-                    href={`/game/${competition.id}`}
-                    className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg font-medium transition-colors text-base bg-slate-800 text-white hover:bg-slate-900"
-                  >
-                    <ChartBarIcon className="h-5 w-5 mr-2" />
-                    {competition.is_organiser ? 'Manage Competition' : 'View Competition'}
-                  </Link>
+                  <div className="flex gap-3">
+                    <Link
+                      href={`/game/${competition.id}`}
+                      className="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-lg font-medium transition-colors text-base bg-slate-800 text-white hover:bg-slate-900"
+                    >
+                      <ChartBarIcon className="h-5 w-5 mr-2" />
+                      {competition.is_organiser ? 'Manage Competition' : 'View Competition'}
+                    </Link>
+                    {/* Only show hide button if user is participant (not organiser) */}
+                    {competition.is_participant && !competition.is_organiser && (
+                      <button
+                        onClick={() => handleDeleteClick(competition)}
+                        disabled={hidingCompetition === competition.id}
+                        className="px-2 py-1 rounded text-xs text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Remove this competition from your dashboard"
+                      >
+                        {hidingCompetition === competition.id ? (
+                          <span className="flex items-center">
+                            <div className="animate-spin h-3 w-3 border border-red-300 border-t-red-600 rounded-full mr-1"></div>
+                            Removing...
+                          </span>
+                        ) : (
+                          'Delete for me'
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -446,6 +504,44 @@ export default function DashboardPage() {
         onJoin={handleJoinCompetition}
         isLoading={joinLoading}
       />
+
+      {/* Delete Competition Confirmation Modal */}
+      {showDeleteModal && competitionToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-semibold text-slate-900">Remove Competition</h3>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm text-slate-600">
+                Are you sure you want to remove "{competitionToDelete.name}" from your dashboard?
+                This will hide it from your view.
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
