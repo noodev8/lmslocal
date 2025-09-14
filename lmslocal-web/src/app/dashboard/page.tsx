@@ -520,7 +520,7 @@ export default function DashboardPage() {
 
             <div className="mb-6">
               <p className="text-sm text-slate-600">
-                Are you sure you want to remove "{competitionToDelete.name}" from your dashboard?
+                Are you sure you want to remove &quot;{competitionToDelete.name}&quot; from your dashboard?
                 This will hide it from your view.
               </p>
             </div>
