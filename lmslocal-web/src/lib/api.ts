@@ -511,6 +511,15 @@ export const adminApi = {
     player_name?: string;           // Player display name
     operation_performed?: string;   // Operation that was performed
   }>('/update-player-lives', { competition_id, player_id, operation, amount, reason }),
+
+  // Player status management - allows admins to set players as active or out
+  updatePlayerStatus: (competition_id: number, player_id: number, status: 'active' | 'out', reason?: string) => api.post<{
+    return_code: string;
+    message?: string;
+    player_name?: string;           // Player display name
+    old_status?: string;            // Previous status
+    new_status?: string;            // New status
+  }>('/update-player-status', { competition_id, player_id, status, reason }),
 };
 
 // User profile

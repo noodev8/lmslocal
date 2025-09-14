@@ -40,6 +40,9 @@ export default function CompetitionPlayersPage() {
   const [pendingLivesChanges, setPendingLivesChanges] = useState<Map<number, number>>(new Map());
   const [savingLivesChanges, setSavingLivesChanges] = useState(false);
 
+  // Player status management state
+  const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set());
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -241,9 +244,10 @@ export default function CompetitionPlayersPage() {
 
     setPlayers(prev => prev.map(player => {
       if (player.id === playerId) {
+        const currentLives = player.lives_remaining || 0; // Handle undefined case
         const newLives = operation === 'add'
-          ? Math.min(3, player.lives_remaining + 1)
-          : Math.max(0, player.lives_remaining - 1);
+          ? Math.min(3, currentLives + 1)
+          : Math.max(0, currentLives - 1);
 
         // Track this change for batch save
         setPendingLivesChanges(prevPending => {
@@ -302,8 +306,16 @@ export default function CompetitionPlayersPage() {
           return newPending;
         });
       } else {
-        // All successful - clear pending changes
+        // All successful - clear pending changes and refresh data
         setPendingLivesChanges(new Map());
+
+        // Clear the players cache to ensure fresh data on next load
+        const { apiCache } = await import('@/lib/cache');
+        apiCache.delete(`competition-players-${competition.id}`);
+
+        // Reload fresh player data from server
+        await loadPlayers();
+
         console.log(`Successfully updated lives for ${results.length} players`);
       }
 
@@ -322,6 +334,52 @@ export default function CompetitionPlayersPage() {
     // Reload the original player data to reset any pending changes
     loadPlayers();
     setPendingLivesChanges(new Map());
+  };
+
+  // Player status toggle - between 'active' and 'out'
+  const handleStatusToggle = async (playerId: number, currentStatus: string) => {
+    if (!competition || updatingStatus.has(playerId)) return;
+
+    // Normalize current status (handle undefined/null as 'active')
+    const normalizedCurrentStatus = currentStatus || 'active';
+
+    // Determine new status - toggle between 'active' and 'out'
+    const newStatus = normalizedCurrentStatus === 'active' ? 'out' : 'active';
+    const statusLabel = newStatus === 'active' ? 'ACTIVE' : 'OUT';
+
+    setUpdatingStatus(prev => new Set([...prev, playerId]));
+
+    try {
+      const response = await adminApi.updatePlayerStatus(
+        competition.id,
+        playerId,
+        newStatus,
+        `Admin manually set player as ${statusLabel}`
+      );
+
+      if (response.data.return_code === 'SUCCESS') {
+        // Update the local state with new status
+        setPlayers(prev => prev.map(player =>
+          player.id === playerId
+            ? { ...player, status: newStatus }
+            : player
+        ));
+
+        // Clear the players cache to ensure fresh data on page reload
+        const { apiCache } = await import('@/lib/cache');
+        apiCache.delete(`competition-players-${competition.id}`);
+      } else {
+        console.error(`Failed to update player status: ${response.data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to update player status:', error);
+    } finally {
+      setUpdatingStatus(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(playerId);
+        return newSet;
+      });
+    }
   };
 
   // Filter players based on payment status
@@ -521,7 +579,7 @@ export default function CompetitionPlayersPage() {
                   <div className="flex items-center space-x-1">
                     <button
                       onClick={() => handleLivesChange(player.id, 'subtract')}
-                      disabled={savingLivesChanges || player.lives_remaining <= 0}
+                      disabled={savingLivesChanges || (player.lives_remaining || 0) <= 0}
                       className="p-1 text-red-500 hover:text-red-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Remove 1 life"
                     >
@@ -532,7 +590,7 @@ export default function CompetitionPlayersPage() {
                       <span className={`text-sm font-medium min-w-[1rem] text-center ${
                         pendingLivesChanges.has(player.id) ? 'text-blue-600 font-bold' : 'text-slate-900'
                       }`}>
-                        {player.lives_remaining}
+                        {player.lives_remaining || 0}
                       </span>
                       <span className="text-xs text-slate-500">lives</span>
                       {pendingLivesChanges.has(player.id) && (
@@ -542,7 +600,7 @@ export default function CompetitionPlayersPage() {
 
                     <button
                       onClick={() => handleLivesChange(player.id, 'add')}
-                      disabled={savingLivesChanges || player.lives_remaining >= 3}
+                      disabled={savingLivesChanges || (player.lives_remaining || 0) >= 3}
                       className="p-1 text-green-500 hover:text-green-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Add 1 life"
                     >
@@ -563,6 +621,25 @@ export default function CompetitionPlayersPage() {
 
                   {/* Other Actions */}
                   <div className="flex items-center space-x-1">
+                    {/* Status Toggle - Shows current status and allows toggle */}
+                    <button
+                      onClick={() => handleStatusToggle(player.id, player.status || 'active')}
+                      disabled={updatingStatus.has(player.id)}
+                      className={`px-2 py-1 text-xs font-medium rounded transition-colors disabled:opacity-50 ${
+                        (player.status || 'active') === 'active'
+                          ? 'bg-green-100 text-green-700 hover:bg-green-50 border border-green-300'
+                          : 'bg-red-100 text-red-700 hover:bg-red-50 border border-red-300'
+                      }`}
+                      title={`Currently ${(player.status || 'active') === 'active' ? 'ACTIVE' : 'OUT'} - Click to toggle`}
+                    >
+                      {updatingStatus.has(player.id) ? (
+                        <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent mx-1"></div>
+                      ) : (
+                        (player.status || 'active') === 'active' ? 'ACTIVE' : 'OUT'
+                      )}
+                    </button>
+
+                    {/* Payment Toggle */}
                     <button
                       onClick={() => handlePaymentToggle(player.id, player.paid)}
                       disabled={updatingPayment.has(player.id)}
@@ -576,6 +653,7 @@ export default function CompetitionPlayersPage() {
                       )}
                     </button>
 
+                    {/* Remove Player */}
                     {competition?.invite_code && (
                       <button
                         onClick={() => handleRemovePlayerClick(player.id, player.display_name)}

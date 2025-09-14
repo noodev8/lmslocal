@@ -36,6 +36,7 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"
 "UNAUTHORIZED"
+"PLAYER_ELIMINATED"  // Player status is not 'active' (eliminated from competition)
 "FIXTURE_NOT_FOUND"
 "INVALID_TEAM"
 "TEAM_NOT_ALLOWED"
@@ -210,6 +211,14 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "UNAUTHORIZED",
         message: "Target user is not part of this competition"
+      });
+    }
+
+    // Check if player is eliminated (only admins can override this)
+    if (!is_admin && validation.user_status !== 'active') {
+      return res.json({
+        return_code: "PLAYER_ELIMINATED",
+        message: "You are OUT of this competition and cannot make picks"
       });
     }
 
