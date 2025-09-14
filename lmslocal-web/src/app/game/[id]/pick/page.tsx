@@ -7,7 +7,8 @@ import {
   ArrowLeftIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
-import { roundApi, fixtureApi, playerActionApi, userApi, cacheUtils } from '@/lib/api';
+import { roundApi, fixtureApi, playerActionApi, userApi } from '@/lib/api';
+import { withCache, apiCache } from '@/lib/cache';
 import { useAppData } from '@/contexts/AppDataContext';
 
 interface Fixture {
@@ -26,7 +27,7 @@ export default function PickPage() {
   const competitionId = params.id as string;
   
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading } = useAppData();
+  const { competitions, loading: contextLoading, refreshData } = useAppData();
   
   // Find the specific competition
   const competition = competitions?.find(c => c.id.toString() === competitionId);
@@ -64,8 +65,25 @@ export default function PickPage() {
     }
   };
 
+  const loadCurrentPick = useCallback(async (roundId: number) => {
+    try {
+      const response = await withCache(
+        `current-pick-${roundId}-${competitionId}`,
+        60 * 60 * 1000, // 1 hour cache - rounds don't change often
+        () => playerActionApi.getCurrentPick(roundId)
+      );
+      if (response.data.return_code === 'SUCCESS') {
+        const pickTeam = (response.data.pick as {team?: string})?.team || null;
+        setCurrentPick(pickTeam);
+      }
+    } catch (error) {
+      console.error('Failed to load current pick:', error);
+      setCurrentPick(null);
+    }
+  }, [competitionId]);
+
   // Combined function to load all data for a specific round
-  const loadRoundData = useCallback(async (roundId: number, isCurrentRound = true) => {
+  const loadRoundData = useCallback(async (roundId: number, isCurrentRound = true, freshRounds?: Round[]) => {
     console.log('📊 Loading round data:', { roundId, isCurrentRound, currentRoundId, viewMode });
     setPickDataLoaded(false);
     
@@ -84,24 +102,25 @@ export default function PickPage() {
         setAllowedTeams([]);
         setIsRoundLocked(true); // Previous rounds are always "locked" for display
       } else {
-        // For current round, check lock status in real-time
-        const response = await roundApi.getRounds(parseInt(competitionId));
-        if (response.data.return_code === 'SUCCESS' && response.data.rounds) {
-          const currentRound = response.data.rounds.find((r: { id: number; lock_time?: string }) => r.id === roundId);
-          if (currentRound && currentRound.lock_time) {
-            const now = new Date();
-            const lockTime = new Date(currentRound.lock_time);
-            const locked = now >= lockTime;
-            console.log('🕒 Real-time lock check:', {
-              now: now.toISOString(),
-              lockTime: lockTime.toISOString(), 
-              locked,
-              roundId
-            });
-            setIsRoundLocked(locked);
-          } else {
-            setIsRoundLocked(false);
-          }
+        // For current round, use fresh rounds data when available, otherwise use state
+        const roundsToUse = freshRounds || rounds;
+        const currentRound = roundsToUse.find(r => r.id === roundId);
+        if (currentRound) {
+          const now = new Date();
+          const lockTime = new Date(currentRound.lock_time || '');
+          const locked = !!(currentRound.lock_time && now >= lockTime);
+          console.log('🕒 Lock check in loadRoundData:', {
+            now: now.toISOString(),
+            lockTime: lockTime.toISOString(),
+            locked,
+            roundId,
+            hasLockTime: !!currentRound.lock_time,
+            usingFreshData: !!freshRounds
+          });
+          setIsRoundLocked(locked);
+        } else {
+          console.warn('⚠️ Current round not found in loadRoundData', { roundId, roundsCount: roundsToUse.length });
+          setIsRoundLocked(false);
         }
       }
       
@@ -110,7 +129,7 @@ export default function PickPage() {
     } catch (error) {
       console.error('Failed to load round data:', error);
     }
-  }, [competitionId, viewMode]);
+  }, [competitionId, viewMode, currentRoundId, loadCurrentPick, rounds]);
 
   useEffect(() => {
     // Prevent double execution from React Strict Mode
@@ -131,8 +150,7 @@ export default function PickPage() {
       try {
         hasInitialized.current = true;
         
-        // Get rounds to find current round (invalidate cache first to get latest data)
-        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+        // Get rounds to find current round (use cache for better performance)
         const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
         
         if (roundsResponse.data.return_code !== 'SUCCESS') {
@@ -172,9 +190,9 @@ export default function PickPage() {
         setCurrentRoundId(latestRound.id);
         setViewingRoundId(latestRound.id); // Initially view the current round
         setIsRoundLocked(locked);
-        
-        // Load data for the current round (initially)
-        await loadRoundData(latestRound.id, true);
+
+        // Load data for the current round (initially) - pass fresh rounds data
+        await loadRoundData(latestRound.id, true, roundsData);
         
       } catch (error) {
         console.error('Failed to load pick data:', error);
@@ -205,22 +223,14 @@ export default function PickPage() {
     }
   };
 
-  const loadCurrentPick = async (roundId: number) => {
-    try {
-      const response = await playerActionApi.getCurrentPick(roundId);
-      if (response.data.return_code === 'SUCCESS') {
-        const pickTeam = (response.data.pick as {team?: string})?.team || null;
-        setCurrentPick(pickTeam);
-      }
-    } catch (error) {
-      console.error('Failed to load current pick:', error);
-      setCurrentPick(null);
-    }
-  };
 
   const loadTeamPickCounts = async (roundId: number) => {
     try {
-      const response = await fixtureApi.getPickCounts(roundId);
+      const response = await withCache(
+        `pick-counts-${roundId}`,
+        60 * 60 * 1000, // 1 hour cache - pick counts change infrequently
+        () => fixtureApi.getPickCounts(roundId)
+      );
       if (response.data.return_code === 'SUCCESS') {
         setTeamPickCounts(response.data.pick_counts || {});
       }
@@ -262,10 +272,25 @@ export default function PickPage() {
       const response = await playerActionApi.unselectPick(currentRoundId);
       
       if (response.data.return_code === 'SUCCESS') {
-        // Refresh allowed teams and current pick
+        // Clear pick-related caches and refresh data
         if (competition && currentRoundId) {
+          // Clear pick-specific caches
+          apiCache.delete(`current-pick-${currentRoundId}-${competitionId}`);
+          apiCache.delete(`pick-counts-${currentRoundId}`);
+
+          // Clear user dashboard cache to update pick counts on main game page
+          const userData = localStorage.getItem('user');
+          if (userData) {
+            const user = JSON.parse(userData);
+            apiCache.delete(`user-dashboard-${user.id}`);
+          }
+
           await loadAllowedTeams(parseInt(competitionId));
           await loadCurrentPick(currentRoundId);
+          await loadTeamPickCounts(currentRoundId); // Refresh pick counts to show updated numbers
+
+          // Force dashboard data refresh for immediate stats update
+          refreshData();
         }
         setSelectedTeam(null);
       } else {
@@ -287,10 +312,25 @@ export default function PickPage() {
       const response = await playerActionApi.setPick(selectedTeam.fixtureId, selectedTeam.position);
       
       if (response.data.return_code === 'SUCCESS') {
-        // Refresh allowed teams and current pick
+        // Clear pick-related caches and refresh data
         if (competition && currentRoundId) {
+          // Clear pick-specific caches
+          apiCache.delete(`current-pick-${currentRoundId}-${competitionId}`);
+          apiCache.delete(`pick-counts-${currentRoundId}`);
+
+          // Clear user dashboard cache to update pick counts on main game page
+          const userData = localStorage.getItem('user');
+          if (userData) {
+            const user = JSON.parse(userData);
+            apiCache.delete(`user-dashboard-${user.id}`);
+          }
+
           await loadAllowedTeams(parseInt(competitionId));
           await loadCurrentPick(currentRoundId);
+          await loadTeamPickCounts(currentRoundId); // Refresh pick counts to show updated numbers
+
+          // Force dashboard data refresh for immediate stats update
+          refreshData();
         }
         setSelectedTeam(null);
       } else {
@@ -318,6 +358,7 @@ export default function PickPage() {
                 <div className="h-6 w-px bg-slate-300" />
                 <div>
                   <h1 className="text-lg font-semibold text-slate-900">Make Your Pick</h1>
+                  <p className="text-sm text-slate-600">Loading round...</p>
                 </div>
               </div>
             </div>
@@ -357,6 +398,17 @@ export default function PickPage() {
                 <h1 className="text-lg font-semibold text-slate-900">
                   {viewMode === 'previous' || isRoundLocked ? 'Results' : 'Make Your Pick'}
                 </h1>
+                {(() => {
+                  const currentViewingRound = rounds.find(r => r.id === viewingRoundId);
+                  const roundNumber = currentViewingRound?.round_number;
+                  return roundNumber ? (
+                    <p className="text-sm text-slate-600">
+                      Round {roundNumber}
+                      {viewMode === 'previous' ? ' (Previous)' : ''}
+                      {isRoundLocked && viewMode === 'current' ? ' (Locked)' : ''}
+                    </p>
+                  ) : null;
+                })()}
               </div>
             </div>
           </div>
@@ -425,7 +477,7 @@ export default function PickPage() {
                 position: 'away' as const,
                 fixtureDisplay: `${fixture.home_team} v ${fixture.away_team}`
               }
-            ]).map((team, index) => {
+            ]).sort((a, b) => a.short.localeCompare(b.short)).map((team, index) => {
               const isAllowed = allowedTeams.includes(team.short);
               const isSelected = selectedTeam?.teamShort === team.short;
               const isCurrentPick = currentPick === team.short;

@@ -151,8 +151,11 @@ class SimpleCache {
 // Export singleton instance
 export const apiCache = new SimpleCache();
 
+// Promise deduplication map to prevent thundering herd
+const pendingRequests = new Map<string, Promise<unknown>>();
+
 /**
- * Higher-order function to wrap API calls with caching
+ * Higher-order function to wrap API calls with caching and promise deduplication
  * @param key - Cache key
  * @param ttl - Time to live in milliseconds
  * @param apiCall - Function that returns a Promise with the API call
@@ -169,14 +172,30 @@ export async function withCache<T>(
     return cached;
   }
 
-  // Cache miss - make API call
+  // Check if there's already a pending request for this key
+  const existingRequest = pendingRequests.get(key) as Promise<T> | undefined;
+  if (existingRequest) {
+    console.log(`⏳ Cache PENDING: ${key} - Waiting for in-flight request`);
+    return await existingRequest;
+  }
+
+  // Cache miss - make API call with deduplication
   console.log(`🌐 Cache MISS: ${key} - Making API call`);
-  const data = await apiCall();
+  const requestPromise = apiCall().then((data) => {
+    // Cache the result and clean up pending request
+    apiCache.set(key, data, ttl);
+    pendingRequests.delete(key);
+    return data;
+  }).catch((error) => {
+    // Clean up pending request on error
+    pendingRequests.delete(key);
+    throw error;
+  });
 
-  // Cache the result
-  apiCache.set(key, data, ttl);
+  // Store the promise to deduplicate concurrent requests
+  pendingRequests.set(key, requestPromise);
 
-  return data;
+  return await requestPromise;
 }
 
 /**

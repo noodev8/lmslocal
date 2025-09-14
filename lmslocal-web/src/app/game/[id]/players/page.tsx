@@ -102,7 +102,7 @@ export default function CompetitionPlayersPage() {
         setPlayers(response.data.players as Player[]);
       } else {
         console.error('Failed to load players:', response.data.message);
-        router.push(`/competition/${competitionId}/dashboard`);
+        router.push(`/game/${competitionId}/dashboard`);
       }
     } catch (error) {
       if (abortControllerRef.current?.signal.aborted) return;

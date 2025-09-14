@@ -189,6 +189,7 @@ router.post('/', verifyToken, async (req, res) => {
       id: firstRow.competition_id,               // Competition identifier
       name: firstRow.competition_name,           // Competition name for display
       current_round: firstRow.current_round || 0,      // Current round number
+      current_round_lock_time: firstRow.current_round_lock_time, // When current round locks
       total_rounds: firstRow.total_rounds || 0,        // Total rounds created
       active_players: firstRow.active_players || 0,    // Active players count
       total_players: firstRow.total_players || 0,      // Total players count
@@ -235,9 +236,7 @@ router.post('/', verifyToken, async (req, res) => {
     // === QUERY 3: ALL PLAYER HISTORY (BULK QUERY - ELIMINATES MASSIVE N+1) ===
     // Get complete history for ALL players in ONE query instead of N queries
     let historyData = [];
-    console.log('DEBUG: Current round for history query:', firstRow.current_round);
     if (firstRow.current_round) {
-      console.log('DEBUG: Running history query for rounds < ', firstRow.current_round);
       const historyResult = await query(`
         SELECT 
           -- === ROUND INFO ===

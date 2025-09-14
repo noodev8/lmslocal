@@ -243,7 +243,7 @@ export default function CompetitionSettings() {
         
         // Small delay to ensure context updates before navigation
         setTimeout(() => {
-          router.push(`/competition/${competitionId}/dashboard`);
+          router.push(`/game/${competitionId}/dashboard`);
         }, 200);
       } else {
         setError(response.data.message || 'Failed to reset competition');

@@ -260,33 +260,47 @@ router.post('/', verifyToken, async (req, res) => {
     `, [round_id, round.competition_id]);
 
     // PHASE 8: CHECK IF COMPETITION SHOULD BE MARKED AS COMPLETE
-    const activePlayersResult = await query(`
-      SELECT COUNT(*) as active_count
-      FROM competition_user 
-      WHERE competition_id = $1 AND status != 'OUT'
-    `, [round.competition_id]);
-    
-    const activePlayers = parseInt(activePlayersResult.rows[0].active_count);
+    // Only check for winner if ALL fixtures in the round have results
     let competitionComplete = false;
+    let activePlayers = 0;
     
-    // If 0 or 1 active players remain, mark competition as complete
-    if (activePlayers <= 1) {
-      await query(`
-        UPDATE competition 
-        SET status = 'COMPLETE'
-        WHERE id = $1
+    if (totalFixtures > 0 && totalFixtures === fixturesWithResults) {
+      const activePlayersResult = await query(`
+        SELECT COUNT(*) as active_count
+        FROM competition_user 
+        WHERE competition_id = $1 AND status != 'OUT'
       `, [round.competition_id]);
-      competitionComplete = true;
       
-      // Log competition completion
-      const completionMessage = activePlayers === 0 
-        ? 'Competition ended - all players eliminated'
-        : 'Competition ended - single winner determined';
+      activePlayers = parseInt(activePlayersResult.rows[0].active_count);
+      
+      // If 0 or 1 active players remain, mark competition as complete
+      if (activePlayers <= 1) {
+        await query(`
+          UPDATE competition 
+          SET status = 'COMPLETE'
+          WHERE id = $1
+        `, [round.competition_id]);
+        competitionComplete = true;
         
-      await query(`
-        INSERT INTO audit_log (competition_id, user_id, action, details)
-        VALUES ($1, $2, 'Competition Completed', $3)
-      `, [round.competition_id, user_id, completionMessage]);
+        // Log competition completion
+        const completionMessage = activePlayers === 0 
+          ? 'Competition ended - all players eliminated'
+          : 'Competition ended - single winner determined';
+          
+        await query(`
+          INSERT INTO audit_log (competition_id, user_id, action, details)
+          VALUES ($1, $2, 'Competition Completed', $3)
+        `, [round.competition_id, user_id, completionMessage]);
+      }
+    } else {
+      // Get active players count for response even if not checking for completion
+      const activePlayersResult = await query(`
+        SELECT COUNT(*) as active_count
+        FROM competition_user 
+        WHERE competition_id = $1 AND status != 'OUT'
+      `, [round.competition_id]);
+      
+      activePlayers = parseInt(activePlayersResult.rows[0].active_count);
     }
 
     // PHASE 9: INSERT AUDIT LOG FOR RESULTS CALCULATION

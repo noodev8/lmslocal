@@ -8,5 +8,5 @@ pm2 restart server.js --name lmslocal_prod
 
 == lmslocal
 -- Vercel
-c:/lmslocal
+cd /lmslocal
 vercel --prod

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -73,6 +73,76 @@ export default function FixturesPage() {
     
     return nextFriday.toISOString();
   };
+
+  const handleExtendRoundTime = useCallback(async (round: Round) => {
+    setExtendingRound(true);
+
+    try {
+      // Calculate new lock time (next Friday 6PM - guaranteed future)
+      const getNextFriday6PM = () => {
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 5 = Friday
+
+        let daysUntilFriday;
+        if (dayOfWeek < 5) {
+          // Before Friday - use this week's Friday
+          daysUntilFriday = 5 - dayOfWeek;
+        } else if (dayOfWeek === 5) {
+          // It's Friday - check if it's already past 6 PM
+          if (now.getHours() >= 18) {
+            // Past 6 PM on Friday - use NEXT Friday (7 days)
+            daysUntilFriday = 7;
+          } else {
+            // Before 6 PM on Friday - use today
+            daysUntilFriday = 0;
+          }
+        } else {
+          // Weekend (Saturday/Sunday) - use next Friday
+          daysUntilFriday = 5 + (7 - dayOfWeek);
+        }
+
+        const nextFriday = new Date(now);
+        nextFriday.setDate(now.getDate() + daysUntilFriday);
+        nextFriday.setHours(18, 0, 0, 0); // 6:00 PM
+
+        return nextFriday.toISOString();
+      };
+
+      const newLockTime = getNextFriday6PM();
+      console.log('🔄 Extending round lock time:', {
+        roundId: round.id,
+        oldLockTime: round.lock_time,
+        newLockTime
+      });
+
+      const response = await roundApi.update(round.id.toString(), newLockTime);
+      console.log('📡 Update round API response:', response.data);
+
+      if (response.data.return_code === 'SUCCESS') {
+        // Clear cache and proceed to fixture creation
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+        console.log('✅ Cache cleared and round extended successfully');
+
+        // Update the round with new lock time and proceed
+        const extendedRound = { ...round, lock_time: newLockTime };
+        setCurrentRound(extendedRound);
+        await loadFixtures(round.id);
+        await loadTeams();
+
+        // Keep modal open until user clicks continue
+      } else {
+        console.error('Failed to extend round time:', response.data.message);
+        alert('Failed to extend round time: ' + response.data.message);
+        setShowExtendTimeModal(false);
+      }
+    } catch (error) {
+      console.error('Error extending round time:', error);
+      alert('Failed to extend round time');
+      setShowExtendTimeModal(false);
+    } finally {
+      setExtendingRound(false);
+    }
+  }, [competitionId]);
 
   useEffect(() => {
     // Prevent double execution from React Strict Mode
@@ -151,7 +221,7 @@ export default function FixturesPage() {
     };
 
     initializeData();
-  }, [competitionId, router, competition, contextLoading]);
+  }, [competitionId, router, competition, contextLoading, handleExtendRoundTime]);
 
   const loadFixtures = async (roundId: number) => {
     try {
@@ -189,75 +259,6 @@ export default function FixturesPage() {
     }
   };
 
-  const handleExtendRoundTime = async (round: Round) => {
-    setExtendingRound(true);
-    
-    try {
-      // Calculate new lock time (next Friday 6PM - guaranteed future)
-      const getNextFriday6PM = () => {
-        const now = new Date();
-        const dayOfWeek = now.getDay(); // 0 = Sunday, 5 = Friday
-        
-        let daysUntilFriday;
-        if (dayOfWeek < 5) {
-          // Before Friday - use this week's Friday
-          daysUntilFriday = 5 - dayOfWeek;
-        } else if (dayOfWeek === 5) {
-          // It's Friday - check if it's already past 6 PM
-          if (now.getHours() >= 18) {
-            // Past 6 PM on Friday - use NEXT Friday (7 days)
-            daysUntilFriday = 7;
-          } else {
-            // Before 6 PM on Friday - use today
-            daysUntilFriday = 0;
-          }
-        } else {
-          // Weekend (Saturday/Sunday) - use next Friday
-          daysUntilFriday = 5 + (7 - dayOfWeek);
-        }
-        
-        const nextFriday = new Date(now);
-        nextFriday.setDate(now.getDate() + daysUntilFriday);
-        nextFriday.setHours(18, 0, 0, 0); // 6:00 PM
-        
-        return nextFriday.toISOString();
-      };
-
-      const newLockTime = getNextFriday6PM();
-      console.log('🔄 Extending round lock time:', { 
-        roundId: round.id, 
-        oldLockTime: round.lock_time,
-        newLockTime 
-      });
-      
-      const response = await roundApi.update(round.id.toString(), newLockTime);
-      console.log('📡 Update round API response:', response.data);
-      
-      if (response.data.return_code === 'SUCCESS') {
-        // Clear cache and proceed to fixture creation
-        cacheUtils.invalidateKey(`rounds-${competitionId}`);
-        console.log('✅ Cache cleared and round extended successfully');
-        
-        // Update the round with new lock time and proceed
-        const extendedRound = { ...round, lock_time: newLockTime };
-        setCurrentRound(extendedRound);
-        await loadFixtures(round.id);
-        await loadTeams();
-        
-        // Keep modal open until user clicks continue
-      } else {
-        console.error('Failed to extend round time:', response.data.message);
-        alert('Failed to extend round time: ' + response.data.message);
-        setShowExtendTimeModal(false);
-      }
-    } catch (error) {
-      console.error('Error extending round time:', error);
-      alert('Failed to extend round time');
-      setShowExtendTimeModal(false);
-    } finally {
-      setExtendingRound(false);
-    }
-  };
 
   const loadTeams = async () => {
     try {

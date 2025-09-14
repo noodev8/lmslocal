@@ -171,18 +171,19 @@ router.post('/', verifyToken, async (req, res) => {
         SELECT r.competition_id,
                COUNT(p.id) as picks_made
         FROM round r
+        INNER JOIN (
+          SELECT competition_id, MAX(round_number) as max_round_number
+          FROM round
+          GROUP BY competition_id
+        ) latest_rounds ON r.competition_id = latest_rounds.competition_id
+                       AND r.round_number = latest_rounds.max_round_number
         LEFT JOIN pick p ON r.id = p.round_id
-        WHERE r.round_number = (
-          SELECT MAX(round_number) 
-          FROM round r2 
-          WHERE r2.competition_id = r.competition_id
-        )
         GROUP BY r.competition_id
       ) pick_stats ON c.id = pick_stats.competition_id
       
       -- === JOIN CURRENT PICK (only if user is participating) ===
       LEFT JOIN (
-        SELECT 
+        SELECT
           p.round_id,
           p.user_id,
           p.id,
@@ -192,14 +193,15 @@ router.post('/', verifyToken, async (req, res) => {
           r.competition_id
         FROM pick p
         JOIN round r ON p.round_id = r.id
+        INNER JOIN (
+          SELECT competition_id, MAX(round_number) as max_round_number
+          FROM round
+          GROUP BY competition_id
+        ) latest_rounds ON r.competition_id = latest_rounds.competition_id
+                       AND r.round_number = latest_rounds.max_round_number
         LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
         LEFT JOIN fixture f ON p.fixture_id = f.id
         WHERE p.user_id = $1
-          AND r.round_number = (
-            SELECT MAX(round_number) 
-            FROM round r2 
-            WHERE r2.competition_id = r.competition_id
-          )
       ) current_pick ON c.id = current_pick.competition_id
       
       WHERE (
