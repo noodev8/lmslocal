@@ -235,12 +235,12 @@ router.post('/', verifyToken, async (req, res) => {
             // Update player lives based on outcome
             if (outcome === 'LOSE') {
               await client.query(`
-                UPDATE competition_user 
-                SET 
+                UPDATE competition_user
+                SET
                   lives_remaining = GREATEST(lives_remaining - 1, 0),
-                  status = CASE 
-                    WHEN lives_remaining <= 1 THEN 'out' 
-                    ELSE status 
+                  status = CASE
+                    WHEN lives_remaining - 1 < 0 THEN 'out'
+                    ELSE status
                   END
                 WHERE competition_id = $1 AND user_id = $2
               `, [competition_id, pick.user_id]);
@@ -288,12 +288,12 @@ router.post('/', verifyToken, async (req, res) => {
               
               // Deduct life and potentially eliminate player
               await client.query(`
-                UPDATE competition_user 
-                SET 
+                UPDATE competition_user
+                SET
                   lives_remaining = GREATEST(lives_remaining - 1, 0),
-                  status = CASE 
-                    WHEN lives_remaining <= 1 THEN 'out' 
-                    ELSE status 
+                  status = CASE
+                    WHEN lives_remaining - 1 < 0 THEN 'out'
+                    ELSE status
                   END
                 WHERE competition_id = $1 AND user_id = $2
               `, [competition_id, player.user_id]);
@@ -305,6 +305,53 @@ router.post('/', verifyToken, async (req, res) => {
       };
       
       const processedCount = await processResults();
+
+      // === STEP 4: CHECK FOR COMPETITION COMPLETION ===
+      // Only check for competition completion if we processed results AND all fixtures in round are complete
+      if (processedCount > 0) {
+        // First check if ALL fixtures in the current round are now processed
+        const roundResult = await client.query(`
+          SELECT r.id as round_id
+          FROM round r
+          WHERE r.competition_id = $1
+          ORDER BY r.round_number DESC
+          LIMIT 1
+        `, [competition_id]);
+
+        if (roundResult.rows.length > 0) {
+          const roundId = roundResult.rows[0].round_id;
+
+          // Check if ALL fixtures in this round are processed
+          const allFixturesResult = await client.query(`
+            SELECT COUNT(*) as total_fixtures,
+                   COUNT(CASE WHEN processed IS NOT NULL THEN 1 END) as processed_fixtures
+            FROM fixture
+            WHERE round_id = $1
+          `, [roundId]);
+
+          const { total_fixtures, processed_fixtures } = allFixturesResult.rows[0];
+
+          // Only determine winner if ALL fixtures in the round are processed
+          if (total_fixtures > 0 && total_fixtures == processed_fixtures) {
+            const activePlayersResult = await client.query(`
+              SELECT COUNT(*) as active_count
+              FROM competition_user
+              WHERE competition_id = $1 AND status = 'active'
+            `, [competition_id]);
+
+            const activeCount = parseInt(activePlayersResult.rows[0].active_count);
+
+            // If only one or zero players remain active, mark competition as complete
+            if (activeCount <= 1) {
+              await client.query(`
+                UPDATE competition
+                SET status = 'COMPLETE'
+                WHERE id = $1
+              `, [competition_id]);
+            }
+          }
+        }
+      }
 
       return {
         return_code: "SUCCESS",

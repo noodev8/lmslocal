@@ -42,24 +42,24 @@ export default function DashboardPage() {
     return competitions?.filter(comp => comp.is_organiser || comp.is_participant) || [];
   }, [competitions]);
 
-  // Simple winner detection based on player count and competition status
+  // Winner detection only shows when competition status is COMPLETE
   const getWinnerStatus = (competition: Competition) => {
     const playerCount = competition.player_count || 0;
-    const isNotSetup = competition.status !== 'SETUP';
+    const isComplete = competition.status === 'COMPLETE';
     
-    if (playerCount === 1 && isNotSetup) {
+    if (isComplete && playerCount === 1) {
       const winnerName = winnerNames[competition.id] || 'Loading...';
       return { isComplete: true, winner: winnerName, isDraw: false };
-    } else if (playerCount === 0 && isNotSetup) {
+    } else if (isComplete && playerCount === 0) {
       return { isComplete: true, winner: undefined, isDraw: true };
     }
     return { isComplete: false };
   };
 
-  // Load winner names for competitions with 1 player
+  // Load winner names for competitions that are COMPLETE
   useEffect(() => {
     const loadWinnerNames = async () => {
-      const competitionsWithWinner = userCompetitions.filter(comp => comp.player_count === 1 && comp.status !== 'SETUP');
+      const competitionsWithWinner = userCompetitions.filter(comp => comp.status === 'COMPLETE' && comp.player_count === 1);
       
       for (const competition of competitionsWithWinner) {
         if (!winnerNames[competition.id]) {

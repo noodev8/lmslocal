@@ -101,6 +101,7 @@ router.post('/', verifyToken, async (req, res) => {
         r.round_number,                               -- Round number for audit logging
         c.organiser_id,                               -- Competition organiser (for admin permission check)
         c.name as competition_name,                   -- Competition name for audit purposes
+        c.no_team_twice,                              -- Competition "no team twice" rule setting
         
         -- === TEAM VALIDATION INFO ===
         CASE WHEN $2 = 'home' THEN f.home_team_short ELSE f.away_team_short END as selected_team_short, -- Team user is trying to pick
@@ -222,8 +223,9 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Check if team is allowed for non-admin users
-    if (!is_admin && !validation.is_team_allowed) {
+    // Check if team is allowed (admin override only applies when setting picks for OTHER users)
+    const isAdminOverride = is_admin && !is_own_pick;
+    if (!isAdminOverride && !validation.is_team_allowed) {
       return res.json({
         return_code: "TEAM_NOT_ALLOWED",
         message: "You are not allowed to pick this team"
@@ -238,8 +240,8 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Check no team twice rule
-    if (validation.pick_count > 0) {
+    // Check no team twice rule (only if enabled for this competition)
+    if (validation.no_team_twice && validation.pick_count > 0) {
       return res.json({
         return_code: "TEAM_ALREADY_PICKED",
         message: "You have already picked this team in a previous round"
@@ -262,10 +264,11 @@ router.post('/', verifyToken, async (req, res) => {
 
       savedPick = pickResult.rows[0]; // Store pick data outside transaction scope
 
-      // Step 2: Handle allowed_teams changes (unless admin - they can override rules)
-      if (!is_admin) {
-        // If this was a pick change, restore the old team to allowed_teams
-        if (validation.existing_team_id) {
+      // Step 2: Handle allowed_teams changes
+      // Use same admin override logic as validation above
+      if (!isAdminOverride) {
+        // If this was a pick change, restore the old team to allowed_teams (only if no_team_twice is enabled)
+        if (validation.existing_team_id && validation.no_team_twice) {
           await client.query(`
             INSERT INTO allowed_teams (competition_id, user_id, team_id)
             VALUES ($1, $2, $3)
@@ -273,11 +276,13 @@ router.post('/', verifyToken, async (req, res) => {
           `, [competition_id, target_user_id, validation.existing_team_id]);
         }
 
-        // Remove the newly picked team from allowed_teams
-        await client.query(`
-          DELETE FROM allowed_teams 
-          WHERE competition_id = $1 AND user_id = $2 AND team_id = $3
-        `, [competition_id, target_user_id, selected_team_id]);
+        // Remove the newly picked team from allowed_teams (only if no_team_twice is enabled)
+        if (validation.no_team_twice) {
+          await client.query(`
+            DELETE FROM allowed_teams
+            WHERE competition_id = $1 AND user_id = $2 AND team_id = $3
+          `, [competition_id, target_user_id, selected_team_id]);
+        }
       }
 
       // Step 3: Add comprehensive audit log for administrative tracking

@@ -117,10 +117,12 @@ export default function ResultsPage() {
       const response = await fixtureApi.get(roundId.toString());
       if (response.data.return_code === 'SUCCESS') {
         const sortedFixtures = (response.data.fixtures || []).sort((a, b) => {
-          // Sort alphabetically by fixture (home_team vs away_team)
+          // Sort alphabetically by fixture (home_team vs away_team) - all fixtures together
           const fixtureA = `${a.home_team} vs ${a.away_team}`;
           const fixtureB = `${b.home_team} vs ${b.away_team}`;
-          return fixtureA.localeCompare(fixtureB);
+          const comparison = fixtureA.localeCompare(fixtureB);
+          // Use ID as tiebreaker for stable sort
+          return comparison !== 0 ? comparison : a.id - b.id;
         });
         setFixtures(sortedFixtures);
         
@@ -143,10 +145,20 @@ export default function ResultsPage() {
     else if (result === 'away_win') newResult = fixture.away_team_short;
     else if (result === 'draw') newResult = 'DRAW';
     
-    // Update fixtures state directly
-    setFixtures(prev => prev.map(f => 
-      f.id === fixtureId ? { ...f, result: newResult } : f
-    ));
+    // Update fixtures state directly and maintain alphabetical order
+    setFixtures(prev => {
+      const updated = prev.map(f => 
+        f.id === fixtureId ? { ...f, result: newResult } : f
+      );
+      // Re-sort to maintain alphabetical order with stable sort
+      return updated.sort((a, b) => {
+        const fixtureA = `${a.home_team} vs ${a.away_team}`;
+        const fixtureB = `${b.home_team} vs ${b.away_team}`;
+        const comparison = fixtureA.localeCompare(fixtureB);
+        // Use ID as tiebreaker for stable sort
+        return comparison !== 0 ? comparison : a.id - b.id;
+      });
+    });
   };
 
 
@@ -171,15 +183,38 @@ export default function ResultsPage() {
       
       const response = await fixtureApi.submitResults(parseInt(competitionId), results);
       
-      if (response.data.return_code === 'SUCCESS' || 
+      if (response.data.return_code === 'SUCCESS' ||
           response.data.return_code === 'NEW_ROUND_CREATED' ||
           response.data.return_code === 'WINNER' ||
           response.data.return_code === 'DRAW') {
-        
-        // Update local state to mark all fixtures with results as processed
-        setFixtures(prev => prev.map(f => 
-          f.result ? { ...f, processed: new Date().toISOString() } : f
-        ));
+
+        // Clear caches to ensure fresh data is loaded after results submission
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+        cacheUtils.invalidateKey(`competition-players-${competitionId}`);
+        cacheUtils.invalidateKey(`competition-standings-${competitionId}-full`);
+        cacheUtils.invalidateKey(`competition-standings-${competitionId}-recent`);
+
+        // Clear user dashboard cache for all competition members
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          cacheUtils.invalidateKey(`user-dashboard-${user.id}`);
+        }
+
+        // Update local state to mark all fixtures with results as processed and maintain order
+        setFixtures(prev => {
+          const updated = prev.map(f => 
+            f.result ? { ...f, processed: new Date().toISOString() } : f
+          );
+          // Re-sort to maintain alphabetical order with stable sort
+          return updated.sort((a, b) => {
+            const fixtureA = `${a.home_team} vs ${a.away_team}`;
+            const fixtureB = `${b.home_team} vs ${b.away_team}`;
+            const comparison = fixtureA.localeCompare(fixtureB);
+            // Use ID as tiebreaker for stable sort
+            return comparison !== 0 ? comparison : a.id - b.id;
+          });
+        });
         
       } else {
         console.error('Failed to confirm results:', response.data.message || 'Unknown error');
@@ -360,8 +395,8 @@ export default function ResultsPage() {
           <div className="p-6">
             {fixtures.length > 0 ? (
               <div className="space-y-4">
-                {fixtures.map((fixture) => (
-                  <div key={fixture.id} className="border border-slate-200 rounded-lg p-4">
+                {fixtures.map((fixture, index) => (
+                  <div key={`${fixture.id}-${index}`} className="border border-slate-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="font-semibold text-slate-900">{fixture.home_team}</div>

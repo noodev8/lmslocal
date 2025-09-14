@@ -16,6 +16,7 @@ interface Competition {
   name: string;
   current_round: number;
   status?: string;
+  current_round_lock_time?: string;
 }
 
 interface RoundHistory {
@@ -55,7 +56,7 @@ export default function CompetitionStandingsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: number; email: string; display_name: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   
   const loadStandings = useCallback(async () => {
@@ -201,12 +202,20 @@ export default function CompetitionStandingsPage() {
   const isPickVisible = (playerId: number) => {
     const isOwnPlayer = currentUser && currentUser.id === playerId;
 
-    // NEW LOGIC: Show picks ALL the time, unless there are 3 or less players left
-    // Exception: Always show your own pick
+    // Check if current round is locked using the competition's current_round_lock_time
+    const isCurrentRoundLocked = (() => {
+      if (!competition?.current_round_lock_time) return false;
+
+      const now = new Date();
+      const lockTime = new Date(competition.current_round_lock_time);
+      return now >= lockTime;
+    })();
+
+    // Hide picks only if: (3 or fewer players) AND (round not locked) AND (not own pick)
     const hasEnoughPlayersToHide = activePlayers.length <= 3;
 
-    // Show picks if: (more than 3 players) OR own player
-    return !hasEnoughPlayersToHide || isOwnPlayer;
+    // Show picks if: (round is locked) OR (more than 3 players) OR (own player)
+    return isCurrentRoundLocked || !hasEnoughPlayersToHide || isOwnPlayer;
   };
 
   // Always show full history for current user, recent history for others
