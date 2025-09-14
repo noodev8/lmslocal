@@ -42,7 +42,7 @@ export default function ResultsPage() {
   const competitionId = params.id as string;
   
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading } = useAppData();
+  const { competitions, loading: contextLoading, forceRefresh } = useAppData();
   
   // Find the specific competition
   const competition = competitions?.find(c => c.id.toString() === competitionId);
@@ -167,6 +167,7 @@ export default function ResultsPage() {
     return new Date() >= new Date(currentRound.lock_time);
   };
 
+
   const handleConfirmResults = async () => {
     if (!currentRound) return;
     
@@ -201,9 +202,9 @@ export default function ResultsPage() {
           cacheUtils.invalidateKey(`user-dashboard-${user.id}`);
         }
 
-        // Update local state to mark all fixtures with results as processed and maintain order
+        // Update local state FIRST to immediately reflect the changes in UI
         setFixtures(prev => {
-          const updated = prev.map(f => 
+          const updated = prev.map(f =>
             f.result ? { ...f, processed: new Date().toISOString() } : f
           );
           // Re-sort to maintain alphabetical order with stable sort
@@ -215,6 +216,9 @@ export default function ResultsPage() {
             return comparison !== 0 ? comparison : a.id - b.id;
           });
         });
+
+        // Force refresh app data to get updated dashboard and competition data
+        await forceRefresh();
         
       } else {
         console.error('Failed to confirm results:', response.data.message || 'Unknown error');
@@ -236,6 +240,14 @@ export default function ResultsPage() {
   };
 
   const isRoundCompleted = () => {
+    // Check local state first - if all fixtures have results and are processed locally,
+    // and the round is locked, then the round is completed
+    const allFixturesCompleteLocally = fixtures.length > 0 &&
+                                      fixtures.every(f => f.result && f.processed) &&
+                                      isRoundLocked();
+    if (allFixturesCompleteLocally) return true;
+
+    // Fall back to server state
     return roundInfo?.is_locked && roundInfo?.all_processed;
   };
 
@@ -414,7 +426,7 @@ export default function ResultsPage() {
                             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                               isFixtureProcessed(fixture)
                                 ? (fixture.result === fixture.home_team_short
-                                    ? 'bg-slate-400 text-slate-600 cursor-not-allowed'
+                                    ? 'bg-slate-500 text-white cursor-not-allowed'
                                     : 'bg-slate-200 text-slate-500 cursor-not-allowed')
                                 : (fixture.result === fixture.home_team_short
                                     ? 'bg-green-600 text-white hover:bg-green-700'
@@ -431,7 +443,7 @@ export default function ResultsPage() {
                             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                               isFixtureProcessed(fixture)
                                 ? (fixture.result === 'DRAW'
-                                    ? 'bg-slate-400 text-slate-600 cursor-not-allowed'
+                                    ? 'bg-slate-500 text-white cursor-not-allowed'
                                     : 'bg-slate-200 text-slate-500 cursor-not-allowed')
                                 : (fixture.result === 'DRAW'
                                     ? 'bg-green-600 text-white hover:bg-green-700'
@@ -448,7 +460,7 @@ export default function ResultsPage() {
                             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                               isFixtureProcessed(fixture)
                                 ? (fixture.result === fixture.away_team_short
-                                    ? 'bg-slate-400 text-slate-600 cursor-not-allowed'
+                                    ? 'bg-slate-500 text-white cursor-not-allowed'
                                     : 'bg-slate-200 text-slate-500 cursor-not-allowed')
                                 : (fixture.result === fixture.away_team_short
                                     ? 'bg-green-600 text-white hover:bg-green-700'
