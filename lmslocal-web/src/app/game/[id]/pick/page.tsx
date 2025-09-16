@@ -457,109 +457,276 @@ export default function PickPage() {
         </div>
 
 
-        {/* Debug logging removed - console.log returns void and can't be in JSX */}
+        {/* Round Information Card */}
+        {(() => {
+          const currentViewingRound = rounds.find(r => r.id === viewingRoundId);
+          const roundNumber = currentViewingRound?.round_number;
+          const lockTime = currentViewingRound?.lock_time;
 
-        {/* Team Selection Grid */}
+          if (roundNumber) {
+            // Calculate lock time info for current unlocked rounds
+            let lockTimeInfo = null;
+            if (viewMode === 'current' && !isRoundLocked && lockTime) {
+              const lockDate = new Date(lockTime);
+              const now = new Date();
+              const timeUntilLock = lockDate.getTime() - now.getTime();
+              const hoursUntilLock = Math.floor(timeUntilLock / (1000 * 60 * 60));
+              const minutesUntilLock = Math.floor((timeUntilLock % (1000 * 60 * 60)) / (1000 * 60));
+
+              lockTimeInfo = {
+                lockDate,
+                timeUntilLock,
+                hoursUntilLock,
+                minutesUntilLock
+              };
+            }
+
+            return (
+              <div className={`border rounded-lg p-4 mb-6 ${
+                lockTimeInfo ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="text-center">
+                  <div className={`font-semibold text-lg mb-2 ${
+                    lockTimeInfo ? 'text-blue-900' : 'text-slate-800'
+                  }`}>
+                    Round {roundNumber}
+                    {viewMode === 'previous' ? ' Results' : ''}
+                    {isRoundLocked && viewMode === 'current' ? ' (Locked)' : ''}
+                  </div>
+
+                  {/* Lock time warning for current unlocked rounds */}
+                  {lockTimeInfo && (
+                    <div className="text-blue-800 font-medium mb-2">
+                      ⏰ Make your pick before {lockTimeInfo.lockDate.toLocaleDateString()} at {lockTimeInfo.lockDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {lockTimeInfo.timeUntilLock > 0 && (
+                        <span className="ml-2">
+                          ({lockTimeInfo.hoursUntilLock > 0 ? `${lockTimeInfo.hoursUntilLock}h ` : ''}{lockTimeInfo.minutesUntilLock}m remaining)
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className={`text-sm ${
+                    lockTimeInfo ? 'text-blue-700' : 'text-slate-600'
+                  }`}>
+                    {viewMode === 'previous'
+                      ? 'View your previous pick and results'
+                      : isRoundLocked
+                      ? 'This round is now locked - results will be updated soon'
+                      : `Choose your team from the ${fixtures.length} fixture${fixtures.length !== 1 ? 's' : ''} below`
+                    }
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Team Selection by Fixture */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {fixtures.flatMap(fixture => [
-              {
+          {/* Section Header */}
+          <div className="mb-6 text-center">
+            <h2 className="text-xl font-bold text-slate-900 mb-2">
+              {viewMode === 'previous' || isRoundLocked ? 'Match Results' : 'Select Your Team'}
+            </h2>
+            <p className="text-slate-600">
+              {viewMode === 'previous'
+                ? 'Your pick and match outcomes from this round'
+                : isRoundLocked
+                ? 'Round is locked - viewing final picks and results'
+                : 'Click on a team to make your pick for this round'
+              }
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            {fixtures.map((fixture) => {
+              // Create team objects for this fixture
+              const homeTeam = {
                 short: fixture.home_team_short,
                 name: fixture.home_team,
                 fixtureId: fixture.id,
-                position: 'home' as const,
-                fixtureDisplay: `${fixture.home_team} v ${fixture.away_team}`
-              },
-              {
+                position: 'home' as const
+              };
+
+              const awayTeam = {
                 short: fixture.away_team_short,
                 name: fixture.away_team,
                 fixtureId: fixture.id,
-                position: 'away' as const,
-                fixtureDisplay: `${fixture.home_team} v ${fixture.away_team}`
-              }
-            ]).sort((a, b) => a.short.localeCompare(b.short)).map((team, index) => {
-              const isAllowed = allowedTeams.includes(team.short);
-              const isSelected = selectedTeam?.teamShort === team.short;
-              const isCurrentPick = currentPick === team.short;
-              
-              // Find the fixture this team belongs to and check result
-              const fixture = fixtures.find(f => f.id === team.fixtureId);
-              const fixtureResult = fixture?.result;
-              
-              // Determine game result: WIN = player advances, LOSE = player eliminated  
-              let teamResult: 'win' | 'lose' | null = null;
-              if (fixtureResult && isRoundLocked) {
-                if (fixtureResult === team.short) {
-                  teamResult = 'win'; // Team won = Player advances
-                } else {
-                  teamResult = 'lose'; // Team lost or drew = Player eliminated  
-                }
-              }
-              
-              // Disable teams if:
-              // 1. Team not in allowed list
-              // 2. There's already a current pick (user must remove it first)
-              // 3. Round is locked
-              // 4. Viewing previous rounds (not current round)
-              const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked || viewMode === 'previous';
-              
+                position: 'away' as const
+              };
+
               return (
-                <button
-                  key={`${team.short}-${index}`}
-                  onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
-                  disabled={isDisabled}
-                  className={`relative p-4 rounded-lg border-2 transition-all duration-200 ${
-                    teamResult === 'win'
-                      ? 'bg-green-600 border-slate-800 shadow-md text-white'
-                      : teamResult === 'lose'
-                      ? 'bg-red-600 border-slate-800 shadow-md text-white'
-                      : isSelected
-                      ? 'bg-white border-blue-500 shadow-md'
-                      : isCurrentPick
-                      ? 'bg-white border-blue-500 shadow-md'
-                      : isDisabled
-                      ? 'bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-50'
-                      : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
-                  }`}
-                >
-                  {/* Current pick indicator */}
-                  {isCurrentPick && (
-                    <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
-                      PICK
-                    </div>
-                  )}
-                  
-                  {/* Player count badge - only show when round is locked */}
-                  {isRoundLocked && teamPickCounts[team.short] && (
-                    <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
-                      {teamPickCounts[team.short]}
-                    </div>
-                  )}
-                  
-                  
-                  <div className="text-center">
-                    {/* Team name */}
-                    <div className={`text-base font-bold mb-2 ${
-                      teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
-                    }`}>
-                      {team.short}
-                    </div>
-                    
-                    {/* Fixture information */}
-                    <div className={`text-xs font-medium ${
-                      teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-slate-600'
-                    }`}>
-                      {team.fixtureDisplay}
-                    </div>
-                    
-                    {/* Result box - only show for pending (no result) fixtures */}
-                    {isRoundLocked && !teamResult && (
-                      <div className="text-xs font-bold mt-2 px-2 py-1 rounded text-white bg-slate-500">
-                        
+                <div key={fixture.id} className="border-b border-slate-100 last:border-b-0 pb-6 last:pb-0">
+                  {/* Team Cards with VS between them */}
+                  <div className="flex items-center gap-4">
+                    {/* Home Team */}
+                    {(() => {
+                      const team = homeTeam;
+                      const isAllowed = allowedTeams.includes(team.short);
+                      const isSelected = selectedTeam?.teamShort === team.short;
+                      const isCurrentPick = currentPick === team.short;
+
+                      // Check result for this team
+                      const fixtureResult = fixture.result;
+
+                      // Determine game result: WIN = player advances, LOSE = player eliminated
+                      let teamResult: 'win' | 'lose' | null = null;
+                      if (fixtureResult && isRoundLocked) {
+                        if (fixtureResult === team.short) {
+                          teamResult = 'win'; // Team won = Player advances
+                        } else {
+                          teamResult = 'lose'; // Team lost or drew = Player eliminated
+                        }
+                      }
+
+                      // Disable teams if:
+                      // 1. Team not in allowed list
+                      // 2. There's already a current pick (user must remove it first)
+                      // 3. Round is locked
+                      // 4. Viewing previous rounds (not current round)
+                      const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked || viewMode === 'previous';
+
+                      return (
+                        <button
+                          key={team.short}
+                          onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
+                          disabled={isDisabled}
+                          className={`relative flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
+                            teamResult === 'win'
+                              ? 'bg-green-600 border-slate-800 shadow-md text-white'
+                              : teamResult === 'lose'
+                              ? 'bg-red-600 border-slate-800 shadow-md text-white'
+                              : isSelected
+                              ? 'bg-white border-blue-500 shadow-md'
+                              : isCurrentPick
+                              ? 'bg-white border-blue-500 shadow-md'
+                              : isDisabled
+                              ? 'bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-50'
+                              : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
+                          }`}
+                        >
+                          {/* Current pick indicator */}
+                          {isCurrentPick && (
+                            <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
+                              PICK
+                            </div>
+                          )}
+
+                          {/* Player count badge - only show when round is locked */}
+                          {isRoundLocked && teamPickCounts[team.short] && (
+                            <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+                              {teamPickCounts[team.short]}
+                            </div>
+                          )}
+
+                          <div className="text-center">
+                            {/* Full team name only */}
+                            <div className={`text-lg font-bold ${
+                              teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
+                            }`}>
+                              {team.name}
+                            </div>
+
+                            {/* Result box - only show for pending (no result) fixtures */}
+                            {isRoundLocked && !teamResult && (
+                              <div className="text-xs font-bold mt-2 px-2 py-1 rounded text-white bg-slate-500">
+
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })()}
+
+                    {/* VS Separator */}
+                    <div className="flex-shrink-0 px-2">
+                      <div className="text-2xl font-bold text-slate-600">
+                        VS
                       </div>
-                    )}
+                    </div>
+
+                    {/* Away Team */}
+                    {(() => {
+                      const team = awayTeam;
+                      const isAllowed = allowedTeams.includes(team.short);
+                      const isSelected = selectedTeam?.teamShort === team.short;
+                      const isCurrentPick = currentPick === team.short;
+
+                      // Check result for this team
+                      const fixtureResult = fixture.result;
+
+                      // Determine game result: WIN = player advances, LOSE = player eliminated
+                      let teamResult: 'win' | 'lose' | null = null;
+                      if (fixtureResult && isRoundLocked) {
+                        if (fixtureResult === team.short) {
+                          teamResult = 'win'; // Team won = Player advances
+                        } else {
+                          teamResult = 'lose'; // Team lost or drew = Player eliminated
+                        }
+                      }
+
+                      // Disable teams if:
+                      // 1. Team not in allowed list
+                      // 2. There's already a current pick (user must remove it first)
+                      // 3. Round is locked
+                      // 4. Viewing previous rounds (not current round)
+                      const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked || viewMode === 'previous';
+
+                      return (
+                        <button
+                          key={team.short}
+                          onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
+                          disabled={isDisabled}
+                          className={`relative flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
+                            teamResult === 'win'
+                              ? 'bg-green-600 border-slate-800 shadow-md text-white'
+                              : teamResult === 'lose'
+                              ? 'bg-red-600 border-slate-800 shadow-md text-white'
+                              : isSelected
+                              ? 'bg-white border-blue-500 shadow-md'
+                              : isCurrentPick
+                              ? 'bg-white border-blue-500 shadow-md'
+                              : isDisabled
+                              ? 'bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-50'
+                              : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
+                          }`}
+                        >
+                          {/* Current pick indicator */}
+                          {isCurrentPick && (
+                            <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
+                              PICK
+                            </div>
+                          )}
+
+                          {/* Player count badge - only show when round is locked */}
+                          {isRoundLocked && teamPickCounts[team.short] && (
+                            <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+                              {teamPickCounts[team.short]}
+                            </div>
+                          )}
+
+                          <div className="text-center">
+                            {/* Full team name only */}
+                            <div className={`text-lg font-bold ${
+                              teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
+                            }`}>
+                              {team.name}
+                            </div>
+
+                            {/* Result box - only show for pending (no result) fixtures */}
+                            {isRoundLocked && !teamResult && (
+                              <div className="text-xs font-bold mt-2 px-2 py-1 rounded text-white bg-slate-500">
+
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })()}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -620,6 +787,62 @@ export default function PickPage() {
               >
                 {submitting ? 'Removing...' : 'Remove Pick'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Statistics Section - only show when round is locked and we have pick counts */}
+        {isRoundLocked && Object.keys(teamPickCounts).length > 0 && (
+          <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-6">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4 text-center">
+              Player Pick Statistics
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {Object.entries(teamPickCounts)
+                .sort(([,a], [,b]) => b - a) // Sort by pick count descending
+                .map(([teamShort, count]) => {
+                  const teamName = getFullTeamName(teamShort);
+                  const isCurrentPick = currentPick === teamShort;
+
+                  return (
+                    <div
+                      key={teamShort}
+                      className={`p-3 rounded-lg border text-center ${
+                        isCurrentPick
+                          ? 'bg-blue-100 border-blue-300'
+                          : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <div className={`font-bold text-sm ${
+                        isCurrentPick ? 'text-blue-900' : 'text-slate-900'
+                      }`}>
+                        {teamName}
+                      </div>
+                      <div className={`text-xs mt-1 ${
+                        isCurrentPick ? 'text-blue-700' : 'text-slate-600'
+                      }`}>
+                        {count} player{count !== 1 ? 's' : ''}
+                        {isCurrentPick && ' (Your pick)'}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        {/* Help Section - only show for current round when not locked */}
+        {viewMode === 'current' && !isRoundLocked && !currentPick && (
+          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <div className="text-center">
+              <div className="text-slate-800 font-medium mb-2">
+                💡 How to make your pick
+              </div>
+              <div className="text-slate-700 text-sm space-y-1">
+                <p>• Click on any available team to select them</p>
+                <p>• Confirm your selection before the round locks</p>
+                <p>• Your team must WIN to advance - draws and losses eliminate you</p>
+              </div>
             </div>
           </div>
         )}
