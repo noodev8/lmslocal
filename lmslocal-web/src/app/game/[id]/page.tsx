@@ -501,15 +501,27 @@ export default function UnifiedGameDashboard() {
             <div className={`grid gap-4 sm:gap-6 ${isParticipant ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' : 'grid-cols-2 lg:grid-cols-4'}`}>
               {/* Play button - only show if organizer is also a participant */}
               {isParticipant && (
-                <button 
+                <button
                   onClick={handlePlayClick}
-                  className="group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+                  className="relative group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
                 >
                   <div className="mb-4">
-                    <PlayIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
+                    <PlayIcon className={`h-12 w-12 mx-auto group-hover:text-slate-800 transition-colors ${
+                      competition.needs_pick ? 'text-red-600' : 'text-slate-600'
+                    }`} />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">Play</h3>
-                  <p className="text-sm text-slate-600">View game as player</p>
+                  <h3 className={`text-lg font-semibold mb-2 ${
+                    competition.needs_pick ? 'text-red-900' : 'text-slate-900'
+                  }`}>Play</h3>
+                  {competition.needs_pick ? (
+                    <div className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold">
+                      Make your pick now!
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-600">
+                      View game as player
+                    </p>
+                  )}
                 </button>
               )}
               
@@ -564,15 +576,27 @@ export default function UnifiedGameDashboard() {
         {!isOrganiser && (
           <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 mb-6 sm:mb-8">
             <div className="grid grid-cols-2 gap-4 sm:gap-6">
-              <button 
+              <button
                 onClick={handlePlayClick}
-                className="group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+                className="relative group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
               >
                 <div className="mb-4">
-                  <PlayIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
+                  <PlayIcon className={`h-12 w-12 mx-auto group-hover:text-slate-800 transition-colors ${
+                    competition.needs_pick ? 'text-red-600' : 'text-slate-600'
+                  }`} />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Play</h3>
-                <p className="text-sm text-slate-600">Make your picks and play the game</p>
+                <h3 className={`text-lg font-semibold mb-2 ${
+                  competition.needs_pick ? 'text-red-900' : 'text-slate-900'
+                }`}>Play</h3>
+                {competition.needs_pick ? (
+                  <div className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold">
+                    Make your pick now!
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    Make your picks and play the game
+                  </p>
+                )}
               </button>
               
               <Link
