@@ -60,11 +60,8 @@ export default function ResultsPage() {
   useEffect(() => {
     // Prevent double execution from React Strict Mode
     if (hasInitialized.current) {
-      console.log('Results page useEffect: Already initialized, skipping');
       return;
     }
-    
-    console.log('Results page useEffect: Running initialization', { competition: !!competition, contextLoading });
     
     // Check authentication
     const token = localStorage.getItem('jwt_token');
@@ -88,7 +85,6 @@ export default function ResultsPage() {
         
         // Get rounds to find current round
         const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
-        console.log('🔄 RESULTS PAGE: Loaded round data:', roundsResponse.data);
 
         if (roundsResponse.data.return_code !== 'SUCCESS') {
           console.error('Failed to get rounds:', roundsResponse.data.message);
@@ -193,14 +189,12 @@ export default function ResultsPage() {
       const response = await fixtureApi.submitResults(parseInt(competitionId), results);
 
       // Debug: Log the full response to see what we're getting
-      console.log('🔍 Submit results response:', response.data);
 
       if (response.data.return_code === 'SUCCESS' ||
           response.data.return_code === 'NEW_ROUND_CREATED') {
 
         // Check if competition completed
         const competitionCompleted = response.data.competition_status === 'COMPLETE';
-        console.log('🏁 Competition completed?', competitionCompleted, 'Status:', response.data.competition_status);
 
         // If competition completed, redirect to game dashboard to show completion banner
         if (competitionCompleted) {
@@ -514,30 +508,50 @@ export default function ResultsPage() {
         <div className="mt-6 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center justify-between">
             {isRoundCompleted() ? (
-              <>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">Round Complete</h3>
-                  <p className="text-sm text-slate-500 mt-1">All results processed and players eliminated. Ready to continue!</p>
-                </div>
-                <button
-                  onClick={handleCreateNextRound}
-                  disabled={creatingRound}
-                  className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center min-w-[160px] ${
-                    creatingRound
-                      ? 'bg-slate-400 text-slate-600 cursor-not-allowed'
-                      : 'bg-slate-600 text-white hover:bg-slate-700'
-                  }`}
-                >
-                  {creatingRound ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent mr-2"></div>
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Next Round'
-                  )}
-                </button>
-              </>
+              // Check if competition is complete before showing Create Next Round button
+              competition?.status === 'COMPLETE' || competition?.is_complete || competition?.winner ? (
+                <>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Competition Complete!</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {competition?.winner ?
+                        `Winner: ${competition.winner.display_name}` :
+                        'The competition has ended.'}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/game/${competitionId}/standings`}
+                    className="px-6 py-3 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-700 transition-all duration-200"
+                  >
+                    View Final Standings
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Round Complete</h3>
+                    <p className="text-sm text-slate-500 mt-1">All results processed and players eliminated. Ready to continue!</p>
+                  </div>
+                  <button
+                    onClick={handleCreateNextRound}
+                    disabled={creatingRound}
+                    className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center min-w-[160px] ${
+                      creatingRound
+                        ? 'bg-slate-400 text-slate-600 cursor-not-allowed'
+                        : 'bg-slate-600 text-white hover:bg-slate-700'
+                    }`}
+                  >
+                    {creatingRound ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent mr-2"></div>
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Next Round'
+                    )}
+                  </button>
+                </>
+              )
             ) : (
               <>
                 <div>

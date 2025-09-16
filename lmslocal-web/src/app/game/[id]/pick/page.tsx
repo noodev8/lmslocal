@@ -84,7 +84,6 @@ export default function PickPage() {
 
   // Combined function to load all data for a specific round
   const loadRoundData = useCallback(async (roundId: number, isCurrentRound = true, freshRounds?: Round[]) => {
-    console.log('📊 Loading round data:', { roundId, isCurrentRound, currentRoundId, viewMode });
     setPickDataLoaded(false);
     
     try {
@@ -109,23 +108,13 @@ export default function PickPage() {
           const now = new Date();
           const lockTime = new Date(currentRound.lock_time || '');
           const locked = !!(currentRound.lock_time && now >= lockTime);
-          console.log('🕒 Lock check in loadRoundData:', {
-            now: now.toISOString(),
-            lockTime: lockTime.toISOString(),
-            locked,
-            roundId,
-            hasLockTime: !!currentRound.lock_time,
-            usingFreshData: !!freshRounds
-          });
           setIsRoundLocked(locked);
         } else {
-          console.warn('⚠️ Current round not found in loadRoundData', { roundId, roundsCount: roundsToUse.length });
           setIsRoundLocked(false);
         }
       }
-      
+
       setPickDataLoaded(true);
-      console.log('✅ Round data loaded successfully for round:', roundId);
     } catch (error) {
       console.error('Failed to load round data:', error);
     }
@@ -180,13 +169,6 @@ export default function PickPage() {
         const lockTime = new Date(latestRound.lock_time || '');
         const locked = !!(latestRound.lock_time && now >= lockTime);
         
-        console.log('🕒 Lock time check:', {
-          now: now.toISOString(),
-          lockTime: lockTime.toISOString(), 
-          locked,
-          latestRound: latestRound.lock_time
-        });
-        
         setCurrentRoundId(latestRound.id);
         setViewingRoundId(latestRound.id); // Initially view the current round
         setIsRoundLocked(locked);
@@ -207,16 +189,13 @@ export default function PickPage() {
 
   const loadAllowedTeams = async (competitionId: number) => {
     try {
-      console.log('🔍 Loading allowed teams for competition:', competitionId);
       const response = await userApi.getAllowedTeams(competitionId);
-      console.log('📥 Allowed teams API response:', response.data);
       
       if (response.data.return_code === 'SUCCESS') {
         const teamShorts = (response.data.allowed_teams || []).map((team: { short_name: string }) => team.short_name);
-        console.log('✅ Processed team shorts:', teamShorts);
         setAllowedTeams(teamShorts);
       } else {
-        console.error('❌ API returned error:', response.data.return_code, (response.data as { message?: string }).message);
+        console.error('API returned error:', response.data.return_code, (response.data as { message?: string }).message);
       }
     } catch (error) {
       console.error('💥 Failed to load allowed teams:', error);

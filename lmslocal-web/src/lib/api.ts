@@ -49,46 +49,9 @@ api.interceptors.request.use(
 // Response interceptor to handle token expiration AND detailed error logging
 api.interceptors.response.use(
   (response) => {
-    // Log successful requests with rate limit info
-    const remaining = response.headers['ratelimit-remaining'];
-    const limit = response.headers['ratelimit-limit'];
-    const reset = response.headers['ratelimit-reset'];
-    
-    if (remaining && limit) {
-      const resetTime = reset ? new Date(parseInt(reset) * 1000).toLocaleTimeString() : 'unknown';
-      console.log(`✅ API Success: ${remaining}/${limit} requests remaining (resets at ${resetTime})`);
-    } else {
-      console.log(`✅ API Success: No rate limit headers found`);
-    }
-    
     return response;
   },
   (error) => {
-    // Detailed error logging for diagnosis
-    console.group('🚨 API ERROR DETAILS');
-    console.log('Status Code:', error.response?.status);
-    console.log('Status Text:', error.response?.statusText);
-    console.log('Error Code:', error.code);
-    console.log('Error Message:', error.message);
-    console.log('URL:', error.config?.url);
-    console.log('Method:', error.config?.method?.toUpperCase());
-    console.log('Response Data:', error.response?.data);
-    
-    // Rate limit specific info
-    const rateLimitHeaders = {
-      limit: error.response?.headers['ratelimit-limit'],
-      remaining: error.response?.headers['ratelimit-remaining'],
-      reset: error.response?.headers['ratelimit-reset']
-    };
-    console.log('Rate Limit Headers:', rateLimitHeaders);
-    
-    if (error.response?.status === 429) {
-      console.log('🚫 RATE LIMIT HIT - This is a proper 429 response');
-    } else if (!error.response) {
-      console.log('💥 NETWORK FAILURE - Server likely overloaded/crashed');
-    }
-    console.groupEnd();
-    
     // Handle authentication errors
     if (error.response?.status === 401) {
       // Only access localStorage on client-side to avoid hydration issues

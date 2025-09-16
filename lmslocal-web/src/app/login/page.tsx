@@ -31,14 +31,11 @@ function LoginForm() {
 
   const onSubmit = async (data: LoginRequest, e?: React.BaseSyntheticEvent) => {
     e?.preventDefault();
-    console.log('Login form submitted:', data);
     setIsLoading(true);
     setError('');
 
     try {
-      console.log('Calling authApi.login...');
       const response = await authApi.login(data);
-      console.log('Login response:', response);
       
       if (response.data.return_code === 'SUCCESS') {
         // Clear any cached data from previous sessions
