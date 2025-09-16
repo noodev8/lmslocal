@@ -315,15 +315,16 @@ export default function DashboardPage() {
 
 
         {/* Competitions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
           {/* Competition Cards */}
           {userCompetitions.map((competition) => {
             const competitionStatus = getWinnerStatus(competition);
             return (
               <div
                 key={competition.id}
-                className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+                className="flex flex-col space-y-3 h-full"
               >
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex-1 flex flex-col">
                 {/* Card Header */}
                 <div className="p-4 sm:p-6 border-b border-slate-100">
                   <div className="flex items-start justify-between mb-4">
@@ -336,6 +337,13 @@ export default function DashboardPage() {
                           </div>
                         )}
                       </div>
+                      {competition.needs_pick && (
+                        <div className="mb-2">
+                          <div className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold">
+                            PICK NEEDED
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center space-x-4 text-sm text-slate-600">
                         <div className="flex items-center space-x-2">
                           <UserGroupIcon className="h-4 w-4" />
@@ -407,14 +415,14 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {/* Card Body */}
-                <div className="p-4 sm:p-6">
-                  <div className="space-y-4">
+                {/* Card Body - Flexible to fill remaining space */}
+                <div className="p-4 sm:p-6 flex-1">
+                  <div className="space-y-4 h-full flex flex-col">
                     {/* Competition Stats */}
                     <div className="grid grid-cols-1 gap-4 text-sm">
                       {/* Removed rounds count and created date as requested */}
                     </div>
-                    
+
                     {/* Invite Code - Show for all users */}
                     {competition.invite_code && (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
@@ -442,8 +450,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Action Buttons - Unified Game Dashboard and Hide */}
-                <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-100">
+                {/* Action Buttons - Back inside the card */}
+                <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-100 mt-auto">
                   <div className="flex gap-3">
                     <Link
                       href={`/game/${competition.id}`}
@@ -471,6 +479,7 @@ export default function DashboardPage() {
                       </button>
                     )}
                   </div>
+                </div>
                 </div>
               </div>
             );

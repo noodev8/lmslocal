@@ -118,7 +118,7 @@ export default function PickPage() {
     } catch (error) {
       console.error('Failed to load round data:', error);
     }
-  }, [competitionId, viewMode, currentRoundId, loadCurrentPick, rounds]);
+  }, [competitionId, loadCurrentPick, rounds]);
 
   useEffect(() => {
     // Prevent double execution from React Strict Mode
