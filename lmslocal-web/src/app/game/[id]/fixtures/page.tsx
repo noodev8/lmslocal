@@ -109,19 +109,12 @@ export default function FixturesPage() {
       };
 
       const newLockTime = getNextFriday6PM();
-      console.log('🔄 Extending round lock time:', {
-        roundId: round.id,
-        oldLockTime: round.lock_time,
-        newLockTime
-      });
 
       const response = await roundApi.update(round.id.toString(), newLockTime);
-      console.log('📡 Update round API response:', response.data);
 
       if (response.data.return_code === 'SUCCESS') {
         // Clear cache and proceed to fixture creation
         cacheUtils.invalidateKey(`rounds-${competitionId}`);
-        console.log('✅ Cache cleared and round extended successfully');
 
         // Update the round with new lock time and proceed
         const extendedRound = { ...round, lock_time: newLockTime };

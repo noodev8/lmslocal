@@ -320,8 +320,6 @@ export default function CompetitionPlayersPage() {
 
         // Reload fresh player data from server
         await loadPlayers();
-
-        console.log(`Successfully updated lives for ${results.length} players`);
       }
 
     } catch (error) {

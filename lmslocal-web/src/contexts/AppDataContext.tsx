@@ -143,7 +143,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         setLatestRoundStats(competitionsData.data.latest_round_stats || null);
         setLastUpdated(timestamp);
         setError(null); // Clear any previous errors
-        console.log('✅ Force refresh successful');
       } else {
         console.error('Failed to force refresh:', competitionsData.data.message);
         setError(`Refresh failed: ${competitionsData.data.message}`);
@@ -224,7 +223,6 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       // Clear all cache on login for fresh start
       const { cacheUtils } = await import('@/lib/cache');
       cacheUtils.clearAll();
-      console.log('🧹 Fresh login - cleared all cache for clean start');
       
       // Reload data after successful login
       loadAppData();
