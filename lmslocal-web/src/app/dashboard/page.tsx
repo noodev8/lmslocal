@@ -321,7 +321,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-blue-900">
-                🚀 You're using LMSLocal BETA - Thank you for being an early user!
+                🚀 You&apos;re using LMSLocal BETA - Thank you for being an early user!
               </p>
               <p className="text-xs text-blue-700 mt-1">
                 Questions or issues? Contact us at{' '}
