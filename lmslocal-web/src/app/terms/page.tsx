@@ -91,7 +91,7 @@ export default function TermsOfService() {
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">12. Contact Information</h2>
             <p className="text-slate-700 mb-4">
-              If you have any questions about these Terms of Service, please contact us at noodev8@gmail.com.
+              If you have any questions about these Terms of Service, please contact us at lmslocal@noodev8.com.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">13. Governing Law</h2>
