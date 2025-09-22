@@ -565,14 +565,26 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-slate-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-4 md:mb-0">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-6 lg:space-y-0">
+            <div className="flex items-center">
               <TrophyIcon className="h-6 w-6 text-slate-400 mr-2" />
               <span className="text-xl font-bold">LMSLocal</span>
             </div>
-            <div className="text-sm text-slate-400 text-center md:text-right">
-              <p>&copy; 2024 LMSLocal. All rights reserved.</p>
-              <p className="mt-1">The admin-first Last Man Standing platform.</p>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-8">
+              <div className="flex space-x-6">
+                <Link href="/terms" className="text-sm text-slate-400 hover:text-white transition-colors">
+                  Terms of Service
+                </Link>
+                <Link href="/privacy" className="text-sm text-slate-400 hover:text-white transition-colors">
+                  Privacy Policy
+                </Link>
+              </div>
+
+              <div className="text-sm text-slate-400">
+                <p>&copy; 2025 LMSLocal. All rights reserved.</p>
+                <p className="mt-1">The admin-first Last Man Standing platform.</p>
+              </div>
             </div>
           </div>
         </div>
