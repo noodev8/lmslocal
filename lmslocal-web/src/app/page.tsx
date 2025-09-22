@@ -4,25 +4,6 @@ import Link from 'next/link';
 import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, UserGroupIcon, StarIcon } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
-  // Simple chart component for visual data representation
-  const SimpleChart = ({ data, title, color = "slate" }: { data: number[], title: string, color?: string }) => {
-    const max = Math.max(...data);
-    return (
-      <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
-        <h4 className="text-sm font-medium text-slate-600 mb-3">{title}</h4>
-        <div className="flex items-end space-x-1 h-16">
-          {data.map((value, i) => (
-            <div
-              key={i}
-              className={`bg-${color}-500 rounded-sm flex-1`}
-              style={{ height: `${(value / max) * 100}%` }}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   const features = [
     {
       title: '5-Minute Setup',
@@ -143,36 +124,33 @@ export default function LandingPage() {
             </div>
           </div>
           
-          {/* Competition Stats with Charts */}
+          {/* Beta Launch Stats */}
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-16">
             <div className="bg-white/70 backdrop-blur-sm rounded-xl p-8 border border-slate-200/50 shadow-sm">
               <div className="flex items-center mb-4">
-                <UserGroupIcon className="h-6 w-6 text-slate-600 mr-3" />
-                <h3 className="text-lg font-semibold text-slate-900">Active Players</h3>
+                <ClockIcon className="h-6 w-6 text-slate-600 mr-3" />
+                <h3 className="text-lg font-semibold text-slate-900">Quick Setup</h3>
               </div>
-              <div className="text-3xl font-bold text-slate-800 mb-2">2,847</div>
-              <p className="text-slate-600 text-sm mb-4">Players this season</p>
-              <SimpleChart data={[1200, 1650, 2100, 2400, 2847, 2750]} title="Player Growth" color="emerald" />
+              <div className="text-3xl font-bold text-slate-800 mb-2">5 mins</div>
+              <p className="text-slate-600 text-sm">To launch your competition</p>
+            </div>
+
+            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-8 border border-slate-200/50 shadow-sm">
+              <div className="flex items-center mb-4">
+                <UserGroupIcon className="h-6 w-6 text-slate-600 mr-3" />
+                <h3 className="text-lg font-semibold text-slate-900">Beta Access</h3>
+              </div>
+              <div className="text-3xl font-bold text-emerald-600 mb-2">FREE</div>
+              <p className="text-slate-600 text-sm">Unlimited players during beta</p>
             </div>
 
             <div className="bg-white/70 backdrop-blur-sm rounded-xl p-8 border border-slate-200/50 shadow-sm">
               <div className="flex items-center mb-4">
                 <TrophyIcon className="h-6 w-6 text-slate-600 mr-3" />
-                <h3 className="text-lg font-semibold text-slate-900">Competitions</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Ready Now</h3>
               </div>
-              <div className="text-3xl font-bold text-slate-800 mb-2">156</div>
-              <p className="text-slate-600 text-sm mb-4">Running this week</p>
-              <SimpleChart data={[45, 78, 112, 134, 156, 148]} title="Active Competitions" color="blue" />
-            </div>
-
-            <div className="bg-white/70 backdrop-blur-sm rounded-xl p-8 border border-slate-200/50 shadow-sm">
-              <div className="flex items-center mb-4">
-                <StarIcon className="h-6 w-6 text-slate-600 mr-3" />
-                <h3 className="text-lg font-semibold text-slate-900">Satisfaction</h3>
-              </div>
-              <div className="text-3xl font-bold text-slate-800 mb-2">4.8★</div>
-              <p className="text-slate-600 text-sm mb-4">Average rating</p>
-              <SimpleChart data={[4.1, 4.3, 4.5, 4.6, 4.8, 4.7]} title="User Rating" color="amber" />
+              <div className="text-3xl font-bold text-slate-800 mb-2">EPL</div>
+              <p className="text-slate-600 text-sm">Premier League teams included</p>
             </div>
           </div>
 
@@ -339,7 +317,7 @@ export default function LandingPage() {
             Ready to Get Started?
           </h2>
           <p className="text-xl text-slate-600 mb-12">
-            Join thousands of players and organizers who&apos;ve made LMSLocal their go-to competition platform
+            Join our beta and help shape the future of Last Man Standing competitions
           </p>
 
           <div className="grid md:grid-cols-2 gap-8 mb-12">
@@ -539,17 +517,17 @@ export default function LandingPage() {
             Ready to Start Your Competition?
           </h2>
           <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-            Join thousands of organizers and players who&apos;ve made LMSLocal their favorite competition platform.
+            Be among the first to experience the simplest way to run Last Man Standing competitions.
           </p>
           
           <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">
             <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur border border-slate-600">
-              <p className="text-2xl font-bold text-white">2,847</p>
-              <p className="text-slate-300 text-sm">Active players this season</p>
+              <p className="text-2xl font-bold text-white">BETA</p>
+              <p className="text-slate-300 text-sm">Early access available</p>
             </div>
             <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur border border-slate-600">
-              <p className="text-2xl font-bold text-white">4.8★</p>
-              <p className="text-slate-300 text-sm">User satisfaction rating</p>
+              <p className="text-2xl font-bold text-white">FREE</p>
+              <p className="text-slate-300 text-sm">No credit card required</p>
             </div>
             <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur border border-slate-600">
               <p className="text-2xl font-bold text-white">5 min</p>
