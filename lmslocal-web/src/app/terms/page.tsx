@@ -31,12 +31,12 @@ export default function TermsOfService() {
           <div className="prose prose-slate max-w-none">
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">1. Acceptance of Terms</h2>
             <p className="text-slate-700 mb-4">
-              By accessing and using LMSLocal ("the Service"), you accept and agree to be bound by the terms and provision of this agreement.
+              By accessing and using LMSLocal (&quot;the Service&quot;), you accept and agree to be bound by the terms and provision of this agreement.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">2. Beta Service</h2>
             <p className="text-slate-700 mb-4">
-              LMSLocal is currently in beta testing. The Service is provided "as is" and may contain bugs, errors, or limitations. We make no warranties about the reliability, availability, or performance of the Service during this beta period.
+              LMSLocal is currently in beta testing. The Service is provided &quot;as is&quot; and may contain bugs, errors, or limitations. We make no warranties about the reliability, availability, or performance of the Service during this beta period.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">3. User Accounts</h2>
