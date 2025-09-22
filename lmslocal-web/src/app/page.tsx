@@ -50,54 +50,38 @@ export default function LandingPage() {
     {
       name: 'Free',
       price: '£0',
-      period: 'forever',
-      description: 'Perfect for small groups',
+      period: 'Beta Access',
+      description: 'Perfect for getting started',
       features: [
-        'Up to 5 players',
-        'Basic competition management',
+        'Unlimited players during beta',
+        'Full competition management',
+        'Real-time updates',
+        'Premier League teams included',
         'Email support',
-        'Standard templates',
       ],
       cta: 'Start Free',
       highlighted: false,
+      badge: 'BETA',
     },
     {
-      name: 'Marketing Platform',
-      price: '£39',
-      period: 'per competition',
-      description: 'Complete digital marketing solution',
-      features: [
-        'Unlimited players',
-        'Full venue branding',
-        'Custom promotional banners',
-        'Social media integration',
-        'Event calendar promotion',
-        'Sponsor logo placements',
-        'Photo gallery showcase',
-        'Direct customer marketing',
-      ],
-      cta: 'Start Marketing',
-      highlighted: true,
-      savings: 'Save £200+ vs traditional advertising',
-    },
-    {
-      name: 'Business Growth',
+      name: 'Professional',
       price: '£19',
       period: 'per month',
-      description: 'Scale your marketing across multiple competitions',
+      description: 'Everything you need to run competitions',
       features: [
-        'Unlimited competitions',
-        'Advanced branding controls',
-        'A/B test promotions',
-        'Customer analytics',
-        'Social media scheduling',
-        'Revenue tracking',
-        'Multi-location support',
+        'Everything in Free',
         'Priority support',
+        'Advanced player management',
+        'Custom branding (coming soon)',
+        'Analytics dashboard (coming soon)',
+        'Export competition data',
+        'Multiple competitions',
+        'Remove LMSLocal branding',
       ],
-      cta: 'Scale Business',
-      highlighted: false,
-      savings: 'Avg. £2,840 additional revenue per competition',
+      cta: 'Coming Soon',
+      highlighted: true,
+      savings: 'Save £89 with annual plan (£139/year)',
+      comingSoon: true,
     },
   ];
 
@@ -392,7 +376,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-slate-500">
-            Free for competitions with 5 players or less • No setup fees • Cancel anytime
+            Free during beta • Professional plan coming soon at £19/month
           </p>
         </div>
       </section>
@@ -466,16 +450,30 @@ export default function LandingPage() {
             <p className="text-xl text-slate-600">Start free and only pay for what you need as your competition grows.</p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {pricing.map((plan, index) => (
-              <div 
-                key={index} 
-                className={`rounded-xl p-8 border ${
-                  plan.highlighted 
-                    ? 'bg-slate-800 text-white border-slate-700 shadow-xl transform scale-105' 
+              <div
+                key={index}
+                className={`relative rounded-xl p-8 border ${
+                  plan.highlighted
+                    ? 'bg-slate-800 text-white border-slate-700 shadow-xl transform scale-105'
                     : 'bg-white text-slate-900 border-slate-200 shadow-sm'
                 }`}
               >
+                {plan.badge && (
+                  <div className="absolute top-4 right-4">
+                    <span className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                      {plan.badge}
+                    </span>
+                  </div>
+                )}
+                {plan.comingSoon && (
+                  <div className="absolute top-4 right-4">
+                    <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                      COMING SOON
+                    </span>
+                  </div>
+                )}
                 <div className="text-center">
                   <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                   <div className="mb-4">
@@ -487,7 +485,7 @@ export default function LandingPage() {
                   <p className={`mb-6 ${plan.highlighted ? 'text-slate-300' : 'text-slate-600'}`}>
                     {plan.description}
                   </p>
-                  
+
                   {plan.savings && (
                     <div className={`mb-6 p-3 rounded-lg ${plan.highlighted ? 'bg-slate-700' : 'bg-emerald-50 border border-emerald-200'}`}>
                       <p className={`text-sm font-medium ${plan.highlighted ? 'text-slate-300' : 'text-emerald-700'}`}>
@@ -495,26 +493,36 @@ export default function LandingPage() {
                       </p>
                     </div>
                   )}
-                  
+
                   <ul className="space-y-3 mb-8">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center">
-                        <CheckCircleIcon className={`h-5 w-5 mr-2 ${plan.highlighted ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                        <span className="text-sm">{feature}</span>
+                        <CheckCircleIcon className={`h-5 w-5 mr-2 flex-shrink-0 ${plan.highlighted ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                        <span className="text-sm text-left">{feature}</span>
                       </li>
                     ))}
                   </ul>
-                  
-                  <Link 
-                    href="/register" 
-                    className={`block w-full py-3 px-4 rounded-lg font-semibold text-center transition-all duration-200 ${
-                      plan.highlighted 
-                        ? 'bg-white text-slate-800 hover:bg-slate-100' 
-                        : 'bg-slate-800 text-white hover:bg-slate-900'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Link>
+
+                  {plan.comingSoon ? (
+                    <div className={`block w-full py-3 px-4 rounded-lg font-semibold text-center ${
+                      plan.highlighted
+                        ? 'bg-slate-700 text-slate-300 cursor-not-allowed'
+                        : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                    }`}>
+                      {plan.cta}
+                    </div>
+                  ) : (
+                    <Link
+                      href="/register"
+                      className={`block w-full py-3 px-4 rounded-lg font-semibold text-center transition-all duration-200 ${
+                        plan.highlighted
+                          ? 'bg-white text-slate-800 hover:bg-slate-100'
+                          : 'bg-slate-800 text-white hover:bg-slate-900'
+                      }`}
+                    >
+                      {plan.cta}
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}
@@ -555,7 +563,7 @@ export default function LandingPage() {
             Create Free Competition
           </Link>
           <p className="text-slate-400 mt-4 text-lg">
-            Free for 5 players • No setup fees • Cancel anytime
+            Free during beta • Unlimited players • No credit card required
           </p>
           
           <div className="mt-8 flex justify-center items-center space-x-8 text-slate-300">
