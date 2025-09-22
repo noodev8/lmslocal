@@ -39,7 +39,6 @@ class SimpleCache {
       return null;
     }
 
-    console.log(`📦 Cache HIT: ${key} (age: ${Math.floor((now - entry.timestamp) / 1000)}s)`);
     return entry.data as T;
   }
 
@@ -55,17 +54,8 @@ class SimpleCache {
       timestamp: Date.now(),
       ttl
     });
-    const ttlMinutes = Math.floor(ttl / (1000 * 60));
-    const ttlSeconds = Math.floor(ttl / 1000);
+    // TTL logging removed for production
 
-    if (ttlMinutes >= 60) {
-      const ttlHours = Math.floor(ttlMinutes / 60);
-      console.log(`💾 Cache SET: ${key} (TTL: ${ttlHours}h ${ttlMinutes % 60}m)`);
-    } else if (ttlMinutes > 0) {
-      console.log(`💾 Cache SET: ${key} (TTL: ${ttlMinutes}m ${ttlSeconds % 60}s)`);
-    } else {
-      console.log(`💾 Cache SET: ${key} (TTL: ${ttlSeconds}s)`);
-    }
   }
 
   /**
@@ -75,7 +65,6 @@ class SimpleCache {
   delete(key: string): void {
     const deleted = this.cache.delete(key);
     if (deleted) {
-      console.log(`🗑️ Cache DELETE: ${key}`);
     }
   }
 
@@ -97,18 +86,13 @@ class SimpleCache {
       this.cache.delete(key);
     });
     
-    if (keysToDelete.length > 0) {
-      console.log(`🗑️ Cache DELETE PATTERN: ${pattern} (${keysToDelete.length} entries removed)`);
-    }
   }
 
   /**
    * Clear all cache entries
    */
   clear(): void {
-    const count = this.cache.size;
     this.cache.clear();
-    console.log(`🧹 Cache CLEAR: ${count} entries removed`);
   }
 
   /**
@@ -133,17 +117,11 @@ class SimpleCache {
    */
   cleanup(): void {
     const now = Date.now();
-    let cleanedCount = 0;
 
     for (const [key, entry] of this.cache.entries()) {
       if (now - entry.timestamp > entry.ttl) {
         this.cache.delete(key);
-        cleanedCount++;
       }
-    }
-
-    if (cleanedCount > 0) {
-      console.log(`🧼 Cache CLEANUP: ${cleanedCount} expired entries removed`);
     }
   }
 }
@@ -175,12 +153,10 @@ export async function withCache<T>(
   // Check if there's already a pending request for this key
   const existingRequest = pendingRequests.get(key) as Promise<T> | undefined;
   if (existingRequest) {
-    console.log(`⏳ Cache PENDING: ${key} - Waiting for in-flight request`);
     return await existingRequest;
   }
 
   // Cache miss - make API call with deduplication
-  console.log(`🌐 Cache MISS: ${key} - Making API call`);
   const requestPromise = apiCall().then((data) => {
     // Cache the result and clean up pending request
     apiCache.set(key, data, ttl);
@@ -203,25 +179,7 @@ export async function withCache<T>(
  * Call this in browser console: window.debugCache()
  */
 export function debugCache(): void {
-  const stats = apiCache.getStats();
-  console.log('🔍 Cache Debug Report:');
-  console.log(`Total entries: ${stats.size}`);
-
-  if (stats.entries.length === 0) {
-    console.log('No cache entries found');
-    return;
-  }
-
-  stats.entries.forEach(entry => {
-    const ttlMinutes = Math.floor(entry.ttl / 60);
-    const ttlDisplay = ttlMinutes >= 60
-      ? `${Math.floor(ttlMinutes / 60)}h ${ttlMinutes % 60}m`
-      : ttlMinutes > 0
-        ? `${ttlMinutes}m ${entry.ttl % 60}s`
-        : `${entry.ttl}s`;
-
-    console.log(`  ${entry.key}: age=${entry.age}s, ttl=${ttlDisplay}`);
-  });
+  // Debug output removed for production
 }
 
 /**
@@ -232,7 +190,6 @@ export const cacheUtils = {
   // Clear all cache - used on login for fresh start
   clearAll: () => {
     apiCache.clear();
-    console.log('🧹 Cache cleared: All entries removed');
   },
   
   // Individual cache operations
@@ -264,8 +221,8 @@ function getCurrentUserId(): string | null {
       const user = JSON.parse(userData);
       return user.id?.toString() || null;
     }
-  } catch (error) {
-    console.warn('Failed to get current user ID:', error);
+  } catch {
+    // Failed to get current user ID
   }
   return null;
 }

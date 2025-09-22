@@ -31,7 +31,7 @@ export default function PrivacyPolicy() {
           <div className="prose prose-slate max-w-none">
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">1. Introduction</h2>
             <p className="text-slate-700 mb-4">
-              LMSLocal ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.
+              LMSLocal (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">2. Information We Collect</h2>
@@ -129,7 +129,7 @@ export default function PrivacyPolicy() {
               These services have their own privacy policies and may collect additional information.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Children's Privacy</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Children&apos;s Privacy</h2>
             <p className="text-slate-700 mb-4">
               Our Service is not intended for children under 13. We do not knowingly collect personal information from children under 13. If you become aware that a child has provided us with personal information, please contact us.
             </p>
