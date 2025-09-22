@@ -218,6 +218,42 @@ export default function RegisterPage() {
               )}
             </div>
 
+            <div className="space-y-2">
+              <div className="flex items-start">
+                <input
+                  id="acceptTerms"
+                  {...register('acceptTerms', {
+                    required: 'You must accept the Terms of Service and Privacy Policy to create an account'
+                  })}
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500 focus:ring-2"
+                />
+                <label htmlFor="acceptTerms" className="ml-3 text-sm text-slate-700 leading-relaxed">
+                  I agree to the{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-600 hover:text-slate-800 font-medium underline"
+                  >
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-600 hover:text-slate-800 font-medium underline"
+                  >
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+              {errors.acceptTerms && (
+                <p className="text-sm text-red-600 font-medium">{errors.acceptTerms.message}</p>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
@@ -234,19 +270,6 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          {/* Terms and Privacy */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-xs text-slate-500 text-center leading-relaxed">
-              By creating an account, you agree to our{' '}
-              <a href="https://www.noodev8.com/terms-of-service/" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-800 font-medium">
-                Terms of Service
-              </a>{' '}
-              and{' '}
-              <a href="https://www.noodev8.com/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-800 font-medium">
-                Privacy Policy
-              </a>
-            </p>
-          </div>
         </div>
       </div>
     </div>
