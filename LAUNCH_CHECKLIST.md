@@ -22,11 +22,11 @@
 ## ✅ Phase 1: Immediate Actions (1-2 days)
 
 ### 1. Fix Landing Page Content
-- [ ] Remove or replace fake statistics (2,847 players, etc.)
-- [ ] Remove pricing section OR add "Coming Soon" label
-- [ ] Remove unbuilt feature claims from marketing copy
-- [ ] Add "Beta" or "Early Access" badge/messaging
-- [ ] Update CTA buttons to say "Start Free" not "Start Marketing"
+- [x] ~~Remove or replace fake statistics (2,847 players, etc.)~~ ✅ DONE
+- [x] ~~Remove pricing section OR add "Coming Soon" label~~ ✅ DONE - Added "Coming Soon"
+- [x] ~~Remove unbuilt feature claims from marketing copy~~ ✅ DONE
+- [x] ~~Add "Beta" or "Early Access" badge/messaging~~ ✅ DONE
+- [x] ~~Update CTA buttons to say "Start Free" not "Start Marketing"~~ ✅ DONE
 
 ### 2. Legal Compliance (CRITICAL)
 - [ ] Create Terms of Service page
@@ -95,11 +95,11 @@
 
 ## 💰 Pricing Decision (Choose One)
 
-### Option A: 100% Free Beta (RECOMMENDED)
-- [ ] Remove all pricing from landing page
-- [ ] Add "Free during beta" messaging
-- [ ] Focus on getting 50-100 active users
-- [ ] Gather feedback before monetizing
+### Option A: 100% Free Beta (RECOMMENDED) ✅ SELECTED
+- [x] ~~Remove all pricing from landing page~~ ✅ DONE - Kept pricing but added "Coming Soon"
+- [x] ~~Add "Free during beta" messaging~~ ✅ DONE
+- [x] ~~Focus on getting 50-100 active users~~ ✅ Strategy confirmed
+- [x] ~~Gather feedback before monetizing~~ ✅ Plan in place
 
 ### Option B: Manual Payment Tracking
 - [ ] Keep existing payment tracking system
@@ -141,16 +141,27 @@
 ## 📝 Notes Section
 *Use this space to track decisions and progress*
 
-**Pricing Strategy Decision**: _________________
+**Pricing Strategy Decision**: Free Beta → £19/month Professional (simplified 2-tier model)
 
-**Target Launch Date**: _________________
+**Target Launch Date**: TBD (after legal pages + cleanup)
 
-**Domain Chosen**: _________________
+**Domain Chosen**: TBD (suggestions: lmslocal.com, lmslocal.co.uk)
+
+**Progress Made (2025-09-22)**:
+- ✅ Simplified pricing from 3 tiers to 2 (Free + Professional £19/month)
+- ✅ Removed fake statistics (2,847 players, etc.)
+- ✅ Added honest beta messaging throughout
+- ✅ Updated feature claims to be realistic
+- ✅ Professional tier shows "Coming Soon" with disabled button
 
 **Questions/Blockers**:
--
--
--
+- None currently - ready for next phase
+
+**Recent Commits**:
+- c6ff93d: Add launch checklist document
+- 1b7f70a: Simplify pricing tiers with coming soon messaging
+- 2127b75: Update Professional tier features (removed white-label)
+- afc6440: Remove fake statistics and add honest beta messaging
 
 ---
 
