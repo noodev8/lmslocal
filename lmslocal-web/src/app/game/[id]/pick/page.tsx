@@ -461,40 +461,25 @@ export default function PickPage() {
             }
 
             return (
-              <div className={`border rounded-lg p-4 mb-6 ${
-                lockTimeInfo ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'
-              }`}>
-                <div className="text-center">
-                  <div className={`font-semibold text-lg mb-2 ${
-                    lockTimeInfo ? 'text-blue-900' : 'text-slate-800'
-                  }`}>
+              <div className="mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-lg text-slate-800">
                     Round {roundNumber}
-                    {viewMode === 'previous' ? ' Results' : ''}
-                    {isRoundLocked && viewMode === 'current' ? ' (Locked)' : ''}
+                    {viewMode === 'previous' ? ' - Results' : ''}
+                    {isRoundLocked && viewMode === 'current' ? ' - Locked' : ''}
                   </div>
 
-                  {/* Lock time warning for current unlocked rounds */}
+                  {/* Deadline for current unlocked rounds */}
                   {lockTimeInfo && (
-                    <div className="text-blue-800 font-medium mb-2">
-                      ⏰ Make your pick before {lockTimeInfo.lockDate.toLocaleDateString()} at {lockTimeInfo.lockDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {lockTimeInfo.timeUntilLock > 0 && (
-                        <span className="ml-2">
-                          ({lockTimeInfo.hoursUntilLock > 0 ? `${lockTimeInfo.hoursUntilLock}h ` : ''}{lockTimeInfo.minutesUntilLock}m remaining)
-                        </span>
-                      )}
+                    <div className="text-right">
+                      <div className="text-sm text-slate-600">
+                        Deadline: {lockTimeInfo.lockDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      </div>
+                      <div className="font-semibold text-slate-800">
+                        {lockTimeInfo.lockDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
                     </div>
                   )}
-
-                  <div className={`text-sm ${
-                    lockTimeInfo ? 'text-blue-700' : 'text-slate-600'
-                  }`}>
-                    {viewMode === 'previous'
-                      ? 'View your previous pick and results'
-                      : isRoundLocked
-                      ? 'This round is now locked - results will be updated soon'
-                      : `Choose your team from the ${fixtures.length} fixture${fixtures.length !== 1 ? 's' : ''} below`
-                    }
-                  </div>
                 </div>
               </div>
             );
@@ -504,20 +489,14 @@ export default function PickPage() {
 
         {/* Team Selection by Fixture */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          {/* Section Header */}
-          <div className="mb-6 text-center">
-            <h2 className="text-xl font-bold text-slate-900 mb-2">
-              {viewMode === 'previous' || isRoundLocked ? 'Match Results' : 'Select Your Team'}
-            </h2>
-            <p className="text-slate-600">
-              {viewMode === 'previous'
-                ? 'Your pick and match outcomes from this round'
-                : isRoundLocked
-                ? 'Round is locked - viewing final picks and results'
-                : 'Click on a team to make your pick for this round'
-              }
-            </p>
-          </div>
+          {/* Section Header - Simplified */}
+          {(viewMode === 'previous' || isRoundLocked) && (
+            <div className="mb-6 text-center">
+              <h2 className="text-xl font-bold text-slate-900">
+                {viewMode === 'previous' ? 'Match Results' : 'Final Picks & Results'}
+              </h2>
+            </div>
+          )}
 
           <div className="space-y-6">
             {fixtures.map((fixture) => {
