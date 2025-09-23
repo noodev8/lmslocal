@@ -25,7 +25,8 @@ Success Response (ALWAYS HTTP 200):
   "return_code": "SUCCESS",
   "message": "Results saved successfully",
   "fixtures_updated": 2,                // integer, number of fixtures updated
-  "fixtures_processed": 5               // integer, number of fixtures marked as processed
+  "fixtures_processed": 5,              // integer, number of fixtures marked as processed
+  "competition_status": "COMPLETE"      // string or null, competition status if changed (e.g., "COMPLETE")
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -308,6 +309,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // === STEP 4: CHECK FOR COMPETITION COMPLETION ===
       // Only check for competition completion if we processed results AND all fixtures in round are complete
+      let competitionStatus = null;
       if (processedCount > 0) {
         // First check if ALL fixtures in the current round are now processed
         const roundResult = await client.query(`
@@ -348,6 +350,7 @@ router.post('/', verifyToken, async (req, res) => {
                 SET status = 'COMPLETE'
                 WHERE id = $1
               `, [competition_id]);
+              competitionStatus = 'COMPLETE';
             }
           }
         }
@@ -357,7 +360,8 @@ router.post('/', verifyToken, async (req, res) => {
         return_code: "SUCCESS",
         message: "Results saved successfully",
         fixtures_updated: fixturesUpdated,
-        fixtures_processed: processedCount
+        fixtures_processed: processedCount,
+        competition_status: competitionStatus
       };
 
     }); // End of transaction

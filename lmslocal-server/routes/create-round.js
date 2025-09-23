@@ -32,9 +32,11 @@ Error Response (ALWAYS HTTP 200):
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
-"VALIDATION_ERROR" 
+"VALIDATION_ERROR"
 "UNAUTHORIZED"
 "COMPETITION_NOT_FOUND"
+"COMPETITION_COMPLETED"
+"INSUFFICIENT_ACTIVE_PLAYERS"
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -72,9 +74,9 @@ router.post('/', verifyToken, async (req, res) => {
       
       // 1. Verify competition exists, get organiser and team list (with row lock to prevent race conditions)
       const competitionResult = await client.query(`
-        SELECT organiser_id, name, team_list_id 
-        FROM competition 
-        WHERE id = $1 
+        SELECT organiser_id, name, team_list_id, status
+        FROM competition
+        WHERE id = $1
         FOR UPDATE
       `, [competition_id]);
 
@@ -89,7 +91,24 @@ router.post('/', verifyToken, async (req, res) => {
         throw new Error('UNAUTHORIZED');
       }
 
-      // 3. Create round with atomic round number generation (prevents race conditions)
+      // 3. Check if competition is already complete
+      if (competition.status === 'COMPLETE') {
+        throw new Error('COMPETITION_COMPLETED');
+      }
+
+      // 4. Verify sufficient active players remain (must have >1 to continue)
+      const activePlayersResult = await client.query(`
+        SELECT COUNT(*) as active_count
+        FROM competition_user
+        WHERE competition_id = $1 AND status = 'active'
+      `, [competition_id]);
+
+      const activePlayerCount = parseInt(activePlayersResult.rows[0].active_count);
+      if (activePlayerCount <= 1) {
+        throw new Error('INSUFFICIENT_ACTIVE_PLAYERS');
+      }
+
+      // 5. Create round with atomic round number generation (prevents race conditions)
       const roundResult = await client.query(`
         INSERT INTO round (
           competition_id,
@@ -111,7 +130,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       const round = roundResult.rows[0];
 
-      // 4. Create audit log entry (same transaction ensures consistency)
+      // 6. Create audit log entry (same transaction ensures consistency)
       await client.query(`
         INSERT INTO audit_log (competition_id, user_id, action, details)
         VALUES ($1, $2, 'Round Created', $3)
@@ -121,7 +140,7 @@ router.post('/', verifyToken, async (req, res) => {
         `Created Round ${round.round_number} for "${competition.name}" with lock time ${lock_time}`
       ]);
 
-      // 5. Auto-reset teams for players with no remaining teams (atomic with round creation)
+      // 7. Auto-reset teams for players with no remaining teams (atomic with round creation)
       if (competition.team_list_id) {
         
         // Insert all active teams for players who have zero allowed_teams
@@ -201,8 +220,22 @@ router.post('/', verifyToken, async (req, res) => {
     
     if (error.message === 'UNAUTHORIZED') {
       return res.json({
-        return_code: "UNAUTHORIZED", 
+        return_code: "UNAUTHORIZED",
         message: "Only the competition organiser can create rounds"
+      });
+    }
+
+    if (error.message === 'COMPETITION_COMPLETED') {
+      return res.json({
+        return_code: "COMPETITION_COMPLETED",
+        message: "Cannot create new round - competition has ended"
+      });
+    }
+
+    if (error.message === 'INSUFFICIENT_ACTIVE_PLAYERS') {
+      return res.json({
+        return_code: "INSUFFICIENT_ACTIVE_PLAYERS",
+        message: "Cannot create new round - not enough active players remaining"
       });
     }
 

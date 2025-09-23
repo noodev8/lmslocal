@@ -70,7 +70,6 @@ async function transaction(callback) {
     return result;
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Transaction error:', error.message);
     throw error;
   } finally {
     client.release();
@@ -93,7 +92,6 @@ async function transactionQueries(queries) {
     return results;
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Transaction error:', error.message);
     throw error;
   } finally {
     client.release();

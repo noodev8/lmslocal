@@ -81,8 +81,9 @@ android/key.jks
 # Python environment
 venv/
 
-# Claude Code settings
+# Claude and Codex Code settings
 .claude/
+.codex/
 
 # Any Private Keys
 splitdine-ocr-6921886ed122.json
