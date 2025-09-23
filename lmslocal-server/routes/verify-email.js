@@ -137,6 +137,14 @@ const generateHtmlPage = (title, heading, message, buttonText, buttonLink, isSuc
   `;
 };
 
+// Test POST endpoint to verify route is loaded
+router.post('/test', async (req, res) => {
+  res.status(200).json({
+    return_code: "SUCCESS",
+    message: "Verify-email route is loaded"
+  });
+});
+
 // GET endpoint with comprehensive validation, atomic transaction safety and audit logging
 router.get('/', async (req, res) => {
   try {
