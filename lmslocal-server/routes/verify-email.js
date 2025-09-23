@@ -54,7 +54,9 @@ const isTokenExpired = (expiresAt) => {
 const getFrontendUrl = () => {
   // Production: Use environment variable if available
   if (process.env.CLIENT_URL) {
-    return process.env.CLIENT_URL;
+    // CLIENT_URL may contain comma-separated URLs, use the first one
+    const urls = process.env.CLIENT_URL.split(',').map(url => url.trim());
+    return urls[0] || 'http://localhost:3000';
   }
   // Development: Default to localhost
   return 'http://localhost:3000';
