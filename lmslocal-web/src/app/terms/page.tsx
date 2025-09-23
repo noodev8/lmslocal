@@ -69,32 +69,42 @@ export default function TermsOfService() {
               You retain ownership of any content you submit. By using the Service, you grant us a license to use, display, and distribute your content as necessary to provide the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">8. Privacy</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">8. Data Retention and Account Management</h2>
+            <p className="text-slate-700 mb-4">
+              To maintain system performance and manage storage efficiently, we implement the following data retention policies:
+            </p>
+            <ul className="list-disc pl-6 text-slate-700 mb-4">
+              <li><strong>Competition Data:</strong> Completed competitions and their associated data will be automatically removed from our systems 60 days after completion. Unused competitions that remain in setup status may also be removed after 60 days of inactivity.</li>
+              <li><strong>Inactive User Accounts:</strong> User accounts that remain inactive for 60 consecutive days will be automatically removed from our system. This policy does not apply to paying subscribers, whose accounts will be preserved for the duration of their subscription period.</li>
+              <li><strong>Data Export:</strong> Before deletion, we recommend downloading any competition data you wish to preserve through the available export features.</li>
+            </ul>
+
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">9. Privacy</h2>
             <p className="text-slate-700 mb-4">
               Your privacy is important to us. Please review our <Link href="/privacy" className="text-slate-800 underline hover:text-slate-900">Privacy Policy</Link>, which also governs your use of the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">9. Termination</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Termination</h2>
             <p className="text-slate-700 mb-4">
               We may terminate or suspend your account at any time for violation of these terms. You may delete your account at any time through your profile settings.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Limitation of Liability</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">11. Limitation of Liability</h2>
             <p className="text-slate-700 mb-4">
               LMSLocal shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">11. Changes to Terms</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">12. Changes to Terms</h2>
             <p className="text-slate-700 mb-4">
               We reserve the right to modify these terms at any time. We will notify users of significant changes via email or through the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">12. Contact Information</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">13. Contact Information</h2>
             <p className="text-slate-700 mb-4">
               If you have any questions about these Terms of Service, please contact us at lmslocal@noodev8.com.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">13. Governing Law</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">14. Governing Law</h2>
             <p className="text-slate-700 mb-4">
               These terms shall be governed by and construed in accordance with the laws of England and Wales.
             </p>

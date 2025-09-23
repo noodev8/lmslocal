@@ -53,12 +53,22 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     try {
       setLoading(true);
       setError(null);
-      
+
+      // Check if we're in the browser first
+      if (typeof window === 'undefined') {
+        setLoading(false);
+        return;
+      }
+
       // Check if user is authenticated first
       const token = localStorage.getItem('jwt_token');
       const userData = localStorage.getItem('user');
       
       if (!token || !userData) {
+        // No authentication - set defaults and exit early
+        setUser(null);
+        setCompetitions([]);
+        setLatestRoundStats(null);
         setLoading(false);
         return;
       }
@@ -79,6 +89,16 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       if (competitionsData.data.return_code === 'SUCCESS') {
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
         setLatestRoundStats(competitionsData.data.latest_round_stats || null);
+      } else if (competitionsData.data.return_code === 'UNAUTHORIZED' ||
+                 competitionsData.data.message?.includes('Invalid token') ||
+                 competitionsData.data.message?.includes('user not found')) {
+        // Invalid token - clear localStorage and treat as unauthenticated
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user');
+        setUser(null);
+        setCompetitions([]);
+        setLatestRoundStats(null);
+        console.log('Invalid token detected, cleared localStorage');
       } else {
         console.error('Failed to load competitions:', competitionsData.data.message);
         setCompetitions([]);
@@ -88,7 +108,35 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       
     } catch (err) {
       console.error('Error loading app data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load app data');
+
+      // Check if it's an authentication error
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes('Invalid token') ||
+          errorMessage.includes('user not found') ||
+          errorMessage.includes('UNAUTHORIZED')) {
+        // Invalid token - clear localStorage and treat as unauthenticated
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('jwt_token');
+          localStorage.removeItem('user');
+        }
+        setUser(null);
+        setCompetitions([]);
+        setLatestRoundStats(null);
+        setError(null);
+        console.log('Invalid token detected in catch, cleared localStorage');
+        return;
+      }
+
+      // For unauthenticated users, don't set error state - just set defaults
+      const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
+      if (!token) {
+        setUser(null);
+        setCompetitions([]);
+        setLatestRoundStats(null);
+        setError(null); // Don't show errors for public pages
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load app data');
+      }
     } finally {
       setLoading(false);
     }
