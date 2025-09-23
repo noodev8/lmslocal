@@ -12,7 +12,7 @@ import {
   CalendarDaysIcon,
   PlayIcon
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, userApi, roundApi } from '@/lib/api';
+import { Competition as CompetitionType, userApi, roundApi, competitionApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
 export default function UnifiedGameDashboard() {
@@ -38,13 +38,19 @@ export default function UnifiedGameDashboard() {
     status?: string;
   } | null>(null);
   const [, setLoadingRound] = useState(true);
-  
+  const [pickStats, setPickStats] = useState<{
+    players_with_picks: number;
+    total_active_players: number;
+    pick_percentage: number;
+  } | null>(null);
+
   // Simple loading based on context availability
   const loading = contextLoading || !competition;
-  
+
   // Prevent duplicate API calls using refs
   const winnerLoadedRef = useRef(false);
   const roundLoadedRef = useRef(false);
+  const pickStatsLoadedRef = useRef(false);
   
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
@@ -207,8 +213,26 @@ export default function UnifiedGameDashboard() {
             winnerLoadedRef.current = false; // Reset on error to allow retry
           });
       }
+
+      // Load pick statistics for all users
+      if (!pickStatsLoadedRef.current && currentRoundInfo && !currentRoundInfo.is_locked) {
+        pickStatsLoadedRef.current = true;
+        competitionApi.getPickStatistics(parseInt(competitionId))
+          .then(response => {
+            if (response.data.return_code === 'SUCCESS') {
+              setPickStats({
+                players_with_picks: response.data.players_with_picks || 0,
+                total_active_players: response.data.total_active_players || 0,
+                pick_percentage: response.data.pick_percentage || 0
+              });
+            }
+          })
+          .catch(() => {
+            pickStatsLoadedRef.current = false; // Reset on error to allow retry
+          });
+      }
     }
-  }, [competition, competitionId, router, isOrganiser]);
+  }, [competition, competitionId, router, currentRoundInfo]);
 
   if (loading) {
     return (
@@ -490,6 +514,60 @@ export default function UnifiedGameDashboard() {
                   Click to copy
                 </button>
                 <p className="text-xs text-slate-500 mt-2">Share this code to invite players</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pick Statistics - All Players */}
+        {pickStats && currentRoundInfo && !currentRoundInfo.is_locked && (
+          <div className="mb-6 sm:mb-8">
+            <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200 shadow-sm">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 mb-1">
+                  Round {currentRoundInfo.round_number} Pick Status
+                </h3>
+                <p className="text-sm text-slate-600">
+                  {pickStats.players_with_picks} of {pickStats.total_active_players} players have made their pick
+                </p>
+              </div>
+
+              {/* Visual Progress Bar */}
+              <div className="mb-4">
+                <div className="w-full bg-slate-200 rounded-full h-8 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500 flex items-center justify-center"
+                    style={{ width: `${pickStats.pick_percentage}%` }}
+                  >
+                    {pickStats.pick_percentage > 20 && (
+                      <span className="text-white text-sm font-medium">
+                        {pickStats.pick_percentage}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {pickStats.pick_percentage <= 20 && (
+                  <p className="text-sm text-slate-700 font-medium mt-2">
+                    {pickStats.pick_percentage}%
+                  </p>
+                )}
+              </div>
+
+              {/* Status Message */}
+              <div className="text-center">
+                {pickStats.pick_percentage === 100 ? (
+                  <p className="text-sm font-medium text-green-700">
+                    ✅ All players have picked!
+                  </p>
+                ) : pickStats.pick_percentage >= 75 ? (
+                  <p className="text-sm font-medium text-blue-700">
+                    Almost there - {pickStats.total_active_players - pickStats.players_with_picks} player{pickStats.total_active_players - pickStats.players_with_picks !== 1 ? 's' : ''} remaining
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium text-slate-700">
+                    {pickStats.total_active_players - pickStats.players_with_picks} player{pickStats.total_active_players - pickStats.players_with_picks !== 1 ? 's' : ''} still need to pick
+                  </p>
+                )}
               </div>
             </div>
           </div>
