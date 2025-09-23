@@ -45,6 +45,8 @@ Return Codes:
 "VALIDATION_ERROR"
 "UNAUTHORIZED"
 "NOT_FOUND"
+"COMPETITION_COMPLETED"
+"INSUFFICIENT_ACTIVE_PLAYERS"
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -99,7 +101,7 @@ router.post('/', verifyToken, async (req, res) => {
     // Verify round exists and get competition ownership details
     // This single query gets round info AND checks if user is the organiser
     const verifyResult = await query(`
-      SELECT c.organiser_id, c.name as competition_name, r.round_number, r.competition_id
+      SELECT c.organiser_id, c.name as competition_name, c.status, r.round_number, r.competition_id
       FROM competition c
       JOIN round r ON c.id = r.competition_id
       WHERE r.id = $1
@@ -118,6 +120,30 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "UNAUTHORIZED",
         message: "Only the competition organiser can add fixtures"
+      });
+    }
+
+    // === COMPETITION COMPLETION CHECKS ===
+    // Check if competition is already complete
+    if (verifyResult.rows[0].status === 'COMPLETE') {
+      return res.json({
+        return_code: "COMPETITION_COMPLETED",
+        message: "Cannot add fixtures - competition has ended"
+      });
+    }
+
+    // Verify sufficient active players remain (must have >1 to continue)
+    const activePlayersResult = await query(`
+      SELECT COUNT(*) as active_count
+      FROM competition_user
+      WHERE competition_id = $1 AND status = 'active'
+    `, [verifyResult.rows[0].competition_id]);
+
+    const activePlayerCount = parseInt(activePlayersResult.rows[0].active_count);
+    if (activePlayerCount <= 1) {
+      return res.json({
+        return_code: "INSUFFICIENT_ACTIVE_PLAYERS",
+        message: "Cannot add fixtures - not enough active players remaining"
       });
     }
 

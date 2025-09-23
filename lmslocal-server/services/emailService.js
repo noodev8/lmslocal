@@ -89,7 +89,6 @@ const sendVerificationEmail = async (email, token, displayName) => {
       text: textContent,
     });
 
-    console.log('Verification email sent successfully:', result.id);
     return { success: true, messageId: result.id };
 
   } catch (error) {

@@ -393,14 +393,6 @@ router.post('/', verifyToken, async (req, res) => {
         const stats = roundStatsResult.rows[0];
         const eliminatedThisRound = parseInt(thisRoundEliminatedResult.rows[0].eliminated_this_round) || 0;
 
-        console.log(`🎭 SERVER: Round ${latestRound.round_number} stats:`, {
-          eliminatedThisRound,
-          survivors: parseInt(stats.survivors) || 0,
-          totalEliminated: parseInt(stats.total_eliminated) || 0,
-          roundId: latestRound.round_id,
-          competitionId: latestRound.competition_id
-        });
-
         // Always return stats, let frontend decide when to show announcements
         latestRoundStats = {
           competition_id: latestRound.competition_id,
@@ -414,8 +406,6 @@ router.post('/', verifyToken, async (req, res) => {
           user_status: latestRound.user_status, // 'active' or 'out'
           user_picked_team: latestRound.chosen_team
         };
-
-        console.log('🎭 SERVER: Created latestRoundStats:', latestRoundStats);
       }
     } catch (error) {
       console.error('Error fetching latest round stats:', error);
