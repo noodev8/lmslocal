@@ -120,22 +120,20 @@ const dbIntensiveLimit = rateLimit({
   }
 });
 
-// CORS configuration
-const allowedOrigins = [
-  'http://localhost:3000',        // Local development
-  'https://lmslocal.vercel.app'   // Vercel production domain
-];
+// CORS configuration - read from environment variable
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+  : [];
 
 // Function to check if origin is allowed
 const isOriginAllowed = (origin) => {
   if (!origin) return true; // Allow requests with no origin
   if (allowedOrigins.includes(origin)) return true;
-  if (process.env.CLIENT_URL === origin) return true;
-  
+
   // Allow any local network IP on port 3000 (for mobile browser access)
   const localNetworkPattern = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):3000$/;
   if (localNetworkPattern.test(origin)) return true;
-  
+
   return false;
 };
 
