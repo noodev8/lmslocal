@@ -593,30 +593,28 @@ export default function CompetitionPlayersPage() {
             <div key={player.id} className={`p-4 hover:bg-slate-50 transition-colors ${
               player.hidden ? 'bg-red-50 border-l-4 border-red-200' : ''
             }`}>
-              <div className="flex items-center justify-between">
-                {/* Player Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <p className="font-medium text-slate-900 truncate">{player.display_name}</p>
-                        {player.status === 'eliminated' && (
-                          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">OUT</span>
-                        )}
-                        {player.is_managed && (
-                          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Managed</span>
-                        )}
-                        {player.hidden && (
-                          <span className="text-xs text-red-700 bg-red-100 px-2 py-0.5 rounded">Hidden</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-slate-600 truncate">{player.email || 'No email'}</p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                {/* Player Info - Stack on mobile, inline on desktop */}
+                <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
+                    <div className="flex items-center flex-wrap gap-2 mb-1 sm:mb-0">
+                      <p className="font-medium text-slate-900 break-words">{player.display_name}</p>
+                      {player.status === 'eliminated' && (
+                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">OUT</span>
+                      )}
+                      {player.is_managed && (
+                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Managed</span>
+                      )}
+                      {player.hidden && (
+                        <span className="text-xs text-red-700 bg-red-100 px-2 py-0.5 rounded">Hidden</span>
+                      )}
                     </div>
                   </div>
+                  <p className="text-sm text-slate-600 break-words">{player.email || 'No email'}</p>
                 </div>
-                
-                {/* Status & Actions */}
-                <div className="flex items-center space-x-4">
+
+                {/* Status & Actions - Compact on mobile */}
+                <div className="flex items-center justify-end space-x-2 sm:space-x-4">
                   {/* Lives Management - Immediate UI Updates with Pending Changes */}
                   <div className="flex items-center space-x-1">
                     <button
@@ -628,13 +626,14 @@ export default function CompetitionPlayersPage() {
                       <MinusIcon className="h-4 w-4" strokeWidth={2} />
                     </button>
 
-                    <div className="flex items-center space-x-1 px-2">
+                    <div className="flex items-center space-x-1 px-1 sm:px-2">
                       <span className={`text-sm font-medium min-w-[1rem] text-center ${
                         pendingLivesChanges.has(player.id) ? 'text-blue-600 font-bold' : 'text-slate-900'
                       }`}>
                         {player.lives_remaining || 0}
                       </span>
-                      <span className="text-xs text-slate-500">lives</span>
+                      <span className="text-xs text-slate-500 hidden sm:inline">lives</span>
+                      <span className="text-xs text-slate-500 sm:hidden">L</span>
                       {pendingLivesChanges.has(player.id) && (
                         <span className="text-xs text-blue-500">*</span>
                       )}

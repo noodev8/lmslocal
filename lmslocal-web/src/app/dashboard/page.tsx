@@ -334,7 +334,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Competitions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
           {/* Competition Cards */}
           {userCompetitions.map((competition) => {
             const competitionStatus = getWinnerStatus(competition);
@@ -343,24 +343,24 @@ export default function DashboardPage() {
                 key={competition.id}
                 className="flex flex-col space-y-3 h-full"
               >
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex-1 flex flex-col">
+                <div className="bg-white rounded-xl border-2 border-slate-300 shadow-lg hover:shadow-xl hover:border-blue-400 transition-all duration-200 overflow-hidden flex-1 flex flex-col">
                 {/* Card Header */}
-                <div className="p-4 sm:p-6 border-b border-slate-100">
+                <div className="p-4 sm:p-6 border-b border-slate-200">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h4 className="text-lg font-semibold text-slate-900 truncate">{competition.name}</h4>
                         {competition.is_organiser && (
-                          <div className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                            ORGANISER
-                          </div>
+                          <span className="text-xs text-slate-500 font-medium">
+                            (Organiser)
+                          </span>
                         )}
                       </div>
                       {competition.needs_pick && (
                         <div className="mb-2">
-                          <div className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold">
-                            PICK NEEDED
-                          </div>
+                          <span className="text-sm font-medium text-slate-700">
+                            ⚠ Pick needed
+                          </span>
                         </div>
                       )}
                       <div className="flex items-center space-x-4 text-sm text-slate-600">
@@ -419,19 +419,6 @@ export default function DashboardPage() {
                     </div>
                   ) : null}
                   
-                  {!competitionStatus.isComplete && competition.current_round && competition.player_count && competition.player_count > 0 && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          <PlayCircleIcon className="h-5 w-5 text-emerald-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-emerald-900">Competition Active</p>
-                          <p className="text-xs text-emerald-700 mt-1">Players are engaged and competition is running</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Card Body - Flexible to fill remaining space */}
@@ -470,7 +457,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Action Buttons - Back inside the card */}
-                <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-100 mt-auto">
+                <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-200 mt-auto">
                   <div className="flex gap-3">
                     <Link
                       href={`/game/${competition.id}`}
@@ -509,7 +496,7 @@ export default function DashboardPage() {
         {/* Action Links - Create and Join */}
         <div className="text-center mt-8 pt-6 border-t border-slate-200">
           <div className="flex items-center justify-center space-x-8">
-            <Link 
+            <Link
               href="/competition/create"
               className="inline-flex items-center space-x-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
             >
