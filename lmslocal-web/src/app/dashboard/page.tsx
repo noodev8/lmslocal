@@ -16,7 +16,9 @@ import {
   UserIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  CreditCardIcon,
+  BookOpenIcon
 } from '@heroicons/react/24/outline';
 import { userApi, competitionApi, Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
@@ -292,6 +294,22 @@ export default function DashboardPage() {
                     >
                       <Cog6ToothIcon className="h-4 w-4 mr-3" />
                       Settings
+                    </Link>
+                    <Link
+                      href="/game-rules"
+                      className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      <BookOpenIcon className="h-4 w-4 mr-3" />
+                      Game Rules
+                    </Link>
+                    <Link
+                      href="/pricing"
+                      className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      <CreditCardIcon className="h-4 w-4 mr-3" />
+                      Pricing
                     </Link>
                     <button
                       onClick={() => {
