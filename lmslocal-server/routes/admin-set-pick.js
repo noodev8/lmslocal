@@ -9,7 +9,7 @@ Request Payload:
 {
   "competition_id": 123,               // integer, required - Competition ID where pick is being set
   "user_id": 456,                      // integer, required - Player ID to set pick for
-  "team": "Arsenal"                    // string, required - Full team name to pick
+  "team": "Arsenal"                    // string, optional - Full team name to pick (empty/null to remove pick)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -77,26 +77,148 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    if (!team || typeof team !== 'string' || team.trim().length === 0) {
-      return res.json({
-        return_code: "VALIDATION_ERROR",
-        message: "Team name is required and must be a non-empty string"
-      });
-    }
+    // Allow null/empty team to indicate "No Pick" (remove pick)
+    const isRemovingPick = !team || (typeof team === 'string' && team.trim().length === 0);
 
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL database operations succeed or ALL are rolled back
     const transactionResult = await transaction(async (client) => {
+
+      // Handle "No Pick" (remove pick) scenario
+      if (isRemovingPick) {
+        // Get current round and existing pick data
+        const removePickQuery = `
+          WITH competition_data AS (
+            SELECT
+              c.id as competition_id,
+              c.name as competition_name,
+              c.organiser_id,
+              r.id as current_round_id,
+              r.round_number as current_round_number
+            FROM competition c
+            LEFT JOIN (
+              SELECT
+                competition_id,
+                id,
+                round_number,
+                ROW_NUMBER() OVER (PARTITION BY competition_id ORDER BY round_number DESC) as rn
+              FROM round
+            ) r ON c.id = r.competition_id AND r.rn = 1
+            WHERE c.id = $1
+          ),
+          existing_pick AS (
+            SELECT
+              p.id as pick_id,
+              p.team as team_short,
+              t.id as team_id,
+              t.name as team_name,
+              u.display_name as player_name
+            FROM pick p
+            INNER JOIN competition_data cd ON p.round_id = cd.current_round_id
+            LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
+            LEFT JOIN app_user u ON u.id = p.user_id
+            WHERE p.user_id = $2
+          )
+          SELECT
+            cd.*,
+            ep.pick_id,
+            ep.team_short,
+            ep.team_id,
+            ep.team_name,
+            ep.player_name
+          FROM competition_data cd
+          LEFT JOIN existing_pick ep ON true
+        `;
+
+        const removeResult = await client.query(removePickQuery, [competition_id, user_id]);
+
+        if (removeResult.rows.length === 0) {
+          throw {
+            return_code: "COMPETITION_NOT_FOUND",
+            message: "Competition not found"
+          };
+        }
+
+        const data = removeResult.rows[0];
+
+        // Verify user authorization
+        if (data.organiser_id !== admin_id) {
+          throw {
+            return_code: "UNAUTHORIZED",
+            message: "Only the competition organiser can remove picks for players"
+          };
+        }
+
+        // Check if there's actually a pick to remove
+        if (!data.pick_id) {
+          return {
+            return_code: "SUCCESS",
+            message: "No pick to remove - player has not made a pick for this round",
+            pick: {
+              user_id: user_id,
+              team: null,
+              team_short: null,
+              player_name: data.player_name || 'Unknown Player',
+              round_number: data.current_round_number,
+              was_removed: false,
+              set_by_admin: true
+            }
+          };
+        }
+
+        // Delete the pick
+        await client.query(`
+          DELETE FROM pick
+          WHERE id = $1
+        `, [data.pick_id]);
+
+        // Restore the team to allowed_teams if it was previously picked
+        if (data.team_id) {
+          await client.query(`
+            INSERT INTO allowed_teams (competition_id, user_id, team_id)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
+          `, [competition_id, user_id, data.team_id]);
+        }
+
+        // Log the administrative action
+        const auditDetails = `Admin ${admin_id} removed pick "${data.team_name}" (${data.team_short}) for player "${data.player_name}" in Round ${data.current_round_number}`;
+
+        await client.query(`
+          INSERT INTO audit_log (competition_id, user_id, action, details, created_at)
+          VALUES ($1, $2, $3, $4, NOW())
+        `, [
+          competition_id,
+          user_id,
+          'ADMIN_REMOVE_PICK',
+          auditDetails
+        ]);
+
+        return {
+          return_code: "SUCCESS",
+          message: "Pick removed successfully for player",
+          pick: {
+            user_id: user_id,
+            team: null,
+            team_short: null,
+            player_name: data.player_name,
+            round_number: data.current_round_number,
+            was_removed: true,
+            set_by_admin: true
+          }
+        };
+      }
       
       // Single comprehensive query to get all required data and perform validations
       // This eliminates N+1 query problems by joining all necessary tables in one database call
       const mainQuery = `
         WITH competition_data AS (
           -- Get competition info and verify organiser authorization
-          SELECT 
+          SELECT
             c.id as competition_id,
             c.name as competition_name,
             c.organiser_id,
+            c.no_team_twice,
             -- Get current round info (latest round by round_number)
             r.id as current_round_id,
             r.round_number as current_round_number,
