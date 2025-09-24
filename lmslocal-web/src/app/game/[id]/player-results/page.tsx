@@ -4,8 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeftIcon,
-  ChevronDownIcon
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { roundApi, fixtureApi, playerActionApi } from '@/lib/api';
 import { withCache } from '@/lib/cache';
@@ -21,6 +20,11 @@ interface Fixture {
   result?: string | null;
 }
 
+interface Round {
+  id: number;
+  round_number: number;
+}
+
 export default function PlayerResultsPage() {
   const router = useRouter();
   const params = useParams();
@@ -32,26 +36,15 @@ export default function PlayerResultsPage() {
   // Find the specific competition
   const competition = competitions?.find(c => c.id.toString() === competitionId);
 
-  interface Round {
-    id: number;
-    round_number: number;
-    fixture_count: number;
-    lock_time?: string;
-  }
-  const [rounds, setRounds] = useState<Round[]>([]);
-  const [currentRoundId, setCurrentRoundId] = useState<number | null>(null);
-  const [viewingRoundId, setViewingRoundId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'current' | 'previous'>('current');
+  const [currentRound, setCurrentRound] = useState<Round | null>(null);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPick, setCurrentPick] = useState<string | null>(null);
-  const [isRoundLocked, setIsRoundLocked] = useState<boolean>(false);
   const [teamPickCounts, setTeamPickCounts] = useState<Record<string, number>>({});
-  const [pickDataLoaded, setPickDataLoaded] = useState<boolean>(false);
 
   const hasInitialized = useRef(false);
 
-  const loadFixtures = async (roundId: number) => {
+  const loadFixtures = useCallback(async (roundId: number) => {
     try {
       const response = await fixtureApi.get(roundId.toString());
       if (response.data.return_code === 'SUCCESS') {
@@ -60,13 +53,13 @@ export default function PlayerResultsPage() {
     } catch (error) {
       console.error('Failed to load fixtures:', error);
     }
-  };
+  }, []);
 
   const loadCurrentPick = useCallback(async (roundId: number) => {
     try {
       const response = await withCache(
         `current-pick-${roundId}-${competitionId}`,
-        60 * 60 * 1000, // 1 hour cache - rounds don't change often
+        60 * 60 * 1000, // 1 hour cache
         () => playerActionApi.getCurrentPick(roundId)
       );
       if (response.data.return_code === 'SUCCESS') {
@@ -77,41 +70,22 @@ export default function PlayerResultsPage() {
       console.error('Failed to load current pick:', error);
       setCurrentPick(null);
     }
-  }, []);
+  }, [competitionId]);
 
-  // Combined function to load all data for a specific round
-  const loadRoundData = useCallback(async (roundId: number, isCurrentRound = true, freshRounds?: Round[]) => {
-    setPickDataLoaded(false);
-
+  const loadTeamPickCounts = useCallback(async (roundId: number) => {
     try {
-      await Promise.all([
-        loadFixtures(roundId),
-        loadCurrentPick(roundId),
-        loadTeamPickCounts(roundId)
-      ]);
-
-      // When viewing previous rounds, clear selections but keep the pick
-      if (!isCurrentRound) {
-        setIsRoundLocked(true); // Previous rounds are always "locked" for display
-      } else {
-        // For current round, use fresh rounds data when available, otherwise use state
-        const roundsToUse = freshRounds || rounds;
-        const currentRound = roundsToUse.find(r => r.id === roundId);
-        if (currentRound) {
-          const now = new Date();
-          const lockTime = new Date(currentRound.lock_time || '');
-          const locked = !!(currentRound.lock_time && now >= lockTime);
-          setIsRoundLocked(locked);
-        } else {
-          setIsRoundLocked(false);
-        }
+      const response = await withCache(
+        `pick-counts-${roundId}`,
+        60 * 60 * 1000, // 1 hour cache
+        () => fixtureApi.getPickCounts(roundId)
+      );
+      if (response.data.return_code === 'SUCCESS') {
+        setTeamPickCounts(response.data.pick_counts || {});
       }
-
-      setPickDataLoaded(true);
     } catch (error) {
-      console.error('Failed to load round data:', error);
+      console.error('Failed to load team pick counts:', error);
     }
-  }, [competitionId, loadCurrentPick, rounds]);
+  }, []);
 
   useEffect(() => {
     // Prevent double execution from React Strict Mode
@@ -132,7 +106,7 @@ export default function PlayerResultsPage() {
       try {
         hasInitialized.current = true;
 
-        // Get rounds to find current round (use cache for better performance)
+        // Get current round
         const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
 
         if (roundsResponse.data.return_code !== 'SUCCESS') {
@@ -148,7 +122,6 @@ export default function PlayerResultsPage() {
           return;
         }
 
-        setRounds(roundsData);
         const latestRound = roundsData[0];
 
         // Check if round has fixtures
@@ -168,15 +141,17 @@ export default function PlayerResultsPage() {
           return;
         }
 
-        setCurrentRoundId(latestRound.id);
-        setViewingRoundId(latestRound.id); // Initially view the current round
-        setIsRoundLocked(locked);
+        setCurrentRound(latestRound);
 
-        // Load data for the current round (initially) - pass fresh rounds data
-        await loadRoundData(latestRound.id, true, roundsData);
+        // Load data for current locked round
+        await Promise.all([
+          loadFixtures(latestRound.id),
+          loadCurrentPick(latestRound.id),
+          loadTeamPickCounts(latestRound.id)
+        ]);
 
       } catch (error) {
-        console.error('Failed to load pick data:', error);
+        console.error('Failed to load results data:', error);
         router.push(`/game/${competitionId}`);
       } finally {
         setLoading(false);
@@ -184,22 +159,7 @@ export default function PlayerResultsPage() {
     };
 
     initializeData();
-  }, [competitionId, router, competition, contextLoading, loadRoundData]);
-
-  const loadTeamPickCounts = async (roundId: number) => {
-    try {
-      const response = await withCache(
-        `pick-counts-${roundId}`,
-        60 * 60 * 1000, // 1 hour cache - pick counts change infrequently
-        () => fixtureApi.getPickCounts(roundId)
-      );
-      if (response.data.return_code === 'SUCCESS') {
-        setTeamPickCounts(response.data.pick_counts || {});
-      }
-    } catch (error) {
-      console.error('Failed to load team pick counts:', error);
-    }
-  };
+  }, [competitionId, router, competition, contextLoading, loadFixtures, loadCurrentPick, loadTeamPickCounts]);
 
   const getFullTeamName = (shortName: string) => {
     const fixture = fixtures.find(f =>
@@ -211,7 +171,7 @@ export default function PlayerResultsPage() {
     return shortName;
   };
 
-  if (loading || contextLoading || !pickDataLoaded) {
+  if (loading || contextLoading) {
     return (
       <div className="min-h-screen bg-slate-50">
         <header className="bg-white border-b border-slate-200 shadow-sm">
@@ -263,16 +223,11 @@ export default function PlayerResultsPage() {
               <div className="h-6 w-px bg-slate-300" />
               <div>
                 <h1 className="text-lg font-semibold text-slate-900">Results</h1>
-                {(() => {
-                  const currentViewingRound = rounds.find(r => r.id === viewingRoundId);
-                  const roundNumber = currentViewingRound?.round_number;
-                  return roundNumber ? (
-                    <p className="text-sm text-slate-600">
-                      Round {roundNumber}
-                      {viewMode === 'previous' ? ' (Previous)' : ''}
-                    </p>
-                  ) : null;
-                })()}
+                {currentRound && (
+                  <p className="text-sm text-slate-600">
+                    Round {currentRound.round_number}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -280,69 +235,17 @@ export default function PlayerResultsPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Competition Name */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              {/* Mode indicator */}
-              {viewMode === 'previous' && (
-                <p className="text-sm text-slate-600 mt-1">
-                  Viewing previous round results
-                </p>
-              )}
+        {/* Round Information */}
+        {currentRound && (
+          <div className="mb-6">
+            <div className="font-semibold text-lg text-slate-800">
+              Round {currentRound.round_number} - Results
             </div>
-
-            {/* Round selector - show if there are multiple rounds */}
-            {rounds.length > 1 && (
-              <div className="relative">
-                <select
-                  value={viewingRoundId || currentRoundId || ''}
-                  onChange={async (e) => {
-                    const roundId = parseInt(e.target.value);
-                    setViewingRoundId(roundId);
-                    // Use the actual current round from rounds array to avoid stale state
-                    const actualCurrentRoundId = rounds.length > 0 ? rounds[0].id : null;
-                    const newViewMode = roundId === actualCurrentRoundId ? 'current' : 'previous';
-                    setViewMode(newViewMode);
-                    await loadRoundData(roundId, newViewMode === 'current');
-                  }}
-                  className="appearance-none bg-white border border-slate-300 rounded-lg px-4 py-2 pr-8 text-sm font-medium text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {rounds.map(round => (
-                    <option key={round.id} value={round.id}>
-                      {round.id === currentRoundId ? 'Current Round' : `Round ${round.round_number} Results`}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              </div>
-            )}
           </div>
-        </div>
+        )}
 
-        {/* Round Information Card */}
-        {(() => {
-          const currentViewingRound = rounds.find(r => r.id === viewingRoundId);
-          const roundNumber = currentViewingRound?.round_number;
-
-          if (roundNumber) {
-            return (
-              <div className="mb-6">
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold text-lg text-slate-800">
-                    Round {roundNumber} - Results
-                    {viewMode === 'previous' ? ' (Previous)' : ''}
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
-
-        {/* Team Results by Fixture */}
+        {/* Match Results */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          {/* Section Header */}
           <div className="mb-6 text-center">
             <h2 className="text-xl font-bold text-slate-900">
               Match Results
@@ -350,169 +253,130 @@ export default function PlayerResultsPage() {
           </div>
 
           <div className="space-y-6">
-            {fixtures.map((fixture) => {
-              // Create team objects for this fixture
-              const homeTeam = {
-                short: fixture.home_team_short,
-                name: fixture.home_team,
-                fixtureId: fixture.id,
-                position: 'home' as const
-              };
+            {fixtures.map((fixture) => (
+              <div key={fixture.id} className="border-b border-slate-100 last:border-b-0 pb-6 last:pb-0">
+                {/* Team Cards with VS between them */}
+                <div className="flex items-center gap-4">
+                  {/* Home Team */}
+                  {(() => {
+                    const isCurrentPick = currentPick === fixture.home_team_short;
+                    const fixtureResult = fixture.result;
 
-              const awayTeam = {
-                short: fixture.away_team_short,
-                name: fixture.away_team,
-                fixtureId: fixture.id,
-                position: 'away' as const
-              };
-
-              return (
-                <div key={fixture.id} className="border-b border-slate-100 last:border-b-0 pb-6 last:pb-0">
-                  {/* Team Cards with VS between them */}
-                  <div className="flex items-center gap-4">
-                    {/* Home Team */}
-                    {(() => {
-                      const team = homeTeam;
-                      const isCurrentPick = currentPick === team.short;
-
-                      // Check result for this team
-                      const fixtureResult = fixture.result;
-
-                      // Determine game result: WIN = player advances, LOSE = player eliminated
-                      let teamResult: 'win' | 'lose' | null = null;
-                      if (fixtureResult && isRoundLocked) {
-                        if (fixtureResult === team.short) {
-                          teamResult = 'win'; // Team won = Player advances
-                        } else {
-                          teamResult = 'lose'; // Team lost or drew = Player eliminated
-                        }
+                    // Determine game result: WIN = player advances, LOSE = player eliminated
+                    let teamResult: 'win' | 'lose' | null = null;
+                    if (fixtureResult) {
+                      if (fixtureResult === fixture.home_team_short) {
+                        teamResult = 'win'; // Team won = Player advances
+                      } else {
+                        teamResult = 'lose'; // Team lost or drew = Player eliminated
                       }
+                    }
 
-                      return (
-                        <div
-                          key={team.short}
-                          className={`relative flex-1 p-4 rounded-lg border-2 ${
-                            teamResult === 'win'
-                              ? 'bg-green-600 border-slate-800 shadow-md text-white'
-                              : teamResult === 'lose'
-                              ? 'bg-red-600 border-slate-800 shadow-md text-white'
-                              : isCurrentPick
-                              ? 'bg-white border-blue-500 shadow-md'
-                              : 'bg-white border-slate-300'
-                          }`}
-                        >
-                          {/* Current pick indicator */}
-                          {isCurrentPick && (
-                            <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
-                              PICK
-                            </div>
-                          )}
+                    return (
+                      <div
+                        key={fixture.home_team_short}
+                        className={`relative flex-1 p-4 rounded-lg border-2 ${
+                          teamResult === 'win'
+                            ? 'bg-green-600 border-slate-800 shadow-md text-white'
+                            : teamResult === 'lose'
+                            ? 'bg-red-600 border-slate-800 shadow-md text-white'
+                            : isCurrentPick
+                            ? 'bg-white border-blue-500 shadow-md'
+                            : 'bg-white border-slate-300'
+                        }`}
+                      >
+                        {/* Current pick indicator */}
+                        {isCurrentPick && (
+                          <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
+                            PICK
+                          </div>
+                        )}
 
-                          {/* Player count badge - always show when round is locked */}
-                          {isRoundLocked && teamPickCounts[team.short] && (
-                            <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
-                              {teamPickCounts[team.short]}
-                            </div>
-                          )}
+                        {/* Player count badge */}
+                        {teamPickCounts[fixture.home_team_short] && (
+                          <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+                            {teamPickCounts[fixture.home_team_short]}
+                          </div>
+                        )}
 
-                          <div className="text-center">
-                            {/* Full team name only */}
-                            <div className={`text-lg font-bold ${
-                              teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
-                            }`}>
-                              {team.name}
-                            </div>
-
-                            {/* Result box - only show for pending (no result) fixtures */}
-                            {isRoundLocked && !teamResult && (
-                              <div className="text-xs font-bold mt-2 px-2 py-1 rounded text-white bg-slate-500">
-
-                              </div>
-                            )}
+                        <div className="text-center">
+                          <div className={`text-lg font-bold ${
+                            teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
+                          }`}>
+                            {fixture.home_team}
                           </div>
                         </div>
-                      );
-                    })()}
-
-                    {/* VS Separator */}
-                    <div className="flex-shrink-0 px-2">
-                      <div className="text-2xl font-bold text-slate-600">
-                        VS
                       </div>
+                    );
+                  })()}
+
+                  {/* VS Separator */}
+                  <div className="flex-shrink-0 px-2">
+                    <div className="text-2xl font-bold text-slate-600">
+                      VS
                     </div>
+                  </div>
 
-                    {/* Away Team */}
-                    {(() => {
-                      const team = awayTeam;
-                      const isCurrentPick = currentPick === team.short;
+                  {/* Away Team */}
+                  {(() => {
+                    const isCurrentPick = currentPick === fixture.away_team_short;
+                    const fixtureResult = fixture.result;
 
-                      // Check result for this team
-                      const fixtureResult = fixture.result;
-
-                      // Determine game result: WIN = player advances, LOSE = player eliminated
-                      let teamResult: 'win' | 'lose' | null = null;
-                      if (fixtureResult && isRoundLocked) {
-                        if (fixtureResult === team.short) {
-                          teamResult = 'win'; // Team won = Player advances
-                        } else {
-                          teamResult = 'lose'; // Team lost or drew = Player eliminated
-                        }
+                    // Determine game result: WIN = player advances, LOSE = player eliminated
+                    let teamResult: 'win' | 'lose' | null = null;
+                    if (fixtureResult) {
+                      if (fixtureResult === fixture.away_team_short) {
+                        teamResult = 'win'; // Team won = Player advances
+                      } else {
+                        teamResult = 'lose'; // Team lost or drew = Player eliminated
                       }
+                    }
 
-                      return (
-                        <div
-                          key={team.short}
-                          className={`relative flex-1 p-4 rounded-lg border-2 ${
-                            teamResult === 'win'
-                              ? 'bg-green-600 border-slate-800 shadow-md text-white'
-                              : teamResult === 'lose'
-                              ? 'bg-red-600 border-slate-800 shadow-md text-white'
-                              : isCurrentPick
-                              ? 'bg-white border-blue-500 shadow-md'
-                              : 'bg-white border-slate-300'
-                          }`}
-                        >
-                          {/* Current pick indicator */}
-                          {isCurrentPick && (
-                            <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
-                              PICK
-                            </div>
-                          )}
+                    return (
+                      <div
+                        key={fixture.away_team_short}
+                        className={`relative flex-1 p-4 rounded-lg border-2 ${
+                          teamResult === 'win'
+                            ? 'bg-green-600 border-slate-800 shadow-md text-white'
+                            : teamResult === 'lose'
+                            ? 'bg-red-600 border-slate-800 shadow-md text-white'
+                            : isCurrentPick
+                            ? 'bg-white border-blue-500 shadow-md'
+                            : 'bg-white border-slate-300'
+                        }`}
+                      >
+                        {/* Current pick indicator */}
+                        {isCurrentPick && (
+                          <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
+                            PICK
+                          </div>
+                        )}
 
-                          {/* Player count badge - always show when round is locked */}
-                          {isRoundLocked && teamPickCounts[team.short] && (
-                            <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
-                              {teamPickCounts[team.short]}
-                            </div>
-                          )}
+                        {/* Player count badge */}
+                        {teamPickCounts[fixture.away_team_short] && (
+                          <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+                            {teamPickCounts[fixture.away_team_short]}
+                          </div>
+                        )}
 
-                          <div className="text-center">
-                            {/* Full team name only */}
-                            <div className={`text-lg font-bold ${
-                              teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
-                            }`}>
-                              {team.name}
-                            </div>
-
-                            {/* Result box - only show for pending (no result) fixtures */}
-                            {isRoundLocked && !teamResult && (
-                              <div className="text-xs font-bold mt-2 px-2 py-1 rounded text-white bg-slate-500">
-
-                              </div>
-                            )}
+                        <div className="text-center">
+                          <div className={`text-lg font-bold ${
+                            teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
+                          }`}>
+                            {fixture.away_team}
                           </div>
                         </div>
-                      );
-                    })()}
-                  </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* No Pick Indicator - shown when viewing previous rounds and no pick was made */}
-        {viewMode === 'previous' && !currentPick && (
+        {/* No Pick Indicator */}
+        {!currentPick && (
           <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="text-center">
               <div className="text-amber-800 font-medium">
@@ -522,7 +386,7 @@ export default function PlayerResultsPage() {
           </div>
         )}
 
-        {/* Statistics Section - always show when we have pick counts */}
+        {/* Statistics Section */}
         {Object.keys(teamPickCounts).length > 0 && (
           <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 text-center">
