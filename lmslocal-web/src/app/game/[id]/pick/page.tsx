@@ -46,7 +46,6 @@ export default function PickPage() {
   const [allowedTeams, setAllowedTeams] = useState<string[]>([]);
   const [currentPick, setCurrentPick] = useState<string | null>(null);
   const [isRoundLocked, setIsRoundLocked] = useState<boolean>(false);
-  const [teamPickCounts, setTeamPickCounts] = useState<Record<string, number>>({});
   const [pickDataLoaded, setPickDataLoaded] = useState<boolean>(false);
   
   const hasInitialized = useRef(false);
@@ -87,8 +86,7 @@ export default function PickPage() {
       await Promise.all([
         loadFixtures(roundId),
         loadAllowedTeams(parseInt(competitionId)),
-        loadCurrentPick(roundId),
-        loadTeamPickCounts(roundId)
+        loadCurrentPick(roundId)
       ]);
 
       // For current round, use fresh rounds data when available, otherwise use state
@@ -153,11 +151,17 @@ export default function PickPage() {
           return;
         }
         
-        // Check if round is locked
+        // Check if round is locked - this page is only for unlocked rounds
         const now = new Date();
         const lockTime = new Date(latestRound.lock_time || '');
         const locked = !!(latestRound.lock_time && now >= lockTime);
-        
+
+        // If round is locked, redirect to player results page
+        if (locked) {
+          router.push(`/game/${competitionId}/player-results`);
+          return;
+        }
+
         setCurrentRoundId(latestRound.id);
         setIsRoundLocked(locked);
 
@@ -191,20 +195,6 @@ export default function PickPage() {
   };
 
 
-  const loadTeamPickCounts = async (roundId: number) => {
-    try {
-      const response = await withCache(
-        `pick-counts-${roundId}`,
-        60 * 60 * 1000, // 1 hour cache - pick counts change infrequently
-        () => fixtureApi.getPickCounts(roundId)
-      );
-      if (response.data.return_code === 'SUCCESS') {
-        setTeamPickCounts(response.data.pick_counts || {});
-      }
-    } catch (error) {
-      console.error('Failed to load team pick counts:', error);
-    }
-  };
 
   const getFullTeamName = (shortName: string) => {
     const fixture = fixtures.find(f => 
@@ -243,7 +233,6 @@ export default function PickPage() {
         if (competition && currentRoundId) {
           // Clear pick-specific caches
           apiCache.delete(`current-pick-${currentRoundId}-${competitionId}`);
-          apiCache.delete(`pick-counts-${currentRoundId}`);
           // Clear allowed teams cache so fresh data loads after team restoration
           apiCache.delete(`allowed-teams-${competitionId}-current`);
 
@@ -256,7 +245,6 @@ export default function PickPage() {
 
           await loadAllowedTeams(parseInt(competitionId));
           await loadCurrentPick(currentRoundId);
-          await loadTeamPickCounts(currentRoundId); // Refresh pick counts to show updated numbers
 
           // Force dashboard data refresh for immediate stats update
           refreshData();
@@ -285,7 +273,6 @@ export default function PickPage() {
         if (competition && currentRoundId) {
           // Clear pick-specific caches
           apiCache.delete(`current-pick-${currentRoundId}-${competitionId}`);
-          apiCache.delete(`pick-counts-${currentRoundId}`);
 
           // Clear user dashboard cache to update pick counts on main game page
           const userData = localStorage.getItem('user');
@@ -296,7 +283,6 @@ export default function PickPage() {
 
           await loadAllowedTeams(parseInt(competitionId));
           await loadCurrentPick(currentRoundId);
-          await loadTeamPickCounts(currentRoundId); // Refresh pick counts to show updated numbers
 
           // Force dashboard data refresh for immediate stats update
           refreshData();
