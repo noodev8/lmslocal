@@ -69,6 +69,7 @@ export default function FixturesPage() {
   const [adminSelectedTeam, setAdminSelectedTeam] = useState('');
   const [adminSettingPick, setAdminSettingPick] = useState(false);
   const [adminPickTeams, setAdminPickTeams] = useState<Team[]>([]);
+  const [adminAllowedTeamNames, setAdminAllowedTeamNames] = useState<Set<string>>(new Set());
 
   const hasInitialized = useRef(false);
 
@@ -480,13 +481,51 @@ export default function FixturesPage() {
 
   const loadAdminPickAllowedTeams = async (userId: number) => {
     try {
-      const response = await userApi.getAllowedTeams(parseInt(competitionId), userId);
-      if (response.data.return_code === 'SUCCESS') {
-        setAdminPickTeams(response.data.allowed_teams || []);
+      // First, get the player's allowed teams
+      const allowedTeamNames = new Set<string>();
+      try {
+        const allowedResponse = await userApi.getAllowedTeams(parseInt(competitionId), userId);
+        if (allowedResponse.data.return_code === 'SUCCESS') {
+          const allowedTeams = allowedResponse.data.allowed_teams || [];
+          allowedTeams.forEach((team: Team) => {
+            allowedTeamNames.add(team.name);
+            allowedTeamNames.add(team.short_name);
+          });
+        }
+      } catch {
+        console.log('Could not fetch allowed teams for player - will show all fixture teams');
       }
+      setAdminAllowedTeamNames(allowedTeamNames);
+
+      // Get all teams
+      let allTeams: Team[] = [];
+      if (teams.length > 0) {
+        allTeams = teams;
+      } else {
+        const teamsResponse = await teamApi.getTeams();
+        if (teamsResponse.data.return_code === 'SUCCESS') {
+          allTeams = teamsResponse.data.teams || [];
+        }
+      }
+
+      // Extract unique team names from current fixtures
+      const fixtureTeamNames = new Set<string>();
+      pendingFixtures.forEach(fixture => {
+        fixtureTeamNames.add(fixture.home_team);
+        fixtureTeamNames.add(fixture.away_team);
+        fixtureTeamNames.add(fixture.home_team_short);
+        fixtureTeamNames.add(fixture.away_team_short);
+      });
+
+      // Filter teams to only include those in current fixtures
+      const fixtureTeams = allTeams.filter(team =>
+        fixtureTeamNames.has(team.name) || fixtureTeamNames.has(team.short_name)
+      );
+
+      setAdminPickTeams(fixtureTeams);
     } catch (error) {
-      console.error('Failed to load allowed teams for admin pick:', error);
-      // If specific player teams fail, fall back to all teams
+      console.error('Failed to load teams for admin pick:', error);
+      // Fallback to all teams if something goes wrong
       if (teams.length > 0) {
         setAdminPickTeams(teams);
       } else {
@@ -692,7 +731,7 @@ export default function FixturesPage() {
                               {/* Set Player Pick button - only when unlocked */}
                               <button
                                 onClick={openAdminPickModal}
-                                className="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                className="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm bg-slate-600 text-white hover:bg-slate-700 transition-colors"
                               >
                                 <UserGroupIcon className="h-4 w-4 mr-2" />
                                 Set Player Pick
@@ -793,7 +832,7 @@ export default function FixturesPage() {
                             disabled={isUsed && !isSelectedHome}
                             className={`p-2 rounded-lg border text-xs font-medium transition-all ${
                               isSelectedHome
-                                ? 'bg-blue-100 border-blue-300 text-blue-800'
+                                ? 'bg-slate-700 border-slate-800 text-white'
                                 : isUsed
                                 ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                                 : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 cursor-pointer'
@@ -919,7 +958,7 @@ export default function FixturesPage() {
                     id="edit-lock-time"
                     value={editedLockTime}
                     onChange={(e) => setEditedLockTime(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                   />
                 </div>
 
@@ -936,7 +975,7 @@ export default function FixturesPage() {
                   <button
                     onClick={updateLockTime}
                     disabled={!editedLockTime}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-medium transition-colors"
+                    className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-medium transition-colors"
                   >
                     Update
                   </button>
@@ -961,8 +1000,8 @@ export default function FixturesPage() {
                   </p>
                   
                   {extendingRound ? (
-                    <div className="flex items-center text-blue-600 mb-3">
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
+                    <div className="flex items-center text-slate-600 mb-3">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-600 border-t-transparent mr-2"></div>
                       <span className="text-sm">Extending lock time...</span>
                     </div>
                   ) : (
@@ -1005,6 +1044,7 @@ export default function FixturesPage() {
                       setAdminSelectedPlayer(null);
                       setAdminSelectedTeam('');
                       setAdminPickTeams([]);
+                      setAdminAllowedTeamNames(new Set());
                     }}
                     className="text-slate-400 hover:text-slate-600 transition-colors"
                   >
@@ -1025,11 +1065,12 @@ export default function FixturesPage() {
                         setAdminSelectedPlayer(playerId);
                         setAdminSelectedTeam('');
                         setAdminPickTeams([]);
+                        setAdminAllowedTeamNames(new Set());
                         if (playerId) {
                           loadAdminPickAllowedTeams(playerId);
                         }
                       }}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                     >
                       <option value="">Choose a player...</option>
                       {adminPickPlayers.map((player) => (
@@ -1049,14 +1090,17 @@ export default function FixturesPage() {
                       <select
                         value={adminSelectedTeam}
                         onChange={(e) => setAdminSelectedTeam(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                       >
                         <option value="">Choose a team...</option>
-                        {adminPickTeams.map((team, index) => (
-                          <option key={`${team.id}-${team.name}-${index}`} value={team.name}>
-                            {team.name}
-                          </option>
-                        ))}
+                        {adminPickTeams.map((team, index) => {
+                          const isAllowed = adminAllowedTeamNames.has(team.name) || adminAllowedTeamNames.has(team.short_name);
+                          return (
+                            <option key={`${team.id}-${team.name}-${index}`} value={team.name}>
+                              {isAllowed ? team.name : `❌ ${team.name}`}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   )}
@@ -1069,6 +1113,7 @@ export default function FixturesPage() {
                       setAdminSelectedPlayer(null);
                       setAdminSelectedTeam('');
                       setAdminPickTeams([]);
+                      setAdminAllowedTeamNames(new Set());
                     }}
                     disabled={adminSettingPick}
                     className="flex-1 px-4 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors disabled:opacity-50"
@@ -1078,7 +1123,7 @@ export default function FixturesPage() {
                   <button
                     onClick={handleSetPlayerPick}
                     disabled={!adminSelectedPlayer || !adminSelectedTeam || adminSettingPick}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-medium transition-colors"
+                    className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-medium transition-colors"
                   >
                     {adminSettingPick ? 'Setting Pick...' : 'Set Pick'}
                   </button>

@@ -108,7 +108,7 @@ router.post('/', verifyToken, async (req, res) => {
       
       -- === ALLOWED TEAMS JOIN (TARGET USER SPECIFIC) ===
       -- Get teams this specific user is allowed to pick
-      LEFT JOIN allowed_teams at ON c.id = at.competition_id AND at.user_id = $2
+      LEFT JOIN allowed_teams at ON c.id = at.competition_id AND at.user_id = $3
       
       -- === TEAM DETAILS JOIN ===
       -- Get full team information for display purposes
