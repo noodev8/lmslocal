@@ -101,9 +101,19 @@ export default function UnifiedGameDashboard() {
         router.push(`/game/${competitionId}/waiting`);
         return;
       }
-      
-      // If we get here, there are rounds with fixtures - route to pick screen
-      router.push(`/game/${competitionId}/pick`);
+
+      // Check if round is locked to determine which page to show
+      const now = new Date();
+      const lockTime = new Date(latestRound.lock_time || '');
+      const isLocked = !!(latestRound.lock_time && now >= lockTime);
+
+      if (isLocked) {
+        // Round is locked - show player results view
+        router.push(`/game/${competitionId}/player-results`);
+      } else {
+        // Round is not locked - show pick screen
+        router.push(`/game/${competitionId}/pick`);
+      }
       
     } catch (error) {
       console.error('Error checking rounds:', error);

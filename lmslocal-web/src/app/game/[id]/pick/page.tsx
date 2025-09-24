@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  ArrowLeftIcon,
-  ChevronDownIcon
+import {
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { roundApi, fixtureApi, playerActionApi, userApi } from '@/lib/api';
 import { withCache, apiCache } from '@/lib/cache';
@@ -40,8 +39,6 @@ export default function PickPage() {
   }
   const [rounds, setRounds] = useState<Round[]>([]);
   const [currentRoundId, setCurrentRoundId] = useState<number | null>(null);
-  const [viewingRoundId, setViewingRoundId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'current' | 'previous'>('current');
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<{teamShort: string, fixtureId: number, position: 'home' | 'away'} | null>(null);
@@ -82,36 +79,28 @@ export default function PickPage() {
     }
   }, [competitionId]);
 
-  // Combined function to load all data for a specific round
-  const loadRoundData = useCallback(async (roundId: number, isCurrentRound = true, freshRounds?: Round[]) => {
+  // Load data for the current round
+  const loadRoundData = useCallback(async (roundId: number, freshRounds?: Round[]) => {
     setPickDataLoaded(false);
-    
+
     try {
       await Promise.all([
         loadFixtures(roundId),
-        // Load allowed teams only for current round, but always load current pick
-        isCurrentRound ? loadAllowedTeams(parseInt(competitionId)) : Promise.resolve(),
+        loadAllowedTeams(parseInt(competitionId)),
         loadCurrentPick(roundId),
         loadTeamPickCounts(roundId)
       ]);
 
-      // When viewing previous rounds, clear selections and allowed teams but keep the pick
-      if (!isCurrentRound) {
-        setSelectedTeam(null);
-        setAllowedTeams([]);
-        setIsRoundLocked(true); // Previous rounds are always "locked" for display
+      // For current round, use fresh rounds data when available, otherwise use state
+      const roundsToUse = freshRounds || rounds;
+      const currentRound = roundsToUse.find(r => r.id === roundId);
+      if (currentRound) {
+        const now = new Date();
+        const lockTime = new Date(currentRound.lock_time || '');
+        const locked = !!(currentRound.lock_time && now >= lockTime);
+        setIsRoundLocked(locked);
       } else {
-        // For current round, use fresh rounds data when available, otherwise use state
-        const roundsToUse = freshRounds || rounds;
-        const currentRound = roundsToUse.find(r => r.id === roundId);
-        if (currentRound) {
-          const now = new Date();
-          const lockTime = new Date(currentRound.lock_time || '');
-          const locked = !!(currentRound.lock_time && now >= lockTime);
-          setIsRoundLocked(locked);
-        } else {
-          setIsRoundLocked(false);
-        }
+        setIsRoundLocked(false);
       }
 
       setPickDataLoaded(true);
@@ -170,11 +159,10 @@ export default function PickPage() {
         const locked = !!(latestRound.lock_time && now >= lockTime);
         
         setCurrentRoundId(latestRound.id);
-        setViewingRoundId(latestRound.id); // Initially view the current round
         setIsRoundLocked(locked);
 
-        // Load data for the current round (initially) - pass fresh rounds data
-        await loadRoundData(latestRound.id, true, roundsData);
+        // Load data for the current round - pass fresh rounds data
+        await loadRoundData(latestRound.id, roundsData);
         
       } catch (error) {
         console.error('Failed to load pick data:', error);
@@ -249,13 +237,15 @@ export default function PickPage() {
     setSubmitting(true);
     try {
       const response = await playerActionApi.unselectPick(currentRoundId);
-      
+
       if (response.data.return_code === 'SUCCESS') {
         // Clear pick-related caches and refresh data
         if (competition && currentRoundId) {
           // Clear pick-specific caches
           apiCache.delete(`current-pick-${currentRoundId}-${competitionId}`);
           apiCache.delete(`pick-counts-${currentRoundId}`);
+          // Clear allowed teams cache so fresh data loads after team restoration
+          apiCache.delete(`allowed-teams-${competitionId}-current`);
 
           // Clear user dashboard cache to update pick counts on main game page
           const userData = localStorage.getItem('user');
@@ -374,17 +364,14 @@ export default function PickPage() {
               </Link>
               <div className="h-6 w-px bg-slate-300" />
               <div>
-                <h1 className="text-lg font-semibold text-slate-900">
-                  {viewMode === 'previous' || isRoundLocked ? 'Results' : 'Make Your Pick'}
-                </h1>
+                <h1 className="text-lg font-semibold text-slate-900">Make Your Pick</h1>
                 {(() => {
-                  const currentViewingRound = rounds.find(r => r.id === viewingRoundId);
-                  const roundNumber = currentViewingRound?.round_number;
+                  const currentRound = rounds.find(r => r.id === currentRoundId);
+                  const roundNumber = currentRound?.round_number;
                   return roundNumber ? (
                     <p className="text-sm text-slate-600">
                       Round {roundNumber}
-                      {viewMode === 'previous' ? ' (Previous)' : ''}
-                      {isRoundLocked && viewMode === 'current' ? ' (Locked)' : ''}
+                      {isRoundLocked ? ' (Locked)' : ''}
                     </p>
                   ) : null;
                 })()}
@@ -399,53 +386,22 @@ export default function PickPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              {/* Mode indicator */}
-              {viewMode === 'previous' && (
-                <p className="text-sm text-slate-600 mt-1">
-                  Viewing previous round results
-                </p>
-              )}
+              {/* Current round info */}
             </div>
-            
-            {/* Round selector - show if there are multiple rounds */}
-            {rounds.length > 1 && (
-              <div className="relative">
-                <select
-                  value={viewingRoundId || currentRoundId || ''}
-                  onChange={async (e) => {
-                    const roundId = parseInt(e.target.value);
-                    setViewingRoundId(roundId);
-                    // Use the actual current round from rounds array to avoid stale state
-                    const actualCurrentRoundId = rounds.length > 0 ? rounds[0].id : null;
-                    const newViewMode = roundId === actualCurrentRoundId ? 'current' : 'previous';
-                    setViewMode(newViewMode);
-                    await loadRoundData(roundId, newViewMode === 'current');
-                  }}
-                  className="appearance-none bg-white border border-slate-300 rounded-lg px-4 py-2 pr-8 text-sm font-medium text-slate-700 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {rounds.map(round => (
-                    <option key={round.id} value={round.id}>
-                      {round.id === currentRoundId ? 'Current Round' : `Round ${round.round_number} Results`}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              </div>
-            )}
           </div>
         </div>
 
 
         {/* Round Information Card */}
         {(() => {
-          const currentViewingRound = rounds.find(r => r.id === viewingRoundId);
-          const roundNumber = currentViewingRound?.round_number;
-          const lockTime = currentViewingRound?.lock_time;
+          const currentRound = rounds.find(r => r.id === currentRoundId);
+          const roundNumber = currentRound?.round_number;
+          const lockTime = currentRound?.lock_time;
 
           if (roundNumber) {
-            // Calculate lock time info for current unlocked rounds
+            // Calculate lock time info for unlocked rounds
             let lockTimeInfo = null;
-            if (viewMode === 'current' && !isRoundLocked && lockTime) {
+            if (!isRoundLocked && lockTime) {
               const lockDate = new Date(lockTime);
               const now = new Date();
               const timeUntilLock = lockDate.getTime() - now.getTime();
@@ -465,11 +421,10 @@ export default function PickPage() {
                 <div className="flex items-center justify-between">
                   <div className="font-semibold text-lg text-slate-800">
                     Round {roundNumber}
-                    {viewMode === 'previous' ? ' - Results' : ''}
-                    {isRoundLocked && viewMode === 'current' ? ' - Locked' : ''}
+                    {isRoundLocked ? ' - Locked' : ''}
                   </div>
 
-                  {/* Deadline for current unlocked rounds */}
+                  {/* Deadline for unlocked rounds */}
                   {lockTimeInfo && (
                     <div className="text-right">
                       <div className="text-sm text-slate-600">
@@ -489,14 +444,6 @@ export default function PickPage() {
 
         {/* Team Selection by Fixture */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          {/* Section Header - Simplified */}
-          {(viewMode === 'previous' || isRoundLocked) && (
-            <div className="mb-6 text-center">
-              <h2 className="text-xl font-bold text-slate-900">
-                {viewMode === 'previous' ? 'Match Results' : 'Final Picks & Results'}
-              </h2>
-            </div>
-          )}
 
           <div className="space-y-6">
             {fixtures.map((fixture) => {
@@ -526,25 +473,11 @@ export default function PickPage() {
                       const isSelected = selectedTeam?.teamShort === team.short;
                       const isCurrentPick = currentPick === team.short;
 
-                      // Check result for this team
-                      const fixtureResult = fixture.result;
-
-                      // Determine game result: WIN = player advances, LOSE = player eliminated
-                      let teamResult: 'win' | 'lose' | null = null;
-                      if (fixtureResult && isRoundLocked) {
-                        if (fixtureResult === team.short) {
-                          teamResult = 'win'; // Team won = Player advances
-                        } else {
-                          teamResult = 'lose'; // Team lost or drew = Player eliminated
-                        }
-                      }
-
                       // Disable teams if:
                       // 1. Team not in allowed list
                       // 2. There's already a current pick (user must remove it first)
                       // 3. Round is locked
-                      // 4. Viewing previous rounds (not current round)
-                      const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked || viewMode === 'previous';
+                      const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked;
 
                       return (
                         <button
@@ -552,11 +485,7 @@ export default function PickPage() {
                           onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
                           disabled={isDisabled}
                           className={`relative flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
-                            teamResult === 'win'
-                              ? 'bg-green-600 border-slate-800 shadow-md text-white'
-                              : teamResult === 'lose'
-                              ? 'bg-red-600 border-slate-800 shadow-md text-white'
-                              : isSelected
+                            isSelected
                               ? 'bg-white border-blue-500 shadow-md'
                               : isCurrentPick
                               ? 'bg-white border-blue-500 shadow-md'
@@ -572,27 +501,11 @@ export default function PickPage() {
                             </div>
                           )}
 
-                          {/* Player count badge - only show when round is locked */}
-                          {isRoundLocked && teamPickCounts[team.short] && (
-                            <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
-                              {teamPickCounts[team.short]}
-                            </div>
-                          )}
-
                           <div className="text-center">
                             {/* Full team name only */}
-                            <div className={`text-lg font-bold ${
-                              teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
-                            }`}>
+                            <div className="text-lg font-bold text-black">
                               {team.name}
                             </div>
-
-                            {/* Result box - only show for pending (no result) fixtures */}
-                            {isRoundLocked && !teamResult && (
-                              <div className="text-xs font-bold mt-2 px-2 py-1 rounded text-white bg-slate-500">
-
-                              </div>
-                            )}
                           </div>
                         </button>
                       );
@@ -612,25 +525,11 @@ export default function PickPage() {
                       const isSelected = selectedTeam?.teamShort === team.short;
                       const isCurrentPick = currentPick === team.short;
 
-                      // Check result for this team
-                      const fixtureResult = fixture.result;
-
-                      // Determine game result: WIN = player advances, LOSE = player eliminated
-                      let teamResult: 'win' | 'lose' | null = null;
-                      if (fixtureResult && isRoundLocked) {
-                        if (fixtureResult === team.short) {
-                          teamResult = 'win'; // Team won = Player advances
-                        } else {
-                          teamResult = 'lose'; // Team lost or drew = Player eliminated
-                        }
-                      }
-
                       // Disable teams if:
                       // 1. Team not in allowed list
                       // 2. There's already a current pick (user must remove it first)
                       // 3. Round is locked
-                      // 4. Viewing previous rounds (not current round)
-                      const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked || viewMode === 'previous';
+                      const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked;
 
                       return (
                         <button
@@ -638,11 +537,7 @@ export default function PickPage() {
                           onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
                           disabled={isDisabled}
                           className={`relative flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
-                            teamResult === 'win'
-                              ? 'bg-green-600 border-slate-800 shadow-md text-white'
-                              : teamResult === 'lose'
-                              ? 'bg-red-600 border-slate-800 shadow-md text-white'
-                              : isSelected
+                            isSelected
                               ? 'bg-white border-blue-500 shadow-md'
                               : isCurrentPick
                               ? 'bg-white border-blue-500 shadow-md'
@@ -658,27 +553,11 @@ export default function PickPage() {
                             </div>
                           )}
 
-                          {/* Player count badge - only show when round is locked */}
-                          {isRoundLocked && teamPickCounts[team.short] && (
-                            <div className="absolute -top-2 -right-2 bg-slate-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
-                              {teamPickCounts[team.short]}
-                            </div>
-                          )}
-
                           <div className="text-center">
                             {/* Full team name only */}
-                            <div className={`text-lg font-bold ${
-                              teamResult === 'win' || teamResult === 'lose' ? 'text-white' : 'text-black'
-                            }`}>
+                            <div className="text-lg font-bold text-black">
                               {team.name}
                             </div>
-
-                            {/* Result box - only show for pending (no result) fixtures */}
-                            {isRoundLocked && !teamResult && (
-                              <div className="text-xs font-bold mt-2 px-2 py-1 rounded text-white bg-slate-500">
-
-                              </div>
-                            )}
                           </div>
                         </button>
                       );
@@ -690,19 +569,9 @@ export default function PickPage() {
           </div>
         </div>
 
-        {/* No Pick Indicator - shown when viewing previous rounds and no pick was made */}
-        {viewMode === 'previous' && !currentPick && (
-          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <div className="text-center">
-              <div className="text-amber-800 font-medium">
-                NO PICK - You did not make a selection for this round
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* Confirmation Banner - shown when team is selected and viewing current round */}
-        {selectedTeam && !isRoundLocked && viewMode === 'current' && (
+        {/* Confirmation Banner - shown when team is selected and round not locked */}
+        {selectedTeam && !isRoundLocked && (
           <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="text-center">
               <div className="text-green-800 font-medium mb-3">
@@ -728,8 +597,8 @@ export default function PickPage() {
           </div>
         )}
 
-        {/* Remove Current Pick Card - shown when no team selected but user has current pick and viewing current round */}
-        {!selectedTeam && currentPick && !isRoundLocked && viewMode === 'current' && (
+        {/* Remove Current Pick Card - shown when no team selected but user has current pick and round not locked */}
+        {!selectedTeam && currentPick && !isRoundLocked && (
           <div className="mt-6 bg-slate-50 border border-slate-200 rounded-lg p-4">
             <div className="text-center">
               <div className="text-slate-800 font-medium mb-2">
@@ -749,48 +618,9 @@ export default function PickPage() {
           </div>
         )}
 
-        {/* Statistics Section - only show when round is locked and we have pick counts */}
-        {isRoundLocked && Object.keys(teamPickCounts).length > 0 && (
-          <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 text-center">
-              Player Pick Statistics
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {Object.entries(teamPickCounts)
-                .sort(([,a], [,b]) => b - a) // Sort by pick count descending
-                .map(([teamShort, count]) => {
-                  const teamName = getFullTeamName(teamShort);
-                  const isCurrentPick = currentPick === teamShort;
 
-                  return (
-                    <div
-                      key={teamShort}
-                      className={`p-3 rounded-lg border text-center ${
-                        isCurrentPick
-                          ? 'bg-blue-100 border-blue-300'
-                          : 'bg-white border-slate-200'
-                      }`}
-                    >
-                      <div className={`font-bold text-sm ${
-                        isCurrentPick ? 'text-blue-900' : 'text-slate-900'
-                      }`}>
-                        {teamName}
-                      </div>
-                      <div className={`text-xs mt-1 ${
-                        isCurrentPick ? 'text-blue-700' : 'text-slate-600'
-                      }`}>
-                        {count} player{count !== 1 ? 's' : ''}
-                        {isCurrentPick && ' (Your pick)'}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        )}
-
-        {/* Help Section - only show for current round when not locked */}
-        {viewMode === 'current' && !isRoundLocked && !currentPick && (
+        {/* Help Section - only show when round not locked and no current pick */}
+        {!isRoundLocked && !currentPick && (
           <div className="mt-6 bg-slate-50 border border-slate-200 rounded-lg p-4">
             <div className="text-center">
               <div className="text-slate-800 font-medium mb-2">
