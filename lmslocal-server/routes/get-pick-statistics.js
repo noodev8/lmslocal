@@ -32,7 +32,7 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR" - Missing or invalid competition_id parameter
 "COMPETITION_NOT_FOUND" - Competition does not exist in database
-"UNAUTHORIZED" - User is not the organiser of this competition
+"UNAUTHORIZED" - User is not the organiser or participant of this competition
 "SERVER_ERROR" - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -114,12 +114,22 @@ router.post('/', verifyToken, async (req, res) => {
 
     const data = result.rows[0];
 
-    // Verify user authorization - only competition organiser can access statistics
-    if (data.organiser_id !== user_id) {
-      return res.json({
-        return_code: "UNAUTHORIZED",
-        message: "Only the competition organiser can access pick statistics"
-      });
+    // Verify user authorization - check if user is organiser OR participant
+    const isOrganiser = data.organiser_id === user_id;
+
+    if (!isOrganiser) {
+      // Check if user is a participant in this competition
+      const participantCheck = await query(`
+        SELECT 1 FROM competition_user
+        WHERE competition_id = $1 AND user_id = $2
+      `, [competition_id, user_id]);
+
+      if (participantCheck.rows.length === 0) {
+        return res.json({
+          return_code: "UNAUTHORIZED",
+          message: "Only competition organisers and participants can access pick statistics"
+        });
+      }
     }
 
     // Parse and validate numeric values to ensure correct data types
