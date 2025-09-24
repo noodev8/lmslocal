@@ -376,17 +376,9 @@ export default function DashboardPage() {
                       </div>
                       {/* Pick Status Display */}
                       <div className="mb-2">
-                        {competition.needs_pick ? (
-                          <span className="inline-flex items-center text-sm font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
-                            <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
-                            Pick needed
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center text-sm font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
-                            <span className="text-emerald-600 mr-1">✓</span>
-                            Up to date
-                          </span>
-                        )}
+                        <span className="text-sm font-medium text-slate-600">
+                          {competition.needs_pick ? '⚠ Pick needed' : '✓ Up to date'}
+                        </span>
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-slate-600">
                         <div className="flex items-center space-x-2">
