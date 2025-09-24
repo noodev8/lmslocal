@@ -183,8 +183,8 @@ router.post('/', verifyToken, async (req, res) => {
         WHERE round_id = $1 AND user_id = $2
       `, [round_id, target_user_id]);
 
-      // Step 2: Restore team to allowed_teams (unless admin - they can override rules)
-      if (!is_admin && validation.team_id) {
+      // Step 2: Restore team to allowed_teams (for all users including admins)
+      if (validation.team_id) {
         await client.query(`
           INSERT INTO allowed_teams (competition_id, user_id, team_id)
           VALUES ($1, $2, $3)
