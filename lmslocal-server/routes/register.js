@@ -3,7 +3,7 @@
 API Route: register
 =======================================================================================================================================
 Method: POST
-Purpose: Registers a new user account with email verification and comprehensive validation
+Purpose: Registers a new user account with automatic verification and comprehensive validation
 =======================================================================================================================================
 Request Payload:
 {
@@ -15,16 +15,16 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "message": "Registration successful. Please check your email to verify your account.", // string, confirmation message
+  "message": "Registration successful. You can now log in to your account.", // string, confirmation message
   "user": {                                   // object, created user information
     "id": 123,                                // integer, unique user ID
     "display_name": "John Doe",               // string, user's display name
     "email": "user@example.com",              // string, user's email address
-    "email_verified": false,                  // boolean, email verification status
+    "email_verified": true,                   // boolean, email verification status (auto-verified)
     "user_type": "player",                    // string, user account type
     "created_at": "2025-08-31T15:00:00Z"      // string, ISO datetime when account was created
   },
-  "verification_sent": true                   // boolean, whether verification email was sent successfully
+  "verification_sent": false                  // boolean, whether verification email was sent (disabled)
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -138,9 +138,9 @@ router.post('/', async (req, res) => {
     const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Generate secure verification token with expiry
-    const verificationToken = tokenUtils.generateToken('verify_');
-    const tokenExpiry = tokenUtils.getTokenExpiry(24); // 24 hours for email verification
+    // Email verification disabled - no tokens needed
+    // const verificationToken = tokenUtils.generateToken('verify_');
+    // const tokenExpiry = tokenUtils.getTokenExpiry(24); // 24 hours for email verification
 
     // === ATOMIC TRANSACTION EXECUTION ===
     // Execute user creation and audit logging in transaction for data consistency
@@ -152,11 +152,11 @@ router.post('/', async (req, res) => {
       const userResult = await client.query(`
         INSERT INTO app_user (
           display_name,               -- User's chosen display name
-          email,                      -- Normalized email address  
+          email,                      -- Normalized email address
           password_hash,              -- Securely hashed password
-          email_verified,             -- Initially false, requires verification
-          auth_token,                 -- Email verification token
-          auth_token_expires,         -- Token expiry timestamp
+          email_verified,             -- Auto-verified (no email verification required)
+          auth_token,                 -- No verification token needed
+          auth_token_expires,         -- No token expiry needed
           user_type,                  -- Account type (player for regular users)
           created_at,                 -- Account creation timestamp
           updated_at                  -- Last update timestamp
@@ -164,11 +164,11 @@ router.post('/', async (req, res) => {
         RETURNING id, display_name, email, email_verified, user_type, created_at
       `, [
         trimmedDisplayName,
-        trimmedEmail, 
+        trimmedEmail,
         hashedPassword,
-        false,                        // Email not verified initially
-        verificationToken,
-        tokenExpiry,
+        true,                         // Email auto-verified (no verification needed)
+        null,                         // No verification token stored
+        null,                         // No token expiry needed
         'player'                      // Default user type for registrations
       ]);
 
@@ -184,37 +184,21 @@ router.post('/', async (req, res) => {
       ]);
     });
 
-    // === EMAIL VERIFICATION SENDING ===
-    // Send verification email outside transaction (non-critical operation)
-    // Registration succeeds even if email fails - user can resend verification later
-    try {
-      const emailResult = await emailService.sendVerificationEmail(
-        trimmedEmail, 
-        verificationToken, 
-        trimmedDisplayName
-      );
-      emailSent = emailResult.success;
-      
-      if (!emailSent) {
-        console.error('Failed to send verification email:', emailResult.error);
-        // Log email failure but don't fail registration
-      }
-    } catch (emailError) {
-      console.error('Email service error during registration:', emailError);
-      emailSent = false;
-      // Continue with successful registration even if email fails
-    }
+    // === EMAIL VERIFICATION DISABLED ===
+    // Email verification is disabled - no verification email sent
+    // Users are automatically verified upon registration
+    emailSent = false; // No email sent (verification disabled)
 
     // === SUCCESS RESPONSE ===
     // Return comprehensive user data and email status for frontend handling
     res.json({
       return_code: "SUCCESS",
-      message: "Registration successful. Please check your email to verify your account.",
+      message: "Registration successful. You can now log in to your account.",
       user: {
         id: newUser.id,                         // User's unique identifier
         display_name: newUser.display_name,     // Confirmed display name
         email: newUser.email,                   // Confirmed email address
-        email_verified: newUser.email_verified, // Verification status (false initially)
+        email_verified: newUser.email_verified, // Verification status (auto-verified)
         user_type: newUser.user_type,           // Account type
         created_at: newUser.created_at          // Account creation timestamp
       },
