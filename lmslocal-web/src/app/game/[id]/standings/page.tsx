@@ -172,8 +172,7 @@ export default function CompetitionStandingsPage() {
   // Determine if picks should be visible
   const isPickVisible = (playerId: number) => {
     const isOwnPlayer = currentUser && currentUser.id === playerId;
-    const hasEnoughPlayersToHide = activePlayers.length <= 3;
-    return isCurrentRoundLocked || !hasEnoughPlayersToHide || isOwnPlayer;
+    return isCurrentRoundLocked || isOwnPlayer;
   };
 
   // Find the elimination pick (last losing pick that eliminated the player)
