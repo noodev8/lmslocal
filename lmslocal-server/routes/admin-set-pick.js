@@ -146,13 +146,18 @@ router.post('/', verifyToken, async (req, res) => {
           WHERE (f.home_team = $3 OR f.away_team = $3)
         ),
         existing_pick_data AS (
-          -- Check if player already has a pick for current round
-          SELECT p.id as existing_pick_id
+          -- Check if player already has a pick for current round and get current team info
+          SELECT
+            p.id as existing_pick_id,
+            p.team as existing_team_short,
+            t.id as existing_team_id,
+            t.name as existing_team_name
           FROM pick p
           INNER JOIN competition_data cd ON p.round_id = cd.current_round_id
+          LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
           WHERE p.user_id = $2
         )
-        SELECT 
+        SELECT
           cd.*,
           pd.player_status,
           pd.player_name,
@@ -161,7 +166,10 @@ router.post('/', verifyToken, async (req, res) => {
           td.team_short,
           td.allowed_team_id,
           fd.fixture_id,
-          epd.existing_pick_id
+          epd.existing_pick_id,
+          epd.existing_team_short,
+          epd.existing_team_id,
+          epd.existing_team_name
         FROM competition_data cd
         CROSS JOIN player_data pd
         CROSS JOIN team_data td
@@ -255,17 +263,27 @@ router.post('/', verifyToken, async (req, res) => {
       const wasUpdated = !!data.existing_pick_id;
       let pickResult;
 
+      // STEP 1: If updating an existing pick, restore the old team to allowed_teams first
+      // This ensures the player regains access to their previous team choice
+      if (wasUpdated && data.no_team_twice && data.existing_team_id) {
+        await client.query(`
+          INSERT INTO allowed_teams (competition_id, user_id, team_id)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
+        `, [competition_id, user_id, data.existing_team_id]);
+      }
+
+      // STEP 2: Update or create the pick
       if (wasUpdated) {
         // Update existing pick with new team selection
         // Use team short code for consistency with normal pick storage format
         const updateQuery = `
           UPDATE pick
-          SET 
+          SET
             team = $1,
             fixture_id = $2,
             set_by_admin = $3,
-            created_at = NOW(),
-            updated_at = NOW()
+            created_at = NOW()
           WHERE round_id = $4 AND user_id = $5
           RETURNING id, team, user_id, fixture_id
         `;
@@ -292,6 +310,15 @@ router.post('/', verifyToken, async (req, res) => {
           data.team_short, // Store team short code (e.g., "ARS") for consistency
           admin_id // Track which admin set this pick
         ]);
+      }
+
+      // STEP 3: Remove the newly picked team from allowed_teams (if no_team_twice is enabled)
+      // This ensures consistent game rules - admin picks should have same consequences as player picks
+      if (data.no_team_twice && data.team_id) {
+        await client.query(`
+          DELETE FROM allowed_teams
+          WHERE competition_id = $1 AND user_id = $2 AND team_id = $3
+        `, [competition_id, user_id, data.team_id]);
       }
 
       // Log the administrative action for audit trail and transparency

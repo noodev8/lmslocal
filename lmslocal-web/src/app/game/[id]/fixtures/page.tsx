@@ -3,16 +3,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import {
   ArrowLeftIcon,
   CalendarIcon,
   CheckCircleIcon,
   XMarkIcon,
   ChartBarIcon,
   TrashIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
-import { roundApi, fixtureApi, teamApi, Team, cacheUtils } from '@/lib/api';
+import { roundApi, fixtureApi, teamApi, competitionApi, adminApi, userApi, Team, Player, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
 interface Round {
@@ -60,6 +61,15 @@ export default function FixturesPage() {
   const [selectedHomeTeam, setSelectedHomeTeam] = useState<{ name: string; short_name: string } | null>(null);
   const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
   const [isSavingFixtures, setIsSavingFixtures] = useState(false);
+
+  // Admin pick management state (separate from fixture creation to avoid conflicts)
+  const [showAdminPickModal, setShowAdminPickModal] = useState(false);
+  const [adminPickPlayers, setAdminPickPlayers] = useState<Player[]>([]);
+  const [adminSelectedPlayer, setAdminSelectedPlayer] = useState<number | null>(null);
+  const [adminSelectedTeam, setAdminSelectedTeam] = useState('');
+  const [adminSettingPick, setAdminSettingPick] = useState(false);
+  const [adminPickTeams, setAdminPickTeams] = useState<Team[]>([]);
+
   const hasInitialized = useRef(false);
 
   const getNextFriday6PM = () => {
@@ -456,6 +466,68 @@ export default function FixturesPage() {
     }
   };
 
+  // Admin pick functions (restored from old manage page)
+  const loadAdminPickPlayers = async () => {
+    try {
+      const response = await competitionApi.getPlayers(parseInt(competitionId));
+      if (response.data.return_code === 'SUCCESS') {
+        setAdminPickPlayers(response.data.players || []);
+      }
+    } catch (error) {
+      console.error('Failed to load players for admin pick:', error);
+    }
+  };
+
+  const loadAdminPickAllowedTeams = async (userId: number) => {
+    try {
+      const response = await userApi.getAllowedTeams(parseInt(competitionId), userId);
+      if (response.data.return_code === 'SUCCESS') {
+        setAdminPickTeams(response.data.allowed_teams || []);
+      }
+    } catch (error) {
+      console.error('Failed to load allowed teams for admin pick:', error);
+      // If specific player teams fail, fall back to all teams
+      if (teams.length > 0) {
+        setAdminPickTeams(teams);
+      } else {
+        await teamApi.getTeams().then(res => {
+          if (res.data.return_code === 'SUCCESS') {
+            setAdminPickTeams(res.data.teams || []);
+          }
+        });
+      }
+    }
+  };
+
+  const handleSetPlayerPick = async () => {
+    if (!adminSelectedPlayer || !adminSelectedTeam || !competition) return;
+
+    setAdminSettingPick(true);
+    try {
+      const response = await adminApi.setPlayerPick(competition.id, adminSelectedPlayer, adminSelectedTeam);
+      if (response.data.return_code === 'SUCCESS') {
+        const pick = response.data.pick as { player_name: string; team: string };
+        alert(`Pick set successfully for ${pick.player_name}: ${pick.team}`);
+        setShowAdminPickModal(false);
+        setAdminSelectedPlayer(null);
+        setAdminSelectedTeam('');
+        setAdminPickTeams([]);
+      } else {
+        alert(`Failed to set pick: ${(response.data as { message?: string }).message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to set player pick:', error);
+      alert('Failed to set pick. Please try again.');
+    } finally {
+      setAdminSettingPick(false);
+    }
+  };
+
+  const openAdminPickModal = async () => {
+    await loadAdminPickPlayers();
+    setShowAdminPickModal(true);
+  };
+
   if (loading || contextLoading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -607,23 +679,39 @@ export default function FixturesPage() {
                   </div>
                   {/* Action Buttons */}
                   {currentRound.fixture_count && currentRound.fixture_count > 0 ? (
-                    // Reset button for existing fixtures (only if round is not locked)
+                    // Buttons for existing fixtures
                     (() => {
                       const now = new Date();
                       const lockTime = new Date(currentRound.lock_time || '');
                       const isLocked = currentRound.lock_time && now >= lockTime;
-                      
-                      return !isLocked ? (
-                        <button
-                          onClick={() => setShowResetModal(true)}
-                          className="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm bg-slate-500 text-white hover:bg-slate-600 transition-colors"
-                        >
-                          <TrashIcon className="h-4 w-4 mr-2" />
-                          Reset Fixtures
-                        </button>
-                      ) : (
-                        <div className="text-sm text-slate-500 italic">
-                          Round is locked - fixtures cannot be reset
+
+                      return (
+                        <div className="flex items-center space-x-3">
+                          {!isLocked ? (
+                            <>
+                              {/* Set Player Pick button - only when unlocked */}
+                              <button
+                                onClick={openAdminPickModal}
+                                className="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                              >
+                                <UserGroupIcon className="h-4 w-4 mr-2" />
+                                Set Player Pick
+                              </button>
+
+                              {/* Reset button - only when unlocked */}
+                              <button
+                                onClick={() => setShowResetModal(true)}
+                                className="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm bg-slate-500 text-white hover:bg-slate-600 transition-colors"
+                              >
+                                <TrashIcon className="h-4 w-4 mr-2" />
+                                Reset Fixtures
+                              </button>
+                            </>
+                          ) : (
+                            <div className="text-sm text-slate-500 italic">
+                              Round is locked - no changes allowed
+                            </div>
+                          )}
                         </div>
                       );
                     })()
@@ -897,6 +985,102 @@ export default function FixturesPage() {
                     className="px-6 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed font-medium transition-colors"
                   >
                     {extendingRound ? 'Extending...' : 'Continue to Add Fixtures'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Admin Pick Modal */}
+        {showAdminPickModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-slate-900">Set Player Pick</h3>
+                  <button
+                    onClick={() => {
+                      setShowAdminPickModal(false);
+                      setAdminSelectedPlayer(null);
+                      setAdminSelectedTeam('');
+                      setAdminPickTeams([]);
+                    }}
+                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Player Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Select Player
+                    </label>
+                    <select
+                      value={adminSelectedPlayer || ''}
+                      onChange={(e) => {
+                        const playerId = e.target.value ? parseInt(e.target.value) : null;
+                        setAdminSelectedPlayer(playerId);
+                        setAdminSelectedTeam('');
+                        setAdminPickTeams([]);
+                        if (playerId) {
+                          loadAdminPickAllowedTeams(playerId);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Choose a player...</option>
+                      {adminPickPlayers.map((player) => (
+                        <option key={player.id} value={player.id}>
+                          {player.display_name} {player.status === 'eliminated' ? '(OUT)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Team Selection */}
+                  {adminSelectedPlayer && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Select Team
+                      </label>
+                      <select
+                        value={adminSelectedTeam}
+                        onChange={(e) => setAdminSelectedTeam(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Choose a team...</option>
+                        {adminPickTeams.map((team, index) => (
+                          <option key={`${team.id}-${team.name}-${index}`} value={team.name}>
+                            {team.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex space-x-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowAdminPickModal(false);
+                      setAdminSelectedPlayer(null);
+                      setAdminSelectedTeam('');
+                      setAdminPickTeams([]);
+                    }}
+                    disabled={adminSettingPick}
+                    className="flex-1 px-4 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSetPlayerPick}
+                    disabled={!adminSelectedPlayer || !adminSelectedTeam || adminSettingPick}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-medium transition-colors"
+                  >
+                    {adminSettingPick ? 'Setting Pick...' : 'Set Pick'}
                   </button>
                 </div>
               </div>
