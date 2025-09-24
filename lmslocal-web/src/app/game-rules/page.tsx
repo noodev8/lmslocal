@@ -276,6 +276,10 @@ export default function GameRulesPage() {
                     </li>
                     <li className="flex items-start">
                       <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 mt-0.5 flex-shrink-0" />
+                      Rounds lock automatically when all players pick (Round 2+)
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 mt-0.5 flex-shrink-0" />
                       No picks can be made after lock time
                     </li>
                     <li className="flex items-start">
@@ -469,6 +473,11 @@ export default function GameRulesPage() {
             <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">Can I change my pick after submitting?</h3>
               <p className="text-slate-600">Yes, you can change your pick as many times as you want until the round lock time. Once the round locks, picks are final and cannot be changed.</p>
+            </div>
+
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">What happens when everyone has picked?</h3>
+              <p className="text-slate-600">From Round 2 onwards, when all active players have made their picks, the round automatically locks - even before the scheduled deadline. This means you can see everyone&apos;s picks immediately without waiting for the official lock time!</p>
             </div>
 
             <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200">
