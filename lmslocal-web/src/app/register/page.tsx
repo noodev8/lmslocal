@@ -34,8 +34,8 @@ export default function RegisterPage() {
       });
       
       if (response.data.return_code === 'SUCCESS') {
-        // Redirect to login page with success message in URL params
-        router.push('/login?message=Account created successfully! Please check your email and click the verification link to complete your registration.');
+        // Redirect to login page with success message - no email verification needed
+        router.push('/login?message=Account created successfully! You can now sign in with your credentials.');
         return;
       } else {
         switch (response.data.return_code) {
