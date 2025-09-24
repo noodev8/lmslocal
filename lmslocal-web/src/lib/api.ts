@@ -461,12 +461,15 @@ export const adminApi = {
   setPlayerPick: (competition_id: number, user_id: number, team: string) => api.post<{
     return_code: string;
     pick: {
-      id: number;
+      id?: number;
       user_id: number;
-      team: string;
+      team: string | null;
       player_name: string;
       round_number: number;
-    }
+      was_removed?: boolean;
+      set_by_admin?: boolean;
+    };
+    message?: string;
   }>('/admin-set-pick', { competition_id, user_id, team }),
   updatePaymentStatus: (competition_id: number, user_id: number, paid: boolean, paid_amount?: number, paid_date?: string) => api.post<{
     return_code: string;

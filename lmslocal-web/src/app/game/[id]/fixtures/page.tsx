@@ -543,20 +543,23 @@ export default function FixturesPage() {
 
     setAdminSettingPick(true);
     try {
-      const response = await adminApi.setPlayerPick(competition.id, adminSelectedPlayer, adminSelectedTeam);
+      // Pass null/empty string if "NO_PICK" is selected to trigger removal
+      const teamToSet = adminSelectedTeam === 'NO_PICK' ? '' : adminSelectedTeam;
+      const response = await adminApi.setPlayerPick(competition.id, adminSelectedPlayer, teamToSet);
+
       if (response.data.return_code === 'SUCCESS') {
-        const pick = response.data.pick as { player_name: string; team: string };
-        alert(`Pick set successfully for ${pick.player_name}: ${pick.team}`);
+        // Close modal and reset form
         setShowAdminPickModal(false);
         setAdminSelectedPlayer(null);
         setAdminSelectedTeam('');
         setAdminPickTeams([]);
+        setAdminAllowedTeamNames(new Set());
       } else {
-        alert(`Failed to set pick: ${(response.data as { message?: string }).message || 'Unknown error'}`);
+        alert(`Failed to ${adminSelectedTeam === 'NO_PICK' ? 'remove' : 'set'} pick: ${(response.data as { message?: string }).message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Failed to set player pick:', error);
-      alert('Failed to set pick. Please try again.');
+      console.error('Failed to set/remove player pick:', error);
+      alert(`Failed to ${adminSelectedTeam === 'NO_PICK' ? 'remove' : 'set'} pick. Please try again.`);
     } finally {
       setAdminSettingPick(false);
     }
@@ -731,7 +734,7 @@ export default function FixturesPage() {
                               {/* Set Player Pick button - only when unlocked */}
                               <button
                                 onClick={openAdminPickModal}
-                                className="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm bg-slate-600 text-white hover:bg-slate-700 transition-colors"
+                                className="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm bg-slate-500 text-white hover:bg-slate-600 transition-colors"
                               >
                                 <UserGroupIcon className="h-4 w-4 mr-2" />
                                 Set Player Pick
@@ -1101,6 +1104,7 @@ export default function FixturesPage() {
                             </option>
                           );
                         })}
+                        <option value="NO_PICK">No Pick</option>
                       </select>
                     </div>
                   )}
@@ -1125,7 +1129,9 @@ export default function FixturesPage() {
                     disabled={!adminSelectedPlayer || !adminSelectedTeam || adminSettingPick}
                     className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-medium transition-colors"
                   >
-                    {adminSettingPick ? 'Setting Pick...' : 'Set Pick'}
+                    {adminSettingPick
+                      ? (adminSelectedTeam === 'NO_PICK' ? 'Removing Pick...' : 'Setting Pick...')
+                      : (adminSelectedTeam === 'NO_PICK' ? 'Remove Pick' : 'Set Pick')}
                   </button>
                 </div>
               </div>
