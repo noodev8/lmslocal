@@ -556,9 +556,24 @@ export default function UnifiedGameDashboard() {
               {/* Status Message */}
               <div className="text-center">
                 {pickStats.pick_percentage === 100 ? (
-                  <p className="text-sm font-medium text-green-700">
-                    ✅ All players have picked!
-                  </p>
+                  <div>
+                    <p className="text-sm font-medium text-green-700 mb-2">
+                      ✅ All players have picked!
+                    </p>
+                    {currentRoundInfo.is_locked && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm font-medium text-blue-800 mb-2">
+                          🔒 Round locked - All picks complete!
+                        </p>
+                        <Link
+                          href={`/game/${competitionId}/standings`}
+                          className="inline-flex items-center text-sm font-medium text-blue-700 hover:text-blue-800 underline"
+                        >
+                          View picks in the Standings →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 ) : pickStats.pick_percentage >= 75 ? (
                   <p className="text-sm font-medium text-blue-700">
                     Almost there - {pickStats.total_active_players - pickStats.players_with_picks} player{pickStats.total_active_players - pickStats.players_with_picks !== 1 ? 's' : ''} remaining

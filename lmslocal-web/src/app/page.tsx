@@ -38,22 +38,22 @@ export default function LandingPage() {
               <TrophyIcon className="h-8 w-8 text-slate-700 mr-2" />
               <span className="text-2xl font-bold text-slate-900">LMSLocal</span>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Link
                 href="/game-rules"
-                className="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"
+                className="hidden sm:block text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"
               >
                 Game Rules
               </Link>
               <Link
                 href="/pricing"
-                className="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"
+                className="hidden sm:block text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"
               >
                 Pricing
               </Link>
               <Link
                 href="/login"
-                className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                className="bg-slate-800 hover:bg-slate-900 text-white px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
               >
                 Sign In
               </Link>
