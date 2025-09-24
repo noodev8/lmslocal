@@ -451,7 +451,7 @@ export default function PickPage() {
               return (
                 <div key={fixture.id} className="border-b border-slate-100 last:border-b-0 pb-6 last:pb-0">
                   {/* Team Cards with VS between them */}
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 sm:gap-4">
                     {/* Home Team */}
                     {(() => {
                       const team = homeTeam;
@@ -470,7 +470,7 @@ export default function PickPage() {
                           key={team.short}
                           onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
                           disabled={isDisabled}
-                          className={`relative flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
+                          className={`relative flex-1 min-h-[80px] p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 ${
                             isSelected
                               ? 'bg-white border-blue-500 shadow-md'
                               : isCurrentPick
@@ -487,9 +487,9 @@ export default function PickPage() {
                             </div>
                           )}
 
-                          <div className="text-center">
-                            {/* Full team name only */}
-                            <div className="text-lg font-bold text-black">
+                          <div className="text-center flex items-center justify-center h-full">
+                            {/* Full team name with responsive sizing and multi-line support */}
+                            <div className="text-sm sm:text-base lg:text-lg font-bold text-black leading-tight">
                               {team.name}
                             </div>
                           </div>
@@ -499,7 +499,7 @@ export default function PickPage() {
 
                     {/* VS Separator */}
                     <div className="flex-shrink-0 px-2">
-                      <div className="text-2xl font-bold text-slate-600">
+                      <div className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-600">
                         VS
                       </div>
                     </div>
@@ -522,7 +522,7 @@ export default function PickPage() {
                           key={team.short}
                           onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
                           disabled={isDisabled}
-                          className={`relative flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
+                          className={`relative flex-1 min-h-[80px] p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 ${
                             isSelected
                               ? 'bg-white border-blue-500 shadow-md'
                               : isCurrentPick
@@ -539,9 +539,9 @@ export default function PickPage() {
                             </div>
                           )}
 
-                          <div className="text-center">
-                            {/* Full team name only */}
-                            <div className="text-lg font-bold text-black">
+                          <div className="text-center flex items-center justify-center h-full">
+                            {/* Full team name with responsive sizing and multi-line support */}
+                            <div className="text-sm sm:text-base lg:text-lg font-bold text-black leading-tight">
                               {team.name}
                             </div>
                           </div>
