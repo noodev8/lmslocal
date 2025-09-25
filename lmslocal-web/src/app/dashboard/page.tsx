@@ -241,6 +241,15 @@ export default function DashboardPage() {
                 <TrophyIcon className="h-7 w-7 text-slate-700" />
                 <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
               </div>
+              <div className="flex items-center space-x-4">
+                <Link
+                  href="/help"
+                  className="flex items-center space-x-1 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
+                >
+                  <BookOpenIcon className="h-5 w-5" />
+                  <span className="text-sm font-medium hidden sm:block">Help</span>
+                </Link>
+              </div>
             </div>
           </div>
         </header>
@@ -273,11 +282,19 @@ export default function DashboardPage() {
                 <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
               </Link>
             </div>
-            <div className="flex items-center relative" ref={profileMenuRef}>
-              <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center space-x-2 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/help"
+                className="flex items-center space-x-1 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
               >
+                <BookOpenIcon className="h-5 w-5" />
+                <span className="text-sm font-medium hidden sm:block">Help</span>
+              </Link>
+              <div className="flex items-center relative" ref={profileMenuRef}>
+                <button
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="flex items-center space-x-2 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
+                >
                 <UserIcon className="h-5 w-5" />
                 <span className="text-sm font-medium">Profile</span>
                 <ChevronDownIcon className="h-4 w-4" />
@@ -296,12 +313,12 @@ export default function DashboardPage() {
                       Settings
                     </Link>
                     <Link
-                      href="/game-rules"
+                      href="/help"
                       className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <BookOpenIcon className="h-4 w-4 mr-3" />
-                      Game Rules
+                      Help Center
                     </Link>
                     <Link
                       href="/pricing"
@@ -324,6 +341,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </div>
