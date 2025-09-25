@@ -87,7 +87,7 @@ export default function PricingPage() {
             </div>
             <div className="flex items-center space-x-4">
               <Link
-                href="/game-rules"
+                href="/help/how-to-play"
                 className="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"
               >
                 Game Rules

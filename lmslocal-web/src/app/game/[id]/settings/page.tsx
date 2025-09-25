@@ -267,9 +267,9 @@ export default function CompetitionSettings() {
   const handleDeleteCompetition = async () => {
     if (!competition) return;
 
-    // Validate confirmation text
-    if (deleteConfirmText.toLowerCase() !== 'delete') {
-      setError('Please type "DELETE" to confirm');
+    // Validate confirmation text - must match competition name
+    if (deleteConfirmText !== competition.name) {
+      setError(`Please type "${competition.name}" exactly to confirm`);
       return;
     }
 
@@ -796,15 +796,15 @@ export default function CompetitionSettings() {
 
                 <div className="mb-4">
                   <label htmlFor="confirmDelete" className="block text-sm font-medium text-slate-700 mb-2">
-                    Type <strong>DELETE</strong> to confirm:
+                    Type the competition name <strong>{competition?.name}</strong> to confirm:
                   </label>
                   <input
                     id="confirmDelete"
                     type="text"
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder="DELETE"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-center font-mono"
+                    placeholder={competition?.name}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-center"
                   />
                 </div>
               </div>
@@ -822,7 +822,7 @@ export default function CompetitionSettings() {
               <button
                 type="button"
                 onClick={handleDeleteCompetition}
-                disabled={deleting || deleteConfirmText.toLowerCase() !== 'delete'}
+                disabled={deleting || deleteConfirmText !== competition?.name}
                 className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {deleting && (

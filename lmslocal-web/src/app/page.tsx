@@ -40,10 +40,10 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
               <Link
-                href="/game-rules"
+                href="/help"
                 className="hidden sm:block text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"
               >
-                Game Rules
+                Help
               </Link>
               <Link
                 href="/pricing"
