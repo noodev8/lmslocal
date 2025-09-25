@@ -11,14 +11,25 @@ import {
   HomeIcon,
   BookOpenIcon,
   PlayIcon,
-  UserGroupIcon,
   QuestionMarkCircleIcon,
   ClipboardDocumentListIcon,
   AcademicCapIcon,
   PhoneIcon
 } from '@heroicons/react/24/outline';
 
-const navigation = [
+type NavigationChild = {
+  name: string;
+  href: string;
+};
+
+type NavigationItem = {
+  name: string;
+  href?: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  children?: NavigationChild[];
+};
+
+const navigation: NavigationItem[] = [
   { name: 'Help Home', href: '/help', icon: HomeIcon },
   { name: 'How to Play', href: '/help/how-to-play', icon: PlayIcon },
   {
@@ -70,9 +81,9 @@ export default function HelpLayout({
             // Import the API dynamically to avoid server-side issues
             const { userApi } = await import('@/lib/api');
             // This will trigger 401 interceptor if token is invalid
-            await userApi.getCurrentUser();
+            await userApi.checkUserType();
             setIsAuthenticated(true);
-          } catch (error) {
+          } catch {
             // Token is invalid or expired
             setIsAuthenticated(false);
             // The interceptor will have already cleared localStorage
@@ -114,7 +125,7 @@ export default function HelpLayout({
         setIsAuthenticated(hasAuth);
       }
     }
-  }, [pathname, mounted]);
+  }, [pathname, mounted, isAuthenticated]);
 
   const toggleSection = (sectionName: string) => {
     setExpandedSections(prev =>
@@ -125,9 +136,9 @@ export default function HelpLayout({
   };
 
   const isActive = (href: string) => pathname === href;
-  const isParentActive = (item: any) => {
+  const isParentActive = (item: NavigationItem) => {
     if (item.children) {
-      return item.children.some((child: any) => pathname === child.href);
+      return item.children.some((child: NavigationChild) => pathname === child.href);
     }
     return false;
   };
@@ -228,7 +239,7 @@ export default function HelpLayout({
                         </div>
                       )}
                     </>
-                  ) : (
+                  ) : item.href ? (
                     <Link
                       href={item.href}
                       className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -240,7 +251,7 @@ export default function HelpLayout({
                       {item.icon && <item.icon className="h-5 w-5 mr-2" />}
                       {item.name}
                     </Link>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </nav>
@@ -300,7 +311,7 @@ export default function HelpLayout({
                           </div>
                         )}
                       </>
-                    ) : (
+                    ) : item.href ? (
                       <Link
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
@@ -313,7 +324,7 @@ export default function HelpLayout({
                         {item.icon && <item.icon className="h-5 w-5 mr-2" />}
                         {item.name}
                       </Link>
-                    )}
+                    ) : null}
                   </div>
                 ))}
               </nav>

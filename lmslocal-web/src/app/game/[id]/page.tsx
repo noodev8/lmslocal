@@ -7,7 +7,6 @@ import {
   TrophyIcon,
   ArrowLeftIcon,
   UserGroupIcon,
-  ClipboardDocumentIcon,
   Cog6ToothIcon,
   CalendarDaysIcon,
   PlayIcon
@@ -252,34 +251,31 @@ export default function UnifiedGameDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <header className="bg-white border-b border-slate-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white border-b border-gray-100">
+          <div className="max-w-4xl mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <Link href="/dashboard" className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                  <ArrowLeftIcon className="h-5 w-5" />
-                  <span className="font-medium">Dashboard</span>
+                <Link href="/dashboard" className="flex items-center space-x-2 text-gray-500 hover:text-gray-700">
+                  <ArrowLeftIcon className="h-4 w-4" />
+                  <span className="text-sm font-medium">Dashboard</span>
                 </Link>
-                <div className="h-6 w-px bg-slate-300" />
-                <div className="flex items-center space-x-3">
-                  <TrophyIcon className="h-6 w-6 text-blue-600" />
-                  <h1 className="text-lg font-semibold text-slate-900">Loading Competition...</h1>
-                </div>
+                <div className="h-4 w-px bg-gray-200" />
+                <h1 className="text-lg font-semibold text-gray-900">Loading Competition...</h1>
               </div>
             </div>
           </div>
         </header>
-        
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+
+        <main className="max-w-4xl mx-auto px-4 py-6">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8">
             <div className="flex items-center justify-center">
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-50 rounded-full mb-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-600 border-t-transparent"></div>
                 </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Game Dashboard</h3>
-                <p className="text-slate-500">Please wait while we fetch your competition data...</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Game Dashboard</h3>
+                <p className="text-gray-500">Please wait while we fetch your competition data...</p>
               </div>
             </div>
           </div>
@@ -290,10 +286,10 @@ export default function UnifiedGameDashboard() {
 
   if (!competition) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-xl font-semibold text-slate-900 mb-2">Competition Not Found</h1>
-          <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Competition Not Found</h1>
+          <Link href="/dashboard" className="text-gray-600 hover:text-gray-800">
             Return to Dashboard
           </Link>
         </div>
@@ -302,146 +298,120 @@ export default function UnifiedGameDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between min-h-[4rem] py-2">
-            <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
-              <Link 
-                href="/dashboard" 
-                className="flex items-center space-x-1 sm:space-x-2 text-slate-600 hover:text-slate-800 transition-colors flex-shrink-0"
+      <header className="bg-white border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/dashboard"
+                className="flex items-center space-x-2 text-gray-500 hover:text-gray-700"
               >
-                <ArrowLeftIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="font-medium text-sm sm:text-base">Dashboard</span>
+                <ArrowLeftIcon className="h-4 w-4" />
+                <span className="text-sm font-medium">Dashboard</span>
               </Link>
-              <div className="h-4 sm:h-6 w-px bg-slate-300 flex-shrink-0" />
-              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-                <div className="min-w-0">
-                  <h1 className="text-base sm:text-lg font-semibold text-slate-900 truncate">
-                    {isOrganiser ? 'Management' : 'Game'}
-                  </h1>
-                </div>
-              </div>
+              <div className="h-4 w-px bg-gray-200" />
+              <h1 className="text-lg font-semibold text-gray-900">
+                {competition.name || (isOrganiser ? 'Management' : 'Game')}
+              </h1>
             </div>
-            
+
             {/* User role badge */}
-            <div className="flex items-center space-x-2">
-              {isOrganiser && (
-                <div className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                  ORGANISER
-                </div>
-              )}
-            </div>
+            {isOrganiser && (
+              <div className="text-sm text-gray-500">Organiser</div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
 
-        {/* Latest Round Results Card */}
+        {/* Current Status Card - Clean and minimal */}
         {latestRoundStats &&
          latestRoundStats.competition_id === parseInt(competitionId) && (
-          <div className="mb-6 sm:mb-8">
-            <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-              {/* Header */}
-              <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <TrophyIcon className="h-6 w-6 text-yellow-400 mr-3" />
-                    <h2 className="text-lg font-bold text-white">
-                      Round {latestRoundStats.round_number} Results
-                    </h2>
-                  </div>
-                  <span className="text-slate-200 text-sm font-medium">
-                    {currentRoundInfo?.status === 'COMPLETE' ? 'Round Complete' : 'Latest Eliminations'}
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm">
+            <div className="p-4 border-b border-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {competition.user_status === 'active' ? (
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  ) : (
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  )}
+                  <span className="text-sm font-medium text-gray-900">
+                    Your Status: {competition.user_status === 'active' ? 'Still In' : 'Eliminated'}
                   </span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {currentRoundInfo?.status === 'COMPLETE' ? 'Round Complete' : 'Latest Results'}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4">
+              <div className="text-center mb-4">
+                {latestRoundStats.survivors > 1 && (
+                  <>
+                    <div className="text-2xl font-bold text-gray-900 mb-1">Round {latestRoundStats.round_number} Complete</div>
+                    <div className="text-sm text-gray-600">
+                      {latestRoundStats.eliminated_this_round === 0
+                        ? `All players survived - Advance to Round ${latestRoundStats.round_number + 1}`
+                        : `Advance to Round ${latestRoundStats.round_number + 1}`
+                      }
+                    </div>
+                  </>
+                )}
+
+                {latestRoundStats.survivors === 1 && (
+                  <>
+                    <div className="text-2xl font-bold text-gray-900 mb-1">👑 Champion Found!</div>
+                    <div className="text-sm text-gray-600">Competition Complete</div>
+                  </>
+                )}
+
+                {latestRoundStats.survivors === 0 && (
+                  <>
+                    <div className="text-2xl font-bold text-gray-900 mb-1">😱 Draw Game!</div>
+                    <div className="text-sm text-gray-600">No players remaining</div>
+                  </>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-lg font-semibold text-green-600">{latestRoundStats.survivors}</div>
+                  <div className="text-xs text-gray-500">Still In</div>
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-red-500">{latestRoundStats.eliminated_this_round}</div>
+                  <div className="text-xs text-gray-500">Eliminated</div>
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-gray-600">{latestRoundStats.total_players}</div>
+                  <div className="text-xs text-gray-500">Started</div>
                 </div>
               </div>
 
-              {/* Main Content */}
-              <div className="px-6 py-6">
-                {/* Status Messages - Now prominent */}
-                <div className="text-center mb-6">
-                  {latestRoundStats.survivors > 1 && (
-                    <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-300 shadow-sm">
-                      <p className="text-3xl text-blue-700 font-bold mb-1">
-                        {latestRoundStats.survivors} players still in
-                      </p>
-                      <p className="text-base text-blue-600">
-                        {latestRoundStats.eliminated_this_round === 0
-                          ? `All players survived Round ${latestRoundStats.round_number}`
-                          : `Advance to Round ${latestRoundStats.round_number + 1}`
-                        }
-                      </p>
+              {/* Personal Status for Participants */}
+              {isParticipant && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div className="text-center">
+                    <div className={`text-lg font-semibold mb-2 ${
+                      competition.user_status === 'active' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {latestRoundStats.survivors === 1 && competition.user_status === 'active'
+                        ? '🏆 You Are The Winner!'
+                        : competition.user_status === 'active'
+                        ? 'You Advanced!'
+                        : 'You Were Eliminated'}
                     </div>
-                  )}
 
-                  {latestRoundStats.survivors === 1 && (
-                    <div className="bg-green-50 rounded-xl p-6 border-2 border-green-300 shadow-sm">
-                      <p className="text-3xl text-green-800 font-bold">
-                        👑 We have a champion!
-                      </p>
-                    </div>
-                  )}
-
-                  {latestRoundStats.survivors === 0 && (
-                    <div className="bg-slate-50 rounded-xl p-6 border-2 border-slate-300 shadow-sm">
-                      <p className="text-3xl text-slate-700 font-bold">
-                        😱 Everyone&apos;s out! Draw game!
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                  {/* Eliminated This Round */}
-                  <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                    <p className="text-2xl font-bold text-red-600 mb-1">
-                      {latestRoundStats.eliminated_this_round}
-                    </p>
-                    <p className="text-xs text-red-700 font-medium">
-                      {latestRoundStats.eliminated_this_round === 1 ? 'Player Eliminated' : 'Players Eliminated'}
-                    </p>
-                  </div>
-
-                  {/* Started With */}
-                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                    <p className="text-2xl font-bold text-blue-600 mb-1">
-                      {latestRoundStats.total_players}
-                    </p>
-                    <p className="text-xs text-blue-700 font-medium">
-                      Started With
-                    </p>
-                  </div>
-
-                  {/* Total Eliminated */}
-                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                    <p className="text-2xl font-bold text-slate-600 mb-1">
-                      {latestRoundStats.total_eliminated}
-                    </p>
-                    <p className="text-xs text-slate-700 font-medium">Total Out</p>
-                  </div>
-                </div>
-
-                {/* Personal Status for Participants */}
-                {isParticipant && (
-                  <div className="mt-6 p-6 rounded-xl border-2 border-slate-300 bg-white shadow-sm">
-                    <div className="text-center">
-                      <div className={`text-2xl font-bold mb-2 ${
-                        competition.user_status === 'active' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {latestRoundStats.survivors === 1 && competition.user_status === 'active'
-                          ? '🏆 You Are The Winner!'
-                          : competition.user_status === 'active'
-                          ? '✅ You Advanced!'
-                          : '❌ You Were Eliminated'}
-                      </div>
-
-                      {/* Show round-specific result if available */}
+                    {/* Show round-specific details */}
+                    <div className="space-y-1 text-sm text-gray-600">
                       {latestRoundStats.user_outcome && (
-                        <div className="text-lg text-slate-700 mb-1">
+                        <div>
                           Round {latestRoundStats.round_number}: {
                             latestRoundStats.user_outcome === 'WIN' ? 'Advanced' :
                             latestRoundStats.user_outcome === 'LOSS' ? 'Eliminated' :
@@ -450,299 +420,256 @@ export default function UnifiedGameDashboard() {
                         </div>
                       )}
 
-                      {/* Show picked team if available */}
                       {latestRoundStats.user_picked_team && (
-                        <div className="text-base text-slate-600 font-medium">
-                          Picked: {latestRoundStats.user_picked_team}
-                        </div>
+                        <div>Picked: {latestRoundStats.user_picked_team}</div>
                       )}
 
-                      {/* Show lives remaining if applicable */}
                       {competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
-                        <div className="text-base text-slate-600 font-medium mt-1">
-                          Lives Remaining: {competition.lives_remaining}
-                        </div>
+                        <div>Lives Remaining: {competition.lives_remaining}</div>
                       )}
                     </div>
                   </div>
-                )}
-
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* Competition Completion Banner */}
         {competitionComplete.isComplete && (
-          <div className="mb-6 sm:mb-8 bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm">
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <TrophyIcon className="h-12 w-12 sm:h-16 sm:w-16 text-slate-600 mx-auto mb-3" />
-                
-                {competitionComplete.winner ? (
-                  <>
-                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">🎉 Competition Complete!</h3>
-                    <div className="mb-2">
-                      <p className="text-lg font-medium text-slate-700">Winner</p>
-                      <p className="text-xl sm:text-2xl font-bold text-slate-800">{competitionComplete.winner}</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">🤝 Competition Complete!</h3>
-                    <div className="mb-2">
-                      <p className="text-lg font-medium text-slate-700">Result: Draw</p>
-                      <p className="text-base text-slate-600">No players remaining</p>
-                    </div>
-                  </>
-                )}
-                
-                <div className="mt-4">
-                  <Link 
-                    href={`/game/${competitionId}/standings`}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-700 transition-colors text-sm sm:text-base"
-                  >
-                    <TrophyIcon className="h-4 w-4" />
-                    View Final Standings
-                  </Link>
-                </div>
-              </div>
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+            <div className="text-center">
+              <TrophyIcon className="h-8 w-8 text-gray-600 mx-auto mb-3" />
+
+              {competitionComplete.winner ? (
+                <>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">🎉 Competition Complete!</h3>
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-600">Winner</p>
+                    <p className="text-lg font-bold text-gray-900">{competitionComplete.winner}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">🤝 Competition Complete!</h3>
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-600">Result: Draw</p>
+                    <p className="text-sm text-gray-500">No players remaining</p>
+                  </div>
+                </>
+              )}
+
+              <Link
+                href={`/game/${competitionId}/standings`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm"
+              >
+                <TrophyIcon className="h-4 w-4" />
+                View Final Standings
+              </Link>
             </div>
           </div>
         )}
 
-        {/* Invite Code - Keep this handy */}
+        {/* Invite Code - Compact */}
         {competition.invite_code && (
-          <div className="mb-6 sm:mb-8">
-            <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200 shadow-sm">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center justify-center">
-                  <ClipboardDocumentIcon className="h-5 w-5 mr-2" />
-                  Invite Code
-                </h3>
-                <code className="text-2xl font-mono font-bold text-slate-800 tracking-wider block mb-2">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+            <div className="text-center">
+              <div className="text-sm font-medium text-gray-900 mb-2">Invite Code</div>
+              <div className="flex items-center justify-center space-x-2">
+                <code className="text-lg font-mono font-bold text-gray-800 tracking-wider">
                   {competition.invite_code}
                 </code>
                 <button
                   onClick={() => navigator.clipboard.writeText(competition.invite_code || '')}
-                  className="px-3 py-1 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
+                  className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
                 >
-                  Click to copy
+                  Copy
                 </button>
-                <p className="text-xs text-slate-500 mt-2">Share this code to invite players</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Pick Statistics - All Players */}
+        {/* Round Progress - Clean and minimal */}
         {pickStats && currentRoundInfo && (
-          <div className="mb-6 sm:mb-8">
-            <div className="bg-white rounded-xl p-4 sm:p-6 border border-slate-200 shadow-sm">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                  Round {currentRoundInfo.round_number} {currentRoundInfo.is_locked ? 'Results' : 'Pick Status'}
-                </h3>
-                <p className="text-sm text-slate-600">
-                  {pickStats.players_with_picks} of {pickStats.total_active_players} players made their pick
-                </p>
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-gray-900">
+                Round {currentRoundInfo.round_number} Progress
               </div>
+              <div className="text-xs text-gray-500">
+                {pickStats.players_with_picks} of {pickStats.total_active_players} picked
+              </div>
+            </div>
 
-              {/* Visual Progress Bar - Always show as complete when locked */}
-              {!currentRoundInfo.is_locked && (
-                <div className="mb-4">
-                  <div className="w-full bg-slate-200 rounded-full h-8 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500 flex items-center justify-center"
-                      style={{ width: `${pickStats.pick_percentage}%` }}
-                    >
-                      {pickStats.pick_percentage > 20 && (
-                        <span className="text-white text-sm font-medium">
-                          {pickStats.pick_percentage}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {pickStats.pick_percentage <= 20 && (
-                    <p className="text-sm text-slate-700 font-medium mt-2">
-                      {pickStats.pick_percentage}%
-                    </p>
-                  )}
-                </div>
-              )}
+            {/* Clean Progress Bar */}
+            <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+              <div
+                className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${pickStats.pick_percentage}%` }}
+              ></div>
+            </div>
 
-              {/* Status Message */}
-              <div className="text-center">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-gray-500">
                 {currentRoundInfo.is_locked ? (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-sm font-medium text-blue-800">
-                      🔒 Round locked - All picks complete!
-                    </p>
-                  </div>
+                  "🔒 Round locked"
                 ) : pickStats.pick_percentage === 100 ? (
-                  <p className="text-sm font-medium text-green-700">
-                    {currentRoundInfo.round_number >= 2
-                      ? "✅ All players have picked - Round will lock shortly!"
-                      : "✅ All players have picked!"
-                    }
-                  </p>
+                  "✅ All picks complete"
                 ) : pickStats.pick_percentage >= 75 ? (
-                  <p className="text-sm font-medium text-blue-700">
-                    Almost there - {pickStats.total_active_players - pickStats.players_with_picks} player{pickStats.total_active_players - pickStats.players_with_picks !== 1 ? 's' : ''} remaining
-                  </p>
+                  `Almost there - ${pickStats.total_active_players - pickStats.players_with_picks} remaining`
                 ) : (
-                  <p className="text-sm font-medium text-slate-700">
-                    {pickStats.total_active_players - pickStats.players_with_picks} player{pickStats.total_active_players - pickStats.players_with_picks !== 1 ? 's' : ''} still need to pick
-                  </p>
+                  `${pickStats.total_active_players - pickStats.players_with_picks} still need to pick`
                 )}
+              </div>
+              <div className="text-xs text-gray-600 font-medium">
+                {pickStats.pick_percentage}%
               </div>
             </div>
           </div>
         )}
 
-{/* Organizer Action Buttons */}
-        {isOrganiser && (
-          <div className="bg-white rounded-xl p-4 sm:p-6 lg:p-8 shadow-sm border border-slate-200 mb-6 sm:mb-8">
-            <div className={`grid gap-4 sm:gap-6 ${isParticipant ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' : 'grid-cols-2 lg:grid-cols-4'}`}>
-              {/* Play button - only show if organizer is also a participant */}
-              {isParticipant && (
-                <button
-                  onClick={handlePlayClick}
-                  className="relative group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
-                >
-                  <div className="mb-4">
-                    <PlayIcon className={`h-12 w-12 mx-auto group-hover:text-slate-800 transition-colors ${
-                      competition.needs_pick ? 'text-red-600' : 'text-slate-600'
-                    }`} />
-                  </div>
-                  <h3 className={`text-lg font-semibold mb-2 ${
-                    competition.needs_pick ? 'text-red-900' : 'text-slate-900'
-                  }`}>Play</h3>
-                  {competition.needs_pick ? (
-                    <div className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold">
-                      Make your pick now!
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-600">
-                      View game as player
-                    </p>
-                  )}
-                </button>
-              )}
-              
-              <button
-                onClick={handleFixturesClick}
-                className={`group text-center transition-all duration-200 cursor-pointer relative ${
-                  needsFixtures
-                    ? 'hover:opacity-90 transform hover:scale-105'
-                    : 'hover:opacity-80'
-                }`}
-              >
-                {needsFixtures && (
-                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">!</span>
-                  </div>
-                )}
-                <div className={`mb-4 ${
-                  needsFixtures
-                    ? 'p-4 bg-gradient-to-br from-blue-50 to-slate-50 rounded-xl border-2 border-dashed border-blue-300'
-                    : ''
-                }`}>
-                  <CalendarDaysIcon className={`h-12 w-12 mx-auto transition-colors ${
-                    needsFixtures
-                      ? 'text-blue-600 group-hover:text-blue-700'
-                      : 'text-slate-600 group-hover:text-slate-800'
-                  }`} />
-                </div>
-                <h3 className={`text-lg font-semibold mb-2 ${
-                  needsFixtures ? 'text-blue-900' : 'text-slate-900'
-                }`}>Fixtures</h3>
-                {needsFixtures ? (
-                  <div className="space-y-1">
-                    <div className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-800 rounded-lg text-sm font-semibold">
-                      Set up games now!
-                    </div>
-                    <p className="text-xs text-blue-700">Create your first fixtures to start the competition</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-600">Manage rounds and fixtures</p>
-                )}
-              </button>
-              
-              <Link
-                href={`/game/${competitionId}/standings`}
-                className="group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
-              >
-                <div className="mb-4">
-                  <TrophyIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Standings</h3>
-                <p className="text-sm text-slate-600">View leaderboard and results</p>
-              </Link>
-              
-              <Link
-                href={`/game/${competitionId}/players`}
-                className="group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
-              >
-                <div className="mb-4">
-                  <UserGroupIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Players</h3>
-                <p className="text-sm text-slate-600">View and manage players</p>
-              </Link>
-              
-              <Link
-                href={`/game/${competitionId}/settings`}
-                className="group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
-              >
-                <div className="mb-4">
-                  <Cog6ToothIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Settings</h3>
-                <p className="text-sm text-slate-600">Competition settings</p>
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Player Action Buttons - Only for players */}
-        {!isOrganiser && (
-          <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 mb-6 sm:mb-8">
-            <div className="grid grid-cols-2 gap-4 sm:gap-6">
+{/* Action Buttons - Refined design */}
+        {isOrganiser ? (
+          <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
+            {/* Play button - only show if organizer is also a participant */}
+            {isParticipant && (
               <button
                 onClick={handlePlayClick}
-                className="relative group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
               >
-                <div className="mb-4">
-                  <PlayIcon className={`h-12 w-12 mx-auto group-hover:text-slate-800 transition-colors ${
-                    competition.needs_pick ? 'text-red-600' : 'text-slate-600'
+                <div className="flex flex-col items-center space-y-2">
+                  <div className={`p-2 rounded-lg ${
+                    competition.needs_pick ? 'bg-red-50 group-hover:bg-red-100' : 'bg-gray-50 group-hover:bg-gray-100'
+                  }`}>
+                    <PlayIcon className={`h-5 w-5 ${
+                      competition.needs_pick ? 'text-red-600' : 'text-gray-600'
+                    }`} />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-semibold text-gray-900">Make Pick</div>
+                    {competition.needs_pick ? (
+                      <div className="text-xs text-red-600 font-medium">Now!</div>
+                    ) : (
+                      <div className="text-xs text-gray-500">View game</div>
+                    )}
+                  </div>
+                </div>
+              </button>
+            )}
+
+            <button
+              onClick={handleFixturesClick}
+              className={`group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all relative ${
+                needsFixtures ? 'ring-2 ring-blue-100' : ''
+              }`}
+            >
+              {needsFixtures && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+              )}
+              <div className="flex flex-col items-center space-y-2">
+                <div className={`p-2 rounded-lg ${
+                  needsFixtures ? 'bg-blue-50 group-hover:bg-blue-100' : 'bg-gray-50 group-hover:bg-gray-100'
+                }`}>
+                  <CalendarDaysIcon className={`h-5 w-5 ${
+                    needsFixtures ? 'text-blue-600' : 'text-gray-600'
                   }`} />
                 </div>
-                <h3 className={`text-lg font-semibold mb-2 ${
-                  competition.needs_pick ? 'text-red-900' : 'text-slate-900'
-                }`}>Play</h3>
-                {competition.needs_pick ? (
-                  <div className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-semibold">
-                    Make your pick now!
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-600">
-                    Make your picks and play the game
-                  </p>
-                )}
-              </button>
-              
-              <Link
-                href={`/game/${competitionId}/standings`}
-                className="group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
-              >
-                <div className="mb-4">
-                  <TrophyIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-900">Fixtures</div>
+                  {needsFixtures ? (
+                    <div className="text-xs text-blue-600 font-medium">Set up now</div>
+                  ) : (
+                    <div className="text-xs text-gray-500">Manage rounds</div>
+                  )}
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Standings</h3>
-                <p className="text-sm text-slate-600">View leaderboard and results</p>
-              </Link>
-            </div>
+              </div>
+            </button>
+
+            <Link
+              href={`/game/${competitionId}/standings`}
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <TrophyIcon className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-900">Standings</div>
+                  <div className="text-xs text-gray-500">View leaderboard</div>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              href={`/game/${competitionId}/players`}
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <UserGroupIcon className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-900">Players</div>
+                  <div className="text-xs text-gray-500">Manage players</div>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              href={`/game/${competitionId}/settings`}
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <Cog6ToothIcon className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-900">Settings</div>
+                  <div className="text-xs text-gray-500">Competition settings</div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={handlePlayClick}
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className={`p-2 rounded-lg ${
+                  competition.needs_pick ? 'bg-red-50 group-hover:bg-red-100' : 'bg-gray-50 group-hover:bg-gray-100'
+                }`}>
+                  <PlayIcon className={`h-5 w-5 ${
+                    competition.needs_pick ? 'text-red-600' : 'text-gray-600'
+                  }`} />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-900">Make Pick</div>
+                  {competition.needs_pick ? (
+                    <div className="text-xs text-red-600 font-medium">Round {currentRoundInfo?.round_number || 'Next'}</div>
+                  ) : (
+                    <div className="text-xs text-gray-500">Make your picks</div>
+                  )}
+                </div>
+              </div>
+            </button>
+
+            <Link
+              href={`/game/${competitionId}/standings`}
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <TrophyIcon className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-900">Standings</div>
+                  <div className="text-xs text-gray-500">View leaderboard</div>
+                </div>
+              </div>
+            </Link>
           </div>
         )}
 
