@@ -31,6 +31,11 @@ interface PendingFixture {
   away_team_short: string;  // Short name for API calls
 }
 
+interface TeamSelection {
+  home_team: { name: string; short_name: string } | null;
+  away_team: { name: string; short_name: string } | null;
+}
+
 export default function FixturesPage() {
   const router = useRouter();
   const params = useParams();
@@ -43,6 +48,7 @@ export default function FixturesPage() {
   const competition = competitions?.find(c => c.id.toString() === competitionId);
 
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
+  const [isFirstRound, setIsFirstRound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCreateRoundModal, setShowCreateRoundModal] = useState(false);
   const [newRoundLockTime, setNewRoundLockTime] = useState('');
@@ -57,8 +63,10 @@ export default function FixturesPage() {
   // Fixture creation state
   const [teams, setTeams] = useState<Team[]>([]);
   const [pendingFixtures, setPendingFixtures] = useState<PendingFixture[]>([]);
-  const [nextSelection, setNextSelection] = useState<'home' | 'away'>('home');
-  const [selectedHomeTeam, setSelectedHomeTeam] = useState<{ name: string; short_name: string } | null>(null);
+  const [currentSelection, setCurrentSelection] = useState<TeamSelection>({
+    home_team: null,
+    away_team: null
+  });
   const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
   const [isSavingFixtures, setIsSavingFixtures] = useState(false);
 
@@ -182,11 +190,14 @@ export default function FixturesPage() {
         const rounds = response.data.rounds || [];
         
         if (rounds.length === 0) {
-          // No rounds at all - show create round modal
+          // No rounds at all - show create round modal and mark as first round
+          setIsFirstRound(true);
           setShowCreateRoundModal(true);
           const defaultTime = getNextFriday6PM().slice(0, 16);
           setNewRoundLockTime(defaultTime);
         } else {
+          // Check if this is round 1 (first round with fixtures)
+          setIsFirstRound(rounds.length === 1 && rounds[0].round_number === 1 && rounds[0].fixture_count === 0);
           // Check the latest round
           const latestRound = rounds[0];
           
@@ -359,8 +370,7 @@ export default function FixturesPage() {
         // Reset the page state to allow new fixture creation
         setPendingFixtures([]);
         setUsedTeams(new Set());
-        setSelectedHomeTeam(null);
-        setNextSelection('home');
+        setCurrentSelection({ home_team: null, away_team: null });
         
         // Update current round to reflect no fixtures
         setCurrentRound(prev => prev ? { ...prev, fixture_count: 0 } : null);
@@ -384,29 +394,38 @@ export default function FixturesPage() {
     }
   };
 
-  const handleTeamSelect = (team: Team) => {
-    if (nextSelection === 'home') {
-      // Home team selected
-      setSelectedHomeTeam({ name: team.name, short_name: team.short_name });
-      setNextSelection('away');
-      setUsedTeams(prev => new Set([...prev, team.short_name]));
-    } else {
-      // Away team selected - create fixture
-      if (selectedHomeTeam) {
-        const newFixture: PendingFixture = {
-          home_team: selectedHomeTeam.name,
-          away_team: team.name,
-          home_team_short: selectedHomeTeam.short_name,
-          away_team_short: team.short_name
-        };
-        
-        setPendingFixtures(prev => [...prev, newFixture]);
-        setUsedTeams(prev => new Set([...prev, team.short_name]));
-        
-        // Reset for next fixture
-        setSelectedHomeTeam(null);
-        setNextSelection('home');
-      }
+  const handleHomeTeamSelect = (team: Team) => {
+    setCurrentSelection(prev => ({
+      ...prev,
+      home_team: { name: team.name, short_name: team.short_name }
+    }));
+  };
+
+  const handleAwayTeamSelect = (team: Team) => {
+    setCurrentSelection(prev => ({
+      ...prev,
+      away_team: { name: team.name, short_name: team.short_name }
+    }));
+  };
+
+  const createFixture = () => {
+    if (currentSelection.home_team && currentSelection.away_team) {
+      const newFixture: PendingFixture = {
+        home_team: currentSelection.home_team.name,
+        away_team: currentSelection.away_team.name,
+        home_team_short: currentSelection.home_team.short_name,
+        away_team_short: currentSelection.away_team.short_name
+      };
+
+      setPendingFixtures(prev => [...prev, newFixture]);
+      setUsedTeams(prev => new Set([
+        ...prev,
+        currentSelection.home_team!.short_name,
+        currentSelection.away_team!.short_name
+      ]));
+
+      // Reset selection
+      setCurrentSelection({ home_team: null, away_team: null });
     }
   };
 
@@ -450,8 +469,7 @@ export default function FixturesPage() {
         
         // Clear teams to prevent further editing
         setTeams([]);
-        setSelectedHomeTeam(null);
-        setNextSelection('home');
+        setCurrentSelection({ home_team: null, away_team: null });
         setUsedTeams(new Set());
         
         // Stay on page in read-only mode - don't redirect
@@ -632,26 +650,33 @@ export default function FixturesPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">{competition?.name}</h1>
           {currentRound && currentRound.lock_time && (
-            <div className="flex items-center space-x-3 mt-2">
-              <p className="text-slate-600">
-                <span className="font-medium">Round {currentRound.round_number} Lock Time:</span>{' '}
-                {new Date(currentRound.lock_time).toLocaleString('en-GB', {
-                  weekday: 'long',
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false
-                })}
-              </p>
-              <button
-                onClick={handleEditLockTime}
-                className="text-slate-500 hover:text-slate-700 transition-colors"
-                title="Edit lock time"
-              >
-                <CalendarIcon className="h-4 w-4" />
-              </button>
+            <div className="mt-2">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <p className="text-slate-700 text-sm mb-1">
+                  <span className="font-semibold">Round {currentRound.round_number} Deadline:</span> All picks must be made by:
+                </p>
+                <p className="text-slate-900 font-medium">
+                  {new Date(currentRound.lock_time).toLocaleString('en-GB', {
+                    weekday: 'long',
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                  })}
+                </p>
+                <p className="text-slate-600 text-xs mt-1">
+                  This applies to the entire round - players can pick any team regardless of fixture date
+                </p>
+                <button
+                  onClick={handleEditLockTime}
+                  className="text-slate-500 hover:text-slate-700 transition-colors mt-2"
+                  title="Edit deadline"
+                >
+                  <CalendarIcon className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -662,9 +687,19 @@ export default function FixturesPage() {
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
               <div className="p-6">
                 <h3 className="text-lg text-slate-900 mb-4">Create First Round</h3>
+
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">Important: Round Deadline</h4>
+                  <p className="text-blue-800 text-sm leading-relaxed">
+                    The deadline you set applies to the <strong>entire round</strong>, not individual fixtures.
+                    Set this for when your <strong>first game kicks off</strong>.
+                    All players must make their picks before this time, regardless of when their chosen team plays.
+                  </p>
+                </div>
+
                 <div className="mb-4">
                   <label htmlFor="lockTime" className="block text-sm font-medium text-slate-700 mb-2">
-                    Lock Time (when picks close)
+                    Round Deadline - When ALL picks must be made
                   </label>
                   <input
                     id="lockTime"
@@ -673,6 +708,9 @@ export default function FixturesPage() {
                     onChange={(e) => setNewRoundLockTime(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                   />
+                  <p className="text-xs text-slate-600 mt-1">
+                    Set for when the first fixture kicks off
+                  </p>
                 </div>
               </div>
               <div className="flex gap-3 px-6 py-4 bg-slate-50 rounded-b-xl">
@@ -760,27 +798,41 @@ export default function FixturesPage() {
                   ) : (
                     // Save button for pending fixtures
                     pendingFixtures.length > 0 && (
-                      <button
-                        onClick={savePendingFixtures}
-                        disabled={isSavingFixtures}
-                        className={`inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                          isSavingFixtures
-                            ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
-                            : 'bg-slate-800 text-white hover:bg-slate-900'
-                        }`}
-                      >
-                        {isSavingFixtures ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent mr-2"></div>
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircleIcon className="h-4 w-4 mr-2" />
-                            Confirm {pendingFixtures.length} Fixtures
-                          </>
-                        )}
-                      </button>
+                      <div className="space-y-3">
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                          <p className="text-amber-800 font-medium text-sm mb-2">
+                            Only click this button when you have created ALL the fixtures you need!
+                          </p>
+                          <p className="text-amber-700 text-sm mb-2">
+                            You currently have {pendingFixtures.length} fixture{pendingFixtures.length !== 1 ? 's' : ''} ready to save.
+                          </p>
+                          <p className="text-amber-700 text-xs">
+                            Remember: All fixtures will use the round deadline you set ({currentRound?.lock_time ? new Date(currentRound.lock_time).toLocaleDateString('en-GB') : 'previously'}).
+                            Players pick teams, not specific fixture dates.
+                          </p>
+                        </div>
+                        <button
+                          onClick={savePendingFixtures}
+                          disabled={isSavingFixtures}
+                          className={`w-full inline-flex items-center justify-center px-6 py-4 rounded-lg font-semibold text-lg transition-all ${
+                            isSavingFixtures
+                              ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                              : 'bg-slate-800 text-white hover:bg-slate-900 shadow-lg hover:shadow-xl'
+                          }`}
+                        >
+                          {isSavingFixtures ? (
+                            <>
+                              <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-400 border-t-transparent mr-2"></div>
+                              Saving Fixtures for Round {currentRound?.round_number || 1}...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircleIcon className="h-5 w-5 mr-2" />
+                              Confirm Fixtures for Round {currentRound?.round_number || 1}
+                            </>
+                          )}
+                        </button>
+                      </div>
                     )
                   )}
                 </div>
@@ -812,46 +864,147 @@ export default function FixturesPage() {
               ) : (
                 // Editable view when no fixtures exist yet
                 <>
-                  {/* Team Selection */}
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium text-slate-900">
-                        {nextSelection === 'home' ? 'Select Home Team' : selectedHomeTeam ? `Select Away Team (vs ${selectedHomeTeam.name})` : 'Select Teams'}
-                      </h4>
-                      <div className="text-sm text-slate-500">
-                        {nextSelection === 'home' ? 'Step 1 of 2' : 'Step 2 of 2'}
+                  {/* First-time user guidance */}
+              {isFirstRound && pendingFixtures.length === 0 && (
+                <div className="mb-8 bg-gradient-to-r from-blue-50 to-slate-50 border border-blue-200 rounded-xl p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 font-bold text-sm">1</span>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3">
-                      {teams.map((team) => {
-                        const isUsed = usedTeams.has(team.short_name);
-                        const isSelectedHome = selectedHomeTeam?.short_name === team.short_name;
-                        
-                        return (
-                          <button
-                            key={team.id}
-                            onClick={() => handleTeamSelect(team)}
-                            disabled={isUsed && !isSelectedHome}
-                            className={`p-2 rounded-lg border text-xs font-medium transition-all ${
-                              isSelectedHome
-                                ? 'bg-slate-700 border-slate-800 text-white'
-                                : isUsed
-                                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 cursor-pointer'
-                            }`}
-                          >
-                            {team.short_name}
-                          </button>
-                        );
-                      })}
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">Welcome! Let&apos;s set up your first fixtures</h3>
+                      <p className="text-slate-700 mb-3">
+                        Create fixtures by selecting a home team and an away team for each match.
+                      </p>
+
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm mb-4">
+                        <h4 className="font-medium text-amber-900 mb-2">About Fixture Dates</h4>
+                        <p className="text-amber-800 leading-relaxed">
+                          You don&apos;t set individual dates for each fixture here. All fixtures use the same kickoff time
+                          (the round deadline you set). Players can pick any team from any fixture, regardless of when
+                          the actual match is played during the round.
+                        </p>
+                      </div>
+
+                      <div className="bg-white border border-blue-200 rounded-lg p-4 text-sm">
+                        <p className="font-medium text-slate-800 mb-2">How it works:</p>
+                        <ul className="list-disc list-inside space-y-1 text-slate-600">
+                          <li><strong>Step 1:</strong> Select a HOME team from the first list</li>
+                          <li><strong>Step 2:</strong> Select an AWAY team from the second list</li>
+                          <li><strong>Step 3:</strong> Click &quot;Add This Fixture&quot; to create the match</li>
+                          <li><strong>Step 4:</strong> Repeat to create ALL your fixtures</li>
+                          <li><strong>Step 5:</strong> When you have created ALL fixtures, click &quot;Confirm All Fixtures&quot;</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Team Selection - Two Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Home Team Selection */}
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <div className="mb-4">
+                    <h4 className="font-semibold text-slate-900 text-lg mb-2">HOME Team</h4>
+                    {currentSelection.home_team ? (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <span className="font-medium text-blue-900">{currentSelection.home_team.name}</span>
+                      </div>
+                    ) : (
+                      <p className="text-slate-600 text-sm mb-3">Select a home team from the list below:</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {teams.filter(team => !usedTeams.has(team.short_name)).map((team) => (
+                      <button
+                        key={`home-${team.id}`}
+                        onClick={() => handleHomeTeamSelect(team)}
+                        className={`p-2 rounded border text-xs font-medium transition-all ${
+                          currentSelection.home_team?.short_name === team.short_name
+                            ? 'bg-blue-600 border-blue-700 text-white'
+                            : 'bg-white border-slate-300 text-slate-700 hover:bg-blue-50 hover:border-blue-400'
+                        }`}
+                      >
+                        {team.short_name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Away Team Selection */}
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <div className="mb-4">
+                    <h4 className="font-semibold text-slate-900 text-lg mb-2">AWAY Team</h4>
+                    {currentSelection.away_team ? (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <span className="font-medium text-green-900">{currentSelection.away_team.name}</span>
+                      </div>
+                    ) : (
+                      <p className="text-slate-600 text-sm mb-3">Select an away team from the list below:</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {teams.filter(team =>
+                      !usedTeams.has(team.short_name) &&
+                      currentSelection.home_team?.short_name !== team.short_name
+                    ).map((team) => (
+                      <button
+                        key={`away-${team.id}`}
+                        onClick={() => handleAwayTeamSelect(team)}
+                        className={`p-2 rounded border text-xs font-medium transition-all ${
+                          currentSelection.away_team?.short_name === team.short_name
+                            ? 'bg-green-600 border-green-700 text-white'
+                            : 'bg-white border-slate-300 text-slate-700 hover:bg-green-50 hover:border-green-400'
+                        }`}
+                      >
+                        {team.short_name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Add Fixture Button */}
+              {currentSelection.home_team && currentSelection.away_team && (
+                <div className="text-center">
+                  <button
+                    onClick={createFixture}
+                    className="inline-flex items-center px-6 py-3 bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors"
+                  >
+                    Add This Fixture: {currentSelection.home_team.name} vs {currentSelection.away_team.name}
+                  </button>
+                </div>
+              )}
+
+                  {/* First fixture success message */}
+                  {isFirstRound && pendingFixtures.length === 1 && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <span className="text-green-600 font-bold">✓</span>
+                        </div>
+                        <div>
+                          <p className="text-green-800 font-medium">Great! Your first fixture has been created.</p>
+                          <p className="text-green-700 text-sm">You can add more fixtures or click &quot;Confirm 1 Fixture&quot; to proceed.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Pending Fixtures */}
                   {pendingFixtures.length > 0 && (
                     <div>
-                      <h4 className="font-medium text-slate-900 mb-4">Created Fixtures</h4>
+                      <h4 className="font-medium text-slate-900 mb-4">
+                        {isFirstRound ? 'Your Fixtures' : 'Created Fixtures'}
+                        {isFirstRound && pendingFixtures.length === 1 && (
+                          <span className="ml-2 text-green-600 text-sm font-normal">(Ready to confirm!)</span>
+                        )}
+                      </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {pendingFixtures.map((fixture, index) => (
                           <div key={index} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
@@ -947,14 +1100,15 @@ export default function FixturesPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
               <div className="p-6">
-                <h2 className="text-xl font-bold text-slate-900 mb-4">Edit Lock Time</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-4">Edit Round Deadline</h2>
                 <p className="text-slate-600 mb-4">
-                  Update the lock time for Round {currentRound?.round_number}
+                  Update the deadline when all players must make their picks for Round {currentRound?.round_number}.
+                  This should typically be when the first fixture kicks off.
                 </p>
-                
+
                 <div className="mb-4">
                   <label htmlFor="edit-lock-time" className="block text-sm font-medium text-slate-700 mb-2">
-                    Lock Time
+                    Round Deadline
                   </label>
                   <input
                     type="datetime-local"

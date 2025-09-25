@@ -96,19 +96,31 @@ router.post('/', verifyToken, async (req, res) => {
         throw new Error('COMPETITION_COMPLETED');
       }
 
-      // 4. Verify sufficient active players remain (must have >1 to continue)
-      const activePlayersResult = await client.query(`
-        SELECT COUNT(*) as active_count
-        FROM competition_user
-        WHERE competition_id = $1 AND status = 'active'
+      // 4. Check if this is the first round (setup phase)
+      const existingRoundsResult = await client.query(`
+        SELECT COUNT(*) as round_count
+        FROM round
+        WHERE competition_id = $1
       `, [competition_id]);
 
-      const activePlayerCount = parseInt(activePlayersResult.rows[0].active_count);
-      if (activePlayerCount <= 1) {
-        throw new Error('INSUFFICIENT_ACTIVE_PLAYERS');
+      const roundCount = parseInt(existingRoundsResult.rows[0].round_count);
+
+      // 5. Only check player count if rounds already exist (not in setup phase)
+      if (roundCount > 0) {
+        // Verify sufficient active players remain (must have >1 to continue)
+        const activePlayersResult = await client.query(`
+          SELECT COUNT(*) as active_count
+          FROM competition_user
+          WHERE competition_id = $1 AND status = 'active'
+        `, [competition_id]);
+
+        const activePlayerCount = parseInt(activePlayersResult.rows[0].active_count);
+        if (activePlayerCount <= 1) {
+          throw new Error('INSUFFICIENT_ACTIVE_PLAYERS');
+        }
       }
 
-      // 5. Create round with atomic round number generation (prevents race conditions)
+      // 6. Create round with atomic round number generation (prevents race conditions)
       const roundResult = await client.query(`
         INSERT INTO round (
           competition_id,
@@ -130,7 +142,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       const round = roundResult.rows[0];
 
-      // 6. Create audit log entry (same transaction ensures consistency)
+      // 7. Create audit log entry (same transaction ensures consistency)
       await client.query(`
         INSERT INTO audit_log (competition_id, user_id, action, details)
         VALUES ($1, $2, 'Round Created', $3)
@@ -140,7 +152,7 @@ router.post('/', verifyToken, async (req, res) => {
         `Created Round ${round.round_number} for "${competition.name}" with lock time ${lock_time}`
       ]);
 
-      // 7. Auto-reset teams for players with no remaining teams (atomic with round creation)
+      // 8. Auto-reset teams for players with no remaining teams (atomic with round creation)
       if (competition.team_list_id) {
         
         // Insert all active teams for players who have zero allowed_teams

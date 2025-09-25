@@ -132,19 +132,25 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Verify sufficient active players remain (must have >1 to continue)
-    const activePlayersResult = await query(`
-      SELECT COUNT(*) as active_count
-      FROM competition_user
-      WHERE competition_id = $1 AND status = 'active'
-    `, [verifyResult.rows[0].competition_id]);
+    // Check if this is Round 1 (setup phase)
+    const isFirstRound = verifyResult.rows[0].round_number === 1;
 
-    const activePlayerCount = parseInt(activePlayersResult.rows[0].active_count);
-    if (activePlayerCount <= 1) {
-      return res.json({
-        return_code: "INSUFFICIENT_ACTIVE_PLAYERS",
-        message: "Cannot add fixtures - not enough active players remaining"
-      });
+    // Only check player count if NOT in setup phase (Round 1)
+    if (!isFirstRound) {
+      // Verify sufficient active players remain (must have >1 to continue)
+      const activePlayersResult = await query(`
+        SELECT COUNT(*) as active_count
+        FROM competition_user
+        WHERE competition_id = $1 AND status = 'active'
+      `, [verifyResult.rows[0].competition_id]);
+
+      const activePlayerCount = parseInt(activePlayersResult.rows[0].active_count);
+      if (activePlayerCount <= 1) {
+        return res.json({
+          return_code: "INSUFFICIENT_ACTIVE_PLAYERS",
+          message: "Cannot add fixtures - not enough active players remaining"
+        });
+      }
     }
 
     // === TEAM NAME RESOLUTION ===
