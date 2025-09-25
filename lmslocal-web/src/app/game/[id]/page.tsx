@@ -43,6 +43,7 @@ export default function UnifiedGameDashboard() {
     total_active_players: number;
     pick_percentage: number;
   } | null>(null);
+  const [needsFixtures, setNeedsFixtures] = useState(false);
 
   // Simple loading based on context availability
   const loading = contextLoading || !competition;
@@ -195,8 +196,13 @@ export default function UnifiedGameDashboard() {
                   completed_fixtures: latestRound.completed_fixtures || 0,
                   status: latestRound.status
                 });
+
+                // Check if this is a new competition needing fixtures
+                setNeedsFixtures(latestRound.fixture_count === 0 && latestRound.round_number === 1);
               } else {
                 setCurrentRoundInfo(null);
+                // No rounds at all - definitely needs fixtures
+                setNeedsFixtures(true);
               }
             }
             setLoadingRound(false);
@@ -624,15 +630,43 @@ export default function UnifiedGameDashboard() {
                 </button>
               )}
               
-              <button 
+              <button
                 onClick={handleFixturesClick}
-                className="group text-center hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+                className={`group text-center transition-all duration-200 cursor-pointer relative ${
+                  needsFixtures
+                    ? 'hover:opacity-90 transform hover:scale-105'
+                    : 'hover:opacity-80'
+                }`}
               >
-                <div className="mb-4">
-                  <CalendarDaysIcon className="h-12 w-12 text-slate-600 mx-auto group-hover:text-slate-800 transition-colors" />
+                {needsFixtures && (
+                  <div className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">!</span>
+                  </div>
+                )}
+                <div className={`mb-4 ${
+                  needsFixtures
+                    ? 'p-4 bg-gradient-to-br from-blue-50 to-slate-50 rounded-xl border-2 border-dashed border-blue-300'
+                    : ''
+                }`}>
+                  <CalendarDaysIcon className={`h-12 w-12 mx-auto transition-colors ${
+                    needsFixtures
+                      ? 'text-blue-600 group-hover:text-blue-700'
+                      : 'text-slate-600 group-hover:text-slate-800'
+                  }`} />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Fixtures</h3>
-                <p className="text-sm text-slate-600">Manage rounds and fixtures</p>
+                <h3 className={`text-lg font-semibold mb-2 ${
+                  needsFixtures ? 'text-blue-900' : 'text-slate-900'
+                }`}>Fixtures</h3>
+                {needsFixtures ? (
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-800 rounded-lg text-sm font-semibold">
+                      Set up games now!
+                    </div>
+                    <p className="text-xs text-blue-700">Create your first fixtures to start the competition</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600">Manage rounds and fixtures</p>
+                )}
               </button>
               
               <Link
