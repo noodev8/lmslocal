@@ -56,14 +56,14 @@ export default function OrganizersGettingStartedPage() {
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-slate-900 mb-3">Create a Competition</h3>
               <div className="space-y-2 text-slate-700 mb-4">
-                <p>1. Click "Create Competition" from your dashboard</p>
+                <p>1. Click &quot;Create Competition&quot; from your dashboard</p>
                 <p>2. Enter competition details:</p>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="bg-slate-50 rounded-lg p-4">
                   <h4 className="font-semibold text-slate-900 mb-2">Basic Details</h4>
                   <div className="text-slate-700 text-sm space-y-1">
-                    <p><strong>Name:</strong> e.g., "The Red Lion LMS 2024"</p>
+                    <p><strong>Name:</strong> e.g., &quot;The Red Lion LMS 2024&quot;</p>
                     <p><strong>Description:</strong> Optional details about your competition</p>
                   </div>
                 </div>
@@ -139,8 +139,8 @@ export default function OrganizersGettingStartedPage() {
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-slate-900 mb-3">Add Fixtures</h3>
               <div className="space-y-2 text-slate-700">
-                <p>1. Navigate to "Manage Rounds"</p>
-                <p>2. Click "Add Round"</p>
+                <p>1. Navigate to &quot;Manage Rounds&quot;</p>
+                <p>2. Click &quot;Add Round&quot;</p>
                 <p>3. Select fixture dates</p>
                 <p>4. Add matches for that gameweek</p>
               </div>

@@ -285,11 +285,11 @@ export default function PricingPage() {
 
             <div className="bg-white rounded-lg p-6 border border-slate-200">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">Do you offer refunds?</h3>
-              <p className="text-slate-600">We offer a 14-day money-back guarantee for all paid subscriptions. If you're not happy, we'll refund your payment, no questions asked.</p>
+              <p className="text-slate-600">We offer a 14-day money-back guarantee for all paid subscriptions. If you&apos;re not happy, we&apos;ll refund your payment, no questions asked.</p>
             </div>
 
             <div className="bg-white rounded-lg p-6 border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">What's included in auto fixture generation?</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">What&apos;s included in auto fixture generation?</h3>
               <p className="text-slate-600">Enterprise tier automatically pulls fixtures from Premier League and Championship. You choose which gameweeks to include - no more manual entry!</p>
             </div>
 

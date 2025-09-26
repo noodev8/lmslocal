@@ -27,7 +27,7 @@ function markdownToHtml(markdown: string): string {
 
     // Lists
     .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    .replace(/(<li>[\s\S]*<\/li>)/, '<ul>$1</ul>')
 
     // Code blocks
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -72,7 +72,7 @@ export async function getHelpPage(slug: string): Promise<HelpPageData | null> {
       content,
       keywords: `last man standing, ${slug.replace(/-/g, ' ')}, help, guide`
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -82,7 +82,7 @@ export function getAllHelpPages(): string[] {
     return fs.readdirSync(contentDir)
       .filter(file => file.endsWith('.md'))
       .map(file => file.replace('.md', ''));
-  } catch (error) {
+  } catch {
     return [];
   }
 }

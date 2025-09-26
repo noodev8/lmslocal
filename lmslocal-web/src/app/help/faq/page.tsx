@@ -77,7 +77,7 @@ export default function FAQPage() {
             <div className="text-slate-700">
               <p>A: You have full control to:</p>
               <ul className="mt-2 space-y-1 ml-4">
-                <li>• Override any player's pick</li>
+                <li>• Override any player&apos;s pick</li>
                 <li>• Adjust match results</li>
                 <li>• Add or remove players</li>
                 <li>• Make final decisions on edge cases</li>
@@ -107,7 +107,7 @@ export default function FAQPage() {
 
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What if I forget to pick?</h3>
-            <p className="text-slate-700">A: Missing a pick counts as a wrong pick. You'll lose a life (or be eliminated in knockout format).</p>
+            <p className="text-slate-700">A: Missing a pick counts as a wrong pick. You&apos;ll lose a life (or be eliminated in knockout format).</p>
           </div>
 
           <div>
@@ -116,12 +116,12 @@ export default function FAQPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How do I know if I'm eliminated?</h3>
-            <p className="text-slate-700">A: Check your competition dashboard - your status will show as "Eliminated" and you'll see which round you went out.</p>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How do I know if I&apos;m eliminated?</h3>
+            <p className="text-slate-700">A: Check your competition dashboard - your status will show as &quot;Eliminated&quot; and you&apos;ll see which round you went out.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What happens if my team's match is postponed?</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What happens if my team&apos;s match is postponed?</h3>
             <p className="text-slate-700">A: Usually, postponed matches are void (no win or loss), but check with your organizer for their specific rules.</p>
           </div>
         </div>
@@ -136,12 +136,12 @@ export default function FAQPage() {
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: I can't log in - help!</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: I can&apos;t log in - help!</h3>
             <div className="text-slate-700">
               <p>A: Try these steps:</p>
               <ol className="mt-2 space-y-1 ml-4 list-decimal">
-                <li>Check you're using the correct email</li>
-                <li>Try the "Forgot Password" option</li>
+                <li>Check you&apos;re using the correct email</li>
+                <li>Try the &quot;Forgot Password&quot; option</li>
                 <li>Clear your browser cache</li>
                 <li>Contact support if issues persist</li>
               </ol>
@@ -161,7 +161,7 @@ export default function FAQPage() {
 
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can I use the same team twice?</h3>
-            <p className="text-slate-700">A: In most competitions, no. The "No Team Twice" rule prevents reusing teams. Check your competition settings.</p>
+            <p className="text-slate-700">A: In most competitions, no. The &quot;No Team Twice&quot; rule prevents reusing teams. Check your competition settings.</p>
           </div>
 
           <div>
@@ -191,7 +191,7 @@ export default function FAQPage() {
 
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can eliminated players rejoin?</h3>
-            <p className="text-slate-700">A: No, once eliminated you're out for that competition. You can join other competitions or wait for the next season.</p>
+            <p className="text-slate-700">A: No, once eliminated you&apos;re out for that competition. You can join other competitions or wait for the next season.</p>
           </div>
 
           <div>
@@ -236,7 +236,7 @@ export default function FAQPage() {
       <div className="bg-slate-50 rounded-lg p-8 text-center border">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">Still Have Questions?</h2>
         <p className="text-slate-700 mb-6">
-          Can't find what you're looking for? Our support team is here to help,
+          Can&apos;t find what you&apos;re looking for? Our support team is here to help,
           or you can ask your competition organizer directly.
         </p>
         <div className="flex justify-center gap-4">

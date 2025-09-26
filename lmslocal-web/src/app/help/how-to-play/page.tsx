@@ -21,7 +21,7 @@ export default function HowToPlayPage() {
         <div className="text-lg text-slate-700 mb-6 space-y-4">
           <p>
             <strong>Simple concept:</strong> Pick one Premier League team to WIN each week. If your team WINS, you advance.
-            If they LOSE or DRAW, you're eliminated.
+            If they LOSE or DRAW, you&apos;re eliminated.
           </p>
 
           <div className="bg-white border border-slate-200 rounded p-4">
@@ -44,7 +44,7 @@ export default function HowToPlayPage() {
             <ul className="space-y-2 text-slate-700">
               <li>• Your selected team must <strong>WIN</strong> their match</li>
               <li>• Results based on 90 minutes + stoppage time only</li>
-              <li>• Extra time and penalties don't count</li>
+              <li>• Extra time and penalties don&apos;t count</li>
               <li>• You advance to the next round</li>
             </ul>
           </div>
@@ -125,7 +125,7 @@ export default function HowToPlayPage() {
 
         <div className="space-y-3 text-slate-700">
           <p><strong>Important:</strong> Once the deadline passes, you cannot change your pick.</p>
-          <p>Missing the deadline counts as a loss and you'll lose a life.</p>
+          <p>Missing the deadline counts as a loss and you&apos;ll lose a life.</p>
           <p>Your organizer can set earlier deadlines if they prefer.</p>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function HowToPlayPage() {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-4">Smart Team Management</h3>
             <ul className="space-y-2 text-slate-700">
-              <li>• Don't use Manchester City or Arsenal in easy early rounds</li>
+              <li>• Don&apos;t use Manchester City or Arsenal in easy early rounds</li>
               <li>• Save the strongest teams for difficult fixtures later</li>
               <li>• Look ahead at upcoming fixtures before picking</li>
               <li>• Consider which teams others might avoid</li>
