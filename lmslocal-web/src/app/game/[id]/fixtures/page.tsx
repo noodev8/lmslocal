@@ -288,8 +288,15 @@ export default function FixturesPage() {
 
   const createFirstRound = async () => {
     try {
-      const response = await roundApi.create(competitionId, newRoundLockTime || getNextFriday6PM());
-      
+      // Convert datetime-local input to UTC before sending to API
+      let lockTimeToSend = getNextFriday6PM();
+      if (newRoundLockTime) {
+        // User enters local time, convert to UTC for database storage
+        lockTimeToSend = new Date(newRoundLockTime).toISOString();
+      }
+
+      const response = await roundApi.create(competitionId, lockTimeToSend);
+
       if (response.data.return_code === 'SUCCESS') {
         const roundData = response.data.round as { id: number; round_number: number; lock_time: string; status: string };
         setCurrentRound({
@@ -321,13 +328,16 @@ export default function FixturesPage() {
 
   const updateLockTime = async () => {
     if (!currentRound || !editedLockTime) return;
-    
+
     try {
-      const response = await roundApi.update(currentRound.id.toString(), editedLockTime);
+      // Convert datetime-local input to UTC before sending to API
+      const utcLockTime = new Date(editedLockTime).toISOString();
+
+      const response = await roundApi.update(currentRound.id.toString(), utcLockTime);
       
       if (response.data.return_code === 'SUCCESS') {
-        // Update current round state
-        setCurrentRound(prev => prev ? { ...prev, lock_time: editedLockTime } : null);
+        // Update current round state with the UTC time
+        setCurrentRound(prev => prev ? { ...prev, lock_time: utcLockTime } : null);
         
         // Clear rounds cache to ensure fresh data
         cacheUtils.invalidateKey(`rounds-${competitionId}`);

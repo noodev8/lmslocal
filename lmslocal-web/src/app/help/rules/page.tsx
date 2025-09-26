@@ -56,7 +56,7 @@ export default function RulesPage() {
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-3">❌ When You're Eliminated</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mb-3">❌ When You&apos;re Eliminated</h3>
             <p className="text-slate-700 mb-3">You are eliminated when:</p>
             <ul className="space-y-2 text-slate-700">
               <li>• Your picked team loses</li>
@@ -216,7 +216,7 @@ export default function RulesPage() {
             <h3 className="text-xl font-semibold text-slate-900 mb-3">✅ Expected Conduct</h3>
             <ul className="space-y-2 text-slate-700">
               <li>• Make your own picks</li>
-              <li>• Don't share insider information</li>
+              <li>• Don&apos;t share insider information</li>
               <li>• Respect deadlines</li>
               <li>• Accept organizer decisions</li>
             </ul>
@@ -239,7 +239,7 @@ export default function RulesPage() {
       <div className="bg-slate-50 rounded-lg p-8 text-center border">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">Important Reminder</h2>
         <p className="text-lg text-slate-700 mb-4">
-          Rules are subject to your competition organizer's discretion.
+          Rules are subject to your competition organizer&apos;s discretion.
         </p>
         <p className="text-slate-600">
           When in doubt, check with them! 📞

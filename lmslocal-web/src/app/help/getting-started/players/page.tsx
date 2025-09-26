@@ -20,7 +20,7 @@ export default function PlayersGettingStartedPage() {
           Getting Started for Players
         </h1>
         <p className="text-lg text-slate-700 mb-6">
-          Ready to test your football knowledge? Here's how to join and play Last Man Standing competitions.
+          Ready to test your football knowledge? Here&apos;s how to join and play Last Man Standing competitions.
         </p>
         <div className="bg-white border rounded-lg p-4">
           <p className="font-semibold">⚽ Join a competition and start making winning predictions!</p>
@@ -52,7 +52,7 @@ export default function PlayersGettingStartedPage() {
             </div>
             <div className="space-y-2 text-slate-700">
               <p>1. Click the link shared by your organizer</p>
-              <p>2. You'll be taken directly to the competition</p>
+              <p>2. You&apos;ll be taken directly to the competition</p>
               <p>3. Create your player account</p>
               <p>4. Start making picks!</p>
             </div>
@@ -83,7 +83,7 @@ export default function PlayersGettingStartedPage() {
               <h3 className="text-lg font-semibold text-slate-900 mb-2">Choose Your Team</h3>
               <ul className="space-y-1 text-slate-700">
                 <li>• Select ONE team you think will win</li>
-                <li>• Remember: You can't pick the same team twice (in most competitions)</li>
+                <li>• Remember: You can&apos;t pick the same team twice (in most competitions)</li>
                 <li>• Consider saving strong teams for later rounds</li>
               </ul>
             </div>
@@ -113,7 +113,7 @@ export default function PlayersGettingStartedPage() {
             <ul className="space-y-2 text-slate-700">
               <li>• <strong>One pick per round</strong> - Choose wisely</li>
               <li>• <strong>Win = Advance</strong> - Your team must win (not draw)</li>
-              <li>• <strong>Deadline matters</strong> - Late picks aren't accepted</li>
+              <li>• <strong>Deadline matters</strong> - Late picks aren&apos;t accepted</li>
             </ul>
           </div>
 
@@ -132,7 +132,7 @@ export default function PlayersGettingStartedPage() {
             <h3 className="text-lg font-semibold text-slate-900 mb-4">⏱️ Results</h3>
             <ul className="space-y-2 text-slate-700">
               <li>• Based on 90 minutes + stoppage time</li>
-              <li>• Extra time/penalties don't count</li>
+              <li>• Extra time/penalties don&apos;t count</li>
               <li>• Postponed matches may be void</li>
             </ul>
           </div>
@@ -158,8 +158,8 @@ export default function PlayersGettingStartedPage() {
             <h3 className="text-lg font-semibold text-slate-900 mb-4">🔄 After Each Round</h3>
             <ul className="space-y-2 text-slate-700">
               <li>• Check if your team won</li>
-              <li>• See if you're still active</li>
-              <li>• View next round's fixtures</li>
+              <li>• See if you&apos;re still active</li>
+              <li>• View next round&apos;s fixtures</li>
               <li>• Plan your next pick</li>
             </ul>
           </div>
@@ -176,14 +176,14 @@ export default function PlayersGettingStartedPage() {
             <ul className="space-y-2 text-slate-700">
               <li>✅ Check fixtures early each week</li>
               <li>✅ Make picks well before deadline</li>
-              <li>✅ Track which teams you've used</li>
+              <li>✅ Track which teams you&apos;ve used</li>
               <li>✅ Consider opponent strength</li>
               <li>✅ Save strong teams for difficult rounds</li>
             </ul>
           </div>
 
           <div className="bg-red-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 text-red-800">❌ DON'T</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4 text-red-800">❌ DON&apos;T</h3>
             <ul className="space-y-2 text-slate-700">
               <li>❌ Wait until the last minute</li>
               <li>❌ Use all strong teams early</li>
@@ -206,7 +206,7 @@ export default function PlayersGettingStartedPage() {
           </div>
 
           <div className="bg-slate-50 rounded-lg p-4">
-            <h3 className="font-semibold text-slate-900 mb-2">⏸️ Your team's match was postponed?</h3>
+            <h3 className="font-semibold text-slate-900 mb-2">⏸️ Your team&apos;s match was postponed?</h3>
             <p className="text-slate-700">Usually void (no win/loss), but check with your organizer for specific rules.</p>
           </div>
 
