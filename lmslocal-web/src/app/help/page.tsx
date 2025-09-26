@@ -185,12 +185,12 @@ export default function HelpHomePage() {
         <p className="text-slate-700 mb-6">
           Can&apos;t find what you&apos;re looking for? Our support team is here to help you get the most out of LMSLocal.
         </p>
-        <Link
-          href="/help/support"
+        <a
+          href="mailto:noodev8@gmail.com"
           className="inline-flex items-center px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
         >
-          Contact Support
-        </Link>
+          📧 noodev8@gmail.com
+        </a>
       </div>
     </div>
   );
