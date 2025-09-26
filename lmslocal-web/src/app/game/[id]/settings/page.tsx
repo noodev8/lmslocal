@@ -633,7 +633,6 @@ export default function CompetitionSettings() {
                     </p>
                     <ul className="text-xs text-slate-600 list-disc list-inside space-y-1">
                       <li>Deletes the competition completely</li>
-                      <li>Removes all players from competition</li>
                       <li>Deletes all game data and history</li>
                       <li>Cannot be recovered</li>
                     </ul>
@@ -775,18 +774,9 @@ export default function CompetitionSettings() {
                     <p className="font-medium text-red-800 mb-2">⚠️ This will permanently delete:</p>
                     <ul className="text-red-700 text-xs space-y-1 list-disc list-inside">
                       <li>The entire competition</li>
-                      <li>All players and their accounts</li>
                       <li>All rounds, fixtures, and results</li>
                       <li>All picks and game history</li>
-                      <li>All settings and configuration</li>
                     </ul>
-                  </div>
-                  
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                    <p className="font-medium text-slate-800 mb-1">❌ Nothing can be recovered</p>
-                    <p className="text-slate-700 text-xs">
-                      This is completely different from &quot;Reset&quot; - the competition will be gone forever.
-                    </p>
                   </div>
                   
                   <p className="text-center text-slate-800 font-medium">
