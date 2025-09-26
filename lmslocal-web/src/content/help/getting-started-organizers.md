@@ -1,6 +1,6 @@
 # Getting Started for Organizers
 
-Welcome! This guide will walk you through setting up your first Last Man Standing competition.
+Welcome! This guide will walk you through setting up your first Last Man Standing competition for your pub, workplace, or club in just 5 minutes.
 
 ## Quick Setup (5 Minutes)
 
@@ -23,7 +23,7 @@ Choose which teams players can pick from:
 - Championship (24 teams)
 - Custom selection
 
-### Step 4: Invite Players {#inviting-players}
+### Step 4: Invite Players
 Your competition generates:
 - **Invite Code**: 6-character code (e.g., ABC123)
 - **Direct Link**: Share via WhatsApp, email, or social media
@@ -56,20 +56,20 @@ Players use either method to join your competition.
 
 ## Best Practices
 
-1. **Communication is Key**
-   - Send weekly reminders
-   - Share fixture lists early
-   - Announce results promptly
+### 1. Communication is Key
+- Send weekly reminders
+- Share fixture lists early
+- Announce results promptly
 
-2. **Fair Play**
-   - Be consistent with deadlines
-   - Enter results accurately
-   - Handle disputes fairly
+### 2. Fair Play
+- Be consistent with deadlines
+- Enter results accurately
+- Handle disputes fairly
 
-3. **Keep It Fun**
-   - Share weekly updates
-   - Celebrate last players standing
-   - Consider prizes for winners
+### 3. Keep It Fun
+- Share weekly updates
+- Celebrate last players standing
+- Consider prizes for winners
 
 ## Common Questions
 

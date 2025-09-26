@@ -30,7 +30,7 @@ You have full control to:
 ### What if I enter wrong results?
 You can edit match results at any time. The system will automatically recalculate eliminations.
 
-## For Players {#players}
+## For Players
 
 ### Can I change my pick?
 No, picks are final once submitted. Double-check before confirming!
