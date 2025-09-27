@@ -661,11 +661,14 @@ export default function UnifiedGameDashboard() {
               {latestRoundStats?.user_picked_team && (
                 <div className="text-xs text-gray-600">
                   Your pick: {latestRoundStats.user_picked_team}
-                  {competition.user_status !== 'active' && latestRoundStats.user_outcome === 'LOSS' && (
+                  {latestRoundStats.user_outcome === 'LOSS' && (
                     <span className="text-red-600"> (Lost)</span>
                   )}
-                  {competition.user_status !== 'active' && latestRoundStats.user_outcome === 'DRAW' && (
+                  {latestRoundStats.user_outcome === 'DRAW' && (
                     <span className="text-amber-600"> (Draw)</span>
+                  )}
+                  {latestRoundStats.user_outcome === 'WIN' && (
+                    <span className="text-green-600"> (Won)</span>
                   )}
                 </div>
               )}
