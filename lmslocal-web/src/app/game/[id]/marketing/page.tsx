@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   ArrowLeftIcon,
   PlusIcon,
@@ -12,6 +13,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { marketingApi, MarketingPost, cacheUtils } from '@/lib/api';
+import CloudinaryUpload from '@/components/CloudinaryUpload';
 
 export default function MarketingPage() {
   const router = useRouter();
@@ -81,6 +83,7 @@ export default function MarketingPage() {
           post_id: editingPost.id,
           title: formData.title,
           description: formData.description || undefined,
+          image_url: formData.image_url || undefined,
           is_active: formData.is_active,
           display_priority: formData.display_priority
         });
@@ -99,6 +102,7 @@ export default function MarketingPage() {
           competition_id: parseInt(competitionId),
           title: formData.title,
           description: formData.description || undefined,
+          image_url: formData.image_url || undefined,
           is_active: formData.is_active,
           display_priority: formData.display_priority
         });
@@ -124,7 +128,7 @@ export default function MarketingPage() {
     setFormData({
       title: post.title,
       description: post.description || '',
-      image_url: '', // Keep for consistency but don't populate from existing data
+      image_url: post.image_url || '', // Populate existing image URL for editing
       is_active: post.is_active ?? true,
       display_priority: post.display_priority
     });
@@ -323,6 +327,17 @@ export default function MarketingPage() {
                 <div className="text-xs text-gray-500 mt-1">{formData.description.length}/200 characters</div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Marketing Image <span className="text-gray-400">(optional)</span>
+                </label>
+                <CloudinaryUpload
+                  value={formData.image_url}
+                  onChange={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+                  className="mt-1"
+                  folder="marketing-posts"
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -415,6 +430,18 @@ export default function MarketingPage() {
 
                     {post.description && (
                       <p className="text-gray-600 mb-3">{post.description}</p>
+                    )}
+
+                    {post.image_url && (
+                      <div className="mb-3">
+                        <Image
+                          src={post.image_url}
+                          alt={post.title}
+                          width={200}
+                          height={128}
+                          className="h-32 w-auto object-cover rounded-lg border border-gray-200"
+                        />
+                      </div>
                     )}
 
 
