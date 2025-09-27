@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { marketingApi, MarketingDisplay as MarketingDisplayType } from '@/lib/api';
+import Image from 'next/image';
 
 interface MarketingDisplayProps {
   competitionId: number;
@@ -25,6 +26,7 @@ export default function MarketingDisplay({ competitionId, className = '' }: Mark
           setMarketingData({
             has_marketing_content: response.data.has_marketing_content,
             venue_name: response.data.venue_name,
+            logo_url: response.data.logo_url,
             posts: response.data.posts || []
           });
         } else {
@@ -62,9 +64,25 @@ export default function MarketingDisplay({ competitionId, className = '' }: Mark
   return (
     <div className={`bg-white rounded-lg border border-gray-100 shadow-sm ${className}`}>
       <div className="p-4 border-b border-gray-50">
-        <h3 className="text-sm font-medium text-gray-900">
-          {marketingData.venue_name ? `${marketingData.venue_name} - Forden SY21 7TR 07818 335544` : 'Updates'}
-        </h3>
+        <div className="flex items-center space-x-3">
+          {marketingData.logo_url && (
+            <div className="flex-shrink-0">
+              <Image
+                src={marketingData.logo_url}
+                alt="Competition logo"
+                width={32}
+                height={32}
+                className="w-8 h-8 rounded-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
+          <h3 className="text-sm font-medium text-gray-900">
+            {marketingData.venue_name ? `${marketingData.venue_name} - Forden SY21 7TR 07818 335544` : 'Updates'}
+          </h3>
+        </div>
       </div>
 
       <div className="p-4 space-y-4">

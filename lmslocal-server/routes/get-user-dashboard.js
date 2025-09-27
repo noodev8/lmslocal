@@ -80,6 +80,7 @@ router.post('/', verifyToken, async (req, res) => {
     // Extract authenticated user ID
     const user_id = req.user.id;
 
+
     // === MAIN QUERY: COMPREHENSIVE USER COMPETITION DATA ===
     // Get all competitions where user is organizer OR participant with full context
     const mainQuery = `
@@ -88,6 +89,8 @@ router.post('/', verifyToken, async (req, res) => {
         c.id,                                   -- Competition identifier
         c.name,                                 -- Competition name
         c.description,                          -- Competition description
+        c.logo_url,                            -- Competition logo URL
+        c.venue_name,                          -- Venue/organization name
         c.status,                              -- Competition status
         c.lives_per_player,                    -- Lives per player setting
         c.no_team_twice,                       -- Team reuse restriction
@@ -215,6 +218,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     const mainResult = await query(mainQuery, [user_id]);
 
+
     // === CHECK AND UPDATE INVITE CODES FOR COMPETITIONS ===
     // For each competition with invite_code, check if Round 1 lock time has passed
     for (const comp of mainResult.rows) {
@@ -290,6 +294,8 @@ router.post('/', verifyToken, async (req, res) => {
         id: comp.id,
         name: comp.name,
         description: comp.description,
+        logo_url: comp.logo_url,
+        venue_name: comp.venue_name,
         status: comp.status,
         lives_per_player: comp.lives_per_player,
         no_team_twice: comp.no_team_twice,
@@ -355,9 +361,15 @@ router.post('/', verifyToken, async (req, res) => {
         WHERE cu.user_id = $1
         AND cu.hidden IS NOT TRUE
         AND r.id IN (
-          SELECT DISTINCT round_id
-          FROM fixture
-          WHERE processed IS NOT NULL
+          SELECT round_id
+          FROM (
+            SELECT round_id,
+                   COUNT(*) as total_fixtures,
+                   COUNT(CASE WHEN processed IS NOT NULL THEN 1 END) as processed_fixtures
+            FROM fixture
+            GROUP BY round_id
+          ) fixture_stats
+          WHERE total_fixtures > 0 AND total_fixtures = processed_fixtures
         )
         ORDER BY r.round_number DESC, c.id DESC
         LIMIT 1
