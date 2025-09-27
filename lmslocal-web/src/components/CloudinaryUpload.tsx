@@ -31,6 +31,52 @@ export default function CloudinaryUpload({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper function to resize image client-side
+  const resizeImage = (file: File, maxWidth = 200, maxHeight = 200): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new window.Image();
+
+      img.onload = () => {
+        // Calculate dimensions maintaining aspect ratio
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to resize image'));
+            }
+          },
+          'image/jpeg',
+          0.85 // Good quality compression
+        );
+      };
+
+      img.onerror = () => reject(new Error('Failed to load image for resizing'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -53,9 +99,12 @@ export default function CloudinaryUpload({
         throw new Error(`File size must be less than ${maxFileSize}MB`);
       }
 
+      // Resize image client-side to 200x200 for logos
+      const resizedBlob = await resizeImage(file, 200, 200);
+
       // Create form data for Cloudinary upload
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', resizedBlob, 'logo.jpg');
       formData.append('upload_preset', uploadPreset);
       formData.append('folder', folder);
 
@@ -78,8 +127,9 @@ export default function CloudinaryUpload({
         throw new Error(data.error.message || 'Upload failed');
       }
 
-      // Return the secure URL from Cloudinary
-      onChange(data.secure_url);
+      // Return the secure URL with auto-optimization transformations
+      const optimizedUrl = data.secure_url.replace('/upload/', '/upload/f_auto,q_auto/');
+      onChange(optimizedUrl);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -173,7 +223,7 @@ export default function CloudinaryUpload({
 
       {/* Help Text */}
       <p className="text-xs text-gray-500">
-        Recommended: Square logo, minimum 200x200px for best results
+        Images will be automatically resized to 200x200px and optimized for web
       </p>
     </div>
   );

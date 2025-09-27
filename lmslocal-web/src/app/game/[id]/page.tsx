@@ -366,7 +366,17 @@ export default function UnifiedGameDashboard() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
-        {/* Competition Branding Section */}
+        {/* Competition Name - Always visible */}
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+          <div className="text-center">
+            <h1 className="text-xl font-bold text-gray-900">{competition.name}</h1>
+            {competition.venue_name && (
+              <p className="text-sm text-gray-600 mt-1">{competition.venue_name}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Competition Logo & Extended Branding Section */}
         {competition.logo_url && (
           <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
             <div className="flex items-center justify-center">
@@ -383,11 +393,8 @@ export default function UnifiedGameDashboard() {
                     }}
                   />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-1">
-                  {competition.name}
-                </h2>
                 {competition.venue_name && (
-                  <p className="text-sm text-gray-600 mb-1">
+                  <p className="text-sm text-gray-600 mb-3">
                     {competition.venue_name}
                   </p>
                 )}
