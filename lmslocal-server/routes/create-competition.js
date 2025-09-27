@@ -9,7 +9,14 @@ Request Payload:
 {
   "name": "Premier League LMS 2025",             // string, required - Competition name
   "description": "Our annual football competition", // string, optional - Competition description
+  "logo_url": "https://res.cloudinary.com/...",  // string, optional - Logo image URL (max 500 chars)
   "venue_name": "The Red Barn",                 // string, optional - Venue/organization name (max 100 chars)
+  "address_line_1": "123 High Street",          // string, optional - First line of address (max 100 chars)
+  "address_line_2": "City Centre",              // string, optional - Second line of address (max 100 chars)
+  "city": "Manchester",                         // string, optional - City/town name (max 50 chars)
+  "postcode": "M1 2AB",                         // string, optional - UK postcode (max 20 chars)
+  "phone": "01234 567890",                      // string, optional - Contact phone number (max 20 chars)
+  "email": "contact@venue.com",                 // string, optional - Contact email address (max 255 chars)
   "team_list_id": 1,                           // integer, required - ID of team list to use
   "lives_per_player": 1,                       // integer, optional - Number of lives per player (default: 1)
   "no_team_twice": true,                       // boolean, optional - Prevent team reuse (default: true)
@@ -55,7 +62,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, venue_name, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player } = req.body;
+    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player } = req.body;
     const organiser_id = req.user.id;
 
     // Basic validation
@@ -78,6 +85,57 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "Venue name must be 100 characters or less"
+      });
+    }
+
+    // Validate address fields if provided
+    if (address_line_1 && address_line_1.length > 100) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Address line 1 must be 100 characters or less"
+      });
+    }
+
+    if (address_line_2 && address_line_2.length > 100) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Address line 2 must be 100 characters or less"
+      });
+    }
+
+    if (city && city.length > 50) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "City must be 50 characters or less"
+      });
+    }
+
+    if (postcode && postcode.length > 20) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Postcode must be 20 characters or less"
+      });
+    }
+
+    if (phone && phone.length > 20) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Phone number must be 20 characters or less"
+      });
+    }
+
+    if (email && email.length > 255) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Email address must be 255 characters or less"
+      });
+    }
+
+    // Validate logo_url length if provided
+    if (logo_url && logo_url.length > 500) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Logo URL must be 500 characters or less"
       });
     }
 
@@ -127,7 +185,14 @@ router.post('/', verifyToken, async (req, res) => {
         INSERT INTO competition (
           name,
           description,
+          logo_url,
           venue_name,
+          address_line_1,
+          address_line_2,
+          city,
+          postcode,
+          phone,
+          email,
           team_list_id,
           status,
           lives_per_player,
@@ -136,12 +201,19 @@ router.post('/', verifyToken, async (req, res) => {
           invite_code,
           created_at
         )
-        VALUES ($1, $2, $3, $4, 'SETUP', $5, $6, $7, $8, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'SETUP', $12, $13, $14, $15, CURRENT_TIMESTAMP)
         RETURNING *
       `, [
         name.trim(),
         description ? description.trim() : null,
+        logo_url ? logo_url.trim() : null,
         venue_name ? venue_name.trim() : null,
+        address_line_1 ? address_line_1.trim() : null,
+        address_line_2 ? address_line_2.trim() : null,
+        city ? city.trim() : null,
+        postcode ? postcode.trim() : null,
+        phone ? phone.trim() : null,
+        email ? email.trim() : null,
         team_list_id,
         lives_per_player || 1,
         no_team_twice !== false, // Default to true

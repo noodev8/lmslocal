@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   TrophyIcon,
   ArrowLeftIcon,
@@ -23,7 +24,7 @@ export default function UnifiedGameDashboard() {
   const competitionId = params.id as string;
   
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading, latestRoundStats } = useAppData();
+  const { competitions, loading: contextLoading, latestRoundStats, user } = useAppData();
   
   // Memoize the specific competition to prevent unnecessary re-renders
   const competition = useMemo(() => {
@@ -304,8 +305,6 @@ export default function UnifiedGameDashboard() {
                   <ArrowLeftIcon className="h-4 w-4" />
                   <span className="text-sm font-medium">Dashboard</span>
                 </Link>
-                <div className="h-4 w-px bg-gray-200" />
-                <h1 className="text-lg font-semibold text-gray-900">Loading Competition...</h1>
               </div>
             </div>
           </div>
@@ -355,10 +354,6 @@ export default function UnifiedGameDashboard() {
                 <ArrowLeftIcon className="h-4 w-4" />
                 <span className="text-sm font-medium">Dashboard</span>
               </Link>
-              <div className="h-4 w-px bg-gray-200" />
-              <h1 className="text-lg font-semibold text-gray-900">
-                {competition.name || (isOrganiser ? 'Management' : 'Game')}
-              </h1>
             </div>
 
             {/* User role badge */}
@@ -371,6 +366,35 @@ export default function UnifiedGameDashboard() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
+        {/* Competition Branding Section */}
+        {competition.logo_url && (
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center justify-center">
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <Image
+                    src={competition.logo_url}
+                    alt="Competition logo"
+                    width={80}
+                    height={80}
+                    className="w-20 h-20 rounded-lg object-cover shadow-md"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">
+                  {competition.name}
+                </h2>
+                {competition.venue_name && (
+                  <p className="text-sm text-gray-600">
+                    {competition.venue_name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Current Status Card - Clean and minimal */}
         {latestRoundStats &&
@@ -628,10 +652,10 @@ export default function UnifiedGameDashboard() {
                   </div>
                   <div className="text-center">
                     <div className="text-sm font-semibold text-gray-900">
-                      {currentRoundInfo?.is_locked ? 'View Picks' : 'Make Pick'}
+                      {currentRoundInfo?.is_locked ? 'Results' : 'Make Pick'}
                     </div>
                     {currentRoundInfo?.is_locked ? (
-                      <div className="text-xs text-gray-500">See all the picks</div>
+                      <div className="text-xs text-gray-500">See results</div>
                     ) : competition.needs_pick ? (
                       <div className="text-xs text-red-600 font-medium">Now!</div>
                     ) : (
@@ -746,10 +770,10 @@ export default function UnifiedGameDashboard() {
                 </div>
                 <div className="text-center">
                   <div className="text-sm font-semibold text-gray-900">
-                    {currentRoundInfo?.is_locked ? 'View Picks' : 'Make Pick'}
+                    {currentRoundInfo?.is_locked ? 'Results' : 'Make Pick'}
                   </div>
                   {currentRoundInfo?.is_locked ? (
-                    <div className="text-xs text-gray-500">See all the picks</div>
+                    <div className="text-xs text-gray-500">See results</div>
                   ) : competition.needs_pick ? (
                     <div className="text-xs text-red-600 font-medium">Round {currentRoundInfo?.round_number || 'Next'}</div>
                   ) : (
@@ -780,6 +804,7 @@ export default function UnifiedGameDashboard() {
         <MarketingDisplay
           competitionId={parseInt(competitionId)}
           className="mt-2"
+          user={user}
         />
 
       </main>

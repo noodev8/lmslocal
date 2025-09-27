@@ -85,10 +85,17 @@ export interface Competition {
   id: number;
   name: string;
   description?: string;
+  logo_url?: string;
   invite_code?: string;
   access_code?: string;
   slug?: string;
   venue_name?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  postcode?: string;
+  phone?: string;
+  email?: string;
   is_organiser: boolean;
   is_participant?: boolean;
   organiser_id?: number;
@@ -207,6 +214,7 @@ export interface MarketingPost {
 export interface MarketingDisplay {
   has_marketing_content: boolean;
   venue_name?: string;
+  logo_url?: string;
   posts: MarketingPost[];
 }
 
@@ -252,7 +260,14 @@ export interface RegisterRequest {
 export interface CreateCompetitionRequest {
   name: string;
   description?: string;
+  logo_url?: string;
   venue_name?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  postcode?: string;
+  phone?: string;
+  email?: string;
   access_code?: string;
   slug?: string;
   team_list_id: number;
@@ -265,7 +280,14 @@ export interface UpdateCompetitionRequest {
   competition_id: number;
   name?: string;
   description?: string;
+  logo_url?: string;
   venue_name?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  postcode?: string;
+  phone?: string;
+  email?: string;
   lives_per_player?: number;
   no_team_twice?: boolean;
 }

@@ -10,6 +10,7 @@ Request Payload:
   "competition_id": 123,                    // integer, required - ID of competition to update
   "name": "Updated Competition Name",       // string, optional - New competition name (can be updated anytime)
   "description": "New description",         // string, optional - New competition description (can be updated anytime)
+  "logo_url": "https://res.cloudinary.com/...", // string, optional - Logo image URL (max 500 chars, can be updated anytime)
   "venue_name": "The Red Barn",             // string, optional - Venue/organization name (max 100 chars, can be updated anytime)
   "lives_per_player": 3,                   // integer, optional - New lives per player (only if not started)
   "no_team_twice": false                   // boolean, optional - Allow team reuse setting (only if not started)
@@ -58,8 +59,9 @@ router.post('/', verifyToken, async (req, res) => {
   
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id, name, description, venue_name, lives_per_player, no_team_twice } = req.body;
+    const { competition_id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, lives_per_player, no_team_twice } = req.body;
     const user_id = req.user.id;
+
 
     // === INPUT VALIDATION ===
     // Validate required competition_id parameter
@@ -71,7 +73,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Validate at least one field is being updated
-    if (name === undefined && description === undefined && venue_name === undefined && lives_per_player === undefined && no_team_twice === undefined) {
+    if (name === undefined && description === undefined && logo_url === undefined && venue_name === undefined && address_line_1 === undefined && address_line_2 === undefined && city === undefined && postcode === undefined && phone === undefined && email === undefined && lives_per_player === undefined && no_team_twice === undefined) {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "At least one field must be provided for update"
@@ -118,6 +120,57 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Validate address fields if provided (can be updated anytime)
+    if (address_line_1 !== undefined && address_line_1 !== null && address_line_1.length > 100) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Address line 1 must be 100 characters or less"
+      });
+    }
+
+    if (address_line_2 !== undefined && address_line_2 !== null && address_line_2.length > 100) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Address line 2 must be 100 characters or less"
+      });
+    }
+
+    if (city !== undefined && city !== null && city.length > 50) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "City must be 50 characters or less"
+      });
+    }
+
+    if (postcode !== undefined && postcode !== null && postcode.length > 20) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Postcode must be 20 characters or less"
+      });
+    }
+
+    if (phone !== undefined && phone !== null && phone.length > 20) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Phone number must be 20 characters or less"
+      });
+    }
+
+    if (email !== undefined && email !== null && email.length > 255) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Email address must be 255 characters or less"
+      });
+    }
+
+    // Validate logo_url if provided (can be updated anytime)
+    if (logo_url !== undefined && logo_url !== null && logo_url.length > 500) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Logo URL must be 500 characters or less"
+      });
+    }
+
     // Validate lives_per_player if provided (only if not started)
     if (lives_per_player !== undefined) {
       if (!Number.isInteger(lives_per_player) || lives_per_player < 1 || lives_per_player > 10) {
@@ -142,7 +195,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 1. Get current competition details with row lock to prevent concurrent modifications
       const competitionResult = await client.query(`
-        SELECT id, name, description, venue_name, lives_per_player, no_team_twice,
+        SELECT id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, lives_per_player, no_team_twice,
                organiser_id, invite_code, created_at
         FROM competition
         WHERE id = $1
@@ -172,7 +225,14 @@ router.post('/', verifyToken, async (req, res) => {
       const updateData = {
         name: name !== undefined ? name.trim() : currentCompetition.name,
         description: description !== undefined ? (description || null) : currentCompetition.description,
+        logo_url: logo_url !== undefined ? (logo_url ? logo_url.trim() : null) : currentCompetition.logo_url,
         venue_name: venue_name !== undefined ? (venue_name ? venue_name.trim() : null) : currentCompetition.venue_name,
+        address_line_1: address_line_1 !== undefined ? (address_line_1 ? address_line_1.trim() : null) : currentCompetition.address_line_1,
+        address_line_2: address_line_2 !== undefined ? (address_line_2 ? address_line_2.trim() : null) : currentCompetition.address_line_2,
+        city: city !== undefined ? (city ? city.trim() : null) : currentCompetition.city,
+        postcode: postcode !== undefined ? (postcode ? postcode.trim() : null) : currentCompetition.postcode,
+        phone: phone !== undefined ? (phone ? phone.trim() : null) : currentCompetition.phone,
+        email: email !== undefined ? (email ? email.trim() : null) : currentCompetition.email,
         lives_per_player: lives_per_player !== undefined ? lives_per_player : currentCompetition.lives_per_player,
         no_team_twice: no_team_twice !== undefined ? no_team_twice : currentCompetition.no_team_twice
       };
@@ -180,14 +240,21 @@ router.post('/', verifyToken, async (req, res) => {
       // 6. Update the competition record with new values
       const updatedCompetitionResult = await client.query(`
         UPDATE competition
-        SET name = $1, description = $2, venue_name = $3, lives_per_player = $4, no_team_twice = $5
-        WHERE id = $6
-        RETURNING id, name, description, venue_name, lives_per_player, no_team_twice,
+        SET name = $1, description = $2, logo_url = $3, venue_name = $4, address_line_1 = $5, address_line_2 = $6, city = $7, postcode = $8, phone = $9, email = $10, lives_per_player = $11, no_team_twice = $12
+        WHERE id = $13
+        RETURNING id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, lives_per_player, no_team_twice,
                   invite_code, created_at, organiser_id
       `, [
         updateData.name,
         updateData.description,
+        updateData.logo_url,
         updateData.venue_name,
+        updateData.address_line_1,
+        updateData.address_line_2,
+        updateData.city,
+        updateData.postcode,
+        updateData.phone,
+        updateData.email,
         updateData.lives_per_player,
         updateData.no_team_twice,
         competition_id
@@ -217,6 +284,9 @@ router.post('/', verifyToken, async (req, res) => {
       }
       if (venue_name !== undefined && venue_name !== currentCompetition.venue_name) {
         auditDetails.push(`venue name updated`);
+      }
+      if (logo_url !== undefined && logo_url !== currentCompetition.logo_url) {
+        auditDetails.push(`logo updated`);
       }
       if (lives_per_player !== undefined && lives_per_player !== currentCompetition.lives_per_player) {
         auditDetails.push(`lives per player changed from ${currentCompetition.lives_per_player} to ${lives_per_player}`);

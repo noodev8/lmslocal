@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import {
   ArrowLeftIcon,
-  InformationCircleIcon,
   CheckCircleIcon,
   XMarkIcon,
   HeartIcon,
@@ -15,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, DeleteCompetitionRequest } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
+import CloudinaryUpload from '@/components/CloudinaryUpload';
 
 export default function CompetitionSettings() {
   const router = useRouter();
@@ -46,7 +46,14 @@ export default function CompetitionSettings() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    logo_url: '',
     venue_name: '',
+    address_line_1: '',
+    address_line_2: '',
+    city: '',
+    postcode: '',
+    phone: '',
+    email: '',
     lives_per_player: 0,
     no_team_twice: true,
   });
@@ -76,11 +83,19 @@ export default function CompetitionSettings() {
         }
 
         if (competition && competition.is_organiser) {
+
           // Initialize form with competition data
           setFormData({
             name: competition.name || '',
             description: competition.description || '',
+            logo_url: competition.logo_url || '',
             venue_name: competition.venue_name || '',
+            address_line_1: competition.address_line_1 || '',
+            address_line_2: competition.address_line_2 || '',
+            city: competition.city || '',
+            postcode: competition.postcode || '',
+            phone: competition.phone || '',
+            email: competition.email || '',
             lives_per_player: competition.lives_per_player || 0,
             no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
           });
@@ -165,6 +180,35 @@ export default function CompetitionSettings() {
         updateData.venue_name = formData.venue_name.trim();
       }
 
+      // Include address and contact fields if provided
+      if (formData.address_line_1.trim()) {
+        updateData.address_line_1 = formData.address_line_1.trim();
+      }
+
+      if (formData.address_line_2.trim()) {
+        updateData.address_line_2 = formData.address_line_2.trim();
+      }
+
+      if (formData.city.trim()) {
+        updateData.city = formData.city.trim();
+      }
+
+      if (formData.postcode.trim()) {
+        updateData.postcode = formData.postcode.trim();
+      }
+
+      if (formData.phone.trim()) {
+        updateData.phone = formData.phone.trim();
+      }
+
+      if (formData.email.trim()) {
+        updateData.email = formData.email.trim();
+      }
+
+      // Always include logo_url to allow clearing it (send empty string to clear)
+      updateData.logo_url = formData.logo_url.trim();
+
+
       // Only include restricted fields if competition hasn't started
       if (!hasStarted) {
         updateData.lives_per_player = formData.lives_per_player;
@@ -199,7 +243,14 @@ export default function CompetitionSettings() {
       setFormData({
         name: competition.name || '',
         description: competition.description || '',
+        logo_url: competition.logo_url || '',
         venue_name: competition.venue_name || '',
+        address_line_1: competition.address_line_1 || '',
+        address_line_2: competition.address_line_2 || '',
+        city: competition.city || '',
+        postcode: competition.postcode || '',
+        phone: competition.phone || '',
+        email: competition.email || '',
         lives_per_player: competition.lives_per_player || 0,
         no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
       });
@@ -444,16 +495,6 @@ export default function CompetitionSettings() {
         )}
 
         {/* Competition Started Info */}
-        {hasStarted && (
-          <div className="mb-6 bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <InformationCircleIcon className="h-5 w-5 text-slate-500 mr-2" />
-              <p className="text-slate-700">
-                Your competition is now active. Name and description can still be updated, but game rules are locked in.
-              </p>
-            </div>
-          </div>
-        )}
 
 
         {/* Settings Form */}
@@ -497,6 +538,43 @@ export default function CompetitionSettings() {
               />
             </div>
 
+            {/* Logo Upload */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Competition Logo <span className="text-slate-400">(optional)</span>
+              </label>
+              <CloudinaryUpload
+                value={formData.logo_url}
+                onChange={async (url) => {
+                  setFormData(prev => ({ ...prev, logo_url: url }));
+
+                  // Auto-save logo immediately
+                  if (competition) {
+                    try {
+                      const response = await competitionApi.update({
+                        competition_id: competition.id,
+                        logo_url: url || ''  // Send empty string to clear logo
+                      });
+
+                      if (response.data.return_code === 'SUCCESS') {
+                        setSuccess(true);
+                        // Clear the dashboard cache so next page load gets fresh data
+                        const { cacheUtils } = await import('@/lib/api');
+                        cacheUtils.invalidateCompetitions();
+                        setTimeout(() => setSuccess(false), 3000);
+                      } else {
+                        setError(response.data.message || 'Failed to save logo');
+                      }
+                    } catch (err) {
+                      console.error('Auto-save logo error:', err);
+                      setError('Failed to save logo');
+                    }
+                  }
+                }}
+                className="mt-1"
+              />
+            </div>
+
             {/* Venue Name */}
             <div>
               <label htmlFor="venue_name" className="block text-sm font-medium text-slate-700 mb-2">
@@ -515,6 +593,108 @@ export default function CompetitionSettings() {
               <p className="mt-1 text-sm text-slate-500">
                 This name will appear in marketing messages instead of your personal name
               </p>
+            </div>
+
+            {/* Address Section */}
+            <div>
+              <label htmlFor="address_line_1" className="block text-sm font-medium text-slate-700 mb-2">
+                Address Line 1 <span className="text-slate-400">(optional)</span>
+              </label>
+              <input
+                type="text"
+                id="address_line_1"
+                name="address_line_1"
+                value={formData.address_line_1}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                placeholder="e.g., 123 High Street"
+                maxLength={100}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="address_line_2" className="block text-sm font-medium text-slate-700 mb-2">
+                Address Line 2 <span className="text-slate-400">(optional)</span>
+              </label>
+              <input
+                type="text"
+                id="address_line_2"
+                name="address_line_2"
+                value={formData.address_line_2}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                placeholder="e.g., City Centre, District"
+                maxLength={100}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2">
+                  City/Town <span className="text-slate-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  placeholder="e.g., Manchester"
+                  maxLength={50}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="postcode" className="block text-sm font-medium text-slate-700 mb-2">
+                  Postcode <span className="text-slate-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="postcode"
+                  name="postcode"
+                  value={formData.postcode}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  placeholder="e.g., M1 2AB"
+                  maxLength={20}
+                />
+              </div>
+            </div>
+
+            {/* Contact Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2">
+                  Phone Number <span className="text-slate-400">(optional)</span>
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  placeholder="e.g., 01234 567890"
+                  maxLength={20}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+                  Contact Email <span className="text-slate-400">(optional)</span>
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  placeholder="e.g., contact@venue.com"
+                  maxLength={255}
+                />
+              </div>
             </div>
           </div>
 

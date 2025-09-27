@@ -5,7 +5,7 @@
 -- Dumped from database version 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 17.4
 
--- Started on 2025-09-27 10:50:01
+-- Started on 2025-09-27 18:56:15
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -182,11 +182,82 @@ CREATE TABLE public.competition (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     organiser_id integer,
     invite_code character varying(20),
-    slug character varying(50)
+    slug character varying(50),
+    venue_name character varying(100),
+    address_line_1 character varying(100),
+    address_line_2 character varying(100),
+    city character varying(50),
+    postcode character varying(20),
+    phone character varying(20),
+    email character varying(255)
 );
 
 
 ALTER TABLE public.competition OWNER TO lmslocal_prod_user;
+
+--
+-- TOC entry 3567 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: COLUMN competition.venue_name; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.competition.venue_name IS 'Display name for the venue/organization (e.g., "Red Barn", "The Crown & Anchor") - shown in
+  marketing posts to players';
+
+
+--
+-- TOC entry 3568 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: COLUMN competition.address_line_1; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.competition.address_line_1 IS 'First line of pub/organiser address (e.g., street number and name)';
+
+
+--
+-- TOC entry 3569 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: COLUMN competition.address_line_2; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.competition.address_line_2 IS 'Second line of address (e.g., area, district - optional)';
+
+
+--
+-- TOC entry 3570 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: COLUMN competition.city; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.competition.city IS 'City or town name';
+
+
+--
+-- TOC entry 3571 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: COLUMN competition.postcode; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.competition.postcode IS 'Postal code (UK format)';
+
+
+--
+-- TOC entry 3572 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: COLUMN competition.phone; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.competition.phone IS 'Contact phone number for the pub/organiser';
+
+
+--
+-- TOC entry 3573 (class 0 OID 0)
+-- Dependencies: 222
+-- Name: COLUMN competition.email; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.competition.email IS 'Contact email address for the pub/organiser';
+
 
 --
 -- TOC entry 221 (class 1259 OID 20716)
@@ -205,7 +276,7 @@ CREATE SEQUENCE public.competition_id_seq
 ALTER SEQUENCE public.competition_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3567 (class 0 OID 0)
+-- TOC entry 3574 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: competition_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -250,7 +321,7 @@ CREATE SEQUENCE public.competition_user_id_seq
 ALTER SEQUENCE public.competition_user_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3568 (class 0 OID 0)
+-- TOC entry 3575 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: competition_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -296,7 +367,7 @@ CREATE SEQUENCE public.fixture_id_seq
 ALTER SEQUENCE public.fixture_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3569 (class 0 OID 0)
+-- TOC entry 3576 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: fixture_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -343,7 +414,7 @@ CREATE SEQUENCE public.marketing_posts_id_seq
 ALTER SEQUENCE public.marketing_posts_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3570 (class 0 OID 0)
+-- TOC entry 3577 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: marketing_posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -387,7 +458,7 @@ CREATE SEQUENCE public.pick_id_seq
 ALTER SEQUENCE public.pick_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3571 (class 0 OID 0)
+-- TOC entry 3578 (class 0 OID 0)
 -- Dependencies: 229
 -- Name: pick_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -431,7 +502,7 @@ CREATE SEQUENCE public.player_progress_id_seq
 ALTER SEQUENCE public.player_progress_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3572 (class 0 OID 0)
+-- TOC entry 3579 (class 0 OID 0)
 -- Dependencies: 233
 -- Name: player_progress_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -472,7 +543,7 @@ CREATE SEQUENCE public.round_id_seq
 ALTER SEQUENCE public.round_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3573 (class 0 OID 0)
+-- TOC entry 3580 (class 0 OID 0)
 -- Dependencies: 225
 -- Name: round_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -516,7 +587,7 @@ CREATE SEQUENCE public.team_id_seq
 ALTER SEQUENCE public.team_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3574 (class 0 OID 0)
+-- TOC entry 3581 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: team_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -560,7 +631,7 @@ CREATE SEQUENCE public.team_list_id_seq
 ALTER SEQUENCE public.team_list_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3575 (class 0 OID 0)
+-- TOC entry 3582 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: team_list_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -1141,7 +1212,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO lmslocal_prod_user;
 
 
--- Completed on 2025-09-27 10:50:03
+-- Completed on 2025-09-27 18:56:17
 
 --
 -- PostgreSQL database dump complete

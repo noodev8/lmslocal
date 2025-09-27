@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { marketingApi, MarketingDisplay as MarketingDisplayType } from '@/lib/api';
+import { marketingApi, MarketingDisplay as MarketingDisplayType, User } from '@/lib/api';
 import Image from 'next/image';
 
 interface MarketingDisplayProps {
   competitionId: number;
   className?: string;
+  user?: User | null;
 }
 
-export default function MarketingDisplay({ competitionId, className = '' }: MarketingDisplayProps) {
+export default function MarketingDisplay({ competitionId, className = '', user }: MarketingDisplayProps) {
   const [marketingData, setMarketingData] = useState<MarketingDisplayType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +81,12 @@ export default function MarketingDisplay({ competitionId, className = '' }: Mark
             </div>
           )}
           <h3 className="text-sm font-medium text-gray-900">
-            {marketingData.venue_name ? `${marketingData.venue_name} - Forden SY21 7TR 07818 335544` : 'Updates'}
+            {marketingData.venue_name
+              ? marketingData.venue_name
+              : user?.display_name
+              ? user.display_name
+              : 'Updates'
+            }
           </h3>
         </div>
       </div>
