@@ -77,6 +77,7 @@ const createMarketingPostRoute = require('./routes/create-marketing-post');
 const updateMarketingPostRoute = require('./routes/update-marketing-post');
 const deleteMarketingPostRoute = require('./routes/delete-marketing-post');
 const getCompetitionMarketingDisplayRoute = require('./routes/get-competition-marketing-display');
+const updatePersonalCompetitionNameRoute = require('./routes/update-personal-competition-name');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -227,6 +228,7 @@ app.use('/create-marketing-post', createMarketingPostRoute);
 app.use('/update-marketing-post', updateMarketingPostRoute);
 app.use('/delete-marketing-post', deleteMarketingPostRoute);
 app.use('/get-competition-marketing-display', getCompetitionMarketingDisplayRoute);
+app.use('/update-personal-competition-name', updatePersonalCompetitionNameRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

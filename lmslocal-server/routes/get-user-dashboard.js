@@ -115,6 +115,7 @@ router.post('/', verifyToken, async (req, res) => {
         cu.status as user_status,              -- User's competition status
         cu.lives_remaining,                    -- User's remaining lives
         cu.joined_at,                          -- When user joined as participant
+        cu.personal_name,                      -- User's personal nickname for this competition
         
         -- === COMPETITION STATISTICS ===
         COALESCE(player_counts.total_players, 0) as total_players,         -- Total players
@@ -338,6 +339,7 @@ router.post('/', verifyToken, async (req, res) => {
         user_status: comp.user_status || null,
         lives_remaining: comp.lives_remaining !== null ? parseInt(comp.lives_remaining) : null,
         joined_at: comp.joined_at || null,
+        personal_name: comp.personal_name || null,
         needs_pick: comp.is_participant ? comp.needs_pick : null,
         
         // Current pick data (null if not participating or no pick)

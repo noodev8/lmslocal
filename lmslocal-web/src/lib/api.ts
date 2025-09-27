@@ -117,6 +117,7 @@ export interface Competition {
   user_status: string | null;
   joined_at?: string;
   team_list_name?: string;
+  personal_name?: string | null;
   created_at?: string;
   is_complete?: boolean;
   winner?: {
@@ -400,6 +401,7 @@ export const competitionApi = {
   delete: (data: DeleteCompetitionRequest) => api.post<DeleteCompetitionResponse & { return_code: string; message?: string }>('/delete-competition', data),
   hide: (competition_id: number) => api.post<{ return_code: string; message: string }>('/hide-competition', { competition_id }),
   unhidePlayer: (competition_id: number, player_id: number) => api.post<{ return_code: string; message: string }>('/unhide-player', { competition_id, player_id }),
+  updatePersonalName: (competition_id: number, personal_name: string | null) => api.post<{ return_code: string; message?: string; personal_name?: string | null }>('/update-personal-competition-name', { competition_id, personal_name }),
 };
 
 // Round API calls

@@ -370,6 +370,9 @@ export default function UnifiedGameDashboard() {
         <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
           <div className="text-center">
             <h1 className="text-xl font-bold text-gray-900">{competition.name}</h1>
+            {competition.personal_name && (
+              <p className="text-sm text-gray-600 italic mt-1">{competition.personal_name}</p>
+            )}
             {competition.venue_name && (
               <p className="text-sm text-gray-600 mt-1">{competition.venue_name}</p>
             )}
@@ -637,122 +640,98 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Personal Status Card - Always visible for participants */}
-        {isParticipant && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-medium text-gray-900">Your Status</div>
-              <div className="flex items-center space-x-2">
-                {competition.user_status === 'active' ? (
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                ) : (
-                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+        {/* Status Cards - Compact design */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Personal Status Card - Always visible for participants */}
+          {isParticipant && (
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  {competition.user_status === 'active' ? (
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  ) : (
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  )}
+                  <div className="text-sm font-medium text-gray-900">
+                    {competition.user_status === 'active' ? (
+                      `Active in Round ${currentRoundInfo?.round_number || competition.current_round}`
+                    ) : (
+                      `Eliminated ${latestRoundStats ? `in Round ${latestRoundStats.round_number}` : ''}`
+                    )}
+                  </div>
+                </div>
+
+                {latestRoundStats?.user_picked_team && (
+                  <div className="text-xs text-gray-600">
+                    Your pick: {latestRoundStats.user_picked_team}
+                    {latestRoundStats.user_outcome === 'LOSS' && (
+                      <span className="text-red-600"> (Lost)</span>
+                    )}
+                    {latestRoundStats.user_outcome === 'DRAW' && (
+                      <span className="text-amber-600"> (Draw)</span>
+                    )}
+                    {latestRoundStats.user_outcome === 'WIN' && (
+                      <span className="text-green-600"> (Won)</span>
+                    )}
+                  </div>
                 )}
-                <span className="text-xs text-gray-600">
-                  {competition.user_status === 'active' ? 'Active' : 'Eliminated'}
-                </span>
+
+                {competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
+                  <div className="text-xs text-gray-600">
+                    {competition.lives_remaining} lives remaining
+                  </div>
+                )}
               </div>
             </div>
+          )}
 
-            <div className="space-y-2">
-              {competition.user_status === 'active' ? (
-                <div className="text-sm text-gray-900">
-                  ✅ Active in Round {currentRoundInfo?.round_number || competition.current_round}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-900">
-                  ❌ Eliminated {latestRoundStats ? `in Round ${latestRoundStats.round_number}` : ''}
-                </div>
-              )}
-
-              {latestRoundStats?.user_picked_team && (
-                <div className="text-xs text-gray-600">
-                  Your pick: {latestRoundStats.user_picked_team}
-                  {latestRoundStats.user_outcome === 'LOSS' && (
-                    <span className="text-red-600"> (Lost)</span>
-                  )}
-                  {latestRoundStats.user_outcome === 'DRAW' && (
-                    <span className="text-amber-600"> (Draw)</span>
-                  )}
-                  {latestRoundStats.user_outcome === 'WIN' && (
-                    <span className="text-green-600"> (Won)</span>
-                  )}
-                </div>
-              )}
-
-              {competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
-                <div className="text-xs text-gray-600">
-                  {competition.lives_remaining} lives remaining
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Round Status Card - Context-aware */}
-        {currentRoundInfo && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-            {!currentRoundInfo.is_locked ? (
-              /* Before Lock - Show Pick Progress */
-              <>
-                <div className="flex items-center justify-between mb-3">
+          {/* Round Status Card - Context-aware */}
+          {currentRoundInfo && (
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+              {!currentRoundInfo.is_locked ? (
+                /* Before Lock - Show Pick Progress */
+                <div className="space-y-3">
                   <div className="text-sm font-medium text-gray-900">
                     Round {currentRoundInfo.round_number} Progress
                   </div>
+
                   {pickStats && (
-                    <div className="text-xs text-gray-500">
-                      {Math.min(pickStats.players_with_picks, pickStats.total_active_players)} of {pickStats.total_active_players} picked
-                    </div>
+                    <>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, (pickStats.players_with_picks / pickStats.total_active_players) * 100)}%` }}
+                        ></div>
+                      </div>
+
+                      <div className="text-xs text-gray-500">
+                        {Math.min(pickStats.players_with_picks, pickStats.total_active_players)} of {pickStats.total_active_players} picked
+                        <span className="ml-2 font-medium">
+                          {Math.min(100, Math.round((pickStats.players_with_picks / pickStats.total_active_players) * 100))}%
+                        </span>
+                      </div>
+                    </>
                   )}
                 </div>
-
-                {pickStats && (
-                  <>
-                    <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, (pickStats.players_with_picks / pickStats.total_active_players) * 100)}%` }}
-                      ></div>
+              ) : !latestRoundStats || latestRoundStats.round_number < currentRoundInfo.round_number ? (
+                /* After Lock, Before Results - Show Live Status */
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="text-sm font-medium text-gray-900">
+                      Round {currentRoundInfo.round_number} Live
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-gray-500">
-                        {pickStats.players_with_picks >= pickStats.total_active_players ? (
-                          "✅ All picks complete"
-                        ) : pickStats.players_with_picks / pickStats.total_active_players >= 0.75 ? (
-                          `Almost there - ${pickStats.total_active_players - pickStats.players_with_picks} remaining`
-                        ) : (
-                          `${pickStats.total_active_players - pickStats.players_with_picks} still need to pick`
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-600 font-medium">
-                        {Math.min(100, Math.round((pickStats.players_with_picks / pickStats.total_active_players) * 100))}%
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            ) : !latestRoundStats || latestRoundStats.round_number < currentRoundInfo.round_number ? (
-              /* After Lock, Before Results - Show Live Status */
-              <>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-medium text-gray-900">
-                    Round {currentRoundInfo.round_number} Live
                   </div>
-                  <div className="text-xs text-gray-500">🔒 Locked</div>
-                </div>
 
-                <div className="space-y-2">
                   <div className="text-sm text-gray-600">⚽ Games in progress</div>
                   <div className="text-xs text-gray-500">
                     Results will be processed as matches complete throughout the weekend
                   </div>
                 </div>
-              </>
-            ) : null
-            }
-          </div>
-        )}
+              ) : null
+              }
+            </div>
+          )}
+        </div>
 
 {/* Action Buttons - Refined design */}
         {isOrganiser ? (

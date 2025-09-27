@@ -18,7 +18,8 @@ import {
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
   CreditCardIcon,
-  BookOpenIcon
+  BookOpenIcon,
+  PencilIcon
 } from '@heroicons/react/24/outline';
 import { userApi, competitionApi, Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
@@ -41,6 +42,11 @@ export default function DashboardPage() {
   const [hidingCompetition, setHidingCompetition] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [competitionToDelete, setCompetitionToDelete] = useState<Competition | null>(null);
+
+  // Personal name editing state
+  const [editingNameId, setEditingNameId] = useState<number | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState<string>('');
+  const [savingName, setSavingName] = useState(false);
 
   // Memoize all user competitions (organized + participating) to prevent dependency issues
   const userCompetitions = useMemo(() => {
@@ -231,6 +237,42 @@ export default function DashboardPage() {
     setCompetitionToDelete(null);
   };
 
+  // Handle personal name editing
+  const handleEditName = (competition: Competition) => {
+    setEditingNameId(competition.id);
+    setEditingNameValue(competition.personal_name || competition.name || '');
+  };
+
+  const handleSaveName = async () => {
+    if (!editingNameId) return;
+
+    setSavingName(true);
+    try {
+      const trimmedName = editingNameValue.trim();
+      const personalName = trimmedName === '' ? null : trimmedName;
+
+      const response = await competitionApi.updatePersonalName(editingNameId, personalName);
+
+      if (response.data.return_code === 'SUCCESS') {
+        // Refresh the dashboard data
+        window.location.reload();
+      } else {
+        console.error('Failed to update personal name:', response.data.message);
+      }
+    } catch (error) {
+      console.error('Error updating personal name:', error);
+    } finally {
+      setSavingName(false);
+      setEditingNameId(null);
+      setEditingNameValue('');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNameId(null);
+    setEditingNameValue('');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -384,14 +426,86 @@ export default function DashboardPage() {
                 <div className="p-4 sm:p-6 border-b border-slate-200">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h4 className="text-lg font-semibold text-slate-900 truncate">{competition.name}</h4>
-                        {competition.is_organiser && (
-                          <span className="text-xs text-slate-500 font-medium">
-                            (Organiser)
-                          </span>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          {editingNameId === competition.id ? (
+                            <div className="flex-1 flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={editingNameValue}
+                                onChange={(e) => setEditingNameValue(e.target.value)}
+                                className="flex-1 text-lg font-semibold bg-transparent border-b-2 border-blue-500 focus:outline-none text-slate-900"
+                                placeholder="Add personal note..."
+                                disabled={savingName}
+                                autoFocus
+                              />
+                              <button
+                                onClick={handleSaveName}
+                                disabled={savingName}
+                                className="text-green-600 hover:text-green-700 disabled:opacity-50"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                disabled={savingName}
+                                className="text-red-600 hover:text-red-700 disabled:opacity-50"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <h4 className="text-lg font-semibold text-slate-900 truncate">
+                                {competition.name}
+                              </h4>
+                              {competition.is_organiser && (
+                                <span className="text-xs text-slate-500 font-medium">
+                                  (Organiser)
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Edit button - for all users */}
+                        {editingNameId !== competition.id && (
+                          <button
+                            onClick={() => handleEditName(competition)}
+                            className="text-slate-400 hover:text-slate-600 p-1"
+                            title="Edit personal note"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
                         )}
                       </div>
+
+                      {/* Personal Note Display - Fixed height for consistent alignment */}
+                      <div className="mb-3 min-h-[20px]">
+                        {competition.personal_name && editingNameId !== competition.id && (
+                          <div className="text-sm text-slate-600 italic">
+                            {competition.personal_name}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Your Status Display - Only for participants */}
+                      {competition.is_participant && (
+                        <div className="flex items-center space-x-2 mb-3">
+                          {competition.user_status === 'active' ? (
+                            <>
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-green-700">Active</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-red-700">Eliminated</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
                       {/* Pick Status Display */}
                       <div className="mb-2">
                         <span className="text-sm font-medium text-slate-600">
