@@ -1,4 +1,5 @@
 ================================================================================
+Can you build the APIs by following the below rules if applicable please
 ================================================================================
 
 API Routes - always use POST
