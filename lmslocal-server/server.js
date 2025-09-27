@@ -71,6 +71,13 @@ const submitResultsRoute = require('./routes/submit-results');
 const hideCompetitionRoute = require('./routes/hide-competition');
 const unhidePlayerRoute = require('./routes/unhide-player');
 
+// Marketing Routes
+const getMarketingPostsRoute = require('./routes/get-marketing-posts');
+const createMarketingPostRoute = require('./routes/create-marketing-post');
+const updateMarketingPostRoute = require('./routes/update-marketing-post');
+const deleteMarketingPostRoute = require('./routes/delete-marketing-post');
+const getCompetitionMarketingDisplayRoute = require('./routes/get-competition-marketing-display');
+
 const app = express();
 const PORT = process.env.PORT || 3015;
 
@@ -213,6 +220,13 @@ app.use('/get-pick-statistics', getPickStatisticsRoute);
 app.use('/submit-results', submitResultsRoute);
 app.use('/hide-competition', hideCompetitionRoute);
 app.use('/unhide-player', unhidePlayerRoute);
+
+// Marketing API Routes
+app.use('/get-marketing-posts', getMarketingPostsRoute);
+app.use('/create-marketing-post', createMarketingPostRoute);
+app.use('/update-marketing-post', updateMarketingPostRoute);
+app.use('/delete-marketing-post', deleteMarketingPostRoute);
+app.use('/get-competition-marketing-display', getCompetitionMarketingDisplayRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {
