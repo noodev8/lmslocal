@@ -56,31 +56,26 @@ Return Codes:
 =======================================================================================================================================
 */
 
+const express = require('express');
 const { query, transaction } = require('../database');
-const { verifyToken } = require('../middleware/auth_middleware');
-const apiLogger = require('../utils/apiLogger');
+const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 
-const getMarketingPosts = async (req, res) => {
+const router = express.Router();
+
+// POST endpoint with JWT authentication middleware
+router.post('/', verifyToken, async (req, res) => {
   // Start API logging
-  apiLogger.logRequest(req, 'get-marketing-posts');
+  logApiCall('get-marketing-posts');
 
   try {
-    // Extract and validate JWT token
-    const authResult = verifyToken(req);
-    if (!authResult.success) {
-      apiLogger.logResponse(req, 'get-marketing-posts', 'UNAUTHORIZED', authResult.message);
-      return res.status(200).json({
-        return_code: 'UNAUTHORIZED',
-        message: authResult.message
-      });
-    }
-
-    const { user_id } = authResult.decoded;
+    // User authentication handled by verifyToken middleware
+    const user_id = req.user.id;
     const { competition_id } = req.body;
 
     // Validate required fields
     if (!competition_id || typeof competition_id !== 'number') {
-      apiLogger.logResponse(req, 'get-marketing-posts', 'VALIDATION_ERROR', 'Competition ID is required and must be a number');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Competition ID is required and must be a number'
@@ -151,7 +146,7 @@ const getMarketingPosts = async (req, res) => {
     });
 
     // Log successful response
-    apiLogger.logResponse(req, 'get-marketing-posts', 'SUCCESS', `Retrieved ${result.posts.length} posts for competition ${competition_id}`);
+    
 
     // Return success response
     return res.status(200).json({
@@ -166,7 +161,7 @@ const getMarketingPosts = async (req, res) => {
 
     // Handle custom thrown errors with specific return codes
     if (error.return_code) {
-      apiLogger.logResponse(req, 'get-marketing-posts', error.return_code, error.message);
+      
       return res.status(200).json({
         return_code: error.return_code,
         message: error.message
@@ -174,12 +169,12 @@ const getMarketingPosts = async (req, res) => {
     }
 
     // Handle unexpected server errors
-    apiLogger.logResponse(req, 'get-marketing-posts', 'SERVER_ERROR', 'Internal server error occurred');
+    
     return res.status(200).json({
       return_code: 'SERVER_ERROR',
       message: 'An internal server error occurred'
     });
   }
-};
+});
 
-module.exports = getMarketingPosts;
+module.exports = router;

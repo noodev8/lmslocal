@@ -10,8 +10,9 @@ API Routes - Add the call to the API log using utils/apiLogger.js
 Use extensive comments in your code so I can see what is going on
 
 Authentication - Use JWT Authentication throughout
-Middleware - "/middleware/auth_middleware.js"
+Middleware - "/middleware/auth.js"
 verifyToken - Always use a single verifyToken function. No duplicates.
+Route should use standard router pattern for authentication
 
 == Database ==
 Database uses direct PostgreSQL

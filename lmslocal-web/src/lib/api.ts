@@ -80,7 +80,7 @@ export interface User {
   is_managed?: boolean;
 }
 
-// Competition interfaces  
+// Competition interfaces
 export interface Competition {
   id: number;
   name: string;
@@ -88,6 +88,7 @@ export interface Competition {
   invite_code?: string;
   access_code?: string;
   slug?: string;
+  venue_name?: string;
   is_organiser: boolean;
   is_participant?: boolean;
   organiser_id?: number;
@@ -190,6 +191,43 @@ export interface TeamList {
   description?: string;
 }
 
+// Marketing interfaces
+export interface MarketingPost {
+  id: number;
+  title: string;
+  description?: string;
+  image_url?: string;
+  display_priority: number;
+  is_active?: boolean;
+  view_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MarketingDisplay {
+  has_marketing_content: boolean;
+  venue_name?: string;
+  posts: MarketingPost[];
+}
+
+export interface CreateMarketingPostRequest {
+  competition_id: number;
+  title: string;
+  description?: string;
+  image_url?: string;
+  is_active?: boolean;
+  display_priority?: number;
+}
+
+export interface UpdateMarketingPostRequest {
+  post_id: number;
+  title?: string;
+  description?: string;
+  image_url?: string;
+  is_active?: boolean;
+  display_priority?: number;
+}
+
 // Generic response types
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface EmptyResponse {}
@@ -214,6 +252,7 @@ export interface RegisterRequest {
 export interface CreateCompetitionRequest {
   name: string;
   description?: string;
+  venue_name?: string;
   access_code?: string;
   slug?: string;
   team_list_id: number;
@@ -226,6 +265,7 @@ export interface UpdateCompetitionRequest {
   competition_id: number;
   name?: string;
   description?: string;
+  venue_name?: string;
   lives_per_player?: number;
   no_team_twice?: boolean;
 }
@@ -553,6 +593,40 @@ export const userApi = {
     () => api.post<{ return_code: string; message?: string; competition?: Competition; players?: Player[] }>('/get-competition-standings', { competition_id, show_full_user_history })
   ),
   joinCompetitionByCode: (competition_code: string) => api.post<{ return_code: string; message?: string; competition?: { id: number; name: string } }>('/join-competition-by-code', { competition_code }),
+};
+
+// Marketing API calls
+export const marketingApi = {
+  getCompetitionDisplay: (competition_id: number) => withCache(
+    `marketing-display-${competition_id}`,
+    1 * 60 * 60 * 1000, // 1 hour cache - marketing content changes less frequently
+    () => api.post<MarketingDisplay & { return_code: string; message?: string }>('/get-competition-marketing-display', { competition_id })
+  ),
+
+  // Organizer management functions
+  getMarketingPosts: (competition_id: number) => api.post<{
+    return_code: string;
+    message?: string;
+    posts?: MarketingPost[];
+    active_post_count?: number;
+    max_posts_allowed?: number;
+  }>('/get-marketing-posts', { competition_id }),
+
+  createMarketingPost: (data: CreateMarketingPostRequest) => api.post<{
+    return_code: string;
+    message?: string;
+    post?: MarketingPost;
+  }>('/create-marketing-post', data),
+
+  updateMarketingPost: (data: UpdateMarketingPostRequest) => api.post<{
+    return_code: string;
+    message?: string;
+  }>('/update-marketing-post', data),
+
+  deleteMarketingPost: (post_id: number) => api.post<{
+    return_code: string;
+    message?: string;
+  }>('/delete-marketing-post', { post_id }),
 };
 
 // Cache utilities

@@ -46,26 +46,21 @@ Return Codes:
 =======================================================================================================================================
 */
 
+const express = require('express');
 const { query, transaction } = require('../database');
-const { verifyToken } = require('../middleware/auth_middleware');
-const apiLogger = require('../utils/apiLogger');
+const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 
-const updateMarketingPost = async (req, res) => {
+const router = express.Router();
+
+// POST endpoint with JWT authentication middleware
+router.post('/', verifyToken, async (req, res) => {
   // Start API logging
-  apiLogger.logRequest(req, 'update-marketing-post');
+  logApiCall('update-marketing-post');
 
   try {
-    // Extract and validate JWT token
-    const authResult = verifyToken(req);
-    if (!authResult.success) {
-      apiLogger.logResponse(req, 'update-marketing-post', 'UNAUTHORIZED', authResult.message);
-      return res.status(200).json({
-        return_code: 'UNAUTHORIZED',
-        message: authResult.message
-      });
-    }
-
-    const { user_id } = authResult.decoded;
+    // User authentication handled by verifyToken middleware
+    const user_id = req.user.id;
     const {
       post_id,
       title,
@@ -77,7 +72,7 @@ const updateMarketingPost = async (req, res) => {
 
     // Validate required fields
     if (!post_id || typeof post_id !== 'number') {
-      apiLogger.logResponse(req, 'update-marketing-post', 'VALIDATION_ERROR', 'Post ID is required and must be a number');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Post ID is required and must be a number'
@@ -86,7 +81,7 @@ const updateMarketingPost = async (req, res) => {
 
     // Validate title length if provided (max 50 characters)
     if (title !== undefined && (typeof title !== 'string' || title.length > 50)) {
-      apiLogger.logResponse(req, 'update-marketing-post', 'VALIDATION_ERROR', 'Title must be a string of 50 characters or less');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Title must be a string of 50 characters or less'
@@ -95,7 +90,7 @@ const updateMarketingPost = async (req, res) => {
 
     // Validate description length if provided (max 200 characters)
     if (description !== undefined && (typeof description !== 'string' || description.length > 200)) {
-      apiLogger.logResponse(req, 'update-marketing-post', 'VALIDATION_ERROR', 'Description must be a string of 200 characters or less');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Description must be a string of 200 characters or less'
@@ -104,7 +99,7 @@ const updateMarketingPost = async (req, res) => {
 
     // Validate is_active if provided (must be boolean)
     if (is_active !== undefined && typeof is_active !== 'boolean') {
-      apiLogger.logResponse(req, 'update-marketing-post', 'VALIDATION_ERROR', 'Active status must be a boolean value');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Active status must be a boolean value'
@@ -113,7 +108,7 @@ const updateMarketingPost = async (req, res) => {
 
     // Validate display_priority if provided (must be positive integer)
     if (display_priority !== undefined && (!Number.isInteger(display_priority) || display_priority < 1)) {
-      apiLogger.logResponse(req, 'update-marketing-post', 'VALIDATION_ERROR', 'Display priority must be a positive integer');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Display priority must be a positive integer'
@@ -125,7 +120,7 @@ const updateMarketingPost = async (req, res) => {
     const hasUpdateData = updateFields.some(field => field !== undefined);
 
     if (!hasUpdateData) {
-      apiLogger.logResponse(req, 'update-marketing-post', 'VALIDATION_ERROR', 'At least one field must be provided for update');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'At least one field must be provided for update'
@@ -216,7 +211,7 @@ const updateMarketingPost = async (req, res) => {
     });
 
     // Log successful response
-    apiLogger.logResponse(req, 'update-marketing-post', 'SUCCESS', `Updated marketing post ${post_id}`);
+    
 
     // Return success response
     return res.status(200).json({
@@ -229,7 +224,7 @@ const updateMarketingPost = async (req, res) => {
 
     // Handle custom thrown errors with specific return codes
     if (error.return_code) {
-      apiLogger.logResponse(req, 'update-marketing-post', error.return_code, error.message);
+      
       return res.status(200).json({
         return_code: error.return_code,
         message: error.message
@@ -237,12 +232,12 @@ const updateMarketingPost = async (req, res) => {
     }
 
     // Handle unexpected server errors
-    apiLogger.logResponse(req, 'update-marketing-post', 'SERVER_ERROR', 'Internal server error occurred');
+    
     return res.status(200).json({
       return_code: 'SERVER_ERROR',
       message: 'An internal server error occurred'
     });
   }
-};
+});
 
-module.exports = updateMarketingPost;
+module.exports = router;

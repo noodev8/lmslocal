@@ -10,10 +10,12 @@ import {
   Cog6ToothIcon,
   CalendarDaysIcon,
   PlayIcon,
-  UserIcon
+  UserIcon,
+  MegaphoneIcon
 } from '@heroicons/react/24/outline';
 import { Competition as CompetitionType, userApi, roundApi, competitionApi, offlinePlayerApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
+import MarketingDisplay from '@/components/MarketingDisplay';
 
 export default function UnifiedGameDashboard() {
   const router = useRouter();
@@ -609,7 +611,7 @@ export default function UnifiedGameDashboard() {
 
 {/* Action Buttons - Refined design */}
         {isOrganiser ? (
-          <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
+          <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'}`}>
             {/* Play button - only show if organizer is also a participant */}
             {isParticipant && (
               <button
@@ -625,11 +627,15 @@ export default function UnifiedGameDashboard() {
                     }`} />
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-semibold text-gray-900">Make Pick</div>
-                    {competition.needs_pick ? (
+                    <div className="text-sm font-semibold text-gray-900">
+                      {currentRoundInfo?.is_locked ? 'View Picks' : 'Make Pick'}
+                    </div>
+                    {currentRoundInfo?.is_locked ? (
+                      <div className="text-xs text-gray-500">See all the picks</div>
+                    ) : competition.needs_pick ? (
                       <div className="text-xs text-red-600 font-medium">Now!</div>
                     ) : (
-                      <div className="text-xs text-gray-500">View game</div>
+                      <div className="text-xs text-gray-500">Make your picks</div>
                     )}
                   </div>
                 </div>
@@ -695,6 +701,21 @@ export default function UnifiedGameDashboard() {
             </Link>
 
             <Link
+              href={`/game/${competitionId}/marketing`}
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+            >
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <MegaphoneIcon className="h-5 w-5 text-gray-600" />
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-900">Marketing</div>
+                  <div className="text-xs text-gray-500">Manage posts</div>
+                </div>
+              </div>
+            </Link>
+
+            <Link
               href={`/game/${competitionId}/settings`}
               className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
             >
@@ -724,8 +745,12 @@ export default function UnifiedGameDashboard() {
                   }`} />
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Make Pick</div>
-                  {competition.needs_pick ? (
+                  <div className="text-sm font-semibold text-gray-900">
+                    {currentRoundInfo?.is_locked ? 'View Picks' : 'Make Pick'}
+                  </div>
+                  {currentRoundInfo?.is_locked ? (
+                    <div className="text-xs text-gray-500">See all the picks</div>
+                  ) : competition.needs_pick ? (
                     <div className="text-xs text-red-600 font-medium">Round {currentRoundInfo?.round_number || 'Next'}</div>
                   ) : (
                     <div className="text-xs text-gray-500">Make your picks</div>
@@ -750,6 +775,12 @@ export default function UnifiedGameDashboard() {
             </Link>
           </div>
         )}
+
+        {/* Marketing Content - placed at bottom to not interfere with game functionality */}
+        <MarketingDisplay
+          competitionId={parseInt(competitionId)}
+          className="mt-2"
+        />
 
       </main>
 

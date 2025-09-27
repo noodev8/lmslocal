@@ -46,6 +46,7 @@ export default function CompetitionSettings() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    venue_name: '',
     lives_per_player: 0,
     no_team_twice: true,
   });
@@ -79,6 +80,7 @@ export default function CompetitionSettings() {
           setFormData({
             name: competition.name || '',
             description: competition.description || '',
+            venue_name: competition.venue_name || '',
             lives_per_player: competition.lives_per_player || 0,
             no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
           });
@@ -159,6 +161,10 @@ export default function CompetitionSettings() {
         updateData.description = formData.description.trim();
       }
 
+      if (formData.venue_name.trim()) {
+        updateData.venue_name = formData.venue_name.trim();
+      }
+
       // Only include restricted fields if competition hasn't started
       if (!hasStarted) {
         updateData.lives_per_player = formData.lives_per_player;
@@ -193,6 +199,7 @@ export default function CompetitionSettings() {
       setFormData({
         name: competition.name || '',
         description: competition.description || '',
+        venue_name: competition.venue_name || '',
         lives_per_player: competition.lives_per_player || 0,
         no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
       });
@@ -488,6 +495,26 @@ export default function CompetitionSettings() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                 placeholder="Enter competition description (optional)"
               />
+            </div>
+
+            {/* Venue Name */}
+            <div>
+              <label htmlFor="venue_name" className="block text-sm font-medium text-slate-700 mb-2">
+                Venue/Organization Name <span className="text-slate-400">(optional)</span>
+              </label>
+              <input
+                type="text"
+                id="venue_name"
+                name="venue_name"
+                value={formData.venue_name}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                placeholder="e.g., The Red Barn, Crown & Anchor"
+                maxLength={100}
+              />
+              <p className="mt-1 text-sm text-slate-500">
+                This name will appear in marketing messages instead of your personal name
+              </p>
             </div>
           </div>
 
