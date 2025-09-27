@@ -91,6 +91,12 @@ router.post('/', verifyToken, async (req, res) => {
         c.description,                          -- Competition description
         c.logo_url,                            -- Competition logo URL
         c.venue_name,                          -- Venue/organization name
+        c.address_line_1,                      -- Address line 1
+        c.address_line_2,                      -- Address line 2
+        c.city,                                -- City/town
+        c.postcode,                            -- Postcode
+        c.phone,                               -- Contact phone number
+        c.email,                               -- Contact email address
         c.status,                              -- Competition status
         c.lives_per_player,                    -- Lives per player setting
         c.no_team_twice,                       -- Team reuse restriction
@@ -296,6 +302,12 @@ router.post('/', verifyToken, async (req, res) => {
         description: comp.description,
         logo_url: comp.logo_url,
         venue_name: comp.venue_name,
+        address_line_1: comp.address_line_1,
+        address_line_2: comp.address_line_2,
+        city: comp.city,
+        postcode: comp.postcode,
+        phone: comp.phone,
+        email: comp.email,
         status: comp.status,
         lives_per_player: comp.lives_per_player,
         no_team_twice: comp.no_team_twice,
