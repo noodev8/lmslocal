@@ -9,6 +9,7 @@ Request Payload:
 {
   "name": "Premier League LMS 2025",             // string, required - Competition name
   "description": "Our annual football competition", // string, optional - Competition description
+  "venue_name": "The Red Barn",                 // string, optional - Venue/organization name (max 100 chars)
   "team_list_id": 1,                           // integer, required - ID of team list to use
   "lives_per_player": 1,                       // integer, optional - Number of lives per player (default: 1)
   "no_team_twice": true,                       // boolean, optional - Prevent team reuse (default: true)
@@ -54,7 +55,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player } = req.body;
+    const { name, description, venue_name, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player } = req.body;
     const organiser_id = req.user.id;
 
     // Basic validation
@@ -69,6 +70,14 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "Team list ID is required and must be a number"
+      });
+    }
+
+    // Validate venue_name length if provided
+    if (venue_name && venue_name.length > 100) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Venue name must be 100 characters or less"
       });
     }
 
@@ -116,21 +125,23 @@ router.post('/', verifyToken, async (req, res) => {
       // 3. Create the competition with generated invite code
       const competitionResult = await client.query(`
         INSERT INTO competition (
-          name, 
-          description, 
-          team_list_id, 
-          status, 
-          lives_per_player, 
-          no_team_twice, 
+          name,
+          description,
+          venue_name,
+          team_list_id,
+          status,
+          lives_per_player,
+          no_team_twice,
           organiser_id,
           invite_code,
           created_at
         )
-        VALUES ($1, $2, $3, 'SETUP', $4, $5, $6, $7, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, 'SETUP', $5, $6, $7, $8, CURRENT_TIMESTAMP)
         RETURNING *
       `, [
         name.trim(),
         description ? description.trim() : null,
+        venue_name ? venue_name.trim() : null,
         team_list_id,
         lives_per_player || 1,
         no_team_twice !== false, // Default to true

@@ -10,6 +10,7 @@ Request Payload:
   "competition_id": 123,                    // integer, required - ID of competition to update
   "name": "Updated Competition Name",       // string, optional - New competition name (can be updated anytime)
   "description": "New description",         // string, optional - New competition description (can be updated anytime)
+  "venue_name": "The Red Barn",             // string, optional - Venue/organization name (max 100 chars, can be updated anytime)
   "lives_per_player": 3,                   // integer, optional - New lives per player (only if not started)
   "no_team_twice": false                   // boolean, optional - Allow team reuse setting (only if not started)
 }
@@ -57,7 +58,7 @@ router.post('/', verifyToken, async (req, res) => {
   
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id, name, description, lives_per_player, no_team_twice } = req.body;
+    const { competition_id, name, description, venue_name, lives_per_player, no_team_twice } = req.body;
     const user_id = req.user.id;
 
     // === INPUT VALIDATION ===
@@ -70,7 +71,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Validate at least one field is being updated
-    if (name === undefined && description === undefined && lives_per_player === undefined && no_team_twice === undefined) {
+    if (name === undefined && description === undefined && venue_name === undefined && lives_per_player === undefined && no_team_twice === undefined) {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "At least one field must be provided for update"
@@ -109,6 +110,14 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Validate venue_name if provided (can be updated anytime)
+    if (venue_name !== undefined && venue_name !== null && venue_name.length > 100) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Venue name must be 100 characters or less"
+      });
+    }
+
     // Validate lives_per_player if provided (only if not started)
     if (lives_per_player !== undefined) {
       if (!Number.isInteger(lives_per_player) || lives_per_player < 1 || lives_per_player > 10) {
@@ -133,9 +142,9 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 1. Get current competition details with row lock to prevent concurrent modifications
       const competitionResult = await client.query(`
-        SELECT id, name, description, lives_per_player, no_team_twice, 
+        SELECT id, name, description, venue_name, lives_per_player, no_team_twice,
                organiser_id, invite_code, created_at
-        FROM competition 
+        FROM competition
         WHERE id = $1
         FOR UPDATE
       `, [competition_id]);
@@ -163,20 +172,22 @@ router.post('/', verifyToken, async (req, res) => {
       const updateData = {
         name: name !== undefined ? name.trim() : currentCompetition.name,
         description: description !== undefined ? (description || null) : currentCompetition.description,
+        venue_name: venue_name !== undefined ? (venue_name ? venue_name.trim() : null) : currentCompetition.venue_name,
         lives_per_player: lives_per_player !== undefined ? lives_per_player : currentCompetition.lives_per_player,
         no_team_twice: no_team_twice !== undefined ? no_team_twice : currentCompetition.no_team_twice
       };
 
       // 6. Update the competition record with new values
       const updatedCompetitionResult = await client.query(`
-        UPDATE competition 
-        SET name = $1, description = $2, lives_per_player = $3, no_team_twice = $4
-        WHERE id = $5
-        RETURNING id, name, description, lives_per_player, no_team_twice, 
+        UPDATE competition
+        SET name = $1, description = $2, venue_name = $3, lives_per_player = $4, no_team_twice = $5
+        WHERE id = $6
+        RETURNING id, name, description, venue_name, lives_per_player, no_team_twice,
                   invite_code, created_at, organiser_id
       `, [
         updateData.name,
         updateData.description,
+        updateData.venue_name,
         updateData.lives_per_player,
         updateData.no_team_twice,
         competition_id
@@ -203,6 +214,9 @@ router.post('/', verifyToken, async (req, res) => {
       }
       if (description !== undefined && description !== currentCompetition.description) {
         auditDetails.push(`description updated`);
+      }
+      if (venue_name !== undefined && venue_name !== currentCompetition.venue_name) {
+        auditDetails.push(`venue name updated`);
       }
       if (lives_per_player !== undefined && lives_per_player !== currentCompetition.lives_per_player) {
         auditDetails.push(`lives per player changed from ${currentCompetition.lives_per_player} to ${lives_per_player}`);

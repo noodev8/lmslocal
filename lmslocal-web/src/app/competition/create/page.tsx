@@ -25,6 +25,7 @@ interface TeamList {
 interface CreateCompetitionForm {
   name: string;
   description?: string;
+  venue_name?: string;
   team_list_id: number;
   lives_per_player: number;
   no_team_twice: boolean;
@@ -227,6 +228,29 @@ export default function CreateCompetitionPage() {
                     className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
                     placeholder="Tell your players what this competition is about..."
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="venue_name" className="block text-sm font-medium text-slate-700 mb-2">
+                    Venue/Organization Name <span className="text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    {...register('venue_name', {
+                      maxLength: {
+                        value: 100,
+                        message: 'Venue name must be 100 characters or less'
+                      }
+                    })}
+                    type="text"
+                    className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
+                    placeholder="e.g., The Red Barn, Crown & Anchor"
+                  />
+                  {errors.venue_name && (
+                    <p className="mt-1 text-sm text-red-600">{errors.venue_name.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-500">
+                    This will be shown to players in marketing messages. If not provided, your display name will be used.
+                  </p>
                 </div>
 
                 <div>

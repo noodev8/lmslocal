@@ -47,26 +47,21 @@ Return Codes:
 =======================================================================================================================================
 */
 
+const express = require('express');
 const { query, transaction } = require('../database');
-const { verifyToken } = require('../middleware/auth_middleware');
-const apiLogger = require('../utils/apiLogger');
+const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 
-const createMarketingPost = async (req, res) => {
+const router = express.Router();
+
+// POST endpoint with JWT authentication middleware
+router.post('/', verifyToken, async (req, res) => {
   // Start API logging
-  apiLogger.logRequest(req, 'create-marketing-post');
+  logApiCall('create-marketing-post');
 
   try {
-    // Extract and validate JWT token
-    const authResult = verifyToken(req);
-    if (!authResult.success) {
-      apiLogger.logResponse(req, 'create-marketing-post', 'UNAUTHORIZED', authResult.message);
-      return res.status(200).json({
-        return_code: 'UNAUTHORIZED',
-        message: authResult.message
-      });
-    }
-
-    const { user_id } = authResult.decoded;
+    // User authentication handled by verifyToken middleware
+    const user_id = req.user.id;
     const {
       competition_id,
       title,
@@ -77,7 +72,7 @@ const createMarketingPost = async (req, res) => {
 
     // Validate required fields
     if (!competition_id || typeof competition_id !== 'number') {
-      apiLogger.logResponse(req, 'create-marketing-post', 'VALIDATION_ERROR', 'Competition ID is required and must be a number');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Competition ID is required and must be a number'
@@ -85,7 +80,7 @@ const createMarketingPost = async (req, res) => {
     }
 
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      apiLogger.logResponse(req, 'create-marketing-post', 'VALIDATION_ERROR', 'Title is required');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Title is required'
@@ -94,7 +89,7 @@ const createMarketingPost = async (req, res) => {
 
     // Validate title length (max 50 characters)
     if (title.length > 50) {
-      apiLogger.logResponse(req, 'create-marketing-post', 'VALIDATION_ERROR', 'Title must be 50 characters or less');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Title must be 50 characters or less'
@@ -103,7 +98,7 @@ const createMarketingPost = async (req, res) => {
 
     // Validate description length if provided (max 200 characters)
     if (description && description.length > 200) {
-      apiLogger.logResponse(req, 'create-marketing-post', 'VALIDATION_ERROR', 'Description must be 200 characters or less');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Description must be 200 characters or less'
@@ -112,7 +107,7 @@ const createMarketingPost = async (req, res) => {
 
     // Validate display_priority is a positive integer
     if (display_priority && (!Number.isInteger(display_priority) || display_priority < 1)) {
-      apiLogger.logResponse(req, 'create-marketing-post', 'VALIDATION_ERROR', 'Display priority must be a positive integer');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Display priority must be a positive integer'
@@ -189,7 +184,7 @@ const createMarketingPost = async (req, res) => {
     });
 
     // Log successful response
-    apiLogger.logResponse(req, 'create-marketing-post', 'SUCCESS', `Created marketing post ${result.post_id} for competition ${competition_id}`);
+    
 
     // Return success response
     return res.status(200).json({
@@ -203,7 +198,7 @@ const createMarketingPost = async (req, res) => {
 
     // Handle custom thrown errors with specific return codes
     if (error.return_code) {
-      apiLogger.logResponse(req, 'create-marketing-post', error.return_code, error.message);
+      
       return res.status(200).json({
         return_code: error.return_code,
         message: error.message
@@ -211,12 +206,12 @@ const createMarketingPost = async (req, res) => {
     }
 
     // Handle unexpected server errors
-    apiLogger.logResponse(req, 'create-marketing-post', 'SERVER_ERROR', 'Internal server error occurred');
+    
     return res.status(200).json({
       return_code: 'SERVER_ERROR',
       message: 'An internal server error occurred'
     });
   }
-};
+});
 
-module.exports = createMarketingPost;
+module.exports = router;

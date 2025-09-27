@@ -52,19 +52,23 @@ Return Codes:
 =======================================================================================================================================
 */
 
+const express = require('express');
 const { query, transaction } = require('../database');
-const apiLogger = require('../utils/apiLogger');
+const { logApiCall } = require('../utils/apiLogger');
 
-const getCompetitionMarketingDisplay = async (req, res) => {
+const router = express.Router();
+
+// POST endpoint for displaying marketing content to players (no authentication required)
+router.post('/', async (req, res) => {
   // Start API logging
-  apiLogger.logRequest(req, 'get-competition-marketing-display');
+  logApiCall('get-competition-marketing-display');
 
   try {
     const { competition_id } = req.body;
 
     // Validate required fields
     if (!competition_id || typeof competition_id !== 'number') {
-      apiLogger.logResponse(req, 'get-competition-marketing-display', 'VALIDATION_ERROR', 'Competition ID is required and must be a number');
+      
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         message: 'Competition ID is required and must be a number'
@@ -74,9 +78,13 @@ const getCompetitionMarketingDisplay = async (req, res) => {
     // Use transaction wrapper for atomic operations
     const result = await transaction(async (client) => {
 
-      // First, verify the competition exists and get organizer info
+      // First, verify the competition exists and get venue/organizer info
       const competitionQuery = await client.query(`
-        SELECT c.id, c.name as competition_name, u.display_name as organizer_name
+        SELECT
+          c.id,
+          c.name as competition_name,
+          c.venue_name,
+          u.display_name as organizer_name
         FROM competition c
         JOIN app_user u ON c.organiser_id = u.id
         WHERE c.id = $1
@@ -100,7 +108,9 @@ const getCompetitionMarketingDisplay = async (req, res) => {
           title,
           description,
           image_url,
-          display_priority
+          display_priority,
+          created_at,
+          updated_at
         FROM marketing_posts
         WHERE competition_id = $1
           AND is_active = true
@@ -126,14 +136,14 @@ const getCompetitionMarketingDisplay = async (req, res) => {
 
       return {
         has_marketing_content,
-        venue_name: competition.organizer_name, // Use organizer display name as venue name
+        venue_name: competition.venue_name || competition.organizer_name, // Use venue_name or fall back to organizer display name
         posts
       };
     });
 
     // Log successful response
     const postCount = result.posts.length;
-    apiLogger.logResponse(req, 'get-competition-marketing-display', 'SUCCESS', `Retrieved ${postCount} active marketing posts for competition ${competition_id}`);
+    
 
     // Return success response
     return res.status(200).json({
@@ -148,7 +158,7 @@ const getCompetitionMarketingDisplay = async (req, res) => {
 
     // Handle custom thrown errors with specific return codes
     if (error.return_code) {
-      apiLogger.logResponse(req, 'get-competition-marketing-display', error.return_code, error.message);
+      
       return res.status(200).json({
         return_code: error.return_code,
         message: error.message
@@ -156,12 +166,12 @@ const getCompetitionMarketingDisplay = async (req, res) => {
     }
 
     // Handle unexpected server errors
-    apiLogger.logResponse(req, 'get-competition-marketing-display', 'SERVER_ERROR', 'Internal server error occurred');
+    
     return res.status(200).json({
       return_code: 'SERVER_ERROR',
       message: 'An internal server error occurred'
     });
   }
-};
+});
 
-module.exports = getCompetitionMarketingDisplay;
+module.exports = router;
