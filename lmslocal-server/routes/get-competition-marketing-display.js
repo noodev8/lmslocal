@@ -15,6 +15,7 @@ Success Response:
   "return_code": "SUCCESS",
   "has_marketing_content": true,           // boolean, indicates if any posts exist
   "venue_name": "The Crown & Anchor",      // string, venue/organizer name for display
+  "logo_url": "https://res.cloudinary.com/...", // string, optional competition logo URL
   "posts": [
     {
       "id": 1,                             // integer, post ID
@@ -84,6 +85,7 @@ router.post('/', async (req, res) => {
           c.id,
           c.name as competition_name,
           c.venue_name,
+          c.logo_url,
           u.display_name as organizer_name
         FROM competition c
         JOIN app_user u ON c.organiser_id = u.id
@@ -137,6 +139,7 @@ router.post('/', async (req, res) => {
       return {
         has_marketing_content,
         venue_name: competition.venue_name || competition.organizer_name, // Use venue_name or fall back to organizer display name
+        logo_url: competition.logo_url,
         posts
       };
     });
@@ -150,6 +153,7 @@ router.post('/', async (req, res) => {
       return_code: 'SUCCESS',
       has_marketing_content: result.has_marketing_content,
       venue_name: result.venue_name,
+      logo_url: result.logo_url,
       posts: result.posts
     });
 

@@ -282,9 +282,8 @@ export default function CompetitionStandingsPage() {
               </Link>
               <div className="h-6 w-px bg-slate-500" />
               <div>
-                <h1 className="text-lg font-bold text-white flex items-center space-x-2">
-                  <TrophyIcon className="h-5 w-5 text-yellow-400" />
-                  <span>Final Standings</span>
+                <h1 className="text-lg font-bold text-white">
+                  Standings
                 </h1>
               </div>
             </div>

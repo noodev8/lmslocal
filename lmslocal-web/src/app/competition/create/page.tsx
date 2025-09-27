@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { competitionApi, teamApi, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
+import CloudinaryUpload from '@/components/CloudinaryUpload';
 
 interface TeamList {
   id: number;
@@ -25,6 +26,7 @@ interface TeamList {
 interface CreateCompetitionForm {
   name: string;
   description?: string;
+  logo_url?: string;
   venue_name?: string;
   team_list_id: number;
   lives_per_player: number;
@@ -44,6 +46,7 @@ export default function CreateCompetitionPage() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors }
   } = useForm<CreateCompetitionForm>({
     defaultValues: {
@@ -227,6 +230,18 @@ export default function CreateCompetitionPage() {
                     rows={3}
                     className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
                     placeholder="Tell your players what this competition is about..."
+                  />
+                </div>
+
+                {/* Logo Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Competition Logo <span className="text-slate-400">(optional)</span>
+                  </label>
+                  <CloudinaryUpload
+                    value={watch('logo_url') || ''}
+                    onChange={(url) => setValue('logo_url', url)}
+                    className="mt-1"
                   />
                 </div>
 

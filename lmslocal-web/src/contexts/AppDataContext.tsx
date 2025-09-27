@@ -87,6 +87,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       
       // Handle competitions response
       if (competitionsData.data.return_code === 'SUCCESS') {
+
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
         setLatestRoundStats(competitionsData.data.latest_round_stats || null);
       } else if (competitionsData.data.return_code === 'UNAUTHORIZED' ||

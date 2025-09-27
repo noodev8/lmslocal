@@ -337,7 +337,7 @@ export default function ResultsPage() {
           </div>
         </header>
         
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
             <div className="flex items-center justify-center">
               <div className="text-center">
@@ -358,7 +358,7 @@ export default function ResultsPage() {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
@@ -376,7 +376,7 @@ export default function ResultsPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Competition Name */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">{competition?.name}</h1>
@@ -427,71 +427,82 @@ export default function ResultsPage() {
 
           <div className="p-6">
             {fixtures.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-8">
                 {fixtures.map((fixture, index) => (
-                  <div key={`${fixture.id}-${index}`} className="border border-slate-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="font-semibold text-slate-900">{fixture.home_team}</div>
-                        <div className="text-slate-400 font-medium">vs</div>
-                        <div className="font-semibold text-slate-900">{fixture.away_team}</div>
-                      </div>
+                  <div key={`${fixture.id}-${index}`}>
+                    {/* Elegant Horizontal Team Selection */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Home Team */}
+                      <button
+                        onClick={() => !isFixtureProcessed(fixture) && handleSetResult(fixture.id,
+                          fixture.result === fixture.home_team_short ? 'clear' : 'home_win'
+                        )}
+                        disabled={isFixtureProcessed(fixture)}
+                        className={`py-2 px-3 rounded font-medium transition-all text-center relative text-sm ${
+                          isFixtureProcessed(fixture)
+                            ? (fixture.result === fixture.home_team_short
+                                ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed')
+                            : (fixture.result === fixture.home_team_short
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                : 'bg-white text-slate-900 hover:bg-slate-50 border-2 border-slate-300 hover:border-slate-400 shadow-sm hover:shadow-md')
+                        }`}
+                      >
+                        {(fixture.result === fixture.home_team_short) && (
+                          <span className="absolute left-1 top-1/2 transform -translate-y-1/2 text-green-600 text-xs">✓</span>
+                        )}
+                        <span className={fixture.result === fixture.home_team_short ? 'ml-3' : ''}>
+                          {fixture.home_team}
+                        </span>
+                      </button>
 
-                      <div className="flex items-center space-x-2">
-                        <>
-                          <button
-                            onClick={() => !isFixtureProcessed(fixture) && handleSetResult(fixture.id, 
-                              fixture.result === fixture.home_team_short ? 'clear' : 'home_win'
-                            )}
-                            disabled={isFixtureProcessed(fixture)}
-                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                              isFixtureProcessed(fixture)
-                                ? (fixture.result === fixture.home_team_short
-                                    ? 'bg-slate-500 text-white cursor-not-allowed'
-                                    : 'bg-slate-200 text-slate-500 cursor-not-allowed')
-                                : (fixture.result === fixture.home_team_short
-                                    ? 'bg-green-600 text-white hover:bg-green-700'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200')
-                            }`}
-                          >
-                            {fixture.home_team_short} Win
-                          </button>
-                          <button
-                            onClick={() => !isFixtureProcessed(fixture) && handleSetResult(fixture.id, 
-                              fixture.result === 'DRAW' ? 'clear' : 'draw'
-                            )}
-                            disabled={isFixtureProcessed(fixture)}
-                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                              isFixtureProcessed(fixture)
-                                ? (fixture.result === 'DRAW'
-                                    ? 'bg-slate-500 text-white cursor-not-allowed'
-                                    : 'bg-slate-200 text-slate-500 cursor-not-allowed')
-                                : (fixture.result === 'DRAW'
-                                    ? 'bg-green-600 text-white hover:bg-green-700'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200')
-                            }`}
-                          >
-                            Draw
-                          </button>
-                          <button
-                            onClick={() => !isFixtureProcessed(fixture) && handleSetResult(fixture.id, 
-                              fixture.result === fixture.away_team_short ? 'clear' : 'away_win'
-                            )}
-                            disabled={isFixtureProcessed(fixture)}
-                            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                              isFixtureProcessed(fixture)
-                                ? (fixture.result === fixture.away_team_short
-                                    ? 'bg-slate-500 text-white cursor-not-allowed'
-                                    : 'bg-slate-200 text-slate-500 cursor-not-allowed')
-                                : (fixture.result === fixture.away_team_short
-                                    ? 'bg-green-600 text-white hover:bg-green-700'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200')
-                            }`}
-                          >
-                            {fixture.away_team_short} Win
-                          </button>
-                        </>
-                      </div>
+                      {/* Away Team */}
+                      <button
+                        onClick={() => !isFixtureProcessed(fixture) && handleSetResult(fixture.id,
+                          fixture.result === fixture.away_team_short ? 'clear' : 'away_win'
+                        )}
+                        disabled={isFixtureProcessed(fixture)}
+                        className={`py-2 px-3 rounded font-medium transition-all text-center relative text-sm ${
+                          isFixtureProcessed(fixture)
+                            ? (fixture.result === fixture.away_team_short
+                                ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed')
+                            : (fixture.result === fixture.away_team_short
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                : 'bg-white text-slate-900 hover:bg-slate-50 border-2 border-slate-300 hover:border-slate-400 shadow-sm hover:shadow-md')
+                        }`}
+                      >
+                        {(fixture.result === fixture.away_team_short) && (
+                          <span className="absolute left-1 top-1/2 transform -translate-y-1/2 text-green-600 text-xs">✓</span>
+                        )}
+                        <span className={fixture.result === fixture.away_team_short ? 'ml-3' : ''}>
+                          {fixture.away_team}
+                        </span>
+                      </button>
+
+                      {/* Draw Option */}
+                      <button
+                        onClick={() => !isFixtureProcessed(fixture) && handleSetResult(fixture.id,
+                          fixture.result === 'DRAW' ? 'clear' : 'draw'
+                        )}
+                        disabled={isFixtureProcessed(fixture)}
+                        className={`py-2 px-3 rounded font-medium transition-all text-center relative text-sm ${
+                          isFixtureProcessed(fixture)
+                            ? (fixture.result === 'DRAW'
+                                ? 'bg-amber-100 text-amber-800 cursor-not-allowed'
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed')
+                            : (fixture.result === 'DRAW'
+                                ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                                : 'bg-white text-slate-900 hover:bg-slate-50 border-2 border-slate-300 hover:border-slate-400 shadow-sm hover:shadow-md')
+                        }`}
+                      >
+                        {(fixture.result === 'DRAW') && (
+                          <span className="absolute left-1 top-1/2 transform -translate-y-1/2 text-amber-600 text-xs">✓</span>
+                        )}
+                        <span className={fixture.result === 'DRAW' ? 'ml-3' : ''}>
+                          Draw
+                        </span>
+                      </button>
                     </div>
                   </div>
                 ))}
