@@ -387,9 +387,45 @@ export default function UnifiedGameDashboard() {
                   {competition.name}
                 </h2>
                 {competition.venue_name && (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 mb-1">
                     {competition.venue_name}
                   </p>
+                )}
+
+                {/* Compact Address Display */}
+                {(competition.address_line_1 || competition.city || competition.postcode) && (
+                  <p className="text-xs text-gray-500 mb-1">
+                    {[
+                      competition.address_line_1,
+                      competition.address_line_2,
+                      competition.city,
+                      competition.postcode
+                    ].filter(Boolean).join(', ')}
+                  </p>
+                )}
+
+                {/* Contact Links */}
+                {(competition.phone || competition.email) && (
+                  <div className="flex items-center justify-center gap-3 text-xs">
+                    {competition.phone && (
+                      <a
+                        href={`tel:${competition.phone}`}
+                        className="text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
+                      >
+                        <span>📞</span>
+                        <span>{competition.phone}</span>
+                      </a>
+                    )}
+                    {competition.email && (
+                      <a
+                        href={`mailto:${competition.email}`}
+                        className="text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
+                      >
+                        <span>✉️</span>
+                        <span>{competition.email}</span>
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
