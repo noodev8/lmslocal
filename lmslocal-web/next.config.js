@@ -19,6 +19,16 @@ const nextConfig = {
     pagesBufferLength: 2,
   },
   pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 module.exports = withMDX(nextConfig);
