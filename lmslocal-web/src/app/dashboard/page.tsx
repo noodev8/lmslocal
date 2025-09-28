@@ -373,6 +373,14 @@ export default function DashboardPage() {
                       <CreditCardIcon className="h-4 w-4 mr-3" />
                       Pricing
                     </Link>
+                    <Link
+                      href="/billing"
+                      className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      <ChartBarIcon className="h-4 w-4 mr-3" />
+                      Billing
+                    </Link>
                     <button
                       onClick={() => {
                         setShowProfileMenu(false);

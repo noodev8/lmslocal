@@ -53,6 +53,9 @@ const calculateResultsRoute = require('./routes/calculate-results');
 // const registerAndJoinCompetitionRoute = require('./routes/register-and-join-competition'); // DISABLED - using single login
 // const joinByCodeRoute = require('./routes/join-by-code'); // DISABLED - using single login
 const getUserDashboardRoute = require('./routes/get-user-dashboard');
+const getUserSubscriptionRoute = require('./routes/get-user-subscription');
+const createCheckoutSessionRoute = require('./routes/create-checkout-session');
+const stripeWebhookRoute = require('./routes/stripe-webhook');
 const checkUserTypeRoute = require('./routes/check-user-type');
 const getAllowedTeamsRoute = require('./routes/get-allowed-teams');
 const unselectPickRoute = require('./routes/unselect-pick');
@@ -159,6 +162,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma']
 }));
 
+// Special webhook route with raw body parsing (MUST be before express.json())
+// Stripe webhooks need raw body for signature verification
+app.use('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res, next) => {
+  // Store raw body for webhook signature verification
+  req.rawBody = req.body;
+  next();
+}, stripeWebhookRoute);
+
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -204,6 +215,8 @@ app.use('/calculate-results', calculateResultsRoute);
 // app.use('/register-and-join-competition', registerAndJoinCompetitionRoute); // DISABLED - using single login
 // app.use('/join-by-code', joinByCodeRoute); // DISABLED - using single login
 app.use('/get-user-dashboard', getUserDashboardRoute);
+app.use('/get-user-subscription', getUserSubscriptionRoute);
+app.use('/create-checkout-session', createCheckoutSessionRoute);
 app.use('/check-user-type', checkUserTypeRoute);
 app.use('/get-allowed-teams', getAllowedTeamsRoute);
 app.use('/unselect-pick', unselectPickRoute);

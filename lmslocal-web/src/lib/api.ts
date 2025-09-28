@@ -80,6 +80,21 @@ export interface User {
   is_managed?: boolean;
 }
 
+// Subscription interfaces
+export interface UserSubscription {
+  plan: 'lite' | 'starter' | 'pro';
+  expiry: string | null;
+  player_count: number;
+  player_limit: number;
+  usage_percentage: number;
+}
+
+export interface PlanLimits {
+  lite: number;
+  starter: number;
+  pro: number;
+}
+
 // Competition interfaces
 export interface Competition {
   id: number;
@@ -617,6 +632,26 @@ export const userApi = {
     () => api.post<{ return_code: string; message?: string; competition?: Competition; players?: Player[] }>('/get-competition-standings', { competition_id, show_full_user_history })
   ),
   joinCompetitionByCode: (competition_code: string) => api.post<{ return_code: string; message?: string; competition?: { id: number; name: string } }>('/join-competition-by-code', { competition_code }),
+  getUserSubscription: () => {
+    const userId = getUserId();
+    return withCache(
+      `user-subscription-${userId}`, // User-specific cache key
+      1 * 60 * 60 * 1000, // 1 hour cache - subscription data changes infrequently
+      () => api.post<{
+        return_code: string;
+        message?: string;
+        subscription?: UserSubscription;
+        plan_limits?: PlanLimits;
+      }>('/get-user-subscription', {})
+    );
+  },
+  createCheckoutSession: (plan: 'starter' | 'pro', billing_cycle: 'monthly' | 'yearly') =>
+    api.post<{
+      return_code: string;
+      message?: string;
+      checkout_url?: string;
+      session_id?: string;
+    }>('/create-checkout-session', { plan, billing_cycle }),
 };
 
 // Marketing API calls

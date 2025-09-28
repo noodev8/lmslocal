@@ -1,0 +1,5 @@
+For testing, use these Stripe test cards:
+  - Success: 4242 4242 4242 4242
+  - Decline: 4000 0000 0000 0002
+  - Any future expiry date (e.g., 12/28)
+  - Any 3-digit CVC (e.g., 123)
