@@ -381,7 +381,7 @@ export default function PricingPage() {
               Turn Your Passion Into Purpose
             </h2>
             <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-              Create sustainable revenue streams while supporting good causes. LMSLocal isn't just a platform - it's a business opportunity.
+              Create sustainable revenue streams while supporting good causes. LMSLocal isn&apos;t just a platform - it&apos;s a business opportunity.
             </p>
           </div>
 
@@ -498,12 +498,12 @@ export default function PricingPage() {
 
             <div className="bg-white rounded-lg p-6 border border-slate-200">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">Can I try before I pay?</h3>
-              <p className="text-slate-600">Yes! Start with our Lite plan to test all features with up to 10 players. When you're ready to scale, upgrade to a paid plan for more players.</p>
+              <p className="text-slate-600">Yes! Start with our Lite plan to test all features with up to 10 players. When you&apos;re ready to scale, upgrade to a paid plan for more players.</p>
             </div>
 
             <div className="bg-white rounded-lg p-6 border border-slate-200">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">What&apos;s included in the marketing toolkit?</h3>
-              <p className="text-slate-600">We currently offer custom branding and logos. We're planning to add QR codes for easy joining, social media sharing templates, and email invitation tools.</p>
+              <p className="text-slate-600">We currently offer custom branding and logos. We&apos;re planning to add QR codes for easy joining, social media sharing templates, and email invitation tools.</p>
             </div>
 
 
