@@ -95,6 +95,15 @@ export interface PlanLimits {
   pro: number;
 }
 
+export interface BillingHistoryItem {
+  id: number;
+  plan_name: string;
+  paid_amount: number;
+  payment_date: string;
+  stripe_session_id: string;
+  billing_cycle: string;
+}
+
 // Competition interfaces
 export interface Competition {
   id: number;
@@ -645,6 +654,18 @@ export const userApi = {
       }>('/get-user-subscription', {})
     );
   },
+  getBillingHistory: () => {
+    const userId = getUserId();
+    return withCache(
+      `billing-history-${userId}`, // User-specific cache key
+      1 * 60 * 60 * 1000, // 1 hour cache - invalidated after payments
+      () => api.post<{
+        return_code: string;
+        message?: string;
+        billing_history?: BillingHistoryItem[];
+      }>('/get-billing-history', {})
+    );
+  },
   createCheckoutSession: (plan: 'starter' | 'pro', billing_cycle: 'monthly' | 'yearly') =>
     api.post<{
       return_code: string;
@@ -694,6 +715,13 @@ export const cacheUtils = {
   invalidateCompetitions: () => {
     const userId = getUserId();
     apiCache.delete(`user-dashboard-${userId}`);
+  },
+
+  // Clear billing-related cache after payments
+  invalidateBilling: () => {
+    const userId = getUserId();
+    apiCache.delete(`user-subscription-${userId}`);
+    apiCache.delete(`billing-history-${userId}`);
   },
   
   // Clear specific cache key

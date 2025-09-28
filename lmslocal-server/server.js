@@ -54,6 +54,7 @@ const calculateResultsRoute = require('./routes/calculate-results');
 // const joinByCodeRoute = require('./routes/join-by-code'); // DISABLED - using single login
 const getUserDashboardRoute = require('./routes/get-user-dashboard');
 const getUserSubscriptionRoute = require('./routes/get-user-subscription');
+const getBillingHistoryRoute = require('./routes/get-billing-history');
 const createCheckoutSessionRoute = require('./routes/create-checkout-session');
 const stripeWebhookRoute = require('./routes/stripe-webhook');
 const checkUserTypeRoute = require('./routes/check-user-type');
@@ -216,6 +217,7 @@ app.use('/calculate-results', calculateResultsRoute);
 // app.use('/join-by-code', joinByCodeRoute); // DISABLED - using single login
 app.use('/get-user-dashboard', getUserDashboardRoute);
 app.use('/get-user-subscription', getUserSubscriptionRoute);
+app.use('/get-billing-history', getBillingHistoryRoute);
 app.use('/create-checkout-session', createCheckoutSessionRoute);
 app.use('/check-user-type', checkUserTypeRoute);
 app.use('/get-allowed-teams', getAllowedTeamsRoute);

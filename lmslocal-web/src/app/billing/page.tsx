@@ -1,38 +1,64 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { userApi, UserSubscription, PlanLimits } from '@/lib/api';
+import { userApi, cacheUtils, UserSubscription, PlanLimits, BillingHistoryItem } from '@/lib/api';
 
 export default function BillingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
+  const [billingHistory, setBillingHistory] = useState<BillingHistoryItem[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<'lite' | 'starter' | 'pro'>('lite');
   const [isYearly, setIsYearly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check if user returned from successful payment
+    const sessionId = searchParams.get('session_id');
+    const success = searchParams.get('success');
+
+    if (sessionId && success === 'true') {
+      // Payment was successful - invalidate cache to show fresh data
+      cacheUtils.invalidateBilling();
+
+      // Clean up URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+
     const fetchSubscriptionData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await userApi.getUserSubscription();
+        // Fetch both subscription data and billing history in parallel
+        const [subscriptionResponse, billingResponse] = await Promise.all([
+          userApi.getUserSubscription(),
+          userApi.getBillingHistory()
+        ]);
 
-        if (response.data.return_code === 'SUCCESS') {
-          if (response.data.subscription && response.data.plan_limits) {
-            setSubscription(response.data.subscription);
-            setPlanLimits(response.data.plan_limits);
-            setSelectedPlan(response.data.subscription.plan);
+        if (subscriptionResponse.data.return_code === 'SUCCESS') {
+          if (subscriptionResponse.data.subscription && subscriptionResponse.data.plan_limits) {
+            setSubscription(subscriptionResponse.data.subscription);
+            setPlanLimits(subscriptionResponse.data.plan_limits);
+            setSelectedPlan(subscriptionResponse.data.subscription.plan);
           } else {
             setError('No subscription data received');
           }
         } else {
-          setError(response.data.message || 'Failed to load subscription data');
+          setError(subscriptionResponse.data.message || 'Failed to load subscription data');
         }
+
+        // Handle billing history response
+        if (billingResponse.data.return_code === 'SUCCESS' && billingResponse.data.billing_history) {
+          setBillingHistory(billingResponse.data.billing_history);
+        }
+        // Note: We don't show error for billing history failure, just keep empty array
+
       } catch (err) {
         console.error('Error fetching subscription data:', err);
         setError('Failed to load subscription data. Please try again.');
@@ -287,10 +313,63 @@ export default function BillingPage() {
         {/* Billing History */}
         <div className="mt-8 bg-white rounded-lg shadow-sm border border-slate-200 p-6">
           <h2 className="text-xl font-semibold text-slate-900 mb-4">Billing History</h2>
-          <div className="text-center py-8 text-slate-500">
-            <p>No billing history available</p>
-            <p className="text-sm mt-1">Subscription payments will appear here</p>
-          </div>
+
+          {billingHistory.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              <p>No billing history available</p>
+              <p className="text-sm mt-1">Subscription payments will appear here</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-3 px-4 font-medium text-slate-700">Date</th>
+                    <th className="text-left py-3 px-4 font-medium text-slate-700">Plan</th>
+                    <th className="text-left py-3 px-4 font-medium text-slate-700">Billing Cycle</th>
+                    <th className="text-right py-3 px-4 font-medium text-slate-700">Amount</th>
+                    <th className="text-left py-3 px-4 font-medium text-slate-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billingHistory.map((payment) => (
+                    <tr key={payment.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-3 px-4 text-slate-900">
+                        {new Date(payment.payment_date).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center">
+                          <span className="mr-2">
+                            {payment.plan_name === 'starter' && '🚀'}
+                            {payment.plan_name === 'pro' && '🏢'}
+                            {payment.plan_name === 'lite' && '🎯'}
+                          </span>
+                          <span className="font-medium text-slate-900 capitalize">
+                            {payment.plan_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 capitalize">
+                        {payment.billing_cycle}
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-slate-900">
+                        £{payment.paid_amount.toFixed(2)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                          ✓ Paid
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
