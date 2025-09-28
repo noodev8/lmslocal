@@ -5,7 +5,7 @@
 -- Dumped from database version 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 17.4
 
--- Started on 2025-09-27 18:56:15
+-- Started on 2025-09-27 23:11:27
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -298,11 +298,21 @@ CREATE TABLE public.competition_user (
     joined_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     paid boolean DEFAULT false,
     paid_date timestamp with time zone,
-    hidden boolean
+    hidden boolean,
+    personal_name character varying(100)
 );
 
 
 ALTER TABLE public.competition_user OWNER TO lmslocal_prod_user;
+
+--
+-- TOC entry 3575 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: COLUMN competition_user.personal_name; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.competition_user.personal_name IS 'User''s personal nickname for this competition (optional)';
+
 
 --
 -- TOC entry 223 (class 1259 OID 20736)
@@ -321,7 +331,7 @@ CREATE SEQUENCE public.competition_user_id_seq
 ALTER SEQUENCE public.competition_user_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3575 (class 0 OID 0)
+-- TOC entry 3576 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: competition_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -367,7 +377,7 @@ CREATE SEQUENCE public.fixture_id_seq
 ALTER SEQUENCE public.fixture_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3576 (class 0 OID 0)
+-- TOC entry 3577 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: fixture_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -414,7 +424,7 @@ CREATE SEQUENCE public.marketing_posts_id_seq
 ALTER SEQUENCE public.marketing_posts_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3577 (class 0 OID 0)
+-- TOC entry 3578 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: marketing_posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -458,7 +468,7 @@ CREATE SEQUENCE public.pick_id_seq
 ALTER SEQUENCE public.pick_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3578 (class 0 OID 0)
+-- TOC entry 3579 (class 0 OID 0)
 -- Dependencies: 229
 -- Name: pick_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -502,7 +512,7 @@ CREATE SEQUENCE public.player_progress_id_seq
 ALTER SEQUENCE public.player_progress_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3579 (class 0 OID 0)
+-- TOC entry 3580 (class 0 OID 0)
 -- Dependencies: 233
 -- Name: player_progress_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -543,7 +553,7 @@ CREATE SEQUENCE public.round_id_seq
 ALTER SEQUENCE public.round_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3580 (class 0 OID 0)
+-- TOC entry 3581 (class 0 OID 0)
 -- Dependencies: 225
 -- Name: round_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -587,7 +597,7 @@ CREATE SEQUENCE public.team_id_seq
 ALTER SEQUENCE public.team_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3581 (class 0 OID 0)
+-- TOC entry 3582 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: team_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -631,7 +641,7 @@ CREATE SEQUENCE public.team_list_id_seq
 ALTER SEQUENCE public.team_list_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3582 (class 0 OID 0)
+-- TOC entry 3583 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: team_list_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -1212,7 +1222,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO lmslocal_prod_user;
 
 
--- Completed on 2025-09-27 18:56:17
+-- Completed on 2025-09-27 23:11:29
 
 --
 -- PostgreSQL database dump complete

@@ -31,7 +31,7 @@ export default function PrivacyPolicy() {
           <div className="prose prose-slate max-w-none">
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">1. Introduction</h2>
             <p className="text-slate-700 mb-4">
-              LMSLocal (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.
+              LMSLocal (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;), operated by Noodev8 Ltd (Company Number: 16222537), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">2. Information We Collect</h2>
@@ -100,7 +100,7 @@ export default function PrivacyPolicy() {
               <li><strong>Restriction:</strong> Request limitation of processing</li>
             </ul>
             <p className="text-slate-700 mb-4">
-              To exercise these rights, contact us at lmslocal@noodev8.com.
+              To exercise these rights, contact us at noodev8@gmail.com.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">8. Cookies</h2>
@@ -149,9 +149,14 @@ export default function PrivacyPolicy() {
               If you have any questions about this Privacy Policy, please contact us:
             </p>
             <ul className="list-none text-slate-700 mb-4">
-              <li>Email: lmslocal@noodev8.com</li>
-              <li>Support: lmslocal@noodev8.com</li>
+              <li>Email: noodev8@gmail.com</li>
+              <li>Support: noodev8@gmail.com</li>
             </ul>
+            <p className="text-slate-700 mb-4">
+              <strong>Noodev8 Ltd</strong><br />
+              Company Number: 16222537<br />
+              Registered Address: 3 Cumberland Place, Welshpool, SY21 7SB
+            </p>
           </div>
         </div>
       </div>

@@ -31,7 +31,7 @@ export default function TermsOfService() {
           <div className="prose prose-slate max-w-none">
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">1. Acceptance of Terms</h2>
             <p className="text-slate-700 mb-4">
-              By accessing and using LMSLocal (&quot;the Service&quot;), you accept and agree to be bound by the terms and provision of this agreement.
+              By accessing and using LMSLocal (&quot;the Service&quot;), operated by Noodev8 Ltd (Company Number: 16222537), you accept and agree to be bound by the terms and provision of this agreement.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">2. Beta Service</h2>
@@ -51,7 +51,7 @@ export default function TermsOfService() {
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">5. Payment and Fees</h2>
             <p className="text-slate-700 mb-4">
-              During the beta period, LMSLocal is free to use. Future pricing will be communicated in advance. Competition organizers are responsible for collecting any entry fees directly from participants.
+              LMSLocal offers both free and paid subscription plans. We reserve the right to modify our pricing structure, introduce new fees, or change existing pricing at any time with 30 days notice to existing customers. Current pricing is available on our pricing page. Competition organizers are responsible for collecting any entry fees directly from participants.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">6. Prohibited Use</h2>
@@ -101,7 +101,12 @@ export default function TermsOfService() {
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">13. Contact Information</h2>
             <p className="text-slate-700 mb-4">
-              If you have any questions about these Terms of Service, please contact us at lmslocal@noodev8.com.
+              If you have any questions about these Terms of Service, please contact us at noodev8@gmail.com.
+            </p>
+            <p className="text-slate-700 mb-4">
+              <strong>Noodev8 Ltd</strong><br />
+              Company Number: 16222537<br />
+              Registered Address: 3 Cumberland Place, Welshpool, SY21 7SB
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">14. Governing Law</h2>

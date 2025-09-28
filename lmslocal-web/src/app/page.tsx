@@ -449,7 +449,7 @@ export default function LandingPage() {
               <span className="text-xl font-bold">LMSLocal</span>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-8">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-8">
               <div className="flex space-x-6">
                 <Link href="/terms" className="text-sm text-slate-400 hover:text-white transition-colors">
                   Terms of Service
@@ -457,11 +457,16 @@ export default function LandingPage() {
                 <Link href="/privacy" className="text-sm text-slate-400 hover:text-white transition-colors">
                   Privacy Policy
                 </Link>
+                <Link href="/help" className="text-sm text-slate-400 hover:text-white transition-colors">
+                  Help Center
+                </Link>
               </div>
 
-              <div className="text-sm text-slate-400">
+              <div className="text-sm text-slate-400 space-y-1">
                 <p>&copy; 2025 LMSLocal. All rights reserved.</p>
-                <p className="mt-1">The admin-first Last Man Standing platform.</p>
+                <p>The admin-first Last Man Standing platform.</p>
+                <p>Operated by Noodev8 Ltd • Company Number: 16222537</p>
+                <p>3 Cumberland Place, Welshpool, SY21 7SB</p>
               </div>
             </div>
           </div>
