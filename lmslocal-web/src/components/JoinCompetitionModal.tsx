@@ -8,13 +8,15 @@ interface JoinCompetitionModalProps {
   onClose: () => void;
   onJoin: (inviteCode: string) => void;
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export default function JoinCompetitionModal({
   isOpen,
   onClose,
   onJoin,
-  isLoading = false
+  isLoading = false,
+  error = null
 }: JoinCompetitionModalProps) {
   const [inviteCode, setInviteCode] = useState('');
 
@@ -78,6 +80,13 @@ export default function JoinCompetitionModal({
                 </div>
               </div>
             </div>
+
+            {/* Error message */}
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
 
             <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
               <button

@@ -52,6 +52,7 @@ export default function UnifiedGameDashboard() {
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '', email: '' });
+  const [addPlayerError, setAddPlayerError] = useState<string | null>(null);
 
   // Simple loading based on context availability
   const loading = contextLoading || !competition;
@@ -177,6 +178,7 @@ export default function UnifiedGameDashboard() {
     if (!competition || !addPlayerForm.display_name.trim()) return;
 
     setAddingPlayer(true);
+    setAddPlayerError(null);
 
     try {
       const response = await offlinePlayerApi.addOfflinePlayer(
@@ -193,16 +195,17 @@ export default function UnifiedGameDashboard() {
 
         // Reset form and close modal
         setAddPlayerForm({ display_name: '', email: '' });
+        setAddPlayerError(null);
         setShowAddPlayerModal(false);
 
         // Refresh the page data to show updated player count
         window.location.reload();
       } else {
-        alert(`Failed to add player: ${response.data.message || 'Unknown error'}`);
+        setAddPlayerError(response.data.message || 'Unknown error occurred');
       }
     } catch (error) {
       console.error('Failed to add player:', error);
-      alert('Failed to add player. Please try again.');
+      setAddPlayerError('Failed to add player. Please try again.');
     } finally {
       setAddingPlayer(false);
     }
@@ -629,7 +632,10 @@ export default function UnifiedGameDashboard() {
               <div className="text-center">
                 <div className="text-xs text-gray-600 mb-3">Or add players directly</div>
                 <button
-                  onClick={() => setShowAddPlayerModal(true)}
+                  onClick={() => {
+                    setShowAddPlayerModal(true);
+                    setAddPlayerError(null);
+                  }}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors"
                 >
                   <UserIcon className="h-4 w-4 mr-2" />
@@ -964,6 +970,7 @@ export default function UnifiedGameDashboard() {
                   onClick={() => {
                     setShowAddPlayerModal(false);
                     setAddPlayerForm({ display_name: '', email: '' });
+                    setAddPlayerError(null);
                   }}
                   disabled={addingPlayer}
                   className="px-6 py-3 text-sm font-semibold text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 transition-colors"
@@ -985,6 +992,13 @@ export default function UnifiedGameDashboard() {
                   )}
                 </button>
               </div>
+
+              {/* Error message */}
+              {addPlayerError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{addPlayerError}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

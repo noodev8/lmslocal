@@ -39,6 +39,7 @@ export default function DashboardPage() {
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [hidingCompetition, setHidingCompetition] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [competitionToDelete, setCompetitionToDelete] = useState<Competition | null>(null);
@@ -185,18 +186,20 @@ export default function DashboardPage() {
 
   const handleJoinCompetition = async (inviteCode: string) => {
     setJoinLoading(true);
+    setJoinError(null);
     try {
       const response = await userApi.joinCompetitionByCode(inviteCode);
       if (response.data.return_code === 'SUCCESS') {
         setShowJoinModal(false);
+        setJoinError(null);
         // Refresh the page to show the newly joined competition
         window.location.reload();
       } else {
-        alert(response.data.message || 'Failed to join competition');
+        setJoinError(response.data.message || 'Failed to join competition');
       }
     } catch (error) {
       console.error('Error joining competition:', error);
-      alert('Failed to join competition. Please check the invite code and try again.');
+      setJoinError('Failed to join competition. Please check the invite code and try again.');
     } finally {
       setJoinLoading(false);
     }
@@ -653,7 +656,10 @@ export default function DashboardPage() {
               <span>Create New Competition</span>
             </Link>
             <button
-              onClick={() => setShowJoinModal(true)}
+              onClick={() => {
+                setShowJoinModal(true);
+                setJoinError(null);
+              }}
               className="inline-flex items-center space-x-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
             >
               <UserGroupIcon className="h-4 w-4" />
@@ -667,9 +673,13 @@ export default function DashboardPage() {
       {/* Join Competition Modal */}
       <JoinCompetitionModal
         isOpen={showJoinModal}
-        onClose={() => setShowJoinModal(false)}
+        onClose={() => {
+          setShowJoinModal(false);
+          setJoinError(null);
+        }}
         onJoin={handleJoinCompetition}
         isLoading={joinLoading}
+        error={joinError}
       />
 
       {/* Delete Competition Confirmation Modal */}

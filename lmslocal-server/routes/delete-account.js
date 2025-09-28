@@ -249,6 +249,8 @@ router.post('/', verifyToken, async (req, res) => {
       const deleteProgressResult = await client.query('DELETE FROM player_progress WHERE player_id = $1', [user_id]);
       deletionCounts.progress_records = deleteProgressResult.rowCount || 0;
 
+      const deleteUserAllowanceResult = await client.query('DELETE FROM user_allowance WHERE user_id = $1', [user_id]);
+
       const deleteActivitiesResult = await client.query('DELETE FROM user_activity WHERE user_id = $1', [user_id]);
       deletionCounts.user_activities = deleteActivitiesResult.rowCount || 0;
 

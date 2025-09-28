@@ -36,6 +36,7 @@ Return Codes:
 "UNAUTHORIZED"
 "COMPETITION_NOT_FOUND"
 "COMPETITION_CLOSED"
+"PLAYER_LIMIT_EXCEEDED"
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -131,6 +132,35 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "COMPETITION_CLOSED",
         message: "Cannot add new players - competition is no longer accepting new members"
+      });
+    }
+
+    // === PLAYER LIMIT CHECK ===
+    // Check organiser's current player count against their plan limits
+    const limitsResult = await query(`
+      SELECT
+        ua.max_players,
+        COUNT(cu.id) as current_players
+      FROM user_allowance ua
+      LEFT JOIN competition c ON c.organiser_id = ua.user_id
+      LEFT JOIN competition_user cu ON cu.competition_id = c.id
+      WHERE ua.user_id = $1
+      GROUP BY ua.max_players
+    `, [admin_id]);
+
+    if (limitsResult.rows.length === 0) {
+      return res.json({
+        return_code: "SERVER_ERROR",
+        message: "User allowance settings not found"
+      });
+    }
+
+    const limits = limitsResult.rows[0];
+
+    if (limits.current_players >= limits.max_players) {
+      return res.json({
+        return_code: "PLAYER_LIMIT_EXCEEDED",
+        message: "You've reached your plan limit. Please upgrade your plan for more players."
       });
     }
 

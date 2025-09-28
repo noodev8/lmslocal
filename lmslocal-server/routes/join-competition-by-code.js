@@ -37,6 +37,7 @@ Return Codes:
 "UNAUTHORIZED"          - Invalid JWT token
 "COMPETITION_NOT_FOUND" - Competition does not exist with provided code
 "COMPETITION_STARTED"   - Cannot join after round 1 has started
+"COMPETITION_FULL"      - Competition has reached maximum player limit
 "ALREADY_JOINED"        - User is already a member of this competition
 "SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
@@ -74,13 +75,14 @@ router.post('/', verifyToken, async (req, res) => {
       const mainQuery = `
         WITH competition_data AS (
           -- Get competition info with current round status
-          SELECT 
+          SELECT
             c.id as competition_id,
             c.name as competition_name,
             c.slug,
             c.status as competition_status,
             c.invite_code,
             c.lives_per_player,
+            c.organiser_id,
             -- Get current round information for joining eligibility check
             MAX(r.round_number) as current_round_number,
             MAX(r.lock_time) as latest_lock_time,
@@ -163,6 +165,36 @@ router.post('/', verifyToken, async (req, res) => {
             joined_at: data.member_since
           },
           already_member: true // Flag to skip team population
+        };
+      }
+
+      // Check organiser's player limit before allowing join
+      const limitsQuery = `
+        SELECT
+          ua.max_players,
+          COUNT(cu.id) as current_players
+        FROM user_allowance ua
+        LEFT JOIN competition c ON c.organiser_id = ua.user_id
+        LEFT JOIN competition_user cu ON cu.competition_id = c.id
+        WHERE ua.user_id = $1
+        GROUP BY ua.max_players
+      `;
+
+      const limitsResult = await client.query(limitsQuery, [data.organiser_id]);
+
+      if (limitsResult.rows.length === 0) {
+        throw {
+          return_code: "SERVER_ERROR",
+          message: "Competition organiser settings not found"
+        };
+      }
+
+      const limits = limitsResult.rows[0];
+
+      if (limits.current_players >= limits.max_players) {
+        throw {
+          return_code: "COMPETITION_FULL",
+          message: "This competition is currently full. Please contact the organiser if you'd like to join."
         };
       }
 

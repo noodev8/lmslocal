@@ -174,7 +174,16 @@ router.post('/', async (req, res) => {
 
       newUser = userResult.rows[0];
 
-      // Step 2: Add registration audit log for security compliance
+      // Step 2: Create default user allowances
+      await client.query(`
+        INSERT INTO user_allowance (user_id, max_players)
+        VALUES ($1, $2)
+      `, [
+        newUser.id,
+        1000  // Beta period: 1000 max players
+      ]);
+
+      // Step 3: Add registration audit log for security compliance
       await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, 'User Registration', $2, CURRENT_TIMESTAMP)
