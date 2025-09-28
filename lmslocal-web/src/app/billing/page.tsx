@@ -131,7 +131,7 @@ export default function BillingPage() {
         <div className="mb-8">
           <div className="flex items-center mb-4">
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push('/dashboard')}
               className="flex items-center text-slate-600 hover:text-slate-900 mr-4 transition-colors"
             >
               <span className="mr-2">←</span>

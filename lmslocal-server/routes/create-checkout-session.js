@@ -47,7 +47,6 @@ const { logApiCall } = require('../utils/apiLogger'); // API logging utility
 const Stripe = require('stripe');
 
 // Initialize Stripe with secret key from environment
-console.log('Stripe key starts with:', process.env.STRIPE_SECRET_KEY?.substring(0, 10));
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Plan pricing configuration - must match your Stripe product prices
