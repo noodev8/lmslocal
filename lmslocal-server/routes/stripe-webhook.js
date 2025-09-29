@@ -32,17 +32,13 @@ const express = require('express');
 const router = express.Router();
 const { query, transaction } = require('../database'); // Use destructured database import
 const { logApiCall } = require('../utils/apiLogger'); // API logging utility
+const { PLAN_LIMITS } = require('../config/plans'); // Shared plan configuration
+const { sendPaymentConfirmationEmail } = require('../services/emailService'); // Email service
 const Stripe = require('stripe');
 
 // Initialize Stripe with secret key from environment
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Plan limits for subscription updates
-const PLAN_LIMITS = {
-  lite: 10,
-  starter: 50,
-  pro: 500
-};
 
 /**
  * Calculate subscription expiry date based on billing cycle
@@ -110,7 +106,50 @@ async function processSuccessfulPayment(session) {
       parseInt(user_id)
     ]);
 
-    console.log(`✅ Subscription updated successfully for user ${user_id}: ${plan} plan expires ${expiryDate.toISOString()}`);
+    // 3. Update user's player allowance based on new plan
+    const planLimit = PLAN_LIMITS[plan] || PLAN_LIMITS.lite;
+    const updateAllowanceQuery = `
+      INSERT INTO user_allowance (user_id, max_players, updated_at)
+      VALUES ($1, $2, CURRENT_TIMESTAMP)
+      ON CONFLICT (user_id)
+      DO UPDATE SET
+        max_players = EXCLUDED.max_players,
+        updated_at = EXCLUDED.updated_at
+    `;
+
+    await client.query(updateAllowanceQuery, [
+      parseInt(user_id),
+      planLimit
+    ]);
+
+    console.log(`✅ Subscription updated successfully for user ${user_id}: ${plan} plan (${planLimit} players) expires ${expiryDate.toISOString()}`);
+
+    // 4. Get user details for email confirmation
+    const userDetailsQuery = `
+      SELECT email, display_name
+      FROM app_user
+      WHERE id = $1
+    `;
+    const userDetailsResult = await client.query(userDetailsQuery, [parseInt(user_id)]);
+
+    if (userDetailsResult.rows.length > 0) {
+      const { email, display_name } = userDetailsResult.rows[0];
+
+      // Send payment confirmation email (async, don't block webhook response)
+      sendPaymentConfirmationEmail(email, display_name, plan, paidAmount, expiryDate.toISOString())
+        .then(result => {
+          if (result.success) {
+            console.log(`✅ Payment confirmation email sent to ${email}`);
+          } else {
+            console.error(`❌ Failed to send payment confirmation email to ${email}:`, result.error);
+          }
+        })
+        .catch(error => {
+          console.error(`❌ Error sending payment confirmation email to ${email}:`, error);
+        });
+    } else {
+      console.warn(`⚠️ User ${user_id} not found for email confirmation`);
+    }
   });
 }
 

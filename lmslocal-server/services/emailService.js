@@ -283,8 +283,121 @@ const sendPlayerMagicLink = async (email, token, displayName, competitionName, s
   }
 };
 
+/**
+ * Send payment confirmation email
+ * @param {string} email - User's email address
+ * @param {string} displayName - User's display name
+ * @param {string} planName - Plan name (starter, pro)
+ * @param {number} amount - Payment amount
+ * @param {string} expiryDate - Plan expiry date
+ */
+const sendPaymentConfirmationEmail = async (email, displayName, planName, amount, expiryDate) => {
+  try {
+    const planEmoji = planName === 'starter' ? '🚀' : '🏢';
+    const formattedAmount = `£${amount.toFixed(2)}`;
+    const formattedExpiry = new Date(expiryDate).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Payment Confirmed - LMS Local</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #2563eb; margin: 0;">LMS Local</h1>
+              <p style="color: #666; margin: 5px 0 0 0;">Last Man Standing Competitions</p>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 30px; border-radius: 10px; text-align: center;">
+              <h2 style="color: #1f2937; margin-top: 0;">${planEmoji} Payment Confirmed!</h2>
+              <p style="color: #4b5563; margin-bottom: 25px;">Hi ${displayName},</p>
+              <p style="color: #4b5563; margin-bottom: 25px;">
+                Thank you for upgrading to the <strong>${planName.charAt(0).toUpperCase() + planName.slice(1)} plan</strong>! Your payment has been processed successfully.
+              </p>
+
+              <div style="background: #ffffff; border-radius: 8px; padding: 20px; margin: 25px 0; border: 1px solid #e5e7eb;">
+                <h3 style="color: #1f2937; margin-top: 0; font-size: 18px;">Payment Details</h3>
+                <div style="text-align: left;">
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Plan:</strong> ${planName.charAt(0).toUpperCase() + planName.slice(1)} ${planEmoji}</p>
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Amount:</strong> ${formattedAmount}</p>
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Valid until:</strong> ${formattedExpiry}</p>
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Access:</strong> 12 months (no auto-renewal)</p>
+                </div>
+              </div>
+
+              <a href="${process.env.EMAIL_VERIFICATION_URL}/billing"
+                 style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">
+                View Billing Dashboard
+              </a>
+
+              <p style="color: #6b7280; font-size: 14px; margin-top: 25px;">
+                Your increased player limits are now active and ready to use.
+              </p>
+
+              <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">
+                Need help? Reply to this email or contact us at hello@lmslocal.co.uk
+              </p>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+              <p>LMS Local - Admin-first Last Man Standing competitions</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textContent = `
+      LMS Local - Payment Confirmed!
+
+      Hi ${displayName},
+
+      Thank you for upgrading to the ${planName.charAt(0).toUpperCase() + planName.slice(1)} plan! Your payment has been processed successfully.
+
+      Payment Details:
+      - Plan: ${planName.charAt(0).toUpperCase() + planName.slice(1)}
+      - Amount: ${formattedAmount}
+      - Valid until: ${formattedExpiry}
+      - Access: 12 months (no auto-renewal)
+
+      Your increased player limits are now active and ready to use.
+
+      View your billing dashboard: ${process.env.EMAIL_VERIFICATION_URL}/billing
+
+      Need help? Reply to this email or contact us at hello@lmslocal.co.uk
+
+      ---
+      LMS Local - Admin-first Last Man Standing competitions
+    `;
+
+    const result = await resend.emails.send({
+      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
+      to: [email],
+      subject: `Payment confirmed - ${planName.charAt(0).toUpperCase() + planName.slice(1)} plan activated`,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    console.log('Payment confirmation email sent successfully:', result.id);
+    return { success: true, messageId: result.id };
+
+  } catch (error) {
+    console.error('Failed to send payment confirmation email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
-  sendPlayerMagicLink
+  sendPlayerMagicLink,
+  sendPaymentConfirmationEmail
 };

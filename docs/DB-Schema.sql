@@ -5,7 +5,7 @@
 -- Dumped from database version 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 17.4
 
--- Started on 2025-09-28 15:11:56
+-- Started on 2025-09-29 12:24:27
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -1339,7 +1339,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO lmslocal_prod_user;
 
 
--- Completed on 2025-09-28 15:11:58
+-- Completed on 2025-09-29 12:24:28
 
 --
 -- PostgreSQL database dump complete

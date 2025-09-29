@@ -109,21 +109,20 @@ export default function PricingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Simple Annual Pricing</h2>
-            <p className="text-xl text-slate-600 mb-8">Pay once per year. Everyone gets full access to all features - only player limits differ</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Simple One-Time Pricing</h2>
 
-            {/* Annual Pricing Notice */}
+            {/* One-Time Payment Notice */}
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-8 max-w-2xl mx-auto">
               <div className="flex items-center justify-center">
                 <span className="text-2xl mr-3">💰</span>
                 <p className="text-emerald-800 font-medium">
-                  Annual billing only - No monthly subscriptions, no recurring charges
+                  12 months access. All features. No subscriptions, no auto-renewal, no recurring charges
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-6 max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
             {/* Lite Plan */}
             <div className="bg-white rounded-lg p-8 border border-slate-200 relative">
               <div className="text-center">
@@ -152,6 +151,10 @@ export default function PricingPage() {
                     <span className="text-green-600 mr-2">✓</span>
                     <span className="text-sm">Custom branding & logos</span>
                   </li>
+                  <li className="flex items-center">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span className="text-sm">Posts and marketing to your customers</span>
+                  </li>
                 </ul>
 
                 <Link
@@ -176,9 +179,6 @@ export default function PricingPage() {
                 <div className="mb-4">
                   <span className="text-4xl font-bold">£199</span>
                   <span className="text-sm text-slate-300">/year</span>
-                  <div className="text-sm text-emerald-400 mt-1">
-                    £16.58/month equivalent
-                  </div>
                 </div>
                 <p className="text-slate-300 mb-6">For bigger groups, pubs & workplaces</p>
 
@@ -199,6 +199,10 @@ export default function PricingPage() {
                     <span className="text-emerald-400 mr-2">✓</span>
                     <span className="text-sm">Custom branding & logos</span>
                   </li>
+                  <li className="flex items-center">
+                    <span className="text-emerald-400 mr-2">✓</span>
+                    <span className="text-sm">Posts and marketing to your customers</span>
+                  </li>
                 </ul>
 
                 <Link
@@ -216,18 +220,15 @@ export default function PricingPage() {
                 <div className="text-2xl mb-4">🏢</div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">Pro</h3>
                 <div className="mb-4">
-                  <span className="text-4xl font-bold text-slate-900">£399</span>
+                  <span className="text-4xl font-bold text-slate-900">£249</span>
                   <span className="text-sm text-slate-500">/year</span>
-                  <div className="text-sm text-emerald-600 mt-1">
-                    £33.25/month equivalent
-                  </div>
                 </div>
                 <p className="text-slate-600 mb-6">For large venues & organizations</p>
 
                 <ul className="space-y-3 mb-8 text-left">
                   <li className="flex items-center">
                     <span className="text-green-600 mr-2">✓</span>
-                    <span className="text-sm font-medium">Up to 250 players</span>
+                    <span className="text-sm font-medium">Up to 300 players</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-green-600 mr-2">✓</span>
@@ -240,6 +241,10 @@ export default function PricingPage() {
                   <li className="flex items-center">
                     <span className="text-green-600 mr-2">✓</span>
                     <span className="text-sm">Custom branding & logos</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-green-600 mr-2">✓</span>
+                    <span className="text-sm">Posts and marketing to your customers</span>
                   </li>
                 </ul>
 
@@ -252,262 +257,26 @@ export default function PricingPage() {
               </div>
             </div>
 
-            {/* Enterprise Plan */}
-            <div className="bg-white rounded-lg p-8 border border-slate-200 relative">
-              <div className="text-center">
-                <div className="text-2xl mb-4">🏆</div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-2">Enterprise</h3>
-                <div className="mb-4">
-                  <span className="text-3xl font-bold text-slate-900">Custom</span>
-                  <div className="text-sm text-slate-600 mt-1">
-                    Contact us for pricing
-                  </div>
-                </div>
-                <p className="text-slate-600 mb-6">For large organizations & chains</p>
-
-                <ul className="space-y-3 mb-8 text-left">
-                  <li className="flex items-center">
-                    <span className="text-purple-600 mr-2">✓</span>
-                    <span className="text-sm font-medium">250+ players</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-purple-600 mr-2">✓</span>
-                    <span className="text-sm">Full access to all features</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-purple-600 mr-2">✓</span>
-                    <span className="text-sm">Unlimited competitions</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-purple-600 mr-2">✓</span>
-                    <span className="text-sm">Custom branding & logos</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-purple-600 mr-2">✓</span>
-                    <span className="text-sm">Priority support</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-purple-600 mr-2">✓</span>
-                    <span className="text-sm">Marketing consultation</span>
-                  </li>
-                </ul>
-
-                <Link
-                  href="mailto:hello@lmslocal.co.uk"
-                  className="block w-full py-3 px-4 bg-purple-600 text-white rounded-lg font-semibold text-center hover:bg-purple-700 transition-colors"
-                >
-                  Contact Sales
-                </Link>
-              </div>
-            </div>
           </div>
 
-          {/* Value Comparison Section */}
-          <div className="bg-slate-50 rounded-xl p-8 mt-16 mb-12">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">More Cost-Effective Than Traditional Marketing</h3>
-              <p className="text-slate-600">For pubs, sports groups and organisations - compare the cost per person reached with LMSLocal vs paid advertising</p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              {/* 50 People Starter */}
-              <div className="bg-white rounded-lg p-6 border border-slate-200">
-                <h4 className="text-lg font-semibold text-slate-900 mb-4">Small Venues (50 People)</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">LMSLocal (Starter Annual)</span>
-                    <span className="font-semibold text-emerald-600">£1.99 per person/year</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Facebook Ads (annual)</span>
-                    <span className="font-semibold text-slate-500">£20-40 per person</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Google Ads (annual)</span>
-                    <span className="font-semibold text-slate-500">£30-60 per person</span>
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <p className="text-sm text-emerald-700 font-medium">Save £18-38 per person vs PPC!</p>
-                  <p className="text-xs text-slate-500 mt-1">Total savings: £1,800-3,800 annually</p>
-                </div>
-              </div>
-
-              {/* 250 People Pro */}
-              <div className="bg-white rounded-lg p-6 border border-slate-200">
-                <h4 className="text-lg font-semibold text-slate-900 mb-4">Large Venues (250 People)</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">LMSLocal (Pro Annual)</span>
-                    <span className="font-semibold text-emerald-600">£1.60 per person/year</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Facebook Ads (annual)</span>
-                    <span className="font-semibold text-slate-500">£15-35 per person</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Google Ads (annual)</span>
-                    <span className="font-semibold text-slate-500">£25-50 per person</span>
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <p className="text-sm text-emerald-700 font-medium">Save £13-48 per person vs PPC!</p>
-                  <p className="text-xs text-slate-500 mt-1">Total savings: £3,350-12,100 annually</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-center mt-8">
-              <p className="text-sm text-slate-600">
-                <strong>Plus:</strong> Unlike ads that disappear, your competition creates lasting engagement and word-of-mouth marketing
-              </p>
-            </div>
-          </div>
-
-          {/* Combined Future & Custom Pricing */}
-          <div className="bg-white rounded-lg p-8 border border-slate-200 mb-12 max-w-4xl mx-auto">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-semibold text-slate-900 mb-3">Shaping the Future Together</h3>
-              <p className="text-slate-600 mb-6">
-                Additional features are developed based on customer feedback to enhance marketing and user engagement.
-                Your input drives our roadmap.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8 mb-8">
-              {/* Feature Requests */}
-              <div className="text-center">
-                <h4 className="text-lg font-semibold text-slate-900 mb-3">💡 Got Ideas?</h4>
-                <p className="text-slate-600">
-                  Help us build features that enhance your competitions and marketing efforts.
-                </p>
-              </div>
-
-              {/* Custom Pricing */}
-              <div className="text-center">
-                <h4 className="text-lg font-semibold text-slate-900 mb-3">🚀 Need More?</h4>
-                <p className="text-slate-600">
-                  <strong>Need more than 500 players, or have any questions?</strong>
-                </p>
-              </div>
-            </div>
-
+          {/* Enterprise Section - Compact */}
+          <div className="bg-slate-50 rounded-lg p-6 max-w-2xl mx-auto">
             <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Need More Than 300 Players?</h3>
+              <p className="text-slate-600 text-sm mb-4">Enterprise pricing available - contact us for custom solutions</p>
               <Link
-                href="mailto:noodev8@gmail.com?subject=Let's discuss your needs"
-                className="inline-flex items-center px-8 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium mb-3"
+                href="mailto:hello@lmslocal.co.uk"
+                className="inline-flex items-center px-6 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm hover:bg-purple-700 transition-colors"
               >
-                Get in touch via email
+                Contact Sales
               </Link>
-              <p className="text-slate-600 text-sm">
-                Or contact Andreas directly on <a href="tel:+447818443886" className="text-slate-900 font-medium hover:underline">07818 443886</a>
-              </p>
             </div>
           </div>
+
+
         </div>
       </section>
 
-      {/* Business Opportunity Section */}
-      <section className="py-20 bg-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Turn Your Passion Into Purpose
-            </h2>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-              Create sustainable revenue streams while supporting good causes. LMSLocal isn&apos;t just a platform - it&apos;s a business opportunity.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-xl p-8 mb-12 max-w-5xl mx-auto">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">The Numbers That Matter</h3>
-              <p className="text-slate-600 mb-6">
-                Example: £10 entry fee • 50% to charity • 50% to winners
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* 100 Players */}
-              <div className="text-center p-6 bg-slate-50 rounded-lg">
-                <div className="text-3xl font-bold text-slate-900 mb-2">100 Players</div>
-                <div className="space-y-2 text-sm">
-                  <p className="text-slate-600">Total Revenue: <span className="font-semibold text-slate-900">£1,000</span></p>
-                  <p className="text-emerald-600">Charity Impact: <span className="font-semibold">£500</span></p>
-                  <p className="text-slate-600">Prize Pool: <span className="font-semibold text-slate-900">£500</span></p>
-                </div>
-              </div>
-
-              {/* 500 Players */}
-              <div className="text-center p-6 bg-slate-50 rounded-lg border-2 border-slate-900">
-                <div className="text-3xl font-bold text-slate-900 mb-2">500 Players</div>
-                <div className="space-y-2 text-sm">
-                  <p className="text-slate-600">Total Revenue: <span className="font-semibold text-slate-900">£5,000</span></p>
-                  <p className="text-emerald-600">Charity Impact: <span className="font-semibold">£2,500</span></p>
-                  <p className="text-slate-600">Prize Pool: <span className="font-semibold text-slate-900">£2,500</span></p>
-                </div>
-              </div>
-
-              {/* 1000 Players */}
-              <div className="text-center p-6 bg-slate-50 rounded-lg">
-                <div className="text-3xl font-bold text-slate-900 mb-2">1,000 Players</div>
-                <div className="space-y-2 text-sm">
-                  <p className="text-slate-600">Total Revenue: <span className="font-semibold text-slate-900">£10,000</span></p>
-                  <p className="text-emerald-600">Charity Impact: <span className="font-semibold">£5,000</span></p>
-                  <p className="text-slate-600">Prize Pool: <span className="font-semibold text-slate-900">£5,000</span></p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 text-center">
-              <p className="text-slate-600 mb-4">
-                <strong>Scale this across multiple competitions per year...</strong> The potential is enormous.
-              </p>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-3xl mx-auto">
-                <p className="text-amber-800 text-sm">
-                  <strong>Important:</strong> Depending on your specific model and jurisdiction, you may need a gambling license.
-                  Always consult legal advice for compliance. However, many charity and prize-based models operate within existing frameworks.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto">
-            {/* Fundraising */}
-            <div className="text-center">
-              <div className="text-4xl mb-4">🎯</div>
-              <h3 className="text-2xl font-bold text-white mb-4">Fundraising Powerhouse</h3>
-              <p className="text-slate-300 mb-6">
-                Transform traditional fundraising with engaging competitions. Higher participation rates,
-                recurring revenue, and genuine community engagement.
-              </p>
-              <ul className="text-left text-slate-300 space-y-2">
-                <li>• Corporate sponsorship opportunities</li>
-                <li>• Monthly recurring competitions</li>
-                <li>• Built-in social sharing and growth</li>
-                <li>• Transparent, automated prize distribution</li>
-              </ul>
-            </div>
-
-            {/* Business Building */}
-            <div className="text-center">
-              <div className="text-4xl mb-4">🚀</div>
-              <h3 className="text-2xl font-bold text-white mb-4">Build Your Business</h3>
-              <p className="text-slate-300 mb-6">
-                Create sustainable income streams with scalable competition formats.
-                Perfect for entrepreneurs, venues, and organizations looking to grow.
-              </p>
-              <ul className="text-left text-slate-300 space-y-2">
-                <li>• Multiple revenue models supported</li>
-                <li>• Minimal operational overhead</li>
-                <li>• Built-in customer retention</li>
-                <li>• Professional branding and management tools</li>
-              </ul>
-            </div>
-          </div>
-
-        </div>
-      </section>
 
       {/* FAQ Section */}
       <section className="py-20 bg-slate-50">

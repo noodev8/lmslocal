@@ -21,9 +21,9 @@ Success Response:
     "usage_percentage": 46             // integer, percentage of limit used (0-100)
   },
   "plan_limits": {
-    "lite": 10,                        // integer, player limit for lite plan
-    "starter": 50,                     // integer, player limit for starter plan
-    "pro": 500                         // integer, player limit for pro plan
+    "lite": 20,                        // integer, player limit for lite plan
+    "starter": 100,                    // integer, player limit for starter plan
+    "pro": 300                         // integer, player limit for pro plan
   }
 }
 
@@ -53,13 +53,7 @@ const router = express.Router();
 const { query, transaction } = require('../database'); // Use destructured database import
 const { verifyToken } = require('../middleware/auth'); // JWT authentication middleware
 const { logApiCall } = require('../utils/apiLogger'); // API logging utility
-
-// Define plan limits as constants for consistency
-const PLAN_LIMITS = {
-  lite: 10,
-  starter: 50,
-  pro: 500
-};
+const { PLAN_LIMITS } = require('../config/plans'); // Shared plan configuration
 
 /**
  * POST /get-user-subscription
