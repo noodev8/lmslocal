@@ -728,9 +728,9 @@ export default function UnifiedGameDashboard() {
                     </div>
                   </div>
 
-                  <div className="text-sm text-gray-600">⚽ Games in progress</div>
+                  <div className="text-sm text-gray-600">⚽ Round in progress</div>
                   <div className="text-xs text-gray-500">
-                    Results will be processed as matches complete throughout the weekend
+                    Results will be processed as matches complete throughout the round
                   </div>
                 </div>
               ) : null
