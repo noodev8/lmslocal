@@ -1,0 +1,26 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with rounded corners -->
+  <rect width="180" height="180" rx="40" fill="#2563EB"/>
+
+  <!-- Trophy icon (scaled up) -->
+  <g transform="translate(45, 45)">
+    <!-- Cup body -->
+    <path d="M20 40 L70 40 L67 70 L23 70 Z" fill="#FFD700" stroke="none"/>
+
+    <!-- Cup handles -->
+    <path d="M15 45 Q5 45 5 55 Q5 65 15 65" fill="none" stroke="#FFD700" stroke-width="6"/>
+    <path d="M75 45 Q85 45 85 55 Q85 65 75 65" fill="none" stroke="#FFD700" stroke-width="6"/>
+
+    <!-- Base -->
+    <rect x="30" y="70" width="30" height="10" fill="#FFD700"/>
+    <rect x="35" y="80" width="20" height="10" fill="#FFD700"/>
+
+    <!-- Rim -->
+    <ellipse cx="45" cy="40" rx="25" ry="5" fill="#FFC107"/>
+
+    <!-- Sparkles -->
+    <circle cx="25" cy="25" r="2" fill="#FFD700" opacity="0.8"/>
+    <circle cx="65" cy="30" r="2" fill="#FFD700" opacity="0.8"/>
+    <circle cx="55" cy="15" r="1.5" fill="#FFD700" opacity="0.6"/>
+  </g>
+</svg>
