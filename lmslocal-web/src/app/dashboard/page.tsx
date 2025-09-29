@@ -401,27 +401,6 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-
-        {/* Beta Notice */}
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-center space-x-3">
-            <div className="flex-shrink-0">
-              <ExclamationTriangleIcon className="h-5 w-5 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">
-                🚀 You&apos;re using LMSLocal BETA - Thank you for being an early user!
-              </p>
-              <p className="text-xs text-blue-700 mt-1">
-                Questions or issues? Contact us at{' '}
-                <a href="mailto:lmslocal@noodev8.com" className="font-medium underline hover:text-blue-800">
-                  lmslocal@noodev8.com
-                </a>
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Competitions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
           {/* Competition Cards */}
