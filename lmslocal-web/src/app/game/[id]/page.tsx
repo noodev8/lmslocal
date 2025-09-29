@@ -81,30 +81,24 @@ export default function UnifiedGameDashboard() {
 
   // Handle play button click - check player status first, then rounds and fixtures before routing
   const handlePlayClick = async () => {
-    // Check if player is eliminated before allowing play
-    if (competition?.user_status && competition.user_status !== 'active') {
-      router.push(`/game/${competitionId}/standings`);
-      return;
-    }
-
     try {
       const response = await roundApi.getRounds(parseInt(competitionId));
-      
+
       if (response.data.return_code !== 'SUCCESS') {
         console.error('Failed to fetch rounds:', response.data.message);
         // If API fails, go to waiting screen as fallback
         router.push(`/game/${competitionId}/waiting`);
         return;
       }
-      
+
       const rounds = response.data.rounds || [];
-      
+
       // Check if no rounds exist
       if (rounds.length === 0) {
         router.push(`/game/${competitionId}/waiting`);
         return;
       }
-      
+
       // Check if the latest round (first in array, as they're ordered most recent first) has fixtures
       const latestRound = rounds[0];
       if (latestRound.fixture_count === 0) {
@@ -112,7 +106,15 @@ export default function UnifiedGameDashboard() {
         return;
       }
 
-      // Check if round is locked to determine which page to show
+      // Check player status AFTER we know rounds exist
+      // Eliminated non-organizer players can view results but cannot make picks
+      if (competition?.user_status && competition.user_status !== 'active' && !isOrganiser) {
+        // Eliminated player - always show player results view (never allow picking)
+        router.push(`/game/${competitionId}/player-results`);
+        return;
+      }
+
+      // For active players and organizers: Check if round is locked to determine which page to show
       const now = new Date();
       const lockTime = new Date(latestRound.lock_time || '');
       const isLocked = !!(latestRound.lock_time && now >= lockTime);
@@ -121,7 +123,7 @@ export default function UnifiedGameDashboard() {
         // Round is locked - show player results view
         router.push(`/game/${competitionId}/player-results`);
       } else {
-        // Round is not locked - show pick screen
+        // Round is not locked - show pick screen (only active players and organizers reach here)
         router.push(`/game/${competitionId}/pick`);
       }
       
