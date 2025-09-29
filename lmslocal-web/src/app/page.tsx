@@ -105,10 +105,10 @@ export default function LandingPage() {
             <div className="bg-white/70 backdrop-blur-sm rounded-xl p-8 border border-slate-200/50 shadow-sm">
               <div className="flex items-center mb-4">
                 <UserGroupIcon className="h-6 w-6 text-slate-600 mr-3" />
-                <h3 className="text-lg font-semibold text-slate-900">Beta Access</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Start Free</h3>
               </div>
-              <div className="text-3xl font-bold text-emerald-600 mb-2">FREE</div>
-              <p className="text-slate-600 text-sm">Unlimited players during beta</p>
+              <div className="text-3xl font-bold text-emerald-600 mb-2">20</div>
+              <p className="text-slate-600 text-sm">Free players to get started</p>
             </div>
 
             <div className="bg-white/70 backdrop-blur-sm rounded-xl p-8 border border-slate-200/50 shadow-sm">
@@ -322,7 +322,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-slate-500">
-            Free during beta • <Link href="/pricing" className="text-slate-600 hover:text-slate-900 underline">View pricing plans</Link>
+            <Link href="/pricing" className="text-slate-600 hover:text-slate-900 underline">View pricing plans</Link>
           </p>
         </div>
       </section>
@@ -400,8 +400,8 @@ export default function LandingPage() {
           
           <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">
             <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur border border-slate-600">
-              <p className="text-2xl font-bold text-white">BETA</p>
-              <p className="text-slate-300 text-sm">Early access available</p>
+              <p className="text-2xl font-bold text-white">READY</p>
+              <p className="text-slate-300 text-sm">Start your competition</p>
             </div>
             <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur border border-slate-600">
               <p className="text-2xl font-bold text-white">FREE</p>
@@ -420,17 +420,17 @@ export default function LandingPage() {
             Create Free Competition
           </Link>
           <p className="text-slate-400 mt-4 text-lg">
-            Free during beta • Unlimited players • <Link href="/pricing" className="text-slate-300 hover:text-white underline">View pricing</Link>
+            Start with 20 free players • <Link href="/pricing" className="text-slate-300 hover:text-white underline">View pricing</Link>
           </p>
           
           <div className="mt-8 flex justify-center items-center space-x-8 text-slate-300">
             <div className="flex items-center">
               <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span>No long-term contracts</span>
+              <span>One-time payments</span>
             </div>
             <div className="flex items-center">
               <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span>Cancel anytime</span>
+              <span>No recurring charges</span>
             </div>
             <div className="flex items-center">
               <CheckCircleIcon className="h-5 w-5 mr-2" />
