@@ -662,22 +662,27 @@ export default function UnifiedGameDashboard() {
                     {competition.user_status === 'active' ? (
                       `Active in Round ${currentRoundInfo?.round_number || competition.current_round}`
                     ) : (
-                      `Eliminated ${latestRoundStats ? `in Round ${latestRoundStats.round_number}` : ''}`
+                      `Eliminated ${competition.history?.find(h => h.pick_result === 'loss' || h.pick_result === 'no_pick') ? `in Round ${competition.history.find(h => h.pick_result === 'loss' || h.pick_result === 'no_pick')?.round_number}` : ''}`
                     )}
                   </div>
                 </div>
 
-                {latestRoundStats?.user_picked_team && (
-                  <div className="text-xs text-gray-600">
-                    Your pick: {latestRoundStats.user_picked_team}
-                    {latestRoundStats.user_outcome === 'LOSS' && (
-                      <span className="text-red-600"> (Lost)</span>
-                    )}
-                    {latestRoundStats.user_outcome === 'DRAW' && (
-                      <span className="text-amber-600"> (Draw)</span>
-                    )}
-                    {latestRoundStats.user_outcome === 'WIN' && (
-                      <span className="text-green-600"> (Won)</span>
+                {competition.history?.[0] && competition.history[0].pick_team && (
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <div>
+                      Round {competition.history[0].round_number}: {competition.history[0].pick_team_full_name || competition.history[0].pick_team}
+                      {competition.history[0].pick_result === 'loss' && (
+                        <span className="text-red-600 font-medium"> (Lost)</span>
+                      )}
+                      {competition.history[0].pick_result === 'no_pick' && (
+                        <span className="text-amber-600 font-medium"> (No Pick)</span>
+                      )}
+                      {competition.history[0].pick_result === 'win' && (
+                        <span className="text-green-600 font-medium"> (Won)</span>
+                      )}
+                    </div>
+                    {competition.history[0].fixture && (
+                      <div className="text-gray-500">{competition.history[0].fixture}</div>
                     )}
                   </div>
                 )}
@@ -719,7 +724,7 @@ export default function UnifiedGameDashboard() {
                     </>
                   )}
                 </div>
-              ) : !latestRoundStats || latestRoundStats.round_number < currentRoundInfo.round_number ? (
+              ) : !competition.history?.[0] || (competition.history[0].round_number < currentRoundInfo.round_number) ? (
                 /* After Lock, Before Results - Show Live Status */
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
