@@ -7,7 +7,7 @@ import Link from 'next/link';
 export default function PricingPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isYearly, setIsYearly] = useState(false);
+  // Remove yearly toggle - now annual-only pricing
 
   // Check if user is authenticated on component mount
   useEffect(() => {
@@ -109,32 +109,21 @@ export default function PricingPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Simple Player-Based Pricing</h2>
-            <p className="text-xl text-slate-600 mb-8">Everyone gets full access to all features - only player limits differ</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Simple Annual Pricing</h2>
+            <p className="text-xl text-slate-600 mb-8">Pay once per year. Everyone gets full access to all features - only player limits differ</p>
 
-            {/* Billing Toggle */}
-            <div className="flex items-center justify-center mb-8">
-              <span className={`mr-3 ${!isYearly ? 'text-slate-900 font-semibold' : 'text-slate-500'}`}>Monthly</span>
-              <button
-                onClick={() => setIsYearly(!isYearly)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  isYearly ? 'bg-slate-900' : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isYearly ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              <span className={`ml-3 ${isYearly ? 'text-slate-900 font-semibold' : 'text-slate-500'}`}>
-                Yearly
-                <span className="ml-1 text-emerald-600 font-bold text-sm">(4 months free)</span>
-              </span>
+            {/* Annual Pricing Notice */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-8 max-w-2xl mx-auto">
+              <div className="flex items-center justify-center">
+                <span className="text-2xl mr-3">💰</span>
+                <p className="text-emerald-800 font-medium">
+                  Annual billing only - No monthly subscriptions, no recurring charges
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {/* Lite Plan */}
             <div className="bg-white rounded-lg p-8 border border-slate-200 relative">
               <div className="text-center">
@@ -149,7 +138,7 @@ export default function PricingPage() {
                 <ul className="space-y-3 mb-8 text-left">
                   <li className="flex items-center">
                     <span className="text-green-600 mr-2">✓</span>
-                    <span className="text-sm font-medium">Up to 10 players</span>
+                    <span className="text-sm font-medium">Up to 20 players</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-green-600 mr-2">✓</span>
@@ -185,20 +174,18 @@ export default function PricingPage() {
                 <div className="text-2xl mb-4">🚀</div>
                 <h3 className="text-2xl font-bold mb-2">Starter</h3>
                 <div className="mb-4">
-                  <span className="text-4xl font-bold">£{isYearly ? '232' : '29'}</span>
-                  <span className="text-sm text-slate-300">/{isYearly ? 'year' : 'month'}</span>
-                  {isYearly && (
-                    <div className="text-sm text-emerald-400 mt-1">
-                      £19.33/month
-                    </div>
-                  )}
+                  <span className="text-4xl font-bold">£199</span>
+                  <span className="text-sm text-slate-300">/year</span>
+                  <div className="text-sm text-emerald-400 mt-1">
+                    £16.58/month equivalent
+                  </div>
                 </div>
                 <p className="text-slate-300 mb-6">For bigger groups, pubs & workplaces</p>
 
                 <ul className="space-y-3 mb-8 text-left">
                   <li className="flex items-center">
                     <span className="text-emerald-400 mr-2">✓</span>
-                    <span className="text-sm font-medium">Up to 50 players</span>
+                    <span className="text-sm font-medium">Up to 100 players</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-400 mr-2">✓</span>
@@ -229,20 +216,18 @@ export default function PricingPage() {
                 <div className="text-2xl mb-4">🏢</div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">Pro</h3>
                 <div className="mb-4">
-                  <span className="text-4xl font-bold text-slate-900">£{isYearly ? '632' : '79'}</span>
-                  <span className="text-sm text-slate-500">/{isYearly ? 'year' : 'month'}</span>
-                  {isYearly && (
-                    <div className="text-sm text-emerald-600 mt-1">
-                      £52.67/month
-                    </div>
-                  )}
+                  <span className="text-4xl font-bold text-slate-900">£399</span>
+                  <span className="text-sm text-slate-500">/year</span>
+                  <div className="text-sm text-emerald-600 mt-1">
+                    £33.25/month equivalent
+                  </div>
                 </div>
                 <p className="text-slate-600 mb-6">For large venues & organizations</p>
 
                 <ul className="space-y-3 mb-8 text-left">
                   <li className="flex items-center">
                     <span className="text-green-600 mr-2">✓</span>
-                    <span className="text-sm font-medium">Up to 500 players</span>
+                    <span className="text-sm font-medium">Up to 250 players</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-green-600 mr-2">✓</span>
@@ -266,6 +251,55 @@ export default function PricingPage() {
                 </Link>
               </div>
             </div>
+
+            {/* Enterprise Plan */}
+            <div className="bg-white rounded-lg p-8 border border-slate-200 relative">
+              <div className="text-center">
+                <div className="text-2xl mb-4">🏆</div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">Enterprise</h3>
+                <div className="mb-4">
+                  <span className="text-3xl font-bold text-slate-900">Custom</span>
+                  <div className="text-sm text-slate-600 mt-1">
+                    Contact us for pricing
+                  </div>
+                </div>
+                <p className="text-slate-600 mb-6">For large organizations & chains</p>
+
+                <ul className="space-y-3 mb-8 text-left">
+                  <li className="flex items-center">
+                    <span className="text-purple-600 mr-2">✓</span>
+                    <span className="text-sm font-medium">250+ players</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-purple-600 mr-2">✓</span>
+                    <span className="text-sm">Full access to all features</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-purple-600 mr-2">✓</span>
+                    <span className="text-sm">Unlimited competitions</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-purple-600 mr-2">✓</span>
+                    <span className="text-sm">Custom branding & logos</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-purple-600 mr-2">✓</span>
+                    <span className="text-sm">Priority support</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-purple-600 mr-2">✓</span>
+                    <span className="text-sm">Marketing consultation</span>
+                  </li>
+                </ul>
+
+                <Link
+                  href="mailto:hello@lmslocal.co.uk"
+                  className="block w-full py-3 px-4 bg-purple-600 text-white rounded-lg font-semibold text-center hover:bg-purple-700 transition-colors"
+                >
+                  Contact Sales
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* Value Comparison Section */}
@@ -282,7 +316,7 @@ export default function PricingPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">LMSLocal (Starter Annual)</span>
-                    <span className="font-semibold text-emerald-600">£4.64 per person/year</span>
+                    <span className="font-semibold text-emerald-600">£1.99 per person/year</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Facebook Ads (annual)</span>
@@ -294,18 +328,18 @@ export default function PricingPage() {
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-200">
-                  <p className="text-sm text-emerald-700 font-medium">Save £15-55 per person vs PPC!</p>
-                  <p className="text-xs text-slate-500 mt-1">Total savings: £750-2,750 annually</p>
+                  <p className="text-sm text-emerald-700 font-medium">Save £18-38 per person vs PPC!</p>
+                  <p className="text-xs text-slate-500 mt-1">Total savings: £1,800-3,800 annually</p>
                 </div>
               </div>
 
-              {/* 500 People Pro */}
+              {/* 250 People Pro */}
               <div className="bg-white rounded-lg p-6 border border-slate-200">
-                <h4 className="text-lg font-semibold text-slate-900 mb-4">Large Venues (500 People)</h4>
+                <h4 className="text-lg font-semibold text-slate-900 mb-4">Large Venues (250 People)</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">LMSLocal (Pro Annual)</span>
-                    <span className="font-semibold text-emerald-600">£1.26 per person/year</span>
+                    <span className="font-semibold text-emerald-600">£1.60 per person/year</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-600">Facebook Ads (annual)</span>
@@ -317,8 +351,8 @@ export default function PricingPage() {
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-slate-200">
-                  <p className="text-sm text-emerald-700 font-medium">Save £13-49 per person vs PPC!</p>
-                  <p className="text-xs text-slate-500 mt-1">Total savings: £6,500-24,500 annually</p>
+                  <p className="text-sm text-emerald-700 font-medium">Save £13-48 per person vs PPC!</p>
+                  <p className="text-xs text-slate-500 mt-1">Total savings: £3,350-12,100 annually</p>
                 </div>
               </div>
             </div>
