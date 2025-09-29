@@ -12,8 +12,6 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   MinusCircleIcon,
-  LockClosedIcon,
-  LockOpenIcon,
   ChevronLeftIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
@@ -310,17 +308,12 @@ export default function CompetitionStandingsPage() {
                   <span className="flex items-center space-x-1">
                     <span className="font-medium">Round {competition.current_round}</span>
                   </span>
-                  <span>•</span>
-                  <span className="flex items-center space-x-1">
-                    {isCurrentRoundLocked ? (
-                      <LockClosedIcon className="h-4 w-4" />
-                    ) : (
-                      <LockOpenIcon className="h-4 w-4" />
-                    )}
-                    <span>{isCurrentRoundLocked ? 'Locked' : 'Open'}</span>
-                  </span>
-                  <span>•</span>
-                  <span>{activePlayers.length} players remaining</span>
+                  {!winnerStatus.isComplete && (
+                    <>
+                      <span>•</span>
+                      <span>{activePlayers.length} players remaining</span>
+                    </>
+                  )}
                 </div>
               </div>
               {winnerStatus.isComplete && (
