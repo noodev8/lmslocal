@@ -34,17 +34,13 @@ export default function PricingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
-              {!isAuthenticated && (
-                <button
-                  onClick={handleBackClick}
-                  className="flex items-center text-slate-600 hover:text-slate-900 mr-4 transition-colors"
-                >
-                  <span className="mr-2">←</span>
-                  Back
-                </button>
-              )}
-              <span className="text-xl mr-2">🏆</span>
-              <span className="text-2xl font-bold text-slate-900">LMSLocal</span>
+              <button
+                onClick={handleBackClick}
+                className="flex items-center hover:opacity-80 transition-opacity"
+              >
+                <span className="text-xl mr-2">🏆</span>
+                <span className="text-2xl font-bold text-slate-900">LMSLocal</span>
+              </button>
             </div>
             <div className="flex items-center space-x-4">
               {isAuthenticated ? (
@@ -157,12 +153,6 @@ export default function PricingPage() {
                   </li>
                 </ul>
 
-                <Link
-                  href="/register"
-                  className="block w-full py-3 px-4 bg-slate-800 text-white rounded-lg font-semibold text-center hover:bg-slate-900 transition-colors"
-                >
-                  Start Lite
-                </Link>
               </div>
             </div>
 
@@ -205,12 +195,6 @@ export default function PricingPage() {
                   </li>
                 </ul>
 
-                <Link
-                  href="/register"
-                  className="block w-full py-3 px-4 bg-white text-slate-800 rounded-lg font-semibold text-center hover:bg-slate-100 transition-colors"
-                >
-                  Start Starter
-                </Link>
               </div>
             </div>
 
@@ -248,12 +232,6 @@ export default function PricingPage() {
                   </li>
                 </ul>
 
-                <Link
-                  href="/register"
-                  className="block w-full py-3 px-4 bg-slate-800 text-white rounded-lg font-semibold text-center hover:bg-slate-900 transition-colors"
-                >
-                  Start Pro
-                </Link>
               </div>
             </div>
 
