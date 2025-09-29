@@ -333,17 +333,16 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
                 </div>
               </div>
 
-              <a href="${process.env.EMAIL_VERIFICATION_URL}/billing"
-                 style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">
-                View Billing Dashboard
-              </a>
+              <p style="color: #2563eb; font-weight: bold; margin: 20px 0;">
+                🎉 Your plan upgrade is now active!
+              </p>
 
               <p style="color: #6b7280; font-size: 14px; margin-top: 25px;">
                 Your increased player limits are now active and ready to use.
               </p>
 
               <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">
-                Need help? Reply to this email or contact us at hello@lmslocal.co.uk
+                Questions? Contact us at lmslocal@noodev8.com (please don't reply to this email)
               </p>
             </div>
 
@@ -370,9 +369,9 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
 
       Your increased player limits are now active and ready to use.
 
-      View your billing dashboard: ${process.env.EMAIL_VERIFICATION_URL}/billing
+      Your plan upgrade is now active!
 
-      Need help? Reply to this email or contact us at hello@lmslocal.co.uk
+      Questions? Contact us at lmslocal@noodev8.com (please don't reply to this email)
 
       ---
       LMS Local - Admin-first Last Man Standing competitions
