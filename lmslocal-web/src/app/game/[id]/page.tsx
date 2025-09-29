@@ -650,8 +650,8 @@ export default function UnifiedGameDashboard() {
 
         {/* Status Cards - Compact design */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Personal Status Card - Always visible for participants */}
-          {isParticipant && (
+          {/* Personal Status Card - Only visible for participants in active competitions */}
+          {isParticipant && competition?.status !== 'COMPLETE' && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
