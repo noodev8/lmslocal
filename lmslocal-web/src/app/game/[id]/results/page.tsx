@@ -196,12 +196,6 @@ export default function ResultsPage() {
         // Check if competition completed
         const competitionCompleted = response.data.competition_status === 'COMPLETE';
 
-        // If competition completed, redirect to game dashboard to show completion banner
-        if (competitionCompleted) {
-          router.push(`/game/${competitionId}`);
-          return;
-        }
-
         // Clear caches to ensure fresh data is loaded after results submission
         cacheUtils.invalidateKey(`rounds-${competitionId}`);
         cacheUtils.invalidateKey(`competition-players-${competitionId}`);
@@ -213,6 +207,16 @@ export default function ResultsPage() {
         if (userData) {
           const user = JSON.parse(userData);
           cacheUtils.invalidateKey(`user-dashboard-${user.id}`);
+        }
+
+        // Force refresh AppDataContext to load fresh competition data
+        // This ensures the dashboard shows updated status (e.g., competition complete, winner)
+        await forceRefresh();
+
+        // If competition completed, redirect to game dashboard to show completion banner
+        if (competitionCompleted) {
+          router.push(`/game/${competitionId}`);
+          return;
         }
 
         // Update local state FIRST to immediately reflect the changes in UI
