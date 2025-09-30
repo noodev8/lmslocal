@@ -83,6 +83,9 @@ const deleteMarketingPostRoute = require('./routes/delete-marketing-post');
 const getCompetitionMarketingDisplayRoute = require('./routes/get-competition-marketing-display');
 const updatePersonalCompetitionNameRoute = require('./routes/update-personal-competition-name');
 
+// Admin Routes
+const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
+
 const app = express();
 const PORT = process.env.PORT || 3015;
 
@@ -244,6 +247,9 @@ app.use('/update-marketing-post', updateMarketingPostRoute);
 app.use('/delete-marketing-post', deleteMarketingPostRoute);
 app.use('/get-competition-marketing-display', getCompetitionMarketingDisplayRoute);
 app.use('/update-personal-competition-name', updatePersonalCompetitionNameRoute);
+
+// Admin API Routes
+app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {
