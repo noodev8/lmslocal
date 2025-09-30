@@ -209,11 +209,11 @@ router.post('/', async (req, res) => {
       const token = jwt.sign(
         tokenPayload,
         process.env.JWT_SECRET,
-        { expiresIn: '30d' }
+        { expiresIn: '90d' }
       );
 
       // Calculate token expiration time for response
-      const expiresAt = new Date(loginTimestamp.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days
+      const expiresAt = new Date(loginTimestamp.getTime() + (90 * 24 * 60 * 60 * 1000)); // 90 days
 
       // STEP 6: Update user activity tracking atomically
       const updateActivityQuery = `
