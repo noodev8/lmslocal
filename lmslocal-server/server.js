@@ -85,6 +85,7 @@ const updatePersonalCompetitionNameRoute = require('./routes/update-personal-com
 
 // Admin Routes
 const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
+const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-competitions');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -250,6 +251,7 @@ app.use('/update-personal-competition-name', updatePersonalCompetitionNameRoute)
 
 // Admin API Routes
 app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
+app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

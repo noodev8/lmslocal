@@ -5,7 +5,7 @@
 -- Dumped from database version 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 17.4
 
--- Started on 2025-09-30 17:01:35
+-- Started on 2025-09-30 17:24:38
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -66,7 +66,7 @@ CREATE SEQUENCE public.allowed_teams_id_seq
 ALTER SEQUENCE public.allowed_teams_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3598 (class 0 OID 0)
+-- TOC entry 3599 (class 0 OID 0)
 -- Dependencies: 235
 -- Name: allowed_teams_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -117,7 +117,7 @@ CREATE SEQUENCE public.app_user_id_seq
 ALTER SEQUENCE public.app_user_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3599 (class 0 OID 0)
+-- TOC entry 3600 (class 0 OID 0)
 -- Dependencies: 215
 -- Name: app_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -159,7 +159,7 @@ CREATE SEQUENCE public.audit_log_id_seq
 ALTER SEQUENCE public.audit_log_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3600 (class 0 OID 0)
+-- TOC entry 3601 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: audit_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -199,7 +199,7 @@ CREATE TABLE public.competition (
 ALTER TABLE public.competition OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3601 (class 0 OID 0)
+-- TOC entry 3602 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.venue_name; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -209,7 +209,7 @@ COMMENT ON COLUMN public.competition.venue_name IS 'Display name for the venue/o
 
 
 --
--- TOC entry 3602 (class 0 OID 0)
+-- TOC entry 3603 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.address_line_1; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -218,7 +218,7 @@ COMMENT ON COLUMN public.competition.address_line_1 IS 'First line of pub/organi
 
 
 --
--- TOC entry 3603 (class 0 OID 0)
+-- TOC entry 3604 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.address_line_2; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -227,7 +227,7 @@ COMMENT ON COLUMN public.competition.address_line_2 IS 'Second line of address (
 
 
 --
--- TOC entry 3604 (class 0 OID 0)
+-- TOC entry 3605 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.city; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -236,7 +236,7 @@ COMMENT ON COLUMN public.competition.city IS 'City or town name';
 
 
 --
--- TOC entry 3605 (class 0 OID 0)
+-- TOC entry 3606 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.postcode; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -245,7 +245,7 @@ COMMENT ON COLUMN public.competition.postcode IS 'Postal code (UK format)';
 
 
 --
--- TOC entry 3606 (class 0 OID 0)
+-- TOC entry 3607 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.phone; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -254,7 +254,7 @@ COMMENT ON COLUMN public.competition.phone IS 'Contact phone number for the pub/
 
 
 --
--- TOC entry 3607 (class 0 OID 0)
+-- TOC entry 3608 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.email; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -279,7 +279,7 @@ CREATE SEQUENCE public.competition_id_seq
 ALTER SEQUENCE public.competition_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3608 (class 0 OID 0)
+-- TOC entry 3609 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: competition_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -309,7 +309,7 @@ CREATE TABLE public.competition_user (
 ALTER TABLE public.competition_user OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3609 (class 0 OID 0)
+-- TOC entry 3610 (class 0 OID 0)
 -- Dependencies: 224
 -- Name: COLUMN competition_user.personal_name; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -334,7 +334,7 @@ CREATE SEQUENCE public.competition_user_id_seq
 ALTER SEQUENCE public.competition_user_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3610 (class 0 OID 0)
+-- TOC entry 3611 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: competition_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -381,7 +381,7 @@ CREATE SEQUENCE public.fixture_id_seq
 ALTER SEQUENCE public.fixture_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3611 (class 0 OID 0)
+-- TOC entry 3612 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: fixture_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -403,8 +403,10 @@ CREATE TABLE public.fixture_load (
     kickoff_time timestamp with time zone,
     home_score integer,
     away_score integer,
-    is_active boolean DEFAULT true,
-    pushed_at timestamp with time zone
+    fixtures_pushed boolean DEFAULT true,
+    fixtures_pushed_at timestamp with time zone,
+    results_pushed boolean DEFAULT false,
+    results_pushed_at timestamp without time zone
 );
 
 
@@ -427,7 +429,7 @@ CREATE SEQUENCE public.fixture_load_fixture_id_seq
 ALTER SEQUENCE public.fixture_load_fixture_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3612 (class 0 OID 0)
+-- TOC entry 3613 (class 0 OID 0)
 -- Dependencies: 242
 -- Name: fixture_load_fixture_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -474,7 +476,7 @@ CREATE SEQUENCE public.marketing_posts_id_seq
 ALTER SEQUENCE public.marketing_posts_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3613 (class 0 OID 0)
+-- TOC entry 3614 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: marketing_posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -518,7 +520,7 @@ CREATE SEQUENCE public.pick_id_seq
 ALTER SEQUENCE public.pick_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3614 (class 0 OID 0)
+-- TOC entry 3615 (class 0 OID 0)
 -- Dependencies: 229
 -- Name: pick_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -562,7 +564,7 @@ CREATE SEQUENCE public.player_progress_id_seq
 ALTER SEQUENCE public.player_progress_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3615 (class 0 OID 0)
+-- TOC entry 3616 (class 0 OID 0)
 -- Dependencies: 233
 -- Name: player_progress_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -603,7 +605,7 @@ CREATE SEQUENCE public.round_id_seq
 ALTER SEQUENCE public.round_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3616 (class 0 OID 0)
+-- TOC entry 3617 (class 0 OID 0)
 -- Dependencies: 225
 -- Name: round_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -646,7 +648,7 @@ CREATE SEQUENCE public.subscription_id_seq
 ALTER SEQUENCE public.subscription_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3617 (class 0 OID 0)
+-- TOC entry 3618 (class 0 OID 0)
 -- Dependencies: 240
 -- Name: subscription_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -690,7 +692,7 @@ CREATE SEQUENCE public.team_id_seq
 ALTER SEQUENCE public.team_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3618 (class 0 OID 0)
+-- TOC entry 3619 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: team_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -734,7 +736,7 @@ CREATE SEQUENCE public.team_list_id_seq
 ALTER SEQUENCE public.team_list_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3619 (class 0 OID 0)
+-- TOC entry 3620 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: team_list_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -869,7 +871,7 @@ ALTER TABLE ONLY public.team_list ALTER COLUMN id SET DEFAULT nextval('public.te
 
 
 --
--- TOC entry 3428 (class 2606 OID 21004)
+-- TOC entry 3429 (class 2606 OID 21004)
 -- Name: allowed_teams allowed_teams_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -878,7 +880,7 @@ ALTER TABLE ONLY public.allowed_teams
 
 
 --
--- TOC entry 3370 (class 2606 OID 20655)
+-- TOC entry 3371 (class 2606 OID 20655)
 -- Name: app_user app_user_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -887,7 +889,7 @@ ALTER TABLE ONLY public.app_user
 
 
 --
--- TOC entry 3418 (class 2606 OID 20819)
+-- TOC entry 3419 (class 2606 OID 20819)
 -- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -896,7 +898,7 @@ ALTER TABLE ONLY public.audit_log
 
 
 --
--- TOC entry 3386 (class 2606 OID 20731)
+-- TOC entry 3387 (class 2606 OID 20731)
 -- Name: competition competition_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -905,7 +907,7 @@ ALTER TABLE ONLY public.competition
 
 
 --
--- TOC entry 3392 (class 2606 OID 20748)
+-- TOC entry 3393 (class 2606 OID 20748)
 -- Name: competition_user competition_user_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -914,7 +916,7 @@ ALTER TABLE ONLY public.competition_user
 
 
 --
--- TOC entry 3447 (class 2606 OID 21540)
+-- TOC entry 3448 (class 2606 OID 21540)
 -- Name: fixture_load fixture_load_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -923,7 +925,7 @@ ALTER TABLE ONLY public.fixture_load
 
 
 --
--- TOC entry 3408 (class 2606 OID 20776)
+-- TOC entry 3409 (class 2606 OID 20776)
 -- Name: fixture fixture_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -932,7 +934,7 @@ ALTER TABLE ONLY public.fixture
 
 
 --
--- TOC entry 3438 (class 2606 OID 21331)
+-- TOC entry 3439 (class 2606 OID 21331)
 -- Name: marketing_posts marketing_posts_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -941,7 +943,7 @@ ALTER TABLE ONLY public.marketing_posts
 
 
 --
--- TOC entry 3416 (class 2606 OID 20788)
+-- TOC entry 3417 (class 2606 OID 20788)
 -- Name: pick pick_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -950,7 +952,7 @@ ALTER TABLE ONLY public.pick
 
 
 --
--- TOC entry 3426 (class 2606 OID 20988)
+-- TOC entry 3427 (class 2606 OID 20988)
 -- Name: player_progress player_progress_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -959,7 +961,7 @@ ALTER TABLE ONLY public.player_progress
 
 
 --
--- TOC entry 3406 (class 2606 OID 20763)
+-- TOC entry 3407 (class 2606 OID 20763)
 -- Name: round round_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -968,7 +970,7 @@ ALTER TABLE ONLY public.round
 
 
 --
--- TOC entry 3445 (class 2606 OID 21357)
+-- TOC entry 3446 (class 2606 OID 21357)
 -- Name: subscription subscription_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -977,7 +979,7 @@ ALTER TABLE ONLY public.subscription
 
 
 --
--- TOC entry 3380 (class 2606 OID 20698)
+-- TOC entry 3381 (class 2606 OID 20698)
 -- Name: team_list team_list_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -986,7 +988,7 @@ ALTER TABLE ONLY public.team_list
 
 
 --
--- TOC entry 3384 (class 2606 OID 20713)
+-- TOC entry 3385 (class 2606 OID 20713)
 -- Name: team team_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -995,7 +997,7 @@ ALTER TABLE ONLY public.team
 
 
 --
--- TOC entry 3435 (class 2606 OID 21006)
+-- TOC entry 3436 (class 2606 OID 21006)
 -- Name: allowed_teams unique_competition_user_team; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1004,7 +1006,7 @@ ALTER TABLE ONLY public.allowed_teams
 
 
 --
--- TOC entry 3441 (class 2606 OID 21345)
+-- TOC entry 3442 (class 2606 OID 21345)
 -- Name: user_allowance user_allowances_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1013,7 +1015,7 @@ ALTER TABLE ONLY public.user_allowance
 
 
 --
--- TOC entry 3429 (class 1259 OID 21044)
+-- TOC entry 3430 (class 1259 OID 21044)
 -- Name: idx_allowed_teams_comp_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1021,7 +1023,7 @@ CREATE INDEX idx_allowed_teams_comp_user ON public.allowed_teams USING btree (co
 
 
 --
--- TOC entry 3430 (class 1259 OID 21009)
+-- TOC entry 3431 (class 1259 OID 21009)
 -- Name: idx_allowed_teams_competition; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1029,7 +1031,7 @@ CREATE INDEX idx_allowed_teams_competition ON public.allowed_teams USING btree (
 
 
 --
--- TOC entry 3431 (class 1259 OID 21007)
+-- TOC entry 3432 (class 1259 OID 21007)
 -- Name: idx_allowed_teams_competition_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1037,7 +1039,7 @@ CREATE INDEX idx_allowed_teams_competition_user ON public.allowed_teams USING bt
 
 
 --
--- TOC entry 3432 (class 1259 OID 21010)
+-- TOC entry 3433 (class 1259 OID 21010)
 -- Name: idx_allowed_teams_team; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1045,7 +1047,7 @@ CREATE INDEX idx_allowed_teams_team ON public.allowed_teams USING btree (team_id
 
 
 --
--- TOC entry 3433 (class 1259 OID 21008)
+-- TOC entry 3434 (class 1259 OID 21008)
 -- Name: idx_allowed_teams_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1053,7 +1055,7 @@ CREATE INDEX idx_allowed_teams_user ON public.allowed_teams USING btree (user_id
 
 
 --
--- TOC entry 3371 (class 1259 OID 20658)
+-- TOC entry 3372 (class 1259 OID 20658)
 -- Name: idx_app_user_auth_token; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1061,7 +1063,7 @@ CREATE INDEX idx_app_user_auth_token ON public.app_user USING btree (auth_token)
 
 
 --
--- TOC entry 3372 (class 1259 OID 20657)
+-- TOC entry 3373 (class 1259 OID 20657)
 -- Name: idx_app_user_display_name; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1069,7 +1071,7 @@ CREATE INDEX idx_app_user_display_name ON public.app_user USING btree (display_n
 
 
 --
--- TOC entry 3373 (class 1259 OID 20656)
+-- TOC entry 3374 (class 1259 OID 20656)
 -- Name: idx_app_user_email; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1077,7 +1079,7 @@ CREATE INDEX idx_app_user_email ON public.app_user USING btree (email);
 
 
 --
--- TOC entry 3374 (class 1259 OID 20659)
+-- TOC entry 3375 (class 1259 OID 20659)
 -- Name: idx_app_user_last_active; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1085,7 +1087,7 @@ CREATE INDEX idx_app_user_last_active ON public.app_user USING btree (last_activ
 
 
 --
--- TOC entry 3375 (class 1259 OID 21349)
+-- TOC entry 3376 (class 1259 OID 21349)
 -- Name: idx_app_user_subscription; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1093,7 +1095,7 @@ CREATE INDEX idx_app_user_subscription ON public.app_user USING btree (subscript
 
 
 --
--- TOC entry 3419 (class 1259 OID 20820)
+-- TOC entry 3420 (class 1259 OID 20820)
 -- Name: idx_audit_competition; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1101,7 +1103,7 @@ CREATE INDEX idx_audit_competition ON public.audit_log USING btree (competition_
 
 
 --
--- TOC entry 3420 (class 1259 OID 20822)
+-- TOC entry 3421 (class 1259 OID 20822)
 -- Name: idx_audit_created; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1109,7 +1111,7 @@ CREATE INDEX idx_audit_created ON public.audit_log USING btree (created_at);
 
 
 --
--- TOC entry 3421 (class 1259 OID 20821)
+-- TOC entry 3422 (class 1259 OID 20821)
 -- Name: idx_audit_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1117,7 +1119,7 @@ CREATE INDEX idx_audit_user ON public.audit_log USING btree (user_id);
 
 
 --
--- TOC entry 3393 (class 1259 OID 20749)
+-- TOC entry 3394 (class 1259 OID 20749)
 -- Name: idx_comp_user_competition; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1125,7 +1127,7 @@ CREATE INDEX idx_comp_user_competition ON public.competition_user USING btree (c
 
 
 --
--- TOC entry 3394 (class 1259 OID 20751)
+-- TOC entry 3395 (class 1259 OID 20751)
 -- Name: idx_comp_user_status; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1133,7 +1135,7 @@ CREATE INDEX idx_comp_user_status ON public.competition_user USING btree (status
 
 
 --
--- TOC entry 3395 (class 1259 OID 20753)
+-- TOC entry 3396 (class 1259 OID 20753)
 -- Name: idx_comp_user_unique; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1141,7 +1143,7 @@ CREATE UNIQUE INDEX idx_comp_user_unique ON public.competition_user USING btree 
 
 
 --
--- TOC entry 3396 (class 1259 OID 20750)
+-- TOC entry 3397 (class 1259 OID 20750)
 -- Name: idx_comp_user_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1149,7 +1151,7 @@ CREATE INDEX idx_comp_user_user ON public.competition_user USING btree (user_id)
 
 
 --
--- TOC entry 3387 (class 1259 OID 20735)
+-- TOC entry 3388 (class 1259 OID 20735)
 -- Name: idx_competition_created; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1157,7 +1159,7 @@ CREATE INDEX idx_competition_created ON public.competition USING btree (created_
 
 
 --
--- TOC entry 3388 (class 1259 OID 21048)
+-- TOC entry 3389 (class 1259 OID 21048)
 -- Name: idx_competition_organiser; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1165,7 +1167,7 @@ CREATE INDEX idx_competition_organiser ON public.competition USING btree (organi
 
 
 --
--- TOC entry 3389 (class 1259 OID 20734)
+-- TOC entry 3390 (class 1259 OID 20734)
 -- Name: idx_competition_status; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1173,7 +1175,7 @@ CREATE INDEX idx_competition_status ON public.competition USING btree (status);
 
 
 --
--- TOC entry 3390 (class 1259 OID 20733)
+-- TOC entry 3391 (class 1259 OID 20733)
 -- Name: idx_competition_team_list; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1181,7 +1183,7 @@ CREATE INDEX idx_competition_team_list ON public.competition USING btree (team_l
 
 
 --
--- TOC entry 3397 (class 1259 OID 21050)
+-- TOC entry 3398 (class 1259 OID 21050)
 -- Name: idx_competition_user_comp; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1189,7 +1191,7 @@ CREATE INDEX idx_competition_user_comp ON public.competition_user USING btree (c
 
 
 --
--- TOC entry 3398 (class 1259 OID 21043)
+-- TOC entry 3399 (class 1259 OID 21043)
 -- Name: idx_competition_user_comp_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1197,7 +1199,7 @@ CREATE INDEX idx_competition_user_comp_user ON public.competition_user USING btr
 
 
 --
--- TOC entry 3399 (class 1259 OID 21049)
+-- TOC entry 3400 (class 1259 OID 21049)
 -- Name: idx_competition_user_lookup; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1205,7 +1207,7 @@ CREATE INDEX idx_competition_user_lookup ON public.competition_user USING btree 
 
 
 --
--- TOC entry 3400 (class 1259 OID 21042)
+-- TOC entry 3401 (class 1259 OID 21042)
 -- Name: idx_competition_user_paid; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1213,7 +1215,7 @@ CREATE INDEX idx_competition_user_paid ON public.competition_user USING btree (c
 
 
 --
--- TOC entry 3409 (class 1259 OID 20779)
+-- TOC entry 3410 (class 1259 OID 20779)
 -- Name: idx_fixture_kickoff; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1221,15 +1223,15 @@ CREATE INDEX idx_fixture_kickoff ON public.fixture USING btree (kickoff_time);
 
 
 --
--- TOC entry 3448 (class 1259 OID 21541)
+-- TOC entry 3449 (class 1259 OID 21541)
 -- Name: idx_fixture_load_active; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
-CREATE INDEX idx_fixture_load_active ON public.fixture_load USING btree (is_active);
+CREATE INDEX idx_fixture_load_active ON public.fixture_load USING btree (fixtures_pushed);
 
 
 --
--- TOC entry 3449 (class 1259 OID 21542)
+-- TOC entry 3450 (class 1259 OID 21542)
 -- Name: idx_fixture_load_team_list; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1237,7 +1239,7 @@ CREATE INDEX idx_fixture_load_team_list ON public.fixture_load USING btree (team
 
 
 --
--- TOC entry 3410 (class 1259 OID 20777)
+-- TOC entry 3411 (class 1259 OID 20777)
 -- Name: idx_fixture_round; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1245,7 +1247,7 @@ CREATE INDEX idx_fixture_round ON public.fixture USING btree (round_id);
 
 
 --
--- TOC entry 3436 (class 1259 OID 21332)
+-- TOC entry 3437 (class 1259 OID 21332)
 -- Name: idx_marketing_posts_competition_active; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1253,7 +1255,7 @@ CREATE INDEX idx_marketing_posts_competition_active ON public.marketing_posts US
 
 
 --
--- TOC entry 3411 (class 1259 OID 20792)
+-- TOC entry 3412 (class 1259 OID 20792)
 -- Name: idx_pick_fixture; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1261,7 +1263,7 @@ CREATE INDEX idx_pick_fixture ON public.pick USING btree (fixture_id);
 
 
 --
--- TOC entry 3412 (class 1259 OID 20789)
+-- TOC entry 3413 (class 1259 OID 20789)
 -- Name: idx_pick_round; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1269,7 +1271,7 @@ CREATE INDEX idx_pick_round ON public.pick USING btree (round_id);
 
 
 --
--- TOC entry 3413 (class 1259 OID 20793)
+-- TOC entry 3414 (class 1259 OID 20793)
 -- Name: idx_pick_unique; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1277,7 +1279,7 @@ CREATE UNIQUE INDEX idx_pick_unique ON public.pick USING btree (round_id, user_i
 
 
 --
--- TOC entry 3414 (class 1259 OID 20790)
+-- TOC entry 3415 (class 1259 OID 20790)
 -- Name: idx_pick_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1285,7 +1287,7 @@ CREATE INDEX idx_pick_user ON public.pick USING btree (user_id);
 
 
 --
--- TOC entry 3422 (class 1259 OID 20990)
+-- TOC entry 3423 (class 1259 OID 20990)
 -- Name: idx_player_progress_competition; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1293,7 +1295,7 @@ CREATE INDEX idx_player_progress_competition ON public.player_progress USING btr
 
 
 --
--- TOC entry 3423 (class 1259 OID 20989)
+-- TOC entry 3424 (class 1259 OID 20989)
 -- Name: idx_player_progress_player; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1301,7 +1303,7 @@ CREATE INDEX idx_player_progress_player ON public.player_progress USING btree (p
 
 
 --
--- TOC entry 3424 (class 1259 OID 20991)
+-- TOC entry 3425 (class 1259 OID 20991)
 -- Name: idx_player_progress_round; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1309,7 +1311,7 @@ CREATE INDEX idx_player_progress_round ON public.player_progress USING btree (co
 
 
 --
--- TOC entry 3401 (class 1259 OID 21051)
+-- TOC entry 3402 (class 1259 OID 21051)
 -- Name: idx_round_comp_number; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1317,7 +1319,7 @@ CREATE INDEX idx_round_comp_number ON public.round USING btree (competition_id, 
 
 
 --
--- TOC entry 3402 (class 1259 OID 20764)
+-- TOC entry 3403 (class 1259 OID 20764)
 -- Name: idx_round_competition; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1325,7 +1327,7 @@ CREATE INDEX idx_round_competition ON public.round USING btree (competition_id);
 
 
 --
--- TOC entry 3403 (class 1259 OID 20767)
+-- TOC entry 3404 (class 1259 OID 20767)
 -- Name: idx_round_lock_time; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1333,7 +1335,7 @@ CREATE INDEX idx_round_lock_time ON public.round USING btree (lock_time);
 
 
 --
--- TOC entry 3404 (class 1259 OID 20765)
+-- TOC entry 3405 (class 1259 OID 20765)
 -- Name: idx_round_number; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1341,7 +1343,7 @@ CREATE INDEX idx_round_number ON public.round USING btree (competition_id, round
 
 
 --
--- TOC entry 3442 (class 1259 OID 21359)
+-- TOC entry 3443 (class 1259 OID 21359)
 -- Name: idx_subscription_stripe_sub; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1349,7 +1351,7 @@ CREATE INDEX idx_subscription_stripe_sub ON public.subscription USING btree (str
 
 
 --
--- TOC entry 3443 (class 1259 OID 21358)
+-- TOC entry 3444 (class 1259 OID 21358)
 -- Name: idx_subscription_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1357,7 +1359,7 @@ CREATE INDEX idx_subscription_user ON public.subscription USING btree (user_id);
 
 
 --
--- TOC entry 3381 (class 1259 OID 20714)
+-- TOC entry 3382 (class 1259 OID 20714)
 -- Name: idx_team_list; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1365,7 +1367,7 @@ CREATE INDEX idx_team_list ON public.team USING btree (team_list_id);
 
 
 --
--- TOC entry 3376 (class 1259 OID 20700)
+-- TOC entry 3377 (class 1259 OID 20700)
 -- Name: idx_team_list_org; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1373,7 +1375,7 @@ CREATE INDEX idx_team_list_org ON public.team_list USING btree (organisation_id)
 
 
 --
--- TOC entry 3377 (class 1259 OID 20701)
+-- TOC entry 3378 (class 1259 OID 20701)
 -- Name: idx_team_list_season; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1381,7 +1383,7 @@ CREATE INDEX idx_team_list_season ON public.team_list USING btree (season);
 
 
 --
--- TOC entry 3378 (class 1259 OID 20699)
+-- TOC entry 3379 (class 1259 OID 20699)
 -- Name: idx_team_list_type; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1389,7 +1391,7 @@ CREATE INDEX idx_team_list_type ON public.team_list USING btree (type);
 
 
 --
--- TOC entry 3382 (class 1259 OID 20715)
+-- TOC entry 3383 (class 1259 OID 20715)
 -- Name: idx_team_name; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1397,7 +1399,7 @@ CREATE INDEX idx_team_name ON public.team USING btree (name);
 
 
 --
--- TOC entry 3439 (class 1259 OID 21347)
+-- TOC entry 3440 (class 1259 OID 21347)
 -- Name: idx_user_allowances_user_id; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1420,7 +1422,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO lmslocal_prod_user;
 
 
--- Completed on 2025-09-30 17:01:37
+-- Completed on 2025-09-30 17:24:40
 
 --
 -- PostgreSQL database dump complete

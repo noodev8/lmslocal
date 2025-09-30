@@ -67,7 +67,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       const fixturesResult = await client.query(`
         SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time, home_score, away_score
         FROM fixture_load
-        WHERE is_active = true
+        WHERE fixtures_pushed = false
         ORDER BY team_list_id, kickoff_time
       `);
 
@@ -275,6 +275,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
           await client.query(`
             INSERT INTO fixture (
               round_id,
+              competition_id,
               home_team,
               away_team,
               home_team_short,
@@ -283,9 +284,10 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
               result,
               created_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
           `, [
             targetRoundId,
+            competitionId,               // Competition ID for easier querying
             homeTeamFull,                // Full name from lookup
             awayTeamFull,                // Full name from lookup
             fixture.home_team_short,     // Short name from fixture_load
@@ -359,11 +361,11 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
         totalCompetitionsUpdated++;
       }
 
-      // Step 5: Mark all fixtures as inactive (pushed)
+      // Step 5: Mark all fixtures as pushed
       await client.query(`
         UPDATE fixture_load
-        SET is_active = false, pushed_at = NOW()
-        WHERE is_active = true
+        SET fixtures_pushed = true, fixtures_pushed_at = NOW()
+        WHERE fixtures_pushed = false
       `);
 
       // Return all data needed for response

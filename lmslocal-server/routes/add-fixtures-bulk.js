@@ -184,16 +184,18 @@ router.post('/', verifyToken, async (req, res) => {
         await client.query(`
           INSERT INTO fixture (
             round_id,
+            competition_id,
             home_team,                    -- Full team name (e.g., "Arsenal")
-            away_team,                    -- Full team name (e.g., "Chelsea") 
+            away_team,                    -- Full team name (e.g., "Chelsea")
             home_team_short,              -- Short team name (e.g., "ARS")
             away_team_short,              -- Short team name (e.g., "CHE")
             kickoff_time,
             created_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
         `, [
           roundIdInt,
+          verifyResult.rows[0].competition_id,             // Competition ID for easier querying
           teamMap[fixture.home_team] || fixture.home_team, // Full name from lookup or fallback to input
           teamMap[fixture.away_team] || fixture.away_team, // Full name from lookup or fallback to input
           fixture.home_team,                               // Short name from frontend input
