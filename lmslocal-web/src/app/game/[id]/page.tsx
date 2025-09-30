@@ -17,6 +17,7 @@ import {
 import { Competition as CompetitionType, userApi, roundApi, competitionApi, offlinePlayerApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import MarketingDisplay from '@/components/MarketingDisplay';
+import { useToast, ToastContainer } from '@/components/Toast';
 
 export default function UnifiedGameDashboard() {
   const router = useRouter();
@@ -48,11 +49,18 @@ export default function UnifiedGameDashboard() {
   } | null>(null);
   const [needsFixtures, setNeedsFixtures] = useState(false);
 
+  // Toast notifications
+  const { toasts, showToast, removeToast } = useToast();
+
   // Guest player modal state
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '', email: '' });
   const [addPlayerError, setAddPlayerError] = useState<string | null>(null);
+
+  // Copy button states
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [messageCopied, setMessageCopied] = useState(false);
 
   // Simple loading based on context availability
   const loading = contextLoading || !competition;
@@ -302,6 +310,9 @@ export default function UnifiedGameDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onClose={removeToast} />
+
         <header className="bg-white border-b border-gray-100">
           <div className="max-w-4xl mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
@@ -347,6 +358,9 @@ export default function UnifiedGameDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
       {/* Header */}
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -611,10 +625,19 @@ export default function UnifiedGameDashboard() {
                     {competition.invite_code}
                   </code>
                   <button
-                    onClick={() => navigator.clipboard.writeText(competition.invite_code || '')}
-                    className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:border-gray-300"
+                    onClick={() => {
+                      navigator.clipboard.writeText(competition.invite_code || '');
+                      setCodeCopied(true);
+                      showToast('Competition code copied to clipboard!', 'success');
+                      setTimeout(() => setCodeCopied(false), 2000);
+                    }}
+                    className={`text-xs px-2 py-1 rounded border transition-colors ${
+                      codeCopied
+                        ? 'text-green-600 bg-green-50 border-green-300'
+                        : 'text-gray-500 hover:text-gray-700 border-gray-200 hover:border-gray-300'
+                    }`}
                   >
-                    Copy Code
+                    {codeCopied ? '✓ Copied!' : 'Copy Code'}
                   </button>
                 </div>
 
@@ -623,10 +646,17 @@ export default function UnifiedGameDashboard() {
                   onClick={() => {
                     const message = `🏆 Join our Last Man Standing competition!\n\nGo to: https://lmslocal.co.uk\nUse code: ${competition.invite_code}\n\nGood luck! ⚽`;
                     navigator.clipboard.writeText(message);
+                    setMessageCopied(true);
+                    showToast('Message copied! Paste it into WhatsApp, email, or any messaging app', 'success');
+                    setTimeout(() => setMessageCopied(false), 2000);
                   }}
-                  className="text-xs text-green-600 hover:text-green-700 px-3 py-1 rounded border border-green-200 hover:border-green-300 bg-green-50 hover:bg-green-100"
+                  className={`text-xs px-3 py-1 rounded border transition-colors ${
+                    messageCopied
+                      ? 'text-green-700 bg-green-100 border-green-400 font-medium'
+                      : 'text-green-600 hover:text-green-700 border-green-200 hover:border-green-300 bg-green-50 hover:bg-green-100'
+                  }`}
                 >
-                  📱 Copy Message (WhatsApp, email, etc.)
+                  {messageCopied ? '✓ Copied - Paste into your chat app!' : '📱 Copy Message (WhatsApp, email, etc.)'}
                 </button>
               </div>
 
@@ -662,7 +692,9 @@ export default function UnifiedGameDashboard() {
                   )}
                   <div className="text-sm font-medium text-gray-900">
                     {competition.user_status === 'active' ? (
-                      `Active in Round ${currentRoundInfo?.round_number || competition.current_round}`
+                      currentRoundInfo?.round_number || competition.current_round
+                        ? `Active in Round ${currentRoundInfo?.round_number || competition.current_round}`
+                        : 'Active - Waiting for first round'
                     ) : (
                       `Eliminated ${competition.history?.find(h => h.pick_result === 'loss' || h.pick_result === 'no_pick') ? `in Round ${competition.history.find(h => h.pick_result === 'loss' || h.pick_result === 'no_pick')?.round_number}` : ''}`
                     )}

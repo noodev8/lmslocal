@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { roundApi, fixtureApi, teamApi, competitionApi, adminApi, userApi, Team, Player, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
+import { useToast, ToastContainer } from '@/components/Toast';
 
 interface Round {
   id: number;
@@ -40,12 +41,15 @@ export default function FixturesPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
-  
+
   // Use AppDataProvider context for competitions data
   const { competitions, loading: contextLoading } = useAppData();
-  
+
   // Find the specific competition
   const competition = competitions?.find(c => c.id.toString() === competitionId);
+
+  // Toast notifications
+  const { toasts, showToast, removeToast } = useToast();
 
   const [currentRound, setCurrentRound] = useState<Round | null>(null);
   const [isFirstRound, setIsFirstRound] = useState(false);
@@ -78,6 +82,9 @@ export default function FixturesPage() {
   const [adminSettingPick, setAdminSettingPick] = useState(false);
   const [adminPickTeams, setAdminPickTeams] = useState<Team[]>([]);
   const [adminAllowedTeamNames, setAdminAllowedTeamNames] = useState<Set<string>>(new Set());
+  const [pickSuccess, setPickSuccess] = useState(false);
+  const [currentPlayerPick, setCurrentPlayerPick] = useState<string | null>(null);
+  const [loadingPlayerPick, setLoadingPlayerPick] = useState(false);
 
   const hasInitialized = useRef(false);
 
@@ -507,6 +514,23 @@ export default function FixturesPage() {
     }
   };
 
+  const loadPlayerCurrentPick = async (userId: number, roundId: number) => {
+    setLoadingPlayerPick(true);
+    try {
+      const response = await adminApi.getPlayerPick(roundId, userId);
+      if (response.data.return_code === 'SUCCESS' && response.data.pick) {
+        setCurrentPlayerPick(response.data.pick.team_full_name || response.data.pick.team);
+      } else {
+        setCurrentPlayerPick(null);
+      }
+    } catch (error) {
+      console.error('Failed to load player pick:', error);
+      setCurrentPlayerPick(null);
+    } finally {
+      setLoadingPlayerPick(false);
+    }
+  };
+
   const loadAdminPickAllowedTeams = async (userId: number) => {
     try {
       // First, get the player's allowed teams
@@ -576,12 +600,32 @@ export default function FixturesPage() {
       const response = await adminApi.setPlayerPick(competition.id, adminSelectedPlayer, teamToSet);
 
       if (response.data.return_code === 'SUCCESS') {
-        // Close modal and reset form
-        setShowAdminPickModal(false);
-        setAdminSelectedPlayer(null);
-        setAdminSelectedTeam('');
-        setAdminPickTeams([]);
-        setAdminAllowedTeamNames(new Set());
+        // Show success state in modal
+        setPickSuccess(true);
+
+        // Find player name for toast
+        const player = adminPickPlayers.find(p => p.id === adminSelectedPlayer);
+        const playerName = player?.display_name || 'Player';
+        const actionText = adminSelectedTeam === 'NO_PICK' ? 'removed' : 'set';
+        const teamText = adminSelectedTeam === 'NO_PICK' ? '' : `: ${adminSelectedTeam}`;
+
+        // Invalidate picks cache for fresh data when viewing picks elsewhere
+        cacheUtils.invalidateKey(`picks-${competitionId}`);
+        cacheUtils.invalidateKey(`competition-players-${competitionId}`);
+
+        // Show toast notification
+        showToast(`Pick ${actionText}${teamText} for ${playerName}`, 'success');
+
+        // Auto-close modal after brief delay
+        setTimeout(() => {
+          setShowAdminPickModal(false);
+          setAdminSelectedPlayer(null);
+          setAdminSelectedTeam('');
+          setAdminPickTeams([]);
+          setAdminAllowedTeamNames(new Set());
+          setPickSuccess(false);
+          setCurrentPlayerPick(null);
+        }, 500);
       } else {
         alert(`Failed to ${adminSelectedTeam === 'NO_PICK' ? 'remove' : 'set'} pick: ${(response.data as { message?: string }).message || 'Unknown error'}`);
       }
@@ -637,6 +681,9 @@ export default function FixturesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1212,6 +1259,7 @@ export default function FixturesPage() {
                       setAdminSelectedTeam('');
                       setAdminPickTeams([]);
                       setAdminAllowedTeamNames(new Set());
+                      setCurrentPlayerPick(null);
                     }}
                     className="text-slate-400 hover:text-slate-600 transition-colors"
                   >
@@ -1233,8 +1281,10 @@ export default function FixturesPage() {
                         setAdminSelectedTeam('');
                         setAdminPickTeams([]);
                         setAdminAllowedTeamNames(new Set());
-                        if (playerId) {
+                        setCurrentPlayerPick(null);
+                        if (playerId && currentRound) {
                           loadAdminPickAllowedTeams(playerId);
+                          loadPlayerCurrentPick(playerId, currentRound.id);
                         }
                       }}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
@@ -1247,6 +1297,30 @@ export default function FixturesPage() {
                       ))}
                     </select>
                   </div>
+
+                  {/* Current Pick Info Banner */}
+                  {adminSelectedPlayer && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-start space-x-2">
+                        <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-blue-900">
+                            {loadingPlayerPick ? (
+                              <span className="flex items-center">
+                                <span className="animate-pulse">Loading current pick...</span>
+                              </span>
+                            ) : currentPlayerPick ? (
+                              <>Current pick: <span className="font-semibold">{currentPlayerPick}</span></>
+                            ) : (
+                              'No pick made yet'
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Team Selection */}
                   {adminSelectedPlayer && (
@@ -1282,6 +1356,7 @@ export default function FixturesPage() {
                       setAdminSelectedTeam('');
                       setAdminPickTeams([]);
                       setAdminAllowedTeamNames(new Set());
+                      setCurrentPlayerPick(null);
                     }}
                     disabled={adminSettingPick}
                     className="flex-1 px-4 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors disabled:opacity-50"
@@ -1290,12 +1365,23 @@ export default function FixturesPage() {
                   </button>
                   <button
                     onClick={handleSetPlayerPick}
-                    disabled={!adminSelectedPlayer || !adminSelectedTeam || adminSettingPick}
-                    className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-medium transition-colors"
+                    disabled={!adminSelectedPlayer || !adminSelectedTeam || adminSettingPick || pickSuccess}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
+                      pickSuccess
+                        ? 'bg-green-600 text-white'
+                        : 'bg-slate-600 text-white hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed'
+                    }`}
                   >
-                    {adminSettingPick
-                      ? (adminSelectedTeam === 'NO_PICK' ? 'Removing Pick...' : 'Setting Pick...')
-                      : (adminSelectedTeam === 'NO_PICK' ? 'Remove Pick' : 'Set Pick')}
+                    {pickSuccess ? (
+                      <span className="flex items-center justify-center">
+                        <CheckCircleIcon className="h-5 w-5 mr-2" />
+                        Pick Set ✓
+                      </span>
+                    ) : adminSettingPick ? (
+                      adminSelectedTeam === 'NO_PICK' ? 'Removing Pick...' : 'Setting Pick...'
+                    ) : (
+                      adminSelectedTeam === 'NO_PICK' ? 'Remove Pick' : 'Set Pick'
+                    )}
                   </button>
                 </div>
               </div>

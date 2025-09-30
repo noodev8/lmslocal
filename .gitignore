@@ -91,4 +91,7 @@ splitdine-ocr-6921886ed122.json
 # Screenshot files (help files)
 screenshot*.*
 
+# Windows reserved device names
+nul
+
 .vercel
