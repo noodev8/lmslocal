@@ -1,20 +1,28 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, UserGroupIcon, StarIcon } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
     if (token) {
       router.push('/dashboard');
+    } else {
+      setIsChecking(false);
     }
   }, [router]);
+
+  // Show nothing while checking auth status
+  if (isChecking) {
+    return null;
+  }
   const features = [
     {
       title: '5-Minute Setup',
