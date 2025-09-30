@@ -3,9 +3,11 @@
 API Route: push-results-to-competitions
 =======================================================================================================================================
 Method: POST
-Purpose: Admin-only route that pushes results from fixture_load to competition fixtures.
-         Updates fixture.result field with winning team short name or "DRAW".
-         Only updates fixtures where result is NULL (never overrides existing results).
+Purpose: Admin-only route that pushes results from fixture_load to competition fixtures and automatically processes them.
+         1. Updates fixture.result field with winning team short name or "DRAW"
+         2. Only updates fixtures in competitions where fixture_service = true
+         3. Automatically processes results (eliminations, no-picks, competition completion)
+         4. Only updates fixtures where result is NULL (never overrides existing results)
 =======================================================================================================================================
 Request Payload:
 {
@@ -17,7 +19,20 @@ Success Response (ALWAYS HTTP 200):
   "return_code": "SUCCESS",
   "fixtures_updated": 15,                 // integer, number of competition fixtures updated with results
   "results_marked_pushed": 15,            // integer, number of fixture_load records marked as pushed
-  "message": "15 results pushed to competitions successfully"
+  "competitions_processed": [             // array, details of each competition processed
+    {
+      "competition_id": 1,                // integer, competition ID
+      "status": "processed",              // string, "processed", "skipped", or "error"
+      "fixtures_processed": 10,           // integer, number of fixtures processed (if status = "processed")
+      "competition_status": "active"      // string, "active" or "COMPLETE" (if winner determined)
+    },
+    {
+      "competition_id": 2,
+      "status": "skipped",
+      "reason": "No unprocessed results"  // string, reason for skip (if status = "skipped" or "error")
+    }
+  ],
+  "message": "15 results pushed and 2 competitions processed"
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -92,6 +107,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       // - If away_score > home_score → result = away_team_short (away team won)
       // - If home_score = away_score → result = "DRAW"
       let totalFixturesUpdated = 0;
+      const affectedCompetitions = new Set(); // Track which competitions had results updated
 
       for (const resultData of resultsData) {
         // Calculate the winner or draw from the scores
@@ -104,18 +120,31 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
           resultValue = 'DRAW';  // It's a draw
         }
 
-        // Update all matching fixtures across all competitions
-        // Only updates fixtures where result is currently NULL
+        // Update all matching fixtures in SUBSCRIBED competitions only
+        // Only updates fixtures where:
+        // - Competition has fixture_service = true (subscribed to service)
+        // - Teams match (home_team_short and away_team_short)
+        // - result IS NULL (NEVER override existing results)
+        // RETURNING clause gives us the competition_ids that were affected
         const fixtureUpdateResult = await client.query(`
-          UPDATE fixture
+          UPDATE fixture f
           SET result = $1
-          WHERE home_team_short = $2
-          AND away_team_short = $3
-          AND result IS NULL
+          FROM competition c
+          WHERE f.competition_id = c.id
+          AND c.fixture_service = true
+          AND f.home_team_short = $2
+          AND f.away_team_short = $3
+          AND f.result IS NULL
+          RETURNING f.competition_id
         `, [resultValue, resultData.home_team_short, resultData.away_team_short]);
 
         // Track how many fixtures were updated
         totalFixturesUpdated += fixtureUpdateResult.rowCount || 0;
+
+        // Track which competitions were affected (for automatic processing)
+        fixtureUpdateResult.rows.forEach(row => {
+          affectedCompetitions.add(row.competition_id);
+        });
       }
 
       // === STEP 3: MARK RESULTS AS PUSHED IN FIXTURE_LOAD ===
@@ -134,21 +163,219 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
 
       const resultsMarkedPushed = markPushedResult.rows.length;
 
+      // === STEP 4: AUTO-PROCESS RESULTS FOR AFFECTED COMPETITIONS ===
+      // For all competitions that had results updated (fixture_service = true),
+      // automatically process the results (eliminations, no-picks, competition completion)
+      // This replicates the submit-results processing logic
+      const competitionsProcessed = [];
+
+      for (const competitionId of affectedCompetitions) {
+        try {
+          // Get the latest round for this competition
+          const roundResult = await client.query(`
+            SELECT r.id as round_id
+            FROM round r
+            WHERE r.competition_id = $1
+            ORDER BY r.round_number DESC
+            LIMIT 1
+          `, [competitionId]);
+
+          if (roundResult.rows.length === 0) {
+            competitionsProcessed.push({
+              competition_id: competitionId,
+              status: 'skipped',
+              reason: 'No rounds found'
+            });
+            continue;
+          }
+
+          const roundId = roundResult.rows[0].round_id;
+
+          // Find fixtures with results that are NOT yet processed
+          const unprocessedResults = await client.query(`
+            SELECT id, result, home_team_short, away_team_short
+            FROM fixture
+            WHERE round_id = $1
+            AND result IS NOT NULL
+            AND processed IS NULL
+          `, [roundId]);
+
+          if (unprocessedResults.rows.length === 0) {
+            competitionsProcessed.push({
+              competition_id: competitionId,
+              status: 'skipped',
+              reason: 'No unprocessed results'
+            });
+            continue;
+          }
+
+          // Mark all unprocessed results as processed
+          const fixtureIds = unprocessedResults.rows.map(row => row.id);
+          await client.query(`
+            UPDATE fixture
+            SET processed = NOW()
+            WHERE id = ANY($1::integer[])
+          `, [fixtureIds]);
+
+          // === PLAYER OUTCOME PROCESSING ===
+          // Update pick outcomes for all processed fixtures
+          for (const fixture of unprocessedResults.rows) {
+            // Get all picks for this fixture
+            const picksResult = await client.query(`
+              SELECT p.id, p.user_id, p.team, au.display_name
+              FROM pick p
+              JOIN app_user au ON p.user_id = au.id
+              WHERE p.fixture_id = $1
+            `, [fixture.id]);
+
+            // Process each pick and determine outcome
+            for (const pick of picksResult.rows) {
+              let outcome;
+
+              // Determine outcome based on pick vs fixture result
+              if (fixture.result === 'DRAW') {
+                outcome = 'LOSE'; // Draw eliminates all players
+              } else if (pick.team === fixture.result) {
+                outcome = 'WIN';  // Player picked winning team
+              } else {
+                outcome = 'LOSE'; // Player picked losing team
+              }
+
+              // Update pick outcome
+              await client.query(`
+                UPDATE pick
+                SET outcome = $1
+                WHERE id = $2
+              `, [outcome, pick.id]);
+
+              // Insert player progress record
+              await client.query(`
+                INSERT INTO player_progress (player_id, competition_id, round_id, fixture_id, chosen_team, outcome)
+                VALUES ($1, $2, $3, $4, $5, $6)
+              `, [pick.user_id, competitionId, roundId, fixture.id, pick.team, outcome]);
+
+              // Update player lives based on outcome
+              if (outcome === 'LOSE') {
+                await client.query(`
+                  UPDATE competition_user
+                  SET
+                    lives_remaining = GREATEST(lives_remaining - 1, 0),
+                    status = CASE
+                      WHEN lives_remaining - 1 < 0 THEN 'out'
+                      ELSE status
+                    END
+                  WHERE competition_id = $1 AND user_id = $2
+                `, [competitionId, pick.user_id]);
+              }
+            }
+          }
+
+          // === NO-PICK PENALTY PROCESSING ===
+          // Check if ALL fixtures in this round are now processed
+          const allFixturesResult = await client.query(`
+            SELECT COUNT(*) as total_fixtures,
+                   COUNT(CASE WHEN processed IS NOT NULL THEN 1 END) as processed_fixtures
+            FROM fixture
+            WHERE round_id = $1
+          `, [roundId]);
+
+          const { total_fixtures, processed_fixtures } = allFixturesResult.rows[0];
+
+          // Only proceed if ALL fixtures are processed
+          if (total_fixtures > 0 && total_fixtures == processed_fixtures) {
+            // Find active players who did NOT make any pick for this round
+            const noPickPlayersResult = await client.query(`
+              SELECT cu.user_id, au.display_name, cu.lives_remaining
+              FROM competition_user cu
+              JOIN app_user au ON cu.user_id = au.id
+              WHERE cu.competition_id = $1
+              AND cu.status = 'active'
+              AND cu.user_id NOT IN (
+                SELECT DISTINCT user_id
+                FROM pick
+                WHERE round_id = $2
+              )
+            `, [competitionId, roundId]);
+
+            // Process each no-pick player
+            for (const player of noPickPlayersResult.rows) {
+              // Insert player progress record for NO-PICK
+              await client.query(`
+                INSERT INTO player_progress (player_id, competition_id, round_id, chosen_team, outcome)
+                VALUES ($1, $2, $3, $4, $5)
+              `, [player.user_id, competitionId, roundId, 'NO-PICK', 'LOSE']);
+
+              // Deduct life and potentially eliminate player
+              await client.query(`
+                UPDATE competition_user
+                SET
+                  lives_remaining = GREATEST(lives_remaining - 1, 0),
+                  status = CASE
+                    WHEN lives_remaining - 1 < 0 THEN 'out'
+                    ELSE status
+                  END
+                WHERE competition_id = $1 AND user_id = $2
+              `, [competitionId, player.user_id]);
+            }
+          }
+
+          // === COMPETITION COMPLETION CHECK ===
+          // Check if competition should be marked as complete
+          let competitionStatus = 'active';
+          if (total_fixtures > 0 && total_fixtures == processed_fixtures) {
+            const activePlayersResult = await client.query(`
+              SELECT COUNT(*) as active_count
+              FROM competition_user
+              WHERE competition_id = $1 AND status = 'active'
+            `, [competitionId]);
+
+            const activeCount = parseInt(activePlayersResult.rows[0].active_count);
+
+            // If only one or zero players remain active, mark competition as complete
+            if (activeCount <= 1) {
+              await client.query(`
+                UPDATE competition
+                SET status = 'COMPLETE'
+                WHERE id = $1
+              `, [competitionId]);
+              competitionStatus = 'COMPLETE';
+            }
+          }
+
+          competitionsProcessed.push({
+            competition_id: competitionId,
+            status: 'processed',
+            fixtures_processed: fixtureIds.length,
+            competition_status: competitionStatus
+          });
+
+        } catch (error) {
+          console.error(`Error processing competition ${competitionId}:`, error);
+          competitionsProcessed.push({
+            competition_id: competitionId,
+            status: 'error',
+            reason: 'Processing failed'
+          });
+        }
+      }
+
       // Return all data needed for response
       return {
         fixtures_updated: totalFixturesUpdated,
-        results_marked_pushed: resultsMarkedPushed
+        results_marked_pushed: resultsMarkedPushed,
+        competitions_processed: competitionsProcessed
       };
     });
 
-    // === STEP 4: SUCCESS RESPONSE ===
-    // Transaction completed successfully - send response with counts
+    // === STEP 5: SUCCESS RESPONSE ===
+    // Transaction completed successfully - send response with detailed counts
     // Always return HTTP 200 with return_code for consistency
     res.json({
       return_code: "SUCCESS",
       fixtures_updated: result.fixtures_updated,
       results_marked_pushed: result.results_marked_pushed,
-      message: `${result.fixtures_updated} result${result.fixtures_updated === 1 ? '' : 's'} pushed to competitions successfully`
+      competitions_processed: result.competitions_processed,
+      message: `${result.fixtures_updated} result${result.fixtures_updated === 1 ? '' : 's'} pushed and ${result.competitions_processed.length} competition${result.competitions_processed.length === 1 ? '' : 's'} processed`
     });
 
   } catch (error) {
