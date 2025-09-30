@@ -88,4 +88,8 @@ venv/
 # Any Private Keys
 splitdine-ocr-6921886ed122.json
 
+# Screenshot files (help files)
+screenshot*.*
+screenhot*.*
+
 .vercel
