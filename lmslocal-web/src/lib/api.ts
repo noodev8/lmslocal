@@ -82,7 +82,7 @@ export interface User {
 
 // Subscription interfaces
 export interface UserSubscription {
-  plan: 'lite' | 'starter' | 'pro';
+  plan: 'free' | 'club' | 'venue';
   expiry: string | null;
   player_count: number;
   player_limit: number;
@@ -90,9 +90,9 @@ export interface UserSubscription {
 }
 
 export interface PlanLimits {
-  lite: number;
-  starter: number;
-  pro: number;
+  free: number;
+  club: number;
+  venue: number;
 }
 
 export interface BillingHistoryItem {
@@ -676,7 +676,7 @@ export const userApi = {
       }>('/get-billing-history', {})
     );
   },
-  createCheckoutSession: (plan: 'starter' | 'pro', billing_cycle: 'monthly' | 'yearly') =>
+  createCheckoutSession: (plan: 'club' | 'venue', billing_cycle: 'yearly') =>
     api.post<{
       return_code: string;
       message?: string;
