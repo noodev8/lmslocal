@@ -120,10 +120,22 @@ router.post('/', verifyToken, async (req, res) => {
     // Extract and validate subscription plan from user data
     let currentPlan = result.userData.subscription_plan;
 
+    // Map old plan names to new ones
+    const planMapping = {
+      'lite': 'free',
+      'starter': 'club',
+      'pro': 'venue'
+    };
+
+    // Convert old plan names to new ones if needed
+    if (currentPlan && planMapping[currentPlan]) {
+      currentPlan = planMapping[currentPlan];
+    }
+
     // Handle NULL, undefined, or invalid plan values - ensures we always have a valid plan
     if (!currentPlan || !PLAN_LIMITS[currentPlan]) {
-      console.warn(`Invalid subscription plan '${currentPlan}' for user ${userId}, defaulting to 'lite'`);
-      currentPlan = 'lite';
+      console.warn(`Invalid subscription plan '${currentPlan}' for user ${userId}, defaulting to 'free'`);
+      currentPlan = 'free';
     }
 
     // Extract and validate subscription expiry date
@@ -136,7 +148,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Get the player limit for the current plan with fallback protection
-    const playerLimit = PLAN_LIMITS[currentPlan] || PLAN_LIMITS.lite;
+    const playerLimit = PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free;
 
     // Calculate usage percentage with division by zero protection (0-100)
     const usagePercentage = playerLimit > 0 ? Math.round((result.totalPlayers / playerLimit) * 100) : 0;

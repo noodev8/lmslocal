@@ -50,24 +50,31 @@ const { logApiCall } = require('../utils/apiLogger'); // API logging utility
 
 /**
  * Determine billing cycle from plan and amount
- * @param {string} planName - Plan name (starter/pro)
+ * @param {string} planName - Plan name (club/venue or old names)
  * @param {number} amount - Paid amount
- * @returns {string} Billing cycle (monthly/yearly)
+ * @returns {string} Billing cycle (yearly only now)
  */
 function determineBillingCycle(planName, amount) {
-  const planPricing = {
-    starter: { monthly: 29.00, yearly: 232.00 },
-    pro: { monthly: 79.00, yearly: 632.00 }
+  // Map old plan names to new ones
+  const planMapping = {
+    'lite': 'free',
+    'starter': 'club',
+    'pro': 'venue'
   };
 
-  const plan = planPricing[planName];
-  if (!plan) return 'unknown';
+  const mappedPlan = planMapping[planName] || planName;
+
+  const planPricing = {
+    club: { yearly: 49.00 },
+    venue: { yearly: 149.00 }
+  };
+
+  const plan = planPricing[mappedPlan];
+  if (!plan) return 'yearly'; // Default to yearly for unknown plans
 
   // Check if amount matches yearly pricing (with small tolerance for decimal precision)
   if (Math.abs(amount - plan.yearly) < 0.01) {
     return 'yearly';
-  } else if (Math.abs(amount - plan.monthly) < 0.01) {
-    return 'monthly';
   }
 
   return 'custom'; // For non-standard amounts
@@ -106,9 +113,18 @@ router.post('/', verifyToken, async (req, res) => {
     const billingHistory = billingResult.rows.map(payment => {
       const paidAmount = parseFloat(payment.paid_amount);
 
+      // Map old plan names to new ones
+      const planMapping = {
+        'lite': 'free',
+        'starter': 'club',
+        'pro': 'venue'
+      };
+
+      const mappedPlanName = planMapping[payment.plan_name] || payment.plan_name;
+
       return {
         id: payment.id,
-        plan_name: payment.plan_name,
+        plan_name: mappedPlanName,
         paid_amount: paidAmount,
         payment_date: payment.created_at,
         stripe_session_id: payment.stripe_subscription_id,
