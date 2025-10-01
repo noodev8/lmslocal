@@ -10,7 +10,7 @@ function BillingPageContent() {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
   const [billingHistory, setBillingHistory] = useState<BillingHistoryItem[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<'lite' | 'starter' | 'pro'>('lite');
+  const [selectedPlan, setSelectedPlan] = useState<'free' | 'club' | 'venue'>('free');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,9 +69,9 @@ function BillingPageContent() {
   }, [searchParams]);
 
   const planPrices = {
-    lite: 0,
-    starter: 199,
-    pro: 249
+    free: 0,
+    club: 49,
+    venue: 149
   };
 
   // Helper function to get upgrade text (downgrades are disabled)
@@ -80,18 +80,18 @@ function BillingPageContent() {
     return `Upgrade to ${planName}`;
   };
 
-  const handlePlanChange = (plan: 'lite' | 'starter' | 'pro') => {
+  const handlePlanChange = (plan: 'free' | 'club' | 'venue') => {
     setSelectedPlan(plan);
   };
 
   const handlePlanSwitch = async () => {
     if (selectedPlan === subscription?.plan) {
-      alert('You&apos;re already on this plan');
+      alert('You are already on this plan');
       return;
     }
 
-    if (selectedPlan === 'lite') {
-      alert('You&apos;re already on a higher plan.');
+    if (selectedPlan === 'free') {
+      alert('You are already on a higher plan.');
       return;
     }
 
@@ -183,9 +183,9 @@ function BillingPageContent() {
               <div>
                 <div className="flex items-center">
                   <span className="text-2xl mr-2">
-                    {subscription.plan === 'lite' && '🎯'}
-                    {subscription.plan === 'starter' && '🚀'}
-                    {subscription.plan === 'pro' && '🏢'}
+                    {subscription.plan === 'free' && '🎯'}
+                    {subscription.plan === 'club' && '🏆'}
+                    {subscription.plan === 'venue' && '🍺'}
                   </span>
                   <span className="text-lg font-medium capitalize">{subscription.plan} Plan</span>
                 </div>
@@ -197,8 +197,8 @@ function BillingPageContent() {
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-slate-900">
-                  £{subscription.plan === 'lite' ? '0' :
-                     subscription.plan === 'starter' ? '199' : '249'}
+                  £{subscription.plan === 'free' ? '0' :
+                     subscription.plan === 'club' ? '49' : '149'}
                 </div>
                 <div className="text-sm text-slate-500">per year</div>
               </div>
@@ -228,8 +228,8 @@ function BillingPageContent() {
 
             {/* Plan Options */}
             <div className="space-y-3 mb-6">
-              {(['lite', 'starter', 'pro'] as const).map((plan) => {
-                const planOrder = { lite: 0, starter: 1, pro: 2 };
+              {(['free', 'club', 'venue'] as const).map((plan) => {
+                const planOrder = { free: 0, club: 1, venue: 2 };
                 const currentLevel = planOrder[subscription.plan as keyof typeof planOrder] ?? 0;
                 const planLevel = planOrder[plan] ?? 0;
                 const isLowerTier = planLevel < currentLevel;
@@ -256,9 +256,9 @@ function BillingPageContent() {
                       <div>
                         <div className="flex items-center">
                           <span className="text-lg mr-2">
-                            {plan === 'lite' && '🎯'}
-                            {plan === 'starter' && '🚀'}
-                            {plan === 'pro' && '🏢'}
+                            {plan === 'free' && '🎯'}
+                            {plan === 'club' && '🏆'}
+                            {plan === 'venue' && '🍺'}
                           </span>
                           <span className="font-medium capitalize">{plan}</span>
                         </div>
@@ -284,7 +284,7 @@ function BillingPageContent() {
             {/* Contact for higher limits */}
             <div className="text-center mb-6">
               <p className="text-sm text-slate-500">
-                Need more than 300 players? <a href="mailto:hello@lmslocal.co.uk" className="text-slate-700 font-medium hover:text-slate-900 transition-colors">Contact us</a> for enterprise options.
+                Need more than 200 players? <a href="mailto:hello@lmslocal.co.uk" className="text-slate-700 font-medium hover:text-slate-900 transition-colors">Contact us</a> for custom pricing.
               </p>
             </div>
 
@@ -342,9 +342,9 @@ function BillingPageContent() {
                       <td className="py-3 px-4">
                         <div className="flex items-center">
                           <span className="mr-2">
-                            {payment.plan_name === 'starter' && '🚀'}
-                            {payment.plan_name === 'pro' && '🏢'}
-                            {payment.plan_name === 'lite' && '🎯'}
+                            {payment.plan_name === 'club' && '🏆'}
+                            {payment.plan_name === 'venue' && '🍺'}
+                            {payment.plan_name === 'free' && '🎯'}
                           </span>
                           <span className="font-medium text-slate-900 capitalize">
                             {payment.plan_name}

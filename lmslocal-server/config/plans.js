@@ -9,16 +9,16 @@ Used across multiple routes to ensure consistency.
 
 // Plan limits - maximum players allowed per subscription plan
 const PLAN_LIMITS = {
-  lite: 20,
-  starter: 100,
-  pro: 300
+  free: 20,
+  club: 50,
+  venue: 200
 };
 
 // Plan pricing - annual pricing structure (£)
 const PLAN_PRICING = {
-  lite: 0,
-  starter: 199,
-  pro: 249
+  free: 0,
+  club: 49,
+  venue: 149
 };
 
 module.exports = {

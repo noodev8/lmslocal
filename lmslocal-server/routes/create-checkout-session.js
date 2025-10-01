@@ -7,8 +7,8 @@ Purpose: Creates a Stripe checkout session for subscription upgrade. Returns a c
 =======================================================================================================================================
 Request Payload:
 {
-  "plan": "starter",                     // string, required - target plan: "starter" or "pro"
-  "billing_cycle": "monthly"             // string, required - "monthly" or "yearly"
+  "plan": "club",                        // string, required - target plan: "club" or "venue"
+  "billing_cycle": "yearly"              // string, required - only "yearly" supported
 }
 
 Success Response:
@@ -33,10 +33,11 @@ Return Codes:
 "SERVER_ERROR"
 
 Business Logic:
-- Only allows upgrades to starter/pro (lite is free)
+- Only allows upgrades to club/venue (free tier is free)
 - Creates Stripe checkout session with plan pricing
 - Sets success/cancel URLs for redirect handling
 - Stores session metadata for webhook processing
+- Only yearly billing supported (one-time payment)
 =======================================================================================================================================
 */
 
@@ -51,24 +52,16 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Plan pricing configuration - must match your Stripe product prices
 const PLAN_PRICING = {
-  starter: {
-    monthly: {
-      price_id: 'price_starter_monthly', // TODO: Replace with actual Stripe price ID
-      amount: 2900, // £29.00 in pence
-    },
+  club: {
     yearly: {
-      price_id: 'price_starter_yearly', // TODO: Replace with actual Stripe price ID
-      amount: 23200, // £232.00 in pence (£29 x 8 months)
+      price_id: 'price_club_yearly', // TODO: Replace with actual Stripe price ID
+      amount: 4900, // £49.00 in pence
     }
   },
-  pro: {
-    monthly: {
-      price_id: 'price_pro_monthly', // TODO: Replace with actual Stripe price ID
-      amount: 7900, // £79.00 in pence
-    },
+  venue: {
     yearly: {
-      price_id: 'price_pro_yearly', // TODO: Replace with actual Stripe price ID
-      amount: 63200, // £632.00 in pence (£79 x 8 months)
+      price_id: 'price_venue_yearly', // TODO: Replace with actual Stripe price ID
+      amount: 14900, // £149.00 in pence
     }
   }
 };
@@ -100,18 +93,18 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Validate plan (only allow upgrades to paid plans)
-    if (!['starter', 'pro'].includes(plan)) {
+    if (!['club', 'venue'].includes(plan)) {
       return res.status(200).json({
         return_code: 'INVALID_PLAN',
-        message: 'Invalid plan. Only starter and pro plans are available for purchase.'
+        message: 'Invalid plan. Only club and venue plans are available for purchase.'
       });
     }
 
-    // Validate billing cycle
-    if (!['monthly', 'yearly'].includes(billing_cycle)) {
+    // Validate billing cycle (only yearly supported now)
+    if (billing_cycle !== 'yearly') {
       return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
-        message: 'Invalid billing_cycle. Must be monthly or yearly.'
+        message: 'Invalid billing_cycle. Only yearly billing is supported.'
       });
     }
 
