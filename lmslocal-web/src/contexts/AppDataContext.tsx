@@ -93,13 +93,18 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       } else if (competitionsData.data.return_code === 'UNAUTHORIZED' ||
                  competitionsData.data.message?.includes('Invalid token') ||
                  competitionsData.data.message?.includes('user not found')) {
-        // Invalid token - clear localStorage and treat as unauthenticated
+        // Invalid token - clear localStorage and redirect to login
         localStorage.removeItem('jwt_token');
         localStorage.removeItem('user');
         setUser(null);
         setCompetitions([]);
         setLatestRoundStats(null);
         console.log('Invalid token detected, cleared localStorage');
+
+        // Redirect to home page if on a protected route
+        if (typeof window !== 'undefined' && window.location.pathname !== '/' && window.location.pathname !== '/login') {
+          window.location.href = '/';
+        }
       } else {
         console.error('Failed to load competitions:', competitionsData.data.message);
         setCompetitions([]);
@@ -115,10 +120,15 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       if (errorMessage.includes('Invalid token') ||
           errorMessage.includes('user not found') ||
           errorMessage.includes('UNAUTHORIZED')) {
-        // Invalid token - clear localStorage and treat as unauthenticated
+        // Invalid token - clear localStorage and redirect
         if (typeof window !== 'undefined') {
           localStorage.removeItem('jwt_token');
           localStorage.removeItem('user');
+
+          // Redirect to home page if on a protected route
+          if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+            window.location.href = '/';
+          }
         }
         setUser(null);
         setCompetitions([]);

@@ -9,14 +9,30 @@ export default function LandingPage() {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
 
-  // Redirect to dashboard if already logged in
+  // Redirect to dashboard if already logged in and token is valid
   useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
-    if (token) {
-      router.push('/dashboard');
-    } else {
-      setIsChecking(false);
-    }
+    const checkAuth = async () => {
+      const token = localStorage.getItem('jwt_token');
+      const userData = localStorage.getItem('user');
+
+      if (token && userData && userData !== 'undefined' && userData !== 'null') {
+        // Verify token is still valid by checking if we can parse user data
+        try {
+          JSON.parse(userData);
+          router.push('/dashboard');
+        } catch (e) {
+          // Invalid user data, clear everything
+          localStorage.removeItem('jwt_token');
+          localStorage.removeItem('user');
+          setIsChecking(false);
+        }
+      } else {
+        // No valid auth, show landing page
+        setIsChecking(false);
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   // Show nothing while checking auth status
