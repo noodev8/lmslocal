@@ -70,6 +70,7 @@ const addOfflinePlayerRoute = require('./routes/add-offline-player');
 const changePasswordRoute = require('./routes/change-password');
 const deleteAccountRoute = require('./routes/delete-account');
 const getPickStatisticsRoute = require('./routes/get-pick-statistics');
+const getUnpickedPlayersRoute = require('./routes/get-unpicked-players');
 // const getDashboardStatsRoute = require('./routes/get-dashboard-stats'); // DISABLED - consolidated into get-user-dashboard
 const submitResultsRoute = require('./routes/submit-results');
 const hideCompetitionRoute = require('./routes/hide-competition');
@@ -236,6 +237,7 @@ app.use('/add-offline-player', addOfflinePlayerRoute);
 app.use('/change-password', changePasswordRoute);
 app.use('/delete-account', deleteAccountRoute);
 app.use('/get-pick-statistics', getPickStatisticsRoute);
+app.use('/get-unpicked-players', getUnpickedPlayersRoute);
 // app.use('/get-dashboard-stats', getDashboardStatsRoute); // DISABLED - consolidated into get-user-dashboard
 app.use('/submit-results', submitResultsRoute);
 app.use('/hide-competition', hideCompetitionRoute);

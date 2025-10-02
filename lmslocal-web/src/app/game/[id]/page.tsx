@@ -62,6 +62,11 @@ export default function UnifiedGameDashboard() {
   const [codeCopied, setCodeCopied] = useState(false);
   const [messageCopied, setMessageCopied] = useState(false);
 
+  // Unpicked players modal state
+  const [showUnpickedModal, setShowUnpickedModal] = useState(false);
+  const [unpickedPlayers, setUnpickedPlayers] = useState<Array<{ user_id: number; display_name: string }>>([]);
+  const [loadingUnpicked, setLoadingUnpicked] = useState(false);
+
   // Simple loading based on context availability
   const loading = contextLoading || !competition;
 
@@ -88,6 +93,31 @@ export default function UnifiedGameDashboard() {
 
 
   // Handle play button click - check player status first, then rounds and fixtures before routing
+  // Handle clicking the Round Progress card to show unpicked players
+  const handleShowUnpickedPlayers = async () => {
+    if (!competition || !currentRoundInfo) return;
+
+    setLoadingUnpicked(true);
+    setShowUnpickedModal(true);
+
+    try {
+      // Fetch unpicked players from API
+      const response = await competitionApi.getUnpickedPlayers(competition.id);
+
+      if (response.data.return_code === 'SUCCESS' && response.data.unpicked_players) {
+        setUnpickedPlayers(response.data.unpicked_players);
+      } else {
+        console.error('Failed to fetch unpicked players:', response.data.message);
+        setUnpickedPlayers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching unpicked players:', error);
+      setUnpickedPlayers([]);
+    } finally {
+      setLoadingUnpicked(false);
+    }
+  };
+
   const handlePlayClick = async () => {
     try {
       const response = await roundApi.getRounds(parseInt(competitionId));
@@ -735,8 +765,14 @@ export default function UnifiedGameDashboard() {
           {currentRoundInfo && competition?.status !== 'COMPLETE' && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               {!currentRoundInfo.is_locked ? (
-                /* Before Lock - Show Pick Progress */
-                <div className="space-y-3">
+                /* Before Lock - Show Pick Progress (Clickable) */
+                <div
+                  className="space-y-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors -mx-3"
+                  onClick={handleShowUnpickedPlayers}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && handleShowUnpickedPlayers()}
+                >
                   <div className="text-sm font-medium text-gray-900">
                     Round {currentRoundInfo.round_number} Progress
                   </div>
@@ -1039,6 +1075,80 @@ export default function UnifiedGameDashboard() {
                   <p className="text-sm text-red-600">{addPlayerError}</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unpicked Players Modal */}
+      {showUnpickedModal && pickStats && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-slate-800 text-white px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold">
+                  Round {currentRoundInfo?.round_number} Picks
+                </h3>
+                <button
+                  onClick={() => setShowUnpickedModal(false)}
+                  className="text-slate-300 hover:text-white transition-colors"
+                >
+                  <span className="text-2xl">×</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {loadingUnpicked ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-slate-800"></div>
+                  <p className="mt-4 text-slate-600">Loading...</p>
+                </div>
+              ) : unpickedPlayers.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-5xl mb-4">🎉</div>
+                  <h4 className="text-xl font-bold text-slate-900 mb-2">All players have picked!</h4>
+                  <p className="text-slate-600">Everyone has made their selection for this round.</p>
+                </div>
+              ) : unpickedPlayers.length <= 10 ? (
+                <div>
+                  <p className="text-sm text-slate-600 mb-4">
+                    <span className="font-semibold text-slate-900">{unpickedPlayers.length} {unpickedPlayers.length === 1 ? 'player has' : 'players have'}</span> not made their pick yet:
+                  </p>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {unpickedPlayers.map((player) => (
+                      <div
+                        key={player.user_id}
+                        className="flex items-center py-2 px-3 bg-slate-50 rounded-lg"
+                      >
+                        <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                        <span className="text-slate-900">{player.display_name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-lg font-semibold text-slate-900 mb-2">
+                    {unpickedPlayers.length} players have not made their pick yet
+                  </p>
+                  <p className="text-slate-600">
+                    {Math.round((pickStats.players_with_picks / pickStats.total_active_players) * 100)}% complete
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 px-6 py-4 flex justify-end border-t border-slate-200">
+              <button
+                onClick={() => setShowUnpickedModal(false)}
+                className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors font-semibold"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

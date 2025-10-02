@@ -412,14 +412,21 @@ export const competitionApi = {
   getPickStatistics: (competition_id: number) => withCache(
     `pick-statistics-${competition_id}`,
     1 * 60 * 60 * 1000, // 1 hour cache - pick stats less critical for admin work
-    () => api.post<{ 
+    () => api.post<{
       return_code: string;
-      current_round: { round_id: number; round_number: number } | null; 
-      players_with_picks: number; 
-      total_active_players: number; 
-      pick_percentage: number 
+      current_round: { round_id: number; round_number: number } | null;
+      players_with_picks: number;
+      total_active_players: number;
+      pick_percentage: number
     }>('/get-pick-statistics', { competition_id })
   ),
+  getUnpickedPlayers: (competition_id: number, round_id?: number) => api.post<{
+    return_code: string;
+    message?: string;
+    round_number?: number;
+    unpicked_players?: Array<{ user_id: number; display_name: string }>;
+    total_unpicked?: number;
+  }>('/get-unpicked-players', { competition_id, round_id }),
   update: (data: UpdateCompetitionRequest) => api.post<UpdateCompetitionResponse & { return_code: string; message?: string }>('/update-competition', data),
   reset: (data: ResetCompetitionRequest) => api.post<ResetCompetitionResponse & { return_code: string; message?: string }>('/reset-competition', data),
   delete: (data: DeleteCompetitionRequest) => api.post<DeleteCompetitionResponse & { return_code: string; message?: string }>('/delete-competition', data),
