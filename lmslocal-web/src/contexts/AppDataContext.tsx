@@ -30,6 +30,7 @@ interface AppDataContextType {
   refreshData: () => void;
   refreshCompetitions: () => void;
   forceRefresh: () => Promise<void>;
+  updateCompetition: (competitionId: number, updates: Partial<Competition>) => void;
 
   // Metadata
   lastUpdated: number | null;
@@ -221,9 +222,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       // Check if user is authenticated
       const token = localStorage.getItem('jwt_token');
       if (!token) return;
-      
+
       let competitionsData;
-      
+
       if (bypassCache) {
         // Make direct API call bypassing cache completely
         const api = (await import('@/lib/api')).default;
@@ -232,7 +233,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         // Use normal cached API call
         competitionsData = await userApi.getUserDashboard();
       }
-      
+
       if (competitionsData.data.return_code === 'SUCCESS') {
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
         setLatestRoundStats(competitionsData.data.latest_round_stats || null);
@@ -243,6 +244,18 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     } catch (err) {
       console.error('Error refreshing competitions:', err);
     }
+  };
+
+  const updateCompetition = (competitionId: number, updates: Partial<Competition>) => {
+    setCompetitions(prevCompetitions => {
+      if (!prevCompetitions) return prevCompetitions;
+
+      return prevCompetitions.map(comp =>
+        comp.id === competitionId
+          ? { ...comp, ...updates }
+          : comp
+      );
+    });
   };
 
   // Load data only when authenticated and on appropriate pages
@@ -305,6 +318,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     refreshData,
     refreshCompetitions,
     forceRefresh,
+    updateCompetition,
     lastUpdated
   };
 
