@@ -30,7 +30,7 @@ import JoinCompetitionModal from '@/components/JoinCompetitionModal';
 export default function DashboardPage() {
   const router = useRouter();
   // Use app-level data from context instead of local API calls
-  const { competitions, loading } = useAppData();
+  const { competitions, loading, refreshCompetitions } = useAppData();
   
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
@@ -49,10 +49,20 @@ export default function DashboardPage() {
   const [editingNameValue, setEditingNameValue] = useState<string>('');
   const [savingName, setSavingName] = useState(false);
 
+  // Local competitions state for optimistic updates
+  const [localCompetitions, setLocalCompetitions] = useState<Competition[] | null>(null);
+
+  // Sync local state with context when competitions change
+  useEffect(() => {
+    if (competitions) {
+      setLocalCompetitions(competitions);
+    }
+  }, [competitions]);
+
   // Memoize all user competitions (organized + participating) to prevent dependency issues
   const userCompetitions = useMemo(() => {
-    return competitions?.filter(comp => comp.is_organiser || comp.is_participant) || [];
-  }, [competitions]);
+    return localCompetitions?.filter(comp => comp.is_organiser || comp.is_participant) || [];
+  }, [localCompetitions]);
 
   // No complex timing logic - just show the latest round stats if available
 
@@ -247,27 +257,38 @@ export default function DashboardPage() {
   };
 
   const handleSaveName = async () => {
-    if (!editingNameId) return;
+    if (!editingNameId || !localCompetitions) return;
 
     setSavingName(true);
-    try {
-      const trimmedName = editingNameValue.trim();
-      const personalName = trimmedName === '' ? null : trimmedName;
+    const trimmedName = editingNameValue.trim();
+    const personalName = trimmedName === '' ? null : trimmedName;
 
+    // Optimistically update local state
+    setLocalCompetitions(prevCompetitions =>
+      prevCompetitions?.map(comp =>
+        comp.id === editingNameId
+          ? { ...comp, personal_name: personalName }
+          : comp
+      ) || null
+    );
+
+    // Close the editing UI immediately
+    setEditingNameId(null);
+    setEditingNameValue('');
+    setSavingName(false);
+
+    try {
       const response = await competitionApi.updatePersonalName(editingNameId, personalName);
 
-      if (response.data.return_code === 'SUCCESS') {
-        // Refresh the dashboard data
-        window.location.reload();
-      } else {
+      if (response.data.return_code !== 'SUCCESS') {
         console.error('Failed to update personal name:', response.data.message);
+        // Revert on failure by refreshing from server
+        refreshCompetitions();
       }
     } catch (error) {
       console.error('Error updating personal name:', error);
-    } finally {
-      setSavingName(false);
-      setEditingNameId(null);
-      setEditingNameValue('');
+      // Revert on error by refreshing from server
+      refreshCompetitions();
     }
   };
 

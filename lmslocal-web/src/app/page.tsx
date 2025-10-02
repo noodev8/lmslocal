@@ -20,7 +20,7 @@ export default function LandingPage() {
         try {
           JSON.parse(userData);
           router.push('/dashboard');
-        } catch (e) {
+        } catch {
           // Invalid user data, clear everything
           localStorage.removeItem('jwt_token');
           localStorage.removeItem('user');
