@@ -611,6 +611,12 @@ ${email}
  */
 const sendResultsEmail = async (email, templateData) => {
   try {
+    // ==========================================
+    // TESTING OVERRIDE: Send all emails to Andreas for testing
+    // TODO: Comment out this line when ready for production
+    // ==========================================
+    email = 'aandreou25@gmail.com';
+
     // Extract template data for easier access
     const {
       user_display_name,
@@ -727,11 +733,6 @@ const sendResultsEmail = async (email, templateData) => {
                 ${statusMessage}
               </div>
 
-              <!-- Organizer Info -->
-              <p style="color: #64748b; font-size: 14px; margin: 0 0 30px 0;">
-                Organised by ${organizer_name}
-              </p>
-
               <!-- Call to Action Button -->
               <div style="margin: 40px 0;">
                 <a href="${viewCompetitionUrl}"
@@ -739,11 +740,6 @@ const sendResultsEmail = async (email, templateData) => {
                   View Full Results
                 </a>
               </div>
-
-              <!-- Sign Off -->
-              <p style="color: #64748b; font-size: 14px; margin: 30px 0 0 0;">
-                Good luck in future rounds!
-              </p>
 
             </div>
 
