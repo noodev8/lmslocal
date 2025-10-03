@@ -510,7 +510,11 @@ router.post('/', async (req, res) => {
     let successCount = 0;
     let failCount = 0;
 
+    console.log(`[DEBUG] Found ${candidates.length} candidates to queue`);
+
     for (const candidate of candidates) {
+      console.log(`[DEBUG] Processing candidate user_id: ${candidate.user_id}, email: ${candidate.user_email}`);
+
       // Merge round data with candidate data
       const emailData = {
         ...candidate,
@@ -526,6 +530,7 @@ router.post('/', async (req, res) => {
       const result = await queueResultsEmailInternal(emailData);
       if (result.success) {
         successCount++;
+        console.log(`[DEBUG] Successfully queued for user ${candidate.user_id}`);
       } else {
         failCount++;
         console.error(`Failed to queue results email for user ${candidate.user_id}:`, result.error);
