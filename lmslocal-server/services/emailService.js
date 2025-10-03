@@ -394,9 +394,220 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
   }
 };
 
+/**
+ * Send pick reminder email to player
+ * @param {string} email - User's email address
+ * @param {object} templateData - All data needed for email template
+ * @returns {Object} Result object with success status
+ */
+const sendPickReminderEmail = async (email, templateData) => {
+  try {
+    // Extract template data for easier access
+    const {
+      user_display_name,
+      competition_name,
+      organizer_name,
+      round_number,
+      lock_time,
+      fixtures,
+      teams_used,
+      competition_id,
+      round_id,
+      email_tracking_id
+    } = templateData;
+
+    // Format lock time to readable format
+    const lockDate = new Date(lock_time);
+    const formattedLockTime = lockDate.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Build fixtures list HTML with teams used indicators
+    const fixturesHtml = fixtures.map((f, index) => {
+      // Check if either team has been used already
+      const homeTeamUsed = teams_used && teams_used.includes(f.home_team_short);
+      const awayTeamUsed = teams_used && teams_used.includes(f.away_team_short);
+
+      return `
+      <div style="padding: 14px 16px; ${index < fixtures.length - 1 ? 'border-bottom: 1px solid #e2e8f0;' : ''}">
+        <span style="color: ${homeTeamUsed ? '#94a3b8' : '#0f172a'}; font-weight: 500; font-size: 15px; ${homeTeamUsed ? 'text-decoration: line-through;' : ''}">${f.home_team}</span>
+        <span style="color: #94a3b8; margin: 0 10px; font-size: 14px;">vs</span>
+        <span style="color: ${awayTeamUsed ? '#94a3b8' : '#0f172a'}; font-weight: 500; font-size: 15px; ${awayTeamUsed ? 'text-decoration: line-through;' : ''}">${f.away_team}</span>
+      </div>
+      `;
+    }).join('');
+
+    // Teams used section removed - now shown inline with strikethrough in fixtures list
+    let teamsUsedHtml = '';
+
+    // Build the make pick URL using PLAYER_FRONTEND_URL
+    // Route is /game/[id]/pick where [id] is the competition_id
+    const makePickUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/pick?email_id=${email_tracking_id}`;
+
+    // HTML email content
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Pick Reminder - ${competition_name}</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+            <!-- Header -->
+            <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+              <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+            </div>
+
+            <!-- Main Content -->
+            <div style="padding: 40px 30px;">
+
+              <!-- Greeting -->
+              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+              <!-- Main Message -->
+              <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+                Time to make your pick for Round ${round_number}.
+              </p>
+
+              <!-- Key Info Box -->
+              <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 30px 0;">
+                <p style="margin: 0 0 12px 0; color: #0f172a; font-size: 15px;"><strong>Deadline:</strong> ${formattedLockTime}</p>
+                <p style="margin: 0; color: #475569; font-size: 14px;">Organised by ${organizer_name}</p>
+              </div>
+
+              <!-- Fixtures Section -->
+              <div style="margin: 0 0 30px 0;">
+                <h3 style="color: #0f172a; margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">Round ${round_number} Fixtures</h3>
+                <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+                  ${fixturesHtml}
+                </div>
+              </div>
+
+              <!-- Call to Action Button -->
+              <div style="margin: 40px 0;">
+                <a href="${makePickUrl}"
+                   style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                  Make Your Pick
+                </a>
+              </div>
+
+              <!-- Sign Off -->
+              <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+                Good luck,<br>
+                ${organizer_name}
+              </p>
+
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 12px; margin: 0 0 4px 0;">
+                LMS Local - Last Man Standing Competitions
+              </p>
+              <p style="color: #cbd5e1; font-size: 11px; margin: 0;">
+                ${email}
+              </p>
+            </div>
+
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Plain text version for email clients that don't support HTML
+    // Build fixtures list for plain text with used team indicators
+    const fixturesText = fixtures.map(f => {
+      const homeTeamUsed = teams_used && teams_used.includes(f.home_team_short);
+      const awayTeamUsed = teams_used && teams_used.includes(f.away_team_short);
+
+      let homeTeam = f.home_team;
+      let awayTeam = f.away_team;
+
+      // Add [USED] marker for teams already picked
+      if (homeTeamUsed) homeTeam = `${homeTeam} [USED]`;
+      if (awayTeamUsed) awayTeam = `${awayTeam} [USED]`;
+
+      return `  • ${homeTeam} vs ${awayTeam}`;
+    }).join('\n');
+
+    const textContent = `
+${competition_name} - Pick Reminder
+
+Hi ${user_display_name},
+
+Time to make your pick for Round ${round_number}.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DEADLINE: ${formattedLockTime}
+ORGANISED BY: ${organizer_name}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ROUND ${round_number} FIXTURES:
+
+${fixturesText}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Make your pick here:
+${makePickUrl}
+
+Good luck,
+${organizer_name}
+
+---
+LMS Local - Last Man Standing Competitions
+${email}
+    `;
+
+    // Send email via Resend
+    const result = await resend.emails.send({
+      from: `${organizer_name} via LMS Local <${process.env.EMAIL_FROM}>`,
+      to: [email],
+      subject: `${organizer_name} (${competition_name}): Pick reminder for Round ${round_number}`,
+      html: htmlContent,
+      text: textContent,
+      headers: {
+        'X-Entity-Ref-ID': email_tracking_id, // For webhook correlation
+      },
+      tags: [
+        { name: 'email_type', value: 'pick_reminder' },
+        { name: 'competition_id', value: String(competition_id) },
+        { name: 'round_id', value: String(round_id) }
+      ]
+    });
+
+    // Resend returns { data: { id: '...' }, error: null } format
+    const resendMessageId = result?.data?.id || result?.id || 'unknown';
+
+    return {
+      success: true,
+      messageId: resendMessageId,
+      resend_message_id: resendMessageId
+    };
+
+  } catch (error) {
+    console.error('Failed to send pick reminder email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPlayerMagicLink,
-  sendPaymentConfirmationEmail
+  sendPaymentConfirmationEmail,
+  sendPickReminderEmail
 };

@@ -84,6 +84,9 @@ const deleteMarketingPostRoute = require('./routes/delete-marketing-post');
 const getCompetitionMarketingDisplayRoute = require('./routes/get-competition-marketing-display');
 const updatePersonalCompetitionNameRoute = require('./routes/update-personal-competition-name');
 
+// Email Routes
+const sendPickReminderRoute = require('./routes/send-pick-reminder');
+
 // Admin Routes
 const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
 const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-competitions');
@@ -250,6 +253,9 @@ app.use('/update-marketing-post', updateMarketingPostRoute);
 app.use('/delete-marketing-post', deleteMarketingPostRoute);
 app.use('/get-competition-marketing-display', getCompetitionMarketingDisplayRoute);
 app.use('/update-personal-competition-name', updatePersonalCompetitionNameRoute);
+
+// Email API Routes
+app.use('/send-pick-reminder', sendPickReminderRoute);
 
 // Admin API Routes
 app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
