@@ -654,7 +654,10 @@ const sendResultsEmail = async (email, templateData) => {
     // Additional status messaging - different for complete vs active competitions
     let statusMessage = '';
 
-    if (competition_status === 'complete') {
+    // Normalize competition_status to lowercase for comparison
+    const normalizedStatus = (competition_status || '').toLowerCase();
+
+    if (normalizedStatus === 'complete') {
       // Competition has ended - show final results
       if (new_status === 'active') {
         // Player survived to the end AND competition is complete
@@ -664,7 +667,8 @@ const sendResultsEmail = async (email, templateData) => {
         // new_status === 'eliminated'
         // Player was eliminated in final round
         // Check if competition ended in DRAW (zero survivors)
-        if (active_player_count === 0) {
+        // Convert to number for comparison (could be string from JSON)
+        if (parseInt(active_player_count) === 0) {
           statusMessage = '<p style="color: #ea580c; font-size: 18px; font-weight: 600; margin: 20px 0 0 0;">Competition complete - Result: Draw! No winners.</p>';
         } else {
           // Someone else won, this player was eliminated
