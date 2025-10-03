@@ -3,197 +3,99 @@
 API Route: send-pick-reminder
 =======================================================================================================================================
 Method: POST
-Purpose: Sends a pick reminder email to a specific user for a specific round. Queues the email in email_queue table for processing.
+Purpose: Unified API for sending pick reminder emails. Supports both batch mode (cron scans all users) and single-user mode (manual trigger with optional validation).
 =======================================================================================================================================
-Request Payload:
+Request Payload (Batch Mode - Cron):
 {
-  "user_id": 123,                      // integer, required - User who will receive the reminder
+  // Empty body = scan all users and send reminders to those who need them
+}
+
+Request Payload (Batch Mode - Preview Only):
+{
+  "preview_only": true                     // boolean, optional - Get list without sending
+}
+
+Request Payload (Single User Mode - Manual with Validation):
+{
+  "user_id": 123,                      // integer, required - User to send reminder to
   "round_id": 45,                      // integer, required - Round to remind about
-  "competition_id": 12                 // integer, required - Competition context
+  "competition_id": 12,                // integer, required - Competition context
+  "validate": true                     // boolean, optional - Run validation checks (default: false)
+}
+
+Request Payload (Single User Mode - Force Send):
+{
+  "user_id": 123,                      // integer, required
+  "round_id": 45,                      // integer, required
+  "competition_id": 12,                // integer, required
+  "validate": false                    // boolean, skip validation and force send
 }
 
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "message": "Pick reminder queued successfully",  // string, confirmation message
-  "queue_id": 789,                                 // integer, email_queue record ID
-  "scheduled_send_at": "2025-10-05T14:00:00Z"     // string, ISO datetime when email will send
+  "message": "Pick reminder sent successfully",
+  "candidates_sent": 5,                // integer, number of reminders sent (batch mode only)
+  "candidates": [                      // array, only returned when preview_only=true
+    {
+      "user_id": 123,
+      "user_email": "user@example.com",
+      "user_display_name": "John Smith",
+      "competition_id": 12,
+      "competition_name": "Crown Pub LMS",
+      "round_id": 45,
+      "round_number": 3,
+      "lock_time": "2025-10-06T14:00:00Z"
+    }
+  ]
 }
 
 Error Response (ALWAYS HTTP 200):
 {
   "return_code": "ERROR_TYPE",
-  "message": "Descriptive error message"           // string, user-friendly error description
+  "message": "Descriptive error message"
 }
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"
-"PICK_ALREADY_MADE"     // User has already made their pick for this round
-"ROUND_LOCKED"          // Round is already locked, too late to remind
-"COMPETITION_NOT_FOUND"
-"ROUND_NOT_FOUND"
-"USER_NOT_IN_COMPETITION"
+"PICK_ALREADY_MADE"
+"ROUND_LOCKED"
+"COMPETITION_COMPLETE"
+"NO_FIXTURES"
+"USER_ELIMINATED"
+"EMAIL_DISABLED"
+"ALREADY_SENT"
+"EMAIL_SEND_FAILED"
+"UNAUTHORIZED"
 "SERVER_ERROR"
 =======================================================================================================================================
 */
 
 const express = require('express');
-const { query, transaction } = require('../database');
+const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { sendPickReminderEmail } = require('../services/emailService');
 const router = express.Router();
 
-router.post('/', verifyToken, async (req, res) => {
-  logApiCall('send-pick-reminder');
+// === INTERNAL HELPER FUNCTION: SEND EMAIL ===
+// This function handles the actual email sending logic (no validation)
+async function sendEmailInternal(params) {
+  const {
+    user_id,
+    round_id,
+    competition_id,
+    user_email,
+    user_display_name,
+    competition_name,
+    organizer_name,
+    round_number,
+    lock_time
+  } = params;
 
   try {
-    // Extract request parameters
-    const { user_id, round_id, competition_id } = req.body;
-
-    // === INPUT VALIDATION ===
-    // Validate all required fields are provided and are valid integers
-    if (!user_id || !Number.isInteger(user_id)) {
-      return res.json({
-        return_code: "VALIDATION_ERROR",
-        message: "User ID is required and must be a number"
-      });
-    }
-
-    if (!round_id || !Number.isInteger(round_id)) {
-      return res.json({
-        return_code: "VALIDATION_ERROR",
-        message: "Round ID is required and must be a number"
-      });
-    }
-
-    if (!competition_id || !Number.isInteger(competition_id)) {
-      return res.json({
-        return_code: "VALIDATION_ERROR",
-        message: "Competition ID is required and must be a number"
-      });
-    }
-
-    // === COMPREHENSIVE DATA COLLECTION QUERY ===
-    // Single optimized query to gather all data needed for the email:
-    // 1. Validate competition, round, and user membership
-    // 2. Get competition and round details for email content
-    // 3. Get user email and display name
-    // 4. Check if user has already picked (skip reminder if picked)
-    // 5. Get all fixtures for this round
-    // 6. Get teams user has already used in previous rounds
-    // 7. Get organizer name for email personalization
-    const dataResult = await query(`
-      SELECT
-        -- === COMPETITION & ROUND INFO ===
-        c.id as competition_id,
-        c.name as competition_name,
-        c.organiser_id,
-        r.id as round_id,
-        r.round_number,
-        r.lock_time,
-
-        -- === USER INFO ===
-        u.id as user_id,
-        u.email as user_email,
-        u.display_name as user_display_name,
-
-        -- === ORGANIZER INFO ===
-        org.display_name as organizer_name,
-
-        -- === MEMBERSHIP & PICK STATUS ===
-        cu.id as membership_id,
-        cu.status as player_status,
-        (
-          SELECT COUNT(*)
-          FROM pick p
-          WHERE p.round_id = r.id
-            AND p.user_id = u.id
-        ) as has_picked,
-
-        -- === TEAMS ALREADY USED (for email content) ===
-        -- Using a subquery to get teams used in previous rounds
-        (
-          SELECT COALESCE(json_agg(team ORDER BY team), '[]'::json)
-          FROM (
-            SELECT DISTINCT p.team
-            FROM pick p
-            INNER JOIN round prev_r ON prev_r.id = p.round_id
-            WHERE p.user_id = u.id
-              AND prev_r.competition_id = c.id
-              AND prev_r.round_number < r.round_number
-          ) AS distinct_teams
-        ) as teams_used
-
-      FROM competition c
-
-      -- Join to validate round exists and belongs to competition
-      INNER JOIN round r
-        ON r.id = $2
-        AND r.competition_id = c.id
-
-      -- Join to validate user exists
-      INNER JOIN app_user u
-        ON u.id = $1
-
-      -- Join to validate user is member of competition
-      INNER JOIN competition_user cu
-        ON cu.competition_id = c.id
-        AND cu.user_id = u.id
-
-      -- Get organizer details for email personalization
-      LEFT JOIN app_user org
-        ON org.id = c.organiser_id
-
-      WHERE c.id = $3
-
-      GROUP BY
-        c.id, c.name, c.organiser_id,
-        r.id, r.round_number, r.lock_time,
-        u.id, u.email, u.display_name,
-        org.display_name,
-        cu.id, cu.status
-    `, [user_id, round_id, competition_id]);
-
-    // Check if competition/round/user combination exists
-    if (dataResult.rows.length === 0) {
-      return res.json({
-        return_code: "COMPETITION_NOT_FOUND",
-        message: "Competition, round, or user membership not found"
-      });
-    }
-
-    const data = dataResult.rows[0];
-
-    // === BUSINESS LOGIC VALIDATION ===
-
-    // Check if user is not in competition
-    if (!data.membership_id) {
-      return res.json({
-        return_code: "USER_NOT_IN_COMPETITION",
-        message: "User is not a member of this competition"
-      });
-    }
-
-    // Check if user has already made their pick (no need to remind)
-    if (data.has_picked > 0) {
-      return res.json({
-        return_code: "PICK_ALREADY_MADE",
-        message: "User has already made their pick for this round"
-      });
-    }
-
-    // Check if round is already locked (too late to remind)
-    if (data.lock_time && new Date(data.lock_time) < new Date()) {
-      return res.json({
-        return_code: "ROUND_LOCKED",
-        message: "Round is already locked, too late to send reminder"
-      });
-    }
-
-    // === GET FIXTURES FOR THIS ROUND ===
-    // Separate query to get all fixtures (not included in main query for clarity)
+    // Get fixtures for this round
     const fixturesResult = await query(`
       SELECT
         id,
@@ -207,74 +109,65 @@ router.post('/', verifyToken, async (req, res) => {
       ORDER BY kickoff_time ASC
     `, [round_id]);
 
-    // Convert fixtures to array for email template
-    const fixtures = fixturesResult.rows.map(f => ({
-      id: f.id,
-      home_team: f.home_team,
-      away_team: f.away_team,
-      home_team_short: f.home_team_short,
-      away_team_short: f.away_team_short,
-      kickoff_time: f.kickoff_time
-    }));
+    const fixtures = fixturesResult.rows;
 
-    // === GENERATE UNIQUE EMAIL TRACKING ID ===
-    // This ID will be embedded in email links and headers for tracking
-    // Format: pick_reminder_{user_id}_{competition_id}_{round_id}_{timestamp}
-    // Example: pick_reminder_123_45_7_1696512000000
+    // Get teams already used by this user
+    const teamsUsedResult = await query(`
+      SELECT DISTINCT p.team
+      FROM pick p
+      INNER JOIN round prev_r ON prev_r.id = p.round_id
+      WHERE p.user_id = $1
+        AND prev_r.competition_id = $2
+        AND prev_r.round_number < $3
+      ORDER BY p.team
+    `, [user_id, competition_id, round_number]);
+
+    const teamsUsed = teamsUsedResult.rows.map(row => row.team);
+
+    // Generate unique tracking ID
     const emailTrackingId = `pick_reminder_${user_id}_${competition_id}_${round_id}_${Date.now()}`;
 
-    // === PREPARE EMAIL TEMPLATE DATA ===
-    // Capture all data needed to render email at queue time
-    // This preserves state even if data changes before email sends
+    // Prepare email template data
     const templateData = {
       email_tracking_id: emailTrackingId,
-      user_display_name: data.user_display_name,
-      competition_name: data.competition_name,
-      organizer_name: data.organizer_name || 'Competition Organizer',
-      round_number: data.round_number,
-      lock_time: data.lock_time,
-      fixtures: fixtures,
-      teams_used: data.teams_used || [],
-      competition_id: competition_id,
-      round_id: round_id,
-      user_id: user_id
+      user_display_name,
+      competition_name,
+      organizer_name: organizer_name || 'Competition Organizer',
+      round_number,
+      lock_time,
+      fixtures,
+      teams_used: teamsUsed,
+      competition_id,
+      round_id,
+      user_id
     };
 
-    // === QUEUE EMAIL FOR SENDING ===
-    // Email will be processed by cron job (queue processor)
-    // scheduled_send_at is NOW because this is manual trigger
-    // In future, cron scheduler will set scheduled_send_at based on lock_time
+    // Queue the email
     const queueResult = await query(`
       INSERT INTO email_queue (
         user_id,
         competition_id,
+        round_id,
         email_type,
         scheduled_send_at,
         template_data,
         status,
         attempts
       ) VALUES (
-        $1,     -- user_id
-        $2,     -- competition_id
-        $3,     -- email_type: 'pick_reminder'
-        NOW(),  -- scheduled_send_at: send immediately for manual trigger
-        $4,     -- template_data: JSON object with all email content
-        $5,     -- status: 'pending'
-        0       -- attempts: initial value
+        $1, $2, $3, $4, NOW(), $5, 'pending', 0
       )
-      RETURNING id, scheduled_send_at
+      RETURNING id
     `, [
       user_id,
       competition_id,
+      round_id,
       'pick_reminder',
-      JSON.stringify(templateData),
-      'pending'
+      JSON.stringify(templateData)
     ]);
 
-    const queueRecord = queueResult.rows[0];
+    const queueId = queueResult.rows[0].id;
 
-    // === CREATE TRACKING RECORD ===
-    // Pre-create tracking record for this email
+    // Create tracking record
     await query(`
       INSERT INTO email_tracking (
         email_id,
@@ -283,45 +176,37 @@ router.post('/', verifyToken, async (req, res) => {
         email_type,
         subject
       ) VALUES (
-        $1,  -- email_id: our tracking UUID
-        $2,  -- user_id
-        $3,  -- competition_id
-        $4,  -- email_type
-        $5   -- subject: preview for tracking
+        $1, $2, $3, $4, $5
       )
     `, [
       emailTrackingId,
       user_id,
       competition_id,
       'pick_reminder',
-      `${data.organizer_name} (${data.competition_name}): Pick reminder for Round ${data.round_number}`
+      `${organizer_name || 'Competition Organizer'} (${competition_name}): Pick reminder for Round ${round_number}`
     ]);
 
-    // === SEND EMAIL IMMEDIATELY ===
-    // For manual trigger, send the email right away
-    // Update queue status to 'processing' first
+    // Update queue to processing
     await query(`
       UPDATE email_queue
       SET status = 'processing',
           attempts = attempts + 1,
           last_attempt_at = NOW()
       WHERE id = $1
-    `, [queueRecord.id]);
+    `, [queueId]);
 
-    // Send the email via Resend
-    const emailResult = await sendPickReminderEmail(data.user_email, templateData);
+    // Send email via Resend
+    const emailResult = await sendPickReminderEmail(user_email, templateData);
 
-    // Update queue and tracking based on send result
     if (emailResult.success) {
-      // Email sent successfully - update queue status to 'sent'
+      // Mark as sent
       await query(`
         UPDATE email_queue
         SET status = 'sent',
             sent_at = NOW()
         WHERE id = $1
-      `, [queueRecord.id]);
+      `, [queueId]);
 
-      // Update tracking record with Resend message ID
       await query(`
         UPDATE email_tracking
         SET resend_message_id = $1,
@@ -329,45 +214,424 @@ router.post('/', verifyToken, async (req, res) => {
         WHERE email_id = $2
       `, [emailResult.resend_message_id, emailTrackingId]);
 
-      // === SUCCESS RESPONSE ===
-      return res.json({
-        return_code: "SUCCESS",
-        message: "Pick reminder sent successfully",
-        queue_id: queueRecord.id,
-        email_sent: true,
-        resend_message_id: emailResult.resend_message_id
-      });
-
+      return { success: true };
     } else {
-      // Email failed to send - mark as failed
+      // Mark as failed
       await query(`
         UPDATE email_queue
         SET status = 'failed',
             error_message = $1
         WHERE id = $2
-      `, [emailResult.error, queueRecord.id]);
+      `, [emailResult.error, queueId]);
 
-      // Return error response
+      return { success: false, error: emailResult.error };
+    }
+  } catch (error) {
+    console.error('Error in sendEmailInternal:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+router.post('/', verifyToken, async (req, res) => {
+  logApiCall('send-pick-reminder');
+
+  try {
+    const { user_id, round_id, competition_id, validate, preview_only } = req.body;
+
+    // ========================================
+    // BATCH MODE (Cron) - No user_id provided
+    // ========================================
+    if (!user_id && !round_id && !competition_id) {
+
+      // === ONE EFFICIENT SQL QUERY WITH ALL 17 VALIDATION CHECKS ===
+      const candidatesResult = await query(`
+        SELECT
+          cu.user_id,
+          u.email as user_email,
+          u.display_name as user_display_name,
+          c.id as competition_id,
+          c.name as competition_name,
+          r.id as round_id,
+          r.round_number,
+          r.lock_time,
+          org.display_name as organizer_name
+
+        FROM competition c
+
+        -- CHECK 1: Competition status is NOT 'complete'
+        INNER JOIN round r
+          ON r.competition_id = c.id
+          AND c.status != 'complete'
+
+        -- CHECK 2-5: Round timing and fixtures
+        INNER JOIN competition_user cu
+          ON cu.competition_id = c.id
+          AND cu.status = 'active'  -- CHECK 9: User is not eliminated
+
+        -- CHECK 6-7: User exists and has valid email (not guest)
+        INNER JOIN app_user u
+          ON u.id = cu.user_id
+          AND u.email IS NOT NULL
+          AND u.email != ''
+          AND u.email NOT LIKE '%@lms-guest.com'
+
+        -- Get organizer name
+        LEFT JOIN app_user org
+          ON org.id = c.organiser_id
+
+        -- CHECK 10: User has NOT already picked
+        LEFT JOIN pick p
+          ON p.user_id = u.id
+          AND p.round_id = r.id
+
+        WHERE p.id IS NULL  -- No pick exists
+          AND r.lock_time IS NOT NULL  -- CHECK 2: Lock time is set
+          AND r.lock_time > NOW()  -- CHECK 3: Lock time is in future
+          AND r.lock_time <= NOW() + INTERVAL '3 days'  -- CHECK 4: Within 3 days
+          AND EXISTS (  -- CHECK 5: Round has fixtures
+            SELECT 1
+            FROM fixture f
+            WHERE f.round_id = r.id
+          )
+          -- CHECK 11: Not already sent/queued
+          AND NOT EXISTS (
+            SELECT 1
+            FROM email_queue eq
+            WHERE eq.user_id = u.id
+              AND eq.competition_id = c.id
+              AND eq.round_id = r.id
+              AND eq.email_type = 'pick_reminder'
+          )
+          -- CHECK 12: Global "all emails" is ON
+          AND NOT EXISTS (
+            SELECT 1
+            FROM email_preference ep
+            WHERE ep.user_id = u.id
+              AND ep.competition_id = 0
+              AND ep.email_type = 'all'
+              AND ep.enabled = false
+          )
+          -- CHECK 13: Global "pick_reminder" is ON
+          AND NOT EXISTS (
+            SELECT 1
+            FROM email_preference ep
+            WHERE ep.user_id = u.id
+              AND ep.competition_id = 0
+              AND ep.email_type = 'pick_reminder'
+              AND ep.enabled = false
+          )
+          -- CHECK 14: Competition-specific override allows emails
+          AND NOT EXISTS (
+            SELECT 1
+            FROM email_preference ep
+            WHERE ep.user_id = u.id
+              AND ep.competition_id = c.id
+              AND ep.email_type IS NULL
+              AND ep.enabled = false
+          )
+
+        ORDER BY c.id, r.round_number, u.id
+      `);
+
+      const candidates = candidatesResult.rows;
+
+      // If no candidates, return success with zero count
+      if (candidates.length === 0) {
+        return res.json({
+          return_code: "SUCCESS",
+          candidates_sent: 0,
+          candidates: [],
+          message: "No users need pick reminders at this time"
+        });
+      }
+
+      // === PREVIEW MODE - Return list without sending ===
+      if (preview_only === true) {
+        return res.json({
+          return_code: "SUCCESS",
+          candidates_found: candidates.length,
+          message: `Found ${candidates.length} users who need pick reminders`,
+          candidates: candidates.map(c => ({
+            user_id: c.user_id,
+            user_email: c.user_email,
+            user_display_name: c.user_display_name,
+            competition_id: c.competition_id,
+            competition_name: c.competition_name,
+            round_id: c.round_id,
+            round_number: c.round_number,
+            lock_time: c.lock_time,
+            organizer_name: c.organizer_name
+          }))
+        });
+      }
+
+      // === SEND MODE - Actually send emails ===
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const candidate of candidates) {
+        const result = await sendEmailInternal(candidate);
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+          console.error(`Failed to send to user ${candidate.user_id}:`, result.error);
+        }
+      }
+
       return res.json({
-        return_code: "EMAIL_SEND_FAILED",
-        message: "Failed to send email: " + emailResult.error,
-        queue_id: queueRecord.id,
-        email_sent: false
+        return_code: "SUCCESS",
+        candidates_sent: successCount,
+        candidates_failed: failCount,
+        message: `Sent ${successCount} pick reminders (${failCount} failed)`
       });
     }
 
+    // ========================================
+    // SINGLE USER MODE (Manual Trigger)
+    // ========================================
+
+    // Validate required fields for single user mode
+    if (!user_id || !Number.isInteger(user_id)) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "user_id is required and must be a number"
+      });
+    }
+
+    if (!round_id || !Number.isInteger(round_id)) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "round_id is required and must be a number"
+      });
+    }
+
+    if (!competition_id || !Number.isInteger(competition_id)) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "competition_id is required and must be a number"
+      });
+    }
+
+    // === OPTIONAL VALIDATION FOR SINGLE USER ===
+    if (validate === true) {
+
+      // Get all data needed for validation
+      const validationResult = await query(`
+        SELECT
+          c.id as competition_id,
+          c.name as competition_name,
+          c.status as competition_status,
+          r.id as round_id,
+          r.round_number,
+          r.lock_time,
+          u.id as user_id,
+          u.email as user_email,
+          u.display_name as user_display_name,
+          cu.status as player_status,
+          org.display_name as organizer_name,
+          (
+            SELECT COUNT(*)
+            FROM pick p
+            WHERE p.round_id = r.id
+              AND p.user_id = u.id
+          ) as has_picked,
+          (
+            SELECT COUNT(*)
+            FROM fixture f
+            WHERE f.round_id = r.id
+          ) as fixture_count,
+          (
+            SELECT COUNT(*)
+            FROM email_queue eq
+            WHERE eq.user_id = u.id
+              AND eq.competition_id = c.id
+              AND eq.round_id = r.id
+              AND eq.email_type = 'pick_reminder'
+          ) as already_queued
+
+        FROM competition c
+        INNER JOIN round r ON r.id = $2 AND r.competition_id = c.id
+        INNER JOIN app_user u ON u.id = $1
+        LEFT JOIN competition_user cu ON cu.competition_id = c.id AND cu.user_id = u.id
+        LEFT JOIN app_user org ON org.id = c.organiser_id
+        WHERE c.id = $3
+      `, [user_id, round_id, competition_id]);
+
+      if (validationResult.rows.length === 0) {
+        return res.json({
+          return_code: "VALIDATION_ERROR",
+          message: "Competition, round, or user not found"
+        });
+      }
+
+      const data = validationResult.rows[0];
+
+      // CHECK: Competition is not complete
+      if (data.competition_status === 'complete') {
+        return res.json({
+          return_code: "COMPETITION_COMPLETE",
+          message: "Competition is already complete"
+        });
+      }
+
+      // CHECK: User is member of competition
+      if (!data.player_status) {
+        return res.json({
+          return_code: "VALIDATION_ERROR",
+          message: "User is not a member of this competition"
+        });
+      }
+
+      // CHECK: User is not eliminated
+      if (data.player_status !== 'active') {
+        return res.json({
+          return_code: "USER_ELIMINATED",
+          message: "User is eliminated from this competition"
+        });
+      }
+
+      // CHECK: User has not already picked
+      if (data.has_picked > 0) {
+        return res.json({
+          return_code: "PICK_ALREADY_MADE",
+          message: "User has already made their pick for this round"
+        });
+      }
+
+      // CHECK: Round is not locked
+      if (data.lock_time && new Date(data.lock_time) < new Date()) {
+        return res.json({
+          return_code: "ROUND_LOCKED",
+          message: "Round is already locked"
+        });
+      }
+
+      // CHECK: Round has fixtures
+      if (data.fixture_count === 0) {
+        return res.json({
+          return_code: "NO_FIXTURES",
+          message: "Round has no fixtures"
+        });
+      }
+
+      // CHECK: User has valid email
+      if (!data.user_email || data.user_email === '' || data.user_email.includes('@lms-guest.com')) {
+        return res.json({
+          return_code: "VALIDATION_ERROR",
+          message: "User does not have a valid email address"
+        });
+      }
+
+      // CHECK: Not already sent
+      if (data.already_queued > 0) {
+        return res.json({
+          return_code: "ALREADY_SENT",
+          message: "Pick reminder already sent for this round"
+        });
+      }
+
+      // CHECK: Email preferences
+      const emailPrefsResult = await query(`
+        SELECT email_type, enabled, competition_id
+        FROM email_preference
+        WHERE user_id = $1
+          AND (
+            (competition_id = 0 AND email_type IN ('all', 'pick_reminder'))
+            OR (competition_id = $2 AND email_type IS NULL)
+          )
+      `, [user_id, competition_id]);
+
+      for (const pref of emailPrefsResult.rows) {
+        if (pref.competition_id === 0 && pref.email_type === 'all' && pref.enabled === false) {
+          return res.json({
+            return_code: "EMAIL_DISABLED",
+            message: "User has disabled all email notifications"
+          });
+        }
+        if (pref.competition_id === 0 && pref.email_type === 'pick_reminder' && pref.enabled === false) {
+          return res.json({
+            return_code: "EMAIL_DISABLED",
+            message: "User has disabled pick reminder emails"
+          });
+        }
+        if (pref.competition_id === competition_id && pref.enabled === false) {
+          return res.json({
+            return_code: "EMAIL_DISABLED",
+            message: "User has disabled emails for this competition"
+          });
+        }
+      }
+
+      // Validation passed - send email
+      const result = await sendEmailInternal(data);
+
+      if (result.success) {
+        return res.json({
+          return_code: "SUCCESS",
+          message: "Pick reminder sent successfully"
+        });
+      } else {
+        return res.json({
+          return_code: "EMAIL_SEND_FAILED",
+          message: "Failed to send email: " + result.error
+        });
+      }
+
+    } else {
+      // === NO VALIDATION - FORCE SEND ===
+      // Get minimal data needed for sending
+      const dataResult = await query(`
+        SELECT
+          c.id as competition_id,
+          c.name as competition_name,
+          r.id as round_id,
+          r.round_number,
+          r.lock_time,
+          u.id as user_id,
+          u.email as user_email,
+          u.display_name as user_display_name,
+          org.display_name as organizer_name
+        FROM competition c
+        INNER JOIN round r ON r.id = $2 AND r.competition_id = c.id
+        INNER JOIN app_user u ON u.id = $1
+        LEFT JOIN app_user org ON org.id = c.organiser_id
+        WHERE c.id = $3
+      `, [user_id, round_id, competition_id]);
+
+      if (dataResult.rows.length === 0) {
+        return res.json({
+          return_code: "VALIDATION_ERROR",
+          message: "Competition, round, or user not found"
+        });
+      }
+
+      const data = dataResult.rows[0];
+      const result = await sendEmailInternal(data);
+
+      if (result.success) {
+        return res.json({
+          return_code: "SUCCESS",
+          message: "Pick reminder sent successfully"
+        });
+      } else {
+        return res.json({
+          return_code: "EMAIL_SEND_FAILED",
+          message: "Failed to send email: " + result.error
+        });
+      }
+    }
+
   } catch (error) {
-    // Log error details for debugging
     console.error('Error in send-pick-reminder:', {
       error: error.message,
       stack: error.stack,
       body: req.body
     });
 
-    // Return generic server error to client
     return res.json({
       return_code: "SERVER_ERROR",
-      message: "Failed to queue pick reminder. Please try again."
+      message: "Failed to send pick reminder. Please try again."
     });
   }
 });

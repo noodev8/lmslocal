@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, UserGroupIcon, StarIcon } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
-  const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
 
   // Redirect to dashboard if already logged in and token is valid

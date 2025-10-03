@@ -226,7 +226,16 @@ router.post('/', verifyToken, async (req, res) => {
           
           // Delete all invitations for this competition
           await client.query('DELETE FROM invitation WHERE competition_id = $1', [competitionId]);
-          
+
+          // Delete all email preferences for this competition
+          await client.query('DELETE FROM email_preference WHERE competition_id = $1', [competitionId]);
+
+          // Delete email queue entries for this competition
+          await client.query('DELETE FROM email_queue WHERE competition_id = $1', [competitionId]);
+
+          // Delete email tracking records for this competition
+          await client.query('DELETE FROM email_tracking WHERE competition_id = $1', [competitionId]);
+
           // Delete audit logs for this competition (except our deletion record)
           await client.query('DELETE FROM audit_log WHERE competition_id = $1 AND action != $2', [competitionId, 'ACCOUNT_DELETION_COMPLETE']);
         }
@@ -256,6 +265,15 @@ router.post('/', verifyToken, async (req, res) => {
 
       const deleteInvitationsResult = await client.query('DELETE FROM invitation WHERE email = $1', [user_email]);
       deletionCounts.invitations = deleteInvitationsResult.rowCount || 0;
+
+      // Delete user's global email preferences (competition_id = 0 and any remaining competition-specific ones)
+      await client.query('DELETE FROM email_preference WHERE user_id = $1', [user_id]);
+
+      // Delete user's email queue entries (pending/scheduled emails)
+      await client.query('DELETE FROM email_queue WHERE user_id = $1', [user_id]);
+
+      // Delete user's email tracking records (sent email analytics)
+      await client.query('DELETE FROM email_tracking WHERE user_id = $1', [user_id]);
 
       // 3. Delete user's audit logs (except our deletion record)
       const deleteAuditLogsResult = await client.query('DELETE FROM audit_log WHERE user_id = $1 AND action != $2', [user_id, 'ACCOUNT_DELETION_COMPLETE']);

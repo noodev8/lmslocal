@@ -187,7 +187,14 @@ router.post('/', verifyToken, async (req, res) => {
 
       // Delete allowed teams (references competition_id and user_id)
       const deletedAllowedTeamsResult = await client.query(`
-        DELETE FROM allowed_teams 
+        DELETE FROM allowed_teams
+        WHERE competition_id = $1
+        RETURNING id
+      `, [competition_id]);
+
+      // Delete email preferences for this competition
+      const deletedEmailPrefsResult = await client.query(`
+        DELETE FROM email_preference
         WHERE competition_id = $1
         RETURNING id
       `, [competition_id]);

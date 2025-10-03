@@ -5,7 +5,7 @@
 -- Dumped from database version 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 17.4
 
--- Started on 2025-10-03 08:54:43
+-- Started on 2025-10-03 19:17:21
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -66,7 +66,7 @@ CREATE SEQUENCE public.allowed_teams_id_seq
 ALTER SEQUENCE public.allowed_teams_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3647 (class 0 OID 0)
+-- TOC entry 3652 (class 0 OID 0)
 -- Dependencies: 235
 -- Name: allowed_teams_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -117,7 +117,7 @@ CREATE SEQUENCE public.app_user_id_seq
 ALTER SEQUENCE public.app_user_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3648 (class 0 OID 0)
+-- TOC entry 3653 (class 0 OID 0)
 -- Dependencies: 215
 -- Name: app_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -159,7 +159,7 @@ CREATE SEQUENCE public.audit_log_id_seq
 ALTER SEQUENCE public.audit_log_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3649 (class 0 OID 0)
+-- TOC entry 3654 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: audit_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -199,7 +199,7 @@ CREATE TABLE public.competition (
 ALTER TABLE public.competition OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3650 (class 0 OID 0)
+-- TOC entry 3655 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.venue_name; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -209,7 +209,7 @@ COMMENT ON COLUMN public.competition.venue_name IS 'Display name for the venue/o
 
 
 --
--- TOC entry 3651 (class 0 OID 0)
+-- TOC entry 3656 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.address_line_1; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -218,7 +218,7 @@ COMMENT ON COLUMN public.competition.address_line_1 IS 'First line of pub/organi
 
 
 --
--- TOC entry 3652 (class 0 OID 0)
+-- TOC entry 3657 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.address_line_2; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -227,7 +227,7 @@ COMMENT ON COLUMN public.competition.address_line_2 IS 'Second line of address (
 
 
 --
--- TOC entry 3653 (class 0 OID 0)
+-- TOC entry 3658 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.city; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -236,7 +236,7 @@ COMMENT ON COLUMN public.competition.city IS 'City or town name';
 
 
 --
--- TOC entry 3654 (class 0 OID 0)
+-- TOC entry 3659 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.postcode; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -245,7 +245,7 @@ COMMENT ON COLUMN public.competition.postcode IS 'Postal code (UK format)';
 
 
 --
--- TOC entry 3655 (class 0 OID 0)
+-- TOC entry 3660 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.phone; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -254,7 +254,7 @@ COMMENT ON COLUMN public.competition.phone IS 'Contact phone number for the pub/
 
 
 --
--- TOC entry 3656 (class 0 OID 0)
+-- TOC entry 3661 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: COLUMN competition.email; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -279,7 +279,7 @@ CREATE SEQUENCE public.competition_id_seq
 ALTER SEQUENCE public.competition_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3657 (class 0 OID 0)
+-- TOC entry 3662 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: competition_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -309,7 +309,7 @@ CREATE TABLE public.competition_user (
 ALTER TABLE public.competition_user OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3658 (class 0 OID 0)
+-- TOC entry 3663 (class 0 OID 0)
 -- Dependencies: 224
 -- Name: COLUMN competition_user.personal_name; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -334,7 +334,7 @@ CREATE SEQUENCE public.competition_user_id_seq
 ALTER SEQUENCE public.competition_user_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3659 (class 0 OID 0)
+-- TOC entry 3664 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: competition_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -361,7 +361,7 @@ CREATE TABLE public.email_preference (
 ALTER TABLE public.email_preference OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3660 (class 0 OID 0)
+-- TOC entry 3665 (class 0 OID 0)
 -- Dependencies: 249
 -- Name: TABLE email_preference; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -371,7 +371,7 @@ COMMENT ON TABLE public.email_preference IS 'User email notification preferences
 
 
 --
--- TOC entry 3661 (class 0 OID 0)
+-- TOC entry 3666 (class 0 OID 0)
 -- Dependencies: 249
 -- Name: COLUMN email_preference.user_id; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -380,7 +380,7 @@ COMMENT ON COLUMN public.email_preference.user_id IS 'User who owns this prefere
 
 
 --
--- TOC entry 3662 (class 0 OID 0)
+-- TOC entry 3667 (class 0 OID 0)
 -- Dependencies: 249
 -- Name: COLUMN email_preference.competition_id; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -390,7 +390,7 @@ COMMENT ON COLUMN public.email_preference.competition_id IS '0 = global preferen
 
 
 --
--- TOC entry 3663 (class 0 OID 0)
+-- TOC entry 3668 (class 0 OID 0)
 -- Dependencies: 249
 -- Name: COLUMN email_preference.email_type; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -399,7 +399,7 @@ COMMENT ON COLUMN public.email_preference.email_type IS 'Type of email: all, pic
 
 
 --
--- TOC entry 3664 (class 0 OID 0)
+-- TOC entry 3669 (class 0 OID 0)
 -- Dependencies: 249
 -- Name: COLUMN email_preference.enabled; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -425,7 +425,7 @@ CREATE SEQUENCE public.email_preference_id_seq
 ALTER SEQUENCE public.email_preference_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3665 (class 0 OID 0)
+-- TOC entry 3670 (class 0 OID 0)
 -- Dependencies: 248
 -- Name: email_preference_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -450,14 +450,15 @@ CREATE TABLE public.email_queue (
     last_attempt_at timestamp with time zone,
     error_message text,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    sent_at timestamp with time zone
+    sent_at timestamp with time zone,
+    round_id integer
 );
 
 
 ALTER TABLE public.email_queue OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3666 (class 0 OID 0)
+-- TOC entry 3671 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: TABLE email_queue; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -466,7 +467,7 @@ COMMENT ON TABLE public.email_queue IS 'Queue for scheduled and pending emails w
 
 
 --
--- TOC entry 3667 (class 0 OID 0)
+-- TOC entry 3672 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.user_id; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -475,7 +476,7 @@ COMMENT ON COLUMN public.email_queue.user_id IS 'User who will receive this emai
 
 
 --
--- TOC entry 3668 (class 0 OID 0)
+-- TOC entry 3673 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.competition_id; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -484,7 +485,7 @@ COMMENT ON COLUMN public.email_queue.competition_id IS 'Related competition (NUL
 
 
 --
--- TOC entry 3669 (class 0 OID 0)
+-- TOC entry 3674 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.email_type; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -493,7 +494,7 @@ COMMENT ON COLUMN public.email_queue.email_type IS 'Type of email: welcome, pick
 
 
 --
--- TOC entry 3670 (class 0 OID 0)
+-- TOC entry 3675 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.scheduled_send_at; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -503,7 +504,7 @@ COMMENT ON COLUMN public.email_queue.scheduled_send_at IS 'When this email shoul
 
 
 --
--- TOC entry 3671 (class 0 OID 0)
+-- TOC entry 3676 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.template_data; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -513,7 +514,7 @@ COMMENT ON COLUMN public.email_queue.template_data IS 'JSON object with all data
 
 
 --
--- TOC entry 3672 (class 0 OID 0)
+-- TOC entry 3677 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.status; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -523,7 +524,7 @@ COMMENT ON COLUMN public.email_queue.status IS 'pending=waiting to send, process
 
 
 --
--- TOC entry 3673 (class 0 OID 0)
+-- TOC entry 3678 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.attempts; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -532,7 +533,7 @@ COMMENT ON COLUMN public.email_queue.attempts IS 'Number of send attempts made (
 
 
 --
--- TOC entry 3674 (class 0 OID 0)
+-- TOC entry 3679 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.last_attempt_at; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -541,7 +542,7 @@ COMMENT ON COLUMN public.email_queue.last_attempt_at IS 'Timestamp of most recen
 
 
 --
--- TOC entry 3675 (class 0 OID 0)
+-- TOC entry 3680 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.error_message; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -551,12 +552,21 @@ COMMENT ON COLUMN public.email_queue.error_message IS 'Error details from Resend
 
 
 --
--- TOC entry 3676 (class 0 OID 0)
+-- TOC entry 3681 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: COLUMN email_queue.sent_at; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
 
 COMMENT ON COLUMN public.email_queue.sent_at IS 'When email was successfully sent (NULL if not sent yet)';
+
+
+--
+-- TOC entry 3682 (class 0 OID 0)
+-- Dependencies: 245
+-- Name: COLUMN email_queue.round_id; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
+--
+
+COMMENT ON COLUMN public.email_queue.round_id IS 'Round ID for pick reminder emails (NULL for non-round emails)';
 
 
 --
@@ -576,7 +586,7 @@ CREATE SEQUENCE public.email_queue_id_seq
 ALTER SEQUENCE public.email_queue_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3677 (class 0 OID 0)
+-- TOC entry 3683 (class 0 OID 0)
 -- Dependencies: 244
 -- Name: email_queue_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -610,7 +620,7 @@ CREATE TABLE public.email_tracking (
 ALTER TABLE public.email_tracking OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3678 (class 0 OID 0)
+-- TOC entry 3684 (class 0 OID 0)
 -- Dependencies: 247
 -- Name: TABLE email_tracking; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -619,7 +629,7 @@ COMMENT ON TABLE public.email_tracking IS 'Comprehensive email engagement tracki
 
 
 --
--- TOC entry 3679 (class 0 OID 0)
+-- TOC entry 3685 (class 0 OID 0)
 -- Dependencies: 247
 -- Name: COLUMN email_tracking.email_id; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -629,7 +639,7 @@ COMMENT ON COLUMN public.email_tracking.email_id IS 'Our internal unique identif
 
 
 --
--- TOC entry 3680 (class 0 OID 0)
+-- TOC entry 3686 (class 0 OID 0)
 -- Dependencies: 247
 -- Name: COLUMN email_tracking.click_action; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -638,7 +648,7 @@ COMMENT ON COLUMN public.email_tracking.click_action IS 'Which button/link was c
 
 
 --
--- TOC entry 3681 (class 0 OID 0)
+-- TOC entry 3687 (class 0 OID 0)
 -- Dependencies: 247
 -- Name: COLUMN email_tracking.resend_message_id; Type: COMMENT; Schema: public; Owner: lmslocal_prod_user
 --
@@ -663,7 +673,7 @@ CREATE SEQUENCE public.email_tracking_id_seq
 ALTER SEQUENCE public.email_tracking_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3682 (class 0 OID 0)
+-- TOC entry 3688 (class 0 OID 0)
 -- Dependencies: 246
 -- Name: email_tracking_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -710,7 +720,7 @@ CREATE SEQUENCE public.fixture_id_seq
 ALTER SEQUENCE public.fixture_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3683 (class 0 OID 0)
+-- TOC entry 3689 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: fixture_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -758,7 +768,7 @@ CREATE SEQUENCE public.fixture_load_fixture_id_seq
 ALTER SEQUENCE public.fixture_load_fixture_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3684 (class 0 OID 0)
+-- TOC entry 3690 (class 0 OID 0)
 -- Dependencies: 242
 -- Name: fixture_load_fixture_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -805,7 +815,7 @@ CREATE SEQUENCE public.marketing_posts_id_seq
 ALTER SEQUENCE public.marketing_posts_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3685 (class 0 OID 0)
+-- TOC entry 3691 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: marketing_posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -849,7 +859,7 @@ CREATE SEQUENCE public.pick_id_seq
 ALTER SEQUENCE public.pick_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3686 (class 0 OID 0)
+-- TOC entry 3692 (class 0 OID 0)
 -- Dependencies: 229
 -- Name: pick_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -893,7 +903,7 @@ CREATE SEQUENCE public.player_progress_id_seq
 ALTER SEQUENCE public.player_progress_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3687 (class 0 OID 0)
+-- TOC entry 3693 (class 0 OID 0)
 -- Dependencies: 233
 -- Name: player_progress_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -934,7 +944,7 @@ CREATE SEQUENCE public.round_id_seq
 ALTER SEQUENCE public.round_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3688 (class 0 OID 0)
+-- TOC entry 3694 (class 0 OID 0)
 -- Dependencies: 225
 -- Name: round_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -977,7 +987,7 @@ CREATE SEQUENCE public.subscription_id_seq
 ALTER SEQUENCE public.subscription_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3689 (class 0 OID 0)
+-- TOC entry 3695 (class 0 OID 0)
 -- Dependencies: 240
 -- Name: subscription_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -1021,7 +1031,7 @@ CREATE SEQUENCE public.team_id_seq
 ALTER SEQUENCE public.team_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3690 (class 0 OID 0)
+-- TOC entry 3696 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: team_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -1065,7 +1075,7 @@ CREATE SEQUENCE public.team_list_id_seq
 ALTER SEQUENCE public.team_list_id_seq OWNER TO lmslocal_prod_user;
 
 --
--- TOC entry 3691 (class 0 OID 0)
+-- TOC entry 3697 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: team_list_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: lmslocal_prod_user
 --
@@ -1269,7 +1279,7 @@ ALTER TABLE ONLY public.competition_user
 
 
 --
--- TOC entry 3496 (class 2606 OID 21680)
+-- TOC entry 3498 (class 2606 OID 21680)
 -- Name: email_preference email_preference_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1287,7 +1297,7 @@ ALTER TABLE ONLY public.email_queue
 
 
 --
--- TOC entry 3486 (class 2606 OID 21661)
+-- TOC entry 3488 (class 2606 OID 21661)
 -- Name: email_tracking email_tracking_email_id_key; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1296,7 +1306,7 @@ ALTER TABLE ONLY public.email_tracking
 
 
 --
--- TOC entry 3488 (class 2606 OID 21659)
+-- TOC entry 3490 (class 2606 OID 21659)
 -- Name: email_tracking email_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1392,6 +1402,15 @@ ALTER TABLE ONLY public.team
 
 ALTER TABLE ONLY public.allowed_teams
     ADD CONSTRAINT unique_competition_user_team UNIQUE (competition_id, user_id, team_id);
+
+
+--
+-- TOC entry 3503 (class 2606 OID 21684)
+-- Name: email_preference unique_user_competition_email_type; Type: CONSTRAINT; Schema: public; Owner: lmslocal_prod_user
+--
+
+ALTER TABLE ONLY public.email_preference
+    ADD CONSTRAINT unique_user_competition_email_type UNIQUE (user_id, competition_id, email_type);
 
 
 --
@@ -1604,7 +1623,7 @@ CREATE INDEX idx_competition_user_paid ON public.competition_user USING btree (c
 
 
 --
--- TOC entry 3497 (class 1259 OID 21682)
+-- TOC entry 3499 (class 1259 OID 21682)
 -- Name: idx_email_prefs_competition; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1612,7 +1631,15 @@ CREATE INDEX idx_email_prefs_competition ON public.email_preference USING btree 
 
 
 --
--- TOC entry 3498 (class 1259 OID 21681)
+-- TOC entry 3500 (class 1259 OID 21685)
+-- Name: idx_email_prefs_lookup; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
+--
+
+CREATE INDEX idx_email_prefs_lookup ON public.email_preference USING btree (user_id, competition_id, email_type);
+
+
+--
+-- TOC entry 3501 (class 1259 OID 21681)
 -- Name: idx_email_prefs_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1644,7 +1671,15 @@ CREATE INDEX idx_email_queue_processing ON public.email_queue USING btree (statu
 
 
 --
--- TOC entry 3481 (class 1259 OID 21644)
+-- TOC entry 3481 (class 1259 OID 21699)
+-- Name: idx_email_queue_round; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
+--
+
+CREATE INDEX idx_email_queue_round ON public.email_queue USING btree (round_id);
+
+
+--
+-- TOC entry 3482 (class 1259 OID 21644)
 -- Name: idx_email_queue_scheduled; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1652,7 +1687,7 @@ CREATE INDEX idx_email_queue_scheduled ON public.email_queue USING btree (schedu
 
 
 --
--- TOC entry 3482 (class 1259 OID 21643)
+-- TOC entry 3483 (class 1259 OID 21643)
 -- Name: idx_email_queue_status; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1660,7 +1695,7 @@ CREATE INDEX idx_email_queue_status ON public.email_queue USING btree (status);
 
 
 --
--- TOC entry 3483 (class 1259 OID 21647)
+-- TOC entry 3484 (class 1259 OID 21647)
 -- Name: idx_email_queue_type; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1668,7 +1703,15 @@ CREATE INDEX idx_email_queue_type ON public.email_queue USING btree (email_type)
 
 
 --
--- TOC entry 3484 (class 1259 OID 21645)
+-- TOC entry 3485 (class 1259 OID 21700)
+-- Name: idx_email_queue_unique_check; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
+--
+
+CREATE INDEX idx_email_queue_unique_check ON public.email_queue USING btree (user_id, competition_id, round_id, email_type);
+
+
+--
+-- TOC entry 3486 (class 1259 OID 21645)
 -- Name: idx_email_queue_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1676,7 +1719,7 @@ CREATE INDEX idx_email_queue_user ON public.email_queue USING btree (user_id);
 
 
 --
--- TOC entry 3489 (class 1259 OID 21663)
+-- TOC entry 3491 (class 1259 OID 21663)
 -- Name: idx_email_tracking_competition; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1684,7 +1727,7 @@ CREATE INDEX idx_email_tracking_competition ON public.email_tracking USING btree
 
 
 --
--- TOC entry 3490 (class 1259 OID 21666)
+-- TOC entry 3492 (class 1259 OID 21666)
 -- Name: idx_email_tracking_opened; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1692,7 +1735,7 @@ CREATE INDEX idx_email_tracking_opened ON public.email_tracking USING btree (ope
 
 
 --
--- TOC entry 3491 (class 1259 OID 21667)
+-- TOC entry 3493 (class 1259 OID 21667)
 -- Name: idx_email_tracking_resend_id; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1700,7 +1743,7 @@ CREATE INDEX idx_email_tracking_resend_id ON public.email_tracking USING btree (
 
 
 --
--- TOC entry 3492 (class 1259 OID 21665)
+-- TOC entry 3494 (class 1259 OID 21665)
 -- Name: idx_email_tracking_sent; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1708,7 +1751,7 @@ CREATE INDEX idx_email_tracking_sent ON public.email_tracking USING btree (sent_
 
 
 --
--- TOC entry 3493 (class 1259 OID 21664)
+-- TOC entry 3495 (class 1259 OID 21664)
 -- Name: idx_email_tracking_type; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1716,7 +1759,7 @@ CREATE INDEX idx_email_tracking_type ON public.email_tracking USING btree (email
 
 
 --
--- TOC entry 3494 (class 1259 OID 21662)
+-- TOC entry 3496 (class 1259 OID 21662)
 -- Name: idx_email_tracking_user; Type: INDEX; Schema: public; Owner: lmslocal_prod_user
 --
 
@@ -1931,7 +1974,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO lmslocal_prod_user;
 
 
--- Completed on 2025-10-03 08:54:45
+-- Completed on 2025-10-03 19:17:23
 
 --
 -- PostgreSQL database dump complete

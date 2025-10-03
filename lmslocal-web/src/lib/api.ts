@@ -636,15 +636,11 @@ export const userApi = {
     message?: string;
     preferences?: EmailPreferences
   }>('/get-email-preferences', competition_id ? { competition_id } : {}),
-  updateEmailPreference: (competition_id: number, email_type: string | null, enabled: boolean) => api.post<{
+  updateEmailPreferencesBatch: (preferences: Array<{ competition_id: number; email_type: string | null; enabled: boolean }>) => api.post<{
     return_code: string;
     message?: string;
-    preference?: {
-      competition_id: number;
-      email_type: string | null;
-      enabled: boolean;
-    };
-  }>('/update-email-preferences', { competition_id, email_type, enabled }),
+    updated_count?: number;
+  }>('/update-email-preferences-batch', { preferences }),
   getUserDashboard: () => {
     const userId = getUserId();
     return withCache(

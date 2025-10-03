@@ -182,12 +182,10 @@ export default function ProfilePage() {
         updates.push({ competition_id: comp.competition_id, email_type: null, enabled: comp.all_emails });
       }
 
-      // Send all updates
-      for (const update of updates) {
-        const response = await userApi.updateEmailPreference(update.competition_id, update.email_type, update.enabled);
-        if (response.data.return_code !== 'SUCCESS') {
-          throw new Error(response.data.message || 'Failed to update preference');
-        }
+      // Send all updates in a single batch request
+      const response = await userApi.updateEmailPreferencesBatch(updates);
+      if (response.data.return_code !== 'SUCCESS') {
+        throw new Error(response.data.message || 'Failed to update preferences');
       }
 
       // Update saved state and clear changed state
