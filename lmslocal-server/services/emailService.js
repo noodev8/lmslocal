@@ -604,10 +604,185 @@ ${email}
   }
 };
 
+/**
+ * Send results email after round completion
+ * @param {string} email - User's email address
+ * @param {object} templateData - Email template data including round results
+ */
+const sendResultsEmail = async (email, templateData) => {
+  try {
+    // Extract template data for easier access
+    const {
+      user_display_name,
+      competition_name,
+      organizer_name,
+      round_number,
+      user_pick,
+      pick_result,
+      user_outcome,
+      lives_remaining,
+      new_status,
+      competition_id,
+      email_tracking_id
+    } = templateData;
+
+    // Determine outcome message and styling based on result
+    let outcomeMessage = '';
+    let outcomeColor = '';
+    let outcomeIcon = '';
+
+    if (pick_result === 'no_pick') {
+      outcomeMessage = 'You did not make a pick for this round.';
+      outcomeColor = '#dc2626'; // red
+      outcomeIcon = '⚠️';
+    } else if (pick_result === 'win') {
+      outcomeMessage = 'Your pick won! You advance to the next round.';
+      outcomeColor = '#16a34a'; // green
+      outcomeIcon = '✅';
+    } else if (pick_result === 'draw') {
+      outcomeMessage = 'Your pick drew. You lost a life but remain in the competition.';
+      outcomeColor = '#ea580c'; // orange
+      outcomeIcon = '⚠️';
+    } else if (pick_result === 'loss') {
+      outcomeMessage = 'Your pick lost.';
+      outcomeColor = '#dc2626'; // red
+      outcomeIcon = '❌';
+    }
+
+    // Additional status messaging
+    let statusMessage = '';
+    if (new_status === 'eliminated') {
+      statusMessage = '<p style="color: #dc2626; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You have been eliminated from the competition.</p>';
+    } else if (new_status === 'active') {
+      statusMessage = `<p style="color: #16a34a; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You are still in! Lives remaining: ${lives_remaining}</p>`;
+    }
+
+    // Build the view competition URL
+    const viewCompetitionUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}?email_id=${email_tracking_id}`;
+
+    // HTML email content - Simple format as requested
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Round ${round_number} Results - ${competition_name}</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+            <!-- Header -->
+            <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+              <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+            </div>
+
+            <!-- Main Content -->
+            <div style="padding: 40px 30px;">
+
+              <!-- Greeting -->
+              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+              <!-- Main Message -->
+              <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+                Round ${round_number} results are in.
+              </p>
+
+              <!-- Results Box -->
+              <div style="background: #f1f5f9; border-left: 4px solid ${outcomeColor}; padding: 24px; margin: 0 0 24px 0;">
+                <p style="margin: 0 0 12px 0; color: #0f172a; font-size: 15px;">
+                  <strong>${outcomeIcon} Your Pick:</strong> ${user_pick}
+                </p>
+                <p style="margin: 0; color: ${outcomeColor}; font-size: 16px; font-weight: 600;">
+                  ${outcomeMessage}
+                </p>
+                ${statusMessage}
+              </div>
+
+              <!-- Organizer Info -->
+              <p style="color: #64748b; font-size: 14px; margin: 0 0 30px 0;">
+                Organised by ${organizer_name}
+              </p>
+
+              <!-- Call to Action Button -->
+              <div style="margin: 40px 0;">
+                <a href="${viewCompetitionUrl}"
+                   style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                  View Full Results
+                </a>
+              </div>
+
+              <!-- Sign Off -->
+              <p style="color: #64748b; font-size: 14px; margin: 30px 0 0 0;">
+                Good luck in future rounds!
+              </p>
+
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                LMS Local - Last Man Standing Competitions
+              </p>
+            </div>
+
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Plain text version
+    const textContent = `
+      ${competition_name} - Round ${round_number} Results
+
+      Hi ${user_display_name},
+
+      Round ${round_number} results are in.
+
+      ${outcomeIcon} Your Pick: ${user_pick}
+      ${outcomeMessage}
+
+      ${new_status === 'eliminated' ? 'You have been eliminated from the competition.' : `You are still in! Lives remaining: ${lives_remaining}`}
+
+      Organised by ${organizer_name}
+
+      View full results: ${viewCompetitionUrl}
+
+      Good luck in future rounds!
+
+      ---
+      LMS Local - Last Man Standing Competitions
+    `;
+
+    // Send email via Resend
+    const result = await resend.emails.send({
+      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
+      to: [email],
+      subject: `${organizer_name} (${competition_name}): Round ${round_number} Results`,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    return {
+      success: true,
+      resend_message_id: result.id
+    };
+
+  } catch (error) {
+    console.error('Failed to send results email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPlayerMagicLink,
   sendPaymentConfirmationEmail,
-  sendPickReminderEmail
+  sendPickReminderEmail,
+  sendResultsEmail
 };

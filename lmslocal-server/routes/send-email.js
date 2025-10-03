@@ -36,7 +36,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const { sendPickReminderEmail } = require('../services/emailService');
+const { sendPickReminderEmail, sendResultsEmail } = require('../services/emailService');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -93,8 +93,15 @@ router.post('/', verifyToken, async (req, res) => {
         // Extract user email from template data
         const userEmail = templateData.user_email;
 
-        // Send email via Resend service
-        const emailResult = await sendPickReminderEmail(userEmail, templateData);
+        // Send email via Resend service - use appropriate function based on email type
+        let emailResult;
+        if (emailRecord.email_type === 'pick_reminder') {
+          emailResult = await sendPickReminderEmail(userEmail, templateData);
+        } else if (emailRecord.email_type === 'results') {
+          emailResult = await sendResultsEmail(userEmail, templateData);
+        } else {
+          throw new Error(`Unknown email type: ${emailRecord.email_type}`);
+        }
 
         if (emailResult.success) {
           // Email sent successfully - update queue status to 'sent'
