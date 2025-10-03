@@ -162,6 +162,7 @@ router.post('/', verifyToken, async (req, res) => {
           c.name as competition_name,
           c.status as competition_status,
           org.display_name as organizer_name,
+          pp.created_at,
           (
             SELECT COUNT(*)
             FROM competition_user cu
