@@ -12,16 +12,17 @@
 Validates and queues results emails to database (does NOT send).
 
 ### Option A: Batch Mode (Auto/Cron)
-Finds ALL rounds with calculated results but no emails queued yet.
+Finds LATEST round per competition with calculated results but no emails queued.
 ```json
 {}
 ```
 
 **Auto-detects rounds:**
+- LATEST round only (highest round_number with results per competition)
 - Results calculated (player_progress entries exist)
 - No results emails queued yet for that round
-- Competition not complete
-- Results calculated within last 7 days
+- Includes completed competitions (for winner/draw announcements)
+- Missed rounds stay missed (no historical catch-up)
 
 Returns: `queued_count`, `rounds_processed`
 
@@ -73,11 +74,17 @@ Sends all emails with `status='pending'` regardless of type.
 
 ## Email Content (Simple Format)
 
+**Normal Rounds:**
 - Your pick: Team name
 - Result: Win/Loss/Draw/No pick
 - Outcome message with colored indicator
 - Status: Still in (lives remaining) OR Eliminated
 - Button: "View Full Results"
+
+**Completed Competitions:**
+- Winner (1 survivor): "🏆 Congratulations! You won the competition!"
+- Draw (0 survivors): "Competition complete - Result: Draw! No winners."
+- Eliminated in final: "You have been eliminated. Competition complete."
 
 ---
 

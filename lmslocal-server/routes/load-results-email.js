@@ -51,13 +51,15 @@ async function queueResultsEmailInternal(params) {
     user_email,
     user_display_name,
     competition_name,
+    competition_status,
     organizer_name,
     round_number,
     user_pick,
     pick_result,
     user_outcome,
     lives_remaining,
-    new_status
+    new_status,
+    active_player_count
   } = params;
 
   try {
@@ -70,6 +72,7 @@ async function queueResultsEmailInternal(params) {
       user_email,
       user_display_name,
       competition_name,
+      competition_status, // 'active' or 'complete'
       organizer_name: organizer_name || 'Competition Organizer',
       round_number,
 
@@ -79,6 +82,7 @@ async function queueResultsEmailInternal(params) {
       user_outcome, // 'advanced', 'eliminated', 'life_lost'
       lives_remaining,
       new_status, // 'active', 'eliminated'
+      active_player_count, // Number of active players remaining in competition
 
       competition_id,
       round_id,
@@ -149,13 +153,21 @@ router.post('/', verifyToken, async (req, res) => {
     if (!round_id && !competition_id) {
 
       // Find all rounds that have calculated results but haven't had emails queued yet
+      // Only process the LATEST round (highest round_number) per competition
       const eligibleRoundsResult = await query(`
         SELECT DISTINCT
           pp.round_id,
           pp.competition_id,
           r.round_number,
           c.name as competition_name,
-          org.display_name as organizer_name
+          c.status as competition_status,
+          org.display_name as organizer_name,
+          (
+            SELECT COUNT(*)
+            FROM competition_user cu
+            WHERE cu.competition_id = pp.competition_id
+            AND cu.status = 'active'
+          ) as active_player_count
         FROM player_progress pp
         INNER JOIN round r ON r.id = pp.round_id
         INNER JOIN competition c ON c.id = pp.competition_id
@@ -164,8 +176,13 @@ router.post('/', verifyToken, async (req, res) => {
           -- Results have been calculated (player_progress entries exist)
           pp.created_at IS NOT NULL
 
-          -- Competition is not complete (optional - could still send for completed comps)
-          AND c.status != 'complete'
+          -- Only include LATEST round per competition (highest round_number with results)
+          AND r.round_number = (
+            SELECT MAX(r2.round_number)
+            FROM round r2
+            INNER JOIN player_progress pp2 ON pp2.round_id = r2.id
+            WHERE r2.competition_id = pp.competition_id
+          )
 
           -- But results emails haven't been queued yet for this round
           AND NOT EXISTS (
@@ -174,9 +191,6 @@ router.post('/', verifyToken, async (req, res) => {
             AND eq.competition_id = pp.competition_id
             AND eq.email_type = 'results'
           )
-
-          -- Optional: Only recent results (last 7 days to avoid sending old results)
-          AND pp.created_at > NOW() - INTERVAL '7 days'
 
         ORDER BY pp.created_at DESC
       `);
@@ -294,9 +308,11 @@ router.post('/', verifyToken, async (req, res) => {
             ...candidate,
             competition_id: roundInfo.competition_id,
             competition_name: roundInfo.competition_name,
+            competition_status: roundInfo.competition_status,
             organizer_name: roundInfo.organizer_name,
             round_id: roundInfo.round_id,
-            round_number: roundInfo.round_number
+            round_number: roundInfo.round_number,
+            active_player_count: roundInfo.active_player_count
           };
 
           const result = await queueResultsEmailInternal(emailData);
@@ -348,7 +364,13 @@ router.post('/', verifyToken, async (req, res) => {
         c.id as competition_id,
         c.name as competition_name,
         c.status as competition_status,
-        org.display_name as organizer_name
+        org.display_name as organizer_name,
+        (
+          SELECT COUNT(*)
+          FROM competition_user cu
+          WHERE cu.competition_id = c.id
+          AND cu.status = 'active'
+        ) as active_player_count
       FROM round r
       INNER JOIN competition c ON c.id = r.competition_id
       LEFT JOIN app_user org ON org.id = c.organiser_id
@@ -488,9 +510,11 @@ router.post('/', verifyToken, async (req, res) => {
         ...candidate,
         competition_id: roundData.competition_id,
         competition_name: roundData.competition_name,
+        competition_status: roundData.competition_status,
         organizer_name: roundData.organizer_name,
         round_id,
-        round_number: roundData.round_number
+        round_number: roundData.round_number,
+        active_player_count: roundData.active_player_count
       };
 
       const result = await queueResultsEmailInternal(emailData);

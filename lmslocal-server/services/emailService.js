@@ -615,6 +615,7 @@ const sendResultsEmail = async (email, templateData) => {
     const {
       user_display_name,
       competition_name,
+      competition_status,
       organizer_name,
       round_number,
       user_pick,
@@ -622,6 +623,7 @@ const sendResultsEmail = async (email, templateData) => {
       user_outcome,
       lives_remaining,
       new_status,
+      active_player_count,
       competition_id,
       email_tracking_id
     } = templateData;
@@ -649,12 +651,33 @@ const sendResultsEmail = async (email, templateData) => {
       outcomeIcon = '❌';
     }
 
-    // Additional status messaging
+    // Additional status messaging - different for complete vs active competitions
     let statusMessage = '';
-    if (new_status === 'eliminated') {
-      statusMessage = '<p style="color: #dc2626; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You have been eliminated from the competition.</p>';
-    } else if (new_status === 'active') {
-      statusMessage = `<p style="color: #16a34a; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You are still in! Lives remaining: ${lives_remaining}</p>`;
+
+    if (competition_status === 'complete') {
+      // Competition has ended - show final results
+      if (new_status === 'active') {
+        // Player survived to the end AND competition is complete
+        // This can ONLY mean they are the sole winner
+        statusMessage = '<p style="color: #16a34a; font-size: 20px; font-weight: 700; margin: 20px 0 0 0;">🏆 Congratulations! You won the competition!</p>';
+      } else {
+        // new_status === 'eliminated'
+        // Player was eliminated in final round
+        // Check if competition ended in DRAW (zero survivors)
+        if (active_player_count === 0) {
+          statusMessage = '<p style="color: #ea580c; font-size: 18px; font-weight: 600; margin: 20px 0 0 0;">Competition complete - Result: Draw! No winners.</p>';
+        } else {
+          // Someone else won, this player was eliminated
+          statusMessage = '<p style="color: #dc2626; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You have been eliminated. Competition complete.</p>';
+        }
+      }
+    } else {
+      // Normal round (competition not complete) - existing logic
+      if (new_status === 'eliminated') {
+        statusMessage = '<p style="color: #dc2626; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You have been eliminated from the competition.</p>';
+      } else if (new_status === 'active') {
+        statusMessage = `<p style="color: #16a34a; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You are still in! Lives remaining: ${lives_remaining}</p>`;
+      }
     }
 
     // Build the view competition URL
