@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
-import { 
+import {
   ArrowLeftIcon,
   CheckIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  BellIcon,
+  BellSlashIcon
 } from '@heroicons/react/24/outline';
-import { userApi } from '@/lib/api';
+import { userApi, type EmailPreferences } from '@/lib/api';
 import { logout } from '@/lib/auth';
 
 interface ProfileForm {
@@ -41,6 +43,11 @@ export default function ProfilePage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [dashboardLink, setDashboardLink] = useState('/dashboard');
+  const [emailPrefs, setEmailPrefs] = useState<EmailPreferences | null>(null);
+  const [loadingPrefs, setLoadingPrefs] = useState(false);
+  const [emailPrefsChanged, setEmailPrefsChanged] = useState<EmailPreferences | null>(null);
+  const [savingEmailPrefs, setSavingEmailPrefs] = useState(false);
+  const [emailPrefsSaveSuccess, setEmailPrefsSaveSuccess] = useState(false);
 
   const {
     register,
@@ -81,7 +88,98 @@ export default function ProfilePage() {
     // All users now go to unified dashboard
     setDashboardLink('/dashboard');
     setLoading(false);
+
+    // Load email preferences
+    loadEmailPreferences();
   }, [router, reset]);
+
+  const loadEmailPreferences = async () => {
+    setLoadingPrefs(true);
+    try {
+      const response = await userApi.getEmailPreferences();
+      if (response.data.return_code === 'SUCCESS' && response.data.preferences) {
+        setEmailPrefs(response.data.preferences);
+      }
+    } catch (error) {
+      console.error('Failed to load email preferences:', error);
+    } finally {
+      setLoadingPrefs(false);
+    }
+  };
+
+  const toggleEmailPreference = (competition_id: number, email_type: string | null, currentValue: boolean) => {
+    // Update local state (don't save to API yet)
+    const updatedPrefs = emailPrefsChanged || emailPrefs;
+    if (!updatedPrefs) return;
+
+    const newPrefs: EmailPreferences = JSON.parse(JSON.stringify(updatedPrefs));
+
+    if (competition_id === 0) {
+      // Global preference
+      if (email_type === 'all') {
+        newPrefs.global.all_emails = !currentValue;
+      } else if (email_type === 'pick_reminder') {
+        newPrefs.global.pick_reminder = !currentValue;
+      } else if (email_type === 'results') {
+        newPrefs.global.results = !currentValue;
+      }
+    } else {
+      // Competition-specific preference
+      const compIndex = newPrefs.competition_specific.findIndex(c => c.competition_id === competition_id);
+      if (compIndex !== -1) {
+        if (email_type === null) {
+          // Toggle "mute all emails for this competition"
+          newPrefs.competition_specific[compIndex].all_emails = !currentValue;
+        }
+      }
+    }
+
+    setEmailPrefsChanged(newPrefs);
+  };
+
+  const saveEmailPreferences = async () => {
+    if (!emailPrefsChanged) return;
+
+    setSavingEmailPrefs(true);
+    setEmailPrefsSaveSuccess(false);
+
+    try {
+      // Collect all changes to send
+      const updates = [];
+
+      // Global preferences
+      updates.push({ competition_id: 0, email_type: 'all', enabled: emailPrefsChanged.global.all_emails });
+      updates.push({ competition_id: 0, email_type: 'pick_reminder', enabled: emailPrefsChanged.global.pick_reminder });
+      updates.push({ competition_id: 0, email_type: 'results', enabled: emailPrefsChanged.global.results });
+
+      // Competition-specific preferences
+      for (const comp of emailPrefsChanged.competition_specific) {
+        updates.push({ competition_id: comp.competition_id, email_type: null, enabled: comp.all_emails });
+      }
+
+      // Send all updates
+      for (const update of updates) {
+        const response = await userApi.updateEmailPreference(update.competition_id, update.email_type, update.enabled);
+        if (response.data.return_code !== 'SUCCESS') {
+          throw new Error(response.data.message || 'Failed to update preference');
+        }
+      }
+
+      // Update saved state and clear changed state
+      setEmailPrefs(emailPrefsChanged);
+      setEmailPrefsChanged(null);
+
+      // Show success indicator
+      setEmailPrefsSaveSuccess(true);
+      setTimeout(() => setEmailPrefsSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error('Failed to save email preferences:', error);
+      alert('Failed to save email preferences. Please try again.');
+    } finally {
+      setSavingEmailPrefs(false);
+    }
+  };
+
 
   const onSubmit = async (data: ProfileForm) => {
     if (!user || !isDirty) return;
@@ -274,6 +372,152 @@ export default function ProfilePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        {/* Email Preferences Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 mt-6">
+          <div className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-medium text-slate-900">Email Notifications</h3>
+                <p className="text-sm text-slate-500 mt-1">Manage your email preferences</p>
+              </div>
+              {loadingPrefs && (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-600"></div>
+              )}
+            </div>
+
+            {emailPrefs && (() => {
+              const displayPrefs = emailPrefsChanged || emailPrefs;
+              const hasChanges = emailPrefsChanged !== null;
+
+              return (
+                <div className="space-y-6">
+                  {/* Global Preferences */}
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-700 mb-3">Global Settings</h4>
+                    <div className="space-y-3">
+                      {/* All Emails Toggle */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="flex items-center">
+                          {displayPrefs.global.all_emails ? (
+                            <BellIcon className="h-5 w-5 text-slate-600 mr-3" />
+                          ) : (
+                            <BellSlashIcon className="h-5 w-5 text-slate-400 mr-3" />
+                          )}
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">All Email Notifications</p>
+                            <p className="text-xs text-slate-500">Master switch for all emails</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => toggleEmailPreference(0, 'all', displayPrefs.global.all_emails)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            displayPrefs.global.all_emails ? 'bg-slate-600' : 'bg-slate-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              displayPrefs.global.all_emails ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Pick Reminder Toggle */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="flex items-center ml-8">
+                          <p className="text-sm text-slate-700">Pick Reminders</p>
+                        </div>
+                        <button
+                          onClick={() => toggleEmailPreference(0, 'pick_reminder', displayPrefs.global.pick_reminder)}
+                          disabled={!displayPrefs.global.all_emails}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            displayPrefs.global.pick_reminder && displayPrefs.global.all_emails ? 'bg-slate-600' : 'bg-slate-300'
+                          } ${!displayPrefs.global.all_emails ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              displayPrefs.global.pick_reminder && displayPrefs.global.all_emails ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Results Toggle */}
+                      <div className="flex items-center justify-between py-2">
+                        <div className="flex items-center ml-8">
+                          <p className="text-sm text-slate-700">Results Notifications</p>
+                        </div>
+                        <button
+                          onClick={() => toggleEmailPreference(0, 'results', displayPrefs.global.results)}
+                          disabled={!displayPrefs.global.all_emails}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            displayPrefs.global.results && displayPrefs.global.all_emails ? 'bg-slate-600' : 'bg-slate-300'
+                          } ${!displayPrefs.global.all_emails ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              displayPrefs.global.results && displayPrefs.global.all_emails ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Per-Competition Preferences */}
+                  {displayPrefs.competition_specific && displayPrefs.competition_specific.length > 0 && (
+                    <div className="pt-4 border-t border-slate-200">
+                      <h4 className="text-sm font-medium text-slate-700 mb-1">Ignore all emails for:</h4>
+                      <div className="space-y-2 mt-3">
+                        {displayPrefs.competition_specific.map((comp) => (
+                          <div key={comp.competition_id} className="flex items-center justify-between py-2">
+                            <p className="text-sm text-slate-900">{comp.personal_name || comp.competition_name}</p>
+                            <button
+                              onClick={() => toggleEmailPreference(comp.competition_id, null, comp.all_emails)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                !comp.all_emails ? 'bg-slate-600' : 'bg-slate-300'
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                  !comp.all_emails ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Save Button */}
+                  <div className="flex justify-end pt-4 border-t border-slate-200">
+                    <button
+                      onClick={saveEmailPreferences}
+                      disabled={savingEmailPrefs || !hasChanges}
+                      className="inline-flex items-center px-4 py-2 bg-slate-600 text-white rounded-md font-medium hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {savingEmailPrefs ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : emailPrefsSaveSuccess ? (
+                        <>
+                          <CheckIcon className="h-4 w-4 mr-2" />
+                          Saved!
+                        </>
+                      ) : (
+                        'Update Notifications'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 

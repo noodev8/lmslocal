@@ -11,7 +11,7 @@ export default function LandingPage() {
 
   // Redirect to dashboard if already logged in and token is valid
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = () => {
       const token = localStorage.getItem('jwt_token');
       const userData = localStorage.getItem('user');
 
@@ -19,7 +19,9 @@ export default function LandingPage() {
         // Verify token is still valid by checking if we can parse user data
         try {
           JSON.parse(userData);
-          router.push('/dashboard');
+          // Use window.location for immediate redirect instead of router.push
+          window.location.href = '/dashboard';
+          return;
         } catch {
           // Invalid user data, clear everything
           localStorage.removeItem('jwt_token');
@@ -33,11 +35,15 @@ export default function LandingPage() {
     };
 
     checkAuth();
-  }, [router]);
+  }, []);
 
-  // Show nothing while checking auth status
+  // Show loading spinner while checking auth status
   if (isChecking) {
-    return null;
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
+      </div>
+    );
   }
   const features = [
     {

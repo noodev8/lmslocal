@@ -609,10 +609,42 @@ export const adminApi = {
 };
 
 // User profile
+// Email preference interfaces
+export interface EmailPreferences {
+  global: {
+    all_emails: boolean;
+    pick_reminder: boolean;
+    welcome: boolean;
+    results: boolean;
+  };
+  competition_specific: Array<{
+    competition_id: number;
+    competition_name: string;
+    personal_name: string | null;
+    all_emails: boolean;
+    pick_reminder: boolean;
+    results: boolean;
+  }>;
+}
+
 export const userApi = {
   updateProfile: (updates: Partial<User>) => api.post<{ return_code: string; message?: string; user?: User }>('/update-profile', updates),
   changePassword: (current_password: string, new_password: string) => api.post<{ return_code: string; message: string }>('/change-password', { current_password, new_password }),
   deleteAccount: (confirmation: string) => api.post<{ return_code: string; message: string }>('/delete-account', { confirmation }),
+  getEmailPreferences: (competition_id?: number) => api.post<{
+    return_code: string;
+    message?: string;
+    preferences?: EmailPreferences
+  }>('/get-email-preferences', competition_id ? { competition_id } : {}),
+  updateEmailPreference: (competition_id: number, email_type: string | null, enabled: boolean) => api.post<{
+    return_code: string;
+    message?: string;
+    preference?: {
+      competition_id: number;
+      email_type: string | null;
+      enabled: boolean;
+    };
+  }>('/update-email-preferences', { competition_id, email_type, enabled }),
   getUserDashboard: () => {
     const userId = getUserId();
     return withCache(
