@@ -257,7 +257,7 @@ router.post('/', async (req, res) => {
             -- OPTION C: Include if player is CURRENTLY active OR was eliminated in THIS round
             AND (
               cu.status = 'active'
-              OR (cu.status = 'eliminated' AND pp.outcome = 'eliminated')
+              OR (cu.status IN ('eliminated', 'out') AND UPPER(pp.outcome) IN ('ELIMINATED', 'LOSE'))
             )
 
             -- Check email preferences: Global "all emails" is ON
@@ -450,7 +450,7 @@ router.post('/', async (req, res) => {
         -- OPTION C: Include if player is CURRENTLY active OR was eliminated in THIS round
         AND (
           cu.status = 'active'
-          OR (cu.status = 'eliminated' AND pp.outcome = 'eliminated')
+          OR (cu.status IN ('eliminated', 'out') AND UPPER(pp.outcome) IN ('ELIMINATED', 'LOSE'))
         )
 
         -- Check email preferences: Global "all emails" is ON
