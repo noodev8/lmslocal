@@ -99,28 +99,46 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // === UPSERT PREFERENCE ===
-    // Use PostgreSQL UPSERT (INSERT ... ON CONFLICT ... DO UPDATE)
-    // This handles both creating new preferences and updating existing ones
-    const result = await query(`
-      INSERT INTO email_preference (
-        user_id,
-        competition_id,
-        email_type,
-        enabled,
-        updated_at
-      ) VALUES (
-        $1,  -- user_id
-        $2,  -- competition_id (0 for global, specific ID for competition)
-        $3,  -- email_type ("all", "pick_reminder", etc., or NULL for mute competition)
-        $4,  -- enabled (true/false)
-        NOW()
-      )
-      ON CONFLICT (user_id, competition_id, email_type)
-      DO UPDATE SET
-        enabled = EXCLUDED.enabled,
-        updated_at = NOW()
-      RETURNING id, user_id, competition_id, email_type, enabled
-    `, [user_id, competition_id, email_type, enabled]);
+    // Check if preference already exists
+    const existingPref = await query(`
+      SELECT id
+      FROM email_preference
+      WHERE user_id = $1
+        AND competition_id = $2
+        AND (email_type = $3 OR (email_type IS NULL AND $3 IS NULL))
+    `, [user_id, competition_id, email_type]);
+
+    let result;
+    if (existingPref.rows.length > 0) {
+      // Update existing preference
+      result = await query(`
+        UPDATE email_preference
+        SET enabled = $1,
+            updated_at = NOW()
+        WHERE user_id = $2
+          AND competition_id = $3
+          AND (email_type = $4 OR (email_type IS NULL AND $4 IS NULL))
+        RETURNING id, user_id, competition_id, email_type, enabled
+      `, [enabled, user_id, competition_id, email_type]);
+    } else {
+      // Insert new preference
+      result = await query(`
+        INSERT INTO email_preference (
+          user_id,
+          competition_id,
+          email_type,
+          enabled,
+          updated_at
+        ) VALUES (
+          $1,  -- user_id
+          $2,  -- competition_id (0 for global, specific ID for competition)
+          $3,  -- email_type ("all", "pick_reminder", etc., or NULL for mute competition)
+          $4,  -- enabled (true/false)
+          NOW()
+        )
+        RETURNING id, user_id, competition_id, email_type, enabled
+      `, [user_id, competition_id, email_type, enabled]);
+    }
 
     const savedPref = result.rows[0];
 

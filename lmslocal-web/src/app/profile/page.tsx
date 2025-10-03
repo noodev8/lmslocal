@@ -117,11 +117,36 @@ export default function ProfilePage() {
     if (competition_id === 0) {
       // Global preference
       if (email_type === 'all') {
-        newPrefs.global.all_emails = !currentValue;
+        const newAllValue = !currentValue;
+        newPrefs.global.all_emails = newAllValue;
+
+        // When turning OFF "all emails", turn off all sub-preferences too
+        if (!newAllValue) {
+          newPrefs.global.pick_reminder = false;
+          newPrefs.global.results = false;
+          newPrefs.competition_specific.forEach(comp => {
+            comp.all_emails = false;
+          });
+        } else {
+          // When turning ON "all emails", turn on competition toggles (but leave sub-preferences as they were)
+          newPrefs.competition_specific.forEach(comp => {
+            comp.all_emails = true;
+          });
+        }
       } else if (email_type === 'pick_reminder') {
-        newPrefs.global.pick_reminder = !currentValue;
+        const newValue = !currentValue;
+        newPrefs.global.pick_reminder = newValue;
+        // If turning ON a sub-preference, automatically turn ON "all emails" too
+        if (newValue) {
+          newPrefs.global.all_emails = true;
+        }
       } else if (email_type === 'results') {
-        newPrefs.global.results = !currentValue;
+        const newValue = !currentValue;
+        newPrefs.global.results = newValue;
+        // If turning ON a sub-preference, automatically turn ON "all emails" too
+        if (newValue) {
+          newPrefs.global.all_emails = true;
+        }
       }
     } else {
       // Competition-specific preference
@@ -432,14 +457,13 @@ export default function ProfilePage() {
                         </div>
                         <button
                           onClick={() => toggleEmailPreference(0, 'pick_reminder', displayPrefs.global.pick_reminder)}
-                          disabled={!displayPrefs.global.all_emails}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            displayPrefs.global.pick_reminder && displayPrefs.global.all_emails ? 'bg-slate-600' : 'bg-slate-300'
-                          } ${!displayPrefs.global.all_emails ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            displayPrefs.global.pick_reminder ? 'bg-slate-600' : 'bg-slate-300'
+                          }`}
                         >
                           <span
                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              displayPrefs.global.pick_reminder && displayPrefs.global.all_emails ? 'translate-x-6' : 'translate-x-1'
+                              displayPrefs.global.pick_reminder ? 'translate-x-6' : 'translate-x-1'
                             }`}
                           />
                         </button>
@@ -452,14 +476,13 @@ export default function ProfilePage() {
                         </div>
                         <button
                           onClick={() => toggleEmailPreference(0, 'results', displayPrefs.global.results)}
-                          disabled={!displayPrefs.global.all_emails}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            displayPrefs.global.results && displayPrefs.global.all_emails ? 'bg-slate-600' : 'bg-slate-300'
-                          } ${!displayPrefs.global.all_emails ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            displayPrefs.global.results ? 'bg-slate-600' : 'bg-slate-300'
+                          }`}
                         >
                           <span
                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              displayPrefs.global.results && displayPrefs.global.all_emails ? 'translate-x-6' : 'translate-x-1'
+                              displayPrefs.global.results ? 'translate-x-6' : 'translate-x-1'
                             }`}
                           />
                         </button>
@@ -467,10 +490,10 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Per-Competition Preferences */}
-                  {displayPrefs.competition_specific && displayPrefs.competition_specific.length > 0 && (
+                  {/* Per-Competition Preferences - Only show when global emails are enabled */}
+                  {displayPrefs.global.all_emails && displayPrefs.competition_specific && displayPrefs.competition_specific.length > 0 && (
                     <div className="pt-4 border-t border-slate-200">
-                      <h4 className="text-sm font-medium text-slate-700 mb-1">Ignore all emails for:</h4>
+                      <h4 className="text-sm font-medium text-slate-700 mb-1">Enable competition emails for:</h4>
                       <div className="space-y-2 mt-3">
                         {displayPrefs.competition_specific.map((comp) => (
                           <div key={comp.competition_id} className="flex items-center justify-between py-2">
@@ -478,12 +501,12 @@ export default function ProfilePage() {
                             <button
                               onClick={() => toggleEmailPreference(comp.competition_id, null, comp.all_emails)}
                               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                !comp.all_emails ? 'bg-slate-600' : 'bg-slate-300'
+                                comp.all_emails ? 'bg-slate-600' : 'bg-slate-300'
                               }`}
                             >
                               <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                  !comp.all_emails ? 'translate-x-6' : 'translate-x-1'
+                                  comp.all_emails ? 'translate-x-6' : 'translate-x-1'
                                 }`}
                               />
                             </button>
