@@ -329,7 +329,6 @@ router.post('/', async (req, res) => {
         }
 
         roundsProcessed++;
-        console.log(`Processed round ${roundInfo.round_number} for competition ${roundInfo.competition_name}: queued ${candidates.length} emails`);
       }
 
       return res.json({

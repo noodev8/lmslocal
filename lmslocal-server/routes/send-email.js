@@ -121,7 +121,6 @@ router.post('/', async (req, res) => {
           `, [emailResult.resend_message_id, templateData.email_tracking_id]);
 
           sentCount++;
-          console.log(`Successfully sent email queue ID ${queueId} to user ${emailRecord.user_id}`);
 
         } else {
           // Email failed - update queue status to 'failed' with error message
