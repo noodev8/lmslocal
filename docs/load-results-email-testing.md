@@ -11,7 +11,22 @@
 
 Validates and queues results emails to database (does NOT send).
 
-### Queue Results for Specific Round
+### Option A: Batch Mode (Auto/Cron)
+Finds ALL rounds with calculated results but no emails queued yet.
+```json
+{}
+```
+
+**Auto-detects rounds:**
+- Results calculated (player_progress entries exist)
+- No results emails queued yet for that round
+- Competition not complete
+- Results calculated within last 7 days
+
+Returns: `queued_count`, `rounds_processed`
+
+### Option B: Single Round Mode (Manual)
+Queue results for specific round after reviewing.
 ```json
 {
   "round_id": 45,
