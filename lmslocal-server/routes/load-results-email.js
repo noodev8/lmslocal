@@ -220,7 +220,7 @@ router.post('/', async (req, res) => {
             pp.player_id as user_id,
             u.email as user_email,
             u.display_name as user_display_name,
-            pp.chosen_team as user_pick,
+            COALESCE(p.team, pp.chosen_team) as user_pick,
             pp.outcome as user_outcome,
             cu.status as new_status,
             cu.lives_remaining,
@@ -235,6 +235,9 @@ router.post('/', async (req, res) => {
             END as pick_result
 
           FROM player_progress pp
+
+          -- Join to pick table to get full team name
+          LEFT JOIN pick p ON p.user_id = pp.player_id AND p.round_id = pp.round_id
 
           -- Join to get user details
           INNER JOIN app_user u
@@ -410,7 +413,7 @@ router.post('/', async (req, res) => {
         pp.player_id as user_id,
         u.email as user_email,
         u.display_name as user_display_name,
-        pp.chosen_team as user_pick,
+        COALESCE(p.team, pp.chosen_team) as user_pick,
         pp.outcome as user_outcome,
         cu.status as new_status,
         cu.lives_remaining,
@@ -425,6 +428,9 @@ router.post('/', async (req, res) => {
         END as pick_result
 
       FROM player_progress pp
+
+      -- Join to pick table to get full team name
+      LEFT JOIN pick p ON p.user_id = pp.player_id AND p.round_id = pp.round_id
 
       -- Join to get user details
       INNER JOIN app_user u
