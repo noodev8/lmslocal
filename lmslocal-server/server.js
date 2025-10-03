@@ -85,7 +85,8 @@ const getCompetitionMarketingDisplayRoute = require('./routes/get-competition-ma
 const updatePersonalCompetitionNameRoute = require('./routes/update-personal-competition-name');
 
 // Email Routes
-const sendPickReminderRoute = require('./routes/send-pick-reminder');
+const loadPickReminderRoute = require('./routes/load-pick-reminder');
+const sendEmailRoute = require('./routes/send-email');
 const getEmailPreferencesRoute = require('./routes/get-email-preferences');
 const updateEmailPreferencesBatchRoute = require('./routes/update-email-preferences-batch');
 
@@ -257,7 +258,8 @@ app.use('/get-competition-marketing-display', getCompetitionMarketingDisplayRout
 app.use('/update-personal-competition-name', updatePersonalCompetitionNameRoute);
 
 // Email API Routes
-app.use('/send-pick-reminder', sendPickReminderRoute);
+app.use('/load-pick-reminder', loadPickReminderRoute);
+app.use('/send-email', sendEmailRoute);
 app.use('/get-email-preferences', getEmailPreferencesRoute);
 app.use('/update-email-preferences-batch', updateEmailPreferencesBatchRoute);
 
