@@ -39,7 +39,7 @@ const { logApiCall } = require('../utils/apiLogger');
 const { sendPickReminderEmail, sendResultsEmail } = require('../services/emailService');
 const router = express.Router();
 
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', async (req, res) => {
   logApiCall('send-email');
 
   try {

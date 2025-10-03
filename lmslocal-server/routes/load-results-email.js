@@ -141,7 +141,7 @@ async function queueResultsEmailInternal(params) {
   }
 }
 
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', async (req, res) => {
   logApiCall('load-results-email');
 
   try {

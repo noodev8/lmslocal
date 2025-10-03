@@ -176,7 +176,7 @@ async function queueEmailInternal(params) {
   }
 }
 
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', async (req, res) => {
   logApiCall('load-pick-reminder');
 
   try {
