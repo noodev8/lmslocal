@@ -233,7 +233,7 @@ router.post('/', async (req, res) => {
           AND r.lock_time IS NOT NULL  -- CHECK 2: Lock time is set
           AND r.lock_time > NOW()  -- CHECK 3: Lock time is in future
           AND r.lock_time <= NOW() + INTERVAL '3 days'  -- CHECK 4: Within 3 days
-          AND r.lock_time >= NOW() - INTERVAL '7 days'  -- SAFETY: Don't send reminders for old rounds
+          AND r.lock_time >= NOW() - INTERVAL '3 days'  -- SAFETY: Don't send reminders for old rounds
           AND EXISTS (  -- CHECK 5: Round has fixtures
             SELECT 1
             FROM fixture f

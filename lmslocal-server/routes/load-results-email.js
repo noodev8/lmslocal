@@ -177,8 +177,8 @@ router.post('/', async (req, res) => {
           -- Results have been calculated (player_progress entries exist)
           pp.created_at IS NOT NULL
 
-          -- SAFETY: Only include results calculated in last 7 days (prevents sending historical emails)
-          AND pp.created_at >= NOW() - INTERVAL '7 days'
+          -- SAFETY: Only include results calculated in last 3 days (prevents sending historical emails)
+          AND pp.created_at >= NOW() - INTERVAL '3 days'
 
           -- Only include LATEST round per competition (highest round_number with results)
           AND r.round_number = (
