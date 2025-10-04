@@ -12,7 +12,7 @@ import {
   MinusIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, adminApi, offlinePlayerApi, Competition, Player } from '@/lib/api';
+import { competitionApi, adminApi, Competition, Player } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
 
@@ -33,9 +33,6 @@ export default function CompetitionPlayersPage() {
   const [playerToRemove, setPlayerToRemove] = useState<{ id: number; name: string } | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [updatingPayment, setUpdatingPayment] = useState<Set<number>>(new Set());
-  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
-  const [addingPlayer, setAddingPlayer] = useState(false);
-  const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '' });
 
   // Lives management state - track pending changes before saving
   const [pendingLivesChanges, setPendingLivesChanges] = useState<Map<number, number>>(new Map());
@@ -169,38 +166,6 @@ export default function CompetitionPlayersPage() {
   };
 
 
-  const handleAddOfflinePlayer = async () => {
-    if (!competition || !addPlayerForm.display_name.trim()) return;
-
-    setAddingPlayer(true);
-
-    try {
-      const response = await offlinePlayerApi.addOfflinePlayer(
-        competition.id,
-        addPlayerForm.display_name.trim()
-      );
-      
-      if (response.data.return_code === 'SUCCESS') {
-        // Clear players cache to ensure fresh data
-        const { cacheUtils } = await import('@/lib/api');
-        cacheUtils.invalidateKey(`competition-players-${competition.id}`);
-        
-        // Reload players list to show the new player
-        await loadPlayers();
-
-        // Reset form and close modal
-        setAddPlayerForm({ display_name: '' });
-        setShowAddPlayerModal(false);
-      } else {
-        alert(`Failed to add player: ${response.data.message || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Failed to add player:', error);
-      alert('Failed to add player. Please try again.');
-    } finally {
-      setAddingPlayer(false);
-    }
-  };
 
   const handlePaymentToggle = async (playerId: number, currentPaid: boolean) => {
     if (!competition || updatingPayment.has(playerId)) return;
@@ -461,17 +426,6 @@ export default function CompetitionPlayersPage() {
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              {competition?.invite_code && (
-                <button
-                  onClick={() => setShowAddPlayerModal(true)}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors"
-                >
-                  <UserIcon className="h-4 w-4 mr-2" />
-                  Add Player
-                </button>
-              )}
-            </div>
           </div>
         </div>
       </header>
@@ -764,75 +718,6 @@ export default function CompetitionPlayersPage() {
         confirmText="Remove Player"
         isLoading={playerToRemove ? removing.has(playerToRemove.id) : false}
       />
-
-      {/* Add Offline Player Modal */}
-      {showAddPlayerModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200">
-            <div className="p-8">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mr-4">
-                  <UserIcon className="h-6 w-6 text-slate-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900">Add Player</h3>
-              </div>
-              
-              <div className="space-y-6">
-                <div>
-                  <label htmlFor="display_name" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Player Name *
-                  </label>
-                  <input
-                    id="display_name"
-                    type="text"
-                    value={addPlayerForm.display_name}
-                    onChange={(e) => setAddPlayerForm(prev => ({ ...prev, display_name: e.target.value }))}
-                    placeholder="Enter player name"
-                    className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm transition-colors"
-                    disabled={addingPlayer}
-                  />
-                </div>
-
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <p className="text-sm text-slate-600 mb-2">
-                    💡 This creates a player that you can set picks for on the fixtures page. Perfect for customers who need assistance or don&apos;t have access to join themselves.
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    A unique guest email address will be automatically generated for this player.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-4 mt-8">
-                <button
-                  onClick={() => {
-                    setShowAddPlayerModal(false);
-                    setAddPlayerForm({ display_name: '' });
-                  }}
-                  disabled={addingPlayer}
-                  className="px-6 py-3 text-sm font-semibold text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddOfflinePlayer}
-                  disabled={addingPlayer || !addPlayerForm.display_name.trim()}
-                  className="px-6 py-3 text-sm font-semibold text-white bg-slate-800 rounded-xl hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 transition-colors shadow-sm"
-                >
-                  {addingPlayer ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                      Adding Player...
-                    </div>
-                  ) : (
-                    'Add Player'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

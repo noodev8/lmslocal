@@ -86,13 +86,8 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Email should not be provided - guests always get generated email
-    if (email) {
-      return res.json({
-        return_code: "VALIDATION_ERROR",
-        message: "Email should not be provided for offline players"
-      });
-    }
+    // Ignore email parameter if provided - guests always get generated email
+    // No validation needed - just don't use it
 
     // === AUTHORIZATION AND COMPETITION VALIDATION ===
     // Verify admin is organizer and competition allows new players

@@ -55,7 +55,7 @@ export default function UnifiedGameDashboard() {
   // Guest player modal state
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
   const [addingPlayer, setAddingPlayer] = useState(false);
-  const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '', email: '' });
+  const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '' });
   const [addPlayerError, setAddPlayerError] = useState<string | null>(null);
 
   // Copy button states
@@ -223,8 +223,7 @@ export default function UnifiedGameDashboard() {
     try {
       const response = await offlinePlayerApi.addOfflinePlayer(
         competition.id,
-        addPlayerForm.display_name.trim(),
-        addPlayerForm.email.trim() || undefined
+        addPlayerForm.display_name.trim()
       );
 
       if (response.data.return_code === 'SUCCESS') {
@@ -234,7 +233,7 @@ export default function UnifiedGameDashboard() {
         cacheUtils.invalidateKey(`user-dashboard`);
 
         // Reset form and close modal
-        setAddPlayerForm({ display_name: '', email: '' });
+        setAddPlayerForm({ display_name: '' });
         setAddPlayerError(null);
         setShowAddPlayerModal(false);
 
@@ -1019,21 +1018,6 @@ export default function UnifiedGameDashboard() {
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Email Address <span className="text-slate-400 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={addPlayerForm.email}
-                    onChange={(e) => setAddPlayerForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="player@email.com"
-                    className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm transition-colors"
-                    disabled={addingPlayer}
-                  />
-                </div>
-
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                   <p className="text-sm text-slate-600">
                     💡 This creates a player that you can set picks for on the fixtures page. Perfect for customers who need assistance or don&apos;t have access to join themselves.
@@ -1045,7 +1029,7 @@ export default function UnifiedGameDashboard() {
                 <button
                   onClick={() => {
                     setShowAddPlayerModal(false);
-                    setAddPlayerForm({ display_name: '', email: '' });
+                    setAddPlayerForm({ display_name: '' });
                     setAddPlayerError(null);
                   }}
                   disabled={addingPlayer}
