@@ -91,6 +91,7 @@ const loadWelcomeCompetitionRoute = require('./routes/load-welcome-competition')
 const sendEmailRoute = require('./routes/send-email');
 const getEmailPreferencesRoute = require('./routes/get-email-preferences');
 const updateEmailPreferencesBatchRoute = require('./routes/update-email-preferences-batch');
+const organiserMidRoundSubmitTipRoute = require('./routes/organiser-mid-round-submit-tip');
 
 // Admin Routes
 const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
@@ -266,6 +267,7 @@ app.use('/load-welcome-competition', loadWelcomeCompetitionRoute);
 app.use('/send-email', sendEmailRoute);
 app.use('/get-email-preferences', getEmailPreferencesRoute);
 app.use('/update-email-preferences-batch', updateEmailPreferencesBatchRoute);
+app.use('/organiser-mid-round-submit-tip', organiserMidRoundSubmitTipRoute);
 
 // Admin API Routes
 app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);

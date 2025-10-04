@@ -10,6 +10,17 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// ===========================================================================================================
+// ⚠️ TESTING OVERRIDE - ALL EMAILS REDIRECTED TO TEST EMAIL
+// ===========================================================================================================
+// PRODUCTION: Comment out line 20 below
+// ===========================================================================================================
+const sendEmail = async (emailData) => {
+  emailData.to = ['aandreou25@gmail.com']; // ⚠️ COMMENT OUT THIS LINE FOR PRODUCTION
+  return await resend.emails.send(emailData);
+};
+// ===========================================================================================================
+
 /**
  * Send email verification link
  * @param {string} email - User's email address
@@ -611,12 +622,6 @@ ${email}
  */
 const sendResultsEmail = async (email, templateData) => {
   try {
-    // ==========================================
-    // TESTING OVERRIDE: Send all emails to Andreas for testing
-    // TODO: Comment out this line when ready for production
-    // ==========================================
-    email = 'aandreou25@gmail.com';
-
     // Extract template data for easier access
     const {
       user_display_name,
@@ -970,6 +975,114 @@ const sendWelcomeCompetitionEmail = async (email, templateData) => {
   }
 };
 
+/**
+ * Send organiser tip email
+ * @param {Object} templateData - Email template data from queue
+ */
+const sendOrganiserTipEmail = async (templateData) => {
+  try {
+    const {
+      organiser_email,
+      organiser_name,
+      competition_name,
+      competition_id,
+      tip_title,
+      tip_content
+    } = templateData;
+
+    const manageUrl = `${process.env.ADMIN_FRONTEND_URL}/game/${competition_id}/manage`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Organiser Tip - ${competition_name}</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 32px;">
+
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 32px;">
+              <h1 style="color: #1e293b; margin: 0; font-size: 24px;">LMS Local</h1>
+              <p style="color: #64748b; margin: 8px 0 0 0; font-size: 14px;">Competition Management</p>
+            </div>
+
+            <!-- Tip Badge -->
+            <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #3b82f6;">
+              <div style="font-size: 32px; margin-bottom: 12px;">💡</div>
+              <h2 style="color: #1e293b; margin: 0 0 16px 0; font-size: 20px;">${tip_title}</h2>
+              <div style="color: #475569; font-size: 15px; line-height: 1.6; white-space: pre-line;">${tip_content}</div>
+            </div>
+
+            <!-- Competition Context -->
+            <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+              <p style="color: #64748b; margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Competition</p>
+              <p style="color: #1e293b; margin: 8px 0 0 0; font-size: 16px; font-weight: 500;">${competition_name}</p>
+            </div>
+
+            <!-- CTA Button -->
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${manageUrl}"
+                 style="display: inline-block; background-color: #1e293b; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                Manage Competition →
+              </a>
+            </div>
+
+            <!-- Footer -->
+            <div style="text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 13px; margin: 0;">
+                You received this tip because you're the organiser of <strong>${competition_name}</strong>
+              </p>
+              <p style="color: #cbd5e1; font-size: 12px; margin: 16px 0 0 0;">
+                LMS Local - Last Man Standing Competitions
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textContent = `
+      LMS Local - Organiser Tip
+
+      ${tip_title}
+
+      ${tip_content}
+
+      Competition: ${competition_name}
+
+      Manage your competition: ${manageUrl}
+
+      ---
+      You received this tip because you're the organiser of ${competition_name}
+      LMS Local - Last Man Standing Competitions
+    `;
+
+    // Send email via Resend
+    const result = await sendEmail({
+      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
+      to: [organiser_email],
+      subject: `💡 Tip: ${tip_title}`,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    return {
+      success: true,
+      resend_message_id: result.id
+    };
+
+  } catch (error) {
+    console.error('Failed to send organiser tip email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -977,5 +1090,6 @@ module.exports = {
   sendPaymentConfirmationEmail,
   sendPickReminderEmail,
   sendResultsEmail,
-  sendWelcomeCompetitionEmail
+  sendWelcomeCompetitionEmail,
+  sendOrganiserTipEmail
 };
