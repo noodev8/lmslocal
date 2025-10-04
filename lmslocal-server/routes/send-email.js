@@ -36,15 +36,16 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const { sendPickReminderEmail, sendResultsEmail } = require('../services/emailService');
+const { sendPickReminderEmail, sendResultsEmail, sendWelcomeCompetitionEmail } = require('../services/emailService');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
   logApiCall('send-email');
 
   try {
-    // Fetch all pending emails from the queue
+    // Fetch all pending emails from the queue that are ready to send
     // Status 'pending' means the email has been queued but not yet sent
+    // scheduled_send_at <= NOW() means it's time to send
     const pendingEmailsResult = await query(`
       SELECT
         id,
@@ -56,6 +57,7 @@ router.post('/', async (req, res) => {
         attempts
       FROM email_queue
       WHERE status = 'pending'
+        AND scheduled_send_at <= NOW()
       ORDER BY scheduled_send_at ASC
     `);
 
@@ -99,6 +101,8 @@ router.post('/', async (req, res) => {
           emailResult = await sendPickReminderEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'results') {
           emailResult = await sendResultsEmail(userEmail, templateData);
+        } else if (emailRecord.email_type === 'welcome') {
+          emailResult = await sendWelcomeCompetitionEmail(userEmail, templateData);
         } else {
           throw new Error(`Unknown email type: ${emailRecord.email_type}`);
         }

@@ -35,7 +35,7 @@ export default function CompetitionPlayersPage() {
   const [updatingPayment, setUpdatingPayment] = useState<Set<number>>(new Set());
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
   const [addingPlayer, setAddingPlayer] = useState(false);
-  const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '', email: '' });
+  const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '' });
 
   // Lives management state - track pending changes before saving
   const [pendingLivesChanges, setPendingLivesChanges] = useState<Map<number, number>>(new Map());
@@ -173,12 +173,11 @@ export default function CompetitionPlayersPage() {
     if (!competition || !addPlayerForm.display_name.trim()) return;
 
     setAddingPlayer(true);
-    
+
     try {
       const response = await offlinePlayerApi.addOfflinePlayer(
         competition.id,
-        addPlayerForm.display_name.trim(),
-        addPlayerForm.email.trim() || undefined
+        addPlayerForm.display_name.trim()
       );
       
       if (response.data.return_code === 'SUCCESS') {
@@ -188,9 +187,9 @@ export default function CompetitionPlayersPage() {
         
         // Reload players list to show the new player
         await loadPlayers();
-        
+
         // Reset form and close modal
-        setAddPlayerForm({ display_name: '', email: '' });
+        setAddPlayerForm({ display_name: '' });
         setShowAddPlayerModal(false);
       } else {
         alert(`Failed to add player: ${response.data.message || 'Unknown error'}`);
@@ -794,24 +793,12 @@ export default function CompetitionPlayersPage() {
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Email Address <span className="text-slate-400 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={addPlayerForm.email}
-                    onChange={(e) => setAddPlayerForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="player@email.com"
-                    className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm transition-colors"
-                    disabled={addingPlayer}
-                  />
-                </div>
-
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-slate-600 mb-2">
                     💡 This creates a player that you can set picks for on the fixtures page. Perfect for customers who need assistance or don&apos;t have access to join themselves.
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    A unique guest email address will be automatically generated for this player.
                   </p>
                 </div>
               </div>
@@ -820,7 +807,7 @@ export default function CompetitionPlayersPage() {
                 <button
                   onClick={() => {
                     setShowAddPlayerModal(false);
-                    setAddPlayerForm({ display_name: '', email: '' });
+                    setAddPlayerForm({ display_name: '' });
                   }}
                   disabled={addingPlayer}
                   className="px-6 py-3 text-sm font-semibold text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 transition-colors"

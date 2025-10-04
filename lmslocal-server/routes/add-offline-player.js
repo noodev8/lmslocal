@@ -86,11 +86,11 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Optional email validation - if provided, must be valid format
-    if (email && (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    // Email should not be provided - guests always get generated email
+    if (email) {
       return res.json({
         return_code: "VALIDATION_ERROR",
-        message: "Please enter a valid email address"
+        message: "Email should not be provided for offline players"
       });
     }
 

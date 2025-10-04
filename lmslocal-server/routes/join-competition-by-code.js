@@ -250,6 +250,97 @@ router.post('/', verifyToken, async (req, res) => {
       };
     });
 
+    // Queue welcome email for new members (async, don't block response)
+    if (transactionResult.return_code === "SUCCESS" && !transactionResult.already_member) {
+      // Queue welcome email directly to database (fire and forget)
+      setImmediate(async () => {
+        try {
+          const emailTrackingId = `welcome_${user_id}_${transactionResult.competition.id}_${Date.now()}`;
+
+          // Get user and competition data for email
+          const emailDataResult = await query(`
+            SELECT
+              u.email as user_email,
+              u.display_name as user_display_name,
+              c.name as competition_name,
+              c.lives_per_player,
+              c.no_team_twice,
+              org.display_name as organizer_name,
+              (
+                SELECT MIN(r.lock_time)
+                FROM round r
+                WHERE r.competition_id = c.id
+                AND r.lock_time > NOW()
+              ) as next_round_lock_time,
+              (
+                SELECT r.round_number
+                FROM round r
+                WHERE r.competition_id = c.id
+                AND r.lock_time > NOW()
+                ORDER BY r.round_number ASC
+                LIMIT 1
+              ) as next_round_number
+            FROM app_user u
+            INNER JOIN competition c ON c.id = $2
+            LEFT JOIN app_user org ON org.id = c.organiser_id
+            WHERE u.id = $1
+              AND u.email IS NOT NULL
+              AND u.email != ''
+              AND u.email NOT LIKE '%@lms-guest.com'
+          `, [user_id, transactionResult.competition.id]);
+
+          if (emailDataResult.rows.length === 0) {
+            return; // No valid email, skip silently
+          }
+
+          const emailData = emailDataResult.rows[0];
+
+          const templateData = {
+            email_tracking_id: emailTrackingId,
+            user_email: emailData.user_email,
+            user_display_name: emailData.user_display_name,
+            competition_name: emailData.competition_name,
+            organizer_name: emailData.organizer_name || 'Competition Organizer',
+            lives_per_player: emailData.lives_per_player,
+            no_team_twice: emailData.no_team_twice,
+            next_round_number: emailData.next_round_number,
+            next_round_lock_time: emailData.next_round_lock_time,
+            competition_id: transactionResult.competition.id,
+            user_id
+          };
+
+          // Queue email (scheduled for next day)
+          await query(`
+            INSERT INTO email_queue (
+              user_id, competition_id, round_id, email_type,
+              scheduled_send_at, template_data, status, attempts
+            ) VALUES (
+              $1, $2, NULL, 'welcome', NOW() + INTERVAL '1 day', $3, 'pending', 0
+            )
+          `, [user_id, transactionResult.competition.id, JSON.stringify(templateData)]);
+
+          // Create tracking record
+          await query(`
+            INSERT INTO email_tracking (
+              email_id, user_id, competition_id, email_type, subject
+            ) VALUES (
+              $1, $2, $3, 'welcome', $4
+            )
+          `, [
+            emailTrackingId,
+            user_id,
+            transactionResult.competition.id,
+            'welcome',
+            `Welcome to ${emailData.competition_name}!`
+          ]);
+
+        } catch (error) {
+          // Log but don't fail the join operation if welcome email fails
+          console.error('Failed to queue welcome email:', error.message);
+        }
+      });
+    }
+
     // Return transaction result with HTTP 200 status as per API standards
     return res.json(transactionResult);
 

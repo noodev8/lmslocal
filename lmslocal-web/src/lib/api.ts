@@ -538,7 +538,7 @@ export const playerActionApi = {
 
 // Offline player management
 export const offlinePlayerApi = {
-  addOfflinePlayer: (competition_id: number, display_name: string, email?: string) => api.post<{
+  addOfflinePlayer: (competition_id: number, display_name: string) => api.post<{
     return_code: string;
     message?: string;
     player?: {
@@ -548,7 +548,7 @@ export const offlinePlayerApi = {
       is_managed: boolean;
       joined_competition: boolean;
     };
-  }>('/add-offline-player', { competition_id, display_name, email }),
+  }>('/add-offline-player', { competition_id, display_name }),
 };
 
 // Admin actions

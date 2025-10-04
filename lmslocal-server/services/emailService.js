@@ -801,11 +801,181 @@ const sendResultsEmail = async (email, templateData) => {
   }
 };
 
+/**
+ * Send welcome email when user joins a competition
+ * @param {string} email - User's email address
+ * @param {object} templateData - Email template data including competition details
+ */
+const sendWelcomeCompetitionEmail = async (email, templateData) => {
+  try {
+    // Extract template data for easier access
+    const {
+      user_display_name,
+      competition_name,
+      organizer_name,
+      lives_per_player,
+      no_team_twice,
+      next_round_number,
+      next_round_lock_time,
+      competition_id,
+      email_tracking_id
+    } = templateData;
+
+    // Format next round lock time if available
+    let nextRoundInfo = '';
+    if (next_round_number && next_round_lock_time) {
+      const lockDate = new Date(next_round_lock_time);
+      const formattedDate = lockDate.toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      nextRoundInfo = `<p style="color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;">
+        <strong>Round ${next_round_number}</strong> opens now! Make your pick before <strong>${formattedDate}</strong>.
+      </p>`;
+    }
+
+    // Build competition rules summary
+    const rulesHtml = `
+      <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+        <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">Competition Rules</h3>
+        <ul style="margin: 0; padding-left: 20px; color: #334155; font-size: 15px; line-height: 1.6;">
+          <li>You start with <strong>${lives_per_player} ${lives_per_player === 1 ? 'life' : 'lives'}</strong></li>
+          <li>${no_team_twice ? 'You <strong>cannot pick the same team twice</strong>' : 'You <strong>can pick any team</strong> multiple times'}</li>
+          <li>Win = Advance | Draw = Lose a life | Loss = Elimination</li>
+          <li>Make your picks before each round locks!</li>
+        </ul>
+      </div>
+    `;
+
+    // Build the view competition URL
+    const viewCompetitionUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}?email_id=${email_tracking_id}`;
+
+    // HTML email content
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Welcome to ${competition_name}</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+            <!-- Header -->
+            <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Welcome to LMS Local! 🎉</h1>
+              <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+            </div>
+
+            <!-- Main Content -->
+            <div style="padding: 40px 30px;">
+
+              <!-- Greeting -->
+              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+              <!-- Welcome Message -->
+              <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+                You've successfully joined <strong>${competition_name}</strong>! Get ready for an exciting Last Man Standing competition.
+              </p>
+
+              ${nextRoundInfo}
+
+              <!-- Rules Box -->
+              ${rulesHtml}
+
+              <!-- How to Play -->
+              <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">How to Play</h3>
+              <p style="color: #334155; font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+                1. <strong>View fixtures</strong> for the upcoming round<br>
+                2. <strong>Pick a team</strong> you think will win<br>
+                3. <strong>Wait for results</strong> after matches complete<br>
+                4. <strong>Survive to the end</strong> to be crowned champion!
+              </p>
+
+              <!-- Call to Action Button -->
+              <div style="margin: 40px 0;">
+                <a href="${viewCompetitionUrl}"
+                   style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                  Make Your First Pick
+                </a>
+              </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                LMS Local - Last Man Standing Competitions
+              </p>
+            </div>
+
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Plain text fallback
+    const textContent = `
+      Welcome to ${competition_name}!
+
+      Hi ${user_display_name},
+
+      You've successfully joined ${competition_name}! Get ready for an exciting Last Man Standing competition.
+
+      ${next_round_number ? `Round ${next_round_number} is open - make your pick now!` : ''}
+
+      COMPETITION RULES:
+      - You start with ${lives_per_player} ${lives_per_player === 1 ? 'life' : 'lives'}
+      - ${no_team_twice ? 'You cannot pick the same team twice' : 'You can pick any team multiple times'}
+      - Win = Advance | Draw = Lose a life | Loss = Elimination
+      - Make your picks before each round locks!
+
+      HOW TO PLAY:
+      1. View fixtures for the upcoming round
+      2. Pick a team you think will win
+      3. Wait for results after matches complete
+      4. Survive to the end to be crowned champion!
+
+      Make your first pick: ${viewCompetitionUrl}
+
+      ---
+      LMS Local - Last Man Standing Competitions
+    `;
+
+    // Send email via Resend
+    const result = await resend.emails.send({
+      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
+      to: [email],
+      subject: `Welcome to ${competition_name}!`,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    return {
+      success: true,
+      resend_message_id: result.id
+    };
+
+  } catch (error) {
+    console.error('Failed to send welcome email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendPlayerMagicLink,
   sendPaymentConfirmationEmail,
   sendPickReminderEmail,
-  sendResultsEmail
+  sendResultsEmail,
+  sendWelcomeCompetitionEmail
 };
