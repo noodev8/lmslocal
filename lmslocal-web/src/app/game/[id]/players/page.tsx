@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
-  UserIcon,
   TrashIcon,
   CurrencyDollarIcon,
   PlusIcon,
@@ -215,7 +214,7 @@ export default function CompetitionPlayersPage() {
       if (player.id === playerId) {
         const currentLives = player.lives_remaining || 0; // Handle undefined case
         const newLives = operation === 'add'
-          ? Math.min(3, currentLives + 1)
+          ? Math.min(2, currentLives + 1)
           : Math.max(0, currentLives - 1);
 
         // Track this change for batch save

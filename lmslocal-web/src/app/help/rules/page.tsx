@@ -68,8 +68,8 @@ export default function RulesPage() {
 
           <div id="lives-system">
             <h3 className="text-xl font-semibold text-slate-900 mb-3">❤️ Lives System</h3>
-            <p className="text-slate-700 mb-4">Competitions can have 0-3 lives:</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <p className="text-slate-700 mb-4">Competitions can have 0-2 lives:</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
                 <div className="text-2xl mb-2">💀</div>
                 <h4 className="font-semibold text-slate-900 mb-2">0 Lives (Knockout)</h4>
@@ -82,16 +82,10 @@ export default function RulesPage() {
                 <p className="text-slate-700 text-sm">Survive one wrong pick, eliminated on the second</p>
               </div>
 
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                 <div className="text-2xl mb-2">❤️❤️</div>
                 <h4 className="font-semibold text-slate-900 mb-2">2 Lives</h4>
                 <p className="text-slate-700 text-sm">Survive two wrong picks, eliminated on the third</p>
-              </div>
-
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                <div className="text-2xl mb-2">❤️❤️❤️</div>
-                <h4 className="font-semibold text-slate-900 mb-2">3 Lives</h4>
-                <p className="text-slate-700 text-sm">Survive three wrong picks, eliminated on the fourth</p>
               </div>
             </div>
           </div>

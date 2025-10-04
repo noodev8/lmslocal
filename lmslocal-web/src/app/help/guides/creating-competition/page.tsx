@@ -139,11 +139,6 @@ export default function CreatingCompetitionGuidePage() {
                       <div className="bg-slate-50 rounded p-3 text-center">
                         <div className="text-lg mb-1">❤️❤️</div>
                         <div className="font-medium text-slate-900 text-sm">2 Lives</div>
-                        <div className="text-slate-600 text-xs">More forgiving</div>
-                      </div>
-                      <div className="bg-slate-50 rounded p-3 text-center">
-                        <div className="text-lg mb-1">❤️❤️❤️</div>
-                        <div className="font-medium text-slate-900 text-sm">3 Lives</div>
                         <div className="text-slate-600 text-xs">Very forgiving</div>
                       </div>
                     </div>

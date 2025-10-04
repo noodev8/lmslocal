@@ -50,7 +50,7 @@ export default function CreateCompetitionPage() {
     formState: { errors }
   } = useForm<CreateCompetitionForm>({
     defaultValues: {
-      lives_per_player: 0,
+      lives_per_player: 1,
       no_team_twice: true,
       organiser_joins_as_player: true
     }
@@ -321,13 +321,14 @@ export default function CreateCompetitionPage() {
                     <HeartIcon className="h-5 w-5 inline mr-2 text-slate-500" />
                     Lives per Player
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                    {[0, 1, 2, 3].map((lives) => (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                    {[0, 1, 2].map((lives) => (
                       <label key={lives} className="relative">
                         <input
                           {...register('lives_per_player', { valueAsNumber: true })}
                           type="radio"
                           value={lives}
+                          defaultChecked={lives === 1}
                           className="sr-only peer"
                         />
                         <div className="p-3 sm:p-4 border border-slate-300 rounded-xl cursor-pointer peer-checked:border-slate-800 peer-checked:bg-slate-50 peer-checked:shadow-md hover:bg-slate-50 transition-all">

@@ -36,7 +36,6 @@ Your organizer sets how many lives each player gets at the start:
 - **0 Lives (Knockout)** - One wrong pick and you're eliminated immediately
 - **1 Life** - You can survive one wrong pick
 - **2 Lives** - You can survive two wrong picks
-- **3 Lives** - You can survive three wrong picks
 
 ## Pick Deadlines
 

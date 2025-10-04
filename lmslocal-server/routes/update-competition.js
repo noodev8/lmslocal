@@ -173,10 +173,10 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Validate lives_per_player if provided (only if not started)
     if (lives_per_player !== undefined) {
-      if (!Number.isInteger(lives_per_player) || lives_per_player < 1 || lives_per_player > 10) {
+      if (!Number.isInteger(lives_per_player) || lives_per_player < 0 || lives_per_player > 2) {
         return res.json({
           return_code: "VALIDATION_ERROR",
-          message: "Lives per player must be an integer between 1 and 10"
+          message: "Lives per player must be an integer between 0 and 2"
         });
       }
     }

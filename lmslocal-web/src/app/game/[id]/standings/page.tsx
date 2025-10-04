@@ -384,7 +384,7 @@ export default function CompetitionStandingsPage() {
                         {/* Lives Display */}
                         <div className="flex items-center space-x-2">
                           <div className="flex space-x-1">
-                            {[...Array(3)].map((_, i) => (
+                            {[...Array(2)].map((_, i) => (
                               <HeartIcon
                                 key={i}
                                 className={`h-4 w-4 ${

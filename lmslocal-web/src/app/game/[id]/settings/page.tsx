@@ -717,8 +717,8 @@ export default function CompetitionSettings() {
                   <HeartIcon className="h-5 w-5 inline mr-2 text-slate-500" />
                   Lives Per Player
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                  {[0, 1, 2, 3].map((lives) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                  {[0, 1, 2].map((lives) => (
                     <label key={lives} className="relative">
                       <input
                         type="radio"

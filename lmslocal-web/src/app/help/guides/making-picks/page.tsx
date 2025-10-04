@@ -251,7 +251,7 @@ export default function MakingPicksGuidePage() {
               <div className="grid md:grid-cols-3 gap-4 mt-4">
                 <div>
                   <p className="font-medium">Too Safe:</p>
-                  <p>Using Man City vs Sheffield Wednesday when you have 3 lives</p>
+                  <p>Using Man City vs Sheffield Wednesday when you have 2 lives</p>
                 </div>
                 <div>
                   <p className="font-medium">Too Risky:</p>

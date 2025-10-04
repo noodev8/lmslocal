@@ -82,12 +82,6 @@ export default function HowToPlayPage() {
           <div className="bg-slate-50 border rounded-lg p-6 text-center">
             <div className="text-2xl mb-2">❤️❤️</div>
             <h3 className="font-semibold text-slate-900 mb-2">2 Lives</h3>
-            <p className="text-sm text-slate-600">Two second chances</p>
-          </div>
-
-          <div className="bg-slate-50 border rounded-lg p-6 text-center">
-            <div className="text-2xl mb-2">❤️❤️❤️</div>
-            <h3 className="font-semibold text-slate-900 mb-2">3 Lives</h3>
             <p className="text-sm text-slate-600">Maximum forgiveness</p>
           </div>
         </div>
