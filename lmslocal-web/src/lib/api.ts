@@ -722,13 +722,38 @@ export const userApi = {
       }>('/get-billing-history', {})
     );
   },
-  createCheckoutSession: (plan: 'club' | 'venue', billing_cycle: 'yearly') =>
+  createCheckoutSession: (plan: 'club' | 'venue', billing_cycle: 'yearly', promo_code?: string) =>
     api.post<{
       return_code: string;
       message?: string;
       checkout_url?: string;
       session_id?: string;
-    }>('/create-checkout-session', { plan, billing_cycle }),
+    }>('/create-checkout-session', { plan, billing_cycle, promo_code }),
+  validatePromoCode: (code: string, plan?: 'club' | 'venue') =>
+    api.post<{
+      return_code: string;
+      message?: string;
+      valid?: boolean;
+      promo_code?: {
+        code: string;
+        description: string;
+        discount_type: 'percentage' | 'fixed';
+        discount_value: number;
+      };
+      pricing?: {
+        club?: {
+          original: number;
+          discount: number;
+          final: number;
+        };
+        venue?: {
+          original: number;
+          discount: number;
+          final: number;
+        };
+      };
+      expires_at?: string | null;
+    }>('/validate-promo-code', { code, plan }),
 };
 
 // Marketing API calls

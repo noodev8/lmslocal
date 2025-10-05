@@ -61,7 +61,7 @@ function calculateExpiryDate(billingCycle) {
  * @param {Object} session - Stripe checkout session
  */
 async function processSuccessfulPayment(session) {
-  const { user_id, plan, billing_cycle } = session.metadata;
+  const { user_id, plan, billing_cycle, promo_code, promo_code_id, original_price, discount_amount } = session.metadata;
 
   console.log(`Processing successful payment for user ${user_id}, plan: ${plan}, cycle: ${billing_cycle}`);
 
@@ -80,8 +80,8 @@ async function processSuccessfulPayment(session) {
 
     // 1. Insert payment record into subscription table
     const insertSubscriptionQuery = `
-      INSERT INTO subscription (user_id, plan_name, stripe_subscription_id, stripe_customer_id, paid_amount, created_at)
-      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+      INSERT INTO subscription (user_id, plan_name, stripe_subscription_id, stripe_customer_id, paid_amount, promo_code_id, original_price, discount_amount, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
     `;
 
     await client.query(insertSubscriptionQuery, [
@@ -89,8 +89,52 @@ async function processSuccessfulPayment(session) {
       plan,
       session.id, // Use session ID as subscription reference
       session.customer || null, // Stripe customer ID if available
-      paidAmount
+      paidAmount,
+      promo_code_id ? parseInt(promo_code_id) : null, // Promo code ID if used
+      original_price ? parseFloat(original_price) : null, // Original price before discount
+      discount_amount ? parseFloat(discount_amount) : null // Discount amount applied
     ]);
+
+    // 1.1. Record promo code usage if a promo code was used
+    if (promo_code_id && promo_code) {
+      // Insert usage record into promo_code_usage table
+      const insertPromoUsageQuery = `
+        INSERT INTO promo_code_usage (
+          promo_code_id,
+          user_id,
+          plan_purchased,
+          original_price,
+          discount_amount,
+          final_price,
+          stripe_session_id,
+          used_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+      `;
+
+      const finalPrice = original_price ? parseFloat(original_price) - parseFloat(discount_amount || 0) : paidAmount;
+
+      await client.query(insertPromoUsageQuery, [
+        parseInt(promo_code_id),
+        parseInt(user_id),
+        plan,
+        original_price ? parseFloat(original_price) : null,
+        discount_amount ? parseFloat(discount_amount) : null,
+        finalPrice,
+        session.id
+      ]);
+
+      // Increment total usage counter in promo_codes table
+      const incrementUsageQuery = `
+        UPDATE promo_codes
+        SET current_total_uses = current_total_uses + 1
+        WHERE id = $1
+      `;
+
+      await client.query(incrementUsageQuery, [parseInt(promo_code_id)]);
+
+      console.log(`✅ Promo code "${promo_code}" usage recorded for user ${user_id}`);
+    }
 
     // 2. Update user's subscription in app_user table
     const updateUserQuery = `

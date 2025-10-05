@@ -8,7 +8,8 @@ Purpose: Creates a Stripe checkout session for subscription upgrade. Returns a c
 Request Payload:
 {
   "plan": "club",                        // string, required - target plan: "club" or "venue"
-  "billing_cycle": "yearly"              // string, required - only "yearly" supported
+  "billing_cycle": "yearly",             // string, required - only "yearly" supported
+  "promo_code": "BLACKFRIDAY"            // string, optional - promotional discount code
 }
 
 Success Response:
@@ -29,6 +30,7 @@ Return Codes:
 "VALIDATION_ERROR"
 "UNAUTHORIZED"
 "INVALID_PLAN"
+"INVALID_PROMO"             - Promo code validation failed
 "STRIPE_ERROR"
 "SERVER_ERROR"
 
@@ -45,6 +47,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth'); // JWT authentication middleware
 const { logApiCall } = require('../utils/apiLogger'); // API logging utility
+const { query } = require('../database'); // Database connection pooling
 const Stripe = require('stripe');
 
 // Initialize Stripe with secret key from environment
@@ -80,7 +83,7 @@ router.post('/', verifyToken, async (req, res) => {
     logApiCall('create-checkout-session');
 
     // Extract and validate request payload
-    const { plan, billing_cycle } = req.body;
+    const { plan, billing_cycle, promo_code } = req.body;
 
     // Validate required fields
     if (!plan || !billing_cycle) {
@@ -106,13 +109,130 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Get pricing information for the selected plan and cycle
+    // Get base pricing information for the selected plan and cycle
     const planConfig = PLAN_PRICING[plan][billing_cycle];
     if (!planConfig) {
       return res.status(200).json({
         return_code: 'INVALID_PLAN',
         message: 'Pricing not available for the selected plan and billing cycle.'
       });
+    }
+
+    // ============================================================================
+    // Promo code validation and discount calculation
+    // ============================================================================
+    let finalAmount = planConfig.amount; // Amount in pence (e.g., 7900 for £79)
+    let promoCodeId = null;
+    let originalPrice = finalAmount / 100; // Convert to pounds for storage
+    let discountAmount = 0;
+    let promoCodeData = null;
+
+    // If promo code is provided, validate it and apply discount
+    if (promo_code && promo_code.trim()) {
+      const normalizedCode = promo_code.trim().toUpperCase();
+
+      // Query promo code from database
+      const promoQuery = `
+        SELECT
+          id,
+          code,
+          discount_type,
+          discount_value,
+          applies_to_plans,
+          valid_from,
+          valid_until,
+          max_total_uses,
+          max_uses_per_user,
+          current_total_uses,
+          active
+        FROM promo_codes
+        WHERE UPPER(code) = $1 AND active = true
+      `;
+
+      const promoResult = await query(promoQuery, [normalizedCode]);
+
+      // Validate promo code exists
+      if (promoResult.rows.length === 0) {
+        return res.status(200).json({
+          return_code: 'INVALID_PROMO',
+          message: 'Invalid promo code'
+        });
+      }
+
+      promoCodeData = promoResult.rows[0];
+
+      // Check time validity
+      const now = new Date();
+      if (promoCodeData.valid_from && new Date(promoCodeData.valid_from) > now) {
+        return res.status(200).json({
+          return_code: 'INVALID_PROMO',
+          message: 'This promo code is not yet active'
+        });
+      }
+
+      if (promoCodeData.valid_until && new Date(promoCodeData.valid_until) < now) {
+        return res.status(200).json({
+          return_code: 'INVALID_PROMO',
+          message: 'This promo code has expired'
+        });
+      }
+
+      // Check total usage limit
+      if (promoCodeData.max_total_uses !== null &&
+          promoCodeData.current_total_uses >= promoCodeData.max_total_uses) {
+        return res.status(200).json({
+          return_code: 'INVALID_PROMO',
+          message: 'This promo code is no longer available'
+        });
+      }
+
+      // Check user usage limit
+      const usageQuery = `
+        SELECT COUNT(*) as usage_count
+        FROM promo_code_usage
+        WHERE promo_code_id = $1 AND user_id = $2
+      `;
+
+      const usageResult = await query(usageQuery, [promoCodeData.id, userId]);
+      const userUsageCount = parseInt(usageResult.rows[0].usage_count);
+
+      if (userUsageCount >= promoCodeData.max_uses_per_user) {
+        return res.status(200).json({
+          return_code: 'INVALID_PROMO',
+          message: 'You have already used this promo code'
+        });
+      }
+
+      // Check plan applicability
+      if (promoCodeData.applies_to_plans && promoCodeData.applies_to_plans.length > 0) {
+        if (!promoCodeData.applies_to_plans.includes(plan)) {
+          return res.status(200).json({
+            return_code: 'INVALID_PROMO',
+            message: `This promo code is not valid for the ${plan} plan`
+          });
+        }
+      }
+
+      // Calculate discount amount
+      if (promoCodeData.discount_type === 'percentage') {
+        // Percentage discount
+        const discountPercent = parseFloat(promoCodeData.discount_value);
+        discountAmount = (originalPrice * discountPercent) / 100;
+      } else if (promoCodeData.discount_type === 'fixed') {
+        // Fixed amount discount
+        discountAmount = parseFloat(promoCodeData.discount_value);
+      }
+
+      // Ensure discount doesn't exceed original price
+      discountAmount = Math.min(discountAmount, originalPrice);
+      discountAmount = parseFloat(discountAmount.toFixed(2));
+
+      // Calculate final price in pounds then convert to pence
+      const finalPriceInPounds = Math.max(0, originalPrice - discountAmount);
+      finalAmount = Math.round(finalPriceInPounds * 100); // Convert to pence
+
+      // Store promo code ID for metadata
+      promoCodeId = promoCodeData.id;
     }
 
     // Create Stripe checkout session
@@ -127,9 +247,11 @@ router.post('/', verifyToken, async (req, res) => {
           currency: 'gbp',
           product_data: {
             name: `LMSLocal ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
-            description: `${billing_cycle.charAt(0).toUpperCase() + billing_cycle.slice(1)} subscription for Last Man Standing competitions`,
+            description: promo_code
+              ? `${billing_cycle.charAt(0).toUpperCase() + billing_cycle.slice(1)} subscription (${promo_code} discount applied)`
+              : `${billing_cycle.charAt(0).toUpperCase() + billing_cycle.slice(1)} subscription for Last Man Standing competitions`,
           },
-          unit_amount: planConfig.amount, // Amount in pence
+          unit_amount: finalAmount, // Amount in pence (discounted if promo applied)
         },
         quantity: 1,
       }],
@@ -139,7 +261,11 @@ router.post('/', verifyToken, async (req, res) => {
         user_id: userId.toString(),
         plan: plan,
         billing_cycle: billing_cycle,
-        upgrade_type: 'subscription_purchase'
+        upgrade_type: 'subscription_purchase',
+        promo_code: promo_code || '',
+        promo_code_id: promoCodeId ? promoCodeId.toString() : '',
+        original_price: originalPrice.toString(),
+        discount_amount: discountAmount.toString()
       },
 
       // Success and cancel URLs - redirect after payment

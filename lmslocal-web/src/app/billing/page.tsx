@@ -15,6 +15,15 @@ function BillingPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
+  // Promo code state
+  const [promoCode, setPromoCode] = useState<string>('');
+  const [promoStatus, setPromoStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
+  const [promoMessage, setPromoMessage] = useState<string>('');
+  const [promoDiscount, setPromoDiscount] = useState<{
+    club?: { original: number; discount: number; final: number };
+    venue?: { original: number; discount: number; final: number };
+  } | null>(null);
+
   useEffect(() => {
     // Check if user returned from successful payment
     const sessionId = searchParams.get('session_id');
@@ -33,6 +42,13 @@ function BillingPageContent() {
 
       // Hide success banner after 5 seconds
       setTimeout(() => setShowSuccessBanner(false), 5000);
+    }
+
+    // Check for promo code in URL parameters
+    const urlPromoCode = searchParams.get('promo');
+    if (urlPromoCode) {
+      setPromoCode(urlPromoCode);
+      validatePromoCode(urlPromoCode);
     }
 
     const fetchSubscriptionData = async () => {
@@ -91,6 +107,36 @@ function BillingPageContent() {
     setSelectedPlan(plan);
   };
 
+  // Validate promo code function
+  const validatePromoCode = async (code: string) => {
+    if (!code || code.trim() === '') {
+      setPromoStatus('idle');
+      setPromoMessage('');
+      setPromoDiscount(null);
+      return;
+    }
+
+    try {
+      setPromoStatus('validating');
+      const response = await userApi.validatePromoCode(code);
+
+      if (response.data.return_code === 'SUCCESS' && response.data.valid) {
+        setPromoStatus('valid');
+        setPromoMessage(response.data.promo_code?.description || 'Valid promo code!');
+        setPromoDiscount(response.data.pricing || null);
+      } else {
+        setPromoStatus('invalid');
+        setPromoMessage(response.data.message || 'Invalid promo code');
+        setPromoDiscount(null);
+      }
+    } catch (error) {
+      console.error('Error validating promo code:', error);
+      setPromoStatus('invalid');
+      setPromoMessage('Error validating promo code');
+      setPromoDiscount(null);
+    }
+  };
+
   const handlePlanSwitch = async () => {
     if (selectedPlan === subscription?.plan) {
       alert('You are already on this plan');
@@ -106,7 +152,9 @@ function BillingPageContent() {
       setLoading(true);
 
       const billingCycle = 'yearly';
-      const response = await userApi.createCheckoutSession(selectedPlan, billingCycle);
+      // Pass promo code only if it's valid
+      const promoCodeToUse = promoStatus === 'valid' ? promoCode : undefined;
+      const response = await userApi.createCheckoutSession(selectedPlan, billingCycle, promoCodeToUse);
 
       if (response.data.return_code === 'SUCCESS' && response.data.checkout_url) {
         // Redirect to Stripe checkout
@@ -180,6 +228,31 @@ function BillingPageContent() {
             >
               ×
             </button>
+          </div>
+        )}
+
+        {/* Promo Code Banner */}
+        {promoStatus === 'valid' && (
+          <div className="mb-6 bg-green-50 border-2 border-green-500 rounded-lg p-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-2xl mr-3">🎉</span>
+              <div>
+                <h3 className="font-semibold text-green-900">Promo Code Applied!</h3>
+                <p className="text-sm text-green-700">{promoMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {promoStatus === 'invalid' && (
+          <div className="mb-6 bg-red-50 border-2 border-red-500 rounded-lg p-4 flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-2xl mr-3">⚠️</span>
+              <div>
+                <h3 className="font-semibold text-red-900">Invalid Promo Code</h3>
+                <p className="text-sm text-red-700">{promoMessage}</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -293,12 +366,28 @@ function BillingPageContent() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold">
-                          £{planPrices[plan]}
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          per year
-                        </div>
+                        {promoStatus === 'valid' && promoDiscount && promoDiscount[plan as 'club' | 'venue'] ? (
+                          <>
+                            <div className="line-through text-sm text-slate-400">
+                              £{promoDiscount[plan as 'club' | 'venue']?.original}
+                            </div>
+                            <div className="font-bold text-green-600">
+                              £{promoDiscount[plan as 'club' | 'venue']?.final}
+                            </div>
+                            <div className="text-xs text-green-600">
+                              Save £{promoDiscount[plan as 'club' | 'venue']?.discount}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-bold">
+                              £{planPrices[plan]}
+                            </div>
+                            <div className="text-sm text-slate-500">
+                              per year
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
