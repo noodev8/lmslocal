@@ -314,7 +314,7 @@ function BillingPageContent() {
               <div className="w-full bg-slate-200 rounded-full h-2">
                 <div
                   className="bg-blue-600 h-2 rounded-full"
-                  style={{ width: `${subscription.usage_percentage}%` }}
+                  style={{ width: `${Math.min(subscription.usage_percentage, 100)}%` }}
                 ></div>
               </div>
             </div>
