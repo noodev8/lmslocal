@@ -97,6 +97,10 @@ const organiserMidRoundSubmitTipRoute = require('./routes/organiser-mid-round-su
 const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
 const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-competitions');
 
+// Bot Routes
+const botJoinRoute = require('./routes/bot-join');
+const botPickRoute = require('./routes/bot-pick');
+
 const app = express();
 const PORT = process.env.PORT || 3015;
 
@@ -272,6 +276,10 @@ app.use('/organiser-mid-round-submit-tip', organiserMidRoundSubmitTipRoute);
 // Admin API Routes
 app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
 app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
+
+// Bot API Routes (no rate limiting for testing)
+app.use('/bot-join', botJoinRoute);
+app.use('/bot-pick', botPickRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

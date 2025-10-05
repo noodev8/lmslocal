@@ -403,10 +403,21 @@ export const competitionApi = {
     30 * 60 * 1000, // 30 minutes cache - status rarely changes during admin work
     () => api.post<{ return_code: string; current_round: Round | null; fixture_count: number; should_route_to_results: boolean }>('/get-competition-status', { competition_id })
   ),
-  getPlayers: (competition_id: number) => withCache(
-    `competition-players-${competition_id}`,
+  getPlayers: (competition_id: number, page: number = 1, page_size: number = 50) => withCache(
+    `competition-players-${competition_id}-page-${page}-size-${page_size}`,
     1 * 60 * 60 * 1000, // 1 hour cache - player data rarely changes during admin sessions
-    () => api.post<{ return_code: string; message?: string; competition?: Competition; players?: Player[] }>('/get-competition-players', { competition_id })
+    () => api.post<{
+      return_code: string;
+      message?: string;
+      competition?: Competition;
+      pagination?: {
+        current_page: number;
+        page_size: number;
+        total_players: number;
+        total_pages: number;
+      };
+      players?: Player[]
+    }>('/get-competition-players', { competition_id, page, page_size })
   ),
   removePlayer: (competition_id: number, player_id: number) => api.post<{ return_code: string; message?: string; removed_data?: Player }>('/remove-player', { competition_id, player_id }),
   getPickStatistics: (competition_id: number) => withCache(

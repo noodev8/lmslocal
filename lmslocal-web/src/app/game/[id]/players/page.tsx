@@ -22,7 +22,7 @@ export default function CompetitionPlayersPage() {
   const competitionId = parseInt(params.id as string);
   
   const [competition, setCompetition] = useState<Competition | null>(null);
-  
+
   // Use AppDataProvider context to avoid redundant API calls
   const { competitions } = useAppData();
   const [players, setPlayers] = useState<Player[]>([]);
@@ -32,6 +32,12 @@ export default function CompetitionPlayersPage() {
   const [playerToRemove, setPlayerToRemove] = useState<{ id: number; name: string } | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [updatingPayment, setUpdatingPayment] = useState<Set<number>>(new Set());
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(50);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPlayers, setTotalPlayers] = useState(0);
 
   // Lives management state - track pending changes before saving
   const [pendingLivesChanges, setPendingLivesChanges] = useState<Map<number, number>>(new Map());
@@ -87,20 +93,28 @@ export default function CompetitionPlayersPage() {
     };
   }, [competitionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadPlayers = useCallback(async () => {
+  const loadPlayers = useCallback(async (page: number = currentPage) => {
     if (abortControllerRef.current?.signal.aborted) return;
-    
+
+    setLoading(true);
     try {
-      // Use cached API call with 30-second TTL for player data
-      const response = await competitionApi.getPlayers(competitionId);
+      // Use cached API call with pagination
+      const response = await competitionApi.getPlayers(competitionId, page, pageSize);
       if (abortControllerRef.current?.signal.aborted) return;
-      
+
       if (response.data.return_code === 'SUCCESS') {
         // Get competition from context if available, otherwise from API response
         const competitionFromContext = competitions?.find(c => c.id === competitionId);
         setCompetition(competitionFromContext || response.data.competition as Competition);
         const playersData = response.data.players as Player[];
         setPlayers(playersData);
+
+        // Update pagination state
+        if (response.data.pagination) {
+          setTotalPages(response.data.pagination.total_pages);
+          setTotalPlayers(response.data.pagination.total_players);
+          setCurrentPage(response.data.pagination.current_page);
+        }
       } else {
         console.error('Failed to load players:', response.data.message);
         router.push(`/game/${competitionId}/dashboard`);
@@ -114,7 +128,7 @@ export default function CompetitionPlayersPage() {
         setLoading(false);
       }
     }
-  }, [competitionId, router, competitions]);
+  }, [competitionId, currentPage, pageSize, router, competitions]);
 
   const handleRemovePlayerClick = (playerId: number, playerName: string) => {
     setPlayerToRemove({ id: playerId, name: playerName });
@@ -438,11 +452,11 @@ export default function CompetitionPlayersPage() {
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">{competition?.name}</h1>
               <div className="flex items-center space-x-4 text-sm text-slate-600">
-                <span>{players.length} total</span>
+                <span>{totalPlayers || players.length} total</span>
                 <span>•</span>
-                <span>{activePlayers.length} active</span>
+                <span>{activePlayers.length} active (on page)</span>
                 <span>•</span>
-                <span>{paidCount}/{players.length} paid</span>
+                <span>{paidCount}/{players.length} paid (on page)</span>
               </div>
             </div>
           </div>
@@ -702,6 +716,86 @@ export default function CompetitionPlayersPage() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-between border-t border-slate-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => loadPlayers(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => loadPlayers(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-slate-700">
+                  Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+                  <span className="font-medium">{Math.min(currentPage * pageSize, totalPlayers)}</span> of{' '}
+                  <span className="font-medium">{totalPlayers}</span> players
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => loadPlayers(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 7) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 4) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 3) {
+                      pageNum = totalPages - 6 + i;
+                    } else {
+                      pageNum = currentPage - 3 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => loadPlayers(pageNum)}
+                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                          currentPage === pageNum
+                            ? 'z-10 bg-slate-900 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900'
+                            : 'text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => loadPlayers(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Next</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
           </div>
         )}
 

@@ -7,7 +7,9 @@ Purpose: Retrieves comprehensive player data for competition management with org
 =======================================================================================================================================
 Request Payload:
 {
-  "competition_id": 123                   // integer, required - ID of the competition to get players for
+  "competition_id": 123,                  // integer, required - ID of the competition to get players for
+  "page": 1,                              // integer, optional - Page number (default: 1)
+  "page_size": 50                         // integer, optional - Players per page (default: 50, max: 200)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -22,6 +24,12 @@ Success Response (ALWAYS HTTP 200):
     "invite_code": "1234",                // string, competition join code
     "current_round": 3,                   // integer, current round number
     "total_rounds": 10                    // integer, total rounds created
+  },
+  "pagination": {
+    "current_page": 1,                    // integer, current page number
+    "page_size": 50,                      // integer, players per page
+    "total_players": 250,                 // integer, total players in competition
+    "total_pages": 5                      // integer, total number of pages
   },
   "players": [
     {
@@ -64,7 +72,7 @@ const router = express.Router();
 // POST endpoint with comprehensive authentication and data validation
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { competition_id } = req.body;
+    const { competition_id, page = 1, page_size = 50 } = req.body;
     const user_id = req.user.id; // Set by verifyToken middleware
 
     // Validate required input parameters with strict type checking
@@ -74,6 +82,11 @@ router.post('/', verifyToken, async (req, res) => {
         message: "Competition ID is required and must be a number"
       });
     }
+
+    // Validate pagination parameters
+    const currentPage = Math.max(1, parseInt(page) || 1);
+    const itemsPerPage = Math.min(200, Math.max(1, parseInt(page_size) || 50));
+    const offset = (currentPage - 1) * itemsPerPage;
 
     // STEP 1: Get competition data and verify authorization
     // Simple query to get basic competition info and check organizer access
@@ -165,7 +178,8 @@ router.post('/', verifyToken, async (req, res) => {
       ) pick_stats ON u.id = pick_stats.user_id
       WHERE cu.competition_id = $1
       ORDER BY cu.joined_at ASC
-    `, [competition_id]);
+      LIMIT $2 OFFSET $3
+    `, [competition_id, itemsPerPage, offset]);
 
     // Build competition object with retrieved data
     const competition = {
@@ -177,6 +191,16 @@ router.post('/', verifyToken, async (req, res) => {
       invite_code: competitionData.invite_code,
       current_round: competitionData.current_round || 0,
       total_rounds: parseInt(competitionData.total_rounds) || 0
+    };
+
+    // Build pagination object
+    const totalPlayers = parseInt(playerStats.total_players) || 0;
+    const totalPages = Math.ceil(totalPlayers / itemsPerPage);
+    const pagination = {
+      current_page: currentPage,
+      page_size: itemsPerPage,
+      total_players: totalPlayers,
+      total_pages: totalPages
     };
 
     // Build players array from query results
@@ -196,10 +220,11 @@ router.post('/', verifyToken, async (req, res) => {
       last_pick_date: row.last_pick_date
     }));
 
-    // Return success response with competition and player data
+    // Return success response with competition, pagination, and player data
     return res.json({
       return_code: "SUCCESS",
       competition: competition,
+      pagination: pagination,
       players: players
     });
 
