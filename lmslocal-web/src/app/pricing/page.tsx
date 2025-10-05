@@ -144,16 +144,16 @@ export default function PricingPage() {
                 <div className="text-3xl mb-4">🏆</div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">Club</h3>
                 <div className="mb-2">
-                  <span className="text-5xl font-bold text-slate-900">£49</span>
+                  <span className="text-5xl font-bold text-slate-900">£79</span>
                   <span className="text-lg text-slate-500">/year</span>
                 </div>
-                <p className="text-sm text-emerald-600 font-semibold mb-6">98p per player per year</p>
+                <p className="text-sm text-emerald-600 font-semibold mb-6">£1.58 per player per year</p>
 
                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
                   <div className="text-3xl font-bold text-slate-900 mb-1">50 players</div>
                   <p className="text-xs text-slate-600 mb-2">For clubs & workplaces</p>
                   <div className="pt-2 border-t border-emerald-200">
-                    <p className="text-xs text-slate-700 font-medium">Split 10 ways = £5 each for the year</p>
+                    <p className="text-xs text-slate-700 font-medium">Split 10 ways = £7.90 each for the year</p>
                   </div>
                 </div>
 
@@ -190,17 +190,17 @@ export default function PricingPage() {
                 <div className="text-3xl mb-4">🍺</div>
                 <h3 className="text-2xl font-bold mb-2">Venue</h3>
                 <div className="mb-2">
-                  <span className="text-5xl font-bold">£149</span>
+                  <span className="text-5xl font-bold">£179</span>
                   <span className="text-lg text-slate-400">/year</span>
                 </div>
-                <p className="text-sm text-emerald-400 font-semibold mb-6">Just 75p per player per year</p>
+                <p className="text-sm text-emerald-400 font-semibold mb-6">Just 90p per player per year</p>
 
                 <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-4 mb-6">
                   <div className="text-3xl font-bold mb-1">200 players</div>
                   <p className="text-xs text-slate-300 mb-2">Perfect for pubs & busy venues</p>
                   <div className="pt-2 border-t border-white/20 space-y-1">
-                    <p className="text-xs font-medium">Under £3/week for the whole year</p>
-                    <p className="text-xs text-slate-400">Split 20 ways = £7.50 each</p>
+                    <p className="text-xs font-medium">Under £3.50/week for the whole year</p>
+                    <p className="text-xs text-slate-400">Split 20 ways = £8.95 each</p>
                   </div>
                 </div>
 
