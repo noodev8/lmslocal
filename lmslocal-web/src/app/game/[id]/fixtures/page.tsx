@@ -10,10 +10,9 @@ import {
   XMarkIcon,
   ChartBarIcon,
   TrashIcon,
-  ExclamationTriangleIcon,
-  UserGroupIcon
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import { roundApi, fixtureApi, teamApi, competitionApi, adminApi, userApi, Team, Player, cacheUtils } from '@/lib/api';
+import { roundApi, fixtureApi, teamApi, Team, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 
@@ -73,18 +72,6 @@ export default function FixturesPage() {
   });
   const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
   const [isSavingFixtures, setIsSavingFixtures] = useState(false);
-
-  // Admin pick management state (separate from fixture creation to avoid conflicts)
-  const [showAdminPickModal, setShowAdminPickModal] = useState(false);
-  const [adminPickPlayers, setAdminPickPlayers] = useState<Player[]>([]);
-  const [adminSelectedPlayer, setAdminSelectedPlayer] = useState<number | null>(null);
-  const [adminSelectedTeam, setAdminSelectedTeam] = useState('');
-  const [adminSettingPick, setAdminSettingPick] = useState(false);
-  const [adminPickTeams, setAdminPickTeams] = useState<Team[]>([]);
-  const [adminAllowedTeamNames, setAdminAllowedTeamNames] = useState<Set<string>>(new Set());
-  const [pickSuccess, setPickSuccess] = useState(false);
-  const [currentPlayerPick, setCurrentPlayerPick] = useState<string | null>(null);
-  const [loadingPlayerPick, setLoadingPlayerPick] = useState(false);
 
   const hasInitialized = useRef(false);
 
@@ -502,146 +489,6 @@ export default function FixturesPage() {
     }
   };
 
-  // Admin pick functions (restored from old manage page)
-  const loadAdminPickPlayers = async () => {
-    try {
-      const response = await competitionApi.getPlayers(parseInt(competitionId));
-      if (response.data.return_code === 'SUCCESS') {
-        setAdminPickPlayers(response.data.players || []);
-      }
-    } catch (error) {
-      console.error('Failed to load players for admin pick:', error);
-    }
-  };
-
-  const loadPlayerCurrentPick = async (userId: number, roundId: number) => {
-    setLoadingPlayerPick(true);
-    try {
-      const response = await adminApi.getPlayerPick(roundId, userId);
-      if (response.data.return_code === 'SUCCESS' && response.data.pick) {
-        setCurrentPlayerPick(response.data.pick.team_full_name || response.data.pick.team);
-      } else {
-        setCurrentPlayerPick(null);
-      }
-    } catch (error) {
-      console.error('Failed to load player pick:', error);
-      setCurrentPlayerPick(null);
-    } finally {
-      setLoadingPlayerPick(false);
-    }
-  };
-
-  const loadAdminPickAllowedTeams = async (userId: number) => {
-    try {
-      // First, get the player's allowed teams
-      const allowedTeamNames = new Set<string>();
-      try {
-        const allowedResponse = await userApi.getAllowedTeams(parseInt(competitionId), userId);
-        if (allowedResponse.data.return_code === 'SUCCESS') {
-          const allowedTeams = allowedResponse.data.allowed_teams || [];
-          allowedTeams.forEach((team: Team) => {
-            allowedTeamNames.add(team.name);
-            allowedTeamNames.add(team.short_name);
-          });
-        }
-      } catch {
-        console.log('Could not fetch allowed teams for player - will show all fixture teams');
-      }
-      setAdminAllowedTeamNames(allowedTeamNames);
-
-      // Get all teams
-      let allTeams: Team[] = [];
-      if (teams.length > 0) {
-        allTeams = teams;
-      } else {
-        const teamsResponse = await teamApi.getTeams();
-        if (teamsResponse.data.return_code === 'SUCCESS') {
-          allTeams = teamsResponse.data.teams || [];
-        }
-      }
-
-      // Extract unique team names from current fixtures
-      const fixtureTeamNames = new Set<string>();
-      pendingFixtures.forEach(fixture => {
-        fixtureTeamNames.add(fixture.home_team);
-        fixtureTeamNames.add(fixture.away_team);
-        fixtureTeamNames.add(fixture.home_team_short);
-        fixtureTeamNames.add(fixture.away_team_short);
-      });
-
-      // Filter teams to only include those in current fixtures
-      const fixtureTeams = allTeams.filter(team =>
-        fixtureTeamNames.has(team.name) || fixtureTeamNames.has(team.short_name)
-      );
-
-      setAdminPickTeams(fixtureTeams);
-    } catch (error) {
-      console.error('Failed to load teams for admin pick:', error);
-      // Fallback to all teams if something goes wrong
-      if (teams.length > 0) {
-        setAdminPickTeams(teams);
-      } else {
-        await teamApi.getTeams().then(res => {
-          if (res.data.return_code === 'SUCCESS') {
-            setAdminPickTeams(res.data.teams || []);
-          }
-        });
-      }
-    }
-  };
-
-  const handleSetPlayerPick = async () => {
-    if (!adminSelectedPlayer || !adminSelectedTeam || !competition) return;
-
-    setAdminSettingPick(true);
-    try {
-      // Pass null/empty string if "NO_PICK" is selected to trigger removal
-      const teamToSet = adminSelectedTeam === 'NO_PICK' ? '' : adminSelectedTeam;
-      const response = await adminApi.setPlayerPick(competition.id, adminSelectedPlayer, teamToSet);
-
-      if (response.data.return_code === 'SUCCESS') {
-        // Show success state in modal
-        setPickSuccess(true);
-
-        // Find player name for toast
-        const player = adminPickPlayers.find(p => p.id === adminSelectedPlayer);
-        const playerName = player?.display_name || 'Player';
-        const actionText = adminSelectedTeam === 'NO_PICK' ? 'removed' : 'set';
-        const teamText = adminSelectedTeam === 'NO_PICK' ? '' : `: ${adminSelectedTeam}`;
-
-        // Invalidate picks cache for fresh data when viewing picks elsewhere
-        cacheUtils.invalidateKey(`picks-${competitionId}`);
-        cacheUtils.invalidateKey(`competition-players-${competitionId}`);
-
-        // Show toast notification
-        showToast(`Pick ${actionText}${teamText} for ${playerName}`, 'success');
-
-        // Auto-close modal after brief delay
-        setTimeout(() => {
-          setShowAdminPickModal(false);
-          setAdminSelectedPlayer(null);
-          setAdminSelectedTeam('');
-          setAdminPickTeams([]);
-          setAdminAllowedTeamNames(new Set());
-          setPickSuccess(false);
-          setCurrentPlayerPick(null);
-        }, 500);
-      } else {
-        alert(`Failed to ${adminSelectedTeam === 'NO_PICK' ? 'remove' : 'set'} pick: ${(response.data as { message?: string }).message || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Failed to set/remove player pick:', error);
-      alert(`Failed to ${adminSelectedTeam === 'NO_PICK' ? 'remove' : 'set'} pick. Please try again.`);
-    } finally {
-      setAdminSettingPick(false);
-    }
-  };
-
-  const openAdminPickModal = async () => {
-    await loadAdminPickPlayers();
-    setShowAdminPickModal(true);
-  };
-
   if (loading || contextLoading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -826,15 +673,6 @@ export default function FixturesPage() {
                         <div className="flex items-center space-x-3">
                           {!isLocked ? (
                             <>
-                              {/* Set Player Pick button - only when unlocked */}
-                              <button
-                                onClick={openAdminPickModal}
-                                className="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm bg-slate-500 text-white hover:bg-slate-600 transition-colors"
-                              >
-                                <UserGroupIcon className="h-4 w-4 mr-2" />
-                                Set Player Pick
-                              </button>
-
                               {/* Reset button - only when unlocked */}
                               <button
                                 onClick={() => setShowResetModal(true)}
@@ -1245,149 +1083,6 @@ export default function FixturesPage() {
           </div>
         )}
 
-        {/* Admin Pick Modal */}
-        {showAdminPickModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-slate-900">Set Player Pick</h3>
-                  <button
-                    onClick={() => {
-                      setShowAdminPickModal(false);
-                      setAdminSelectedPlayer(null);
-                      setAdminSelectedTeam('');
-                      setAdminPickTeams([]);
-                      setAdminAllowedTeamNames(new Set());
-                      setCurrentPlayerPick(null);
-                    }}
-                    className="text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    <XMarkIcon className="h-6 w-6" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Player Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Select Player
-                    </label>
-                    <select
-                      value={adminSelectedPlayer || ''}
-                      onChange={(e) => {
-                        const playerId = e.target.value ? parseInt(e.target.value) : null;
-                        setAdminSelectedPlayer(playerId);
-                        setAdminSelectedTeam('');
-                        setAdminPickTeams([]);
-                        setAdminAllowedTeamNames(new Set());
-                        setCurrentPlayerPick(null);
-                        if (playerId && currentRound) {
-                          loadAdminPickAllowedTeams(playerId);
-                          loadPlayerCurrentPick(playerId, currentRound.id);
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                    >
-                      <option value="">Choose a player...</option>
-                      {adminPickPlayers.map((player) => (
-                        <option key={player.id} value={player.id}>
-                          {player.display_name} {player.status === 'eliminated' ? '(OUT)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Current Pick Info Banner */}
-                  {adminSelectedPlayer && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="flex items-start space-x-2">
-                        <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-blue-900">
-                            {loadingPlayerPick ? (
-                              <span className="flex items-center">
-                                <span className="animate-pulse">Loading current pick...</span>
-                              </span>
-                            ) : currentPlayerPick ? (
-                              <>Current pick: <span className="font-semibold">{currentPlayerPick}</span></>
-                            ) : (
-                              'No pick made yet'
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Team Selection */}
-                  {adminSelectedPlayer && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Select Team
-                      </label>
-                      <select
-                        value={adminSelectedTeam}
-                        onChange={(e) => setAdminSelectedTeam(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                      >
-                        <option value="">Choose a team...</option>
-                        {adminPickTeams.map((team, index) => {
-                          const isAllowed = adminAllowedTeamNames.has(team.name) || adminAllowedTeamNames.has(team.short_name);
-                          return (
-                            <option key={`${team.id}-${team.name}-${index}`} value={team.name}>
-                              {isAllowed ? team.name : `❌ ${team.name}`}
-                            </option>
-                          );
-                        })}
-                        <option value="NO_PICK">No Pick</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex space-x-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowAdminPickModal(false);
-                      setAdminSelectedPlayer(null);
-                      setAdminSelectedTeam('');
-                      setAdminPickTeams([]);
-                      setAdminAllowedTeamNames(new Set());
-                      setCurrentPlayerPick(null);
-                    }}
-                    disabled={adminSettingPick}
-                    className="flex-1 px-4 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSetPlayerPick}
-                    disabled={!adminSelectedPlayer || !adminSelectedTeam || adminSettingPick || pickSuccess}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
-                      pickSuccess
-                        ? 'bg-green-600 text-white'
-                        : 'bg-slate-600 text-white hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed'
-                    }`}
-                  >
-                    {pickSuccess ? (
-                      <span className="flex items-center justify-center">
-                        <CheckCircleIcon className="h-5 w-5 mr-2" />
-                        Pick Set ✓
-                      </span>
-                    ) : adminSettingPick ? (
-                      adminSelectedTeam === 'NO_PICK' ? 'Removing Pick...' : 'Setting Pick...'
-                    ) : (
-                      adminSelectedTeam === 'NO_PICK' ? 'Remove Pick' : 'Set Pick'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

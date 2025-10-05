@@ -9,11 +9,15 @@ import {
   CurrencyDollarIcon,
   PlusIcon,
   MinusIcon,
-  EyeIcon
+  EyeIcon,
+  ClipboardDocumentListIcon,
+  CheckCircleIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, adminApi, Competition, Player } from '@/lib/api';
+import { competitionApi, adminApi, roundApi, fixtureApi, teamApi, userApi, Competition, Player, Team, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { useToast, ToastContainer } from '@/components/Toast';
 
 
 export default function CompetitionPlayersPage() {
@@ -48,6 +52,26 @@ export default function CompetitionPlayersPage() {
 
   // Player unhide management state
   const [unhidingPlayer, setUnhidingPlayer] = useState<Set<number>>(new Set());
+
+  // Toast notifications
+  const { toasts, showToast, removeToast } = useToast();
+
+  // Round & fixture data for Set Pick feature
+  const [currentRoundId, setCurrentRoundId] = useState<number | null>(null);
+  const [currentRoundNumber, setCurrentRoundNumber] = useState<number | null>(null);
+  const [hasFixtures, setHasFixtures] = useState(false);
+  const [roundIsLocked, setRoundIsLocked] = useState(false);
+
+  // Set Pick modal state
+  const [showSetPickModal, setShowSetPickModal] = useState(false);
+  const [selectedPlayerForPick, setSelectedPlayerForPick] = useState<Player | null>(null);
+  const [currentPlayerPick, setCurrentPlayerPick] = useState<string | null>(null);
+  const [loadingPickData, setLoadingPickData] = useState(false);
+  const [pickTeams, setPickTeams] = useState<Team[]>([]);
+  const [allowedTeamNames, setAllowedTeamNames] = useState<Set<string>>(new Set());
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const [settingPick, setSettingPick] = useState(false);
+  const [pickSuccess, setPickSuccess] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -129,6 +153,44 @@ export default function CompetitionPlayersPage() {
       }
     }
   }, [competitionId, currentPage, pageSize, router, competitions]);
+
+  // Load current round info to determine if "Set Pick" button should be shown
+  const loadCurrentRound = useCallback(async () => {
+    try {
+      const response = await roundApi.getRounds(competitionId);
+      if (response.data.return_code === 'SUCCESS') {
+        const rounds = response.data.rounds || [];
+        if (rounds.length > 0) {
+          const latestRound = rounds[0];
+          const hasFixturesFlag = (latestRound.fixture_count || 0) > 0;
+
+          // Check if round is locked
+          const now = new Date();
+          const lockTime = new Date(latestRound.lock_time || '');
+          const isLocked = !!(latestRound.lock_time && now >= lockTime);
+
+          setCurrentRoundId(latestRound.id);
+          setCurrentRoundNumber(latestRound.round_number);
+          setHasFixtures(hasFixturesFlag);
+          setRoundIsLocked(isLocked);
+        } else {
+          setCurrentRoundId(null);
+          setCurrentRoundNumber(null);
+          setHasFixtures(false);
+          setRoundIsLocked(false);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load current round:', error);
+    }
+  }, [competitionId]);
+
+  // Load round info on mount
+  useEffect(() => {
+    if (competitionId) {
+      loadCurrentRound();
+    }
+  }, [competitionId, loadCurrentRound]);
 
   const handleRemovePlayerClick = (playerId: number, playerName: string) => {
     setPlayerToRemove({ id: playerId, name: playerName });
@@ -396,6 +458,121 @@ export default function CompetitionPlayersPage() {
     }
   };
 
+  // Handle opening Set Pick modal for a specific player
+  const handleOpenSetPickModal = async (player: Player) => {
+    if (!currentRoundId) return;
+
+    setSelectedPlayerForPick(player);
+    setShowSetPickModal(true);
+    setLoadingPickData(true);
+
+    try {
+      // Load player's current pick
+      const pickResponse = await adminApi.getPlayerPick(currentRoundId, player.id);
+      if (pickResponse.data.return_code === 'SUCCESS' && pickResponse.data.pick) {
+        setCurrentPlayerPick(pickResponse.data.pick.team_full_name || pickResponse.data.pick.team);
+      } else {
+        setCurrentPlayerPick(null);
+      }
+
+      // Load fixtures for current round
+      const fixturesResponse = await fixtureApi.get(currentRoundId.toString());
+      if (fixturesResponse.data.return_code === 'SUCCESS') {
+        const fixtures = fixturesResponse.data.fixtures || [];
+
+        // Extract unique teams from fixtures
+        const fixtureTeamNames = new Set<string>();
+        fixtures.forEach((fixture: { home_team: string; away_team: string; home_team_short: string; away_team_short: string }) => {
+          fixtureTeamNames.add(fixture.home_team);
+          fixtureTeamNames.add(fixture.away_team);
+          fixtureTeamNames.add(fixture.home_team_short);
+          fixtureTeamNames.add(fixture.away_team_short);
+        });
+
+        // Load player's allowed teams
+        const allowedTeamNamesSet = new Set<string>();
+        try {
+          const allowedResponse = await userApi.getAllowedTeams(competitionId, player.id);
+          if (allowedResponse.data.return_code === 'SUCCESS') {
+            const allowedTeams = allowedResponse.data.allowed_teams || [];
+            allowedTeams.forEach((team: Team) => {
+              allowedTeamNamesSet.add(team.name);
+              allowedTeamNamesSet.add(team.short_name);
+            });
+          }
+        } catch {
+          console.log('Could not fetch allowed teams for player - will show all fixture teams');
+        }
+        setAllowedTeamNames(allowedTeamNamesSet);
+
+        // Get all teams and filter to those in current fixtures
+        const teamsResponse = await teamApi.getTeams();
+        if (teamsResponse.data.return_code === 'SUCCESS') {
+          const allTeams = teamsResponse.data.teams || [];
+          const fixtureTeams = allTeams.filter((team: Team) =>
+            fixtureTeamNames.has(team.name) || fixtureTeamNames.has(team.short_name)
+          );
+          setPickTeams(fixtureTeams);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load pick data:', error);
+    } finally {
+      setLoadingPickData(false);
+    }
+  };
+
+  // Handle setting/removing player pick
+  const handleSetPlayerPick = async () => {
+    if (!selectedPlayerForPick || !selectedTeam || !competition) return;
+
+    setSettingPick(true);
+    try {
+      // Pass empty string if "NO_PICK" is selected to trigger removal
+      const teamToSet = selectedTeam === 'NO_PICK' ? '' : selectedTeam;
+      const response = await adminApi.setPlayerPick(competition.id, selectedPlayerForPick.id, teamToSet);
+
+      if (response.data.return_code === 'SUCCESS') {
+        setPickSuccess(true);
+
+        const actionText = selectedTeam === 'NO_PICK' ? 'removed' : 'set';
+        const teamText = selectedTeam === 'NO_PICK' ? '' : `: ${selectedTeam}`;
+
+        // Invalidate picks cache
+        cacheUtils.invalidateKey(`picks-${competitionId}`);
+        cacheUtils.invalidateKey(`competition-players-${competitionId}`);
+
+        // Show toast notification
+        showToast(`Pick ${actionText}${teamText} for ${selectedPlayerForPick.display_name}`, 'success');
+
+        // Auto-close modal after brief delay
+        setTimeout(() => {
+          handleClosePickModal();
+        }, 500);
+      } else {
+        alert(`Failed to ${selectedTeam === 'NO_PICK' ? 'remove' : 'set'} pick: ${response.data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to set/remove player pick:', error);
+      alert(`Failed to ${selectedTeam === 'NO_PICK' ? 'remove' : 'set'} pick. Please try again.`);
+    } finally {
+      setSettingPick(false);
+    }
+  };
+
+  // Handle closing Set Pick modal
+  const handleClosePickModal = () => {
+    setShowSetPickModal(false);
+    setSelectedPlayerForPick(null);
+    setCurrentPlayerPick(null);
+    setPickTeams([]);
+    setAllowedTeamNames(new Set());
+    setSelectedTeam('');
+    setPickSuccess(false);
+    setLoadingPickData(false);
+    setSettingPick(false);
+  };
+
   // Filter players based on payment status
   const filteredPlayers = players.filter(player => {
     if (paymentFilter === 'paid') return player.paid;
@@ -424,6 +601,9 @@ export default function CompetitionPlayersPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -660,6 +840,17 @@ export default function CompetitionPlayersPage() {
                       )}
                     </button>
 
+                    {/* Set Pick Button - Only show when round has fixtures and is unlocked */}
+                    {currentRoundId && hasFixtures && !roundIsLocked && (
+                      <button
+                        onClick={() => handleOpenSetPickModal(player)}
+                        className="p-1 text-blue-500 hover:text-blue-700 rounded transition-colors"
+                        title="Set player pick for current round"
+                      >
+                        <ClipboardDocumentListIcon className="h-4 w-4" strokeWidth={1.5} />
+                      </button>
+                    )}
+
                     {/* Unhide Player - Only show for hidden players */}
                     {player.hidden && (
                       <button
@@ -811,6 +1002,115 @@ export default function CompetitionPlayersPage() {
         confirmText="Remove Player"
         isLoading={playerToRemove ? removing.has(playerToRemove.id) : false}
       />
+
+      {/* Set Player Pick Modal */}
+      {showSetPickModal && selectedPlayerForPick && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-slate-900">Set Pick for {selectedPlayerForPick.display_name}</h3>
+                <button
+                  onClick={handleClosePickModal}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              {loadingPickData ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Round Info */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm font-medium text-blue-900">
+                      Round {currentRoundNumber}
+                    </p>
+                  </div>
+
+                  {/* Current Pick Info */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <div className="flex items-start space-x-2">
+                      <svg className="w-5 h-5 text-slate-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-900">
+                          {currentPlayerPick ? (
+                            <>Current pick: <span className="font-semibold">{currentPlayerPick}</span></>
+                          ) : (
+                            'No pick made yet'
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Team Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Select Team
+                    </label>
+                    <select
+                      value={selectedTeam}
+                      onChange={(e) => setSelectedTeam(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Choose a team...</option>
+                      {pickTeams.map((team, index) => {
+                        const isAllowed = allowedTeamNames.has(team.name) || allowedTeamNames.has(team.short_name);
+                        return (
+                          <option key={`${team.id}-${team.name}-${index}`} value={team.name}>
+                            {isAllowed ? team.name : `❌ ${team.name}`}
+                          </option>
+                        );
+                      })}
+                      <option value="NO_PICK">Remove Pick</option>
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Teams marked with ❌ have already been used by this player
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={handleClosePickModal}
+                  disabled={settingPick}
+                  className="flex-1 px-4 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSetPlayerPick}
+                  disabled={!selectedTeam || settingPick || pickSuccess || loadingPickData}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
+                    pickSuccess
+                      ? 'bg-green-600 text-white'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed'
+                  }`}
+                >
+                  {pickSuccess ? (
+                    <span className="flex items-center justify-center">
+                      <CheckCircleIcon className="h-5 w-5 mr-2" />
+                      Pick Set ✓
+                    </span>
+                  ) : settingPick ? (
+                    selectedTeam === 'NO_PICK' ? 'Removing Pick...' : 'Setting Pick...'
+                  ) : (
+                    selectedTeam === 'NO_PICK' ? 'Remove Pick' : 'Set Pick'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
