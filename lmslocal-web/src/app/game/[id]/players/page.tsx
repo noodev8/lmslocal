@@ -13,7 +13,8 @@ import {
   ClipboardDocumentListIcon,
   CheckCircleIcon,
   XMarkIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, roundApi, fixtureApi, teamApi, userApi, Competition, Player, Team, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -57,6 +58,9 @@ export default function CompetitionPlayersPage() {
 
   // Player unhide management state
   const [unhidingPlayer, setUnhidingPlayer] = useState<Set<number>>(new Set());
+
+  // Dropdown menu state
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 
   // Toast notifications
   const { toasts, showToast, removeToast } = useToast();
@@ -677,14 +681,6 @@ export default function CompetitionPlayersPage() {
           </div>
         </div>
 
-        {/* Set Pick Feature Info Banner */}
-        {currentRoundId && hasFixtures && !roundIsLocked && (
-          <div className="mb-4 bg-blue-50 border-l-4 border-blue-400 px-3 py-2">
-            <p className="text-sm text-blue-800">
-              <ClipboardDocumentListIcon className="inline h-4 w-4 mr-1" /> Click icon to set player picks for Round {currentRoundNumber}
-            </p>
-          </div>
-        )}
 
         {/* Search Box */}
         <div className="mb-6">
@@ -769,157 +765,192 @@ export default function CompetitionPlayersPage() {
           </div>
         )}
 
-        {/* Players List - Simplified */}
+        {/* Players List - New Stacked Design */}
         <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
           {players.map((player) => (
             <div key={player.id} className={`p-4 hover:bg-slate-50 transition-colors ${
               player.hidden ? 'bg-red-50 border-l-4 border-red-200' : ''
             }`}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                {/* Player Info - Stack on mobile, inline on desktop */}
-                <div className="flex-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2">
-                    <div className="flex items-center flex-wrap gap-2 mb-1 sm:mb-0">
-                      <p className="font-medium text-slate-900 break-words">{player.display_name}</p>
-                      {player.status === 'eliminated' && (
-                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">OUT</span>
-                      )}
-                      {player.is_managed && (
-                        <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Managed</span>
-                      )}
-                      {player.hidden && (
-                        <span className="text-xs text-red-700 bg-red-100 px-2 py-0.5 rounded">Hidden</span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-600 break-words">{player.email || 'No email'}</p>
-                </div>
+              {/* Row 1: Name + Actions Menu */}
+              <div className="flex items-start justify-between mb-1">
+                <h3 className="font-medium text-slate-900">{player.display_name}</h3>
 
-                {/* Status & Actions - Compact on mobile */}
-                <div className="flex items-center justify-end space-x-2 sm:space-x-4">
-                  {/* Lives Management - Immediate UI Updates with Pending Changes */}
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => handleLivesChange(player.id, 'subtract')}
-                      disabled={savingLivesChanges || (player.lives_remaining || 0) <= 0}
-                      className="p-1 text-red-500 hover:text-red-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Remove 1 life"
-                    >
-                      <MinusIcon className="h-4 w-4" strokeWidth={2} />
-                    </button>
+                {/* Actions Dropdown Menu */}
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenDropdownId(openDropdownId === player.id ? null : player.id)}
+                    className="p-1 hover:bg-slate-200 rounded transition-colors"
+                    title="Actions"
+                  >
+                    <EllipsisVerticalIcon className="h-5 w-5 text-slate-600" />
+                  </button>
 
-                    <div className="flex items-center space-x-1 px-1 sm:px-2">
-                      <span className={`text-sm font-medium min-w-[1rem] text-center ${
-                        pendingLivesChanges.has(player.id) ? 'text-blue-600 font-bold' : 'text-slate-900'
-                      }`}>
-                        {player.lives_remaining || 0}
-                      </span>
-                      <span className="text-xs text-slate-500 hidden sm:inline">lives</span>
-                      <span className="text-xs text-slate-500 sm:hidden">L</span>
-                      {pendingLivesChanges.has(player.id) && (
-                        <span className="text-xs text-blue-500">*</span>
-                      )}
-                    </div>
+                  {/* Dropdown Menu */}
+                  {openDropdownId === player.id && (
+                    <>
+                      {/* Backdrop to close menu */}
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setOpenDropdownId(null)}
+                      />
 
-                    <button
-                      onClick={() => handleLivesChange(player.id, 'add')}
-                      disabled={savingLivesChanges || (player.lives_remaining || 0) >= 3}
-                      className="p-1 text-green-500 hover:text-green-700 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Add 1 life"
-                    >
-                      <PlusIcon className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  </div>
-
-                  {/* Payment Status */}
-                  <div className="text-center">
-                    <p className="text-sm font-medium">
-                      {player.paid ? (
-                        <span className="text-green-600">Paid</span>
-                      ) : (
-                        <span className="text-orange-600">Unpaid</span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Other Actions */}
-                  <div className="flex items-center space-x-1">
-                    {/* Status Toggle - Shows current status and allows toggle */}
-                    <button
-                      onClick={() => handleStatusToggle(player.id, player.status || 'active')}
-                      disabled={updatingStatus.has(player.id)}
-                      className={`px-2 py-1 text-xs font-medium rounded transition-colors disabled:opacity-50 ${
-                        (player.status || 'active') === 'active'
-                          ? 'bg-green-100 text-green-700 hover:bg-green-50 border border-green-300'
-                          : 'bg-red-100 text-red-700 hover:bg-red-50 border border-red-300'
-                      }`}
-                      title={`Currently ${(player.status || 'active') === 'active' ? 'ACTIVE' : 'OUT'} - Click to toggle`}
-                    >
-                      {updatingStatus.has(player.id) ? (
-                        <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent mx-1"></div>
-                      ) : (
-                        (player.status || 'active') === 'active' ? 'ACTIVE' : 'OUT'
-                      )}
-                    </button>
-
-                    {/* Payment Toggle */}
-                    <button
-                      onClick={() => handlePaymentToggle(player.id, player.paid)}
-                      disabled={updatingPayment.has(player.id)}
-                      className="p-1 text-slate-500 hover:text-slate-700 rounded transition-colors disabled:opacity-50"
-                      title={player.paid ? 'Mark unpaid' : 'Mark paid'}
-                    >
-                      {updatingPayment.has(player.id) ? (
-                        <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent"></div>
-                      ) : (
-                        <CurrencyDollarIcon className="h-4 w-4" strokeWidth={1.5} />
-                      )}
-                    </button>
-
-                    {/* Set Pick Button - Only show when round has fixtures and is unlocked */}
-                    {currentRoundId && hasFixtures && !roundIsLocked && (
-                      <button
-                        onClick={() => handleOpenSetPickModal(player)}
-                        className="p-1 text-blue-500 hover:text-blue-700 rounded transition-colors"
-                        title="Set player pick for current round"
-                      >
-                        <ClipboardDocumentListIcon className="h-4 w-4" strokeWidth={1.5} />
-                      </button>
-                    )}
-
-                    {/* Unhide Player - Only show for hidden players */}
-                    {player.hidden && (
-                      <button
-                        onClick={() => handleUnhidePlayer(player.id)}
-                        disabled={unhidingPlayer.has(player.id)}
-                        className="p-1 text-red-600 hover:text-green-600 rounded transition-colors disabled:opacity-50"
-                        title="Unhide competition for this player"
-                      >
-                        {unhidingPlayer.has(player.id) ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent"></div>
-                        ) : (
-                          <EyeIcon className="h-4 w-4" strokeWidth={1.5} />
+                      {/* Menu */}
+                      <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
+                        {/* Set Pick */}
+                        {currentRoundId && hasFixtures && !roundIsLocked && (
+                          <button
+                            onClick={() => {
+                              setOpenDropdownId(null);
+                              handleOpenSetPickModal(player);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                          >
+                            <ClipboardDocumentListIcon className="h-4 w-4" />
+                            <span>Set Pick</span>
+                          </button>
                         )}
-                      </button>
-                    )}
 
-                    {/* Remove Player */}
-                    {competition?.invite_code && (
-                      <button
-                        onClick={() => handleRemovePlayerClick(player.id, player.display_name)}
-                        disabled={removing.has(player.id)}
-                        className="p-1 text-slate-500 hover:text-red-600 rounded transition-colors disabled:opacity-50"
-                        title="Remove player"
-                      >
-                        {removing.has(player.id) ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border border-slate-400 border-t-transparent"></div>
-                        ) : (
-                          <TrashIcon className="h-4 w-4" strokeWidth={1.5} />
+                        {/* Add Life */}
+                        <button
+                          onClick={() => {
+                            setOpenDropdownId(null);
+                            handleLivesChange(player.id, 'add');
+                          }}
+                          disabled={savingLivesChanges || (player.lives_remaining || 0) >= 2}
+                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <PlusIcon className="h-4 w-4 text-green-600" />
+                          <span>Add Life</span>
+                        </button>
+
+                        {/* Remove Life */}
+                        <button
+                          onClick={() => {
+                            setOpenDropdownId(null);
+                            handleLivesChange(player.id, 'subtract');
+                          }}
+                          disabled={savingLivesChanges || (player.lives_remaining || 0) <= 0}
+                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <MinusIcon className="h-4 w-4 text-red-600" />
+                          <span>Remove Life</span>
+                        </button>
+
+                        <div className="border-t border-slate-100 my-1" />
+
+                        {/* Toggle Payment */}
+                        <button
+                          onClick={() => {
+                            setOpenDropdownId(null);
+                            handlePaymentToggle(player.id, player.paid);
+                          }}
+                          disabled={updatingPayment.has(player.id)}
+                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50"
+                        >
+                          <CurrencyDollarIcon className="h-4 w-4" />
+                          <span>{player.paid ? 'Mark Unpaid' : 'Mark Paid'}</span>
+                        </button>
+
+                        {/* Toggle Status */}
+                        <button
+                          onClick={() => {
+                            setOpenDropdownId(null);
+                            handleStatusToggle(player.id, player.status || 'active');
+                          }}
+                          disabled={updatingStatus.has(player.id)}
+                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50"
+                        >
+                          <span className="h-4 w-4 flex items-center justify-center">
+                            {(player.status || 'active') === 'active' ? '✓' : '✗'}
+                          </span>
+                          <span>{(player.status || 'active') === 'active' ? 'Mark as OUT' : 'Mark as Active'}</span>
+                        </button>
+
+                        {/* Unhide - Only if hidden */}
+                        {player.hidden && (
+                          <>
+                            <div className="border-t border-slate-100 my-1" />
+                            <button
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                handleUnhidePlayer(player.id);
+                              }}
+                              disabled={unhidingPlayer.has(player.id)}
+                              className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50"
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                              <span>Unhide Player</span>
+                            </button>
+                          </>
                         )}
-                      </button>
-                    )}
-                  </div>
+
+                        {/* Remove Player */}
+                        {competition?.invite_code && (
+                          <>
+                            <div className="border-t border-slate-100 my-1" />
+                            <button
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                handleRemovePlayerClick(player.id, player.display_name);
+                              }}
+                              disabled={removing.has(player.id)}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 disabled:opacity-50"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                              <span>Remove Player</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
+              </div>
+
+              {/* Row 2: Email */}
+              <p className="text-sm text-slate-600 mb-2">{player.email || 'No email'}</p>
+
+              {/* Row 3: Status Badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Lives Badge */}
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium ${
+                  pendingLivesChanges.has(player.id)
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'bg-slate-100 text-slate-700'
+                }`}>
+                  {player.lives_remaining || 0} {(player.lives_remaining || 0) === 1 ? 'life' : 'lives'}
+                  {pendingLivesChanges.has(player.id) && <span className="ml-1">*</span>}
+                </span>
+
+                {/* Payment Badge */}
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium ${
+                  player.paid
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-orange-100 text-orange-700'
+                }`}>
+                  {player.paid ? '💷 Paid' : 'Unpaid'}
+                </span>
+
+                {/* Status Badge */}
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium ${
+                  (player.status || 'active') === 'active'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  {(player.status || 'active') === 'active' ? 'Active' : 'OUT'}
+                </span>
+
+                {/* Extra Badges */}
+                {player.is_managed && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium bg-slate-100 text-slate-600">
+                    Managed
+                  </span>
+                )}
+                {player.hidden && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium bg-red-100 text-red-700">
+                    Hidden
+                  </span>
+                )}
               </div>
             </div>
           ))}
