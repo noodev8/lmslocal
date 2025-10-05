@@ -13,6 +13,7 @@ function BillingPageContent() {
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'club' | 'venue'>('free');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   useEffect(() => {
     // Check if user returned from successful payment
@@ -23,9 +24,15 @@ function BillingPageContent() {
       // Payment was successful - invalidate cache to show fresh data
       cacheUtils.invalidateBilling();
 
+      // Show success banner
+      setShowSuccessBanner(true);
+
       // Clean up URL parameters
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
+
+      // Hide success banner after 5 seconds
+      setTimeout(() => setShowSuccessBanner(false), 5000);
     }
 
     const fetchSubscriptionData = async () => {
@@ -70,8 +77,8 @@ function BillingPageContent() {
 
   const planPrices = {
     free: 0,
-    club: 49,
-    venue: 149
+    club: 79,
+    venue: 179
   };
 
   // Helper function to get upgrade text (downgrades are disabled)
@@ -157,6 +164,25 @@ function BillingPageContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Success Banner */}
+        {showSuccessBanner && (
+          <div className="mb-6 bg-green-50 border-2 border-green-500 rounded-lg p-4 flex items-center justify-between animate-fade-in">
+            <div className="flex items-center">
+              <span className="text-2xl mr-3">✓</span>
+              <div>
+                <h3 className="font-semibold text-green-900">Payment Successful!</h3>
+                <p className="text-sm text-green-700">Your plan has been upgraded. Welcome aboard!</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSuccessBanner(false)}
+              className="text-green-600 hover:text-green-800 text-xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center mb-4">
@@ -198,7 +224,7 @@ function BillingPageContent() {
               <div className="text-right">
                 <div className="text-2xl font-bold text-slate-900">
                   £{subscription.plan === 'free' ? '0' :
-                     subscription.plan === 'club' ? '49' : '149'}
+                     subscription.plan === 'club' ? '79' : '179'}
                 </div>
                 <div className="text-sm text-slate-500">per year</div>
               </div>

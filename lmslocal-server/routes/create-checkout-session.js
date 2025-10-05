@@ -50,18 +50,16 @@ const Stripe = require('stripe');
 // Initialize Stripe with secret key from environment
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Plan pricing configuration - must match your Stripe product prices
+// Plan pricing configuration for dynamic Stripe checkout
 const PLAN_PRICING = {
   club: {
     yearly: {
-      price_id: 'price_club_yearly', // TODO: Replace with actual Stripe price ID
-      amount: 4900, // £49.00 in pence
+      amount: 7900, // £79.00 in pence
     }
   },
   venue: {
     yearly: {
-      price_id: 'price_venue_yearly', // TODO: Replace with actual Stripe price ID
-      amount: 14900, // £149.00 in pence
+      amount: 17900, // £179.00 in pence
     }
   }
 };

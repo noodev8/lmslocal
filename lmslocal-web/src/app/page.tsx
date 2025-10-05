@@ -5,44 +5,25 @@ import Link from 'next/link';
 import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, UserGroupIcon, StarIcon } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
-  const [isChecking, setIsChecking] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Redirect to dashboard if already logged in and token is valid
+  // Check if user is logged in (for showing Dashboard button)
   useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem('jwt_token');
-      const userData = localStorage.getItem('user');
+    const token = localStorage.getItem('jwt_token');
+    const userData = localStorage.getItem('user');
 
-      if (token && userData && userData !== 'undefined' && userData !== 'null') {
-        // Verify token is still valid by checking if we can parse user data
-        try {
-          JSON.parse(userData);
-          // Use window.location for immediate redirect instead of router.push
-          window.location.href = '/dashboard';
-          return;
-        } catch {
-          // Invalid user data, clear everything
-          localStorage.removeItem('jwt_token');
-          localStorage.removeItem('user');
-          setIsChecking(false);
-        }
-      } else {
-        // No valid auth, show landing page
-        setIsChecking(false);
+    if (token && userData && userData !== 'undefined' && userData !== 'null') {
+      try {
+        JSON.parse(userData);
+        setIsLoggedIn(true);
+      } catch {
+        // Invalid user data, clear everything
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('user');
+        setIsLoggedIn(false);
       }
-    };
-
-    checkAuth();
+    }
   }, []);
-
-  // Show loading spinner while checking auth status
-  if (isChecking) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-700"></div>
-      </div>
-    );
-  }
   const features = [
     {
       title: '5-Minute Setup',
@@ -90,12 +71,21 @@ export default function LandingPage() {
               >
                 Pricing
               </Link>
-              <Link
-                href="/login"
-                className="bg-slate-800 hover:bg-slate-900 text-white px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-              >
-                Sign In
-              </Link>
+              {isLoggedIn ? (
+                <Link
+                  href="/dashboard"
+                  className="bg-slate-800 hover:bg-slate-900 text-white px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="bg-slate-800 hover:bg-slate-900 text-white px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                >
+                  Sign In
+                </Link>
+              )}
             </div>
           </div>
         </div>

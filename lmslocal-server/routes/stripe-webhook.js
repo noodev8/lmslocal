@@ -73,8 +73,8 @@ async function processSuccessfulPayment(session) {
 
     // Calculate payment amount based on plan and cycle
     const planPricing = {
-      starter: { monthly: 29.00, yearly: 232.00 },
-      pro: { monthly: 79.00, yearly: 632.00 }
+      club: { yearly: 79.00 },
+      venue: { yearly: 179.00 }
     };
     const paidAmount = planPricing[plan]?.[billing_cycle] || 0;
 

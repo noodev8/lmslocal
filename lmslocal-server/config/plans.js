@@ -17,8 +17,8 @@ const PLAN_LIMITS = {
 // Plan pricing - annual pricing structure (£)
 const PLAN_PRICING = {
   free: 0,
-  club: 49,
-  venue: 149
+  club: 79,
+  venue: 179
 };
 
 module.exports = {
