@@ -452,7 +452,7 @@ export const roundApi = {
     api.post<{ return_code: string; message?: string; round?: Round }>('/create-round', { competition_id: parseInt(competition_id), lock_time }),
   getRounds: (competition_id: number) => withCache(
     `rounds-${competition_id}`,
-    30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
+    60 * 60 * 1000, // 1 hour cache - new round fixtures happen weekly
     () => api.post<{ return_code: string; message?: string; rounds?: Round[] }>('/get-rounds', { competition_id })
   ),
   update: (round_id: string, lock_time: string) => api.post<{ return_code: string; message: string }>('/update-round', { round_id: parseInt(round_id), lock_time }),
@@ -465,14 +465,14 @@ export const fixtureApi = {
     api.post<{ return_code: string; message: string }>('/add-fixtures-bulk', { round_id: parseInt(round_id), fixtures }),
   get: (round_id: string) => withCache(
     `fixtures-${round_id}`,
-    30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
+    60 * 60 * 1000, // 1 hour cache - new round fixtures happen weekly
     () => api.post<{ return_code: string; message?: string; fixtures?: Fixture[]; round_info?: { round_number: number; lock_time: string | null; is_locked: boolean; all_processed: boolean } }>('/get-fixtures', { round_id: parseInt(round_id) })
   ),
   setResult: (fixture_id: number, result: 'home_win' | 'away_win' | 'draw') =>
     api.post<{ return_code: string; message: string }>('/set-fixture-result', { fixture_id, result }),
   getCalculated: (round_id: number) => withCache(
     `calculated-fixtures-${round_id}`,
-    30 * 60 * 1000, // 30 minutes cache - new round fixtures happen weekly
+    60 * 60 * 1000, // 1 hour cache - new round fixtures happen weekly
     () => api.post<{ return_code: string; calculated_fixture_ids: number[] }>('/get-calculated-fixtures', { round_id })
   ),
   getPickCounts: (round_id: number) => api.post<{ return_code: string; pick_counts: Record<string, number> }>('/get-fixture-pick-count', { round_id }),

@@ -1,50 +1,67 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import {
   ArrowLeftIcon,
   ClockIcon,
   InformationCircleIcon,
   CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 import { useAppData } from '@/contexts/AppDataContext';
-import { roundApi } from '@/lib/api';
+import { roundApi, cacheUtils } from '@/lib/api';
 
 export default function WaitingForFixtures() {
   const params = useParams();
+  const router = useRouter();
   const competitionId = params.id as string;
-  
+
   // Use AppDataProvider context for competitions data
   const { competitions, loading: contextLoading } = useAppData();
-  
+
   // Find the specific competition
   const competition = competitions?.find(c => c.id.toString() === competitionId);
-  
+
   // State to determine the waiting scenario
   const [waitingReason, setWaitingReason] = useState<'loading' | 'no_rounds' | 'no_fixtures'>('loading');
-  
+
   useEffect(() => {
     const checkRoundsStatus = async () => {
       if (!competition) return;
-      
+
+      // Invalidate rounds cache to ensure fresh data on page load
+      cacheUtils.invalidateKey(`rounds-${competitionId}`);
+
       try {
         const response = await roundApi.getRounds(parseInt(competitionId));
-        
+
         if (response.data.return_code !== 'SUCCESS') {
           setWaitingReason('no_rounds'); // Default to no rounds on API failure
           return;
         }
-        
+
         const rounds = response.data.rounds || [];
-        
+
         if (rounds.length === 0) {
           setWaitingReason('no_rounds');
         } else {
           const latestRound = rounds[0];
           if (latestRound.fixture_count === 0) {
             setWaitingReason('no_fixtures');
+          } else {
+            // Fixtures now exist! Redirect to pick page (mimic Play button behavior)
+            const now = new Date();
+            const lockTime = new Date(latestRound.lock_time || '');
+            const isLocked = !!(latestRound.lock_time && now >= lockTime);
+
+            if (isLocked) {
+              // Round is locked - show results view
+              router.push(`/game/${competitionId}/player-results`);
+            } else {
+              // Round is unlocked - show pick screen
+              router.push(`/game/${competitionId}/pick`);
+            }
           }
         }
       } catch (error) {
@@ -52,11 +69,11 @@ export default function WaitingForFixtures() {
         setWaitingReason('no_rounds'); // Default to no rounds on error
       }
     };
-    
+
     if (competition) {
       checkRoundsStatus();
     }
-  }, [competition, competitionId]);
+  }, [competition, competitionId, router]);
   
   if (contextLoading || !competition) {
     return (

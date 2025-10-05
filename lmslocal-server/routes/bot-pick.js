@@ -3,12 +3,12 @@
 API Route: bot-pick
 =======================================================================================================================================
 Method: POST
-Purpose: Make random picks for bot players in current round with percentage control for testing pick scenarios
+Purpose: Make random picks for bot players in current round with count control for testing pick scenarios
 =======================================================================================================================================
 Request Payload:
 {
   "competition_id": 123,               // integer, required - competition database ID
-  "percentage": 75,                    // integer, required - percentage of bots to make picks (0-100)
+  "count": 15,                         // integer, required - number of bots to make picks (if exceeds remaining, all remaining bots pick)
   "bot_manage": "BOT_MAGIC_2025"       // string, required - bot management identifier
 }
 
@@ -48,7 +48,7 @@ const BOT_MANAGE = "BOT_MAGIC_2025";
 
 router.post('/', async (req, res) => {
   try {
-    const { competition_id, percentage, bot_manage } = req.body;
+    const { competition_id, count, bot_manage } = req.body;
 
     // STEP 1: Validate bot management identifier
     if (!bot_manage || bot_manage !== BOT_MANAGE) {
@@ -66,10 +66,10 @@ router.post('/', async (req, res) => {
       });
     }
 
-    if (!Number.isInteger(percentage) || percentage < 0 || percentage > 100) {
+    if (!Number.isInteger(count) || count < 0) {
       return res.json({
         return_code: "VALIDATION_ERROR",
-        message: "Percentage must be an integer between 0 and 100"
+        message: "Count must be a non-negative integer"
       });
     }
 
@@ -171,8 +171,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // STEP 6: Calculate how many bots should pick based on percentage
-    const botsToPickCount = Math.ceil((totalBots * percentage) / 100);
+    // STEP 6: Calculate how many bots should pick based on count (capped at total remaining)
+    const botsToPickCount = Math.min(count, totalBots);
     const botsToPickList = botsResult.rows.slice(0, botsToPickCount);
 
     // STEP 7: Make picks for selected bots
@@ -285,7 +285,7 @@ router.post('/', async (req, res) => {
       error: error.message,
       stack: error.stack?.substring(0, 500),
       competition_id: req.body?.competition_id,
-      percentage: req.body?.percentage,
+      count: req.body?.count,
       timestamp: new Date().toISOString()
     });
 
