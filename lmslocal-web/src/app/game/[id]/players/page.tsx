@@ -12,7 +12,8 @@ import {
   EyeIcon,
   ClipboardDocumentListIcon,
   CheckCircleIcon,
-  XMarkIcon
+  XMarkIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, roundApi, fixtureApi, teamApi, userApi, Competition, Player, Team, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -34,7 +35,6 @@ export default function CompetitionPlayersPage() {
   const [removing, setRemoving] = useState<Set<number>>(new Set());
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState<{ id: number; name: string } | null>(null);
-  const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [updatingPayment, setUpdatingPayment] = useState<Set<number>>(new Set());
 
   // Pagination state
@@ -42,6 +42,11 @@ export default function CompetitionPlayersPage() {
   const [pageSize] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPlayers, setTotalPlayers] = useState(0);
+
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const searchDebounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Lives management state - track pending changes before saving
   const [pendingLivesChanges, setPendingLivesChanges] = useState<Map<number, number>>(new Map());
@@ -117,13 +122,13 @@ export default function CompetitionPlayersPage() {
     };
   }, [competitionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadPlayers = useCallback(async (page: number = currentPage) => {
+  const loadPlayers = useCallback(async (page: number = currentPage, search: string = debouncedSearchTerm) => {
     if (abortControllerRef.current?.signal.aborted) return;
 
     setLoading(true);
     try {
-      // Use cached API call with pagination
-      const response = await competitionApi.getPlayers(competitionId, page, pageSize);
+      // Use cached API call with pagination and search
+      const response = await competitionApi.getPlayers(competitionId, page, pageSize, search || undefined);
       if (abortControllerRef.current?.signal.aborted) return;
 
       if (response.data.return_code === 'SUCCESS') {
@@ -152,7 +157,7 @@ export default function CompetitionPlayersPage() {
         setLoading(false);
       }
     }
-  }, [competitionId, currentPage, pageSize, router, competitions]);
+  }, [competitionId, currentPage, pageSize, debouncedSearchTerm, router, competitions]);
 
   // Load current round info to determine if "Set Pick" button should be shown
   const loadCurrentRound = useCallback(async () => {
@@ -191,6 +196,43 @@ export default function CompetitionPlayersPage() {
       loadCurrentRound();
     }
   }, [competitionId, loadCurrentRound]);
+
+  // Debounce search term (300ms delay)
+  useEffect(() => {
+    if (searchDebounceTimer.current) {
+      clearTimeout(searchDebounceTimer.current);
+    }
+
+    searchDebounceTimer.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset to page 1 when search changes
+    }, 300);
+
+    return () => {
+      if (searchDebounceTimer.current) {
+        clearTimeout(searchDebounceTimer.current);
+      }
+    };
+  }, [searchTerm]);
+
+  // Reload players when debounced search term changes
+  useEffect(() => {
+    if (competitionId) {
+      loadPlayers(1, debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Handle clear search
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setDebouncedSearchTerm('');
+    setCurrentPage(1);
+  };
 
   const handleRemovePlayerClick = (playerId: number, playerName: string) => {
     setPlayerToRemove({ id: playerId, name: playerName });
@@ -573,13 +615,6 @@ export default function CompetitionPlayersPage() {
     setSettingPick(false);
   };
 
-  // Filter players based on payment status
-  const filteredPlayers = players.filter(player => {
-    if (paymentFilter === 'paid') return player.paid;
-    if (paymentFilter === 'unpaid') return !player.paid;
-    return true; // 'all'
-  });
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -594,8 +629,8 @@ export default function CompetitionPlayersPage() {
     );
   }
 
-  const activePlayers = filteredPlayers.filter(p => p.status === 'active');
-  
+  const activePlayers = players.filter(p => p.status === 'active');
+
   // Payment summary
   const paidCount = players.filter(p => p.paid).length;
 
@@ -642,56 +677,57 @@ export default function CompetitionPlayersPage() {
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          {/* Access Code */}
-          {competition?.access_code && (
-            <div className="flex items-center space-x-3">
-              <span className="text-sm text-slate-600">Join code:</span>
-              <code className="px-2 py-1 bg-slate-100 text-slate-900 rounded font-mono text-sm font-medium">{competition.access_code}</code>
-              <button
-                onClick={() => navigator.clipboard.writeText(competition.access_code!)}
-                className="text-xs text-slate-500 hover:text-slate-700 underline"
-              >
-                copy
-              </button>
-            </div>
-          )}
+        {/* Set Pick Feature Info Banner */}
+        {currentRoundId && hasFixtures && !roundIsLocked && (
+          <div className="mb-4 bg-blue-50 border-l-4 border-blue-400 px-3 py-2">
+            <p className="text-sm text-blue-800">
+              <ClipboardDocumentListIcon className="inline h-4 w-4 mr-1" /> Click icon to set player picks for Round {currentRoundNumber}
+            </p>
+          </div>
+        )}
 
-          {/* Filter Buttons */}
-          <div className="flex space-x-2">
+        {/* Search Box */}
+        <div className="mb-6">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              placeholder="Search players by name or email..."
+              className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {searchTerm && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+          {debouncedSearchTerm && (
+            <p className="mt-2 text-sm text-slate-600">
+              Showing {totalPlayers} result{totalPlayers !== 1 ? 's' : ''} for &quot;{debouncedSearchTerm}&quot;
+            </p>
+          )}
+        </div>
+
+        {/* Access Code */}
+        {competition?.access_code && (
+          <div className="flex items-center space-x-3 mb-6">
+            <span className="text-sm text-slate-600">Join code:</span>
+            <code className="px-2 py-1 bg-slate-100 text-slate-900 rounded font-mono text-sm font-medium">{competition.access_code}</code>
             <button
-              onClick={() => setPaymentFilter('all')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                paymentFilter === 'all'
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              onClick={() => navigator.clipboard.writeText(competition.access_code!)}
+              className="text-xs text-slate-500 hover:text-slate-700 underline"
             >
-              All
-            </button>
-            <button
-              onClick={() => setPaymentFilter('paid')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                paymentFilter === 'paid'
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Paid
-            </button>
-            <button
-              onClick={() => setPaymentFilter('unpaid')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                paymentFilter === 'unpaid'
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Unpaid
+              copy
             </button>
           </div>
-        </div>
+        )}
 
         {/* Lives Changes Save/Cancel Bar - Show when there are pending changes */}
         {pendingLivesChanges.size > 0 && (
@@ -735,7 +771,7 @@ export default function CompetitionPlayersPage() {
 
         {/* Players List - Simplified */}
         <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
-          {filteredPlayers.map((player) => (
+          {players.map((player) => (
             <div key={player.id} className={`p-4 hover:bg-slate-50 transition-colors ${
               player.hidden ? 'bg-red-50 border-l-4 border-red-200' : ''
             }`}>
