@@ -23,7 +23,8 @@ export default function robots(): MetadataRoute.Robots {
           '/game/*',
           '/api/*',
           '/_next/*',
-          '/admin/*'
+          '/admin/*',
+          '/admin-fixtures'
         ],
       },
     ],

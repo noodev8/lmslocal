@@ -103,6 +103,7 @@ const updateEmailPreferencesBatchRoute = require('./routes/update-email-preferen
 // Admin Routes
 const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
 const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-competitions');
+const adminAddFixturesRoute = require('./routes/admin-add-fixtures');
 
 // Bot Routes
 const botJoinRoute = require('./routes/bot-join');
@@ -290,6 +291,7 @@ app.use('/update-email-preferences-batch', updateEmailPreferencesBatchRoute);
 // Admin API Routes
 app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
 app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
+app.use('/admin-add-fixtures', adminAddFixturesRoute);
 
 // Bot API Routes (no rate limiting for testing)
 app.use('/bot-join', botJoinRoute);
