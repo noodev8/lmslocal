@@ -22,9 +22,10 @@ Purpose: Provides reusable functions for pushing fixtures from fixture_load tabl
 async function pushFixturesToCompetitions(client) {
   // Step 1: Find all competitions that need fixtures
   const allCompetitionsResult = await client.query(`
-    SELECT id, name, team_list_id, status
+    SELECT id, name, team_list_id, status, earliest_start_date
     FROM competition
     WHERE fixture_service = true
+    AND (earliest_start_date IS NULL OR earliest_start_date <= NOW())
   `);
 
   if (allCompetitionsResult.rows.length === 0) {
@@ -106,37 +107,28 @@ async function pushFixturesToCompetitions(client) {
     };
   }
 
-  // Find earliest available gameweek (gameweek > 0, kickoff >= NOW() + 6 days)
-  const currentGameweekResult = await client.query(`
-    SELECT MIN(gameweek) as current_gameweek
+  // Get all available fixtures (gameweek > 0) - we'll filter per competition based on earliest_start_date
+  const allAvailableFixturesResult = await client.query(`
+    SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time, gameweek
     FROM fixture_load
     WHERE gameweek > 0
-    AND kickoff_time >= NOW() + INTERVAL '6 days'
+    ORDER BY gameweek, kickoff_time
   `);
 
-  const currentGameweek = currentGameweekResult.rows[0]?.current_gameweek;
+  const allAvailableFixtures = allAvailableFixturesResult.rows;
 
-  if (!currentGameweek) {
+  if (allAvailableFixtures.length === 0) {
     throw new Error('NO_ACTIVE_FIXTURES');
   }
 
-  // Get all fixtures for this gameweek
-  const gameweekFixturesResult = await client.query(`
-    SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time, gameweek
-    FROM fixture_load
-    WHERE gameweek = $1
-    ORDER BY kickoff_time
-  `, [currentGameweek]);
-
-  const gameweekFixtures = gameweekFixturesResult.rows;
-
-  // Group fixtures by team_list_id for processing
-  const fixturesByTeamList = {};
-  gameweekFixtures.forEach(fixture => {
-    if (!fixturesByTeamList[fixture.team_list_id]) {
-      fixturesByTeamList[fixture.team_list_id] = [];
+  // Group fixtures by team_list_id and gameweek for processing
+  const fixturesByTeamListAndGameweek = {};
+  allAvailableFixtures.forEach(fixture => {
+    const key = `${fixture.team_list_id}_${fixture.gameweek}`;
+    if (!fixturesByTeamListAndGameweek[key]) {
+      fixturesByTeamListAndGameweek[key] = [];
     }
-    fixturesByTeamList[fixture.team_list_id].push(fixture);
+    fixturesByTeamListAndGameweek[key].push(fixture);
   });
 
   // Step 3: Push fixtures to each competition that needs them
@@ -151,16 +143,43 @@ async function pushFixturesToCompetitions(client) {
     const teamListId = competition.team_list_id;
     const needsNewRound = competition.needs_new_round;
     const currentRoundNumber = competition.round_number;
+    const earliestStartDate = competition.earliest_start_date;
 
-    // Get fixtures for this competition's team_list_id
-    const fixturesToPush = fixturesByTeamList[teamListId];
+    // Find earliest gameweek for this competition where kickoff >= earliest_start_date (or NOW() if null)
+    const cutoffDate = earliestStartDate ? new Date(earliestStartDate) : new Date();
+
+    let earliestGameweek = null;
+    let fixturesToPush = null;
+
+    // Find the earliest gameweek with all fixtures >= cutoff date
+    const gameweeksForTeamList = Object.keys(fixturesByTeamListAndGameweek)
+      .filter(key => key.startsWith(`${teamListId}_`))
+      .map(key => parseInt(key.split('_')[1]))
+      .sort((a, b) => a - b);
+
+    for (const gameweek of gameweeksForTeamList) {
+      const key = `${teamListId}_${gameweek}`;
+      const fixtures = fixturesByTeamListAndGameweek[key];
+
+      // Check if earliest kickoff in this gameweek is >= cutoff date
+      const earliestKickoff = fixtures.reduce((earliest, fixture) => {
+        const kickoffDate = new Date(fixture.kickoff_time);
+        return !earliest || kickoffDate < earliest ? kickoffDate : earliest;
+      }, null);
+
+      if (earliestKickoff >= cutoffDate) {
+        earliestGameweek = gameweek;
+        fixturesToPush = fixtures;
+        break;
+      }
+    }
 
     if (!fixturesToPush || fixturesToPush.length === 0) {
       competitionDetails.push({
         competition_id: compId,
         competition_name: competitionName,
         status: 'skipped',
-        reason: `No fixtures available for team list ${teamListId} in gameweek ${currentGameweek}`
+        reason: `No fixtures available for team list ${teamListId} with kickoff >= ${cutoffDate.toISOString()}`
       });
       totalCompetitionsSkipped++;
       continue;
@@ -318,7 +337,7 @@ async function pushFixturesToCompetitions(client) {
       VALUES ($1, NULL, 'Fixtures Pushed', $2)
     `, [
       compId,
-      `Fixture service ${roundAction} Round ${targetRoundNumber} with ${fixturesToPush.length} fixtures from gameweek ${currentGameweek}`
+      `Fixture service ${roundAction} Round ${targetRoundNumber} with ${fixturesToPush.length} fixtures from gameweek ${earliestGameweek}`
     ]);
 
     // Mark this competition as updated

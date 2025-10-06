@@ -5,7 +5,7 @@
 -- Dumped from database version 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 17.4
 
--- Started on 2025-10-06 18:35:35
+-- Started on 2025-10-06 22:10:16
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -192,7 +192,8 @@ CREATE TABLE public.competition (
     postcode character varying(20),
     phone character varying(20),
     email character varying(255),
-    fixture_service boolean DEFAULT false
+    fixture_service boolean DEFAULT false,
+    earliest_start_date timestamp with time zone
 );
 
 
@@ -745,7 +746,7 @@ CREATE TABLE public.fixture_load (
     home_score integer,
     away_score integer,
     results_pushed boolean DEFAULT false,
-    results_pushed_at timestamp without time zone,
+    results_pushed_at timestamp with time zone,
     gameweek integer DEFAULT 0 NOT NULL
 );
 
@@ -2207,7 +2208,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO lmslocal_prod_user;
 
 
--- Completed on 2025-10-06 18:35:37
+-- Completed on 2025-10-06 22:10:18
 
 --
 -- PostgreSQL database dump complete

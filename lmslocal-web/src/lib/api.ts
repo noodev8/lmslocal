@@ -299,6 +299,7 @@ export interface CreateCompetitionRequest {
   lives_per_player: number;
   no_team_twice: boolean;
   organiser_joins_as_player: boolean;
+  start_delay_days?: number;
 }
 
 export interface UpdateCompetitionRequest {

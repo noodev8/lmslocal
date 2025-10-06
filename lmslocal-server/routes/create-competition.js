@@ -20,7 +20,8 @@ Request Payload:
   "team_list_id": 1,                           // integer, required - ID of team list to use
   "lives_per_player": 1,                       // integer, optional - Number of lives per player (default: 1)
   "no_team_twice": true,                       // boolean, optional - Prevent team reuse (default: true)
-  "organiser_joins_as_player": true            // boolean, optional - Add organiser as player (default: false)
+  "organiser_joins_as_player": true,           // boolean, optional - Add organiser as player (default: false)
+  "start_delay_days": 7                        // integer, optional - Days to delay start (0, 7, 14, 21; default: 7)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -62,7 +63,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player } = req.body;
+    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, start_delay_days } = req.body;
     const organiser_id = req.user.id;
 
     // Basic validation
@@ -139,6 +140,20 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Validate start_delay_days if provided
+    const validDelays = [0, 7, 14, 21];
+    const delayDays = start_delay_days !== undefined ? Number(start_delay_days) : 7;
+    if (!validDelays.includes(delayDays)) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Start delay must be 0, 7, 14, or 21 days"
+      });
+    }
+
+    // Calculate earliest_start_date based on delay
+    const earliestStartDate = new Date();
+    earliestStartDate.setDate(earliestStartDate.getDate() + delayDays);
+
     // Execute all operations in a single atomic transaction
     const result = await transaction(async (client) => {
 
@@ -199,9 +214,11 @@ router.post('/', verifyToken, async (req, res) => {
           no_team_twice,
           organiser_id,
           invite_code,
+          earliest_start_date,
+          fixture_service,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'SETUP', $12, $13, $14, $15, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'SETUP', $12, $13, $14, $15, $16, true, CURRENT_TIMESTAMP)
         RETURNING *
       `, [
         name.trim(),
@@ -218,7 +235,8 @@ router.post('/', verifyToken, async (req, res) => {
         lives_per_player || 1,
         no_team_twice !== false, // Default to true
         organiser_id,
-        inviteCode
+        inviteCode,
+        earliestStartDate
       ]);
 
       const competition = competitionResult.rows[0];
@@ -288,6 +306,18 @@ router.post('/', verifyToken, async (req, res) => {
         organiser_id,
         `Created competition "${competition.name}" with ${competition.lives_per_player} lives per player, joined ${participationStatus}`
       ]);
+
+      // 7. Push fixtures immediately using fixture service
+      const { pushFixturesToCompetitions } = require('../services/fixtureService');
+      try {
+        await pushFixturesToCompetitions(client);
+      } catch (error) {
+        // If no fixtures available, that's fine - cron will handle later
+        if (error.message !== 'NO_ACTIVE_FIXTURES' && error.message !== 'NO_SUBSCRIBED_COMPETITIONS') {
+          throw error; // Re-throw unexpected errors
+        }
+        // Otherwise silently continue - competition created without fixtures
+      }
 
       // Return competition data for response
       return {
