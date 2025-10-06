@@ -213,13 +213,20 @@ lmslocal-web/
 
 ### Admin Controls
 - **Competition Management**: Create competitions with custom access codes or slugs
-- **Override Powers**: Full ability to modify fixtures, results, and player status
-- **Round Management**: Competition-level locking (round-level locking was removed)
+- **Player Management**: Full ability to modify player status, lives, and participation
+- **Fixture/Result Management**: Automated via backend fixture service (manual UI disabled)
+
+### Fixture & Result Management (Backend Only)
+- **Fixture Service**: Automated system using `fixture_load` staging table
+- **Push APIs**: `/admin/push-fixtures-to-competitions` and `/admin/push-results-to-competitions`
+- **Authentication**: BOT_MAGIC_2025 hardcoded auth for cron/ad-hoc execution
+- **Manual UI**: Disabled - fixtures/results managed via backend APIs only
+- **Disabled Routes**: create-round, add-fixtures-bulk, submit-results, update-round, reset-fixtures, set-fixture-result, get-calculated-fixtures, organiser-mid-round-submit-tip (all preserved with `.delete` extension)
 
 ### Technical Implementation
 - **Authentication**: Dual authentication system for admins (full login) and players (magic link)
 - **Access Methods**: Players join via competition slug or access code
-- **Data Flow**: PostgreSQL backend with real-time fixture and result management
+- **Data Flow**: PostgreSQL backend with automated fixture/result distribution
 
 ## Database Schema Reference
 

@@ -3,7 +3,7 @@
 API Route: push-results-to-competitions
 =======================================================================================================================================
 Method: POST
-Purpose: Admin-only route that pushes results from fixture_load to competition fixtures and automatically processes them.
+Purpose: Pushes results from fixture_load to competition fixtures and automatically processes them (cron/ad-hoc execution).
          1. Updates fixture.result field with winning team short name or "DRAW"
          2. Only updates fixtures in competitions where fixture_service = true
          3. Automatically processes results (eliminations, no-picks, competition completion)
@@ -11,7 +11,7 @@ Purpose: Admin-only route that pushes results from fixture_load to competition f
 =======================================================================================================================================
 Request Payload:
 {
-  // No parameters required - processes all unpushed results from fixture_load
+  "bot_manage": "BOT_MAGIC_2025"       // string, required - bot management identifier
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -51,42 +51,49 @@ Return Codes:
 
 const express = require('express');
 const { transaction } = require('../../database');       // Destructured database import from central pooling (using transaction for atomicity)
-const { verifyToken, requireAdmin } = require('../../middleware/auth');  // JWT authentication middleware
 const { logApiCall } = require('../../utils/apiLogger');  // API logging utility
 const router = express.Router();
 
-// POST endpoint - requires JWT authentication and admin privileges
-router.post('/', verifyToken, requireAdmin, async (req, res) => {
+// Bot management identifier for testing endpoints
+const BOT_MANAGE = "BOT_MAGIC_2025";
+
+router.post('/', async (req, res) => {
   // Log this API call for monitoring and debugging
   logApiCall('push-results-to-competitions');
 
   try {
+    const { bot_manage } = req.body;
+
+    // STEP 1: Validate bot management identifier
+    if (!bot_manage || bot_manage !== BOT_MANAGE) {
+      return res.json({
+        return_code: "UNAUTHORIZED",
+        message: "Invalid bot management identifier"
+      });
+    }
+
     // Execute all operations in a single atomic transaction
     // This ensures either ALL changes succeed or ALL are rolled back
     const result = await transaction(async (client) => {
 
-      // === STEP 1: GET UNPUSHED RESULTS FROM FIXTURE_LOAD ===
-      // Find all results that are ready to push to competitions
-      // Criteria:
-      // 1. fixtures_pushed = true (fixtures have already been pushed to competitions)
-      // 2. results_pushed = false (results have NOT been pushed yet)
-      // 3. home_score IS NOT NULL (result data is available)
-      // 4. away_score IS NOT NULL (result data is available)
+      // === STEP 1: GET ALL UNPUSHED RESULTS ===
+      // Get all results that haven't been pushed yet
+      // The gameweek field in each result will be used to match fixtures correctly
       const unpushedResults = await client.query(`
         SELECT
           fixture_id,
           home_team_short,
           away_team_short,
           home_score,
-          away_score
+          away_score,
+          gameweek
         FROM fixture_load
-        WHERE fixtures_pushed = true
+        WHERE gameweek > 0
         AND results_pushed = false
         AND home_score IS NOT NULL
         AND away_score IS NOT NULL
       `);
 
-      // If no results to push, return early with specific message
       if (unpushedResults.rows.length === 0) {
         throw new Error('NO_RESULTS_TO_PUSH');
       }
@@ -100,6 +107,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       // Match criteria:
       // - home_team_short matches
       // - away_team_short matches
+      // - gameweek matches (critical to avoid applying results to wrong round)
       // - result IS NULL (NEVER override existing results)
       //
       // Result value logic:
@@ -124,6 +132,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
         // Only updates fixtures where:
         // - Competition has fixture_service = true (subscribed to service)
         // - Teams match (home_team_short and away_team_short)
+        // - Gameweek matches (prevents applying results to wrong fixtures)
         // - result IS NULL (NEVER override existing results)
         // RETURNING clause gives us the competition_ids that were affected
         const fixtureUpdateResult = await client.query(`
@@ -134,9 +143,10 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
           AND c.fixture_service = true
           AND f.home_team_short = $2
           AND f.away_team_short = $3
+          AND f.gameweek = $4
           AND f.result IS NULL
           RETURNING f.competition_id
-        `, [resultValue, resultData.home_team_short, resultData.away_team_short]);
+        `, [resultValue, resultData.home_team_short, resultData.away_team_short, resultData.gameweek]);
 
         // Track how many fixtures were updated
         totalFixturesUpdated += fixtureUpdateResult.rowCount || 0;
@@ -154,7 +164,7 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
       const markPushedResult = await client.query(`
         UPDATE fixture_load
         SET results_pushed = true, results_pushed_at = NOW()
-        WHERE fixtures_pushed = true
+        WHERE gameweek > 0
         AND results_pushed = false
         AND home_score IS NOT NULL
         AND away_score IS NOT NULL

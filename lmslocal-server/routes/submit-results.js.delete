@@ -1,4 +1,9 @@
 /*
+DISABLED: Manual fixture management - now managed via backend fixture service (push-fixtures-to-competitions and push-results-to-competitions APIs)
+This entire API has been disabled. To re-enable: uncomment this entire file and restore route registration in server.js
+
+=========== ORIGINAL CODE BELOW (COMMENTED OUT) ===========
+/*
 =======================================================================================================================================
 API Route: submit-results
 =======================================================================================================================================
@@ -388,3 +393,8 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 module.exports = router;
+=========== END OF ORIGINAL CODE ===========
+*/
+
+// Placeholder export to prevent require() errors
+module.exports = { disabled: true, message: 'This route has been disabled - manual fixture management replaced by automated fixture service' };

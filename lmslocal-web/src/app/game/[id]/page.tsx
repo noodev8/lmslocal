@@ -9,7 +9,6 @@ import {
   ArrowLeftIcon,
   UserGroupIcon,
   Cog6ToothIcon,
-  CalendarDaysIcon,
   PlayIcon,
   UserIcon,
   MegaphoneIcon
@@ -47,7 +46,8 @@ export default function UnifiedGameDashboard() {
     total_active_players: number;
     pick_percentage: number;
   } | null>(null);
-  const [needsFixtures, setNeedsFixtures] = useState(false);
+  // DISABLED: Organiser fixture highlighting logic - may re-enable in future
+  // const [needsFixtures, setNeedsFixtures] = useState(false);
 
   // Toast notifications
   const { toasts, showToast, removeToast } = useToast();
@@ -172,32 +172,34 @@ export default function UnifiedGameDashboard() {
     }
   };
 
+  // DISABLED: Manual fixture management - fixtures now managed via backend fixture service
+  /*
   // Handle fixtures button click - check for rounds and fixtures before routing
   const handleFixturesClick = async () => {
     try {
       const response = await roundApi.getRounds(parseInt(competitionId));
-      
+
       if (response.data.return_code !== 'SUCCESS') {
         console.error('Failed to fetch rounds:', response.data.message);
         // If API fails, go to fixtures screen to handle creation
         router.push(`/game/${competitionId}/fixtures`);
         return;
       }
-      
+
       const rounds = response.data.rounds || [];
-      
+
       // Check if no rounds exist OR if the latest round has no fixtures
       if (rounds.length === 0 || rounds[0].fixture_count === 0) {
         router.push(`/game/${competitionId}/fixtures`);
         return;
       }
-      
+
       // Round has fixtures - check if it's locked
       const latestRound = rounds[0];
       const now = new Date();
       const lockTime = new Date(latestRound.lock_time || '');
       const isLocked = latestRound.lock_time && now >= lockTime;
-      
+
       if (isLocked) {
         // Round is locked - go to results screen
         router.push(`/game/${competitionId}/results`);
@@ -205,13 +207,14 @@ export default function UnifiedGameDashboard() {
         // Round is not locked yet - go to fixtures screen
         router.push(`/game/${competitionId}/fixtures`);
       }
-      
+
     } catch (error) {
       console.error('Error checking rounds for fixtures:', error);
       // On error, fallback to fixtures screen
       router.push(`/game/${competitionId}/fixtures`);
     }
   };
+  */
 
   // Handle adding guest players
   const handleAddOfflinePlayer = async () => {
@@ -283,12 +286,14 @@ export default function UnifiedGameDashboard() {
                   status: latestRound.status
                 });
 
+                // DISABLED: Organiser fixture highlighting logic - may re-enable in future
                 // Check if this is a new competition needing fixtures
-                setNeedsFixtures(latestRound.fixture_count === 0 && latestRound.round_number === 1);
+                // setNeedsFixtures(latestRound.fixture_count === 0 && latestRound.round_number === 1);
               } else {
                 setCurrentRoundInfo(null);
+                // DISABLED: Organiser fixture highlighting logic - may re-enable in future
                 // No rounds at all - definitely needs fixtures
-                setNeedsFixtures(true);
+                // setNeedsFixtures(true);
               }
             }
             setLoadingRound(false);
@@ -816,7 +821,7 @@ export default function UnifiedGameDashboard() {
 
 {/* Action Buttons - Refined design */}
         {isOrganiser ? (
-          <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-5'}`}>
+          <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
             {/* Play button - only show if organizer is also a participant */}
             {isParticipant && (
               <button
@@ -832,48 +837,29 @@ export default function UnifiedGameDashboard() {
                     }`} />
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-semibold text-gray-900">
-                      {currentRoundInfo?.is_locked ? 'Results' : 'Make Pick'}
-                    </div>
-                    {currentRoundInfo?.is_locked ? (
-                      <div className="text-xs text-gray-500">See results</div>
-                    ) : competition.needs_pick ? (
-                      <div className="text-xs text-red-600 font-medium">Now!</div>
-                    ) : (
-                      <div className="text-xs text-gray-500">Make your picks</div>
-                    )}
+                    <div className="text-sm font-semibold text-gray-900">Play</div>
+                    <div className="text-xs text-gray-500">View game</div>
                   </div>
                 </div>
               </button>
             )}
 
+            {/* DISABLED: Manual fixture management - fixtures now managed via backend fixture service
             <button
               onClick={handleFixturesClick}
-              className={`group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all relative ${
-                needsFixtures ? 'ring-2 ring-blue-100' : ''
-              }`}
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all relative"
             >
-              {needsFixtures && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
-              )}
               <div className="flex flex-col items-center space-y-2">
-                <div className={`p-2 rounded-lg ${
-                  needsFixtures ? 'bg-blue-50 group-hover:bg-blue-100' : 'bg-gray-50 group-hover:bg-gray-100'
-                }`}>
-                  <CalendarDaysIcon className={`h-5 w-5 ${
-                    needsFixtures ? 'text-blue-600' : 'text-gray-600'
-                  }`} />
+                <div className="p-2 rounded-lg bg-gray-50 group-hover:bg-gray-100">
+                  <CalendarDaysIcon className="h-5 w-5 text-gray-600" />
                 </div>
                 <div className="text-center">
                   <div className="text-sm font-semibold text-gray-900">Fixtures</div>
-                  {needsFixtures ? (
-                    <div className="text-xs text-blue-600 font-medium">Set up now</div>
-                  ) : (
-                    <div className="text-xs text-gray-500">Manage rounds</div>
-                  )}
+                  <div className="text-xs text-gray-500">Manage rounds</div>
                 </div>
               </div>
             </button>
+            */}
 
             <Link
               href={`/game/${competitionId}/standings`}
@@ -950,16 +936,8 @@ export default function UnifiedGameDashboard() {
                   }`} />
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">
-                    {currentRoundInfo?.is_locked ? 'Results' : 'Make Pick'}
-                  </div>
-                  {currentRoundInfo?.is_locked ? (
-                    <div className="text-xs text-gray-500">See results</div>
-                  ) : competition.needs_pick ? (
-                    <div className="text-xs text-red-600 font-medium">Round {currentRoundInfo?.round_number || 'Next'}</div>
-                  ) : (
-                    <div className="text-xs text-gray-500">Make your picks</div>
-                  )}
+                  <div className="text-sm font-semibold text-gray-900">Play</div>
+                  <div className="text-xs text-gray-500">View game</div>
                 </div>
               </div>
             </button>

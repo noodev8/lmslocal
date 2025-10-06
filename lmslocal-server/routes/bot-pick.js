@@ -239,11 +239,11 @@ router.post('/', async (req, res) => {
 
           // Insert pick (using same logic as set-pick)
           await client.query(`
-            INSERT INTO pick (round_id, user_id, team, fixture_id, created_at)
-            VALUES ($1, $2, $3, $4, NOW())
+            INSERT INTO pick (round_id, user_id, team, fixture_id, competition_id, round_number, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, NOW())
             ON CONFLICT (round_id, user_id)
-            DO UPDATE SET team = $3, fixture_id = $4, created_at = NOW()
-          `, [round.round_id, bot.user_id, randomTeamChoice.team, randomFixture.fixture_id]);
+            DO UPDATE SET team = $3, fixture_id = $4, competition_id = $5, round_number = $6, created_at = NOW()
+          `, [round.round_id, bot.user_id, randomTeamChoice.team, randomFixture.fixture_id, competition_id, round.round_number]);
 
           // Remove picked team from allowed_teams if no_team_twice is enabled
           if (round.no_team_twice) {

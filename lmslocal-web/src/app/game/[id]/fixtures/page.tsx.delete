@@ -1,0 +1,565 @@
+/*
+DISABLED: Manual fixture management - fixtures now managed via backend fixture service (fixture_load table + push-fixtures-to-competitions API)
+This entire page has been disabled. Fixtures are now loaded via the automated fixture service.
+To re-enable: uncomment this entire file
+
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
+import {
+  ArrowLeftIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  XMarkIcon,
+  ChartBarIcon,
+  TrashIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
+import { roundApi, fixtureApi, teamApi, Team, cacheUtils } from '@/lib/api';
+import { useAppData } from '@/contexts/AppDataContext';
+import { useToast, ToastContainer } from '@/components/Toast';
+
+interface Round {
+  id: number;
+  round_number: number;
+  lock_time?: string;
+  status?: string;
+  fixture_count?: number;
+}
+
+interface PendingFixture {
+  home_team: string;        // Full team name for display
+  away_team: string;        // Full team name for display
+  home_team_short: string;  // Short name for API calls
+  away_team_short: string;  // Short name for API calls
+}
+
+interface TeamSelection {
+  home_team: { name: string; short_name: string } | null;
+  away_team: { name: string; short_name: string } | null;
+}
+
+export default function FixturesPage() {
+  const router = useRouter();
+  const params = useParams();
+  const competitionId = params.id as string;
+
+  // Use AppDataProvider context for competitions data
+  const { competitions, loading: contextLoading } = useAppData();
+
+  // Find the specific competition
+  const competition = competitions?.find(c => c.id.toString() === competitionId);
+
+  // Toast notifications
+  const { toasts, showToast, removeToast } = useToast();
+
+  const [currentRound, setCurrentRound] = useState<Round | null>(null);
+  const [isFirstRound, setIsFirstRound] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showCreateRoundModal, setShowCreateRoundModal] = useState(false);
+  const [newRoundLockTime, setNewRoundLockTime] = useState('');
+  const [showEditLockTimeModal, setShowEditLockTimeModal] = useState(false);
+  const [editedLockTime, setEditedLockTime] = useState('');
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResettingFixtures, setIsResettingFixtures] = useState(false);
+  const [showExtendTimeModal, setShowExtendTimeModal] = useState(false);
+  const [extendingRound, setExtendingRound] = useState(false);
+  const [extendedRound, setExtendedRound] = useState<Round | null>(null);
+
+  // Fixture creation state
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [pendingFixtures, setPendingFixtures] = useState<PendingFixture[]>([]);
+  const [currentSelection, setCurrentSelection] = useState<TeamSelection>({
+    home_team: null,
+    away_team: null
+  });
+  const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
+  const [isSavingFixtures, setIsSavingFixtures] = useState(false);
+
+  const hasInitialized = useRef(false);
+
+  const getNextFriday6PM = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 5 = Friday
+    const daysUntilFriday = dayOfWeek <= 5 ? (5 - dayOfWeek) : (7 - dayOfWeek + 5);
+
+    const nextFriday = new Date(now);
+    nextFriday.setDate(now.getDate() + daysUntilFriday);
+    nextFriday.setHours(18, 0, 0, 0); // 6:00 PM
+
+    return nextFriday.toISOString();
+  };
+
+  const handleExtendRoundTime = useCallback(async (round: Round) => {
+    setExtendingRound(true);
+
+    try {
+      // Calculate new lock time (next Friday 6PM - guaranteed future)
+      const getNextFriday6PM = () => {
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 5 = Friday
+
+        let daysUntilFriday;
+        if (dayOfWeek < 5) {
+          // Before Friday - use this week's Friday
+          daysUntilFriday = 5 - dayOfWeek;
+        } else if (dayOfWeek === 5) {
+          // It's Friday - check if it's already past 6 PM
+          if (now.getHours() >= 18) {
+            // Past 6 PM on Friday - use NEXT Friday (7 days)
+            daysUntilFriday = 7;
+          } else {
+            // Before 6 PM on Friday - use today
+            daysUntilFriday = 0;
+          }
+        } else {
+          // Weekend (Saturday/Sunday) - use next Friday
+          daysUntilFriday = 5 + (7 - dayOfWeek);
+        }
+
+        const nextFriday = new Date(now);
+        nextFriday.setDate(now.getDate() + daysUntilFriday);
+        nextFriday.setHours(18, 0, 0, 0); // 6:00 PM
+
+        return nextFriday.toISOString();
+      };
+
+      const newLockTime = getNextFriday6PM();
+
+      const response = await roundApi.update(round.id.toString(), newLockTime);
+
+      if (response.data.return_code === 'SUCCESS') {
+        // Clear cache and proceed to fixture creation
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+
+        // Update the round with new lock time and proceed
+        const extendedRound = { ...round, lock_time: newLockTime };
+        setCurrentRound(extendedRound);
+        await loadFixtures(round.id);
+        await loadTeams();
+
+        // Keep modal open until user clicks continue
+      } else {
+        console.error('Failed to extend round time:', response.data.message);
+        alert('Failed to extend round time: ' + response.data.message);
+        setShowExtendTimeModal(false);
+      }
+    } catch (error) {
+      console.error('Error extending round time:', error);
+      alert('Failed to extend round time');
+      setShowExtendTimeModal(false);
+    } finally {
+      setExtendingRound(false);
+    }
+  }, [competitionId]);
+
+  useEffect(() => {
+    // Prevent double execution from React Strict Mode
+    if (hasInitialized.current) {
+      return;
+    }
+
+    // Check authentication
+    const token = localStorage.getItem('jwt_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    const initializeData = async () => {
+      if (!competition || contextLoading) return;
+
+      try {
+        hasInitialized.current = true;
+
+        // Check rounds status
+        const response = await roundApi.getRounds(parseInt(competitionId));
+
+        if (response.data.return_code !== 'SUCCESS') {
+          console.error('Failed to get rounds:', response.data.message);
+          setShowCreateRoundModal(true);
+          const defaultTime = getNextFriday6PM().slice(0, 16);
+          setNewRoundLockTime(defaultTime);
+          setLoading(false);
+          return;
+        }
+
+        const rounds = response.data.rounds || [];
+
+        if (rounds.length === 0) {
+          // No rounds at all - show create round modal and mark as first round
+          setIsFirstRound(true);
+          setShowCreateRoundModal(true);
+          const defaultTime = getNextFriday6PM().slice(0, 16);
+          setNewRoundLockTime(defaultTime);
+        } else {
+          // Check if this is round 1 (first round with fixtures)
+          setIsFirstRound(rounds.length === 1 && rounds[0].round_number === 1 && rounds[0].fixture_count === 0);
+          // Check the latest round
+          const latestRound = rounds[0];
+
+          // Check if the latest round is still unlocked (lock time not reached)
+          const now = new Date();
+          const lockTime = new Date(latestRound.lock_time || '');
+          const isLocked = latestRound.lock_time && now >= lockTime;
+
+          if (latestRound.fixture_count === 0) {
+            // Round exists but no fixtures - check if we can still use it
+            if (!isLocked) {
+              // Round is not locked yet - use it for fixture creation
+              setCurrentRound(latestRound);
+              await loadFixtures(latestRound.id);
+              await loadTeams();
+            } else {
+              // Round is locked but has no fixtures - auto-extend the lock time
+              setExtendedRound(latestRound);
+              setShowExtendTimeModal(true);
+              // Auto-extend the round in the background
+              handleExtendRoundTime(latestRound);
+            }
+          } else {
+            // Round has fixtures - show read-only view (no editing allowed)
+            setCurrentRound(latestRound);
+            await loadFixtures(latestRound.id);
+            // Don't load teams - no editing allowed
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load fixtures data:', error);
+        router.push(`/game/${competitionId}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeData();
+  }, [competitionId, router, competition, contextLoading, handleExtendRoundTime]);
+
+  const loadFixtures = async (roundId: number) => {
+    try {
+      const response = await fixtureApi.get(roundId.toString());
+      if (response.data.return_code === 'SUCCESS') {
+        const existingFixtures = (response.data.fixtures as { home_team: string; away_team: string; home_team_short: string; away_team_short: string }[]) || [];
+
+        // Convert existing fixtures to pending fixtures format and sort alphabetically
+        const pendingFromExisting = existingFixtures.map((fixture: { home_team: string; away_team: string; home_team_short: string; away_team_short: string }) => ({
+          home_team: fixture.home_team,
+          away_team: fixture.away_team,
+          home_team_short: fixture.home_team_short,
+          away_team_short: fixture.away_team_short
+        })).sort((a, b) => {
+          // Sort alphabetically by fixture (home_team vs away_team)
+          const fixtureA = `${a.home_team} vs ${a.away_team}`;
+          const fixtureB = `${b.home_team} vs ${b.away_team}`;
+          return fixtureA.localeCompare(fixtureB);
+        });
+
+        // Track used teams
+        const used = new Set<string>();
+        existingFixtures.forEach((fixture: { home_team: string; away_team: string; home_team_short: string; away_team_short: string }) => {
+          used.add(fixture.home_team_short);
+          used.add(fixture.away_team_short);
+        });
+
+        setPendingFixtures(pendingFromExisting);
+        setUsedTeams(used);
+      }
+    } catch (error) {
+      console.error('Failed to load fixtures:', error);
+      setPendingFixtures([]);
+      setUsedTeams(new Set());
+    }
+  };
+
+
+  const loadTeams = async () => {
+    try {
+      const response = await teamApi.getTeams();
+      if (response.data.return_code === 'SUCCESS') {
+        setTeams(response.data.teams || []);
+      }
+    } catch (error) {
+      console.error('Failed to load teams:', error);
+    }
+  };
+
+  const createFirstRound = async () => {
+    try {
+      // Convert datetime-local input to UTC before sending to API
+      let lockTimeToSend = getNextFriday6PM();
+      if (newRoundLockTime) {
+        // User enters local time, convert to UTC for database storage
+        lockTimeToSend = new Date(newRoundLockTime).toISOString();
+      }
+
+      const response = await roundApi.create(competitionId, lockTimeToSend);
+
+      if (response.data.return_code === 'SUCCESS') {
+        const roundData = response.data.round as { id: number; round_number: number; lock_time: string; status: string };
+        setCurrentRound({
+          id: roundData.id,
+          round_number: roundData.round_number,
+          lock_time: roundData.lock_time,
+          status: roundData.status || 'UNLOCKED'
+        });
+
+        setShowCreateRoundModal(false);
+        setNewRoundLockTime('');
+
+        // Load teams for fixture creation
+        await loadTeams();
+      } else {
+        alert('Failed to create round: ' + (response.data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to create round:', error);
+      alert('Failed to create round');
+    }
+  };
+
+  const cancelCreateRound = () => {
+    setShowCreateRoundModal(false);
+    setNewRoundLockTime('');
+    router.push(`/game/${competitionId}`);
+  };
+
+  const updateLockTime = async () => {
+    if (!currentRound || !editedLockTime) return;
+
+    try {
+      // Convert datetime-local input to UTC before sending to API
+      const utcLockTime = new Date(editedLockTime).toISOString();
+
+      const response = await roundApi.update(currentRound.id.toString(), utcLockTime);
+
+      if (response.data.return_code === 'SUCCESS') {
+        // Update current round state with the UTC time
+        setCurrentRound(prev => prev ? { ...prev, lock_time: utcLockTime } : null);
+
+        // Clear rounds cache to ensure fresh data
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+
+        setShowEditLockTimeModal(false);
+        setEditedLockTime('');
+      } else {
+        alert(response.data.message || 'Failed to update lock time');
+      }
+    } catch (error) {
+      console.error('Failed to update lock time:', error);
+      alert('Failed to update lock time');
+    }
+  };
+
+  const handleEditLockTime = () => {
+    if (currentRound?.lock_time) {
+      // Convert ISO string to datetime-local format
+      const date = new Date(currentRound.lock_time);
+      const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+        .toISOString().slice(0, 16);
+      setEditedLockTime(localDateTime);
+      setShowEditLockTimeModal(true);
+    }
+  };
+
+  const resetFixtures = async () => {
+    if (!currentRound || isResettingFixtures) return;
+
+    setIsResettingFixtures(true);
+
+    try {
+      const response = await fixtureApi.reset(currentRound.id);
+
+      if (response.data.return_code === 'SUCCESS') {
+        // Clear all relevant caches
+        cacheUtils.invalidateKey(`fixtures-${currentRound.id}`);
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+
+        // Reset the page state to allow new fixture creation
+        setPendingFixtures([]);
+        setUsedTeams(new Set());
+        setCurrentSelection({ home_team: null, away_team: null });
+
+        // Update current round to reflect no fixtures
+        setCurrentRound(prev => prev ? { ...prev, fixture_count: 0 } : null);
+
+        // Load teams for new fixture creation
+        await loadTeams();
+
+        // Reset the saving state in case it was stuck
+        setIsSavingFixtures(false);
+
+        setShowResetModal(false);
+
+      } else {
+        alert('Failed to reset fixtures: ' + (response.data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Reset fixtures error:', error);
+      alert('Failed to reset fixtures');
+    } finally {
+      setIsResettingFixtures(false);
+    }
+  };
+
+  const handleHomeTeamSelect = (team: Team) => {
+    setCurrentSelection(prev => ({
+      ...prev,
+      home_team: { name: team.name, short_name: team.short_name }
+    }));
+  };
+
+  const handleAwayTeamSelect = (team: Team) => {
+    setCurrentSelection(prev => ({
+      ...prev,
+      away_team: { name: team.name, short_name: team.short_name }
+    }));
+  };
+
+  const createFixture = () => {
+    if (currentSelection.home_team && currentSelection.away_team) {
+      const newFixture: PendingFixture = {
+        home_team: currentSelection.home_team.name,
+        away_team: currentSelection.away_team.name,
+        home_team_short: currentSelection.home_team.short_name,
+        away_team_short: currentSelection.away_team.short_name
+      };
+
+      setPendingFixtures(prev => [...prev, newFixture]);
+      setUsedTeams(prev => new Set([
+        ...prev,
+        currentSelection.home_team!.short_name,
+        currentSelection.away_team!.short_name
+      ]));
+
+      // Reset selection
+      setCurrentSelection({ home_team: null, away_team: null });
+    }
+  };
+
+  const removePendingFixture = (index: number) => {
+    const fixture = pendingFixtures[index];
+    setPendingFixtures(prev => prev.filter((_, i) => i !== index));
+
+    // Remove teams from used set (using short names)
+    setUsedTeams(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(fixture.home_team_short);
+      newSet.delete(fixture.away_team_short);
+      return newSet;
+    });
+  };
+
+  const savePendingFixtures = async () => {
+    if (!currentRound || pendingFixtures.length === 0 || isSavingFixtures) return;
+
+    setIsSavingFixtures(true);
+
+    try {
+      // Add kickoff_time for API call and use short names for API
+      const defaultKickoffTime = currentRound.lock_time || new Date().toISOString();
+      const fixturesWithTime = pendingFixtures.map(fixture => ({
+        home_team: fixture.home_team_short,
+        away_team: fixture.away_team_short,
+        kickoff_time: defaultKickoffTime
+      }));
+
+      const response = await fixtureApi.addBulk(currentRound.id.toString(), fixturesWithTime);
+
+      if (response.data.return_code === 'SUCCESS') {
+        // Clear fixture cache
+        cacheUtils.invalidateKey(`fixtures-${currentRound.id}`);
+        // Clear rounds cache so fixture_count gets updated
+        cacheUtils.invalidateKey(`rounds-${competitionId}`);
+
+        // Update the current round to reflect that fixtures now exist
+        setCurrentRound(prev => prev ? { ...prev, fixture_count: pendingFixtures.length } : null);
+
+        // Clear teams to prevent further editing
+        setTeams([]);
+        setCurrentSelection({ home_team: null, away_team: null });
+        setUsedTeams(new Set());
+
+        // Stay on page in read-only mode - don't redirect
+        setIsSavingFixtures(false);
+      } else {
+        alert('Failed to save fixtures: ' + (response.data.message || 'Unknown error'));
+        setIsSavingFixtures(false);
+      }
+    } catch (error) {
+      console.error('Save fixtures error:', error);
+      alert('Failed to save fixtures');
+      setIsSavingFixtures(false);
+    }
+  };
+
+  if (loading || contextLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <header className="bg-white border-b border-slate-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center space-x-4">
+                <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
+                  <ArrowLeftIcon className="h-5 w-5" />
+                  <span className="font-medium">Back</span>
+                </Link>
+                <div className="h-6 w-px bg-slate-300" />
+                <div>
+                  <h1 className="text-lg text-slate-900">Fixtures</h1>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+            <div className="flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-50 rounded-full mb-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
+                </div>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Fixtures</h3>
+                <p className="text-slate-500">Please wait while we load the fixtures data...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-4">
+              <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
+                <ArrowLeftIcon className="h-5 w-5" />
+                <span className="font-medium">Back</span>
+              </Link>
+              <div className="h-6 w-px bg-slate-300" />
+              <div>
+                <h1 className="text-lg text-slate-900">Fixtures</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        ... rest of the component JSX ...
+      </main>
+    </div>
+  );
+}
+*/
+
+// Placeholder to prevent build errors
+export default function FixturesPageDisabled() {
+  return null;
+}

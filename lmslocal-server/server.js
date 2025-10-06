@@ -28,16 +28,19 @@ const teamListsRoute = require('./routes/team-lists');
 const getTeamsRoute = require('./routes/get-teams');
 const getCompetitionPlayersRoute = require('./routes/get-competition-players');
 const removePlayerRoute = require('./routes/remove-player');
-const createRoundRoute = require('./routes/create-round');
-const updateRoundRoute = require('./routes/update-round');
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// const createRoundRoute = require('./routes/create-round');
+// const updateRoundRoute = require('./routes/update-round');
 const updateCompetitionRoute = require('./routes/update-competition');
 const resetCompetitionRoute = require('./routes/reset-competition');
 const deleteCompetitionRoute = require('./routes/delete-competition');
 const getRoundsRoute = require('./routes/get-rounds');
-const addFixturesBulkRoute = require('./routes/add-fixtures-bulk');
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// const addFixturesBulkRoute = require('./routes/add-fixtures-bulk');
 const getFixturesRoute = require('./routes/get-fixtures');
-const resetFixturesRoute = require('./routes/reset-fixtures');
-const setFixtureResultRoute = require('./routes/set-fixture-result'); // RE-ENABLED temporarily
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// const resetFixturesRoute = require('./routes/reset-fixtures');
+// const setFixtureResultRoute = require('./routes/set-fixture-result');
 // const lockUnlockRoundRoute = require('./routes/lock-unlock-round'); // DISABLED: Round status removed
 // const getCompetitionStatusRoute = require('./routes/get-competition-status'); // DISABLED: Superseded by get-user-dashboard
 // const joinCompetitionBySlugRoute = require('./routes/join-competition-by-slug'); // DISABLED - using single login
@@ -62,7 +65,8 @@ const checkUserTypeRoute = require('./routes/check-user-type');
 const getAllowedTeamsRoute = require('./routes/get-allowed-teams');
 const unselectPickRoute = require('./routes/unselect-pick');
 const getCurrentPickRoute = require('./routes/get-current-pick');
-const getCalculatedFixturesRoute = require('./routes/get-calculated-fixtures');
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// const getCalculatedFixturesRoute = require('./routes/get-calculated-fixtures');
 const getCompetitionStandingsRoute = require('./routes/get-competition-standings');
 const joinCompetitionByCodeRoute = require('./routes/join-competition-by-code');
 const getFixturePickCountRoute = require('./routes/get-fixture-pick-count');
@@ -73,7 +77,8 @@ const deleteAccountRoute = require('./routes/delete-account');
 const getPickStatisticsRoute = require('./routes/get-pick-statistics');
 const getUnpickedPlayersRoute = require('./routes/get-unpicked-players');
 // const getDashboardStatsRoute = require('./routes/get-dashboard-stats'); // DISABLED - consolidated into get-user-dashboard
-const submitResultsRoute = require('./routes/submit-results');
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// const submitResultsRoute = require('./routes/submit-results');
 const hideCompetitionRoute = require('./routes/hide-competition');
 const unhidePlayerRoute = require('./routes/unhide-player');
 
@@ -92,7 +97,8 @@ const loadWelcomeCompetitionRoute = require('./routes/load-welcome-competition')
 const sendEmailRoute = require('./routes/send-email');
 const getEmailPreferencesRoute = require('./routes/get-email-preferences');
 const updateEmailPreferencesBatchRoute = require('./routes/update-email-preferences-batch');
-const organiserMidRoundSubmitTipRoute = require('./routes/organiser-mid-round-submit-tip');
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// const organiserMidRoundSubmitTipRoute = require('./routes/organiser-mid-round-submit-tip');
 
 // Admin Routes
 const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
@@ -210,16 +216,19 @@ app.use('/team-lists', teamListsRoute);
 app.use('/get-teams', getTeamsRoute);
 app.use('/get-competition-players', dbIntensiveLimit, getCompetitionPlayersRoute);
 app.use('/remove-player', removePlayerRoute);
-app.use('/create-round', createRoundRoute);
-app.use('/update-round', updateRoundRoute);
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// app.use('/create-round', createRoundRoute);
+// app.use('/update-round', updateRoundRoute);
 app.use('/update-competition', updateCompetitionRoute);
 app.use('/reset-competition', resetCompetitionRoute);
 app.use('/delete-competition', deleteCompetitionRoute);
 app.use('/get-rounds', getRoundsRoute);
-app.use('/add-fixtures-bulk', addFixturesBulkRoute);
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// app.use('/add-fixtures-bulk', addFixturesBulkRoute);
 app.use('/get-fixtures', getFixturesRoute);
-app.use('/reset-fixtures', resetFixturesRoute);
-app.use('/set-fixture-result', setFixtureResultRoute); // RE-ENABLED temporarily
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// app.use('/reset-fixtures', resetFixturesRoute);
+// app.use('/set-fixture-result', setFixtureResultRoute);
 // app.use('/lock-unlock-round', lockUnlockRoundRoute); // DISABLED: Round status removed
 // app.use('/get-competition-status', getCompetitionStatusRoute); // DISABLED: Superseded by get-user-dashboard
 // app.use('/join-competition-by-slug', joinCompetitionBySlugRoute); // DISABLED - using single login
@@ -243,7 +252,8 @@ app.use('/check-user-type', checkUserTypeRoute);
 app.use('/get-allowed-teams', getAllowedTeamsRoute);
 app.use('/unselect-pick', unselectPickRoute);
 app.use('/get-current-pick', getCurrentPickRoute);
-app.use('/get-calculated-fixtures', getCalculatedFixturesRoute);
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// app.use('/get-calculated-fixtures', getCalculatedFixturesRoute);
 app.use('/get-competition-standings', getCompetitionStandingsRoute);
 app.use('/join-competition-by-code', joinCompetitionByCodeRoute);
 app.use('/get-fixture-pick-count', getFixturePickCountRoute);
@@ -254,7 +264,8 @@ app.use('/delete-account', deleteAccountRoute);
 app.use('/get-pick-statistics', getPickStatisticsRoute);
 app.use('/get-unpicked-players', getUnpickedPlayersRoute);
 // app.use('/get-dashboard-stats', getDashboardStatsRoute); // DISABLED - consolidated into get-user-dashboard
-app.use('/submit-results', submitResultsRoute);
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// app.use('/submit-results', submitResultsRoute);
 app.use('/hide-competition', hideCompetitionRoute);
 app.use('/unhide-player', unhidePlayerRoute);
 
@@ -273,7 +284,8 @@ app.use('/load-welcome-competition', loadWelcomeCompetitionRoute);
 app.use('/send-email', sendEmailRoute);
 app.use('/get-email-preferences', getEmailPreferencesRoute);
 app.use('/update-email-preferences-batch', updateEmailPreferencesBatchRoute);
-app.use('/organiser-mid-round-submit-tip', organiserMidRoundSubmitTipRoute);
+// DISABLED: Manual fixture management - replaced by automated fixture service
+// app.use('/organiser-mid-round-submit-tip', organiserMidRoundSubmitTipRoute);
 
 // Admin API Routes
 app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);

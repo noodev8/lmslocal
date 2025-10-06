@@ -185,6 +185,7 @@ router.post('/', verifyToken, async (req, res) => {
     // Extract key validation data for business logic
     const competition_id = validation.competition_id;
     const round_id = validation.round_id;
+    const round_number = validation.round_number;
     const selected_team_short = validation.selected_team_short;
     const selected_team_full = validation.selected_team_full;
     const selected_team_id = validation.selected_team_id;
@@ -255,12 +256,12 @@ router.post('/', verifyToken, async (req, res) => {
     await transaction(async (client) => {
       // Step 1: Insert or update the pick with complete fixture context
       const pickResult = await client.query(`
-        INSERT INTO pick (round_id, user_id, team, fixture_id, created_at)
-        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+        INSERT INTO pick (round_id, user_id, team, fixture_id, competition_id, round_number, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
         ON CONFLICT (round_id, user_id)
-        DO UPDATE SET team = $3, fixture_id = $4, created_at = CURRENT_TIMESTAMP
+        DO UPDATE SET team = $3, fixture_id = $4, competition_id = $5, round_number = $6, created_at = CURRENT_TIMESTAMP
         RETURNING *
-      `, [round_id, target_user_id, selected_team_short, fixture_id]);
+      `, [round_id, target_user_id, selected_team_short, fixture_id, competition_id, round_number]);
 
       savedPick = pickResult.rows[0]; // Store pick data outside transaction scope
 
