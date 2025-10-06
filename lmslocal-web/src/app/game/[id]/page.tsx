@@ -495,112 +495,77 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Current Status Card - Clean and minimal */}
-        {latestRoundStats &&
-         latestRoundStats.competition_id === parseInt(competitionId) && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm">
-            <div className="p-4 border-b border-gray-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
+        {/* Status Cards Grid - All 4 cards aligned */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Active/Out Status Card */}
+          {isParticipant && competition?.status !== 'COMPLETE' && (
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+              <div className="text-center">
+                <div className="flex items-center justify-center space-x-2 mb-1">
                   {competition.user_status === 'active' ? (
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   ) : (
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                   )}
-                  <span className="text-sm font-medium text-gray-900">
-                    Your Status: {competition.user_status === 'active' ? 'Still In' : 'Eliminated'}
-                  </span>
+                  <div className="text-3xl font-bold text-gray-900">
+                    {competition.user_status === 'active' ? 'Active' : 'Out'}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {currentRoundInfo?.status === 'COMPLETE' ? 'Round Complete' : 'Latest Results'}
-                </div>
+                <div className="text-sm text-gray-600">Your Status</div>
               </div>
             </div>
+          )}
 
-            <div className="p-4">
-              <div className="text-center mb-4">
-                {latestRoundStats.survivors > 1 && (
-                  <>
-                    <div className="text-2xl font-bold text-gray-900 mb-1">Round {latestRoundStats.round_number} Complete</div>
-                    <div className="text-sm text-gray-600">
-                      {latestRoundStats.eliminated_this_round === 0
-                        ? `All players survived - Advance to Round ${latestRoundStats.round_number + 1}`
-                        : `Advance to Round ${latestRoundStats.round_number + 1}`
-                      }
-                    </div>
-                  </>
-                )}
-
-                {latestRoundStats.survivors === 1 && (
-                  <>
-                    <div className="text-2xl font-bold text-gray-900 mb-1">👑 Champion Found!</div>
-                    <div className="text-sm text-gray-600">Competition Complete</div>
-                  </>
-                )}
-
-                {latestRoundStats.survivors === 0 && (
-                  <>
-                    <div className="text-2xl font-bold text-gray-900 mb-1">😱 Draw Game!</div>
-                    <div className="text-sm text-gray-600">No players remaining</div>
-                  </>
-                )}
+          {/* Current Round Card */}
+          {currentRoundInfo && competition?.status !== 'COMPLETE' && (
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-gray-900 mb-1">{currentRoundInfo.round_number}</div>
+                <div className="text-sm text-gray-600">Current Round</div>
               </div>
+            </div>
+          )}
 
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="text-lg font-semibold text-green-600">{latestRoundStats.survivors}</div>
-                  <div className="text-xs text-gray-500">Still In</div>
-                </div>
-                <div>
-                  <div className="text-lg font-semibold text-red-500">{latestRoundStats.eliminated_this_round}</div>
-                  <div className="text-xs text-gray-500">Eliminated</div>
-                </div>
-                <div>
-                  <div className="text-lg font-semibold text-gray-600">{latestRoundStats.total_players}</div>
-                  <div className="text-xs text-gray-500">Started</div>
-                </div>
+          {/* Lives Remaining Card */}
+          {isParticipant && competition?.status !== 'COMPLETE' && competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-gray-900 mb-1">{competition.lives_remaining}</div>
+                <div className="text-sm text-gray-600">Lives Remaining</div>
               </div>
+            </div>
+          )}
 
-              {/* Personal Status for Participants */}
-              {isParticipant && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="text-center">
-                    <div className={`text-lg font-semibold mb-2 ${
-                      competition.user_status === 'active' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {latestRoundStats.survivors === 1 && competition.user_status === 'active'
-                        ? '🏆 You Are The Winner!'
-                        : competition.user_status === 'active'
-                        ? 'You Advanced!'
-                        : 'You Were Eliminated'}
-                    </div>
+          {/* Players Still In Card */}
+          {latestRoundStats && (
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+              {/* Champion/Draw announcements */}
+              {latestRoundStats.survivors === 1 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900 mb-1">👑</div>
+                  <div className="text-xs text-gray-600">Champion!</div>
+                </div>
+              )}
 
-                    {/* Show round-specific details */}
-                    <div className="space-y-1 text-sm text-gray-600">
-                      {latestRoundStats.user_outcome && (
-                        <div>
-                          Round {latestRoundStats.round_number}: {
-                            latestRoundStats.user_outcome === 'WIN' ? 'Advanced' :
-                            latestRoundStats.user_outcome === 'LOSS' ? 'Eliminated' :
-                            'Draw'
-                          }
-                        </div>
-                      )}
+              {latestRoundStats.survivors === 0 && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900 mb-1">😱</div>
+                  <div className="text-xs text-gray-600">Draw</div>
+                </div>
+              )}
 
-                      {latestRoundStats.user_picked_team && (
-                        <div>Picked: {latestRoundStats.user_picked_team}</div>
-                      )}
-
-                      {competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
-                        <div>Lives Remaining: {competition.lives_remaining}</div>
-                      )}
-                    </div>
+              {/* "Still In" number */}
+              {latestRoundStats.survivors > 1 && (
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600 mb-1">
+                    {latestRoundStats.survivors} <span className="text-xl text-gray-400">/</span> <span className="text-xl text-gray-500">{latestRoundStats.total_players}</span>
                   </div>
+                  <div className="text-sm text-gray-600">Players Still In</div>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Competition Completion Banner */}
         {competitionComplete.isComplete && (
@@ -712,65 +677,13 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Status Cards - Compact design */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Personal Status Card - Only visible for participants in active competitions */}
-          {isParticipant && competition?.status !== 'COMPLETE' && (
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  {competition.user_status === 'active' ? (
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  ) : (
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  )}
-                  <div className="text-sm font-medium text-gray-900">
-                    {competition.user_status === 'active' ? (
-                      currentRoundInfo?.round_number || competition.current_round
-                        ? `Active in Round ${currentRoundInfo?.round_number || competition.current_round}`
-                        : 'Active - Waiting for first round'
-                    ) : (
-                      `Eliminated ${competition.history?.find(h => h.pick_result === 'loss' || h.pick_result === 'no_pick') ? `in Round ${competition.history.find(h => h.pick_result === 'loss' || h.pick_result === 'no_pick')?.round_number}` : ''}`
-                    )}
-                  </div>
-                </div>
-
-                {competition.history?.[0] && competition.history[0].pick_team && (
-                  <div className="text-xs text-gray-600 space-y-1">
-                    <div>
-                      Round {competition.history[0].round_number}: {competition.history[0].pick_team_full_name || competition.history[0].pick_team}
-                      {competition.history[0].pick_result === 'loss' && (
-                        <span className="text-red-600 font-medium"> (Lost)</span>
-                      )}
-                      {competition.history[0].pick_result === 'no_pick' && (
-                        <span className="text-amber-600 font-medium"> (No Pick)</span>
-                      )}
-                      {competition.history[0].pick_result === 'win' && (
-                        <span className="text-green-600 font-medium"> (Won)</span>
-                      )}
-                    </div>
-                    {competition.history[0].fixture && (
-                      <div className="text-gray-500">{competition.history[0].fixture}</div>
-                    )}
-                  </div>
-                )}
-
-                {competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
-                  <div className="text-xs text-gray-600">
-                    {competition.lives_remaining} lives remaining
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Round Status Card - Context-aware */}
-          {/* Only show this card if competition is not complete */}
-          {currentRoundInfo && competition?.status !== 'COMPLETE' && (
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              {!currentRoundInfo.is_locked ? (
-                /* Before Lock - Show Pick Progress (Clickable) */
-                <div
+        {/* Round Progress Card - Context-aware */}
+        {/* Only show this card if competition is not complete */}
+        {currentRoundInfo && competition?.status !== 'COMPLETE' && (
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+            {!currentRoundInfo.is_locked ? (
+              /* Before Lock - Show Pick Progress (Clickable) */
+              <div
                   className="space-y-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors -mx-3"
                   onClick={handleShowUnpickedPlayers}
                   role="button"
@@ -778,7 +691,7 @@ export default function UnifiedGameDashboard() {
                   onKeyDown={(e) => e.key === 'Enter' && handleShowUnpickedPlayers()}
                 >
                   <div className="text-sm font-medium text-gray-900">
-                    Round {currentRoundInfo.round_number} Progress
+                    Round {currentRoundInfo.round_number} Pick Status
                   </div>
 
                   {pickStats && (
@@ -817,9 +730,8 @@ export default function UnifiedGameDashboard() {
               }
             </div>
           )}
-        </div>
 
-{/* Action Buttons - Refined design */}
+        {/* Action Buttons - Refined design */}
         {isOrganiser ? (
           <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
             {/* Play button - only show if organizer is also a participant */}
