@@ -85,6 +85,10 @@ export default function AdminFixturesPage() {
     timestamp: string;
   }>>([]);
 
+  // Push fixtures state
+  const [isPushingFixtures, setIsPushingFixtures] = useState(false);
+  const [pushFixturesMessage, setPushFixturesMessage] = useState('');
+
   // ========================================
   // AUTHENTICATION HANDLER
   // ========================================
@@ -99,6 +103,43 @@ export default function AdminFixturesPage() {
 
     setIsAuthenticated(true);
     setAuthError('');
+  };
+
+  // ========================================
+  // PUSH FIXTURES TO COMPETITIONS
+  // ========================================
+  const handlePushFixtures = async () => {
+    // Confirm action
+    if (!confirm('Push fixtures to competitions? This will create new rounds for eligible competitions.')) {
+      return;
+    }
+
+    setIsPushingFixtures(true);
+    setPushFixturesMessage('');
+
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3015'}/admin/push-fixtures-to-competitions`,
+        { bot_manage: 'BOT_MAGIC_2025' }
+      );
+
+      if (response.data.return_code === 'SUCCESS') {
+        setPushFixturesMessage(
+          `✓ ${response.data.message || 'Fixtures pushed successfully'} (${response.data.competitions_updated} competitions, ${response.data.fixtures_pushed} fixtures)`
+        );
+      } else if (response.data.return_code === 'NO_ACTIVE_FIXTURES') {
+        setPushFixturesMessage('ℹ No fixtures available to push');
+      } else if (response.data.return_code === 'NO_SUBSCRIBED_COMPETITIONS') {
+        setPushFixturesMessage('ℹ No competitions subscribed to fixture service');
+      } else {
+        setPushFixturesMessage(`✗ ${response.data.message || 'Failed to push fixtures'}`);
+      }
+    } catch (error) {
+      console.error('Error pushing fixtures:', error);
+      setPushFixturesMessage('✗ Network error - could not push fixtures');
+    } finally {
+      setIsPushingFixtures(false);
+    }
   };
 
   // ========================================
@@ -312,22 +353,45 @@ export default function AdminFixturesPage() {
               <h1 className="text-2xl font-bold text-gray-900">
                 Add Fixtures to Staging
               </h1>
-              {breadcrumbs.length > 0 && (
-                <div className="text-xs text-gray-500">
-                  {breadcrumbs.map((bc, idx) => (
-                    <span key={idx} className="inline-flex items-center">
-                      {idx > 0 && <span className="mx-1">→</span>}
-                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded">
-                        GW{bc.gameweek} ({bc.count}) {bc.timestamp}
+              <div className="flex items-center gap-3">
+                {breadcrumbs.length > 0 && (
+                  <div className="text-xs text-gray-500">
+                    {breadcrumbs.map((bc, idx) => (
+                      <span key={idx} className="inline-flex items-center">
+                        {idx > 0 && <span className="mx-1">→</span>}
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded">
+                          GW{bc.gameweek} ({bc.count}) {bc.timestamp}
+                        </span>
                       </span>
-                    </span>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handlePushFixtures}
+                  disabled={isPushingFixtures}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                >
+                  {isPushingFixtures ? 'Pushing...' : 'Push Fixtures'}
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Premier League • Team List ID: 1
+              </p>
+              {pushFixturesMessage && (
+                <p className={`text-sm font-medium ${
+                  pushFixturesMessage.startsWith('✓')
+                    ? 'text-green-600'
+                    : pushFixturesMessage.startsWith('ℹ')
+                    ? 'text-blue-600'
+                    : 'text-red-600'
+                }`}>
+                  {pushFixturesMessage}
+                </p>
               )}
             </div>
-            <p className="text-sm text-gray-600">
-              Premier League • Team List ID: 1
-            </p>
           </div>
 
           {/* Error Message - Inline */}
