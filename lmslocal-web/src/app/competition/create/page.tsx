@@ -4,13 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
-import { 
+import {
   TrophyIcon,
   ArrowLeftIcon,
   InformationCircleIcon,
   UserGroupIcon,
-  HeartIcon,
-  ShieldCheckIcon
+  HeartIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, teamApi, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -350,30 +349,12 @@ export default function CreateCompetitionPage() {
                   </p>
                 </div>
 
-                {/* No team twice rule */}
-                <div>
-                  <label className="flex items-start space-x-3">
-                    <input
-                      {...register('no_team_twice')}
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 text-slate-600 focus:ring-slate-500 border-slate-300 rounded"
-                    />
-                    <div>
-                      <div className="text-sm font-medium text-slate-700">
-                        <ShieldCheckIcon className="h-5 w-5 inline mr-2 text-slate-500" />
-                        No Team Twice Rule
-                      </div>
-                      <div className="text-sm text-slate-500">
-                        Players cannot pick the same team in different rounds
-                        {watchedValues.no_team_twice && (
-                          <span className="block mt-1">
-                            Teams automatically reset when players run out of options.
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </label>
-                </div>
+                {/* No team twice rule - HIDDEN (always enabled) */}
+                <input
+                  {...register('no_team_twice')}
+                  type="hidden"
+                  value="true"
+                />
 
                 {/* Organiser joins as player */}
                 <div>
@@ -412,7 +393,6 @@ export default function CreateCompetitionPage() {
                           {...register('start_delay_days', { valueAsNumber: true })}
                           type="radio"
                           value={option.value}
-                          defaultChecked={option.value === 7}
                           checked={Number(watchedValues.start_delay_days ?? 7) === option.value}
                           className="sr-only peer"
                         />
@@ -479,12 +459,6 @@ export default function CreateCompetitionPage() {
                     <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
                       <dt className="text-xs sm:text-sm text-slate-600">Lives per Player:</dt>
                       <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">{watchedValues.lives_per_player}</dd>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
-                      <dt className="text-xs sm:text-sm text-slate-600">No Team Twice:</dt>
-                      <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">
-                        {watchedValues.no_team_twice ? 'Yes' : 'No'}
-                      </dd>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
                       <dt className="text-xs sm:text-sm text-slate-600">You&apos;re Playing:</dt>

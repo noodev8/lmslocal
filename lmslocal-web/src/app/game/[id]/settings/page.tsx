@@ -8,7 +8,6 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   HeartIcon,
-  ShieldCheckIcon,
   TrashIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
@@ -747,35 +746,7 @@ export default function CompetitionSettings() {
                 </p>
               </div>
 
-              {/* No Team Twice Rule */}
-              <div>
-                <label className="flex items-start space-x-3">
-                  <input
-                    type="checkbox"
-                    name="no_team_twice"
-                    checked={formData.no_team_twice}
-                    onChange={handleInputChange}
-                    disabled={hasStarted}
-                    className={`mt-1 h-4 w-4 text-slate-600 focus:ring-slate-500 border-slate-300 rounded ${
-                      hasStarted ? 'cursor-not-allowed' : ''
-                    }`}
-                  />
-                  <div>
-                    <div className="text-sm font-medium text-slate-700">
-                      <ShieldCheckIcon className="h-5 w-5 inline mr-2 text-slate-500" />
-                      No Team Twice Rule
-                    </div>
-                    <div className="text-sm text-slate-500">
-                      Players cannot pick the same team in different rounds
-                      {formData.no_team_twice && (
-                        <span className="block mt-1">
-                          Teams automatically reset when players run out of options.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </label>
-              </div>
+              {/* No Team Twice Rule - HIDDEN (always enabled) */}
             </div>
           </div>
 
