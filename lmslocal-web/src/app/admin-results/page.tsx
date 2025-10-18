@@ -148,11 +148,6 @@ export default function AdminResultsPage() {
   // PUSH RESULTS TO COMPETITIONS
   // ========================================
   const handlePushResults = async () => {
-    // Confirm action
-    if (!confirm('Push all unpushed results to competitions? This will process eliminations and update standings.')) {
-      return;
-    }
-
     setIsPushingResults(true);
     setPushResultsMessage('');
 

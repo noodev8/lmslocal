@@ -3,8 +3,9 @@
 API Route: organizer-add-fixtures
 =======================================================================================================================================
 Method: POST
-Purpose: Allows competition organizers to add/replace fixtures for their competition. Only works for manual competitions
-         (fixture_service = false). Auto-creates rounds as needed.
+Purpose: Allows competition organizers to add fixtures for a new round. Only works for manual competitions
+         (fixture_service = false). Fixtures must be added in one transaction per round.
+         Requires previous round to be fully processed before adding new round.
 =======================================================================================================================================
 Request Payload:
 {
@@ -40,6 +41,8 @@ Return Codes:
 "COMPETITION_NOT_FOUND"    - Competition doesn't exist
 "AUTOMATED_COMPETITION"    - Competition uses fixture_service (automated mode)
 "COMPETITION_COMPLETE"     - Competition has already ended
+"PREVIOUS_ROUND_INCOMPLETE" - Current round has unprocessed fixtures
+"ROUND_HAS_FIXTURES"       - Current round already has fixtures (must add all in one transaction)
 "SERVER_ERROR"             - Database or unexpected error
 =======================================================================================================================================
 */
@@ -174,8 +177,11 @@ router.post('/', verifyToken, async (req, res) => {
     // ========================================
 
     const result = await transaction(async (client) => {
-      // Find or create current round
-      // Strategy: Get the latest incomplete round, or create new one
+      // ========================================
+      // CHECK PREVIOUS ROUND COMPLETION
+      // ========================================
+
+      // Get the latest round
       const roundResult = await client.query(`
         SELECT id, round_number, lock_time
         FROM round
@@ -184,42 +190,68 @@ router.post('/', verifyToken, async (req, res) => {
         LIMIT 1
       `, [competitionIdInt]);
 
+      // Double-check competition status (already checked outside transaction, but verify again for safety)
+      if (competition.status === 'COMPLETE') {
+        throw {
+          return_code: 'COMPETITION_COMPLETE',
+          message: 'Cannot add fixtures - competition has ended'
+        };
+      }
+
+      // If rounds exist, check if the latest round is fully processed
+      if (roundResult.rows.length > 0) {
+        const latestRound = roundResult.rows[0];
+
+        // Check if latest round has any unprocessed fixtures
+        const unprocessedCheck = await client.query(`
+          SELECT COUNT(*) as unprocessed_count
+          FROM fixture
+          WHERE round_id = $1
+          AND (processed IS NULL OR result IS NULL)
+        `, [latestRound.id]);
+
+        const unprocessedCount = parseInt(unprocessedCheck.rows[0].unprocessed_count);
+
+        if (unprocessedCount > 0) {
+          throw {
+            return_code: 'PREVIOUS_ROUND_INCOMPLETE',
+            message: `Cannot add new fixtures. Round ${latestRound.round_number} has ${unprocessedCount} unprocessed fixture(s). Complete current round first.`
+          };
+        }
+
+        // Latest round is complete - we'll create a NEW round below
+        // (No need to check if it has fixtures - it should! They're all processed)
+      }
+
+      // ========================================
+      // CREATE NEW ROUND
+      // ========================================
+
       let roundId;
       let roundNumber;
 
       if (roundResult.rows.length === 0) {
         // No rounds exist - create Round 1
-        const newRoundResult = await client.query(`
-          INSERT INTO round (
-            competition_id,
-            round_number,
-            lock_time,
-            created_at
-          )
-          VALUES ($1, 1, $2, CURRENT_TIMESTAMP)
-          RETURNING id, round_number
-        `, [competitionIdInt, kickoff_time]);
-
-        roundId = newRoundResult.rows[0].id;
-        roundNumber = newRoundResult.rows[0].round_number;
+        roundNumber = 1;
       } else {
-        // Use existing latest round
-        roundId = roundResult.rows[0].id;
-        roundNumber = roundResult.rows[0].round_number;
-
-        // Update lock_time to match new kickoff_time
-        await client.query(`
-          UPDATE round
-          SET lock_time = $1
-          WHERE id = $2
-        `, [kickoff_time, roundId]);
+        // Previous round is complete - create next round
+        roundNumber = roundResult.rows[0].round_number + 1;
       }
 
-      // Delete all existing fixtures in this round (replace operation)
-      await client.query(`
-        DELETE FROM fixture
-        WHERE round_id = $1
-      `, [roundId]);
+      // Create new round
+      const newRoundResult = await client.query(`
+        INSERT INTO round (
+          competition_id,
+          round_number,
+          lock_time,
+          created_at
+        )
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        RETURNING id, round_number
+      `, [competitionIdInt, roundNumber, kickoff_time]);
+
+      roundId = newRoundResult.rows[0].id;
+      roundNumber = newRoundResult.rows[0].round_number;
 
       // Insert new fixtures
       for (const fixture of fixtures) {

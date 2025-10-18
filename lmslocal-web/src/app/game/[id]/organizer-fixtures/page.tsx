@@ -67,6 +67,11 @@ export default function OrganizerFixturesPage() {
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
 
+  // Block state
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockReason, setBlockReason] = useState('');
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+
   // Check authentication and authorization
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
@@ -86,7 +91,52 @@ export default function OrganizerFixturesPage() {
       router.push(`/game/${competitionId}`);
       return;
     }
+
+    // Check if competition is complete
+    if (competition && competition.is_complete) {
+      setIsBlocked(true);
+      setBlockReason('Cannot add fixtures - competition has ended');
+      setIsCheckingAccess(false);
+      return;
+    }
   }, [router, competitionId, competition]);
+
+  // Check if fixtures can be added (check for incomplete previous round)
+  useEffect(() => {
+    const checkCanAddFixtures = async () => {
+      if (!competition) return;
+
+      try {
+        // Try to get current round fixtures to see if there are unprocessed ones
+        const response = await organizerApi.getFixturesForResults(parseInt(competitionId));
+
+        if (response.data.return_code === 'SUCCESS') {
+          const { fixtures } = response.data;
+
+          // Check if there are any fixtures without results or not processed
+          const unprocessedFixtures = fixtures.filter(
+            (f: { result: string | null; processed: string | null }) => !f.result || !f.processed
+          );
+
+          if (unprocessedFixtures.length > 0) {
+            setIsBlocked(true);
+            setBlockReason(
+              `Cannot add new fixtures. Round ${response.data.round_number} has ${unprocessedFixtures.length} unprocessed fixture(s). Complete current round first.`
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Error checking fixture access:', error);
+        // Don't block on error - let them try and get server error message
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
+
+    if (competition && !isBlocked) {
+      checkCanAddFixtures();
+    }
+  }, [competition, competitionId, isBlocked]);
 
   // Remove fixture row
   const handleRemoveFixture = (index: number) => {
@@ -208,6 +258,12 @@ export default function OrganizerFixturesPage() {
       } else if (response.data.return_code === 'AUTOMATED_COMPETITION') {
         setSubmitError('This competition uses automated fixture service. Please contact admin.');
 
+      } else if (response.data.return_code === 'PREVIOUS_ROUND_INCOMPLETE') {
+        setSubmitError(response.data.message || 'Complete the current round before adding new fixtures');
+
+      } else if (response.data.return_code === 'ROUND_HAS_FIXTURES') {
+        setSubmitError(response.data.message || 'Fixtures already exist for this round. All fixtures must be added in one transaction.');
+
       } else {
         setSubmitError(response.data.message || 'Failed to add fixtures');
       }
@@ -249,6 +305,36 @@ export default function OrganizerFixturesPage() {
           </p>
         </div>
 
+        {/* Loading State */}
+        {isCheckingAccess && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
+            <p className="text-sm text-blue-700">Checking access...</p>
+          </div>
+        )}
+
+        {/* Blocked State */}
+        {isBlocked && !isCheckingAccess && (
+          <div className="mb-4 p-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="text-yellow-600 text-2xl">⚠️</div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+                  Cannot Add Fixtures
+                </h3>
+                <p className="text-sm text-yellow-800 mb-4">
+                  {blockReason}
+                </p>
+                <Link
+                  href={`/game/${competitionId}`}
+                  className="inline-block px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+                >
+                  Back to Dashboard
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Success Message */}
         {submitSuccess && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
@@ -264,7 +350,8 @@ export default function OrganizerFixturesPage() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit}>
+        {!isBlocked && !isCheckingAccess && (
+          <form onSubmit={handleSubmit}>
           {/* Kickoff Date/Time Section */}
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <div className="flex items-center gap-4">
@@ -402,6 +489,7 @@ export default function OrganizerFixturesPage() {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );
