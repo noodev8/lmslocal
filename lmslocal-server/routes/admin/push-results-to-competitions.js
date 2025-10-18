@@ -266,16 +266,22 @@ router.post('/', async (req, res) => {
 
               // Update player lives based on outcome
               if (outcome === 'LOSE') {
-                await client.query(`
+                const livesUpdateResult = await client.query(`
                   UPDATE competition_user
                   SET
                     lives_remaining = GREATEST(lives_remaining - 1, 0),
                     status = CASE
-                      WHEN lives_remaining - 1 < 0 THEN 'out'
+                      WHEN lives_remaining - 1 <= 0 THEN 'out'
                       ELSE status
                     END
                   WHERE competition_id = $1 AND user_id = $2
+                  RETURNING user_id, lives_remaining, status
                 `, [competitionId, pick.user_id]);
+
+                // Log warning if no rows were updated (data integrity issue)
+                if (livesUpdateResult.rowCount === 0) {
+                  console.warn(`WARNING: Failed to deduct life for user ${pick.user_id} (${pick.display_name}) in competition ${competitionId} - no competition_user record found`);
+                }
               }
             }
           }
@@ -316,16 +322,22 @@ router.post('/', async (req, res) => {
               `, [player.user_id, competitionId, roundId, 'NO-PICK', 'LOSE']);
 
               // Deduct life and potentially eliminate player
-              await client.query(`
+              const noPickLivesUpdateResult = await client.query(`
                 UPDATE competition_user
                 SET
                   lives_remaining = GREATEST(lives_remaining - 1, 0),
                   status = CASE
-                    WHEN lives_remaining - 1 < 0 THEN 'out'
+                    WHEN lives_remaining - 1 <= 0 THEN 'out'
                     ELSE status
                   END
                 WHERE competition_id = $1 AND user_id = $2
+                RETURNING user_id, lives_remaining, status
               `, [competitionId, player.user_id]);
+
+              // Log warning if no rows were updated (data integrity issue)
+              if (noPickLivesUpdateResult.rowCount === 0) {
+                console.warn(`WARNING: Failed to deduct life for NO-PICK user ${player.user_id} (${player.display_name}) in competition ${competitionId} - no competition_user record found`);
+              }
             }
           }
 

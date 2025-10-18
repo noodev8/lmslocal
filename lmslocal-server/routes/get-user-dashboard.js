@@ -105,6 +105,7 @@ router.post('/', verifyToken, async (req, res) => {
         c.team_list_id,                        -- Team list identifier
         c.created_at,                          -- Competition creation time
         c.organiser_id,                        -- Organizer user ID
+        c.fixture_service,                     -- Fixture service mode (true=automated, false=manual)
         tl.name as team_list_name,             -- Team list name
         
         -- === USER RELATIONSHIP STATUS ===
@@ -317,7 +318,8 @@ router.post('/', verifyToken, async (req, res) => {
         team_list_id: comp.team_list_id,
         team_list_name: comp.team_list_name,
         created_at: comp.created_at,
-        
+        fixture_service: comp.fixture_service,
+
         // Competition statistics
         player_count: parseInt(comp.active_players || 0),
         total_players: parseInt(comp.total_players || 0),

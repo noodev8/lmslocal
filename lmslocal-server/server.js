@@ -50,7 +50,7 @@ const adminSetPickRoute = require('./routes/admin-set-pick');
 const updatePaymentStatusRoute = require('./routes/update-payment-status');
 const updatePlayerLivesRoute = require('./routes/update-player-lives');
 const updatePlayerStatusRoute = require('./routes/update-player-status');
-const calculateResultsRoute = require('./routes/calculate-results');
+// REMOVED: calculate-results (orphaned code - never used)
 
 // const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
 // const registerAndJoinCompetitionRoute = require('./routes/register-and-join-competition'); // DISABLED - using single login
@@ -106,6 +106,12 @@ const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-c
 const adminAddFixturesRoute = require('./routes/admin-add-fixtures');
 const adminGetFixturesForResultsRoute = require('./routes/admin-get-fixtures-for-results');
 const adminSetResultRoute = require('./routes/admin-set-result');
+
+// Organizer Fixture Management Routes (for manual competitions - fixture_service = false)
+const organizerAddFixturesRoute = require('./routes/organizer-add-fixtures');
+const organizerGetFixturesForResultsRoute = require('./routes/organizer-get-fixtures-for-results');
+const organizerSetResultRoute = require('./routes/organizer-set-result');
+const organizerProcessResultsRoute = require('./routes/organizer-process-results');
 
 // Bot Routes
 const botJoinRoute = require('./routes/bot-join');
@@ -241,7 +247,7 @@ app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/update-payment-status', updatePaymentStatusRoute);
 app.use('/update-player-lives', updatePlayerLivesRoute);
 app.use('/update-player-status', updatePlayerStatusRoute);
-app.use('/calculate-results', calculateResultsRoute);
+// REMOVED: /calculate-results (orphaned code - never used)
 
 // app.use('/player-login', playerLoginRoute); // DISABLED - using single login
 // app.use('/register-and-join-competition', registerAndJoinCompetitionRoute); // DISABLED - using single login
@@ -296,6 +302,12 @@ app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
 app.use('/admin-add-fixtures', adminAddFixturesRoute);
 app.use('/admin-get-fixtures-for-results', adminGetFixturesForResultsRoute);
 app.use('/admin-set-result', adminSetResultRoute);
+
+// Organizer Fixture Management API Routes (manual competitions only - fixture_service = false)
+app.use('/organizer-add-fixtures', organizerAddFixturesRoute);
+app.use('/organizer-get-fixtures-for-results', organizerGetFixturesForResultsRoute);
+app.use('/organizer-set-result', organizerSetResultRoute);
+app.use('/organizer-process-results', organizerProcessResultsRoute);
 
 // Bot API Routes (no rate limiting for testing)
 app.use('/bot-join', botJoinRoute);

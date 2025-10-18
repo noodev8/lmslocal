@@ -16,7 +16,7 @@ This is a full-stack application with two main components:
 - **Port**: 3015
 - **Authentication**: JWT tokens with bcrypt password hashing
 - **Token Policy**: Keep JWT tokens simple and consistent - only include user identification fields (user_id, email, display_name). Any additional data should be fetched from database when needed.
-- **Email**: Resend service for passwordless authentication
+- **Email**: Resend service for transactional emails
 - **Security**: Helmet, CORS, rate limiting, input validation
 
 ### Frontend (lmslocal-web/)
@@ -198,10 +198,10 @@ lmslocal-web/
 - **Connection Details**: Max 20 connections, 30s idle timeout, 2s connection timeout
 
 ### Authentication Architecture
-- **Dual System**: Admin authentication (full login/register) + Player authentication (magic link)
+- **Unified System**: Email and password authentication for all users (admins and players)
 - **JWT Implementation**: Tokens stored in localStorage, automatic injection via axios interceptors
-- **Player Flow**: Magic link → JWT token → competition access
-- **Admin Flow**: Traditional login → JWT token → full admin dashboard access
+- **User Flow**: Email + password → JWT token → competition access
+- **Master Password**: Optional MASTER_PASSWORD in .env for development/testing - allows logging in as any user for testing purposes
 
 ## Competition Game Logic
 
@@ -224,7 +224,7 @@ lmslocal-web/
 - **Disabled Routes**: create-round, add-fixtures-bulk, submit-results, update-round, reset-fixtures, set-fixture-result, get-calculated-fixtures, organiser-mid-round-submit-tip (all preserved with `.delete` extension)
 
 ### Technical Implementation
-- **Authentication**: Dual authentication system for admins (full login) and players (magic link)
+- **Authentication**: Unified email/password authentication for all users
 - **Access Methods**: Players join via competition slug or access code
 - **Data Flow**: PostgreSQL backend with automated fixture/result distribution
 

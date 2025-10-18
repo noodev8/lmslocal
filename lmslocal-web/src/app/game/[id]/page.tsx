@@ -11,7 +11,9 @@ import {
   Cog6ToothIcon,
   PlayIcon,
   UserIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  CalendarIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { Competition as CompetitionType, userApi, roundApi, competitionApi, offlinePlayerApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -496,9 +498,10 @@ export default function UnifiedGameDashboard() {
         )}
 
         {/* Status Cards Grid - All 4 cards aligned */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Active/Out Status Card */}
-          {isParticipant && competition?.status !== 'COMPLETE' && (
+        {competition?.status !== 'COMPLETE' && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Active/Out Status Card */}
+            {isParticipant && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               <div className="text-center">
                 <div className="flex items-center justify-center space-x-2 mb-1">
@@ -517,7 +520,7 @@ export default function UnifiedGameDashboard() {
           )}
 
           {/* Current Round Card */}
-          {currentRoundInfo && competition?.status !== 'COMPLETE' && (
+          {currentRoundInfo && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               <div className="text-center">
                 <div className="text-3xl font-bold text-gray-900 mb-1">{currentRoundInfo.round_number}</div>
@@ -527,7 +530,7 @@ export default function UnifiedGameDashboard() {
           )}
 
           {/* Lives Remaining Card */}
-          {isParticipant && competition?.status !== 'COMPLETE' && competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
+          {isParticipant && competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               <div className="text-center">
                 <div className="text-3xl font-bold text-gray-900 mb-1">{competition.lives_remaining}</div>
@@ -537,17 +540,17 @@ export default function UnifiedGameDashboard() {
           )}
 
           {/* Players Still In Card */}
-          {latestRoundStats && (
+          {competition && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               {/* Champion/Draw announcements */}
-              {latestRoundStats.survivors === 1 && (
+              {competition.player_count === 1 && (
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900 mb-1">👑</div>
                   <div className="text-xs text-gray-600">Champion!</div>
                 </div>
               )}
 
-              {latestRoundStats.survivors === 0 && (
+              {competition.player_count === 0 && (
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900 mb-1">😱</div>
                   <div className="text-xs text-gray-600">Draw</div>
@@ -555,17 +558,18 @@ export default function UnifiedGameDashboard() {
               )}
 
               {/* "Still In" number */}
-              {latestRoundStats.survivors > 1 && (
+              {competition.player_count > 1 && (
                 <div className="text-center">
                   <div className="text-3xl font-bold text-green-600 mb-1">
-                    {latestRoundStats.survivors} <span className="text-xl text-gray-400">/</span> <span className="text-xl text-gray-500">{latestRoundStats.total_players}</span>
+                    {competition.player_count} <span className="text-xl text-gray-400">/</span> <span className="text-xl text-gray-500">{competition.total_players || competition.player_count}</span>
                   </div>
                   <div className="text-sm text-gray-600">Players Still In</div>
                 </div>
               )}
             </div>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Competition Completion Banner */}
         {competitionComplete.isComplete && (
@@ -756,22 +760,40 @@ export default function UnifiedGameDashboard() {
               </button>
             )}
 
-            {/* DISABLED: Manual fixture management - fixtures now managed via backend fixture service
-            <button
-              onClick={handleFixturesClick}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all relative"
-            >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-2 rounded-lg bg-gray-50 group-hover:bg-gray-100">
-                  <CalendarDaysIcon className="h-5 w-5 text-gray-600" />
-                </div>
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Fixtures</div>
-                  <div className="text-xs text-gray-500">Manage rounds</div>
-                </div>
-              </div>
-            </button>
-            */}
+            {/* Organizer Fixture Management - Only show if fixture_service = false (manual mode) */}
+            {competition.fixture_service === false && (
+              <>
+                <Link
+                  href={`/game/${competitionId}/organizer-fixtures`}
+                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="p-2 rounded-lg bg-blue-50 group-hover:bg-blue-100">
+                      <CalendarIcon className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm font-semibold text-gray-900">Fixtures</div>
+                      <div className="text-xs text-gray-500">Add fixtures</div>
+                    </div>
+                  </div>
+                </Link>
+
+                <Link
+                  href={`/game/${competitionId}/organizer-results`}
+                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="p-2 rounded-lg bg-green-50 group-hover:bg-green-100">
+                      <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm font-semibold text-gray-900">Results</div>
+                      <div className="text-xs text-gray-500">Enter results</div>
+                    </div>
+                  </div>
+                </Link>
+              </>
+            )}
 
             <Link
               href={`/game/${competitionId}/standings`}

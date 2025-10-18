@@ -501,7 +501,7 @@ export default function DashboardPage() {
                         </div>
                       ) : (
                         <div className="mb-3">
-                          <span className="text-sm font-medium text-green-700">✓ All up to date</span>
+                          <span className="text-sm font-medium text-green-700">✓ Up to date</span>
                         </div>
                       )}
                       <div className="flex items-center space-x-4 text-sm text-slate-600">

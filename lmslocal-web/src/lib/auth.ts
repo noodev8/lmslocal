@@ -38,8 +38,22 @@ export const setAuthData = (token: string, user: User, additionalData: Record<st
 /**
  * Standard logout function that clears all data and redirects
  */
-export const logout = (router: { push: (path: string) => void }) => {
+export const logout = async (router: { push: (path: string) => void }) => {
+  // Clear authentication data from localStorage
   clearAuthData();
+
+  // Clear all cached API data
+  if (typeof window !== 'undefined') {
+    const { cacheUtils } = await import('./cache');
+    cacheUtils.clearAll();
+  }
+
+  // Trigger auth-expired event to reset AppDataContext state
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth-expired'));
+  }
+
+  // Redirect to home page
   router.push('/');
 };
 

@@ -127,6 +127,7 @@ export interface Competition {
   total_players?: number;
   current_round: number;
   current_round_lock_time?: string;
+  fixture_service?: boolean;
   total_rounds?: number;
   picks_made?: number;
   picks_required?: number;
@@ -545,7 +546,7 @@ export const playerActionApi = {
   setPick: (fixture_id: number, team: string) => api.post<{ return_code: string; message: string }>('/set-pick', { fixture_id, team }),
   unselectPick: (round_id: number) => api.post<{ return_code: string; message?: string; warning?: string }>('/unselect-pick', { round_id }),
   getCurrentPick: (round_id: number) => api.post<{ return_code: string; pick?: { team: string, fixture_id: number } }>('/get-current-pick', { round_id }),
-  calculateResults: (round_id: number) => api.post<{ return_code: string; message: string }>('/calculate-results', { round_id: parseInt(round_id.toString()) }),
+  // REMOVED: calculateResults (orphaned API - never used)
 };
 
 // Offline player management
@@ -657,7 +658,7 @@ export const userApi = {
     const userId = getUserId();
     return withCache(
       `user-dashboard-${userId}`, // User-specific cache key
-      5 * 60 * 1000, // 5 minutes cache - optimal for dashboard data
+      60 * 60 * 1000, // 1 hour cache - competitions are weekly
       () => api.post<{
         return_code: string;
         message?: string;
@@ -805,21 +806,60 @@ export const cacheUtils = {
     apiCache.delete(`user-subscription-${userId}`);
     apiCache.delete(`billing-history-${userId}`);
   },
-  
+
   // Clear specific cache key
   invalidateKey: (key: string) => {
     apiCache.delete(key);
   },
-  
+
   // Clear all cache entries
   clearAll: () => {
     apiCache.clear();
   },
-  
+
   // Get cache diagnostics
   getStats: () => {
     return apiCache.getStats();
   }
+};
+
+// ========================================
+// ORGANIZER FIXTURE MANAGEMENT API
+// ========================================
+// For manual competitions (fixture_service = false)
+// Allows organizers to manage fixtures and results for their own competition
+
+export interface OrganizerFixture {
+  home_team_short: string;
+  away_team_short: string;
+}
+
+export interface OrganizerFixtureWithResult {
+  id: number;
+  home_team_short: string;
+  away_team_short: string;
+  home_team: string;
+  away_team: string;
+  kickoff_time: string;
+  result: string | null;
+}
+
+export const organizerApi = {
+  // Add fixtures to competition's current round
+  addFixtures: (competition_id: number, kickoff_time: string, fixtures: OrganizerFixture[]) =>
+    api.post('/organizer-add-fixtures', { competition_id, kickoff_time, fixtures }),
+
+  // Get fixtures needing results for current round
+  getFixturesForResults: (competition_id: number) =>
+    api.post('/organizer-get-fixtures-for-results', { competition_id }),
+
+  // Set single fixture result
+  setResult: (fixture_id: number, result: 'home_win' | 'away_win' | 'draw') =>
+    api.post('/organizer-set-result', { fixture_id, result }),
+
+  // Process all results for round (eliminations, no-picks, completion)
+  processResults: (competition_id: number) =>
+    api.post('/organizer-process-results', { competition_id })
 };
 
 export default api;

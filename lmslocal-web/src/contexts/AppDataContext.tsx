@@ -288,6 +288,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     const handleAuthExpired = () => {
       setUser(null);
       setCompetitions(null);
+      setLatestRoundStats(null);
       setLoading(false);
     };
 
