@@ -82,13 +82,10 @@ const getUnpickedPlayersRoute = require('./routes/get-unpicked-players');
 const hideCompetitionRoute = require('./routes/hide-competition');
 const unhidePlayerRoute = require('./routes/unhide-player');
 
-// Marketing Routes
-const getMarketingPostsRoute = require('./routes/get-marketing-posts');
-const createMarketingPostRoute = require('./routes/create-marketing-post');
-const updateMarketingPostRoute = require('./routes/update-marketing-post');
-const deleteMarketingPostRoute = require('./routes/delete-marketing-post');
-const getCompetitionMarketingDisplayRoute = require('./routes/get-competition-marketing-display');
 const updatePersonalCompetitionNameRoute = require('./routes/update-personal-competition-name');
+
+// Promote/Marketing Routes
+const getPromoteDataRoute = require('./routes/get-promote-data');
 
 // Email Routes
 const loadPickReminderRoute = require('./routes/load-pick-reminder');
@@ -278,13 +275,10 @@ app.use('/get-unpicked-players', getUnpickedPlayersRoute);
 app.use('/hide-competition', hideCompetitionRoute);
 app.use('/unhide-player', unhidePlayerRoute);
 
-// Marketing API Routes
-app.use('/get-marketing-posts', getMarketingPostsRoute);
-app.use('/create-marketing-post', createMarketingPostRoute);
-app.use('/update-marketing-post', updateMarketingPostRoute);
-app.use('/delete-marketing-post', deleteMarketingPostRoute);
-app.use('/get-competition-marketing-display', getCompetitionMarketingDisplayRoute);
 app.use('/update-personal-competition-name', updatePersonalCompetitionNameRoute);
+
+// Promote/Marketing API Routes
+app.use('/get-promote-data', getPromoteDataRoute);
 
 // Email API Routes
 app.use('/load-pick-reminder', loadPickReminderRoute);

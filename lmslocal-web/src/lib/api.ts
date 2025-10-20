@@ -224,44 +224,6 @@ export interface TeamList {
   description?: string;
 }
 
-// Marketing interfaces
-export interface MarketingPost {
-  id: number;
-  title: string;
-  description?: string;
-  image_url?: string;
-  display_priority: number;
-  is_active?: boolean;
-  view_count?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface MarketingDisplay {
-  has_marketing_content: boolean;
-  venue_name?: string;
-  logo_url?: string;
-  posts: MarketingPost[];
-}
-
-export interface CreateMarketingPostRequest {
-  competition_id: number;
-  title: string;
-  description?: string;
-  image_url?: string;
-  is_active?: boolean;
-  display_priority?: number;
-}
-
-export interface UpdateMarketingPostRequest {
-  post_id: number;
-  title?: string;
-  description?: string;
-  image_url?: string;
-  is_active?: boolean;
-  display_priority?: number;
-}
-
 // Generic response types
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface EmptyResponse {}
@@ -758,38 +720,53 @@ export const userApi = {
     }>('/validate-promo-code', { code, plan }),
 };
 
-// Marketing API calls
-export const marketingApi = {
-  getCompetitionDisplay: (competition_id: number) => withCache(
-    `marketing-display-${competition_id}`,
-    1 * 60 * 60 * 1000, // 1 hour cache - marketing content changes less frequently
-    () => api.post<MarketingDisplay & { return_code: string; message?: string }>('/get-competition-marketing-display', { competition_id })
+// Promote/Marketing API calls
+export const promoteApi = {
+  getPromoteData: (competition_id: number) => withCache(
+    `promote-data-${competition_id}`,
+    1 * 60 * 60 * 1000, // 1 hour cache - data is a snapshot anyway, reduces DB load
+    () => api.post<{
+      return_code: string;
+      message?: string;
+      competition?: {
+        id: number;
+        name: string;
+        status: string;
+        invite_code: string;
+        join_url: string;
+        total_players: number;
+      };
+      current_round?: {
+        round_number: number;
+        lock_time: string | null;
+        lock_time_formatted: string | null;
+        is_locked: boolean;
+        fixture_count: number;
+        completed_fixtures: number;
+        next_round_start: string | null;
+      } | null;
+      player_stats?: {
+        total_active_players: number;
+        players_eliminated_this_round: number;
+        pick_percentage: number;
+        players_with_picks: number;
+        players_without_picks: number;
+      };
+      top_players?: Array<{
+        display_name: string;
+        lives_remaining: number;
+      }>;
+      template_context?: {
+        show_pre_launch: boolean;
+        show_weekly_update: boolean;
+        show_pick_reminder: boolean;
+        show_results: boolean;
+        show_elimination: boolean;
+        show_final_hype: boolean;
+        show_winner: boolean;
+      };
+    }>('/get-promote-data', { competition_id })
   ),
-
-  // Organizer management functions
-  getMarketingPosts: (competition_id: number) => api.post<{
-    return_code: string;
-    message?: string;
-    posts?: MarketingPost[];
-    active_post_count?: number;
-    max_posts_allowed?: number;
-  }>('/get-marketing-posts', { competition_id }),
-
-  createMarketingPost: (data: CreateMarketingPostRequest) => api.post<{
-    return_code: string;
-    message?: string;
-    post?: MarketingPost;
-  }>('/create-marketing-post', data),
-
-  updateMarketingPost: (data: UpdateMarketingPostRequest) => api.post<{
-    return_code: string;
-    message?: string;
-  }>('/update-marketing-post', data),
-
-  deleteMarketingPost: (post_id: number) => api.post<{
-    return_code: string;
-    message?: string;
-  }>('/delete-marketing-post', { post_id }),
 };
 
 // Cache utilities

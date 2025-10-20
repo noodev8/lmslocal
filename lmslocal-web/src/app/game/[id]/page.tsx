@@ -17,7 +17,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { Competition as CompetitionType, userApi, roundApi, competitionApi, offlinePlayerApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
-import MarketingDisplay from '@/components/MarketingDisplay';
 import { useToast, ToastContainer } from '@/components/Toast';
 
 export default function UnifiedGameDashboard() {
@@ -826,7 +825,7 @@ export default function UnifiedGameDashboard() {
             </Link>
 
             <Link
-              href={`/game/${competitionId}/marketing`}
+              href={`/game/${competitionId}/promote`}
               className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
             >
               <div className="flex flex-col items-center space-y-2">
@@ -834,8 +833,8 @@ export default function UnifiedGameDashboard() {
                   <MegaphoneIcon className="h-5 w-5 text-gray-600" />
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Marketing</div>
-                  <div className="text-xs text-gray-500">Manage posts</div>
+                  <div className="text-sm font-semibold text-gray-900">Promote</div>
+                  <div className="text-xs text-gray-500">Share competition</div>
                 </div>
               </div>
             </Link>
@@ -892,13 +891,6 @@ export default function UnifiedGameDashboard() {
             </Link>
           </div>
         )}
-
-        {/* Marketing Content - placed at bottom to not interfere with game functionality */}
-        <MarketingDisplay
-          competitionId={parseInt(competitionId)}
-          className="mt-2"
-          user={user}
-        />
 
       </main>
 
