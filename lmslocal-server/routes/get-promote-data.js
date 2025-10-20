@@ -19,7 +19,8 @@ Success Response (ALWAYS HTTP 200):
     "name": "Red Barn LMS",            // string, competition name
     "status": "active",                // string, competition status (setup/active/COMPLETE)
     "invite_code": "RED-BARN",         // string, competition invite code
-    "join_url": "https://lmslocal.co.uk/join/RED-BARN",  // string, full join URL
+    "join_url": "https://lmslocal.co.uk/join/RED-BARN",  // string, full join URL (for pre-launch)
+    "game_url": "https://lmslocal.co.uk/game/123",       // string, direct game URL (for active competitions)
     "total_players": 35                // integer, total players ever in competition
   },
   "current_round": {
@@ -29,7 +30,12 @@ Success Response (ALWAYS HTTP 200):
     "is_locked": false,                // boolean, whether round is currently locked
     "fixture_count": 10,               // integer, number of fixtures in round
     "completed_fixtures": 0,           // integer, fixtures with results
-    "next_round_start": "Saturday 25th Jan" // string, formatted next round date (null if unknown)
+    "next_round_info": {               // object, information about next round
+      "exists": true,                  // boolean, whether next round exists
+      "round_number": 6,               // integer, next round number (if exists)
+      "has_fixtures": true,            // boolean, whether next round has fixtures loaded
+      "message": "Saturday 15 Jan at 3:00pm" // string, formatted message ("Fixtures coming soon" if no fixtures, null if no next round)
+    }
   },
   "player_stats": {
     "total_active_players": 23,        // integer, players still in competition
@@ -123,10 +129,13 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Build join URL (prefer slug, fallback to invite code)
+    // Build join URL (prefer slug, fallback to invite code) - for pre-launch invitations
     const join_url = competition.slug
       ? `https://lmslocal.co.uk/join/${competition.slug}`
       : `https://lmslocal.co.uk/join/${competition.invite_code}`;
+
+    // Build game URL - for players to view active competition
+    const game_url = `https://lmslocal.co.uk/game/${competition_id}`;
 
     // Get total player count (all players who ever joined)
     const totalPlayersResult = await query(
@@ -177,14 +186,65 @@ router.post('/', verifyToken, async (req, res) => {
         lock_time_formatted = `${dayName} ${displayHour}${ampm}`;
       }
 
-      // Calculate next round start (approximate - could be enhanced with actual fixture data)
-      let next_round_start = null;
-      if (lockTime && !is_locked) {
-        const nextDay = new Date(lockTime);
-        nextDay.setDate(nextDay.getDate() + 1);
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        next_round_start = `${days[nextDay.getDay()]} ${nextDay.getDate()} ${months[nextDay.getMonth()]}`;
+      // Get NEXT round information (for "Next round starts..." messaging)
+      let next_round_info = null;
+      const nextRoundResult = await query(
+        `SELECT id, round_number, lock_time
+         FROM round
+         WHERE competition_id = $1 AND round_number = $2
+         LIMIT 1`,
+        [competition_id, round.round_number + 1]
+      );
+
+      if (nextRoundResult.rows.length > 0) {
+        const nextRound = nextRoundResult.rows[0];
+
+        // Check if next round has fixtures and get earliest kick-off time
+        const nextFixturesResult = await query(
+          `SELECT MIN(kick_off_time) as earliest_kickoff, COUNT(*) as fixture_count
+           FROM fixture
+           WHERE round_id = $1`,
+          [nextRound.id]
+        );
+
+        const nextFixtureCount = parseInt(nextFixturesResult.rows[0].fixture_count) || 0;
+        const earliestKickoff = nextFixturesResult.rows[0].earliest_kickoff;
+
+        if (nextFixtureCount > 0 && earliestKickoff) {
+          // Format the earliest kick-off time
+          const kickoffDate = new Date(earliestKickoff);
+          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const dayName = days[kickoffDate.getDay()];
+          const date = kickoffDate.getDate();
+          const month = months[kickoffDate.getMonth()];
+          const hour = kickoffDate.getHours();
+          const minute = kickoffDate.getMinutes();
+          const ampm = hour >= 12 ? 'pm' : 'am';
+          const displayHour = hour % 12 || 12;
+          const displayMinute = minute.toString().padStart(2, '0');
+
+          next_round_info = {
+            exists: true,
+            round_number: nextRound.round_number,
+            has_fixtures: true,
+            message: `${dayName} ${date} ${month} at ${displayHour}:${displayMinute}${ampm}`
+          };
+        } else {
+          // Next round exists but no fixtures yet
+          next_round_info = {
+            exists: true,
+            round_number: nextRound.round_number,
+            has_fixtures: false,
+            message: 'Fixtures coming soon - stay tuned!'
+          };
+        }
+      } else {
+        // No next round - competition may be ending
+        next_round_info = {
+          exists: false,
+          message: null
+        };
       }
 
       current_round = {
@@ -194,7 +254,7 @@ router.post('/', verifyToken, async (req, res) => {
         is_locked,
         fixture_count,
         completed_fixtures,
-        next_round_start
+        next_round_info
       };
     }
 
@@ -309,6 +369,7 @@ router.post('/', verifyToken, async (req, res) => {
         status: competition.status,
         invite_code: competition.invite_code,
         join_url,
+        game_url,
         total_players
       },
       current_round,

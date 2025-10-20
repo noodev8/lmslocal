@@ -11,9 +11,10 @@
  * - [PLAYERS_ELIMINATED] - Players eliminated this round
  * - [TOP_3_PLAYERS] - Top 3 players formatted list
  * - [PICK_DEADLINE] - Lock time formatted (e.g., "Friday 7pm")
- * - [NEXT_ROUND_START] - Next round start date
+ * - [NEXT_ROUND_INFO] - Next round info message (e.g., "Saturday 15 Jan at 3:00pm" or "Fixtures coming soon")
  * - [JOIN_CODE] - Competition invite code
- * - [JOIN_URL] - Full join URL
+ * - [JOIN_URL] - Full join URL (for pre-launch)
+ * - [GAME_URL] - Direct game URL (for active competitions)
  * - [TOTAL_PLAYERS] - Total players who ever joined
  * - [PLAYERS_WITHOUT_PICKS] - Count of players who haven't picked
  * - [PICK_PERCENTAGE] - Percentage of players who have picked
@@ -105,7 +106,7 @@ Hey everyone! Just a friendly reminder to make your pick if you haven't already.
 📊 [PICK_PERCENTAGE]% of players have picked
 ⏰ Deadline: [PICK_DEADLINE]
 
-Make your pick: [JOIN_URL]
+Make your pick: [GAME_URL]
 
 Good luck! 👍`
   },
@@ -121,7 +122,7 @@ Good luck! 👍`
 ⏰ Picks lock: [PICK_DEADLINE]
 ⚽ Don't lose a life by missing the deadline
 
-👉 Pick now: [JOIN_URL]
+👉 Pick now: [GAME_URL]
 
 [COMP_NAME]`
   },
@@ -139,7 +140,7 @@ Round [ROUND_NUMBER] picks are locking soon!
 
 If you don't pick, you LOSE A LIFE automatically!
 
-👉 PICK NOW: [JOIN_URL]
+👉 PICK NOW: [GAME_URL]
 
 [COMP_NAME]`
   },
@@ -159,10 +160,9 @@ Still in: [PLAYERS_REMAINING] players
 Top of the table:
 [TOP_3_PLAYERS]
 
-Next round kicks off [NEXT_ROUND_START]
-Make your picks before [PICK_DEADLINE]
+Next round: [NEXT_ROUND_INFO]
 
-[JOIN_URL]`
+View competition: [GAME_URL]`
   },
   {
     id: 'weekly_excited',
@@ -179,11 +179,10 @@ WOW! What a round!
 🌟 Current leaders:
 [TOP_3_PLAYERS]
 
-⚽ Next round: [NEXT_ROUND_START]
-⏰ Picks due: [PICK_DEADLINE]
+⚽ Next round: [NEXT_ROUND_INFO]
 
 The competition is heating up! 🔥
-[COMP_NAME] - [JOIN_URL]`
+View: [GAME_URL]`
   },
   {
     id: 'weekly_dramatic',
@@ -200,12 +199,9 @@ Only [PLAYERS_REMAINING] survivors remain...
 [TOP_3_PLAYERS]
 
 Who will fall next?
-Find out [NEXT_ROUND_START]
+Next round: [NEXT_ROUND_INFO]
 
-⏰ Make your choice before [PICK_DEADLINE]
-
-[COMP_NAME]
-[JOIN_URL]`
+View: [GAME_URL]`
   },
   {
     id: 'weekly_professional',
@@ -222,10 +218,9 @@ TOP 3 PLAYERS:
 [TOP_3_PLAYERS]
 
 NEXT ROUND:
-• Fixtures available: [NEXT_ROUND_START]
-• Pick deadline: [PICK_DEADLINE]
+• [NEXT_ROUND_INFO]
 
-View full standings: [JOIN_URL]`
+View full standings: [GAME_URL]`
   }
 ];
 
@@ -241,9 +236,10 @@ export function replaceTemplateVariables(
     players_eliminated: number;
     top_players: Array<{ display_name: string; lives_remaining: number }>;
     pick_deadline: string | null;
-    next_round_start: string | null;
+    next_round_info: string | null;
     join_code: string;
     join_url: string;
+    game_url: string;
     total_players: number;
     players_without_picks: number;
     pick_percentage: number;
@@ -257,9 +253,10 @@ export function replaceTemplateVariables(
   result = result.replace(/\[PLAYERS_REMAINING\]/g, data.players_remaining.toString());
   result = result.replace(/\[PLAYERS_ELIMINATED\]/g, data.players_eliminated.toString());
   result = result.replace(/\[PICK_DEADLINE\]/g, data.pick_deadline || 'TBD');
-  result = result.replace(/\[NEXT_ROUND_START\]/g, data.next_round_start || 'TBD');
+  result = result.replace(/\[NEXT_ROUND_INFO\]/g, data.next_round_info || 'Fixtures coming soon');
   result = result.replace(/\[JOIN_CODE\]/g, data.join_code);
   result = result.replace(/\[JOIN_URL\]/g, data.join_url);
+  result = result.replace(/\[GAME_URL\]/g, data.game_url);
   result = result.replace(/\[TOTAL_PLAYERS\]/g, data.total_players.toString());
   result = result.replace(/\[PLAYERS_WITHOUT_PICKS\]/g, data.players_without_picks.toString());
   result = result.replace(/\[PICK_PERCENTAGE\]/g, data.pick_percentage.toString());

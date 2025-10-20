@@ -734,6 +734,7 @@ export const promoteApi = {
         status: string;
         invite_code: string;
         join_url: string;
+        game_url: string;
         total_players: number;
       };
       current_round?: {
@@ -743,7 +744,12 @@ export const promoteApi = {
         is_locked: boolean;
         fixture_count: number;
         completed_fixtures: number;
-        next_round_start: string | null;
+        next_round_info: {
+          exists: boolean;
+          round_number?: number;
+          has_fixtures?: boolean;
+          message: string | null;
+        } | null;
       } | null;
       player_stats?: {
         total_active_players: number;
