@@ -87,6 +87,38 @@ const categoryDefinitions = [
     icon: '📊',
     category: 'weekly_update' as const,
     expanded: true
+  },
+  {
+    key: 'show_results' as const,
+    title: 'Results Announcements',
+    description: 'Share round results after matches complete',
+    icon: '⚽',
+    category: 'results' as const,
+    expanded: true
+  },
+  {
+    key: 'show_elimination' as const,
+    title: 'Elimination Alerts',
+    description: 'Announce players who have been eliminated',
+    icon: '💥',
+    category: 'elimination' as const,
+    expanded: true
+  },
+  {
+    key: 'show_final_hype' as const,
+    title: 'Final Round Hype',
+    description: 'Build excitement when few players remain',
+    icon: '🔥',
+    category: 'final_hype' as const,
+    expanded: true
+  },
+  {
+    key: 'show_winner' as const,
+    title: 'Winner Announcements',
+    description: 'Celebrate your competition champion',
+    icon: '🏆',
+    category: 'winner' as const,
+    expanded: true
   }
 ];
 

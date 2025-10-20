@@ -221,6 +221,191 @@ NEXT ROUND:
 • [NEXT_ROUND_INFO]
 
 View full standings: [GAME_URL]`
+  },
+
+  // ==================================================
+  // RESULTS ANNOUNCEMENT TEMPLATES (2)
+  // ==================================================
+  {
+    id: 'results_casual',
+    name: 'Casual Results',
+    category: 'results',
+    tone: 'casual',
+    content: `⚽ Round [ROUND_NUMBER] Results - [COMP_NAME]
+
+The results are in!
+
+💔 [PLAYERS_ELIMINATED] players eliminated this round
+💪 [PLAYERS_REMAINING] survivors remain
+
+Top of the leaderboard:
+[TOP_3_PLAYERS]
+
+Next round: [NEXT_ROUND_INFO]
+
+View competition: [GAME_URL]`
+  },
+  {
+    id: 'results_professional',
+    name: 'Professional Results',
+    category: 'results',
+    tone: 'professional',
+    content: `📊 [COMP_NAME] - Round [ROUND_NUMBER] Results
+
+ROUND SUMMARY:
+• Players eliminated: [PLAYERS_ELIMINATED]
+• Survivors remaining: [PLAYERS_REMAINING]
+
+CURRENT LEADERBOARD:
+[TOP_3_PLAYERS]
+
+NEXT ROUND:
+• [NEXT_ROUND_INFO]
+
+View full competition: [GAME_URL]`
+  },
+
+  // ==================================================
+  // ELIMINATION ALERT TEMPLATES (2)
+  // ==================================================
+  {
+    id: 'elimination_dramatic',
+    name: 'Dramatic Elimination',
+    category: 'elimination',
+    tone: 'dramatic',
+    content: `💥 ELIMINATION ALERT! 💥
+
+Round [ROUND_NUMBER] has claimed its victims...
+
+[PLAYERS_ELIMINATED] players have fallen!
+
+Only [PLAYERS_REMAINING] survivors remain in [COMP_NAME].
+
+Who will be next? 👀
+
+Next round: [NEXT_ROUND_INFO]
+
+[GAME_URL]`
+  },
+  {
+    id: 'elimination_factual',
+    name: 'Matter-of-Fact',
+    category: 'elimination',
+    tone: 'professional',
+    content: `📉 Round [ROUND_NUMBER] Eliminations
+
+[PLAYERS_ELIMINATED] players eliminated this round.
+
+Current survivors: [PLAYERS_REMAINING]
+
+Top performers:
+[TOP_3_PLAYERS]
+
+Next round: [NEXT_ROUND_INFO]
+
+View standings: [GAME_URL]`
+  },
+
+  // ==================================================
+  // FINAL ROUND HYPE TEMPLATES (3)
+  // ==================================================
+  {
+    id: 'final_hype_excited',
+    name: 'Excited Finals',
+    category: 'final_hype',
+    tone: 'excited',
+    content: `🔥 IT'S GETTING INTENSE! 🔥
+
+Only [PLAYERS_REMAINING] players left in [COMP_NAME]!
+
+The final survivors:
+[TOP_3_PLAYERS]
+
+⚽ Next round: [NEXT_ROUND_INFO]
+
+Who will be crowned champion?! 🏆
+
+[GAME_URL]`
+  },
+  {
+    id: 'final_hype_dramatic',
+    name: 'Dramatic Finals',
+    category: 'final_hype',
+    tone: 'dramatic',
+    content: `⚡ THE ENDGAME ⚡
+
+From [TOTAL_PLAYERS] competitors, only [PLAYERS_REMAINING] remain standing.
+
+The elite few:
+[TOP_3_PLAYERS]
+
+Next round: [NEXT_ROUND_INFO]
+
+History will be made. Legacy will be forged.
+
+[GAME_URL]`
+  },
+  {
+    id: 'final_hype_professional',
+    name: 'Professional Finals',
+    category: 'final_hype',
+    tone: 'professional',
+    content: `🏆 [COMP_NAME] - Final Stage
+
+FINALISTS: [PLAYERS_REMAINING] players
+
+STANDINGS:
+[TOP_3_PLAYERS]
+
+NEXT ROUND:
+• [NEXT_ROUND_INFO]
+
+We're in the home stretch. Who will emerge victorious?
+
+Follow live: [GAME_URL]`
+  },
+
+  // ==================================================
+  // WINNER ANNOUNCEMENT TEMPLATES (2)
+  // ==================================================
+  {
+    id: 'winner_celebratory',
+    name: 'Celebratory Winner',
+    category: 'winner',
+    tone: 'excited',
+    content: `🏆👑 WE HAVE A CHAMPION! 👑🏆
+
+[COMP_NAME] is COMPLETE!
+
+After [ROUND_NUMBER] rounds and [TOTAL_PLAYERS] competitors...
+
+🥇 WINNER:
+[TOP_3_PLAYERS]
+
+What a competition! Congratulations to our champion and thanks to everyone who played! 🎉
+
+View final standings: [GAME_URL]`
+  },
+  {
+    id: 'winner_professional',
+    name: 'Professional Winner',
+    category: 'winner',
+    tone: 'professional',
+    content: `🏆 [COMP_NAME] - Competition Complete
+
+FINAL RESULTS:
+After [ROUND_NUMBER] rounds, we have our winner!
+
+CHAMPION:
+[TOP_3_PLAYERS]
+
+COMPETITION STATS:
+• Total participants: [TOTAL_PLAYERS]
+• Rounds completed: [ROUND_NUMBER]
+
+Congratulations to our champion and well played to all competitors.
+
+View final standings: [GAME_URL]`
   }
 ];
 
