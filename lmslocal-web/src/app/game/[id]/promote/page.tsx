@@ -53,11 +53,8 @@ interface PromoteData {
   }>;
   template_context: {
     show_pre_launch: boolean;
-    show_weekly_update: boolean;
+    show_round_update: boolean;
     show_pick_reminder: boolean;
-    show_results: boolean;
-    show_elimination: boolean;
-    show_final_hype: boolean;
     show_winner: boolean;
   };
 }
@@ -81,35 +78,11 @@ const categoryDefinitions = [
     expanded: true
   },
   {
-    key: 'show_weekly_update' as const,
-    title: 'Weekly Updates',
+    key: 'show_round_update' as const,
+    title: 'Round Updates',
     description: 'Share round results and standings',
     icon: '📊',
-    category: 'weekly_update' as const,
-    expanded: true
-  },
-  {
-    key: 'show_results' as const,
-    title: 'Results Announcements',
-    description: 'Share round results after matches complete',
-    icon: '⚽',
-    category: 'results' as const,
-    expanded: true
-  },
-  {
-    key: 'show_elimination' as const,
-    title: 'Elimination Alerts',
-    description: 'Announce players who have been eliminated',
-    icon: '💥',
-    category: 'elimination' as const,
-    expanded: true
-  },
-  {
-    key: 'show_final_hype' as const,
-    title: 'Final Round Hype',
-    description: 'Build excitement when few players remain',
-    icon: '🔥',
-    category: 'final_hype' as const,
+    category: 'round_update' as const,
     expanded: true
   },
   {
@@ -141,6 +114,14 @@ export default function PromotePage() {
   const [data, setData] = useState<PromoteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fixtureResults, setFixtureResults] = useState<Array<{
+    home_team: string;
+    away_team: string;
+    result: string | null;
+    outcome: 'home_win' | 'away_win' | 'draw' | null;
+    survivors: number;
+    eliminated: number;
+  }> | null>(null);
 
   // Template selection and editing
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -194,6 +175,28 @@ export default function PromotePage() {
     fetchData();
   }, [router, competitionId]);
 
+  // Fetch fixture results when show_round_update is true
+  useEffect(() => {
+    if (data && data.template_context.show_round_update) {
+      const fetchFixtureResults = async () => {
+        try {
+          const response = await promoteApi.getRoundResultsBreakdown(
+            parseInt(competitionId),
+            data.current_round?.round_number
+          );
+
+          if (response.data.return_code === 'SUCCESS' && response.data.fixture_results) {
+            setFixtureResults(response.data.fixture_results);
+          }
+        } catch (err) {
+          console.error('Error fetching fixture results:', err);
+        }
+      };
+
+      fetchFixtureResults();
+    }
+  }, [data, competitionId]);
+
   const handleTemplateSelect = (template: Template) => {
     if (!data) return;
 
@@ -211,7 +214,8 @@ export default function PromotePage() {
       game_url: data.competition.game_url,
       total_players: data.competition.total_players,
       players_without_picks: data.player_stats.players_without_picks,
-      pick_percentage: data.player_stats.pick_percentage
+      pick_percentage: data.player_stats.pick_percentage,
+      fixture_results: fixtureResults || undefined
     });
 
     setSelectedTemplate(template);

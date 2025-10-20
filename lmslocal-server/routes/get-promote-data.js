@@ -44,7 +44,7 @@ Success Response (ALWAYS HTTP 200):
     "players_with_picks": 15,          // integer, count of players who have picked
     "players_without_picks": 8         // integer, count of players who haven't picked
   },
-  "top_players": [                     // array, top 3 active players by lives remaining
+  "top_players": [                     // array, top 5 active players by lives remaining
     {
       "display_name": "John",          // string, player name
       "lives_remaining": 3             // integer, lives left
@@ -52,11 +52,8 @@ Success Response (ALWAYS HTTP 200):
   ],
   "template_context": {                // object, boolean flags for which template categories to show
     "show_pre_launch": true,           // boolean, show pre-launch templates
-    "show_weekly_update": false,       // boolean, show weekly update templates
+    "show_round_update": false,        // boolean, show round update templates
     "show_pick_reminder": true,        // boolean, show pick reminder templates
-    "show_results": false,             // boolean, show results announcement templates
-    "show_elimination": false,         // boolean, show elimination alert templates
-    "show_final_hype": false,          // boolean, show final round hype templates
     "show_winner": false               // boolean, show winner announcement templates
   }
 }
@@ -311,14 +308,14 @@ router.post('/', verifyToken, async (req, res) => {
       players_eliminated_this_round = parseInt(eliminationsResult.rows[0].count) || 0;
     }
 
-    // Get top 3 players by lives remaining
+    // Get top 5 players by lives remaining (randomized for tied players)
     const topPlayersResult = await query(
       `SELECT u.display_name, cu.lives_remaining
        FROM competition_user cu
        INNER JOIN app_user u ON cu.user_id = u.id
        WHERE cu.competition_id = $1 AND cu.status = 'active'
-       ORDER BY cu.lives_remaining DESC, u.display_name ASC
-       LIMIT 3`,
+       ORDER BY cu.lives_remaining DESC, RANDOM()
+       LIMIT 5`,
       [competition_id]
     );
 
@@ -333,28 +330,17 @@ router.post('/', verifyToken, async (req, res) => {
       show_pre_launch: competition.status === 'setup' ||
                        (!current_round || (current_round.round_number === 1 && current_round.fixture_count === 0)),
 
-      // Weekly update: Show if competition is active and round is locked
-      show_weekly_update: competition.status === 'active' && current_round && current_round.is_locked,
+      // Round update: Show if competition is active, round is locked, and has completed fixtures
+      show_round_update: competition.status === 'active' &&
+                        current_round &&
+                        current_round.is_locked &&
+                        current_round.completed_fixtures > 0,
 
       // Pick reminder: Show if competition is active, round is NOT locked, and pick percentage < 80%
       show_pick_reminder: competition.status === 'active' &&
                          current_round &&
                          !current_round.is_locked &&
                          pick_stats.pick_percentage < 80,
-
-      // Results: Show if round is locked and has completed fixtures
-      show_results: current_round &&
-                   current_round.is_locked &&
-                   current_round.completed_fixtures > 0,
-
-      // Elimination: Show if there were eliminations in the latest round
-      show_elimination: players_eliminated_this_round > 0,
-
-      // Final hype: Show if 5 or fewer active players remain and round is not locked
-      show_final_hype: total_active_players > 0 &&
-                       total_active_players <= 5 &&
-                       current_round &&
-                       !current_round.is_locked,
 
       // Winner: Show if competition is complete
       show_winner: competition.status === 'COMPLETE'

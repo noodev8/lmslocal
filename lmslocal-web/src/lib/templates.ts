@@ -9,9 +9,10 @@
  * - [ROUND_NUMBER] - Current round number
  * - [PLAYERS_REMAINING] - Active player count
  * - [PLAYERS_ELIMINATED] - Players eliminated this round
- * - [TOP_3_PLAYERS] - Top 3 players formatted list
+ * - [TOP_3_PLAYERS] - Top 5 players formatted list
  * - [PICK_DEADLINE] - Lock time formatted (e.g., "Friday 7pm")
  * - [NEXT_ROUND_INFO] - Next round info message (e.g., "Saturday 15 Jan at 3:00pm" or "Fixtures coming soon")
+ * - [FIXTURE_RESULTS] - Fixture-by-fixture breakdown with results (for Detailed template)
  * - [JOIN_CODE] - Competition invite code
  * - [JOIN_URL] - Full join URL (for pre-launch)
  * - [GAME_URL] - Direct game URL (for active competitions)
@@ -23,7 +24,7 @@
 export interface Template {
   id: string;
   name: string;
-  category: 'pre_launch' | 'pick_reminder' | 'weekly_update' | 'results' | 'elimination' | 'final_hype' | 'winner';
+  category: 'pre_launch' | 'pick_reminder' | 'round_update' | 'winner';
   tone?: 'casual' | 'excited' | 'dramatic' | 'professional' | 'gentle' | 'urgent' | 'critical';
   content: string;
 }
@@ -146,223 +147,53 @@ If you don't pick, you LOSE A LIFE automatically!
   },
 
   // ==================================================
-  // WEEKLY UPDATE TEMPLATES (4)
+  // ROUND UPDATE TEMPLATES (3)
   // ==================================================
   {
-    id: 'weekly_casual',
-    name: 'Casual Update',
-    category: 'weekly_update',
-    tone: 'casual',
-    content: `⚽ Round [ROUND_NUMBER] Update - [COMP_NAME]
+    id: 'round_minimal',
+    name: 'Minimal',
+    category: 'round_update',
+    content: `📊 Round [ROUND_NUMBER] - [COMP_NAME]
 
-Still in: [PLAYERS_REMAINING] players
-
-Top of the table:
-[TOP_3_PLAYERS]
-
-Next round: [NEXT_ROUND_INFO]
-
-View competition: [GAME_URL]`
-  },
-  {
-    id: 'weekly_excited',
-    name: 'Excited Update',
-    category: 'weekly_update',
-    tone: 'excited',
-    content: `🏆 ROUND [ROUND_NUMBER] UPDATE! 🏆
-
-WOW! What a round!
-
-💪 Still standing: [PLAYERS_REMAINING] players
-📊 Out this week: [PLAYERS_ELIMINATED] players
-
-🌟 Current leaders:
-[TOP_3_PLAYERS]
-
-⚽ Next round: [NEXT_ROUND_INFO]
-
-The competition is heating up! 🔥
-View: [GAME_URL]`
-  },
-  {
-    id: 'weekly_dramatic',
-    name: 'Dramatic Update',
-    category: 'weekly_update',
-    tone: 'dramatic',
-    content: `⚡ THE TENSION BUILDS - Round [ROUND_NUMBER] ⚡
-
-Another round complete. Another [PLAYERS_ELIMINATED] players fall.
-
-Only [PLAYERS_REMAINING] survivors remain...
-
-🎯 The elite:
-[TOP_3_PLAYERS]
-
-Who will fall next?
-Next round: [NEXT_ROUND_INFO]
-
-View: [GAME_URL]`
-  },
-  {
-    id: 'weekly_professional',
-    name: 'Professional Update',
-    category: 'weekly_update',
-    tone: 'professional',
-    content: `📊 [COMP_NAME] - Round [ROUND_NUMBER] Summary
-
-CURRENT STANDINGS:
-• Active players: [PLAYERS_REMAINING]
-• Eliminated this round: [PLAYERS_ELIMINATED]
-
-TOP 3 PLAYERS:
-[TOP_3_PLAYERS]
-
-NEXT ROUND:
-• [NEXT_ROUND_INFO]
-
-View full standings: [GAME_URL]`
-  },
-
-  // ==================================================
-  // RESULTS ANNOUNCEMENT TEMPLATES (2)
-  // ==================================================
-  {
-    id: 'results_casual',
-    name: 'Casual Results',
-    category: 'results',
-    tone: 'casual',
-    content: `⚽ Round [ROUND_NUMBER] Results - [COMP_NAME]
-
-The results are in!
-
-💔 [PLAYERS_ELIMINATED] players eliminated this round
-💪 [PLAYERS_REMAINING] survivors remain
-
-Top of the leaderboard:
-[TOP_3_PLAYERS]
-
-Next round: [NEXT_ROUND_INFO]
-
-View competition: [GAME_URL]`
-  },
-  {
-    id: 'results_professional',
-    name: 'Professional Results',
-    category: 'results',
-    tone: 'professional',
-    content: `📊 [COMP_NAME] - Round [ROUND_NUMBER] Results
-
-ROUND SUMMARY:
-• Players eliminated: [PLAYERS_ELIMINATED]
-• Survivors remaining: [PLAYERS_REMAINING]
-
-CURRENT LEADERBOARD:
-[TOP_3_PLAYERS]
-
-NEXT ROUND:
-• [NEXT_ROUND_INFO]
-
-View full competition: [GAME_URL]`
-  },
-
-  // ==================================================
-  // ELIMINATION ALERT TEMPLATES (2)
-  // ==================================================
-  {
-    id: 'elimination_dramatic',
-    name: 'Dramatic Elimination',
-    category: 'elimination',
-    tone: 'dramatic',
-    content: `💥 ELIMINATION ALERT! 💥
-
-Round [ROUND_NUMBER] has claimed its victims...
-
-[PLAYERS_ELIMINATED] players have fallen!
-
-Only [PLAYERS_REMAINING] survivors remain in [COMP_NAME].
-
-Who will be next? 👀
+💪 Survivors: [PLAYERS_REMAINING]
+💔 Eliminated: [PLAYERS_ELIMINATED]
 
 Next round: [NEXT_ROUND_INFO]
 
 [GAME_URL]`
   },
   {
-    id: 'elimination_factual',
-    name: 'Matter-of-Fact',
-    category: 'elimination',
-    tone: 'professional',
-    content: `📉 Round [ROUND_NUMBER] Eliminations
+    id: 'round_detailed',
+    name: 'Detailed with Fixtures',
+    category: 'round_update',
+    content: `⚽ Round [ROUND_NUMBER] Results - [COMP_NAME]
 
-[PLAYERS_ELIMINATED] players eliminated this round.
+SUMMARY:
+💪 Survivors: [PLAYERS_REMAINING]
+💔 Eliminated: [PLAYERS_ELIMINATED]
 
-Current survivors: [PLAYERS_REMAINING]
+[FIXTURE_RESULTS]
+
+Next round: [NEXT_ROUND_INFO]
+
+[GAME_URL]`
+  },
+  {
+    id: 'round_elimination_focus',
+    name: 'Elimination Focus',
+    category: 'round_update',
+    content: `💥 Round [ROUND_NUMBER] Eliminations
+
+[PLAYERS_ELIMINATED] players eliminated from [COMP_NAME]!
+
+Only [PLAYERS_REMAINING] survivors remain...
 
 Top performers:
 [TOP_3_PLAYERS]
 
 Next round: [NEXT_ROUND_INFO]
 
-View standings: [GAME_URL]`
-  },
-
-  // ==================================================
-  // FINAL ROUND HYPE TEMPLATES (3)
-  // ==================================================
-  {
-    id: 'final_hype_excited',
-    name: 'Excited Finals',
-    category: 'final_hype',
-    tone: 'excited',
-    content: `🔥 IT'S GETTING INTENSE! 🔥
-
-Only [PLAYERS_REMAINING] players left in [COMP_NAME]!
-
-The final survivors:
-[TOP_3_PLAYERS]
-
-⚽ Next round: [NEXT_ROUND_INFO]
-
-Who will be crowned champion?! 🏆
-
 [GAME_URL]`
-  },
-  {
-    id: 'final_hype_dramatic',
-    name: 'Dramatic Finals',
-    category: 'final_hype',
-    tone: 'dramatic',
-    content: `⚡ THE ENDGAME ⚡
-
-From [TOTAL_PLAYERS] competitors, only [PLAYERS_REMAINING] remain standing.
-
-The elite few:
-[TOP_3_PLAYERS]
-
-Next round: [NEXT_ROUND_INFO]
-
-History will be made. Legacy will be forged.
-
-[GAME_URL]`
-  },
-  {
-    id: 'final_hype_professional',
-    name: 'Professional Finals',
-    category: 'final_hype',
-    tone: 'professional',
-    content: `🏆 [COMP_NAME] - Final Stage
-
-FINALISTS: [PLAYERS_REMAINING] players
-
-STANDINGS:
-[TOP_3_PLAYERS]
-
-NEXT ROUND:
-• [NEXT_ROUND_INFO]
-
-We're in the home stretch. Who will emerge victorious?
-
-Follow live: [GAME_URL]`
   },
 
   // ==================================================
@@ -410,6 +241,45 @@ View final standings: [GAME_URL]`
 ];
 
 /**
+ * Format fixture results for display
+ */
+function formatFixtureResults(fixtures: Array<{
+  home_team: string;
+  away_team: string;
+  result: string | null;
+  outcome: 'home_win' | 'away_win' | 'draw' | null;
+  survivors: number;
+  eliminated: number;
+}>): string {
+  if (!fixtures || fixtures.length === 0) {
+    return 'No fixture results available';
+  }
+
+  // Filter out fixtures with no picks
+  const fixturesWithPicks = fixtures.filter(f => f.survivors > 0 || f.eliminated > 0);
+
+  if (fixturesWithPicks.length === 0) {
+    return 'No players picked any fixtures';
+  }
+
+  return fixturesWithPicks.map(f => {
+    if (!f.result) {
+      return `${f.home_team} vs ${f.away_team} - No result yet`;
+    }
+
+    if (f.outcome === 'draw') {
+      return `💔 ${f.home_team} vs ${f.away_team} (Draw)\n   💔 ${f.eliminated} eliminated`;
+    } else if (f.outcome === 'home_win') {
+      return `✅ ${f.home_team} vs ${f.away_team} (${f.home_team} won)\n   ✅ ${f.survivors} survived | ❌ ${f.eliminated} eliminated`;
+    } else if (f.outcome === 'away_win') {
+      return `✅ ${f.home_team} vs ${f.away_team} (${f.away_team} won)\n   ✅ ${f.survivors} survived | ❌ ${f.eliminated} eliminated`;
+    } else {
+      return `${f.home_team} vs ${f.away_team} - Result pending`;
+    }
+  }).join('\n\n');
+}
+
+/**
  * Replace template variables with actual competition data
  */
 export function replaceTemplateVariables(
@@ -428,6 +298,14 @@ export function replaceTemplateVariables(
     total_players: number;
     players_without_picks: number;
     pick_percentage: number;
+    fixture_results?: Array<{
+      home_team: string;
+      away_team: string;
+      result: string | null;
+      outcome: 'home_win' | 'away_win' | 'draw' | null;
+      survivors: number;
+      eliminated: number;
+    }>;
   }
 ): string {
   let result = template;
@@ -451,6 +329,14 @@ export function replaceTemplateVariables(
     .map((p, index) => `${index === 0 ? '👑' : '  '} ${p.display_name} (${p.lives_remaining} ${p.lives_remaining === 1 ? 'life' : 'lives'})`)
     .join('\n');
   result = result.replace(/\[TOP_3_PLAYERS\]/g, topPlayersFormatted || 'No players yet');
+
+  // Format fixture results
+  if (data.fixture_results) {
+    const fixtureResultsFormatted = formatFixtureResults(data.fixture_results);
+    result = result.replace(/\[FIXTURE_RESULTS\]/g, fixtureResultsFormatted);
+  } else {
+    result = result.replace(/\[FIXTURE_RESULTS\]/g, 'Loading fixture results...');
+  }
 
   return result;
 }

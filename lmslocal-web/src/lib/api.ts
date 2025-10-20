@@ -764,15 +764,39 @@ export const promoteApi = {
       }>;
       template_context?: {
         show_pre_launch: boolean;
-        show_weekly_update: boolean;
+        show_round_update: boolean;
         show_pick_reminder: boolean;
-        show_results: boolean;
-        show_elimination: boolean;
-        show_final_hype: boolean;
         show_winner: boolean;
       };
     }>('/get-promote-data', { competition_id })
   ),
+
+  getRoundResultsBreakdown: (competition_id: number, round_number?: number) => api.post<{
+    return_code: string;
+    message?: string;
+    round_number?: number;
+    fixture_results?: Array<{
+      fixture_id: number;
+      home_team: string;
+      away_team: string;
+      home_team_short: string;
+      away_team_short: string;
+      result: string | null;
+      outcome: 'home_win' | 'away_win' | 'draw' | null;
+      kickoff_time: string;
+      home_picks: number;
+      away_picks: number;
+      survivors: number;
+      eliminated: number;
+    }>;
+    summary?: {
+      total_fixtures: number;
+      completed_fixtures: number;
+      total_survivors: number;
+      total_eliminated: number;
+      total_picks: number;
+    };
+  }>('/get-round-results-breakdown', { competition_id, round_number }),
 };
 
 // Cache utilities
