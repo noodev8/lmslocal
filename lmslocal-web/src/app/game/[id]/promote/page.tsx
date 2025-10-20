@@ -492,7 +492,7 @@ export default function PromotePage() {
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Click any template pill to load it</li>
             <li>• Edit the message to match your style</li>
-            <li>• Click "Copy to Clipboard" when ready</li>
+            <li>• Click &quot;Copy to Clipboard&quot; when ready</li>
             <li>• Paste into WhatsApp, Facebook, email, or SMS</li>
           </ul>
         </div>

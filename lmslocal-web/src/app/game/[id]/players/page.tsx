@@ -6,11 +6,9 @@ import Link from 'next/link';
 import {
   ArrowLeftIcon,
   TrashIcon,
-  CurrencyDollarIcon,
   PlusIcon,
   MinusIcon,
   EyeIcon,
-  ClipboardDocumentListIcon,
   CheckCircleIcon,
   XMarkIcon,
   MagnifyingGlassIcon,

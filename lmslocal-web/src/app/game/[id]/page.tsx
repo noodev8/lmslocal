@@ -25,7 +25,7 @@ export default function UnifiedGameDashboard() {
   const competitionId = params.id as string;
   
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading, latestRoundStats, user } = useAppData();
+  const { competitions, loading: contextLoading } = useAppData();
   
   // Memoize the specific competition to prevent unnecessary re-renders
   const competition = useMemo(() => {

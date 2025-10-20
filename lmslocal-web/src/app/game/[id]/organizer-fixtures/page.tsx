@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { organizerApi, OrganizerFixture, teamApi } from '@/lib/api';
+import { organizerApi, OrganizerFixture } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 
 // Common Premier League team abbreviations
