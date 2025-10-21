@@ -196,7 +196,7 @@ router.post('/', verifyToken, async (req, res) => {
           // Log the credit refund to credit_transactions table
           await client.query(`
             INSERT INTO credit_transactions (user_id, competition_id, transaction_type, amount, description, created_at)
-            VALUES ($1, $2, 'REFUND', 1, $3, NOW())
+            VALUES ($1, $2, 'refund', 1, $3, NOW())
           `, [
             admin_id,
             competition_id,
