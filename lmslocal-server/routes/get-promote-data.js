@@ -172,15 +172,28 @@ router.post('/', verifyToken, async (req, res) => {
       const fixture_count = parseInt(fixtureResult.rows[0].count);
       const completed_fixtures = parseInt(fixtureResult.rows[0].completed);
 
-      // Format lock time (e.g., "Friday 7pm")
+      // Format lock time in UK timezone (e.g., "Friday 25 Oct at 3pm")
       let lock_time_formatted = null;
       if (lockTime) {
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dayName = days[lockTime.getDay()];
-        const hour = lockTime.getHours();
-        const ampm = hour >= 12 ? 'pm' : 'am';
-        const displayHour = hour % 12 || 12;
-        lock_time_formatted = `${dayName} ${displayHour}${ampm}`;
+        // Convert UTC to UK time using Intl.DateTimeFormat (handles BST/GMT automatically)
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Europe/London',
+          weekday: 'long',
+          day: 'numeric',
+          month: 'short',
+          hour: 'numeric',
+          hour12: false
+        });
+
+        const parts = formatter.formatToParts(lockTime);
+        const weekday = parts.find(p => p.type === 'weekday').value;
+        const day = parts.find(p => p.type === 'day').value;
+        const month = parts.find(p => p.type === 'month').value;
+        const hour24 = parseInt(parts.find(p => p.type === 'hour').value);
+        const hour12 = hour24 % 12 || 12;
+        const ampm = hour24 >= 12 ? 'pm' : 'am';
+
+        lock_time_formatted = `${weekday} ${day} ${month} at ${hour12}${ampm}`;
       }
 
       // Get NEXT round information (for "Next round starts..." messaging)
@@ -324,17 +337,26 @@ router.post('/', verifyToken, async (req, res) => {
       lives_remaining: row.lives_remaining
     }));
 
+    // Check if any round has completed fixtures (for round update templates)
+    const completedRoundCheck = await query(
+      `SELECT COUNT(*) as count
+       FROM round r
+       INNER JOIN fixture f ON f.round_id = r.id
+       WHERE r.competition_id = $1
+         AND f.result IS NOT NULL
+         AND f.processed IS NOT NULL`,
+      [competition_id]
+    );
+    const hasAnyCompletedRound = parseInt(completedRoundCheck.rows[0].count) > 0;
+
     // Calculate template visibility logic
     const template_context = {
       // Pre-launch: Show if competition is in setup OR round 1 has no fixtures
       show_pre_launch: competition.status === 'setup' ||
                        (!current_round || (current_round.round_number === 1 && current_round.fixture_count === 0)),
 
-      // Round update: Show if competition is active, round is locked, and has completed fixtures
-      show_round_update: competition.status === 'active' &&
-                        current_round &&
-                        current_round.is_locked &&
-                        current_round.completed_fixtures > 0,
+      // Round update: Show if competition is active and ANY round has completed fixtures
+      show_round_update: competition.status === 'active' && hasAnyCompletedRound,
 
       // Pick reminder: Show if competition is active, round is NOT locked, and pick percentage < 80%
       show_pick_reminder: competition.status === 'active' &&

@@ -102,6 +102,53 @@ router.post('/', verifyToken, async (req, res) => {
     const competitionIdInt = parseInt(competition_id);
 
     // ========================================
+    // CONVERT UK TIME TO UTC
+    // ========================================
+    // Organizers enter times in UK local time (GMT/BST), but database stores UTC
+    // Parse the input time and convert from UK timezone to UTC
+
+    // Extract date/time components from input (e.g., "2025-10-25T15:00:00")
+    const match = kickoff_time.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!match) {
+      return res.status(200).json({
+        return_code: "MISSING_FIELDS",
+        message: "kickoff_time must be in format YYYY-MM-DDTHH:MM"
+      });
+    }
+
+    const inputYear = parseInt(match[1]);
+    const inputMonth = parseInt(match[2]);
+    const inputDay = parseInt(match[3]);
+    const inputHour = parseInt(match[4]);
+    const inputMinute = parseInt(match[5]);
+
+    // Start with UTC date using the input components
+    let utcGuess = new Date(Date.UTC(inputYear, inputMonth - 1, inputDay, inputHour, inputMinute));
+
+    // Check what this UTC time would be in UK timezone
+    const ukFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Europe/London',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+
+    const ukParts = ukFormatter.formatToParts(utcGuess);
+    const ukHour = parseInt(ukParts.find(p => p.type === 'hour').value);
+    const ukMinute = parseInt(ukParts.find(p => p.type === 'minute').value);
+
+    // Calculate the offset (how much UK time differs from our input)
+    const targetMinutes = inputHour * 60 + inputMinute;
+    const actualMinutes = ukHour * 60 + ukMinute;
+    const offsetMinutes = actualMinutes - targetMinutes;
+
+    // Adjust to get the correct UTC time
+    const kickoff_time_utc = new Date(utcGuess.getTime() - (offsetMinutes * 60 * 1000)).toISOString();
+
+    // ========================================
     // STEP 2: VERIFY COMPETITION AND AUTHORIZATION
     // ========================================
 
@@ -248,7 +295,7 @@ router.post('/', verifyToken, async (req, res) => {
         )
         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
         RETURNING id, round_number
-      `, [competitionIdInt, roundNumber, kickoff_time]);
+      `, [competitionIdInt, roundNumber, kickoff_time_utc]);
 
       roundId = newRoundResult.rows[0].id;
       roundNumber = newRoundResult.rows[0].round_number;
@@ -262,6 +309,7 @@ router.post('/', verifyToken, async (req, res) => {
           INSERT INTO fixture (
             round_id,
             competition_id,
+            round_number,
             home_team,
             away_team,
             home_team_short,
@@ -269,15 +317,16 @@ router.post('/', verifyToken, async (req, res) => {
             kickoff_time,
             created_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
         `, [
           roundId,
           competitionIdInt,
+          roundNumber,
           homeTeamFull,
           awayTeamFull,
           fixture.home_team_short,
           fixture.away_team_short,
-          kickoff_time
+          kickoff_time_utc
         ]);
       }
 

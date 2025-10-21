@@ -8,11 +8,9 @@ import {
   MegaphoneIcon,
   ClipboardDocumentIcon,
   CheckCircleIcon,
-  ArrowPathIcon,
-  ChevronDownIcon,
-  ChevronUpIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
-import { promoteApi } from '@/lib/api';
+import { promoteApi, roundApi, fixtureApi, Round } from '@/lib/api';
 import { templates, replaceTemplateVariables, Template } from '@/lib/templates';
 import { useToast, ToastContainer } from '@/components/Toast';
 
@@ -59,42 +57,6 @@ interface PromoteData {
   };
 }
 
-// Template category definitions with colors
-const categoryDefinitions = [
-  {
-    key: 'show_pre_launch' as const,
-    title: 'Pre-Launch Invitations',
-    description: 'Invite players to join your competition',
-    icon: '🎯',
-    category: 'pre_launch' as const,
-    expanded: true
-  },
-  {
-    key: 'show_pick_reminder' as const,
-    title: 'Pick Reminders',
-    description: 'Remind players to make their picks',
-    icon: '⏰',
-    category: 'pick_reminder' as const,
-    expanded: true
-  },
-  {
-    key: 'show_round_update' as const,
-    title: 'Round Updates',
-    description: 'Share round results and standings',
-    icon: '📊',
-    category: 'round_update' as const,
-    expanded: true
-  },
-  {
-    key: 'show_winner' as const,
-    title: 'Winner Announcements',
-    description: 'Celebrate your competition champion',
-    icon: '🏆',
-    category: 'winner' as const,
-    expanded: true
-  }
-];
-
 // Template tone colors
 const toneColors: Record<string, string> = {
   casual: 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-300',
@@ -114,6 +76,12 @@ export default function PromotePage() {
   const [data, setData] = useState<PromoteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fixturesLoading, setFixturesLoading] = useState(false);
+  const [fixtures, setFixtures] = useState<Array<{
+    home_team: string;
+    away_team: string;
+    kickoff_time?: string;
+  }> | null>(null);
   const [fixtureResults, setFixtureResults] = useState<Array<{
     home_team: string;
     away_team: string;
@@ -122,19 +90,19 @@ export default function PromotePage() {
     survivors: number;
     eliminated: number;
   }> | null>(null);
+  const [roundStats, setRoundStats] = useState<{
+    total_players: number;
+    won: number;
+    lost: number;
+    eliminated: number;
+  } | null>(null);
+  const [completedRoundNumber, setCompletedRoundNumber] = useState<number | null>(null);
 
   // Template selection and editing
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [editedContent, setEditedContent] = useState<string>('');
   const [originalContent, setOriginalContent] = useState<string>('');
   const [copied, setCopied] = useState(false);
-
-  // Category expansion state
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-    show_pre_launch: true,
-    show_pick_reminder: true,
-    show_weekly_update: true
-  });
 
   const { toasts, showToast, removeToast } = useToast();
 
@@ -175,35 +143,95 @@ export default function PromotePage() {
     fetchData();
   }, [router, competitionId]);
 
-  // Fetch fixture results when show_round_update is true
+  // Fetch fixture results and round statistics when show_round_update is true
   useEffect(() => {
     if (data && data.template_context.show_round_update) {
-      const fetchFixtureResults = async () => {
+      const fetchRoundData = async () => {
         try {
-          const response = await promoteApi.getRoundResultsBreakdown(
-            parseInt(competitionId),
-            data.current_round?.round_number
-          );
+          // Get all rounds to find the most recently completed one
+          const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
+          if (roundsResponse.data.return_code === 'SUCCESS' && roundsResponse.data.rounds) {
+            // Find the most recently completed round (has status 'COMPLETE' or highest round number with results)
+            const completedRound = roundsResponse.data.rounds
+              .filter((r: Round) => r.status === 'COMPLETE')
+              .sort((a: Round, b: Round) => b.round_number - a.round_number)[0];
 
-          if (response.data.return_code === 'SUCCESS' && response.data.fixture_results) {
-            setFixtureResults(response.data.fixture_results);
+            if (completedRound) {
+              // Store the completed round number for template variable replacement
+              setCompletedRoundNumber(completedRound.round_number);
+
+              // Fetch fixture results for completed round
+              const fixturesResponse = await promoteApi.getRoundResultsBreakdown(
+                parseInt(competitionId),
+                completedRound.round_number
+              );
+
+              if (fixturesResponse.data.return_code === 'SUCCESS' && fixturesResponse.data.fixture_results) {
+                setFixtureResults(fixturesResponse.data.fixture_results);
+              }
+
+              // Fetch round statistics for completed round
+              const statsResponse = await promoteApi.getRoundStatistics(
+                parseInt(competitionId),
+                completedRound.id
+              );
+
+              if (statsResponse.data.return_code === 'SUCCESS' && statsResponse.data.statistics) {
+                setRoundStats(statsResponse.data.statistics);
+              }
+            }
           }
         } catch (err) {
-          console.error('Error fetching fixture results:', err);
+          console.error('Error fetching round data:', err);
         }
       };
 
-      fetchFixtureResults();
+      fetchRoundData();
+    }
+  }, [data, competitionId]);
+
+  // Fetch fixtures when pick reminders are shown
+  useEffect(() => {
+    if (data && data.template_context.show_pick_reminder && data.current_round) {
+      const fetchFixtures = async () => {
+        try {
+          setFixturesLoading(true);
+          const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
+          if (roundsResponse.data.return_code === 'SUCCESS' && roundsResponse.data.rounds) {
+            const currentRound = roundsResponse.data.rounds.find(
+              (r: Round) => r.round_number === data.current_round?.round_number
+            );
+
+            if (currentRound && currentRound.id) {
+              const fixturesResponse = await fixtureApi.get(currentRound.id.toString());
+              if (fixturesResponse.data.return_code === 'SUCCESS' && fixturesResponse.data.fixtures) {
+                setFixtures(fixturesResponse.data.fixtures);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching fixtures:', err);
+        } finally {
+          setFixturesLoading(false);
+        }
+      };
+
+      fetchFixtures();
     }
   }, [data, competitionId]);
 
   const handleTemplateSelect = (template: Template) => {
     if (!data) return;
 
+    // For round_update templates, use the completed round number; otherwise use current round
+    const roundNumberToUse = template.category === 'round_update'
+      ? completedRoundNumber
+      : data.current_round?.round_number || null;
+
     // Fill template with data
     const filledTemplate = replaceTemplateVariables(template.content, {
       competition_name: data.competition.name,
-      round_number: data.current_round?.round_number || null,
+      round_number: roundNumberToUse,
       players_remaining: data.player_stats.total_active_players,
       players_eliminated: data.player_stats.players_eliminated_this_round,
       top_players: data.top_players,
@@ -215,7 +243,9 @@ export default function PromotePage() {
       total_players: data.competition.total_players,
       players_without_picks: data.player_stats.players_without_picks,
       pick_percentage: data.player_stats.pick_percentage,
-      fixture_results: fixtureResults || undefined
+      fixtures: fixtures || undefined,
+      fixture_results: fixtureResults || undefined,
+      round_stats: roundStats || undefined
     });
 
     setSelectedTemplate(template);
@@ -234,13 +264,6 @@ export default function PromotePage() {
   const handleReset = () => {
     setEditedContent(originalContent);
     showToast('Template reset to original', 'success');
-  };
-
-  const toggleCategory = (key: string) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
   };
 
   if (loading) {
@@ -300,9 +323,6 @@ export default function PromotePage() {
     );
   }
 
-  // Filter visible categories
-  const visibleCategories = categoryDefinitions.filter(cat => data.template_context[cat.key]);
-
   return (
     <div className="min-h-screen bg-gray-50">
       <ToastContainer toasts={toasts} onClose={removeToast} />
@@ -358,75 +378,69 @@ export default function PromotePage() {
           </div>
         </div>
 
-        {/* No templates available */}
-        {visibleCategories.length === 0 && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
-                <MegaphoneIcon className="h-8 w-8 text-blue-600" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-3">No Marketing Templates Available Right Now</h2>
-              <p className="text-gray-600 mb-4 max-w-md mx-auto">
-                Templates will appear here at the right moments during your competition.
-              </p>
-            </div>
-          </div>
-        )}
+        {/* Template Buttons */}
+        {(() => {
+          // Get all visible templates based on template_context
+          const visibleTemplates = templates.filter(template => {
+            if (template.category === 'pre_launch') return data.template_context.show_pre_launch;
+            if (template.category === 'pick_reminder') return data.template_context.show_pick_reminder;
+            if (template.category === 'round_update') return data.template_context.show_round_update;
+            if (template.category === 'winner') return data.template_context.show_winner;
+            return false;
+          });
 
-        {/* Template Categories with Pills */}
-        {visibleCategories.map((category) => {
-          const categoryTemplates = templates.filter(t => t.category === category.category);
-          const isExpanded = expandedCategories[category.key];
+          if (visibleTemplates.length === 0) {
+            return (
+              <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8">
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
+                    <MegaphoneIcon className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-3">No Marketing Templates Available Right Now</h2>
+                  <p className="text-gray-600 mb-4 max-w-md mx-auto">
+                    Templates will appear here at the right moments during your competition.
+                  </p>
+                </div>
+              </div>
+            );
+          }
 
           return (
-            <div key={category.key} className="bg-white rounded-lg border border-gray-100 shadow-sm">
-              {/* Category Header */}
-              <button
-                onClick={() => toggleCategory(category.key)}
-                className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <span className="text-3xl">{category.icon}</span>
-                  <div className="text-left">
-                    <h2 className="text-xl font-bold text-gray-900">{category.title}</h2>
-                    <p className="text-sm text-gray-600">{category.description}</p>
-                  </div>
-                </div>
-                {isExpanded ? (
-                  <ChevronUpIcon className="h-5 w-5 text-gray-400" />
-                ) : (
-                  <ChevronDownIcon className="h-5 w-5 text-gray-400" />
-                )}
-              </button>
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
+              <h3 className="text-sm font-medium text-gray-500 mb-4">Select a Template</h3>
+              <div className="flex flex-wrap gap-3">
+                {visibleTemplates.map((template) => {
+                  const colorClass = toneColors[template.tone || 'casual'] || toneColors.casual;
+                  const isSelected = selectedTemplate?.id === template.id;
+                  const isPickReminder = template.category === 'pick_reminder';
+                  const isDisabled = isPickReminder && fixturesLoading;
 
-              {/* Template Pills */}
-              {isExpanded && (
-                <div className="px-6 pb-6 border-t border-gray-100">
-                  <div className="flex flex-wrap gap-3 mt-4">
-                    {categoryTemplates.map((template) => {
-                      const colorClass = toneColors[template.tone || 'casual'] || toneColors.casual;
-                      const isSelected = selectedTemplate?.id === template.id;
-
-                      return (
-                        <button
-                          key={template.id}
-                          onClick={() => handleTemplateSelect(template)}
-                          className={`px-4 py-2 rounded-full font-medium text-sm border-2 transition-all ${
-                            isSelected
-                              ? 'ring-2 ring-offset-2 ring-gray-400'
-                              : ''
-                          } ${colorClass}`}
-                        >
+                  return (
+                    <button
+                      key={template.id}
+                      onClick={() => handleTemplateSelect(template)}
+                      disabled={isDisabled}
+                      className={`px-4 py-2 rounded-full font-medium text-sm border-2 transition-all ${
+                        isSelected
+                          ? 'ring-2 ring-offset-2 ring-gray-400'
+                          : ''
+                      } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${colorClass}`}
+                    >
+                      {isDisabled ? (
+                        <span className="flex items-center gap-2">
+                          <ArrowPathIcon className="h-4 w-4 animate-spin" />
                           {template.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                        </span>
+                      ) : (
+                        template.name
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           );
-        })}
+        })()}
 
         {/* Edit Area (shows when template is selected) */}
         {selectedTemplate && (

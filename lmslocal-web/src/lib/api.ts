@@ -531,10 +531,10 @@ export const fixtureApi = {
 
 // Team API calls
 export const teamApi = {
-  getTeams: () => withCache(
-    'teams',
+  getTeams: (team_list_id?: number) => withCache(
+    team_list_id ? `teams-${team_list_id}` : 'teams', // Cache by team list for specificity
     1 * 24 * 60 * 60 * 1000, // 1 day cache - team rosters change seasonally
-    () => api.post<{ return_code: string; teams: Team[] }>('/get-teams', {})
+    () => api.post<{ return_code: string; teams: Team[] }>('/get-teams', team_list_id ? { team_list_id } : {})
   ),
   getTeamLists: () => withCache(
     'team-lists',
@@ -869,6 +869,18 @@ export const promoteApi = {
       total_picks: number;
     };
   }>('/get-round-results-breakdown', { competition_id, round_number }),
+
+  getRoundStatistics: (competition_id: number, round_id: number) => api.post<{
+    return_code: string;
+    message?: string;
+    round_number?: number;
+    statistics?: {
+      total_players: number;
+      won: number;
+      lost: number;
+      eliminated: number;
+    };
+  }>('/get-round-statistics', { competition_id, round_id }),
 };
 
 // Cache utilities

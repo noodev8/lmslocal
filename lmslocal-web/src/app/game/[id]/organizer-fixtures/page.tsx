@@ -4,38 +4,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { organizerApi, OrganizerFixture } from '@/lib/api';
+import { organizerApi, teamApi, OrganizerFixture, Team } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
-
-// Common Premier League team abbreviations
-const PREMIER_LEAGUE_TEAMS = [
-  'ARS', 'AVL', 'BOU', 'BRE', 'BHA', 'BUR', 'CHE', 'CRY', 'EVE', 'FUL',
-  'LIV', 'LUT', 'MCI', 'MUN', 'NEW', 'NFO', 'SHU', 'TOT', 'WHU', 'WOL'
-];
-
-// Team full names mapping
-const TEAM_NAMES: Record<string, string> = {
-  'ARS': 'Arsenal',
-  'AVL': 'Aston Villa',
-  'BOU': 'Bournemouth',
-  'BRE': 'Brentford',
-  'BHA': 'Brighton',
-  'BUR': 'Burnley',
-  'CHE': 'Chelsea',
-  'CRY': 'Crystal Palace',
-  'EVE': 'Everton',
-  'FUL': 'Fulham',
-  'LIV': 'Liverpool',
-  'LUT': 'Luton Town',
-  'MCI': 'Man City',
-  'MUN': 'Man United',
-  'NEW': 'Newcastle',
-  'NFO': 'Nottingham Forest',
-  'SHU': 'Sheffield United',
-  'TOT': 'Tottenham',
-  'WHU': 'West Ham',
-  'WOL': 'Wolves'
-};
+import { cacheUtils } from '@/lib/cache';
 
 export default function OrganizerFixturesPage() {
   const router = useRouter();
@@ -47,6 +18,10 @@ export default function OrganizerFixturesPage() {
   const competition = useMemo(() => {
     return competitions?.find(c => c.id.toString() === competitionId);
   }, [competitions, competitionId]);
+
+  // Teams state (loaded from database)
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(true);
 
   // Fixture form state
   const [kickoffDate, setKickoffDate] = useState('');
@@ -138,6 +113,35 @@ export default function OrganizerFixturesPage() {
     }
   }, [competition, competitionId, isBlocked]);
 
+  // Fetch teams for the competition's team list
+  useEffect(() => {
+    const fetchTeams = async () => {
+      if (!competition?.team_list_id) {
+        setTeamsLoading(false);
+        return;
+      }
+
+      try {
+        setTeamsLoading(true);
+        const response = await teamApi.getTeams(competition.team_list_id);
+
+        if (response.data.return_code === 'SUCCESS') {
+          setTeams(response.data.teams || []);
+        } else {
+          console.error('Failed to load teams:', response.data);
+          setTeams([]);
+        }
+      } catch (error) {
+        console.error('Error fetching teams:', error);
+        setTeams([]);
+      } finally {
+        setTeamsLoading(false);
+      }
+    };
+
+    fetchTeams();
+  }, [competition?.team_list_id]);
+
   // Remove fixture row
   const handleRemoveFixture = (index: number) => {
     if (fixtures.length > 1) {
@@ -220,6 +224,15 @@ export default function OrganizerFixturesPage() {
       return;
     }
 
+    // Validate date is not in the past
+    const kickoffDateTime = new Date(`${kickoffDate}T${kickoffTime}:00`);
+    const now = new Date();
+
+    if (kickoffDateTime < now) {
+      setSubmitError('Kickoff date and time cannot be in the past. Please select a future date and time.');
+      return;
+    }
+
     // Validate fixtures
     const validFixtures = fixtures.filter(
       f => f.home_team_short.trim() !== '' && f.away_team_short.trim() !== ''
@@ -231,7 +244,7 @@ export default function OrganizerFixturesPage() {
     }
 
     // Combine date and time into ISO 8601 format
-    const kickoffDateTime = new Date(`${kickoffDate}T${kickoffTime}:00Z`).toISOString();
+    const kickoffDateTimeISO = new Date(`${kickoffDate}T${kickoffTime}:00Z`).toISOString();
 
     try {
       setIsSubmitting(true);
@@ -239,18 +252,19 @@ export default function OrganizerFixturesPage() {
       // Make API call
       const response = await organizerApi.addFixtures(
         parseInt(competitionId),
-        kickoffDateTime,
+        kickoffDateTimeISO,
         validFixtures
       );
 
       // Check response
       if (response.data.return_code === 'SUCCESS') {
-        setSubmitSuccess(response.data.message || 'Fixtures added successfully');
+        // Invalidate specific caches to ensure fresh data
+        cacheUtils.invalidateCompetition(parseInt(competitionId));
+        cacheUtils.invalidateKey(`rounds-${competitionId}`); // Rounds cache
+        cacheUtils.invalidatePattern(`fixtures-*`); // All fixture caches
 
-        // Wait 1.5 seconds to show success message, then redirect
-        setTimeout(() => {
-          router.push(`/game/${competitionId}`);
-        }, 1500);
+        // Redirect immediately
+        router.push(`/game/${competitionId}`);
 
       } else if (response.data.return_code === 'UNAUTHORIZED') {
         setSubmitError('You are not authorized to manage fixtures for this competition');
@@ -301,7 +315,7 @@ export default function OrganizerFixturesPage() {
             Manage Fixtures - {competition.name}
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            Add or replace fixtures for the current round
+            Add fixtures for the next round
           </p>
         </div>
 
@@ -360,6 +374,7 @@ export default function OrganizerFixturesPage() {
                 type="date"
                 value={kickoffDate}
                 onChange={(e) => setKickoffDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
                 className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -393,26 +408,32 @@ export default function OrganizerFixturesPage() {
                   <p className="text-xs text-gray-600 mb-3">
                     Click teams to add (alternates Home → Away)
                   </p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {PREMIER_LEAGUE_TEAMS.map((team) => {
-                      const isUsed = usedTeams.has(team);
-                      return (
-                        <button
-                          key={team}
-                          type="button"
-                          onClick={() => !isUsed && handleTeamClick(team)}
-                          disabled={isUsed}
-                          className={`px-3 py-2 rounded-md transition-colors font-bold text-sm ${
-                            isUsed
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
-                          }`}
-                        >
-                          {team}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {teamsLoading ? (
+                    <div className="text-center py-8 text-gray-600">Loading teams...</div>
+                  ) : teams.length === 0 ? (
+                    <div className="text-center py-8 text-red-600">No teams available for this competition</div>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2">
+                      {teams.map((team) => {
+                        const isUsed = usedTeams.has(team.short_name);
+                        return (
+                          <button
+                            key={team.id}
+                            type="button"
+                            onClick={() => !isUsed && handleTeamClick(team.short_name)}
+                            disabled={isUsed}
+                            className={`px-3 py-2 rounded-md transition-colors font-bold text-sm ${
+                              isUsed
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
+                            }`}
+                          >
+                            {team.short_name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -427,8 +448,11 @@ export default function OrganizerFixturesPage() {
                   {fixtures.map((fixture, index) => {
                     const isActive = index === activeFixtureIndex;
                     const isComplete = fixture.home_team_short && fixture.away_team_short;
-                    const homeTeamName = fixture.home_team_short ? TEAM_NAMES[fixture.home_team_short] || fixture.home_team_short : '';
-                    const awayTeamName = fixture.away_team_short ? TEAM_NAMES[fixture.away_team_short] || fixture.away_team_short : '';
+                    // Get full team names from the teams array
+                    const homeTeam = teams.find(t => t.short_name === fixture.home_team_short);
+                    const awayTeam = teams.find(t => t.short_name === fixture.away_team_short);
+                    const homeTeamName = homeTeam?.name || fixture.home_team_short || '';
+                    const awayTeamName = awayTeam?.name || fixture.away_team_short || '';
 
                     return (
                       <div

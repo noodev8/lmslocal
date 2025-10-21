@@ -15,7 +15,7 @@ import {
   CalendarIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, userApi, roundApi, competitionApi, offlinePlayerApi } from '@/lib/api';
+import { Competition as CompetitionType, userApi, roundApi, competitionApi, offlinePlayerApi, promoteApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 
@@ -34,6 +34,7 @@ export default function UnifiedGameDashboard() {
 
   const [winnerName, setWinnerName] = useState<string>('Loading...');
   const [currentRoundInfo, setCurrentRoundInfo] = useState<{
+    id: number;
     round_number: number;
     lock_time?: string;
     fixture_count: number;
@@ -46,6 +47,13 @@ export default function UnifiedGameDashboard() {
     players_with_picks: number;
     total_active_players: number;
     pick_percentage: number;
+  } | null>(null);
+  const [roundStats, setRoundStats] = useState<{
+    round_number: number;
+    total_players: number;
+    won: number;
+    lost: number;
+    eliminated: number;
   } | null>(null);
   // DISABLED: Organiser fixture highlighting logic - may re-enable in future
   // const [needsFixtures, setNeedsFixtures] = useState(false);
@@ -75,6 +83,7 @@ export default function UnifiedGameDashboard() {
   const winnerLoadedRef = useRef(false);
   const roundLoadedRef = useRef(false);
   const pickStatsLoadedRef = useRef(false);
+  const roundStatsLoadedRef = useRef(false);
   
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
@@ -279,6 +288,7 @@ export default function UnifiedGameDashboard() {
                 const isLocked = !!(latestRound.lock_time && now >= lockTime);
                 
                 setCurrentRoundInfo({
+                  id: latestRound.id,
                   round_number: latestRound.round_number,
                   lock_time: latestRound.lock_time,
                   fixture_count: latestRound.fixture_count || 0,
@@ -337,6 +347,38 @@ export default function UnifiedGameDashboard() {
           })
           .catch(() => {
             pickStatsLoadedRef.current = false; // Reset on error to allow retry
+          });
+      }
+
+      // Load round statistics for the most recently completed round
+      if (!roundStatsLoadedRef.current && currentRoundInfo) {
+        roundStatsLoadedRef.current = true;
+
+        // Fetch all rounds to find the most recently completed one
+        roundApi.getRounds(parseInt(competitionId))
+          .then(response => {
+            if (response.data.return_code === 'SUCCESS') {
+              const rounds = response.data.rounds || [];
+              // Find the most recently completed round
+              const completedRound = rounds.find(r => r.status === 'COMPLETE');
+
+              if (completedRound) {
+                // Fetch statistics for this completed round
+                return promoteApi.getRoundStatistics(parseInt(competitionId), completedRound.id)
+                  .then(statsResponse => {
+                    if (statsResponse.data.return_code === 'SUCCESS' && statsResponse.data.statistics) {
+                      setRoundStats({
+                        round_number: completedRound.round_number,
+                        ...statsResponse.data.statistics
+                      });
+                    }
+                  });
+              }
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to load round statistics:', error);
+            roundStatsLoadedRef.current = false; // Reset on error to allow retry
           });
       }
     }
@@ -684,33 +726,68 @@ export default function UnifiedGameDashboard() {
           <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             {!currentRoundInfo.is_locked ? (
               /* Before Lock - Show Pick Progress (Clickable) */
-              <div
-                  className="space-y-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors -mx-3"
-                  onClick={handleShowUnpickedPlayers}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && handleShowUnpickedPlayers()}
-                >
-                  <div className="text-sm font-medium text-gray-900">
-                    Round {currentRoundInfo.round_number} Pick Status
+              <div className="space-y-3">
+                <div
+                    className="cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors -mx-3"
+                    onClick={handleShowUnpickedPlayers}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && handleShowUnpickedPlayers()}
+                  >
+                    <div className="text-sm font-medium text-gray-900 mb-3">
+                      Round {currentRoundInfo.round_number} Pick Status
+                    </div>
+
+                    {pickStats && (
+                      <>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div
+                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, (pickStats.players_with_picks / pickStats.total_active_players) * 100)}%` }}
+                          ></div>
+                        </div>
+
+                        <div className="text-xs text-gray-500 mt-2">
+                          {Math.min(pickStats.players_with_picks, pickStats.total_active_players)} of {pickStats.total_active_players} picked
+                          <span className="ml-2 font-medium">
+                            {Math.min(100, Math.round((pickStats.players_with_picks / pickStats.total_active_players) * 100))}%
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  {pickStats && (
-                    <>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div
-                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, (pickStats.players_with_picks / pickStats.total_active_players) * 100)}%` }}
-                        ></div>
+                  {/* Show previous round statistics if available */}
+                  {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
+                    <div className="space-y-2 pt-3 border-t border-gray-200">
+                      <div className="text-xs font-medium text-gray-700">
+                        Round {roundStats.round_number} Results
                       </div>
-
-                      <div className="text-xs text-gray-500">
-                        {Math.min(pickStats.players_with_picks, pickStats.total_active_players)} of {pickStats.total_active_players} picked
-                        <span className="ml-2 font-medium">
-                          {Math.min(100, Math.round((pickStats.players_with_picks / pickStats.total_active_players) * 100))}%
-                        </span>
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">👥</div>
+                            <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
+                            <div className="text-xs text-gray-600 mt-1">Started</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">✅</div>
+                            <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
+                            <div className="text-xs text-gray-600 mt-1">Advanced</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">⚠️</div>
+                            <div className="text-2xl font-bold text-amber-600">{roundStats.lost - roundStats.eliminated}</div>
+                            <div className="text-xs text-gray-600 mt-1">Lost life</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">☠️</div>
+                            <div className="text-2xl font-bold text-red-600">{roundStats.eliminated}</div>
+                            <div className="text-xs text-gray-600 mt-1">Eliminated</div>
+                          </div>
+                        </div>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               ) : currentRoundInfo.status === 'COMPLETE' ? (
@@ -721,6 +798,40 @@ export default function UnifiedGameDashboard() {
                   </div>
 
                   <div className="text-sm text-gray-600">✅ Round over - Waiting for fixtures</div>
+
+                  {/* Round Statistics - Always show for most recently completed round */}
+                  {roundStats && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-gray-700">
+                        Round {roundStats.round_number} Results
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">👥</div>
+                            <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
+                            <div className="text-xs text-gray-600 mt-1">Started</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">✅</div>
+                            <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
+                            <div className="text-xs text-gray-600 mt-1">Advanced</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">⚠️</div>
+                            <div className="text-2xl font-bold text-amber-600">{roundStats.lost - roundStats.eliminated}</div>
+                            <div className="text-xs text-gray-600 mt-1">Lost life</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">☠️</div>
+                            <div className="text-2xl font-bold text-red-600">{roundStats.eliminated}</div>
+                            <div className="text-xs text-gray-600 mt-1">Eliminated</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-xs text-gray-500">
                     All fixtures have been processed. New fixtures will be added for the next round.
                   </div>
@@ -735,6 +846,40 @@ export default function UnifiedGameDashboard() {
                   </div>
 
                   <div className="text-sm text-gray-600">⚽ Round in progress</div>
+
+                  {/* Show previous round statistics if available */}
+                  {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
+                    <div className="space-y-2 pt-2 border-t border-gray-200">
+                      <div className="text-xs font-medium text-gray-700">
+                        Round {roundStats.round_number} Results
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">👥</div>
+                            <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
+                            <div className="text-xs text-gray-600 mt-1">Started</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">✅</div>
+                            <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
+                            <div className="text-xs text-gray-600 mt-1">Advanced</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">⚠️</div>
+                            <div className="text-2xl font-bold text-amber-600">{roundStats.lost - roundStats.eliminated}</div>
+                            <div className="text-xs text-gray-600 mt-1">Lost life</div>
+                          </div>
+                          <div className="bg-white rounded-lg p-3 text-center">
+                            <div className="text-2xl mb-1">☠️</div>
+                            <div className="text-2xl font-bold text-red-600">{roundStats.eliminated}</div>
+                            <div className="text-xs text-gray-600 mt-1">Eliminated</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-xs text-gray-500">
                     Results will be processed as matches complete throughout the round
                   </div>

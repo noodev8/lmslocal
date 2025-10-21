@@ -12,7 +12,8 @@
  * - [TOP_3_PLAYERS] - Top 5 players formatted list
  * - [PICK_DEADLINE] - Lock time formatted (e.g., "Friday 7pm")
  * - [NEXT_ROUND_INFO] - Next round info message (e.g., "Saturday 15 Jan at 3:00pm" or "Fixtures coming soon")
- * - [FIXTURE_RESULTS] - Fixture-by-fixture breakdown with results (for Detailed template)
+ * - [FIXTURES] - Upcoming fixture list (for pick reminders)
+ * - [FIXTURE_RESULTS] - Fixture-by-fixture breakdown with results (for round updates)
  * - [JOIN_CODE] - Competition invite code
  * - [JOIN_URL] - Full join URL (for pre-launch)
  * - [GAME_URL] - Direct game URL (for active competitions)
@@ -93,106 +94,43 @@ Let's do this! ⚽🏆`
   },
 
   // ==================================================
-  // PICK REMINDER TEMPLATES (3)
+  // PICK REMINDER TEMPLATE (1)
   // ==================================================
   {
-    id: 'pick_reminder_gentle',
-    name: 'Gentle Reminder',
+    id: 'pick_reminder',
+    name: 'Pick Reminder',
     category: 'pick_reminder',
     tone: 'gentle',
     content: `⚽ [COMP_NAME] - Round [ROUND_NUMBER]
 
-Hey everyone! Just a friendly reminder to make your pick if you haven't already.
+⏰ Round locks: [PICK_DEADLINE]
 
-📊 [PICK_PERCENTAGE]% of players have picked
-⏰ Deadline: [PICK_DEADLINE]
+📅 Fixtures:
+[FIXTURES]
 
-Make your pick: [GAME_URL]
+Make your pick before the deadline!
+[GAME_URL]
 
 Good luck! 👍`
   },
-  {
-    id: 'pick_reminder_urgent',
-    name: 'Urgent Reminder',
-    category: 'pick_reminder',
-    tone: 'urgent',
-    content: `🚨 PICK REMINDER - Round [ROUND_NUMBER] 🚨
-
-[PLAYERS_WITHOUT_PICKS] players still need to make their pick!
-
-⏰ Picks lock: [PICK_DEADLINE]
-⚽ Don't lose a life by missing the deadline
-
-👉 Pick now: [GAME_URL]
-
-[COMP_NAME]`
-  },
-  {
-    id: 'pick_reminder_critical',
-    name: 'Final Warning',
-    category: 'pick_reminder',
-    tone: 'critical',
-    content: `⚠️ FINAL WARNING ⚠️
-
-Round [ROUND_NUMBER] picks are locking soon!
-
-🚨 [PLAYERS_WITHOUT_PICKS] players haven't picked yet
-⏰ DEADLINE: [PICK_DEADLINE]
-
-If you don't pick, you LOSE A LIFE automatically!
-
-👉 PICK NOW: [GAME_URL]
-
-[COMP_NAME]`
-  },
 
   // ==================================================
-  // ROUND UPDATE TEMPLATES (3)
+  // ROUND UPDATE TEMPLATE (1)
   // ==================================================
   {
-    id: 'round_minimal',
-    name: 'Minimal',
+    id: 'round_results',
+    name: 'Round Results',
     category: 'round_update',
-    content: `📊 Round [ROUND_NUMBER] - [COMP_NAME]
+    content: `💥 Round [ROUND_NUMBER] Results
 
-💪 Survivors: [PLAYERS_REMAINING]
-💔 Eliminated: [PLAYERS_ELIMINATED]
+[ROUND_STATS]
 
-Next round: [NEXT_ROUND_INFO]
-
-[GAME_URL]`
-  },
-  {
-    id: 'round_detailed',
-    name: 'Detailed with Fixtures',
-    category: 'round_update',
-    content: `⚽ Round [ROUND_NUMBER] Results - [COMP_NAME]
-
-SUMMARY:
-💪 Survivors: [PLAYERS_REMAINING]
-💔 Eliminated: [PLAYERS_ELIMINATED]
-
-[FIXTURE_RESULTS]
-
-Next round: [NEXT_ROUND_INFO]
-
-[GAME_URL]`
-  },
-  {
-    id: 'round_elimination_focus',
-    name: 'Elimination Focus',
-    category: 'round_update',
-    content: `💥 Round [ROUND_NUMBER] Eliminations
-
-[PLAYERS_ELIMINATED] players eliminated from [COMP_NAME]!
-
-Only [PLAYERS_REMAINING] survivors remain...
+[PLAYERS_REMAINING] survivors remain
 
 Top performers:
 [TOP_3_PLAYERS]
 
-Next round: [NEXT_ROUND_INFO]
-
+📊 View full standings online:
 [GAME_URL]`
   },
 
@@ -239,6 +177,23 @@ Congratulations to our champion and well played to all competitors.
 View final standings: [GAME_URL]`
   }
 ];
+
+/**
+ * Format upcoming fixtures for display (without results)
+ */
+function formatFixtures(fixtures: Array<{
+  home_team: string;
+  away_team: string;
+  kickoff_time?: string;
+}>): string {
+  if (!fixtures || fixtures.length === 0) {
+    return 'No fixtures available';
+  }
+
+  return fixtures.map(f => {
+    return `⚽ ${f.home_team} vs ${f.away_team}`;
+  }).join('\n');
+}
 
 /**
  * Format fixture results for display
@@ -298,6 +253,11 @@ export function replaceTemplateVariables(
     total_players: number;
     players_without_picks: number;
     pick_percentage: number;
+    fixtures?: Array<{
+      home_team: string;
+      away_team: string;
+      kickoff_time?: string;
+    }>;
     fixture_results?: Array<{
       home_team: string;
       away_team: string;
@@ -306,6 +266,12 @@ export function replaceTemplateVariables(
       survivors: number;
       eliminated: number;
     }>;
+    round_stats?: {
+      total_players: number;
+      won: number;
+      lost: number;
+      eliminated: number;
+    };
   }
 ): string {
   let result = template;
@@ -330,12 +296,32 @@ export function replaceTemplateVariables(
     .join('\n');
   result = result.replace(/\[TOP_3_PLAYERS\]/g, topPlayersFormatted || 'No players yet');
 
+  // Format upcoming fixtures (for pick reminders)
+  if (data.fixtures) {
+    const fixturesFormatted = formatFixtures(data.fixtures);
+    result = result.replace(/\[FIXTURES\]/g, fixturesFormatted);
+  } else {
+    result = result.replace(/\[FIXTURES\]/g, 'Loading fixtures...');
+  }
+
   // Format fixture results
   if (data.fixture_results) {
     const fixtureResultsFormatted = formatFixtureResults(data.fixture_results);
     result = result.replace(/\[FIXTURE_RESULTS\]/g, fixtureResultsFormatted);
   } else {
     result = result.replace(/\[FIXTURE_RESULTS\]/g, 'Loading fixture results...');
+  }
+
+  // Format round statistics
+  if (data.round_stats) {
+    const lostLife = data.round_stats.lost - data.round_stats.eliminated;
+    const roundStatsFormatted =
+      `📊 ${data.round_stats.total_players} played → ${data.round_stats.won} won\n` +
+      `⚠️ ${lostLife} lost a life\n` +
+      `☠️ ${data.round_stats.eliminated} eliminated`;
+    result = result.replace(/\[ROUND_STATS\]/g, roundStatsFormatted);
+  } else {
+    result = result.replace(/\[ROUND_STATS\]/g, `[PLAYERS_ELIMINATED] players eliminated from [COMP_NAME]!`);
   }
 
   return result;

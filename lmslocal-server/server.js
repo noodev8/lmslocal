@@ -89,6 +89,7 @@ const updatePersonalCompetitionNameRoute = require('./routes/update-personal-com
 // Promote/Marketing Routes
 const getPromoteDataRoute = require('./routes/get-promote-data');
 const getRoundResultsBreakdownRoute = require('./routes/get-round-results-breakdown');
+const getRoundStatisticsRoute = require('./routes/get-round-statistics');
 
 // Email Routes
 const loadPickReminderRoute = require('./routes/load-pick-reminder');
@@ -286,6 +287,7 @@ app.use('/update-personal-competition-name', updatePersonalCompetitionNameRoute)
 // Promote/Marketing API Routes
 app.use('/get-promote-data', getPromoteDataRoute);
 app.use('/get-round-results-breakdown', getRoundResultsBreakdownRoute);
+app.use('/get-round-statistics', getRoundStatisticsRoute);
 
 // Email API Routes
 app.use('/load-pick-reminder', loadPickReminderRoute);
