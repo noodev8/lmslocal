@@ -14,9 +14,9 @@ export default function BillingPage() {
   // Credit pack configuration (matches backend config/credit-packs.js)
   const creditPacks = [
     {
-      pack_type: 'starter_10',
+      pack_type: 'starter_20',
       name: 'Starter Pack',
-      credits: 10,
+      credits: 20,
       price: 10,
       description: 'Extra capacity as you grow',
       badge: null
@@ -24,19 +24,19 @@ export default function BillingPage() {
     {
       pack_type: 'popular_50',
       name: 'Popular Pack',
-      credits: 40,
-      price: 25,
+      credits: 50,
+      price: 20,
       description: 'For regular competitions',
-      badge: 'SAVE 37%',
+      badge: 'SAVE 20%',
       popular: true
     },
     {
-      pack_type: 'value_200',
+      pack_type: 'value_120',
       name: 'Best Value Pack',
       credits: 120,
       price: 40,
       description: 'For venues & busy organizers',
-      badge: 'SAVE 67%'
+      badge: 'SAVE 33%'
     }
   ];
 

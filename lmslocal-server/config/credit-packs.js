@@ -25,37 +25,37 @@ Note: This is the single source of truth for all pricing. Frontend and backend b
 */
 
 const CREDIT_PACKS = {
-  starter_10: {
-    pack_type: 'starter_10',
-    credits: 10,
+  starter_20: {
+    pack_type: 'starter_20',
+    credits: 20,
     price_gbp: 10,
     price_pence: 1000,
     name: 'Starter Pack',
-    description: '10 slots - Perfect for small groups',
-    per_credit_cost: 1.00,
+    description: '20 slots - Perfect for small groups',
+    per_credit_cost: 0.50,
     badge: null
   },
   popular_50: {
     pack_type: 'popular_50',
-    credits: 40,
-    price_gbp: 25,
-    price_pence: 2500,
+    credits: 50,
+    price_gbp: 20,
+    price_pence: 2000,
     name: 'Popular Pack',
-    description: '40 slots - Great value',
-    per_credit_cost: 0.625,
-    savings_percent: 37,
-    badge: 'SAVE 37%'
+    description: '50 slots - Great value',
+    per_credit_cost: 0.40,
+    savings_percent: 20,
+    badge: 'SAVE 20%'
   },
-  value_200: {
-    pack_type: 'value_200',
+  value_120: {
+    pack_type: 'value_120',
     credits: 120,
     price_gbp: 40,
     price_pence: 4000,
     name: 'Best Value Pack',
     description: '120 slots - Maximum savings',
     per_credit_cost: 0.33,
-    savings_percent: 67,
-    badge: 'SAVE 67%'
+    savings_percent: 33,
+    badge: 'SAVE 33%'
   }
 };
 
