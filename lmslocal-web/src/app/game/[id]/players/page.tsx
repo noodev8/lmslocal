@@ -255,19 +255,22 @@ export default function CompetitionPlayersPage() {
       if (response.data.return_code === 'SUCCESS') {
         // Remove player from local state
         setPlayers(prev => prev.filter(p => p.id !== playerId));
-        
+
         // Update competition player count if available
-        setCompetition(prev => prev ? { 
-          ...prev, 
-          player_count: (prev.player_count || 0) - 1 
+        setCompetition(prev => prev ? {
+          ...prev,
+          player_count: (prev.player_count || 0) - 1
         } : null);
+
+        // Show success message (includes credit refund notification if applicable)
+        showToast(response.data.message || 'Player removed successfully', 'success');
       } else {
         console.error('Failed to remove player:', response.data.message);
-        alert(`Failed to remove player: ${response.data.message}`);
+        showToast(response.data.message || 'Failed to remove player', 'error');
       }
     } catch (error) {
       console.error('Failed to remove player:', error);
-      alert('Failed to remove player due to network error');
+      showToast('Failed to remove player due to network error', 'error');
     } finally {
       setRemoving(prev => {
         const newSet = new Set(prev);

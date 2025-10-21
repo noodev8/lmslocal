@@ -168,34 +168,63 @@ router.post('/', verifyToken, async (req, res) => {
         };
       }
 
-      // Check organiser's player limit before allowing join
-      const limitsQuery = `
-        SELECT
-          ua.max_players,
-          COUNT(cu.id) as current_players
-        FROM user_allowance ua
-        LEFT JOIN competition c ON c.organiser_id = ua.user_id
+      // === CREDIT DEDUCTION LOGIC (PAYG System) ===
+      // Count organiser's current total players across ALL competitions
+      // Free tier limit from environment variable (defaults to 20 if not set)
+      const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
+
+      const playerCountQuery = `
+        SELECT COUNT(cu.id) as current_player_count
+        FROM competition c
         LEFT JOIN competition_user cu ON cu.competition_id = c.id
-        WHERE ua.user_id = $1
-        GROUP BY ua.max_players
+        WHERE c.organiser_id = $1
       `;
 
-      const limitsResult = await client.query(limitsQuery, [data.organiser_id]);
+      const countResult = await client.query(playerCountQuery, [data.organiser_id]);
+      const currentPlayerCount = parseInt(countResult.rows[0].current_player_count) || 0;
 
-      if (limitsResult.rows.length === 0) {
-        throw {
-          return_code: "SERVER_ERROR",
-          message: "Competition organiser settings not found"
-        };
-      }
+      // If organiser has reached free tier limit, need to deduct 1 credit
+      if (currentPlayerCount >= FREE_PLAYER_LIMIT) {
+        // Attempt to deduct 1 credit (atomic operation)
+        const deductQuery = `
+          UPDATE app_user
+          SET paid_credit = paid_credit - 1
+          WHERE id = $1 AND paid_credit >= 1
+          RETURNING paid_credit as new_balance
+        `;
 
-      const limits = limitsResult.rows[0];
+        const deductResult = await client.query(deductQuery, [data.organiser_id]);
 
-      if (limits.current_players >= limits.max_players) {
-        throw {
-          return_code: "COMPETITION_FULL",
-          message: "This competition is currently full. Please contact the organiser if you'd like to join."
-        };
+        // If no rows updated, organiser has insufficient credits - BLOCK join
+        if (deductResult.rows.length === 0) {
+          throw {
+            return_code: "ORGANISER_INSUFFICIENT_CREDITS",
+            message: "The competition organiser has reached their player limit. They need to purchase more credits to accept new players."
+          };
+        }
+
+        const newBalance = deductResult.rows[0].new_balance;
+
+        // Log the credit deduction to credit_transactions table
+        await client.query(`
+          INSERT INTO credit_transactions (
+            user_id,
+            transaction_type,
+            amount,
+            competition_id,
+            description,
+            created_at
+          )
+          VALUES ($1, 'deduction', -1, $2, $3, CURRENT_TIMESTAMP)
+        `, [
+          data.organiser_id,
+          data.competition_id,
+          `Credit deducted for player ${user_id} joining competition. Total players: ${currentPlayerCount + 1}`
+        ]);
+
+        console.log(`✓ Credit deducted from organiser ${data.organiser_id}. New balance: ${newBalance}`);
+      } else {
+        console.log(`✓ Player ${user_id} joining within free tier (${currentPlayerCount + 1}/${FREE_PLAYER_LIMIT} players)`);
       }
 
       // Join user to competition with atomic operation
@@ -265,7 +294,7 @@ router.post('/', verifyToken, async (req, res) => {
               c.name as competition_name,
               c.lives_per_player,
               c.no_team_twice,
-              org.display_name as organizer_name,
+              org.display_name as organiser_name,
               (
                 SELECT MIN(r.lock_time)
                 FROM round r
@@ -300,7 +329,7 @@ router.post('/', verifyToken, async (req, res) => {
             user_email: emailData.user_email,
             user_display_name: emailData.user_display_name,
             competition_name: emailData.competition_name,
-            organizer_name: emailData.organizer_name || 'Competition Organizer',
+            organiser_name: emailData.organiser_name || 'Competition Organiser',
             lives_per_player: emailData.lives_per_player,
             no_team_twice: emailData.no_team_twice,
             next_round_number: emailData.next_round_number,

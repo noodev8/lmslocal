@@ -90,7 +90,7 @@ router.post('/', verifyToken, async (req, res) => {
     // No validation needed - just don't use it
 
     // === AUTHORIZATION AND COMPETITION VALIDATION ===
-    // Verify admin is organizer and competition allows new players
+    // Verify admin is organiser and competition allows new players
     const competitionResult = await query(`
       SELECT 
         c.id,                    -- Competition identifier for validation
@@ -113,7 +113,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     const competition = competitionResult.rows[0];
 
-    // Verify requesting user is the competition organizer
+    // Verify requesting user is the competition organiser
     if (competition.organiser_id !== admin_id) {
       return res.json({
         return_code: "UNAUTHORIZED",
@@ -130,40 +130,58 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // === PLAYER LIMIT CHECK ===
-    // Check organiser's current player count against their plan limits
-    const limitsResult = await query(`
-      SELECT
-        ua.max_players,
-        COUNT(cu.id) as current_players
-      FROM user_allowance ua
-      LEFT JOIN competition c ON c.organiser_id = ua.user_id
-      LEFT JOIN competition_user cu ON cu.competition_id = c.id
-      WHERE ua.user_id = $1
-      GROUP BY ua.max_players
-    `, [admin_id]);
-
-    if (limitsResult.rows.length === 0) {
-      return res.json({
-        return_code: "SERVER_ERROR",
-        message: "User allowance settings not found"
-      });
-    }
-
-    const limits = limitsResult.rows[0];
-
-    if (limits.current_players >= limits.max_players) {
-      return res.json({
-        return_code: "PLAYER_LIMIT_EXCEEDED",
-        message: "You've reached your plan limit. Please upgrade your plan for more players."
-      });
-    }
-
     // === ATOMIC TRANSACTION EXECUTION ===
-    // Create user, add to competition, initialize teams, and log action atomically
+    // Create user, add to competition, initialize teams, deduct credits, and log action atomically
     let newPlayer = null;
 
     await transaction(async (client) => {
+      // Step 0: CREDIT DEDUCTION LOGIC (PAYG System)
+      // Count organiser's current total players across ALL competitions
+      // Free tier limit from environment variable (defaults to 20 if not set)
+      const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
+
+      const playerCountQuery = `
+        SELECT COUNT(cu.id) as current_player_count
+        FROM competition c
+        LEFT JOIN competition_user cu ON cu.competition_id = c.id
+        WHERE c.organiser_id = $1
+      `;
+
+      const countResult = await client.query(playerCountQuery, [admin_id]);
+      const currentPlayerCount = parseInt(countResult.rows[0].current_player_count) || 0;
+
+      // If organiser has reached free tier limit, need to deduct 1 credit
+      if (currentPlayerCount >= FREE_PLAYER_LIMIT) {
+        // Attempt to deduct 1 credit (atomic operation)
+        const deductQuery = `
+          UPDATE app_user
+          SET paid_credit = paid_credit - 1
+          WHERE id = $1 AND paid_credit >= 1
+          RETURNING paid_credit as new_balance
+        `;
+
+        const deductResult = await client.query(deductQuery, [admin_id]);
+
+        // If no rows updated, organiser has insufficient credits - BLOCK player creation
+        if (deductResult.rows.length === 0) {
+          throw {
+            return_code: "ORGANISER_INSUFFICIENT_CREDITS",
+            message: "You have reached your player limit. Please purchase more credits to add additional players."
+          };
+        }
+
+        const newBalance = deductResult.rows[0].new_balance;
+
+        // Log the credit deduction (will log player_id after user creation)
+        // This will be inserted after Step 2 below
+        var creditDeducted = true;
+
+        console.log(`✓ Credit deducted from organiser ${admin_id}. New balance: ${newBalance}`);
+      } else {
+        var creditDeducted = false;
+        console.log(`✓ Adding offline player within free tier (${currentPlayerCount + 1}/${FREE_PLAYER_LIMIT} players)`);
+      }
+
       // Step 1: Create the user account
       // Admin can set picks for ANY player - no special management fields needed
       // created_by_user_id tracks which admin created this player
@@ -251,8 +269,18 @@ router.post('/', verifyToken, async (req, res) => {
 
   } catch (error) {
     // === ERROR HANDLING ===
-    // Log detailed error for debugging but return generic message to client for security
+    // Log detailed error for debugging
     console.error('Add offline player error:', error);
+
+    // Handle custom business logic errors (thrown from transaction)
+    if (error.return_code && error.message) {
+      return res.json({
+        return_code: error.return_code,
+        message: error.message
+      });
+    }
+
+    // Generic error for unexpected failures
     res.json({
       return_code: "SERVER_ERROR",
       message: "Internal server error"

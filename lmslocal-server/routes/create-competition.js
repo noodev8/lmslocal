@@ -218,7 +218,7 @@ router.post('/', verifyToken, async (req, res) => {
           fixture_service,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'SETUP', $12, $13, $14, $15, $16, true, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'SETUP', $12, $13, $14, $15, $16, false, CURRENT_TIMESTAMP)
         RETURNING *
       `, [
         name.trim(),

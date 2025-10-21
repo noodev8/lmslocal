@@ -3,7 +3,7 @@
 API Route: remove-player
 =======================================================================================================================================
 Method: POST
-Purpose: Allow competition organiser to completely remove player and all associated data with atomic transaction safety and comprehensive audit logging
+Purpose: Allow competition organiser to completely remove player and all associated data with atomic transaction safety and comprehensive audit logging. Automatically refunds 1 credit if competition is in SETUP mode and organiser is using paid credits.
 =======================================================================================================================================
 Request Payload:
 {
@@ -14,7 +14,7 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "message": "Player removed successfully", // string, success confirmation message
+  "message": "Player removed successfully", // string, success confirmation message (includes credit refund info if applicable)
   "removed_player": {
     "id": 456,                        // integer, removed player ID
     "name": "John Smith",             // string, removed player display name
@@ -30,6 +30,10 @@ Success Response (ALWAYS HTTP 200):
     "id": 123,                        // integer, competition ID
     "name": "Premier League LMS",     // string, competition name
     "remaining_players": 15           // integer, number of players remaining
+  },
+  "credit_refund": {
+    "refunded": true,                 // boolean, whether a credit was refunded (SETUP mode only)
+    "amount": 1                       // integer, number of credits refunded (0 or 1)
   }
 }
 
@@ -87,16 +91,17 @@ router.post('/', verifyToken, async (req, res) => {
       const validationQuery = `
         WITH competition_data AS (
           -- Get competition info and verify organiser authorization
-          SELECT 
+          SELECT
             c.id as competition_id,
             c.name as competition_name,
             c.organiser_id,
+            c.status as competition_status,
             -- Count remaining players for response context
             COUNT(cu_all.user_id) as total_players
           FROM competition c
           LEFT JOIN competition_user cu_all ON c.id = cu_all.competition_id
           WHERE c.id = $1
-          GROUP BY c.id, c.name, c.organiser_id
+          GROUP BY c.id, c.name, c.organiser_id, c.status
         ),
         player_data AS (
           -- Get player info if they exist in this competition
@@ -111,10 +116,11 @@ router.post('/', verifyToken, async (req, res) => {
           INNER JOIN app_user u ON cu.user_id = u.id
           WHERE cu.competition_id = $1 AND cu.user_id = $2
         )
-        SELECT 
+        SELECT
           cd.competition_id,
           cd.competition_name,
           cd.organiser_id,
+          cd.competition_status,
           cd.total_players,
           pd.user_id as player_user_id,
           pd.player_name,
@@ -152,6 +158,58 @@ router.post('/', verifyToken, async (req, res) => {
           return_code: "PLAYER_NOT_FOUND",
           message: "Player not found in this competition"
         };
+      }
+
+      // STEP 2.5: Credit refund logic for SETUP competitions (PAYG System)
+      // Only refund credits if competition is still in SETUP mode
+      let creditRefunded = false;
+      let refundedAmount = 0;
+
+      if (data.competition_status === 'SETUP') {
+        // Count organiser's current total players across ALL competitions
+        const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
+
+        const playerCountQuery = `
+          SELECT COUNT(cu.id) as current_player_count
+          FROM competition c
+          LEFT JOIN competition_user cu ON cu.competition_id = c.id
+          WHERE c.organiser_id = $1
+        `;
+
+        const countResult = await client.query(playerCountQuery, [admin_id]);
+        const currentPlayerCount = parseInt(countResult.rows[0].current_player_count) || 0;
+
+        // If organiser currently has more players than free limit, refund 1 credit
+        // This is because removing a player reduces their paid player count
+        if (currentPlayerCount > FREE_PLAYER_LIMIT) {
+          // Refund 1 credit (atomic operation)
+          const refundQuery = `
+            UPDATE app_user
+            SET paid_credit = paid_credit + 1
+            WHERE id = $1
+            RETURNING paid_credit as new_balance
+          `;
+
+          const refundResult = await client.query(refundQuery, [admin_id]);
+          const newBalance = refundResult.rows[0].new_balance;
+
+          // Log the credit refund to credit_transactions table
+          await client.query(`
+            INSERT INTO credit_transactions (user_id, competition_id, transaction_type, amount, description, created_at)
+            VALUES ($1, $2, 'REFUND', 1, $3, NOW())
+          `, [
+            admin_id,
+            competition_id,
+            `Credit refunded for player ${player_id} removal from SETUP competition. Total players: ${currentPlayerCount - 1}`
+          ]);
+
+          creditRefunded = true;
+          refundedAmount = 1;
+
+          console.log(`✓ Credit refunded to organiser ${admin_id}. New balance: ${newBalance}`);
+        } else {
+          console.log(`✓ Player removal within free tier (${currentPlayerCount - 1}/${FREE_PLAYER_LIMIT} players) - no refund needed`);
+        }
       }
 
       // STEP 3: Atomic removal of all player-related data with detailed tracking
@@ -233,9 +291,13 @@ router.post('/', verifyToken, async (req, res) => {
       ]);
 
       // Return comprehensive removal information for frontend display
+      const successMessage = creditRefunded
+        ? `Player "${data.player_name}" removed successfully. 1 credit has been refunded to your account.`
+        : `Player "${data.player_name}" removed successfully`;
+
       return {
         return_code: "SUCCESS",
-        message: `Player "${data.player_name}" removed successfully`,
+        message: successMessage,
         removed_player: {
           id: data.player_user_id,
           name: data.player_name,
@@ -251,6 +313,10 @@ router.post('/', verifyToken, async (req, res) => {
           id: data.competition_id,
           name: data.competition_name,
           remaining_players: Math.max(0, (data.total_players || 1) - 1) // Subtract the removed player
+        },
+        credit_refund: {
+          refunded: creditRefunded,
+          amount: refundedAmount
         }
       };
     });

@@ -497,10 +497,9 @@ export default function UnifiedGameDashboard() {
         )}
 
         {/* Status Cards Grid - All 4 cards aligned */}
-        {competition?.status !== 'COMPLETE' && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Active/Out Status Card */}
-            {isParticipant && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Active/Out Status Card */}
+          {isParticipant && competition?.status !== 'COMPLETE' && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               <div className="text-center">
                 <div className="flex items-center justify-center space-x-2 mb-1">
@@ -519,7 +518,7 @@ export default function UnifiedGameDashboard() {
           )}
 
           {/* Current Round Card */}
-          {currentRoundInfo && (
+          {currentRoundInfo && competition?.status !== 'COMPLETE' && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               <div className="text-center">
                 <div className="text-3xl font-bold text-gray-900 mb-1">{currentRoundInfo.round_number}</div>
@@ -529,7 +528,7 @@ export default function UnifiedGameDashboard() {
           )}
 
           {/* Lives Remaining Card */}
-          {isParticipant && competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
+          {isParticipant && competition?.status !== 'COMPLETE' && competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
               <div className="text-center">
                 <div className="text-3xl font-bold text-gray-900 mb-1">{competition.lives_remaining}</div>
@@ -541,23 +540,23 @@ export default function UnifiedGameDashboard() {
           {/* Players Still In Card */}
           {competition && (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              {/* Champion/Draw announcements */}
-              {competition.player_count === 1 && (
+              {/* Champion/Draw announcements - only show when competition is COMPLETE */}
+              {competition.status === 'COMPLETE' && competition.player_count === 1 && (
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900 mb-1">👑</div>
                   <div className="text-xs text-gray-600">Champion!</div>
                 </div>
               )}
 
-              {competition.player_count === 0 && (
+              {competition.status === 'COMPLETE' && competition.player_count === 0 && (
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900 mb-1">😱</div>
                   <div className="text-xs text-gray-600">Draw</div>
                 </div>
               )}
 
-              {/* "Still In" number */}
-              {competition.player_count > 1 && (
+              {/* "Still In" number - show for active competitions or if more than 1 player */}
+              {(competition.status !== 'COMPLETE' || competition.player_count > 1) && (
                 <div className="text-center">
                   <div className="text-3xl font-bold text-green-600 mb-1">
                     {competition.player_count} <span className="text-xl text-gray-400">/</span> <span className="text-xl text-gray-500">{competition.total_players || competition.player_count}</span>
@@ -567,8 +566,7 @@ export default function UnifiedGameDashboard() {
               )}
             </div>
           )}
-          </div>
-        )}
+        </div>
 
         {/* Competition Completion Banner */}
         {competitionComplete.isComplete && (
