@@ -47,7 +47,6 @@ const getFixturesRoute = require('./routes/get-fixtures');
 const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round');
 const setPickRoute = require('./routes/set-pick');
 const adminSetPickRoute = require('./routes/admin-set-pick');
-const updatePaymentStatusRoute = require('./routes/update-payment-status');
 const updatePlayerLivesRoute = require('./routes/update-player-lives');
 const updatePlayerStatusRoute = require('./routes/update-player-status');
 // REMOVED: calculate-results (orphaned code - never used)
@@ -56,11 +55,14 @@ const updatePlayerStatusRoute = require('./routes/update-player-status');
 // const registerAndJoinCompetitionRoute = require('./routes/register-and-join-competition'); // DISABLED - using single login
 // const joinByCodeRoute = require('./routes/join-by-code'); // DISABLED - using single login
 const getUserDashboardRoute = require('./routes/get-user-dashboard');
-const getUserSubscriptionRoute = require('./routes/get-user-subscription');
 const getBillingHistoryRoute = require('./routes/get-billing-history');
 const createCheckoutSessionRoute = require('./routes/create-checkout-session');
 const validatePromoCodeRoute = require('./routes/validate-promo-code');
 const stripeWebhookRoute = require('./routes/stripe-webhook');
+
+// PAYG Credit System Routes
+const getUserCreditsRoute = require('./routes/get-user-credits');
+const deductCreditRoute = require('./routes/deduct-credit');
 const checkUserTypeRoute = require('./routes/check-user-type');
 const getAllowedTeamsRoute = require('./routes/get-allowed-teams');
 const unselectPickRoute = require('./routes/unselect-pick');
@@ -242,7 +244,6 @@ app.use('/get-fixtures', getFixturesRoute);
 app.use('/get-player-current-round', getPlayerCurrentRoundRoute);
 app.use('/set-pick', setPickRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
-app.use('/update-payment-status', updatePaymentStatusRoute);
 app.use('/update-player-lives', updatePlayerLivesRoute);
 app.use('/update-player-status', updatePlayerStatusRoute);
 // REMOVED: /calculate-results (orphaned code - never used)
@@ -251,10 +252,14 @@ app.use('/update-player-status', updatePlayerStatusRoute);
 // app.use('/register-and-join-competition', registerAndJoinCompetitionRoute); // DISABLED - using single login
 // app.use('/join-by-code', joinByCodeRoute); // DISABLED - using single login
 app.use('/get-user-dashboard', getUserDashboardRoute);
-app.use('/get-user-subscription', getUserSubscriptionRoute);
+
+// PAYG Credit System API Routes
 app.use('/get-billing-history', getBillingHistoryRoute);
 app.use('/create-checkout-session', createCheckoutSessionRoute);
 app.use('/validate-promo-code', validatePromoCodeRoute);
+app.use('/get-user-credits', getUserCreditsRoute);
+app.use('/deduct-credit', deductCreditRoute);
+
 app.use('/check-user-type', checkUserTypeRoute);
 app.use('/get-allowed-teams', getAllowedTeamsRoute);
 app.use('/unselect-pick', unselectPickRoute);

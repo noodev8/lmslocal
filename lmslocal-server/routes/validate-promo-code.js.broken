@@ -3,48 +3,40 @@
 API Route: validate-promo-code
 =======================================================================================================================================
 Method: POST
-Purpose: Validates a promotional discount code and returns calculated pricing for all applicable credit packs
+Purpose: Validates a promotional discount code and returns calculated pricing for all applicable plans
 =======================================================================================================================================
 Request Payload:
 {
   "code": "BLACKFRIDAY",              // string, required - promo code to validate
-  "pack_type": "popular_40"           // string, optional - specific pack to check (starter_15/popular_40/value_100)
+  "plan": "club"                      // string, optional - specific plan to check (club/venue)
 }
 
-Success Response (ALWAYS HTTP 200):
+Success Response:
 {
   "return_code": "SUCCESS",
   "valid": true,
   "promo_code": {
     "code": "BLACKFRIDAY",            // string, the validated code
-    "description": "Black Friday 2025 - 30% off all packs",
+    "description": "Black Friday 2025 - 30% off all plans",
     "discount_type": "percentage",    // string, 'percentage' or 'fixed'
-    "discount_value": 30              // number, 30 (for 30%) or 5.00 (for £5 off)
+    "discount_value": 30              // number, 30 (for 30%) or 20.00 (for £20 off)
   },
   "pricing": {
-    "starter_15": {
-      "credits": 15,                  // integer, credits in pack
-      "original": 10.00,              // number, original price in £
-      "discount": 3.00,               // number, discount amount in £
-      "final": 7.00                   // number, final price after discount
+    "club": {
+      "original": 79.00,              // number, original price in £
+      "discount": 23.70,              // number, discount amount in £
+      "final": 55.30                  // number, final price after discount
     },
-    "popular_40": {
-      "credits": 40,
-      "original": 20.00,
-      "discount": 6.00,
-      "final": 14.00
-    },
-    "value_100": {
-      "credits": 100,
-      "original": 40.00,
-      "discount": 12.00,
-      "final": 28.00
+    "venue": {
+      "original": 179.00,
+      "discount": 53.70,
+      "final": 125.30
     }
   },
   "expires_at": "2025-11-30T23:59:59Z"  // string, expiry timestamp (null if no expiry)
 }
 
-Error Response (ALWAYS HTTP 200):
+Error Response:
 {
   "return_code": "INVALID_CODE",
   "valid": false,
@@ -55,33 +47,33 @@ Return Codes:
 "SUCCESS"
 "INVALID_CODE"              - Code doesn't exist or is inactive
 "EXPIRED"                   - Code has expired
-"NOT_YET_VALID"             - Code start date is in the future
 "ALREADY_USED"              - User already used this code
 "LIMIT_REACHED"             - Maximum uses reached
-"PACK_NOT_APPLICABLE"       - Code not valid for selected pack
+"PLAN_NOT_APPLICABLE"       - Code not valid for selected plan
 "VALIDATION_ERROR"          - Missing required fields
 "UNAUTHORIZED"              - Invalid or missing JWT token
 "SERVER_ERROR"              - Unexpected server error
-=======================================================================================================================================
-Business Logic:
-- Validates promo code against database rules (time, usage limits, applicability)
-- Calculates discounted pricing for all applicable credit packs
-- Returns pricing in pounds (GBP) with 2 decimal places
-- Uses applies_to_plans column to store applicable pack types
 =======================================================================================================================================
 */
 
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/auth');
-const { query } = require('../database');
-const { CREDIT_PACKS } = require('../config/credit-packs');
+const { verifyToken } = require('../middleware/auth'); // JWT authentication middleware
+const { logApiCall } = require('../utils/apiLogger'); // API logging utility
+const { query } = require('../database'); // Database connection pooling
+const { PLAN_LIMITS } = require('../config/plans'); // Plan configuration
+
+// Plan pricing configuration (matches create-checkout-session)
+const PLAN_PRICING = {
+  club: 79,
+  venue: 179
+};
 
 /**
  * Calculate discount amount based on type and value
  * @param {number} originalPrice - Original price in pounds
  * @param {string} discountType - 'percentage' or 'fixed'
- * @param {number} discountValue - Discount value (25 for 25% or 5.00 for £5)
+ * @param {number} discountValue - Discount value (25 for 25% or 20.00 for £20)
  * @returns {object} - { discountAmount, finalPrice }
  */
 function calculateDiscount(originalPrice, discountType, discountValue) {
@@ -109,19 +101,22 @@ function calculateDiscount(originalPrice, discountType, discountValue) {
 
 /**
  * POST /validate-promo-code
- * Validates a promo code and returns pricing information for credit packs
+ * Validates a promo code and returns pricing information
  */
 router.post('/', verifyToken, async (req, res) => {
   try {
     // Extract user ID from JWT token (set by verifyToken middleware)
     const userId = req.user.id;
 
-    // Extract and validate request payload
-    const { code, pack_type } = req.body;
+    // Log the API call for monitoring and debugging
+    logApiCall('validate-promo-code');
 
-    // === STEP 1: VALIDATE INPUT ===
+    // Extract and validate request payload
+    const { code, plan } = req.body;
+
+    // Validate required fields
     if (!code) {
-      return res.json({
+      return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
         valid: false,
         message: 'Promo code is required'
@@ -131,7 +126,9 @@ router.post('/', verifyToken, async (req, res) => {
     // Normalize code to uppercase for case-insensitive matching
     const normalizedCode = code.trim().toUpperCase();
 
-    // === STEP 2: CHECK IF PROMO CODE EXISTS AND IS ACTIVE ===
+    // ============================================================================
+    // STEP 1: Check if promo code exists and is active
+    // ============================================================================
     const promoCodeQuery = `
       SELECT
         id,
@@ -144,7 +141,8 @@ router.post('/', verifyToken, async (req, res) => {
         valid_until,
         max_total_uses,
         max_uses_per_user,
-        current_total_uses
+        current_total_uses,
+        campaign_source
       FROM promo_codes
       WHERE UPPER(code) = $1 AND active = true
     `;
@@ -153,7 +151,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Check if code exists
     if (promoCodeResult.rows.length === 0) {
-      return res.json({
+      return res.status(200).json({
         return_code: 'INVALID_CODE',
         valid: false,
         message: 'This promo code is not valid'
@@ -162,12 +160,14 @@ router.post('/', verifyToken, async (req, res) => {
 
     const promoCode = promoCodeResult.rows[0];
 
-    // === STEP 3: CHECK TIME VALIDITY ===
+    // ============================================================================
+    // STEP 2: Check time validity (valid_from and valid_until)
+    // ============================================================================
     const now = new Date();
 
     // Check if code is not yet valid
     if (promoCode.valid_from && new Date(promoCode.valid_from) > now) {
-      return res.json({
+      return res.status(200).json({
         return_code: 'NOT_YET_VALID',
         valid: false,
         message: 'This promo code is not yet active'
@@ -176,24 +176,28 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Check if code has expired
     if (promoCode.valid_until && new Date(promoCode.valid_until) < now) {
-      return res.json({
+      return res.status(200).json({
         return_code: 'EXPIRED',
         valid: false,
         message: 'This promo code has expired'
       });
     }
 
-    // === STEP 4: CHECK TOTAL USAGE LIMIT ===
+    // ============================================================================
+    // STEP 3: Check total usage limit
+    // ============================================================================
     if (promoCode.max_total_uses !== null &&
         promoCode.current_total_uses >= promoCode.max_total_uses) {
-      return res.json({
+      return res.status(200).json({
         return_code: 'LIMIT_REACHED',
         valid: false,
         message: 'This promo code is no longer available'
       });
     }
 
-    // === STEP 5: CHECK IF USER HAS ALREADY USED THIS CODE ===
+    // ============================================================================
+    // STEP 4: Check if user has already used this code
+    // ============================================================================
     const userUsageQuery = `
       SELECT COUNT(*) as usage_count
       FROM promo_code_usage
@@ -205,62 +209,61 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Check if user has exceeded max uses per user
     if (userUsageCount >= promoCode.max_uses_per_user) {
-      return res.json({
+      return res.status(200).json({
         return_code: 'ALREADY_USED',
         valid: false,
         message: 'You have already used this promo code'
       });
     }
 
-    // === STEP 6: CHECK PACK APPLICABILITY ===
-    // If pack_type is specified and applies_to_plans is set, check if pack is included
-    if (pack_type && promoCode.applies_to_plans && promoCode.applies_to_plans.length > 0) {
-      if (!promoCode.applies_to_plans.includes(pack_type)) {
-        const packName = CREDIT_PACKS[pack_type]?.name || pack_type;
-        return res.json({
-          return_code: 'PACK_NOT_APPLICABLE',
+    // ============================================================================
+    // STEP 5: Check plan applicability
+    // ============================================================================
+    // If applies_to_plans is set, check if selected plan is included
+    if (plan && promoCode.applies_to_plans && promoCode.applies_to_plans.length > 0) {
+      if (!promoCode.applies_to_plans.includes(plan)) {
+        const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
+        return res.status(200).json({
+          return_code: 'PLAN_NOT_APPLICABLE',
           valid: false,
-          message: `This code is not valid for the ${packName}`
+          message: `This code is not valid for the ${planName} plan`
         });
       }
     }
 
-    // === STEP 7: CALCULATE PRICING FOR ALL APPLICABLE PACKS ===
+    // ============================================================================
+    // STEP 6: Calculate pricing for all applicable plans
+    // ============================================================================
     const pricing = {};
 
-    // Determine which packs to calculate pricing for
-    let packsToCalculate = ['starter_15', 'popular_40', 'value_100'];
+    // Determine which plans to calculate pricing for
+    let plansToCalculate = ['club', 'venue'];
 
-    // If code is pack-specific, only calculate for those packs
+    // If code is plan-specific, only calculate for those plans
     if (promoCode.applies_to_plans && promoCode.applies_to_plans.length > 0) {
-      // Filter to only valid pack types
-      packsToCalculate = promoCode.applies_to_plans.filter(packType =>
-        CREDIT_PACKS[packType] !== undefined
-      );
+      plansToCalculate = promoCode.applies_to_plans;
     }
 
-    // Calculate discount for each applicable pack
-    for (const packType of packsToCalculate) {
-      const packConfig = CREDIT_PACKS[packType];
-      if (!packConfig) continue; // Skip invalid pack types
-
-      const originalPrice = packConfig.price_gbp;
+    // Calculate discount for each applicable plan
+    for (const planName of plansToCalculate) {
+      const originalPrice = PLAN_PRICING[planName];
       const { discountAmount, finalPrice } = calculateDiscount(
         originalPrice,
         promoCode.discount_type,
         parseFloat(promoCode.discount_value)
       );
 
-      pricing[packType] = {
-        credits: packConfig.credits,
+      pricing[planName] = {
         original: originalPrice,
         discount: discountAmount,
         final: finalPrice
       };
     }
 
-    // === STEP 8: RETURN SUCCESS RESPONSE ===
-    return res.json({
+    // ============================================================================
+    // STEP 7: Return success response with pricing details
+    // ============================================================================
+    const responseData = {
       return_code: 'SUCCESS',
       valid: true,
       promo_code: {
@@ -271,20 +274,16 @@ router.post('/', verifyToken, async (req, res) => {
       },
       pricing: pricing,
       expires_at: promoCode.valid_until || null
-    });
+    };
+
+    return res.status(200).json(responseData);
 
   } catch (error) {
     // Log error for debugging and monitoring
-    console.error('Validate promo code error:', {
-      error: error.message,
-      stack: error.stack?.substring(0, 500),
-      user_id: req.user?.id,
-      code: req.body?.code,
-      timestamp: new Date().toISOString()
-    });
+    console.error('Error in validate-promo-code:', error);
 
     // Return generic server error
-    return res.json({
+    return res.status(200).json({
       return_code: 'SERVER_ERROR',
       valid: false,
       message: 'An unexpected error occurred while validating promo code'

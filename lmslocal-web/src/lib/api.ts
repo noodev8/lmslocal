@@ -80,7 +80,47 @@ export interface User {
   is_managed?: boolean;
 }
 
-// Subscription interfaces
+// Credit system interfaces (PAYG model)
+export interface UserCredits {
+  paid_credit: number;              // Available paid credits
+  total_players: number;             // Total players across all competitions
+  free_players_used: number;         // Players using free tier (0-free_player_limit)
+  paid_players_used: number;         // Players beyond free tier
+  free_player_limit: number;         // Configurable free tier limit from backend .env
+}
+
+export interface CreditPurchase {
+  pack_type: string;                 // Pack identifier (e.g., 'popular_50')
+  pack_name: string;                 // Friendly pack name
+  credits_purchased: number;         // Credits in pack
+  paid_amount: number;               // Amount paid in GBP
+  purchased_at: string;              // ISO datetime
+}
+
+export interface CreditBillingHistoryItem {
+  id: number;
+  pack_type: string;
+  pack_name: string;
+  credits_purchased: number;
+  paid_amount: number;
+  original_price: number | null;     // Price before discount (null if no promo)
+  discount_amount: number | null;    // Discount applied (null if no promo)
+  promo_code: string | null;         // Promo code used (null if none)
+  stripe_session_id: string;
+  purchased_at: string;
+}
+
+export interface CreditPack {
+  pack_type: string;
+  credits: number;
+  price: number;
+  name: string;
+  description: string;
+  badge: string | null;
+  popular?: boolean;
+}
+
+// Legacy subscription interfaces (deprecated - kept for backwards compatibility)
 export interface UserSubscription {
   plan: 'free' | 'club' | 'venue';
   expiry: string | null;
@@ -661,6 +701,82 @@ export const userApi = {
     () => api.post<{ return_code: string; message?: string; competition?: Competition; players?: Player[] }>('/get-competition-standings', { competition_id, show_full_user_history })
   ),
   joinCompetitionByCode: (competition_code: string) => api.post<{ return_code: string; message?: string; competition?: { id: number; name: string } }>('/join-competition-by-code', { competition_code }),
+
+  // Credit system APIs (PAYG model)
+  getUserCredits: () => {
+    const userId = getUserId();
+    return withCache(
+      `user-credits-${userId}`, // User-specific cache key
+      1 * 60 * 60 * 1000, // 1 hour cache - credit data changes when players join/credits purchased
+      () => api.post<{
+        return_code: string;
+        message?: string;
+        credits?: UserCredits;
+        recent_purchases?: CreditPurchase[];
+      }>('/get-user-credits', {})
+    );
+  },
+  getBillingHistory: () => {
+    const userId = getUserId();
+    return withCache(
+      `billing-history-${userId}`, // User-specific cache key
+      1 * 60 * 60 * 1000, // 1 hour cache - invalidated after payments
+      () => api.post<{
+        return_code: string;
+        message?: string;
+        purchases?: CreditBillingHistoryItem[];
+      }>('/get-billing-history', {})
+    );
+  },
+  createCheckoutSession: (pack_type: string, promo_code?: string) =>
+    api.post<{
+      return_code: string;
+      message?: string;
+      checkout_url?: string;
+      session_id?: string;
+      pack_info?: {
+        pack_type: string;
+        credits: number;
+        original_price: number;
+        discount_amount: number;
+        final_price: number;
+      };
+    }>('/create-checkout-session', { pack_type, promo_code }),
+  validatePromoCode: (code: string, pack_type?: string) =>
+    api.post<{
+      return_code: string;
+      message?: string;
+      valid?: boolean;
+      promo_code?: {
+        code: string;
+        description: string;
+        discount_type: 'percentage' | 'fixed';
+        discount_value: number;
+      };
+      pricing?: {
+        starter_10?: {
+          credits: number;
+          original: number;
+          discount: number;
+          final: number;
+        };
+        popular_50?: {
+          credits: number;
+          original: number;
+          discount: number;
+          final: number;
+        };
+        value_200?: {
+          credits: number;
+          original: number;
+          discount: number;
+          final: number;
+        };
+      };
+      expires_at?: string | null;
+    }>('/validate-promo-code', { code, pack_type }),
+
+  // Legacy subscription APIs (deprecated - kept for backwards compatibility)
   getUserSubscription: () => {
     const userId = getUserId();
     return withCache(
@@ -674,50 +790,6 @@ export const userApi = {
       }>('/get-user-subscription', {})
     );
   },
-  getBillingHistory: () => {
-    const userId = getUserId();
-    return withCache(
-      `billing-history-${userId}`, // User-specific cache key
-      1 * 60 * 60 * 1000, // 1 hour cache - invalidated after payments
-      () => api.post<{
-        return_code: string;
-        message?: string;
-        billing_history?: BillingHistoryItem[];
-      }>('/get-billing-history', {})
-    );
-  },
-  createCheckoutSession: (plan: 'club' | 'venue', billing_cycle: 'yearly', promo_code?: string) =>
-    api.post<{
-      return_code: string;
-      message?: string;
-      checkout_url?: string;
-      session_id?: string;
-    }>('/create-checkout-session', { plan, billing_cycle, promo_code }),
-  validatePromoCode: (code: string, plan?: 'club' | 'venue') =>
-    api.post<{
-      return_code: string;
-      message?: string;
-      valid?: boolean;
-      promo_code?: {
-        code: string;
-        description: string;
-        discount_type: 'percentage' | 'fixed';
-        discount_value: number;
-      };
-      pricing?: {
-        club?: {
-          original: number;
-          discount: number;
-          final: number;
-        };
-        venue?: {
-          original: number;
-          discount: number;
-          final: number;
-        };
-      };
-      expires_at?: string | null;
-    }>('/validate-promo-code', { code, plan }),
 };
 
 // Promote/Marketing API calls
@@ -807,10 +879,18 @@ export const cacheUtils = {
     apiCache.delete(`user-dashboard-${userId}`);
   },
 
-  // Clear billing-related cache after payments
+  // Clear credit and billing cache after purchases or player joins
+  invalidateCredits: () => {
+    const userId = getUserId();
+    apiCache.delete(`user-credits-${userId}`);
+    apiCache.delete(`billing-history-${userId}`);
+  },
+
+  // Clear billing-related cache after payments (legacy + new system)
   invalidateBilling: () => {
     const userId = getUserId();
-    apiCache.delete(`user-subscription-${userId}`);
+    apiCache.delete(`user-subscription-${userId}`); // Legacy
+    apiCache.delete(`user-credits-${userId}`);       // New credit system
     apiCache.delete(`billing-history-${userId}`);
   },
 

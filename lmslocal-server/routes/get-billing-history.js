@@ -3,27 +3,31 @@
 API Route: get-billing-history
 =======================================================================================================================================
 Method: POST
-Purpose: Retrieves user's billing history from subscription payments. Returns chronological list of all payments made by the user.
+Purpose: Retrieve user's credit purchase history for billing page display
 =======================================================================================================================================
 Request Payload:
-{}
+{} // Empty - user identified from JWT token
 
-Success Response:
+Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "billing_history": [
+  "purchases": [
     {
-      "id": 1,                                    // number, subscription record ID
-      "plan_name": "starter",                     // string, plan purchased
-      "paid_amount": 29.00,                       // number, amount paid in pounds
-      "payment_date": "2025-01-15T10:30:00Z",    // string, ISO date when payment occurred
-      "stripe_session_id": "cs_1234567890",      // string, Stripe session reference
-      "billing_cycle": "monthly"                 // string, extracted from amount/plan
+      "id": 123,                                // integer, purchase ID
+      "pack_type": "popular_40",                // string, pack identifier
+      "pack_name": "Popular Pack",              // string, friendly pack name
+      "credits_purchased": 40,                  // integer, credits in pack
+      "paid_amount": 18.00,                     // number, amount paid in GBP
+      "original_price": 20.00,                  // number, price before discount (null if no promo)
+      "discount_amount": 2.00,                  // number, discount applied (null if no promo)
+      "promo_code": "BLACKFRIDAY",              // string, promo code used (null if none)
+      "stripe_session_id": "cs_test_...",       // string, Stripe session ID
+      "purchased_at": "2025-03-15T10:30:00Z"    // string, ISO datetime
     }
   ]
 }
 
-Error Response:
+Error Response (ALWAYS HTTP 200):
 {
   "return_code": "ERROR_TYPE",
   "message": "Descriptive error message"
@@ -31,121 +35,93 @@ Error Response:
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
-"UNAUTHORIZED"
-"SERVER_ERROR"
-
+"UNAUTHORIZED"           - Invalid or missing JWT token
+"SERVER_ERROR"           - Unexpected server error
+=======================================================================================================================================
 Business Logic:
-- Returns all subscription payments for the authenticated user
-- Ordered by payment date (newest first)
-- Includes plan details and payment amounts
-- Shows Stripe session IDs for reference
+- Returns all credit purchases for authenticated user
+- Orders by most recent first (created_at DESC)
+- Includes promo code information if discount was applied
+- Shows original price and discount amount for transparency
+- Empty array if no purchases found (not an error)
 =======================================================================================================================================
 */
 
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/auth'); // JWT authentication middleware
-const { query } = require('../database'); // Use destructured database import
-const { logApiCall } = require('../utils/apiLogger'); // API logging utility
-
-/**
- * Determine billing cycle from plan and amount
- * @param {string} planName - Plan name (club/venue or old names)
- * @param {number} amount - Paid amount
- * @returns {string} Billing cycle (yearly only now)
- */
-function determineBillingCycle(planName, amount) {
-  // Map old plan names to new ones
-  const planMapping = {
-    'lite': 'free',
-    'starter': 'club',
-    'pro': 'venue'
-  };
-
-  const mappedPlan = planMapping[planName] || planName;
-
-  const planPricing = {
-    club: { yearly: 49.00 },
-    venue: { yearly: 149.00 }
-  };
-
-  const plan = planPricing[mappedPlan];
-  if (!plan) return 'yearly'; // Default to yearly for unknown plans
-
-  // Check if amount matches yearly pricing (with small tolerance for decimal precision)
-  if (Math.abs(amount - plan.yearly) < 0.01) {
-    return 'yearly';
-  }
-
-  return 'custom'; // For non-standard amounts
-}
+const { verifyToken } = require('../middleware/auth');
+const { query } = require('../database');
+const { CREDIT_PACKS } = require('../config/credit-packs');
 
 /**
  * POST /get-billing-history
- * Retrieves user's complete billing history
+ * Retrieves credit purchase history for authenticated user
  */
 router.post('/', verifyToken, async (req, res) => {
-  let userId;
-
   try {
     // Extract user ID from JWT token (set by verifyToken middleware)
-    userId = req.user.id;
+    const userId = req.user.id;
 
-    // Log the API call for monitoring and debugging
-    logApiCall('get-billing-history');
-
-    // Query subscription table for all payments by this user
-    const billingQuery = `
+    // === QUERY CREDIT PURCHASES WITH PROMO CODE INFO ===
+    // Join with promo_codes table to get promo code name if used
+    const purchasesQuery = `
       SELECT
-        id,
-        plan_name,
-        paid_amount,
-        created_at,
-        stripe_subscription_id
-      FROM subscription
-      WHERE user_id = $1
-      ORDER BY created_at DESC
+        cp.id,
+        cp.pack_type,
+        cp.credits_purchased,
+        cp.paid_amount,
+        cp.original_price,
+        cp.discount_amount,
+        cp.stripe_subscription_id as stripe_session_id,
+        cp.created_at as purchased_at,
+        pc.code as promo_code
+      FROM credit_purchases cp
+      LEFT JOIN promo_codes pc ON cp.promo_code_id = pc.id
+      WHERE cp.user_id = $1
+      ORDER BY cp.created_at DESC
     `;
 
-    const billingResult = await query(billingQuery, [userId]);
+    const purchasesResult = await query(purchasesQuery, [userId]);
 
-    // Format billing history for frontend consumption
-    const billingHistory = billingResult.rows.map(payment => {
-      const paidAmount = parseFloat(payment.paid_amount);
-
-      // Map old plan names to new ones
-      const planMapping = {
-        'lite': 'free',
-        'starter': 'club',
-        'pro': 'venue'
-      };
-
-      const mappedPlanName = planMapping[payment.plan_name] || payment.plan_name;
+    // Map database rows to response format
+    const purchases = purchasesResult.rows.map(purchase => {
+      // Get friendly pack name from config (fallback to pack_type if not found)
+      const packConfig = CREDIT_PACKS[purchase.pack_type];
+      const packName = packConfig ? packConfig.name : purchase.pack_type;
 
       return {
-        id: payment.id,
-        plan_name: mappedPlanName,
-        paid_amount: paidAmount,
-        payment_date: payment.created_at,
-        stripe_session_id: payment.stripe_subscription_id,
-        billing_cycle: determineBillingCycle(payment.plan_name, paidAmount)
+        id: purchase.id,
+        pack_type: purchase.pack_type,
+        pack_name: packName,
+        credits_purchased: purchase.credits_purchased,
+        paid_amount: parseFloat(purchase.paid_amount),
+        original_price: purchase.original_price ? parseFloat(purchase.original_price) : null,
+        discount_amount: purchase.discount_amount ? parseFloat(purchase.discount_amount) : null,
+        promo_code: purchase.promo_code || null,
+        stripe_session_id: purchase.stripe_session_id,
+        purchased_at: purchase.purchased_at
       };
     });
 
-    // Return successful response with billing history
-    return res.status(200).json({
+    // Return success with purchases array (empty array if no purchases)
+    return res.json({
       return_code: 'SUCCESS',
-      billing_history: billingHistory
+      purchases: purchases
     });
 
   } catch (error) {
-    // Log error for debugging and monitoring
-    console.error('Error in get-billing-history:', error);
+    // Log detailed error for debugging
+    console.error('Get billing history error:', {
+      error: error.message,
+      stack: error.stack?.substring(0, 500),
+      user_id: req.user?.id,
+      timestamp: new Date().toISOString()
+    });
 
-    // Handle general server errors
-    return res.status(200).json({
+    // Return generic error to client
+    return res.json({
       return_code: 'SERVER_ERROR',
-      message: 'An unexpected error occurred while retrieving billing history'
+      message: 'Failed to retrieve billing history'
     });
   }
 });

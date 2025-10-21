@@ -3,29 +3,23 @@
 API Route: create-checkout-session
 =======================================================================================================================================
 Method: POST
-Purpose: Creates a Stripe checkout session for credit pack purchase. Returns a checkout URL for the user to complete payment.
+Purpose: Creates a Stripe checkout session for subscription upgrade. Returns a checkout URL for the user to complete payment.
 =======================================================================================================================================
 Request Payload:
 {
-  "pack_type": "popular_40",             // string, required - pack: "starter_15", "popular_40", or "value_100"
+  "plan": "club",                        // string, required - target plan: "club" or "venue"
+  "billing_cycle": "yearly",             // string, required - only "yearly" supported
   "promo_code": "BLACKFRIDAY"            // string, optional - promotional discount code
 }
 
-Success Response (ALWAYS HTTP 200):
+Success Response:
 {
   "return_code": "SUCCESS",
   "checkout_url": "https://checkout.stripe.com/pay/cs_...", // string, Stripe checkout URL
-  "session_id": "cs_1234567890",         // string, Stripe session ID for tracking
-  "pack_info": {                         // object, pack details
-    "pack_type": "popular_40",           // string, selected pack
-    "credits": 40,                       // integer, credits in pack
-    "original_price": 20.00,             // number, price before discount (GBP)
-    "discount_amount": 2.00,             // number, discount applied (GBP)
-    "final_price": 18.00                 // number, final price (GBP)
-  }
+  "session_id": "cs_1234567890"          // string, Stripe session ID for tracking
 }
 
-Error Response (ALWAYS HTTP 200):
+Error Response:
 {
   "return_code": "ERROR_TYPE",
   "message": "Descriptive error message"
@@ -33,65 +27,103 @@ Error Response (ALWAYS HTTP 200):
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
-"VALIDATION_ERROR"        - Missing or invalid pack_type
-"UNAUTHORIZED"            - Invalid JWT token
-"INVALID_PACK"            - Pack type not recognized
-"INVALID_PROMO"           - Promo code validation failed
-"STRIPE_ERROR"            - Stripe API error
-"SERVER_ERROR"            - Unexpected server error
-=======================================================================================================================================
+"VALIDATION_ERROR"
+"UNAUTHORIZED"
+"INVALID_PLAN"
+"INVALID_PROMO"             - Promo code validation failed
+"STRIPE_ERROR"
+"SERVER_ERROR"
+
 Business Logic:
-- Creates one-time payment session for credit packs (not subscription)
-- Validates promo codes and applies discounts
-- Stores session metadata for webhook processing
+- Only allows upgrades to club/venue (free tier is free)
+- Creates Stripe checkout session with plan pricing
 - Sets success/cancel URLs for redirect handling
-- Only real organizers can purchase (guests/bots rejected by frontend)
+- Stores session metadata for webhook processing
+- Only yearly billing supported (one-time payment)
 =======================================================================================================================================
 */
 
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/auth');
-const { query } = require('../database');
-const { CREDIT_PACKS } = require('../config/credit-packs');
+const { verifyToken } = require('../middleware/auth'); // JWT authentication middleware
+const { logApiCall } = require('../utils/apiLogger'); // API logging utility
+const { query } = require('../database'); // Database connection pooling
 const Stripe = require('stripe');
 
 // Initialize Stripe with secret key from environment
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Plan pricing configuration for dynamic Stripe checkout
+const PLAN_PRICING = {
+  club: {
+    yearly: {
+      amount: 7900, // £79.00 in pence
+    }
+  },
+  venue: {
+    yearly: {
+      amount: 17900, // £179.00 in pence
+    }
+  }
+};
+
 /**
  * POST /create-checkout-session
- * Creates a Stripe checkout session for credit pack purchase
+ * Creates a Stripe checkout session for subscription upgrade
  */
 router.post('/', verifyToken, async (req, res) => {
+  const startTime = Date.now();
+  let userId;
+
   try {
     // Extract user ID from JWT token (set by verifyToken middleware)
-    const userId = req.user.id;
+    userId = req.user.id;
+
+    // Log the API call for monitoring and debugging
+    logApiCall('create-checkout-session');
 
     // Extract and validate request payload
-    const { pack_type, promo_code } = req.body;
+    const { plan, billing_cycle, promo_code } = req.body;
 
-    // === STEP 1: VALIDATE PACK TYPE ===
-    if (!pack_type || typeof pack_type !== 'string') {
-      return res.json({
+    // Validate required fields
+    if (!plan || !billing_cycle) {
+      return res.status(200).json({
         return_code: 'VALIDATION_ERROR',
-        message: 'Missing required field: pack_type'
+        message: 'Missing required fields: plan and billing_cycle'
       });
     }
 
-    // Validate pack exists in configuration
-    const packConfig = CREDIT_PACKS[pack_type];
-    if (!packConfig) {
-      return res.json({
-        return_code: 'INVALID_PACK',
-        message: 'Invalid pack type. Available packs: starter_15, popular_40, value_100'
+    // Validate plan (only allow upgrades to paid plans)
+    if (!['club', 'venue'].includes(plan)) {
+      return res.status(200).json({
+        return_code: 'INVALID_PLAN',
+        message: 'Invalid plan. Only club and venue plans are available for purchase.'
       });
     }
 
-    // === STEP 2: PROMO CODE VALIDATION AND DISCOUNT CALCULATION ===
-    let finalAmount = packConfig.price_pence; // Amount in pence (e.g., 2000 for £20)
+    // Validate billing cycle (only yearly supported now)
+    if (billing_cycle !== 'yearly') {
+      return res.status(200).json({
+        return_code: 'VALIDATION_ERROR',
+        message: 'Invalid billing_cycle. Only yearly billing is supported.'
+      });
+    }
+
+    // Get base pricing information for the selected plan and cycle
+    const planConfig = PLAN_PRICING[plan][billing_cycle];
+    if (!planConfig) {
+      return res.status(200).json({
+        return_code: 'INVALID_PLAN',
+        message: 'Pricing not available for the selected plan and billing cycle.'
+      });
+    }
+
+    // ============================================================================
+    // Promo code validation and discount calculation
+    // ============================================================================
+    let finalAmount = planConfig.amount; // Amount in pence (e.g., 7900 for £79)
     let promoCodeId = null;
-    let originalPrice = packConfig.price_gbp; // Price in pounds
+    let originalPrice = finalAmount / 100; // Convert to pounds for storage
     let discountAmount = 0;
     let promoCodeData = null;
 
@@ -121,7 +153,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // Validate promo code exists
       if (promoResult.rows.length === 0) {
-        return res.json({
+        return res.status(200).json({
           return_code: 'INVALID_PROMO',
           message: 'Invalid promo code'
         });
@@ -132,14 +164,14 @@ router.post('/', verifyToken, async (req, res) => {
       // Check time validity
       const now = new Date();
       if (promoCodeData.valid_from && new Date(promoCodeData.valid_from) > now) {
-        return res.json({
+        return res.status(200).json({
           return_code: 'INVALID_PROMO',
           message: 'This promo code is not yet active'
         });
       }
 
       if (promoCodeData.valid_until && new Date(promoCodeData.valid_until) < now) {
-        return res.json({
+        return res.status(200).json({
           return_code: 'INVALID_PROMO',
           message: 'This promo code has expired'
         });
@@ -148,7 +180,7 @@ router.post('/', verifyToken, async (req, res) => {
       // Check total usage limit
       if (promoCodeData.max_total_uses !== null &&
           promoCodeData.current_total_uses >= promoCodeData.max_total_uses) {
-        return res.json({
+        return res.status(200).json({
           return_code: 'INVALID_PROMO',
           message: 'This promo code is no longer available'
         });
@@ -165,19 +197,18 @@ router.post('/', verifyToken, async (req, res) => {
       const userUsageCount = parseInt(usageResult.rows[0].usage_count);
 
       if (userUsageCount >= promoCodeData.max_uses_per_user) {
-        return res.json({
+        return res.status(200).json({
           return_code: 'INVALID_PROMO',
           message: 'You have already used this promo code'
         });
       }
 
-      // Check pack applicability
-      // Note: applies_to_plans is reused for credit packs (contains pack types like 'starter_15', 'popular_40', 'value_100')
+      // Check plan applicability
       if (promoCodeData.applies_to_plans && promoCodeData.applies_to_plans.length > 0) {
-        if (!promoCodeData.applies_to_plans.includes(pack_type)) {
-          return res.json({
+        if (!promoCodeData.applies_to_plans.includes(plan)) {
+          return res.status(200).json({
             return_code: 'INVALID_PROMO',
-            message: `This promo code is not valid for the ${packConfig.name}`
+            message: `This promo code is not valid for the ${plan} plan`
           });
         }
       }
@@ -204,7 +235,7 @@ router.post('/', verifyToken, async (req, res) => {
       promoCodeId = promoCodeData.id;
     }
 
-    // === STEP 3: CREATE STRIPE CHECKOUT SESSION ===
+    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       // Payment configuration
       payment_method_types: ['card'],
@@ -215,10 +246,10 @@ router.post('/', verifyToken, async (req, res) => {
         price_data: {
           currency: 'gbp',
           product_data: {
-            name: `${packConfig.name} - ${packConfig.credits} Credits`,
+            name: `LMSLocal ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
             description: promo_code
-              ? `${packConfig.credits} credits for LMS competitions (${promo_code} discount applied)`
-              : `${packConfig.credits} credits for Last Man Standing competitions`,
+              ? `${billing_cycle.charAt(0).toUpperCase() + billing_cycle.slice(1)} subscription (${promo_code} discount applied)`
+              : `${billing_cycle.charAt(0).toUpperCase() + billing_cycle.slice(1)} subscription for Last Man Standing competitions`,
           },
           unit_amount: finalAmount, // Amount in pence (discounted if promo applied)
         },
@@ -228,9 +259,9 @@ router.post('/', verifyToken, async (req, res) => {
       // Store metadata for webhook processing
       metadata: {
         user_id: userId.toString(),
-        pack_type: pack_type,
-        credits_purchased: packConfig.credits.toString(),
-        purchase_type: 'credit_pack',
+        plan: plan,
+        billing_cycle: billing_cycle,
+        upgrade_type: 'subscription_purchase',
         promo_code: promo_code || '',
         promo_code_id: promoCodeId ? promoCodeId.toString() : '',
         original_price: originalPrice.toString(),
@@ -238,52 +269,40 @@ router.post('/', verifyToken, async (req, res) => {
       },
 
       // Success and cancel URLs - redirect after payment
+      // Use dedicated Stripe frontend URL for clean redirect handling
       success_url: `${process.env.STRIPE_FRONTEND_URL || 'http://localhost:3000'}/billing?session_id={CHECKOUT_SESSION_ID}&success=true`,
       cancel_url: `${process.env.STRIPE_FRONTEND_URL || 'http://localhost:3000'}/billing?canceled=true`,
 
-      // Customer information
+      // Customer information (optional - Stripe will collect if needed)
       customer_creation: 'always',
 
       // Billing address collection
       billing_address_collection: 'required',
     });
 
-    // === STEP 4: RETURN SUCCESS RESPONSE ===
-    const finalPrice = finalAmount / 100; // Convert pence to pounds
-
-    return res.json({
+    // Return success response with checkout URL
+    const responseData = {
       return_code: 'SUCCESS',
       checkout_url: session.url,
-      session_id: session.id,
-      pack_info: {
-        pack_type: pack_type,
-        credits: packConfig.credits,
-        original_price: originalPrice,
-        discount_amount: discountAmount,
-        final_price: finalPrice
-      }
-    });
+      session_id: session.id
+    };
+
+    return res.status(200).json(responseData);
 
   } catch (error) {
     // Log error for debugging and monitoring
-    console.error('Create checkout session error:', {
-      error: error.message,
-      stack: error.stack?.substring(0, 500),
-      user_id: req.user?.id,
-      pack_type: req.body?.pack_type,
-      timestamp: new Date().toISOString()
-    });
+    console.error('Error in create-checkout-session:', error);
 
     // Handle Stripe-specific errors
     if (error.type && error.type.startsWith('Stripe')) {
-      return res.json({
+      return res.status(200).json({
         return_code: 'STRIPE_ERROR',
         message: 'Payment processing error. Please try again.'
       });
     }
 
     // Handle general server errors
-    return res.json({
+    return res.status(200).json({
       return_code: 'SERVER_ERROR',
       message: 'An unexpected error occurred while creating checkout session'
     });

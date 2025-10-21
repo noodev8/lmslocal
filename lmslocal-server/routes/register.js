@@ -174,14 +174,8 @@ router.post('/', async (req, res) => {
 
       newUser = userResult.rows[0];
 
-      // Step 2: Create default user allowances
-      await client.query(`
-        INSERT INTO user_allowance (user_id, max_players)
-        VALUES ($1, $2)
-      `, [
-        newUser.id,
-        1000  // Beta period: 1000 max players
-      ]);
+      // Step 2: Initialize user with 0 paid credits (starts with free 20-player limit)
+      // No database action needed - app_user.paid_credit defaults to 0
 
       // Step 3: Add registration audit log for security compliance
       await client.query(`

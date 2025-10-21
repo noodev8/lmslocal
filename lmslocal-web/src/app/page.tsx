@@ -65,12 +65,6 @@ export default function LandingPage() {
               >
                 Help
               </Link>
-              <Link
-                href="/pricing"
-                className="hidden sm:block text-slate-600 hover:text-slate-900 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"
-              >
-                Pricing
-              </Link>
               {isLoggedIn ? (
                 <Link
                   href="/dashboard"
@@ -351,7 +345,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-slate-500">
-            <Link href="/pricing" className="text-slate-600 hover:text-slate-900 underline">View pricing plans</Link>
+            First 20 players free • Buy credits when you need more
           </p>
         </div>
       </section>
@@ -449,7 +443,7 @@ export default function LandingPage() {
             Create Free Competition
           </Link>
           <p className="text-slate-400 mt-4 text-lg">
-            Start with 20 free players • <Link href="/pricing" className="text-slate-300 hover:text-white underline">View pricing</Link>
+            Start with 20 free players • From £10 for more credits
           </p>
           
           <div className="mt-8 flex justify-center items-center space-x-8 text-slate-300">
