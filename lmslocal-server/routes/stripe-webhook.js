@@ -3,7 +3,7 @@
 API Route: stripe-webhook
 =======================================================================================================================================
 Method: POST
-Purpose: Handles Stripe webhook events for payment processing. Verifies webhook signature and processes successful payments.
+Purpose: Handles Stripe webhook events for credit pack purchases. Verifies webhook signature and processes successful payments.
 =======================================================================================================================================
 Request Payload:
 Raw Stripe webhook payload with signature verification
@@ -19,12 +19,20 @@ Error Response:
 }
 =======================================================================================================================================
 Webhook Events Handled:
-"checkout.session.completed" - Payment successful, updates user subscription
+"checkout.session.completed" - Credit pack payment successful, adds credits to user balance
+=======================================================================================================================================
+Business Logic (PAYG System):
+1. Add purchased credits to user's paid_credit balance
+2. Insert purchase record into credit_purchases table
+3. Log transaction in credit_transactions table
+4. Record promo code usage if discount applied
+5. Send payment confirmation email (async)
 =======================================================================================================================================
 Security:
 - Webhook signature verification with STRIPE_WEBHOOK_SECRET
 - Raw body parsing required for signature validation
 - Idempotent processing to prevent duplicate updates
+- Atomic transaction ensures all-or-nothing credit addition
 =======================================================================================================================================
 */
 
@@ -32,7 +40,6 @@ const express = require('express');
 const router = express.Router();
 const { query, transaction } = require('../database'); // Use destructured database import
 const { logApiCall } = require('../utils/apiLogger'); // API logging utility
-const { PLAN_LIMITS } = require('../config/plans'); // Shared plan configuration
 const { sendPaymentConfirmationEmail } = require('../services/emailService'); // Email service
 const Stripe = require('stripe');
 
@@ -41,68 +48,113 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 
 /**
- * Calculate subscription expiry date based on billing cycle
- * @param {string} billingCycle - 'monthly' or 'yearly'
+ * Calculate credit expiry date (12 months from purchase)
  * @returns {Date} Expiry date
  */
-function calculateExpiryDate(billingCycle) {
+function calculateCreditExpiryDate() {
   const now = new Date();
-  if (billingCycle === 'yearly') {
-    // 12 months from now
-    return new Date(now.setFullYear(now.getFullYear() + 1));
-  } else {
-    // 1 month from now (monthly)
-    return new Date(now.setMonth(now.getMonth() + 1));
-  }
+  // Credits expire 12 months from purchase date (T&Cs only, not enforced in system)
+  return new Date(now.setFullYear(now.getFullYear() + 1));
 }
 
 /**
- * Process successful checkout session
+ * Process successful credit pack purchase
  * @param {Object} session - Stripe checkout session
  */
 async function processSuccessfulPayment(session) {
-  const { user_id, plan, billing_cycle, promo_code, promo_code_id, original_price, discount_amount } = session.metadata;
+  const { user_id, pack_type, credits_purchased, promo_code, promo_code_id, original_price, discount_amount } = session.metadata;
 
-  console.log(`Processing successful payment for user ${user_id}, plan: ${plan}, cycle: ${billing_cycle}`);
+  console.log(`Processing credit pack purchase for user ${user_id}, pack: ${pack_type}, credits: ${credits_purchased}`);
 
-  // Use transaction wrapper for atomic subscription update
+  // Use transaction wrapper for atomic credit purchase processing
   await transaction(async (client) => {
 
-    // Calculate subscription expiry date
-    const expiryDate = calculateExpiryDate(billing_cycle);
+    // Extract payment details from session
+    const paidAmount = session.amount_total / 100; // Convert from pence to pounds
+    const creditsPurchased = parseInt(credits_purchased);
 
-    // Calculate payment amount based on plan and cycle
-    const planPricing = {
-      club: { yearly: 79.00 },
-      venue: { yearly: 179.00 }
-    };
-    const paidAmount = planPricing[plan]?.[billing_cycle] || 0;
-
-    // 1. Insert payment record into subscription table
-    const insertSubscriptionQuery = `
-      INSERT INTO subscription (user_id, plan_name, stripe_subscription_id, stripe_customer_id, paid_amount, promo_code_id, original_price, discount_amount, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+    // === STEP 1: ADD CREDITS TO USER BALANCE ===
+    const addCreditsQuery = `
+      UPDATE app_user
+      SET paid_credit = paid_credit + $1
+      WHERE id = $2
+      RETURNING paid_credit as new_balance
     `;
 
-    await client.query(insertSubscriptionQuery, [
+    const updateResult = await client.query(addCreditsQuery, [creditsPurchased, parseInt(user_id)]);
+
+    if (updateResult.rows.length === 0) {
+      throw new Error(`User ${user_id} not found when adding credits`);
+    }
+
+    const newBalance = updateResult.rows[0].new_balance;
+    console.log(`✅ Added ${creditsPurchased} credits to user ${user_id}. New balance: ${newBalance}`);
+
+    // === STEP 2: INSERT PURCHASE RECORD ===
+    const insertPurchaseQuery = `
+      INSERT INTO credit_purchases (
+        user_id,
+        pack_type,
+        credits_purchased,
+        stripe_subscription_id,
+        stripe_customer_id,
+        paid_amount,
+        promo_code_id,
+        original_price,
+        discount_amount,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+      RETURNING id
+    `;
+
+    const purchaseResult = await client.query(insertPurchaseQuery, [
       parseInt(user_id),
-      plan,
-      session.id, // Use session ID as subscription reference
+      pack_type,
+      creditsPurchased,
+      session.id, // Stripe session ID
       session.customer || null, // Stripe customer ID if available
       paidAmount,
-      promo_code_id ? parseInt(promo_code_id) : null, // Promo code ID if used
-      original_price ? parseFloat(original_price) : null, // Original price before discount
-      discount_amount ? parseFloat(discount_amount) : null // Discount amount applied
+      promo_code_id ? parseInt(promo_code_id) : null,
+      original_price ? parseFloat(original_price) : null,
+      discount_amount ? parseFloat(discount_amount) : null
     ]);
 
-    // 1.1. Record promo code usage if a promo code was used
+    const purchaseId = purchaseResult.rows[0].id;
+    console.log(`✅ Credit purchase record created (ID: ${purchaseId})`);
+
+    // === STEP 3: LOG CREDIT TRANSACTION ===
+    const insertTransactionQuery = `
+      INSERT INTO credit_transactions (
+        user_id,
+        transaction_type,
+        amount,
+        purchase_id,
+        description,
+        created_at
+      )
+      VALUES ($1, 'purchase', $2, $3, $4, CURRENT_TIMESTAMP)
+    `;
+
+    const transactionDescription = `Purchased ${pack_type} pack (${creditsPurchased} credits) for £${paidAmount.toFixed(2)}`;
+
+    await client.query(insertTransactionQuery, [
+      parseInt(user_id),
+      creditsPurchased,
+      purchaseId,
+      transactionDescription
+    ]);
+
+    console.log(`✅ Credit transaction logged for user ${user_id}`);
+
+    // === STEP 4: RECORD PROMO CODE USAGE (IF APPLICABLE) ===
     if (promo_code_id && promo_code) {
       // Insert usage record into promo_code_usage table
       const insertPromoUsageQuery = `
         INSERT INTO promo_code_usage (
           promo_code_id,
           user_id,
-          plan_purchased,
+          pack_purchased,
           original_price,
           discount_amount,
           final_price,
@@ -117,7 +169,7 @@ async function processSuccessfulPayment(session) {
       await client.query(insertPromoUsageQuery, [
         parseInt(promo_code_id),
         parseInt(user_id),
-        plan,
+        pack_type, // Store pack_type in plan_purchased column
         original_price ? parseFloat(original_price) : null,
         discount_amount ? parseFloat(discount_amount) : null,
         finalPrice,
@@ -136,39 +188,9 @@ async function processSuccessfulPayment(session) {
       console.log(`✅ Promo code "${promo_code}" usage recorded for user ${user_id}`);
     }
 
-    // 2. Update user's subscription in app_user table
-    const updateUserQuery = `
-      UPDATE app_user
-      SET subscription_plan = $1,
-          subscription_expiry = $2
-      WHERE id = $3
-    `;
+    console.log(`✅ Credit pack purchase completed for user ${user_id}: ${creditsPurchased} credits added`);
 
-    await client.query(updateUserQuery, [
-      plan,
-      expiryDate.toISOString(),
-      parseInt(user_id)
-    ]);
-
-    // 3. Update user's player allowance based on new plan
-    const planLimit = PLAN_LIMITS[plan] || PLAN_LIMITS.lite;
-    const updateAllowanceQuery = `
-      INSERT INTO user_allowance (user_id, max_players, updated_at)
-      VALUES ($1, $2, CURRENT_TIMESTAMP)
-      ON CONFLICT (user_id)
-      DO UPDATE SET
-        max_players = EXCLUDED.max_players,
-        updated_at = EXCLUDED.updated_at
-    `;
-
-    await client.query(updateAllowanceQuery, [
-      parseInt(user_id),
-      planLimit
-    ]);
-
-    console.log(`✅ Subscription updated successfully for user ${user_id}: ${plan} plan (${planLimit} players) expires ${expiryDate.toISOString()}`);
-
-    // 4. Get user details for email confirmation
+    // === STEP 5: SEND CONFIRMATION EMAIL (ASYNC) ===
     const userDetailsQuery = `
       SELECT email, display_name
       FROM app_user
@@ -180,7 +202,9 @@ async function processSuccessfulPayment(session) {
       const { email, display_name } = userDetailsResult.rows[0];
 
       // Send payment confirmation email (async, don't block webhook response)
-      sendPaymentConfirmationEmail(email, display_name, plan, paidAmount, expiryDate.toISOString())
+      // Note: Using existing email function - may need updating for credit packs
+      const expiryDate = calculateCreditExpiryDate();
+      sendPaymentConfirmationEmail(email, display_name, pack_type, paidAmount, expiryDate.toISOString())
         .then(result => {
           if (result.success) {
             console.log(`✅ Payment confirmation email sent to ${email}`);
@@ -235,11 +259,11 @@ router.post('/', async (req, res) => {
         const session = event.data.object;
         console.log(`💰 Checkout session completed: ${session.id}`);
 
-        // Verify this is a subscription purchase
-        if (session.metadata?.upgrade_type === 'subscription_purchase') {
+        // Verify this is a credit pack purchase
+        if (session.metadata?.purchase_type === 'credit_pack') {
           await processSuccessfulPayment(session);
         } else {
-          console.log(`ℹ️  Skipping non-subscription checkout: ${session.id}`);
+          console.log(`ℹ️  Skipping non-credit-pack checkout: ${session.id}`);
         }
         break;
 

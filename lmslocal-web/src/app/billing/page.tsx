@@ -259,7 +259,6 @@ export default function BillingPage() {
             <p>• Your first <strong>{freeLimit} slots</strong> are completely free across all competitions</p>
             <p>• Each additional slot costs <strong>1 credit</strong> when a player joins</p>
             <p>• If the same person joins multiple competitions, each join uses a slot</p>
-            <p>• Credits are deducted automatically as players join your competitions</p>
             <p>• You&apos;ll get 1 credit back if you remove a player during setup (when using paid credits)</p>
             <p>• No refunds are available once your competition becomes active</p>
             <p>• Unused credits expire after 12 months</p>
