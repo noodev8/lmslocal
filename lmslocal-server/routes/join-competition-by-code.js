@@ -359,7 +359,6 @@ router.post('/', verifyToken, async (req, res) => {
             emailTrackingId,
             user_id,
             transactionResult.competition.id,
-            'welcome',
             `Welcome to ${emailData.competition_name}!`
           ]);
 
