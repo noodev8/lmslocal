@@ -713,6 +713,18 @@ export default function UnifiedGameDashboard() {
                     </>
                   )}
                 </div>
+              ) : currentRoundInfo.status === 'COMPLETE' ? (
+                /* Round Complete - Waiting for new fixtures */
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-gray-900">
+                    Round {currentRoundInfo.round_number} Complete
+                  </div>
+
+                  <div className="text-sm text-gray-600">✅ Round over - Waiting for fixtures</div>
+                  <div className="text-xs text-gray-500">
+                    All fixtures have been processed. New fixtures will be added for the next round.
+                  </div>
+                </div>
               ) : !competition.history?.[0] || (competition.history[0].round_number < currentRoundInfo.round_number) ? (
                 /* After Lock, Before Results - Show Live Status */
                 <div className="space-y-3">
