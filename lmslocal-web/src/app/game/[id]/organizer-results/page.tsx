@@ -4,32 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { organizerApi, OrganizerFixtureWithResult } from '@/lib/api';
+import { organizerApi, teamApi, OrganizerFixtureWithResult } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
-
-// Team full names mapping
-const TEAM_NAMES: Record<string, string> = {
-  'ARS': 'Arsenal',
-  'AVL': 'Aston Villa',
-  'BOU': 'Bournemouth',
-  'BRE': 'Brentford',
-  'BHA': 'Brighton',
-  'BUR': 'Burnley',
-  'CHE': 'Chelsea',
-  'CRY': 'Crystal Palace',
-  'EVE': 'Everton',
-  'FUL': 'Fulham',
-  'LIV': 'Liverpool',
-  'LUT': 'Luton Town',
-  'MCI': 'Man City',
-  'MUN': 'Man United',
-  'NEW': 'Newcastle',
-  'NFO': 'Nottingham Forest',
-  'SHU': 'Sheffield United',
-  'TOT': 'Tottenham',
-  'WHU': 'West Ham',
-  'WOL': 'Wolves'
-};
 
 interface FixtureWithClientState extends OrganizerFixtureWithResult {
   result_entered?: 'home_win' | 'away_win' | 'draw';
@@ -59,6 +35,31 @@ export default function OrganizerResultsPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processError, setProcessError] = useState('');
   const [processSuccess, setProcessSuccess] = useState('');
+
+  // Team names mapping (fetched from API with cache)
+  const [teamNames, setTeamNames] = useState<Record<string, string>>({});
+
+  // Fetch teams on mount
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const response = await teamApi.getTeams();
+        if (response.data.return_code === 'SUCCESS' && response.data.teams) {
+          // Build mapping from short_name to name
+          const mapping: Record<string, string> = {};
+          response.data.teams.forEach(team => {
+            mapping[team.short_name] = team.name;
+          });
+          setTeamNames(mapping);
+        }
+      } catch (error) {
+        console.error('Failed to fetch teams:', error);
+        // Continue with empty mapping - will fall back to short codes
+      }
+    };
+
+    fetchTeams();
+  }, []);
 
   // Check authentication and authorization
   useEffect(() => {
@@ -318,8 +319,8 @@ export default function OrganizerResultsPage() {
               {/* Fixtures */}
               <div className="space-y-2 mb-6">
                 {fixtures.map((fixture) => {
-                  const homeTeamName = TEAM_NAMES[fixture.home_team_short] || fixture.home_team_short;
-                  const awayTeamName = TEAM_NAMES[fixture.away_team_short] || fixture.away_team_short;
+                  const homeTeamName = teamNames[fixture.home_team_short] || fixture.home_team_short;
+                  const awayTeamName = teamNames[fixture.away_team_short] || fixture.away_team_short;
                   const resultEntered = fixture.result_entered;
                   const isProcessed = fixture.processed !== null;
 
@@ -363,7 +364,7 @@ export default function OrganizerResultsPage() {
                           }`}
                           title={!roundHasStarted ? 'Round has not started yet' : ''}
                         >
-                          {homeTeamName} Win
+                          {fixture.home_team_short}
                         </button>
                         <button
                           type="button"
@@ -393,7 +394,7 @@ export default function OrganizerResultsPage() {
                           }`}
                           title={!roundHasStarted ? 'Round has not started yet' : ''}
                         >
-                          {awayTeamName} Win
+                          {fixture.away_team_short}
                         </button>
                       </div>
                     </div>
