@@ -13,7 +13,7 @@ Purpose: Secure admin-only page for adding fixtures to the fixture_load staging 
 =======================================================================================================================================
 */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { teamApi, Team } from '@/lib/api';
 
@@ -39,6 +39,8 @@ export default function AdminFixturesPage() {
   // Fixture form state
   const [kickoffDate, setKickoffDate] = useState('');
   const [kickoffTime, setKickoffTime] = useState('15:00');
+  const [showCustomDate, setShowCustomDate] = useState(false);
+  const [showCustomTime, setShowCustomTime] = useState(false);
   const [fixtures, setFixtures] = useState<Fixture[]>([
     { home_team_short: '', away_team_short: '' }
   ]);
@@ -64,6 +66,96 @@ export default function AdminFixturesPage() {
   // Push fixtures state
   const [isPushingFixtures, setIsPushingFixtures] = useState(false);
   const [pushFixturesMessage, setPushFixturesMessage] = useState('');
+
+  // ========================================
+  // DATE/TIME SHORTCUTS
+  // ========================================
+  // Helper function to get next occurrence of a day of week
+  const getNextDayOfWeek = (dayOfWeek: number, weeksAhead: number = 0): Date => {
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday, 5 = Friday, 6 = Saturday
+
+    let daysUntil = dayOfWeek - currentDay;
+
+    // If the day has already passed this week, move to next week
+    if (daysUntil < 0) {
+      daysUntil += 7;
+    }
+
+    // Add additional weeks
+    daysUntil += (weeksAhead * 7);
+
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + daysUntil);
+    return targetDate;
+  };
+
+  // Calculate date shortcuts
+  const dateShortcuts = useMemo(() => {
+    const shortcuts = [];
+
+    // Next upcoming Fri, Sat, Sun (within next 7 days)
+    const thisFri = getNextDayOfWeek(5, 0);
+    const thisSat = getNextDayOfWeek(6, 0);
+    const thisSun = getNextDayOfWeek(0, 0);
+
+    shortcuts.push({
+      label: `This Fri ${thisFri.getDate()} ${thisFri.toLocaleString('en-GB', { month: 'short' })}`,
+      value: thisFri.toISOString().split('T')[0]
+    });
+    shortcuts.push({
+      label: `This Sat ${thisSat.getDate()} ${thisSat.toLocaleString('en-GB', { month: 'short' })}`,
+      value: thisSat.toISOString().split('T')[0]
+    });
+    shortcuts.push({
+      label: `This Sun ${thisSun.getDate()} ${thisSun.toLocaleString('en-GB', { month: 'short' })}`,
+      value: thisSun.toISOString().split('T')[0]
+    });
+
+    // Following week's Fri, Sat, Sun (1 week after first set)
+    const nextFri = getNextDayOfWeek(5, 1);
+    const nextSat = getNextDayOfWeek(6, 1);
+    const nextSun = getNextDayOfWeek(0, 1);
+
+    shortcuts.push({
+      label: `Next Fri ${nextFri.getDate()} ${nextFri.toLocaleString('en-GB', { month: 'short' })}`,
+      value: nextFri.toISOString().split('T')[0]
+    });
+    shortcuts.push({
+      label: `Next Sat ${nextSat.getDate()} ${nextSat.toLocaleString('en-GB', { month: 'short' })}`,
+      value: nextSat.toISOString().split('T')[0]
+    });
+    shortcuts.push({
+      label: `Next Sun ${nextSun.getDate()} ${nextSun.toLocaleString('en-GB', { month: 'short' })}`,
+      value: nextSun.toISOString().split('T')[0]
+    });
+
+    return shortcuts;
+  }, []);
+
+  // Time shortcuts
+  const timeShortcuts = [
+    { label: '12:00', subLabel: 'Noon', value: '12:00' },
+    { label: '14:00', subLabel: '2pm', value: '14:00' },
+    { label: '15:00', subLabel: '3pm', value: '15:00' },
+    { label: '17:00', subLabel: '5pm', value: '17:00' },
+    { label: '20:00', subLabel: '8pm', value: '20:00' }
+  ];
+
+  // Format selected date/time for display
+  const selectedDateTimeDisplay = useMemo(() => {
+    if (!kickoffDate || !kickoffTime) return null;
+
+    const date = new Date(kickoffDate + 'T00:00:00');
+    const dayName = date.toLocaleDateString('en-GB', { weekday: 'long' });
+    const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    const [hours] = kickoffTime.split(':');
+    const hour = parseInt(hours);
+    const timeStr = hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : hour === 0 ? '12am' : `${hour}am`;
+
+    return `${dayName} ${dateStr} at ${timeStr}`;
+  }, [kickoffDate, kickoffTime]);
 
   // ========================================
   // TIMEZONE CONVERSION HELPER
@@ -476,31 +568,108 @@ export default function AdminFixturesPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit}>
-            {/* Kickoff Date/Time Section - Compact */}
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-gray-700">Kickoff:</span>
-                <input
-                  type="date"
-                  id="kickoffDate"
-                  value={kickoffDate}
-                  onChange={(e) => setKickoffDate(e.target.value)}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-                <input
-                  type="time"
-                  id="kickoffTime"
-                  value={kickoffTime}
-                  onChange={(e) => setKickoffTime(e.target.value)}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-                <span className="text-xs text-gray-500">(UK time, applied to all)</span>
+            {/* Kickoff Date/Time Section */}
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">📅 Fixture Date & Time</h3>
+
+              {/* Date Selection */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-700 mb-2">Date:</label>
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {dateShortcuts.map((shortcut) => (
+                    <button
+                      key={shortcut.value}
+                      type="button"
+                      onClick={() => {
+                        setKickoffDate(shortcut.value);
+                        setShowCustomDate(false);
+                      }}
+                      className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                        kickoffDate === shortcut.value
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {shortcut.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomDate(!showCustomDate)}
+                  className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                    showCustomDate
+                      ? 'bg-gray-700 text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Custom date...
+                </button>
+                {showCustomDate && (
+                  <input
+                    type="date"
+                    {...(kickoffDate && { value: kickoffDate })}
+                    onChange={(e) => setKickoffDate(e.target.value)}
+                    className="mt-2 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 w-full"
+                  />
+                )}
               </div>
-              <p className="text-xs text-gray-600 mt-1">
-                💡 Enter time in UK timezone (GMT/BST) - automatically converted to UTC for storage
-              </p>
+
+              {/* Time Selection */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-700 mb-2">Lock Time:</label>
+                <div className="grid grid-cols-5 gap-2 mb-2">
+                  {timeShortcuts.map((shortcut) => (
+                    <button
+                      key={shortcut.value}
+                      type="button"
+                      onClick={() => {
+                        setKickoffTime(shortcut.value);
+                        setShowCustomTime(false);
+                      }}
+                      className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                        kickoffTime === shortcut.value
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div>{shortcut.label}</div>
+                      <div className="text-[10px] opacity-75">{shortcut.subLabel}</div>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomTime(!showCustomTime)}
+                  className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                    showCustomTime
+                      ? 'bg-gray-700 text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Custom time...
+                </button>
+                {showCustomTime && (
+                  <input
+                    type="time"
+                    value={kickoffTime}
+                    onChange={(e) => setKickoffTime(e.target.value)}
+                    className="mt-2 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
+              </div>
+
+              {/* Selected DateTime Display */}
+              {selectedDateTimeDisplay && (
+                <div className="mt-3 pt-3 border-t border-blue-300">
+                  <div className="text-sm font-medium text-blue-900">
+                    ✓ Selected: {selectedDateTimeDisplay}
+                  </div>
+                  <div className="text-xs text-blue-700 mt-1">
+                    💡 UK time (GMT/BST) - converted to UTC for storage
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Fixtures Section - Two Column Layout */}
