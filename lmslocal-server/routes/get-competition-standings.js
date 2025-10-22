@@ -168,10 +168,7 @@ router.post('/', verifyToken, async (req, res) => {
       LEFT JOIN app_user u ON cu.user_id = u.id
 
       WHERE c.id = $1  -- Filter to requested competition only
-      ORDER BY
-        CASE WHEN cu.status = 'out' THEN 1 ELSE 0 END, -- Active players first
-        cu.lives_remaining DESC,                        -- More lives first
-        u.display_name ASC                              -- Then alphabetically
+      ORDER BY u.display_name ASC  -- Pure alphabetical order for easy friend finding
       LIMIT $3 OFFSET $4
     `, [competition_id, user_id, itemsPerPage, offset]);
 
