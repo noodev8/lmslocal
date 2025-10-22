@@ -761,7 +761,7 @@ export default function UnifiedGameDashboard() {
                   {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
                     <div className="pt-3 border-t border-gray-200">
                       <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
-                        <div className="text-xs font-semibold text-gray-600 mb-3">Round {roundStats.round_number}</div>
+                        <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number}</div>
                         {/* Visual proportional bar */}
                         <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                           {roundStats.won > 0 && (
@@ -800,14 +800,10 @@ export default function UnifiedGameDashboard() {
               ) : currentRoundInfo.status === 'COMPLETE' ? (
                 /* Round Complete - Waiting for new fixtures */
                 <div className="space-y-3">
-                  <div className="text-center mb-3">
-                    <div className="text-base font-semibold text-gray-700">Round {currentRoundInfo.round_number} Complete</div>
-                  </div>
-
                   {/* Round Statistics - Visual breakdown */}
                   {roundStats && (
                     <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
-                      <div className="text-xs font-semibold text-gray-600 mb-3">Round {roundStats.round_number}</div>
+                      <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number}</div>
                       {/* Visual proportional bar */}
                       <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                         {roundStats.won > 0 && (
