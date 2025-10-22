@@ -44,8 +44,7 @@ export default function CompetitionPlayersPage() {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const searchDebounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
 
   // Lives management state - track pending changes before saving
   const [pendingLivesChanges, setPendingLivesChanges] = useState<Map<number, number>>(new Map());
@@ -124,7 +123,7 @@ export default function CompetitionPlayersPage() {
     };
   }, [competitionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadPlayers = useCallback(async (page: number = currentPage, search: string = debouncedSearchTerm) => {
+  const loadPlayers = useCallback(async (page: number = currentPage, search: string = activeSearchTerm) => {
     if (abortControllerRef.current?.signal.aborted) return;
 
     setLoading(true);
@@ -159,7 +158,7 @@ export default function CompetitionPlayersPage() {
         setLoading(false);
       }
     }
-  }, [competitionId, currentPage, pageSize, debouncedSearchTerm, router, competitions]);
+  }, [competitionId, currentPage, pageSize, activeSearchTerm, router, competitions]);
 
   // Load current round info to determine if "Set Pick" button should be shown
   const loadCurrentRound = useCallback(async () => {
@@ -199,41 +198,31 @@ export default function CompetitionPlayersPage() {
     }
   }, [competitionId, loadCurrentRound]);
 
-  // Debounce search term (300ms delay)
-  useEffect(() => {
-    if (searchDebounceTimer.current) {
-      clearTimeout(searchDebounceTimer.current);
-    }
-
-    searchDebounceTimer.current = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset to page 1 when search changes
-    }, 300);
-
-    return () => {
-      if (searchDebounceTimer.current) {
-        clearTimeout(searchDebounceTimer.current);
-      }
-    };
-  }, [searchTerm]);
-
-  // Reload players when debounced search term changes
-  useEffect(() => {
-    if (competitionId) {
-      loadPlayers(1, debouncedSearchTerm);
-    }
-  }, [debouncedSearchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
+  // Handle search button click
+  const handleSearch = () => {
+    setActiveSearchTerm(searchTerm);
+    setCurrentPage(1);
+    loadPlayers(1, searchTerm);
+  };
+
+  // Handle Enter key press in search input
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   // Handle clear search
   const handleClearSearch = () => {
     setSearchTerm('');
-    setDebouncedSearchTerm('');
+    setActiveSearchTerm('');
     setCurrentPage(1);
+    loadPlayers(1, '');
   };
 
   const handleRemovePlayerClick = (playerId: number, playerName: string) => {
@@ -685,29 +674,38 @@ export default function CompetitionPlayersPage() {
 
         {/* Search Box */}
         <div className="mb-6">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onKeyPress={handleSearchKeyPress}
+                placeholder="Search players by name or email..."
+                className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {searchTerm && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              )}
             </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              placeholder="Search players by name or email..."
-              className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {searchTerm && (
-              <button
-                onClick={handleClearSearch}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            )}
+            <button
+              onClick={handleSearch}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Search
+            </button>
           </div>
-          {debouncedSearchTerm && (
+          {activeSearchTerm && (
             <p className="mt-2 text-sm text-slate-600">
-              Showing {totalPlayers} result{totalPlayers !== 1 ? 's' : ''} for &quot;{debouncedSearchTerm}&quot;
+              Showing {totalPlayers} result{totalPlayers !== 1 ? 's' : ''} for &quot;{activeSearchTerm}&quot;
             </p>
           )}
         </div>
