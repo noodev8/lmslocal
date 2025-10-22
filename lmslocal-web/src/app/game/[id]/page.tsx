@@ -792,26 +792,6 @@ export default function UnifiedGameDashboard() {
                           )}
                         </div>
 
-                        {/* Stats summary */}
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-4">
-                            <span className="flex items-center gap-1.5">
-                              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                              <span className="font-semibold text-gray-700">{roundStats.won} won</span>
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                              <span className="font-semibold text-gray-700">{roundStats.lost - roundStats.eliminated} lost</span>
-                            </span>
-                            {roundStats.eliminated > 0 && (
-                              <span className="flex items-center gap-1.5">
-                                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                <span className="font-semibold text-gray-700">{roundStats.eliminated} out</span>
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-gray-500 font-medium">{roundStats.total_players} played</span>
-                        </div>
                       </div>
                     </div>
                   )}
