@@ -759,32 +759,58 @@ export default function UnifiedGameDashboard() {
 
                   {/* Show previous round statistics if available */}
                   {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
-                    <div className="space-y-2 pt-3 border-t border-gray-200">
-                      <div className="text-xs font-medium text-gray-700">
-                        Round {roundStats.round_number} Results
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">👥</div>
-                            <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
-                            <div className="text-xs text-gray-600 mt-1">Played</div>
+                    <div className="pt-3 border-t border-gray-200">
+                      <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                        {/* Visual proportional bar */}
+                        <div className="flex h-16 rounded-lg overflow-hidden mb-4 shadow-inner">
+                          {roundStats.won > 0 && (
+                            <div
+                              className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
+                              style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
+                            >
+                              <div className="text-2xl font-black">{roundStats.won}</div>
+                              <div className="text-[10px] font-semibold opacity-90">WON</div>
+                            </div>
+                          )}
+                          {(roundStats.lost - roundStats.eliminated) > 0 && (
+                            <div
+                              className="bg-gradient-to-br from-amber-500 to-amber-600 flex flex-col items-center justify-center text-white transition-all hover:from-amber-600 hover:to-amber-700"
+                              style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
+                            >
+                              <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
+                              <div className="text-[10px] font-semibold opacity-90">LOST</div>
+                            </div>
+                          )}
+                          {roundStats.eliminated > 0 && (
+                            <div
+                              className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white transition-all hover:from-red-600 hover:to-red-700"
+                              style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
+                            >
+                              <div className="text-2xl font-black">{roundStats.eliminated}</div>
+                              <div className="text-[10px] font-semibold opacity-90">OUT</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Stats summary */}
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-4">
+                            <span className="flex items-center gap-1.5">
+                              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                              <span className="font-semibold text-gray-700">{roundStats.won} won</span>
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                              <span className="font-semibold text-gray-700">{roundStats.lost - roundStats.eliminated} lost</span>
+                            </span>
+                            {roundStats.eliminated > 0 && (
+                              <span className="flex items-center gap-1.5">
+                                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                <span className="font-semibold text-gray-700">{roundStats.eliminated} out</span>
+                              </span>
+                            )}
                           </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">✅</div>
-                            <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
-                            <div className="text-xs text-gray-600 mt-1">Won</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">⚠️</div>
-                            <div className="text-2xl font-bold text-amber-600">{roundStats.lost - roundStats.eliminated}</div>
-                            <div className="text-xs text-gray-600 mt-1">Lost life</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">☠️</div>
-                            <div className="text-2xl font-bold text-red-600">{roundStats.eliminated}</div>
-                            <div className="text-xs text-gray-600 mt-1">Eliminated</div>
-                          </div>
+                          <span className="text-gray-500 font-medium">{roundStats.total_players} played</span>
                         </div>
                       </div>
                     </div>
@@ -793,96 +819,90 @@ export default function UnifiedGameDashboard() {
               ) : currentRoundInfo.status === 'COMPLETE' ? (
                 /* Round Complete - Waiting for new fixtures */
                 <div className="space-y-3">
-                  <div className="text-sm font-medium text-gray-900">
-                    Round {currentRoundInfo.round_number} Complete
+                  <div className="text-center mb-3">
+                    <div className="text-base font-semibold text-gray-700">Round {currentRoundInfo.round_number} Complete</div>
                   </div>
 
-                  <div className="text-sm text-gray-600">✅ Round over - Waiting for fixtures</div>
-
-                  {/* Round Statistics - Always show for most recently completed round */}
+                  {/* Round Statistics - Visual breakdown */}
                   {roundStats && (
-                    <div className="space-y-2">
-                      <div className="text-xs font-medium text-gray-700">
-                        Round {roundStats.round_number} Results
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                      {/* Visual proportional bar */}
+                      <div className="flex h-16 rounded-lg overflow-hidden mb-4 shadow-inner">
+                        {roundStats.won > 0 && (
+                          <div
+                            className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
+                            style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
+                          >
+                            <div className="text-2xl font-black">{roundStats.won}</div>
+                            <div className="text-[10px] font-semibold opacity-90">WON</div>
+                          </div>
+                        )}
+                        {(roundStats.lost - roundStats.eliminated) > 0 && (
+                          <div
+                            className="bg-gradient-to-br from-amber-500 to-amber-600 flex flex-col items-center justify-center text-white transition-all hover:from-amber-600 hover:to-amber-700"
+                            style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
+                          >
+                            <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
+                            <div className="text-[10px] font-semibold opacity-90">LOST</div>
+                          </div>
+                        )}
+                        {roundStats.eliminated > 0 && (
+                          <div
+                            className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white transition-all hover:from-red-600 hover:to-red-700"
+                            style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
+                          >
+                            <div className="text-2xl font-black">{roundStats.eliminated}</div>
+                            <div className="text-[10px] font-semibold opacity-90">OUT</div>
+                          </div>
+                        )}
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">👥</div>
-                            <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
-                            <div className="text-xs text-gray-600 mt-1">Played</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">✅</div>
-                            <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
-                            <div className="text-xs text-gray-600 mt-1">Won</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">⚠️</div>
-                            <div className="text-2xl font-bold text-amber-600">{roundStats.lost - roundStats.eliminated}</div>
-                            <div className="text-xs text-gray-600 mt-1">Lost life</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">☠️</div>
-                            <div className="text-2xl font-bold text-red-600">{roundStats.eliminated}</div>
-                            <div className="text-xs text-gray-600 mt-1">Eliminated</div>
-                          </div>
-                        </div>
-                      </div>
+
                     </div>
                   )}
-
-                  <div className="text-xs text-gray-500">
-                    All fixtures have been processed. New fixtures will be added for the next round.
-                  </div>
                 </div>
               ) : !competition.history?.[0] || (competition.history[0].round_number < currentRoundInfo.round_number) ? (
                 /* After Lock, Before Results - Show Live Status */
                 <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="text-sm font-medium text-gray-900">
-                      Round {currentRoundInfo.round_number} Live
-                    </div>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-blue-600">⚽ Round {currentRoundInfo.round_number} Live</div>
                   </div>
-
-                  <div className="text-sm text-gray-600">⚽ Round in progress</div>
 
                   {/* Show previous round statistics if available */}
                   {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
-                    <div className="space-y-2 pt-2 border-t border-gray-200">
-                      <div className="text-xs font-medium text-gray-700">
-                        Round {roundStats.round_number} Results
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                      {/* Visual proportional bar */}
+                      <div className="flex h-16 rounded-lg overflow-hidden mb-4 shadow-inner">
+                        {roundStats.won > 0 && (
+                          <div
+                            className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
+                            style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
+                          >
+                            <div className="text-2xl font-black">{roundStats.won}</div>
+                            <div className="text-[10px] font-semibold opacity-90">WON</div>
+                          </div>
+                        )}
+                        {(roundStats.lost - roundStats.eliminated) > 0 && (
+                          <div
+                            className="bg-gradient-to-br from-amber-500 to-amber-600 flex flex-col items-center justify-center text-white transition-all hover:from-amber-600 hover:to-amber-700"
+                            style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
+                          >
+                            <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
+                            <div className="text-[10px] font-semibold opacity-90">LOST</div>
+                          </div>
+                        )}
+                        {roundStats.eliminated > 0 && (
+                          <div
+                            className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white transition-all hover:from-red-600 hover:to-red-700"
+                            style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
+                          >
+                            <div className="text-2xl font-black">{roundStats.eliminated}</div>
+                            <div className="text-[10px] font-semibold opacity-90">OUT</div>
+                          </div>
+                        )}
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">👥</div>
-                            <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
-                            <div className="text-xs text-gray-600 mt-1">Played</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">✅</div>
-                            <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
-                            <div className="text-xs text-gray-600 mt-1">Won</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">⚠️</div>
-                            <div className="text-2xl font-bold text-amber-600">{roundStats.lost - roundStats.eliminated}</div>
-                            <div className="text-xs text-gray-600 mt-1">Lost life</div>
-                          </div>
-                          <div className="bg-white rounded-lg p-3 text-center">
-                            <div className="text-2xl mb-1">☠️</div>
-                            <div className="text-2xl font-bold text-red-600">{roundStats.eliminated}</div>
-                            <div className="text-xs text-gray-600 mt-1">Eliminated</div>
-                          </div>
-                        </div>
-                      </div>
+
                     </div>
                   )}
-
-                  <div className="text-xs text-gray-500">
-                    Results will be processed as matches complete throughout the round
-                  </div>
                 </div>
               ) : null
               }
