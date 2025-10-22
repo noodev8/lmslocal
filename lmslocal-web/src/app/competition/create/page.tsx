@@ -53,7 +53,7 @@ export default function CreateCompetitionPage() {
       lives_per_player: 1,
       no_team_twice: true,
       organiser_joins_as_player: true,
-      start_delay_days: 7
+      start_delay_days: 0
     }
   });
 
@@ -97,7 +97,7 @@ export default function CreateCompetitionPage() {
       });
 
       if (response.data.return_code === 'SUCCESS') {
-        
+
         // Update user data in localStorage since they're now an admin
         const currentUser = localStorage.getItem('user');
         if (currentUser) {
@@ -105,16 +105,21 @@ export default function CreateCompetitionPage() {
           userData.user_type = 'admin'; // Update to admin since they created a competition
           localStorage.setItem('user', JSON.stringify(userData));
         }
-        
+
         // Clear cache and refresh data properly
         setError('');
         cacheUtils.invalidateCompetitions();
-        
+
         // Refresh the context data before navigation (bypass cache)
         await refreshCompetitions();
-        
-        // Navigate smoothly without page reload
-        router.push('/dashboard');
+
+        // Navigate directly to fixtures screen for new competition
+        const competitionId = response.data.competition?.id;
+        if (competitionId) {
+          router.push(`/game/${competitionId}/organizer-fixtures`);
+        } else {
+          router.push('/dashboard');
+        }
         return;
       } else {
         setError(response.data.message || 'Failed to create competition');
@@ -376,38 +381,12 @@ export default function CreateCompetitionPage() {
                   </label>
                 </div>
 
-                {/* Start delay */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-3">
-                    When should fixtures start?
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                    {[
-                      { value: 0, label: 'ASAP' },
-                      { value: 7, label: '1 Week' },
-                      { value: 14, label: '2 Weeks' },
-                      { value: 21, label: '3 Weeks' }
-                    ].map((option) => (
-                      <label key={option.value} className="relative">
-                        <input
-                          {...register('start_delay_days', { valueAsNumber: true })}
-                          type="radio"
-                          value={option.value}
-                          checked={Number(watchedValues.start_delay_days ?? 7) === option.value}
-                          className="sr-only peer"
-                        />
-                        <div className="p-3 sm:p-4 border border-slate-300 rounded-xl cursor-pointer peer-checked:border-slate-800 peer-checked:bg-slate-50 peer-checked:shadow-md hover:bg-slate-50 transition-all">
-                          <div className="text-center">
-                            <div className="text-sm sm:text-base font-bold text-slate-900">{option.label}</div>
-                          </div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Fixtures will be added automatically when they become available after your chosen start date
-                  </p>
-                </div>
+                {/* Start delay - HIDDEN (default to ASAP/0 days) */}
+                <input
+                  {...register('start_delay_days', { valueAsNumber: true })}
+                  type="hidden"
+                  value={0}
+                />
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-3 sm:gap-0">
@@ -464,19 +443,6 @@ export default function CreateCompetitionPage() {
                       <dt className="text-xs sm:text-sm text-slate-600">You&apos;re Playing:</dt>
                       <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">
                         {watchedValues.organiser_joins_as_player ? 'Yes' : 'No'}
-                      </dd>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
-                      <dt className="text-xs sm:text-sm text-slate-600">Fixture Start:</dt>
-                      <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">
-                        {(() => {
-                          const delay = Number(watchedValues.start_delay_days ?? 7);
-                          if (delay === 0) return 'ASAP';
-                          if (delay === 7) return 'In 1 Week';
-                          if (delay === 14) return 'In 2 Weeks';
-                          if (delay === 21) return 'In 3 Weeks';
-                          return 'In 1 Week';
-                        })()}
                       </dd>
                     </div>
                   </dl>

@@ -13,44 +13,15 @@ Purpose: Secure admin-only page for adding fixtures to the fixture_load staging 
 =======================================================================================================================================
 */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { teamApi, Team } from '@/lib/api';
 
 // Define fixture type
 interface Fixture {
   home_team_short: string;
   away_team_short: string;
 }
-
-// Common Premier League team abbreviations
-const PREMIER_LEAGUE_TEAMS = [
-  'ARS', 'AVL', 'BOU', 'BRE', 'BHA', 'BUR', 'CHE', 'CRY', 'EVE', 'FUL',
-  'LIV', 'LUT', 'MCI', 'MUN', 'NEW', 'NFO', 'SHU', 'TOT', 'WHU', 'WOL'
-];
-
-// Mapping of short codes to full team names
-const TEAM_NAMES: Record<string, string> = {
-  'ARS': 'Arsenal',
-  'AVL': 'Aston Villa',
-  'BOU': 'Bournemouth',
-  'BRE': 'Brentford',
-  'BHA': 'Brighton',
-  'BUR': 'Burnley',
-  'CHE': 'Chelsea',
-  'CRY': 'Crystal Palace',
-  'EVE': 'Everton',
-  'FUL': 'Fulham',
-  'LIV': 'Liverpool',
-  'LUT': 'Luton Town',
-  'MCI': 'Man City',
-  'MUN': 'Man United',
-  'NEW': 'Newcastle',
-  'NFO': 'Nottingham Forest',
-  'SHU': 'Sheffield United',
-  'TOT': 'Tottenham',
-  'WHU': 'West Ham',
-  'WOL': 'Wolves'
-};
 
 export default function AdminFixturesPage() {
   // ========================================
@@ -59,6 +30,11 @@ export default function AdminFixturesPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [authError, setAuthError] = useState('');
+
+  // Teams data from database
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [teamsError, setTeamsError] = useState('');
 
   // Fixture form state
   const [kickoffDate, setKickoffDate] = useState('');
@@ -88,6 +64,102 @@ export default function AdminFixturesPage() {
   // Push fixtures state
   const [isPushingFixtures, setIsPushingFixtures] = useState(false);
   const [pushFixturesMessage, setPushFixturesMessage] = useState('');
+
+  // ========================================
+  // TIMEZONE CONVERSION HELPER
+  // ========================================
+  /**
+   * Converts UK time (GMT/BST) to UTC
+   * Handles both GMT (winter, UTC+0) and BST (summer, UTC+1) automatically
+   *
+   * @param dateString - Date in YYYY-MM-DD format
+   * @param timeString - Time in HH:MM format (24-hour)
+   * @returns ISO 8601 UTC timestamp string
+   *
+   * Examples:
+   * - Input: '2025-07-15', '15:00' (3pm BST in summer)
+   *   Output: '2025-07-15T14:00:00.000Z' (2pm UTC, since BST is UTC+1)
+   *
+   * - Input: '2025-01-15', '15:00' (3pm GMT in winter)
+   *   Output: '2025-01-15T15:00:00.000Z' (3pm UTC, since GMT is UTC+0)
+   */
+  const convertUkTimeToUtc = (dateString: string, timeString: string): string => {
+    // Parse components
+    const [year, month, day] = dateString.split('-').map(Number);
+    const [hours, minutes] = timeString.split(':').map(Number);
+
+    // Format the input to see what time it would be in UK timezone
+    // We create an arbitrary date, then format it to UK timezone to get a string
+    // Then format the same moment to UTC to get another string
+    // The difference tells us the offset
+    const formatter = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Europe/London',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    // Create a Date using UTC constructor with our input values
+    // This represents the moment we want, but in UTC
+    const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+
+    // Now get what this UTC time would be in UK timezone
+    const ukString = formatter.format(utcDate);
+
+    // Parse the UK string back to get components
+    const [ukDate, ukTime] = ukString.split(' ');
+    const [ukYear, ukMonth, ukDay] = ukDate.split('-').map(Number);
+    const [ukHours, ukMinutes, ukSeconds] = ukTime.split(':').map(Number);
+
+    // Calculate the difference
+    const ukTimestamp = Date.UTC(ukYear, ukMonth - 1, ukDay, ukHours, ukMinutes, ukSeconds);
+    const utcTimestamp = utcDate.getTime();
+    const offsetMs = ukTimestamp - utcTimestamp;
+
+    // Now apply the reverse offset to our input to get the true UTC time
+    // If UK time is 15:00 and it's BST (UTC+1), we want 14:00 UTC
+    const targetUtcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+    const adjustedUtcDate = new Date(targetUtcDate.getTime() + offsetMs);
+
+    return adjustedUtcDate.toISOString();
+  };
+
+  // ========================================
+  // LOAD TEAMS FROM DATABASE
+  // ========================================
+  const loadTeams = async () => {
+    setLoadingTeams(true);
+    setTeamsError('');
+
+    try {
+      // Get teams for team_list_id = 1 (Premier League)
+      const response = await teamApi.getTeams(1);
+
+      if (response.data.return_code === 'SUCCESS') {
+        setTeams(response.data.teams || []);
+      } else {
+        setTeamsError('Failed to load teams from database');
+        const errorData = response.data as { message?: string };
+        console.error('Failed to load teams:', errorData.message || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('Error loading teams:', error);
+      setTeamsError('Network error - could not load teams');
+    } finally {
+      setLoadingTeams(false);
+    }
+  };
+
+  // Load teams when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadTeams();
+    }
+  }, [isAuthenticated]);
 
   // ========================================
   // AUTHENTICATION HANDLER
@@ -241,8 +313,9 @@ export default function AdminFixturesPage() {
       return;
     }
 
-    // Combine date and time into ISO 8601 format
-    const kickoffDateTime = new Date(`${kickoffDate}T${kickoffTime}:00Z`).toISOString();
+    // Convert UK time to UTC before storing in database
+    // User enters time in UK timezone (GMT/BST), we store as UTC
+    const kickoffDateTime = convertUkTimeToUtc(kickoffDate, kickoffTime);
 
     try {
       setIsSubmitting(true);
@@ -423,8 +496,11 @@ export default function AdminFixturesPage() {
                   className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                   required
                 />
-                <span className="text-xs text-gray-500">(applied to all)</span>
+                <span className="text-xs text-gray-500">(UK time, applied to all)</span>
               </div>
+              <p className="text-xs text-gray-600 mt-1">
+                💡 Enter time in UK timezone (GMT/BST) - automatically converted to UTC for storage
+              </p>
             </div>
 
             {/* Fixtures Section - Two Column Layout */}
@@ -446,26 +522,45 @@ export default function AdminFixturesPage() {
                     <p className="text-xs text-gray-600 mb-3">
                       Click teams to add (alternates Home → Away)
                     </p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {PREMIER_LEAGUE_TEAMS.map((team) => {
-                        const isUsed = usedTeams.has(team);
-                        return (
-                          <button
-                            key={team}
-                            type="button"
-                            onClick={() => !isUsed && handleTeamClick(team)}
-                            disabled={isUsed}
-                            className={`px-3 py-2 rounded-md transition-colors font-bold text-sm ${
-                              isUsed
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
-                            }`}
-                          >
-                            {team}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {loadingTeams ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto mb-2"></div>
+                        <p className="text-sm">Loading teams...</p>
+                      </div>
+                    ) : teamsError ? (
+                      <div className="text-center py-8">
+                        <p className="text-sm text-red-600 mb-2">{teamsError}</p>
+                        <button
+                          type="button"
+                          onClick={loadTeams}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-2">
+                        {teams.map((team) => {
+                          const isUsed = usedTeams.has(team.short_name);
+                          return (
+                            <button
+                              key={team.id}
+                              type="button"
+                              onClick={() => !isUsed && handleTeamClick(team.short_name)}
+                              disabled={isUsed}
+                              className={`px-3 py-2 rounded-md transition-colors font-bold text-sm ${
+                                isUsed
+                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
+                              }`}
+                              title={team.name}
+                            >
+                              {team.short_name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -480,8 +575,11 @@ export default function AdminFixturesPage() {
                     {fixtures.map((fixture, index) => {
                       const isActive = index === activeFixtureIndex;
                       const isComplete = fixture.home_team_short && fixture.away_team_short;
-                      const homeTeamName = fixture.home_team_short ? TEAM_NAMES[fixture.home_team_short] || fixture.home_team_short : '';
-                      const awayTeamName = fixture.away_team_short ? TEAM_NAMES[fixture.away_team_short] || fixture.away_team_short : '';
+                      // Lookup team names from database teams
+                      const homeTeam = teams.find(t => t.short_name === fixture.home_team_short);
+                      const awayTeam = teams.find(t => t.short_name === fixture.away_team_short);
+                      const homeTeamName = homeTeam ? homeTeam.name : fixture.home_team_short;
+                      const awayTeamName = awayTeam ? awayTeam.name : fixture.away_team_short;
 
                       return (
                         <div

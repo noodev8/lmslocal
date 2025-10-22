@@ -768,12 +768,12 @@ export default function UnifiedGameDashboard() {
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">👥</div>
                             <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
-                            <div className="text-xs text-gray-600 mt-1">Started</div>
+                            <div className="text-xs text-gray-600 mt-1">Played</div>
                           </div>
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">✅</div>
                             <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
-                            <div className="text-xs text-gray-600 mt-1">Advanced</div>
+                            <div className="text-xs text-gray-600 mt-1">Won</div>
                           </div>
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">⚠️</div>
@@ -810,12 +810,12 @@ export default function UnifiedGameDashboard() {
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">👥</div>
                             <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
-                            <div className="text-xs text-gray-600 mt-1">Started</div>
+                            <div className="text-xs text-gray-600 mt-1">Played</div>
                           </div>
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">✅</div>
                             <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
-                            <div className="text-xs text-gray-600 mt-1">Advanced</div>
+                            <div className="text-xs text-gray-600 mt-1">Won</div>
                           </div>
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">⚠️</div>
@@ -858,12 +858,12 @@ export default function UnifiedGameDashboard() {
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">👥</div>
                             <div className="text-2xl font-bold text-gray-900">{roundStats.total_players}</div>
-                            <div className="text-xs text-gray-600 mt-1">Started</div>
+                            <div className="text-xs text-gray-600 mt-1">Played</div>
                           </div>
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">✅</div>
                             <div className="text-2xl font-bold text-green-600">{roundStats.won}</div>
-                            <div className="text-xs text-gray-600 mt-1">Advanced</div>
+                            <div className="text-xs text-gray-600 mt-1">Won</div>
                           </div>
                           <div className="bg-white rounded-lg p-3 text-center">
                             <div className="text-2xl mb-1">⚠️</div>

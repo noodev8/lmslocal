@@ -49,6 +49,7 @@ export default function OrganizerResultsPage() {
 
   // Results state
   const [roundNumber, setRoundNumber] = useState<number | null>(null);
+  const [roundStartTime, setRoundStartTime] = useState<string | null>(null);
   const [fixtures, setFixtures] = useState<FixtureWithClientState[]>([]);
   const [totalFixtures, setTotalFixtures] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,6 +98,7 @@ export default function OrganizerResultsPage() {
 
       if (response.data.return_code === 'SUCCESS') {
         setRoundNumber(response.data.round_number);
+        setRoundStartTime(response.data.round_start_time);
         setFixtures(response.data.fixtures || []);
         setTotalFixtures(response.data.total_fixtures || 0);
       } else if (response.data.return_code === 'NO_ROUNDS') {
@@ -181,6 +183,34 @@ export default function OrganizerResultsPage() {
   const allResultsEntered = fixtures.length > 0 && remainingCount === 0;
   const hasResultsToProcess = fixtures.some(f => f.result_entered && !f.processed);
 
+  // Check if round has started (current time >= round start time)
+  const roundHasStarted = useMemo(() => {
+    if (!roundStartTime) return true; // If no start time, allow entry
+    const now = new Date();
+    const startTime = new Date(roundStartTime);
+    return now >= startTime;
+  }, [roundStartTime]);
+
+  // Calculate time until round starts
+  const timeUntilStart = useMemo(() => {
+    if (!roundStartTime || roundHasStarted) return null;
+    const now = new Date();
+    const startTime = new Date(roundStartTime);
+    const diffMs = startTime.getTime() - now.getTime();
+    const diffMins = Math.ceil(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMins / 60);
+    const remainingMins = diffMins % 60;
+
+    if (diffHours > 24) {
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+    } else if (diffHours > 0) {
+      return `${diffHours}h ${remainingMins}m`;
+    } else {
+      return `${diffMins} minute${diffMins !== 1 ? 's' : ''}`;
+    }
+  }, [roundStartTime, roundHasStarted]);
+
   // Show loading while competition data loads
   if (!competition) {
     return (
@@ -247,6 +277,32 @@ export default function OrganizerResultsPage() {
           {/* Fixtures List */}
           {!isLoading && !loadError && fixtures.length > 0 && roundNumber && (
             <>
+              {/* Round Not Started Warning */}
+              {!roundHasStarted && timeUntilStart && (
+                <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-md">
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl">⏰</div>
+                    <div>
+                      <h3 className="font-semibold text-amber-900">Round hasn&apos;t started yet</h3>
+                      <p className="text-sm text-amber-800 mt-1">
+                        Results can be entered after the round starts in <span className="font-medium">{timeUntilStart}</span>
+                        {roundStartTime && (
+                          <span className="ml-2">
+                            ({new Date(roundStartTime).toLocaleString('en-GB', {
+                              weekday: 'short',
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Progress Header */}
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
                 <div className="flex items-center justify-between">
@@ -297,42 +353,45 @@ export default function OrganizerResultsPage() {
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'home_win')}
-                          disabled={isProcessed || !!resultEntered}
+                          disabled={!roundHasStarted || isProcessed || !!resultEntered}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'home_win'
                               ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white'
-                              : resultEntered || isProcessed
+                              : !roundHasStarted || resultEntered || isProcessed
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
+                          title={!roundHasStarted ? 'Round has not started yet' : ''}
                         >
                           {homeTeamName} Win
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'draw')}
-                          disabled={isProcessed || !!resultEntered}
+                          disabled={!roundHasStarted || isProcessed || !!resultEntered}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'draw'
                               ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white'
-                              : resultEntered || isProcessed
+                              : !roundHasStarted || resultEntered || isProcessed
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-gray-600 text-white hover:bg-gray-700'
                           }`}
+                          title={!roundHasStarted ? 'Round has not started yet' : ''}
                         >
                           Draw
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'away_win')}
-                          disabled={isProcessed || !!resultEntered}
+                          disabled={!roundHasStarted || isProcessed || !!resultEntered}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'away_win'
                               ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white'
-                              : resultEntered || isProcessed
+                              : !roundHasStarted || resultEntered || isProcessed
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
+                          title={!roundHasStarted ? 'Round has not started yet' : ''}
                         >
                           {awayTeamName} Win
                         </button>
