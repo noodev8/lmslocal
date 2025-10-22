@@ -538,77 +538,54 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Status Cards Grid - All 4 cards aligned */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Active/Out Status Card */}
-          {isParticipant && competition?.status !== 'COMPLETE' && (
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+        {/* Prominent Competition Status Card */}
+        {currentRoundInfo && competition?.status !== 'COMPLETE' && (
+          <>
+            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
               <div className="text-center">
-                <div className="flex items-center justify-center space-x-2 mb-1">
-                  {competition.user_status === 'active' ? (
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  ) : (
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  )}
-                  <div className="text-3xl font-bold text-gray-900">
-                    {competition.user_status === 'active' ? 'Active' : 'Out'}
+                <div className="text-3xl font-bold text-gray-900 mb-2">Round {currentRoundInfo.round_number}</div>
+                <div className="text-lg font-semibold text-green-600">
+                  {competition.player_count} <span className="text-gray-600">Active</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Personal Status Cards */}
+            {isParticipant && (
+              <div className="grid grid-cols-2 gap-3">
+                {/* Status Card */}
+                <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+                  <div className="text-center">
+                    <div className="text-xs font-medium text-gray-500 mb-2">Your Status</div>
+                    <div className="flex items-center justify-center gap-2">
+                      {competition.user_status === 'active' ? (
+                        <>
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <span className="text-lg font-semibold text-gray-900">In</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <span className="text-lg font-semibold text-gray-900">Out</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="text-sm text-gray-600">Your Status</div>
-              </div>
-            </div>
-          )}
 
-          {/* Current Round Card */}
-          {currentRoundInfo && competition?.status !== 'COMPLETE' && (
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-1">{currentRoundInfo.round_number}</div>
-                <div className="text-sm text-gray-600">Current Round</div>
-              </div>
-            </div>
-          )}
-
-          {/* Lives Remaining Card */}
-          {isParticipant && competition?.status !== 'COMPLETE' && competition.lives_remaining !== undefined && competition.lives_remaining > 0 && (
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-1">{competition.lives_remaining}</div>
-                <div className="text-sm text-gray-600">Lives Remaining</div>
-              </div>
-            </div>
-          )}
-
-          {/* Players Still In Card */}
-          {competition && (
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              {/* Champion/Draw announcements - only show when competition is COMPLETE */}
-              {competition.status === 'COMPLETE' && competition.player_count === 1 && (
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 mb-1">👑</div>
-                  <div className="text-xs text-gray-600">Champion!</div>
-                </div>
-              )}
-
-              {competition.status === 'COMPLETE' && competition.player_count === 0 && (
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900 mb-1">😱</div>
-                  <div className="text-xs text-gray-600">Draw</div>
-                </div>
-              )}
-
-              {/* "Still In" number - show for active competitions or if more than 1 player */}
-              {(competition.status !== 'COMPLETE' || competition.player_count > 1) && (
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-1">
-                    {competition.player_count} <span className="text-xl text-gray-400">/</span> <span className="text-xl text-gray-500">{competition.total_players || competition.player_count}</span>
+                {/* Lives Card */}
+                <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+                  <div className="text-center">
+                    <div className="text-xs font-medium text-gray-500 mb-2">Lives Remaining</div>
+                    <div className="text-lg font-semibold text-gray-900">
+                      {competition.lives_remaining !== undefined ? competition.lives_remaining : 0}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Players Still In</div>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Competition Completion Banner */}
         {competitionComplete.isComplete && (
@@ -761,7 +738,7 @@ export default function UnifiedGameDashboard() {
                   {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
                     <div className="pt-3 border-t border-gray-200">
                       <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
-                        <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number}</div>
+                        <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number} Results</div>
                         {/* Visual proportional bar */}
                         <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                           {roundStats.won > 0 && (
@@ -803,7 +780,7 @@ export default function UnifiedGameDashboard() {
                   {/* Round Statistics - Visual breakdown */}
                   {roundStats && (
                     <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
-                      <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number}</div>
+                      <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number} Results</div>
                       {/* Visual proportional bar */}
                       <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                         {roundStats.won > 0 && (
@@ -894,20 +871,17 @@ export default function UnifiedGameDashboard() {
             {isParticipant && (
               <button
                 onClick={handlePlayClick}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
               >
-                <div className="flex flex-col items-center space-y-2">
-                  <div className={`p-2 rounded-lg ${
+                <div className="flex flex-col items-center space-y-3">
+                  <div className={`p-3 rounded-lg ${
                     competition.needs_pick ? 'bg-red-50 group-hover:bg-red-100' : 'bg-gray-50 group-hover:bg-gray-100'
                   }`}>
-                    <PlayIcon className={`h-5 w-5 ${
+                    <PlayIcon className={`h-7 w-7 ${
                       competition.needs_pick ? 'text-red-600' : 'text-gray-600'
                     }`} />
                   </div>
-                  <div className="text-center">
-                    <div className="text-sm font-semibold text-gray-900">Play</div>
-                    <div className="text-xs text-gray-500">View game</div>
-                  </div>
+                  <div className="text-base font-semibold text-gray-900">Play</div>
                 </div>
               </button>
             )}
@@ -917,31 +891,25 @@ export default function UnifiedGameDashboard() {
               <>
                 <Link
                   href={`/game/${competitionId}/organizer-fixtures`}
-                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
                 >
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="p-2 rounded-lg bg-blue-50 group-hover:bg-blue-100">
-                      <CalendarIcon className="h-5 w-5 text-blue-600" />
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="p-3 rounded-lg bg-blue-50 group-hover:bg-blue-100">
+                      <CalendarIcon className="h-7 w-7 text-blue-600" />
                     </div>
-                    <div className="text-center">
-                      <div className="text-sm font-semibold text-gray-900">Fixtures</div>
-                      <div className="text-xs text-gray-500">Add fixtures</div>
-                    </div>
+                    <div className="text-base font-semibold text-gray-900">Fixtures</div>
                   </div>
                 </Link>
 
                 <Link
                   href={`/game/${competitionId}/organizer-results`}
-                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
                 >
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="p-2 rounded-lg bg-green-50 group-hover:bg-green-100">
-                      <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="p-3 rounded-lg bg-green-50 group-hover:bg-green-100">
+                      <CheckCircleIcon className="h-7 w-7 text-green-600" />
                     </div>
-                    <div className="text-center">
-                      <div className="text-sm font-semibold text-gray-900">Results</div>
-                      <div className="text-xs text-gray-500">Enter results</div>
-                    </div>
+                    <div className="text-base font-semibold text-gray-900">Results</div>
                   </div>
                 </Link>
               </>
@@ -949,61 +917,49 @@ export default function UnifiedGameDashboard() {
 
             <Link
               href={`/game/${competitionId}/standings`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
             >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <TrophyIcon className="h-5 w-5 text-gray-600" />
+              <div className="flex flex-col items-center space-y-3">
+                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <TrophyIcon className="h-7 w-7 text-gray-600" />
                 </div>
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Standings</div>
-                  <div className="text-xs text-gray-500">View leaderboard</div>
-                </div>
+                <div className="text-base font-semibold text-gray-900">Standings</div>
               </div>
             </Link>
 
             <Link
               href={`/game/${competitionId}/players`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
             >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <UserGroupIcon className="h-5 w-5 text-gray-600" />
+              <div className="flex flex-col items-center space-y-3">
+                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <UserGroupIcon className="h-7 w-7 text-gray-600" />
                 </div>
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Players</div>
-                  <div className="text-xs text-gray-500">Manage players</div>
-                </div>
+                <div className="text-base font-semibold text-gray-900">Players</div>
               </div>
             </Link>
 
             <Link
               href={`/game/${competitionId}/promote`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
             >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <MegaphoneIcon className="h-5 w-5 text-gray-600" />
+              <div className="flex flex-col items-center space-y-3">
+                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <MegaphoneIcon className="h-7 w-7 text-gray-600" />
                 </div>
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Promote</div>
-                  <div className="text-xs text-gray-500">Share competition</div>
-                </div>
+                <div className="text-base font-semibold text-gray-900">Promote</div>
               </div>
             </Link>
 
             <Link
               href={`/game/${competitionId}/settings`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
             >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <Cog6ToothIcon className="h-5 w-5 text-gray-600" />
+              <div className="flex flex-col items-center space-y-3">
+                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <Cog6ToothIcon className="h-7 w-7 text-gray-600" />
                 </div>
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Settings</div>
-                  <div className="text-xs text-gray-500">Competition settings</div>
-                </div>
+                <div className="text-base font-semibold text-gray-900">Settings</div>
               </div>
             </Link>
           </div>
@@ -1011,35 +967,29 @@ export default function UnifiedGameDashboard() {
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={handlePlayClick}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
             >
-              <div className="flex flex-col items-center space-y-2">
-                <div className={`p-2 rounded-lg ${
+              <div className="flex flex-col items-center space-y-3">
+                <div className={`p-3 rounded-lg ${
                   competition.needs_pick ? 'bg-red-50 group-hover:bg-red-100' : 'bg-gray-50 group-hover:bg-gray-100'
                 }`}>
-                  <PlayIcon className={`h-5 w-5 ${
+                  <PlayIcon className={`h-7 w-7 ${
                     competition.needs_pick ? 'text-red-600' : 'text-gray-600'
                   }`} />
                 </div>
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Play</div>
-                  <div className="text-xs text-gray-500">View game</div>
-                </div>
+                <div className="text-base font-semibold text-gray-900">Play</div>
               </div>
             </button>
 
             <Link
               href={`/game/${competitionId}/standings`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
+              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
             >
-              <div className="flex flex-col items-center space-y-2">
-                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <TrophyIcon className="h-5 w-5 text-gray-600" />
+              <div className="flex flex-col items-center space-y-3">
+                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                  <TrophyIcon className="h-7 w-7 text-gray-600" />
                 </div>
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">Standings</div>
-                  <div className="text-xs text-gray-500">View leaderboard</div>
-                </div>
+                <div className="text-base font-semibold text-gray-900">Standings</div>
               </div>
             </Link>
           </div>
