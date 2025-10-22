@@ -761,8 +761,9 @@ export default function UnifiedGameDashboard() {
                   {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
                     <div className="pt-3 border-t border-gray-200">
                       <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                        <div className="text-xs font-semibold text-gray-600 mb-3">Round {roundStats.round_number}</div>
                         {/* Visual proportional bar */}
-                        <div className="flex h-16 rounded-lg overflow-hidden mb-4 shadow-inner">
+                        <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                           {roundStats.won > 0 && (
                             <div
                               className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
@@ -806,8 +807,9 @@ export default function UnifiedGameDashboard() {
                   {/* Round Statistics - Visual breakdown */}
                   {roundStats && (
                     <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                      <div className="text-xs font-semibold text-gray-600 mb-3">Round {roundStats.round_number}</div>
                       {/* Visual proportional bar */}
-                      <div className="flex h-16 rounded-lg overflow-hidden mb-4 shadow-inner">
+                      <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                         {roundStats.won > 0 && (
                           <div
                             className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
