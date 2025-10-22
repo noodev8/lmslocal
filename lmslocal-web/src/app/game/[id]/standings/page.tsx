@@ -64,23 +64,31 @@ export default function CompetitionStandingsPage() {
   const [currentUser, setCurrentUser] = useState<{ id: number; email: string; display_name: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Pagination state
+  // Pagination state - server-side pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const playersPerPage = 25;
-  const paginationThreshold = 50;
+  const [pageSize] = useState(50);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPlayers, setTotalPlayers] = useState(0);
 
-  const loadStandings = useCallback(async () => {
+  const loadStandings = useCallback(async (page: number = currentPage) => {
     if (abortControllerRef.current?.signal.aborted) return;
 
+    setLoading(true);
     try {
-      const standingsResponse = await userApi.getCompetitionStandings(parseInt(competitionId), true);
+      const standingsResponse = await userApi.getCompetitionStandings(parseInt(competitionId), true, page, pageSize);
 
       if (abortControllerRef.current?.signal.aborted) return;
 
       if (standingsResponse.data.return_code === 'SUCCESS') {
         setCompetition(standingsResponse.data.competition as Competition);
         setPlayers(standingsResponse.data.players as Player[]);
-        setCurrentPage(1); // Reset to first page when data changes
+
+        // Update pagination state from server response
+        if (standingsResponse.data.pagination) {
+          setTotalPages(standingsResponse.data.pagination.total_pages);
+          setTotalPlayers(standingsResponse.data.pagination.total_players);
+          setCurrentPage(standingsResponse.data.pagination.current_page);
+        }
       } else {
         console.error('Failed to load standings:', standingsResponse.data.message);
         router.push(`/game/${competitionId}`);
@@ -94,7 +102,7 @@ export default function CompetitionStandingsPage() {
         setLoading(false);
       }
     }
-  }, [competitionId, router]);
+  }, [competitionId, router, currentPage, pageSize]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -127,37 +135,12 @@ export default function CompetitionStandingsPage() {
     };
   }, [router, loadStandings]);
 
+  // Server handles sorting and pagination - just split by status for display
   const activePlayers = players.filter(p => p.status === 'active');
   const eliminatedPlayers = players.filter(p => p.status !== 'active');
 
-  // Determine if pagination is needed
-  const totalPlayers = players.length;
-  const needsPagination = totalPlayers >= paginationThreshold;
-
-  // Sort all players with current user first, then by name
-  const sortedAllPlayers = [...activePlayers, ...eliminatedPlayers].sort((a, b) => {
-    const aIsCurrentUser = currentUser?.id === a.id;
-    const bIsCurrentUser = currentUser?.id === b.id;
-    if (aIsCurrentUser && !bIsCurrentUser) return -1;
-    if (!aIsCurrentUser && bIsCurrentUser) return 1;
-
-    // Then by status (active first)
-    if (a.status === 'active' && b.status !== 'active') return -1;
-    if (a.status !== 'active' && b.status === 'active') return 1;
-
-    // Then alphabetically
-    return a.display_name.localeCompare(b.display_name);
-  });
-
-  // Calculate pagination
-  const totalPages = needsPagination ? Math.ceil(totalPlayers / playersPerPage) : 1;
-  const startIndex = needsPagination ? (currentPage - 1) * playersPerPage : 0;
-  const endIndex = needsPagination ? startIndex + playersPerPage : totalPlayers;
-
-  // Get players for current page
-  const currentPagePlayers = needsPagination ? sortedAllPlayers.slice(startIndex, endIndex) : sortedAllPlayers;
-  const currentPageActivePlayers = currentPagePlayers.filter(p => p.status === 'active');
-  const currentPageEliminatedPlayers = currentPagePlayers.filter(p => p.status !== 'active');
+  // Pagination is needed if total players exceeds page size
+  const needsPagination = totalPages > 1;
 
   // Check if current round is locked
   const isCurrentRoundLocked = (() => {
@@ -348,15 +331,15 @@ export default function CompetitionStandingsPage() {
         </div>
 
         {/* Active Players */}
-        {currentPageActivePlayers.length > 0 && (
+        {activePlayers.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
               <HeartIcon className="h-5 w-5 text-red-500" />
-              <span>IN ({activePlayers.length} / {players.length}){needsPagination ? ` - Page ${currentPage} of ${totalPages}` : ''}</span>
+              <span>IN ({activePlayers.length} on this page)</span>
             </h3>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {currentPageActivePlayers.map((player) => {
+              {activePlayers.map((player) => {
                 const stats = getPlayerStats(player);
                 const isCurrentUser = currentUser?.id === player.id;
 
@@ -518,7 +501,7 @@ export default function CompetitionStandingsPage() {
         )}
 
         {/* Eliminated Players */}
-        {currentPageEliminatedPlayers.length > 0 && (
+        {eliminatedPlayers.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-slate-600 flex items-center space-x-2">
               <XCircleIcon className="h-5 w-5 text-slate-500" />
@@ -526,7 +509,7 @@ export default function CompetitionStandingsPage() {
             </h3>
 
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-              {currentPageEliminatedPlayers.map((player) => {
+              {eliminatedPlayers.map((player) => {
                 const stats = getPlayerStats(player);
                 const isCurrentUser = currentUser?.id === player.id;
                 const eliminationPick = getEliminationPick(player);
@@ -610,11 +593,11 @@ export default function CompetitionStandingsPage() {
             <div className="px-4 py-4">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-sm text-slate-600">
-                  Showing {startIndex + 1}-{Math.min(endIndex, totalPlayers)} of {totalPlayers} players
+                  Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalPlayers)} of {totalPlayers} players
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentPage(currentPage - 1)}
+                    onClick={() => loadStandings(currentPage - 1)}
                     disabled={currentPage === 1}
                     className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       currentPage === 1
@@ -631,7 +614,7 @@ export default function CompetitionStandingsPage() {
                   </div>
 
                   <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
+                    onClick={() => loadStandings(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       currentPage === totalPages

@@ -3,12 +3,14 @@
 API Route: get-competition-standings
 =======================================================================================================================================
 Method: POST
-Purpose: Retrieves comprehensive competition standings with player status, picks, and history with massive N+1 optimization
+Purpose: Retrieves comprehensive competition standings with player status, picks, and history with server-side pagination
 =======================================================================================================================================
 Request Payload:
 {
   "competition_id": 123,                  // integer, required - ID of the competition to get standings for
-  "show_full_user_history": false        // boolean, optional - if true, show ALL rounds for authenticated user
+  "show_full_user_history": false,       // boolean, optional - if true, show ALL rounds for authenticated user
+  "page": 1,                              // integer, optional - Page number (default: 1)
+  "page_size": 50                         // integer, optional - Players per page (default: 50, max: 200)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -23,6 +25,12 @@ Success Response (ALWAYS HTTP 200):
     "current_round_lock_time": "2025-08-31T15:00:00Z", // string, ISO datetime when round locks
     "active_players": 8,                  // integer, number of active players remaining
     "total_players": 15                   // integer, total players in competition
+  },
+  "pagination": {
+    "current_page": 1,                    // integer, current page number
+    "page_size": 50,                      // integer, players per page
+    "total_players": 200,                 // integer, total players in competition
+    "total_pages": 4                      // integer, total number of pages
   },
   "players": [
     {
@@ -73,7 +81,7 @@ const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id, show_full_user_history = false } = req.body;
+    const { competition_id, show_full_user_history = false, page = 1, page_size = 50 } = req.body;
     const user_id = req.user.id;
 
     // === INPUT VALIDATION ===
@@ -84,6 +92,11 @@ router.post('/', verifyToken, async (req, res) => {
         message: "Competition ID is required and must be a number"
       });
     }
+
+    // Validate pagination parameters
+    const currentPage = Math.max(1, parseInt(page) || 1);
+    const itemsPerPage = Math.min(200, Math.max(1, parseInt(page_size) || 50));
+    const offset = (currentPage - 1) * itemsPerPage;
 
     // === QUERY 1: COMPREHENSIVE COMPETITION AND PLAYERS DATA ===
     // This MASSIVE optimization replaces what used to be 200+ separate queries!
@@ -153,13 +166,14 @@ router.post('/', verifyToken, async (req, res) => {
       -- Get all players in competition with their status
       LEFT JOIN competition_user cu ON c.id = cu.competition_id
       LEFT JOIN app_user u ON cu.user_id = u.id
-      
+
       WHERE c.id = $1  -- Filter to requested competition only
-      ORDER BY 
+      ORDER BY
         CASE WHEN cu.status = 'out' THEN 1 ELSE 0 END, -- Active players first
         cu.lives_remaining DESC,                        -- More lives first
         u.display_name ASC                              -- Then alphabetically
-    `, [competition_id, user_id]);
+      LIMIT $3 OFFSET $4
+    `, [competition_id, user_id, itemsPerPage, offset]);
 
     // === AUTHORIZATION VALIDATION ===
     // Check if competition exists and user has access
@@ -342,11 +356,22 @@ router.post('/', verifyToken, async (req, res) => {
       }));
     });
 
+    // === BUILD PAGINATION METADATA ===
+    const totalPlayers = parseInt(competition.total_players) || 0;
+    const totalPages = Math.ceil(totalPlayers / itemsPerPage);
+    const pagination = {
+      current_page: currentPage,
+      page_size: itemsPerPage,
+      total_players: totalPlayers,
+      total_pages: totalPages
+    };
+
     // === SUCCESS RESPONSE ===
-    // Return comprehensive standings data with optimal performance
+    // Return comprehensive standings data with optimal performance and pagination
     res.json({
       return_code: "SUCCESS",
       competition: competition,      // Competition overview with statistics
+      pagination: pagination,        // Pagination metadata
       players: players              // Complete player data with picks and history
     });
 

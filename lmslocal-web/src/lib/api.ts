@@ -695,10 +695,10 @@ export const userApi = {
     1 * 24 * 60 * 60 * 1000, // 1 day cache - user permissions rarely change mid-session
     () => api.post<{ return_code: string; user_type: string; suggested_route: string; organized_count: number; participating_count: number; has_organized: boolean; has_participated: boolean }>('/check-user-type', {})
   ),
-  getCompetitionStandings: (competition_id: number, show_full_user_history = false) => withCache(
-    `competition-standings-${competition_id}-${show_full_user_history ? 'full' : 'recent'}`,
+  getCompetitionStandings: (competition_id: number, show_full_user_history = false, page = 1, page_size = 50, search?: string) => withCache(
+    `competition-standings-${competition_id}-${show_full_user_history ? 'full' : 'recent'}-page${page}-size${page_size}-search${search || 'none'}`,
     1 * 60 * 60 * 1000, // 1 hour cache - standings rarely needed during typical admin work
-    () => api.post<{ return_code: string; message?: string; competition?: Competition; players?: Player[] }>('/get-competition-standings', { competition_id, show_full_user_history })
+    () => api.post<{ return_code: string; message?: string; competition?: Competition; pagination?: { current_page: number; page_size: number; total_players: number; total_pages: number }; players?: Player[] }>('/get-competition-standings', { competition_id, show_full_user_history, page, page_size, search })
   ),
   joinCompetitionByCode: (competition_code: string) => api.post<{ return_code: string; message?: string; competition?: { id: number; name: string } }>('/join-competition-by-code', { competition_code }),
 
