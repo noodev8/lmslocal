@@ -206,7 +206,7 @@ router.post('/', verifyToken, async (req, res) => {
         ) pick_stats ON u.id = pick_stats.user_id
         WHERE cu.competition_id = $1
           AND (LOWER(u.display_name) LIKE LOWER($2) OR LOWER(u.email) LIKE LOWER($2))
-        ORDER BY cu.joined_at ASC
+        ORDER BY u.display_name ASC
         LIMIT $3 OFFSET $4
       `;
       playersParams = [competition_id, searchTerm, itemsPerPage, offset];
@@ -251,7 +251,7 @@ router.post('/', verifyToken, async (req, res) => {
           GROUP BY p.user_id
         ) pick_stats ON u.id = pick_stats.user_id
         WHERE cu.competition_id = $1
-        ORDER BY cu.joined_at ASC
+        ORDER BY u.display_name ASC
         LIMIT $2 OFFSET $3
       `;
       playersParams = [competition_id, itemsPerPage, offset];
