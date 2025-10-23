@@ -61,6 +61,7 @@ export default function OrganizerFixturesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Block state
   const [isBlocked, setIsBlocked] = useState(false);
@@ -657,14 +658,84 @@ export default function OrganizerFixturesPage() {
               Cancel
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={() => {
+                const validFixtures = fixtures.filter(f => f.home_team_short && f.away_team_short);
+                if (validFixtures.length === 0) {
+                  setSubmitError('Please add at least one fixture with both home and away teams');
+                  return;
+                }
+                setShowConfirmModal(true);
+              }}
               disabled={isSubmitting || fixtures.filter(f => f.home_team_short && f.away_team_short).length === 0}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
             >
-              {isSubmitting ? 'Saving...' : 'Save Fixtures'}
+              {isSubmitting ? 'Saving...' : 'Confirm & Lock Fixtures'}
             </button>
           </div>
         </form>
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+              {/* Modal Header */}
+              <div className="bg-amber-500 text-white px-6 py-4 rounded-t-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl">⚠️</div>
+                  <h3 className="text-xl font-bold">Confirm Fixtures</h3>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6">
+                <div className="mb-4">
+                  <p className="text-gray-800 font-medium mb-3">
+                    You are about to save{' '}
+                    <span className="text-blue-600 font-bold">
+                      {fixtures.filter(f => f.home_team_short && f.away_team_short).length} fixture{fixtures.filter(f => f.home_team_short && f.away_team_short).length !== 1 ? 's' : ''}
+                    </span>
+                  </p>
+
+                  <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 mb-4">
+                    <p className="text-amber-900 font-semibold mb-2">⚠️ Important:</p>
+                    <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+                      <li>Once saved, you <strong>cannot add more fixtures</strong> to this round</li>
+                      <li>Make sure you have entered <strong>all fixtures</strong> for this round</li>
+                      <li>Double-check all teams are correct</li>
+                    </ul>
+                  </div>
+
+                  <p className="text-gray-700 text-sm">
+                    Are you sure all fixtures are ready to lock in?
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 rounded-b-2xl border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setSubmitError('');
+                  }}
+                  className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={(e) => {
+                    setShowConfirmModal(false);
+                    handleSubmit(e as unknown as React.FormEvent);
+                  }}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Yes, Lock Fixtures
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
