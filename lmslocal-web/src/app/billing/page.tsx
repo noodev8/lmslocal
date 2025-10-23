@@ -177,23 +177,23 @@ export default function BillingPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Slots Balance Card */}
+        {/* Credits Balance Card */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-8 mb-8">
           <div className="text-white text-center">
-            <p className="text-sm font-medium text-blue-100 mb-2">Available Slots</p>
+            <p className="text-sm font-medium text-blue-100 mb-2">Available Credits</p>
             <p className="text-6xl font-bold mb-3">{slotsAvailable}</p>
             <p className="text-blue-100 mb-4">
               You can add {slotsAvailable} more {slotsAvailable === 1 ? 'player' : 'players'} to your competitions
             </p>
             <div className="text-sm text-blue-200">
-              Current slots used: {slotsUsed} ({freeLimit} free • {credits.paid_players_used} purchased)
+              Current credits used: {slotsUsed} ({freeLimit} free • {credits.paid_players_used} purchased)
             </div>
           </div>
         </div>
 
         {/* Credit Packs */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Buy More Slots</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Buy More Credits</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* FREE Tier Card */}
             <div className="relative bg-white rounded-lg shadow-md overflow-hidden">
@@ -236,7 +236,7 @@ export default function BillingPage() {
                       <span className="text-4xl font-bold text-gray-900">£{pack.price}</span>
                     </div>
                     <div className="mt-2 text-sm text-gray-600">
-                      +{pack.credits} slots
+                      +{pack.credits} credits
                     </div>
                   </div>
 

@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "LMSLocal - Last Man Standing Competitions Made Simple",
-  description: "The easiest way to run or join Last Man Standing competitions. Perfect for pubs, workplaces, and friend groups. Start with 20 free players.",
+  description: "The easiest way to run or join Last Man Standing competitions. Perfect for pubs, workplaces, and friend groups.",
   keywords: "last man standing, football competition, pub games, premier league, competition management, football predictor, elimination game",
   authors: [{ name: "LMSLocal" }],
   creator: "LMSLocal",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "LMSLocal - Last Man Standing Competitions Made Simple",
-    description: "The easiest way to run or join Last Man Standing competitions. Perfect for pubs, workplaces, and friend groups. Start with 20 free players.",
+    description: "The easiest way to run or join Last Man Standing competitions. Perfect for pubs, workplaces, and friend groups.",
     url: "https://lmslocal.co.uk",
     siteName: "LMSLocal",
     locale: "en_GB",

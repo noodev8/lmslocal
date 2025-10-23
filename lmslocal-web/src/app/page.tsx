@@ -130,7 +130,7 @@ export default function LandingPage() {
                 <UserGroupIcon className="h-6 w-6 text-slate-600 mr-3" />
                 <h3 className="text-lg font-semibold text-slate-900">Start Free</h3>
               </div>
-              <div className="text-3xl font-bold text-emerald-600 mb-2">20</div>
+              <div className="text-3xl font-bold text-emerald-600 mb-2">10</div>
               <p className="text-slate-600 text-sm">Free players to get started</p>
             </div>
 
@@ -343,10 +343,6 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-
-          <p className="text-slate-500">
-            First 20 players free • Buy credits when you need more
-          </p>
         </div>
       </section>
 
@@ -443,7 +439,7 @@ export default function LandingPage() {
             Create Free Competition
           </Link>
           <p className="text-slate-400 mt-4 text-lg">
-            Start with 20 free players • From £10 for more credits
+            Start with 10 free players • From £10 for more credits
           </p>
           
           <div className="mt-8 flex justify-center items-center space-x-8 text-slate-300">
