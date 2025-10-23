@@ -340,7 +340,6 @@ export default function OrganizerResultsPage() {
                           {homeTeamName} <span className="text-gray-400 mx-2">vs</span> {awayTeamName}
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-2">
-                          {new Date(fixture.kickoff_time).toLocaleDateString('en-GB')}
                           {isProcessed && (
                             <span className="text-purple-600 font-medium">Processed</span>
                           )}

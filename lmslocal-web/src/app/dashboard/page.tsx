@@ -34,7 +34,6 @@ export default function DashboardPage() {
   
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
-  const [winnerNames, setWinnerNames] = useState<Record<number, string>>({});
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -58,48 +57,15 @@ export default function DashboardPage() {
 
   // Winner detection only shows when competition status is COMPLETE
   const getWinnerStatus = (competition: Competition) => {
-    const playerCount = competition.player_count || 0;
     const isComplete = competition.status === 'COMPLETE';
-    
-    if (isComplete && playerCount === 1) {
-      const winnerName = winnerNames[competition.id] || 'Loading...';
-      return { isComplete: true, winner: winnerName, isDraw: false };
-    } else if (isComplete && playerCount === 0) {
+
+    if (isComplete && competition.winner_name) {
+      return { isComplete: true, winner: competition.winner_name, isDraw: false };
+    } else if (isComplete && !competition.winner_name) {
       return { isComplete: true, winner: undefined, isDraw: true };
     }
     return { isComplete: false };
   };
-
-  // Load winner names for competitions that are COMPLETE
-  useEffect(() => {
-    const loadWinnerNames = async () => {
-      const competitionsWithWinner = userCompetitions.filter(comp => comp.status === 'COMPLETE' && comp.player_count === 1);
-      
-      for (const competition of competitionsWithWinner) {
-        if (!winnerNames[competition.id]) {
-          try {
-            const response = await userApi.getCompetitionStandings(competition.id);
-            if (response.data.return_code === 'SUCCESS') {
-              const players = (response.data.players as { status: string; display_name: string }[]) || [];
-              const activePlayer = players.find(p => p.status !== 'OUT');
-              const winnerName = activePlayer?.display_name || 'Unknown Winner';
-              
-              setWinnerNames(prev => ({
-                ...prev,
-                [competition.id]: winnerName
-              }));
-            }
-          } catch (error) {
-            console.warn(`Failed to get winner name for competition ${competition.id}:`, error);
-          }
-        }
-      }
-    };
-
-    if (userCompetitions.length > 0) {
-      loadWinnerNames();
-    }
-  }, [userCompetitions, winnerNames]);
 
   const checkUserTypeAndRoute = useCallback(async () => {
     try {
@@ -562,16 +528,11 @@ export default function DashboardPage() {
                   
                 </div>
 
-                {/* Card Body - Flexible to fill remaining space */}
-                <div className="p-4 sm:p-6 flex-1">
-                  <div className="space-y-4 h-full flex flex-col">
-                    {/* Competition Stats */}
-                    <div className="grid grid-cols-1 gap-4 text-sm">
-                      {/* Removed rounds count and created date as requested */}
-                    </div>
-
-                    {/* Invite Code - Show for all users */}
-                    {competition.invite_code && (
+                {/* Card Body - Only show if there's content to display */}
+                {competition.invite_code && (
+                  <div className="p-4 sm:p-6 flex-1">
+                    <div className="space-y-4 h-full flex flex-col">
+                      {/* Invite Code - Show for all users */}
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
@@ -593,9 +554,9 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Action Buttons - Back inside the card */}
                 <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-200 mt-auto">

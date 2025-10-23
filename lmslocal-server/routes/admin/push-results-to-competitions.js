@@ -355,11 +355,27 @@ router.post('/', async (req, res) => {
 
             // If only one or zero players remain active, mark competition as complete
             if (activeCount <= 1) {
+              // Query for the winner (if there is one)
+              let winnerId = null;
+              if (activeCount === 1) {
+                const winnerResult = await client.query(`
+                  SELECT user_id
+                  FROM competition_user
+                  WHERE competition_id = $1 AND status = 'active'
+                  LIMIT 1
+                `, [competitionId]);
+
+                if (winnerResult.rows.length > 0) {
+                  winnerId = winnerResult.rows[0].user_id;
+                }
+              }
+
+              // Update competition with status and winner
               await client.query(`
                 UPDATE competition
-                SET status = 'COMPLETE'
+                SET status = 'COMPLETE', winner_id = $2
                 WHERE id = $1
-              `, [competitionId]);
+              `, [competitionId, winnerId]);
               competitionStatus = 'COMPLETE';
             }
           }

@@ -5,7 +5,7 @@
 -- Dumped from database version 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 17.4
 
--- Started on 2025-10-20 21:42:41
+-- Started on 2025-10-23 12:01:00
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -192,7 +192,8 @@ CREATE TABLE public.competition (
     phone character varying(20),
     email character varying(255),
     fixture_service boolean DEFAULT false,
-    earliest_start_date timestamp with time zone
+    earliest_start_date timestamp with time zone,
+    winner_id integer
 );
 
 
@@ -2253,7 +2254,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO lmslocal_prod_user;
 
 
--- Completed on 2025-10-20 21:42:43
+-- Completed on 2025-10-23 12:01:02
 
 --
 -- PostgreSQL database dump complete

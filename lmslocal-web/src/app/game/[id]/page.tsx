@@ -15,7 +15,7 @@ import {
   CalendarIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, userApi, roundApi, competitionApi, offlinePlayerApi, promoteApi } from '@/lib/api';
+import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 
@@ -32,7 +32,6 @@ export default function UnifiedGameDashboard() {
     return competitions?.find(c => c.id.toString() === competitionId);
   }, [competitions, competitionId]);
 
-  const [winnerName, setWinnerName] = useState<string>('Loading...');
   const [currentRoundInfo, setCurrentRoundInfo] = useState<{
     id: number;
     round_number: number;
@@ -80,7 +79,6 @@ export default function UnifiedGameDashboard() {
   const loading = contextLoading || !competition;
 
   // Prevent duplicate API calls using refs
-  const winnerLoadedRef = useRef(false);
   const roundLoadedRef = useRef(false);
   const pickStatsLoadedRef = useRef(false);
   const roundStatsLoadedRef = useRef(false);
@@ -91,11 +89,10 @@ export default function UnifiedGameDashboard() {
   
   // Winner detection only shows when competition status is COMPLETE
   const getWinnerStatus = (comp: CompetitionType) => {
-    const playerCount = comp.player_count || 0;
     const isComplete = comp.status === 'COMPLETE';
-    
-    if (isComplete && playerCount === 1) return { isComplete: true, winner: winnerName, isDraw: false };
-    if (isComplete && playerCount === 0) return { isComplete: true, winner: undefined, isDraw: true };
+
+    if (isComplete && comp.winner_name) return { isComplete: true, winner: comp.winner_name, isDraw: false };
+    if (isComplete && !comp.winner_name) return { isComplete: true, winner: undefined, isDraw: true };
     return { isComplete: false };
   };
 
@@ -312,23 +309,6 @@ export default function UnifiedGameDashboard() {
           .catch(() => {
             setLoadingRound(false);
             roundLoadedRef.current = false; // Reset on error to allow retry
-          });
-      }
-      
-      // Load winner name if competition is COMPLETE
-      if (competition.status === 'COMPLETE' && competition.player_count === 1 && !winnerLoadedRef.current) {
-        winnerLoadedRef.current = true;
-        userApi.getCompetitionStandings(parseInt(competitionId))
-          .then(response => {
-            if (response.data.return_code === 'SUCCESS') {
-              const players = (response.data.players as { status: string; display_name: string }[]) || [];
-              const activePlayer = players.find(p => p.status !== 'OUT');
-              setWinnerName(activePlayer?.display_name || 'Unknown Winner');
-            }
-          })
-          .catch(() => {
-            setWinnerName('Unknown Winner');
-            winnerLoadedRef.current = false; // Reset on error to allow retry
           });
       }
 

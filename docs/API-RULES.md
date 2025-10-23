@@ -6,10 +6,6 @@ This document defines the architecture and conventions for all API development.
 
 ## Backend API Design
 
-### Request Method
-- **Always use POST** for all API endpoints
-- Even for read operations (GET-like), use POST for consistency
-
 ### Response Structure
 - **Always return HTTP 200** status code
 - Even for errors, return 200 with an error `return_code`

@@ -185,6 +185,8 @@ export interface Competition {
   personal_name?: string | null;
   created_at?: string;
   is_complete?: boolean;
+  winner_id?: number | null;
+  winner_name?: string | null;
   winner?: {
     display_name: string;
     email?: string;

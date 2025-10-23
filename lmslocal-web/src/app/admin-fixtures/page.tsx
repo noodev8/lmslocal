@@ -45,12 +45,30 @@ export default function AdminFixturesPage() {
     { home_team_short: '', away_team_short: '' }
   ]);
 
-  // Track which fixture row is currently active and which side (home/away)
-  const [activeFixtureIndex, setActiveFixtureIndex] = useState<number>(0);
-  const [activeSide, setActiveSide] = useState<'home' | 'away'>('home');
+  // Derive used teams from fixtures array (more robust than manual state tracking)
+  const usedTeams = useMemo(() => {
+    const used = new Set<string>();
+    fixtures.forEach(fixture => {
+      if (fixture.home_team_short) used.add(fixture.home_team_short);
+      if (fixture.away_team_short) used.add(fixture.away_team_short);
+    });
+    return used;
+  }, [fixtures]);
 
-  // Track which teams have been used in the current fixture set
-  const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
+  // Calculate the next slot to fill (first incomplete fixture)
+  const nextSlot = useMemo(() => {
+    for (let i = 0; i < fixtures.length; i++) {
+      const fixture = fixtures[i];
+      if (!fixture.home_team_short) {
+        return { index: i, side: 'home' as const };
+      }
+      if (!fixture.away_team_short) {
+        return { index: i, side: 'away' as const };
+      }
+    }
+    // All fixtures complete
+    return { index: fixtures.length - 1, side: 'away' as const };
+  }, [fixtures]);
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -315,69 +333,30 @@ export default function AdminFixturesPage() {
   // Remove fixture row
   const handleRemoveFixture = (index: number) => {
     if (fixtures.length > 1) {
-      const removedFixture = fixtures[index];
-      const newUsedTeams = new Set(usedTeams);
-
-      // Remove teams from used set if they were in this fixture
-      if (removedFixture.home_team_short) {
-        newUsedTeams.delete(removedFixture.home_team_short);
-      }
-      if (removedFixture.away_team_short) {
-        newUsedTeams.delete(removedFixture.away_team_short);
-      }
-
+      // Multiple fixtures: remove this one entirely
       setFixtures(fixtures.filter((_, i) => i !== index));
-      setUsedTeams(newUsedTeams);
-
-      if (activeFixtureIndex >= fixtures.length - 1) {
-        setActiveFixtureIndex(Math.max(0, fixtures.length - 2));
-      }
+    } else {
+      // Only one fixture: reset it to empty instead of removing
+      setFixtures([{ home_team_short: '', away_team_short: '' }]);
     }
   };
 
-  // Handle team click - alternate between home and away
+  // Handle team click - always add to next incomplete slot
   const handleTeamClick = (teamCode: string) => {
     const updatedFixtures = [...fixtures];
-    const newUsedTeams = new Set(usedTeams);
 
-    // Add team to used teams set
-    newUsedTeams.add(teamCode);
-
-    if (activeSide === 'home') {
-      updatedFixtures[activeFixtureIndex].home_team_short = teamCode;
-      setActiveSide('away'); // Switch to away team
+    if (nextSlot.side === 'home') {
+      updatedFixtures[nextSlot.index].home_team_short = teamCode;
     } else {
-      updatedFixtures[activeFixtureIndex].away_team_short = teamCode;
+      updatedFixtures[nextSlot.index].away_team_short = teamCode;
 
-      // Move to next fixture or create new one
-      if (activeFixtureIndex < fixtures.length - 1) {
-        setActiveFixtureIndex(activeFixtureIndex + 1);
-        setActiveSide('home');
-      } else {
-        // Auto-create new fixture and move to it
+      // If we just filled the away team and this is the last fixture, create a new one
+      if (nextSlot.index === fixtures.length - 1) {
         updatedFixtures.push({ home_team_short: '', away_team_short: '' });
-        setActiveFixtureIndex(activeFixtureIndex + 1);
-        setActiveSide('home');
       }
     }
 
     setFixtures(updatedFixtures);
-    setUsedTeams(newUsedTeams);
-  };
-
-  // Handle fixture row click to make it active
-  const handleFixtureRowClick = (index: number) => {
-    setActiveFixtureIndex(index);
-
-    // Determine which side should be active
-    const fixture = fixtures[index];
-    if (!fixture.home_team_short) {
-      setActiveSide('home');
-    } else if (!fixture.away_team_short) {
-      setActiveSide('away');
-    } else {
-      setActiveSide('home'); // Both filled, default to home
-    }
   };
 
   // ========================================
@@ -436,9 +415,6 @@ export default function AdminFixturesPage() {
         setFixtures([{ home_team_short: '', away_team_short: '' }]);
         setKickoffDate('');
         setKickoffTime('15:00');
-        setActiveFixtureIndex(0);
-        setActiveSide('home');
-        setUsedTeams(new Set());
 
       } else if (response.data.return_code === 'UNAUTHORIZED') {
         setSubmitError('Invalid access code - authentication failed');
@@ -684,7 +660,7 @@ export default function AdminFixturesPage() {
                       </h2>
                       <div className="text-sm text-gray-600">
                         <span className="font-semibold text-blue-600">
-                          {activeSide === 'home' ? 'HOME' : 'AWAY'}
+                          {nextSlot.side === 'home' ? 'HOME' : 'AWAY'}
                         </span>
                       </div>
                     </div>
@@ -742,8 +718,8 @@ export default function AdminFixturesPage() {
                 <div className="p-2 bg-gray-50 rounded-md border border-gray-300 max-h-[500px] overflow-y-auto">
                   <div className="space-y-1">
                     {fixtures.map((fixture, index) => {
-                      const isActive = index === activeFixtureIndex;
                       const isComplete = fixture.home_team_short && fixture.away_team_short;
+                      const isNextSlot = index === nextSlot.index;
                       // Lookup team names from database teams
                       const homeTeam = teams.find(t => t.short_name === fixture.home_team_short);
                       const awayTeam = teams.find(t => t.short_name === fixture.away_team_short);
@@ -753,37 +729,32 @@ export default function AdminFixturesPage() {
                       return (
                         <div
                           key={index}
-                          onClick={() => handleFixtureRowClick(index)}
-                          className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all text-xs ${
-                            isActive
-                              ? 'bg-blue-100 border border-blue-500'
-                              : isComplete
-                              ? 'bg-white border border-green-300 hover:bg-green-50'
-                              : 'bg-white border border-gray-200 hover:bg-gray-100'
+                          className={`flex items-center gap-2 px-2 py-1 rounded transition-all text-xs ${
+                            isComplete
+                              ? 'bg-white border border-green-300'
+                              : 'bg-white border border-gray-200'
                           }`}
                         >
                           <div className="flex-1 flex items-center justify-between">
-                            <span className={`font-medium ${isActive && activeSide === 'home' ? 'text-blue-600' : 'text-gray-800'}`}>
+                            <span className={`font-medium ${isNextSlot && nextSlot.side === 'home' ? 'text-blue-600' : 'text-gray-800'}`}>
                               {homeTeamName || 'Home'}
                             </span>
                             <span className="text-gray-400 mx-2">vs</span>
-                            <span className={`font-medium ${isActive && activeSide === 'away' ? 'text-blue-600' : 'text-gray-800'}`}>
+                            <span className={`font-medium ${isNextSlot && nextSlot.side === 'away' ? 'text-blue-600' : 'text-gray-800'}`}>
                               {awayTeamName || 'Away'}
                             </span>
                           </div>
-                          {fixtures.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveFixture(index);
-                              }}
-                              className="px-1 text-red-500 hover:text-red-700 transition-colors font-bold"
-                              title="Remove fixture"
-                            >
-                              ×
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveFixture(index);
+                            }}
+                            className="px-1 text-red-500 hover:text-red-700 transition-colors font-bold"
+                            title={fixtures.length === 1 ? "Clear fixture" : "Remove fixture"}
+                          >
+                            ×
+                          </button>
                         </div>
                       );
                     })}

@@ -138,16 +138,20 @@ router.post('/', verifyToken, async (req, res) => {
         current_pick.fixture_info as current_pick_fixture,         -- Fixture description
         
         -- === CALCULATED FIELDS ===
-        CASE 
-          WHEN current_pick.id IS NULL 
-           AND round_info.current_round IS NOT NULL 
-           AND cu.user_id IS NOT NULL 
-          THEN true 
-          ELSE false 
+        CASE
+          WHEN current_pick.id IS NULL
+           AND round_info.current_round IS NOT NULL
+           AND cu.user_id IS NOT NULL
+          THEN true
+          ELSE false
         END as needs_pick,                     -- User needs to make a pick
-        
-        CASE WHEN c.status = 'COMPLETE' THEN true ELSE false END as is_complete  -- Competition finished
-        
+
+        CASE WHEN c.status = 'COMPLETE' THEN true ELSE false END as is_complete,  -- Competition finished
+
+        -- === WINNER INFORMATION ===
+        c.winner_id,                           -- Winner user ID (null if no winner or draw)
+        winner.display_name as winner_name     -- Winner display name
+
       FROM competition c
       
       -- === JOIN TEAM LIST ===
@@ -214,7 +218,10 @@ router.post('/', verifyToken, async (req, res) => {
         LEFT JOIN fixture f ON p.fixture_id = f.id
         WHERE p.user_id = $1
       ) current_pick ON c.id = current_pick.competition_id
-      
+
+      -- === JOIN WINNER DATA ===
+      LEFT JOIN app_user winner ON c.winner_id = winner.id
+
       WHERE (
         -- User has access as organizer OR participant
         c.organiser_id = $1 OR
@@ -297,6 +304,7 @@ router.post('/', verifyToken, async (req, res) => {
       }
 
       // === ASSEMBLE FINAL COMPETITION OBJECT ===
+
       competitions.push({
         // Competition metadata
         id: comp.id,
@@ -327,7 +335,11 @@ router.post('/', verifyToken, async (req, res) => {
         current_round_lock_time: comp.current_round_lock_time,
         total_rounds: parseInt(comp.total_rounds || 0),
         is_complete: comp.is_complete,
-        
+
+        // Winner information (only populated if competition is complete)
+        winner_id: comp.winner_id || null,
+        winner_name: comp.winner_name || null,
+
         // Pick statistics for current round
         picks_made: parseInt(comp.picks_made || 0),
         picks_required: parseInt(comp.picks_required || 0),
