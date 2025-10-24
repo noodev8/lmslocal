@@ -206,7 +206,7 @@ export default function BillingPage() {
                     <span className="text-4xl font-bold text-gray-900">£0</span>
                   </div>
                   <div className="mt-2 text-sm text-gray-600">
-                    {freeLimit} slots
+                    {freeLimit} credits
                   </div>
                 </div>
 

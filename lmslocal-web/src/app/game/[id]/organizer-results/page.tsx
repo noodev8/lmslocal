@@ -308,7 +308,7 @@ export default function OrganizerResultsPage() {
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Round {roundNumber} - Enter Results
+                    Round {roundNumber} - Results
                   </h2>
                   <span className="text-sm text-gray-600">
                     {remainingCount} of {totalFixtures} remaining
@@ -340,9 +340,6 @@ export default function OrganizerResultsPage() {
                           {homeTeamName} <span className="text-gray-400 mx-2">vs</span> {awayTeamName}
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-2">
-                          {isProcessed && (
-                            <span className="text-purple-600 font-medium">Processed</span>
-                          )}
                           {resultEntered && !isProcessed && (
                             <CheckCircleIcon className="h-4 w-4 text-green-600" />
                           )}
@@ -403,22 +400,7 @@ export default function OrganizerResultsPage() {
 
               {/* Process Results Button */}
               <div className="border-t border-gray-200 pt-4">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-gray-600">
-                    {allResultsEntered ? (
-                      <span className="text-green-600 font-medium">
-                        ✓ All results entered - ready to process
-                      </span>
-                    ) : hasResultsToProcess ? (
-                      <span className="text-blue-600 font-medium">
-                        {fixtures.filter(f => f.result_entered && !f.processed).length} result(s) ready to process
-                      </span>
-                    ) : (
-                      <span>
-                        Enter results to process
-                      </span>
-                    )}
-                  </div>
+                <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={handleProcessResults}
@@ -428,11 +410,6 @@ export default function OrganizerResultsPage() {
                     {isProcessing ? 'Processing...' : 'Process Results'}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {allResultsEntered
-                    ? 'Processing will eliminate players, apply no-pick penalties, and check for competition completion'
-                    : 'Partial processing allowed - only fixtures with results will be processed'}
-                </p>
               </div>
             </>
           )}
