@@ -54,6 +54,13 @@ export default function UnifiedGameDashboard() {
     lost: number;
     eliminated: number;
   } | null>(null);
+  const [currentRoundStats, setCurrentRoundStats] = useState<{
+    round_number: number;
+    total_players: number;
+    won: number;
+    lost: number;
+    eliminated: number;
+  } | null>(null);
   // DISABLED: Organiser fixture highlighting logic - may re-enable in future
   // const [needsFixtures, setNeedsFixtures] = useState(false);
 
@@ -82,6 +89,7 @@ export default function UnifiedGameDashboard() {
   const roundLoadedRef = useRef(false);
   const pickStatsLoadedRef = useRef(false);
   const roundStatsLoadedRef = useRef(false);
+  const currentRoundStatsLoadedRef = useRef(false);
   
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
@@ -361,8 +369,39 @@ export default function UnifiedGameDashboard() {
             roundStatsLoadedRef.current = false; // Reset on error to allow retry
           });
       }
+
+      // Load current round statistics (for live rounds with results being processed)
+      if (!currentRoundStatsLoadedRef.current && currentRoundInfo && currentRoundInfo.is_locked) {
+        currentRoundStatsLoadedRef.current = true;
+
+        // Fetch statistics for the current round
+        promoteApi.getRoundStatistics(parseInt(competitionId), currentRoundInfo.id)
+          .then(statsResponse => {
+            if (statsResponse.data.return_code === 'SUCCESS' && statsResponse.data.statistics) {
+              setCurrentRoundStats({
+                round_number: currentRoundInfo.round_number,
+                ...statsResponse.data.statistics
+              });
+            } else if (statsResponse.data.return_code === 'NO_DATA') {
+              // No data yet for current round - this is fine, results haven't been processed yet
+              setCurrentRoundStats(null);
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to load current round statistics:', error);
+            currentRoundStatsLoadedRef.current = false; // Reset on error to allow retry
+          });
+      }
     }
   }, [competition, competitionId, router, currentRoundInfo]);
+
+  // Reset current round stats ref when competition data changes (happens after cache invalidation from processing results)
+  useEffect(() => {
+    // When competition data updates, reset the ref so current round stats can be refetched
+    if (currentRoundInfo && currentRoundInfo.is_locked) {
+      currentRoundStatsLoadedRef.current = false;
+    }
+  }, [competition?.player_count, currentRoundInfo]); // Watch for changes that indicate results were processed
 
   if (loading) {
     return (
@@ -802,40 +841,46 @@ export default function UnifiedGameDashboard() {
                     <div className="text-lg font-semibold text-blue-600">⚽ Round {currentRoundInfo.round_number} Live</div>
                   </div>
 
-                  {/* Show previous round statistics if available */}
-                  {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
-                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                  {/* Show current round statistics if available */}
+                  {currentRoundStats && currentRoundStats.round_number === currentRoundInfo.round_number && currentRoundStats.total_players > 0 ? (
+                    <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-5 border-2 border-blue-200 shadow-sm">
                       {/* Visual proportional bar */}
-                      <div className="flex h-16 rounded-lg overflow-hidden mb-4 shadow-inner">
-                        {roundStats.won > 0 && (
+                      <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
+                        {currentRoundStats.won > 0 && (
                           <div
                             className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
-                            style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
+                            style={{ width: `${(currentRoundStats.won / currentRoundStats.total_players) * 100}%` }}
                           >
-                            <div className="text-2xl font-black">{roundStats.won}</div>
+                            <div className="text-2xl font-black">{currentRoundStats.won}</div>
                             <div className="text-[10px] font-semibold opacity-90">WON</div>
                           </div>
                         )}
-                        {(roundStats.lost - roundStats.eliminated) > 0 && (
+                        {(currentRoundStats.lost - currentRoundStats.eliminated) > 0 && (
                           <div
                             className="bg-gradient-to-br from-amber-500 to-amber-600 flex flex-col items-center justify-center text-white transition-all hover:from-amber-600 hover:to-amber-700"
-                            style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
+                            style={{ width: `${((currentRoundStats.lost - currentRoundStats.eliminated) / currentRoundStats.total_players) * 100}%` }}
                           >
-                            <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
+                            <div className="text-2xl font-black">{currentRoundStats.lost - currentRoundStats.eliminated}</div>
                             <div className="text-[10px] font-semibold opacity-90">LOST</div>
                           </div>
                         )}
-                        {roundStats.eliminated > 0 && (
+                        {currentRoundStats.eliminated > 0 && (
                           <div
                             className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white transition-all hover:from-red-600 hover:to-red-700"
-                            style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
+                            style={{ width: `${(currentRoundStats.eliminated / currentRoundStats.total_players) * 100}%` }}
                           >
-                            <div className="text-2xl font-black">{roundStats.eliminated}</div>
+                            <div className="text-2xl font-black">{currentRoundStats.eliminated}</div>
                             <div className="text-[10px] font-semibold opacity-90">OUT</div>
                           </div>
                         )}
                       </div>
-
+                    </div>
+                  ) : (
+                    /* Show placeholder when no player results yet */
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
+                      <div className="text-center text-sm text-gray-600">
+                        No player changes so far
+                      </div>
                     </div>
                   )}
                 </div>

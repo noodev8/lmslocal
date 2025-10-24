@@ -27,14 +27,12 @@ export default function OrganizerResultsPage() {
   const [roundNumber, setRoundNumber] = useState<number | null>(null);
   const [roundStartTime, setRoundStartTime] = useState<string | null>(null);
   const [fixtures, setFixtures] = useState<FixtureWithClientState[]>([]);
-  const [totalFixtures, setTotalFixtures] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
   const [processError, setProcessError] = useState('');
-  const [processSuccess, setProcessSuccess] = useState('');
 
   // Team names mapping (fetched from API with cache)
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
@@ -101,7 +99,6 @@ export default function OrganizerResultsPage() {
         setRoundNumber(response.data.round_number);
         setRoundStartTime(response.data.round_start_time);
         setFixtures(response.data.fixtures || []);
-        setTotalFixtures(response.data.total_fixtures || 0);
       } else if (response.data.return_code === 'NO_ROUNDS') {
         setLoadError('No rounds exist for this competition yet. Please add fixtures first.');
       } else if (response.data.return_code === 'UNAUTHORIZED') {
@@ -154,14 +151,14 @@ export default function OrganizerResultsPage() {
   const handleProcessResults = async () => {
     setIsProcessing(true);
     setProcessError('');
-    setProcessSuccess('');
 
     try {
       const response = await organizerApi.processResults(parseInt(competitionId));
 
       if (response.data.return_code === 'SUCCESS') {
-        const message = `Results processed! ${response.data.players_eliminated} eliminated, ${response.data.no_pick_penalties} no-pick penalties. ${response.data.active_players_remaining} players remaining.`;
-        setProcessSuccess(message);
+        // Invalidate dashboard cache so stats refresh when organizer returns
+        const { cacheUtils } = await import('@/lib/api');
+        cacheUtils.invalidateKey(`user-dashboard`);
 
         // Reload fixtures to show updated processed status
         await loadFixtures();
@@ -180,8 +177,6 @@ export default function OrganizerResultsPage() {
   };
 
   // Calculate progress
-  const remainingCount = fixtures.filter(f => !f.result_entered).length;
-  const allResultsEntered = fixtures.length > 0 && remainingCount === 0;
   const hasResultsToProcess = fixtures.some(f => f.result_entered && !f.processed);
 
   // Check if round has started (current time >= round start time)
@@ -231,7 +226,7 @@ export default function OrganizerResultsPage() {
             className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
           >
             <ArrowLeftIcon className="h-4 w-4" />
-            Back to Dashboard
+            Back
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">
             Enter Results - {competition.name}
@@ -242,13 +237,6 @@ export default function OrganizerResultsPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          {/* Success Message */}
-          {processSuccess && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-              ✓ {processSuccess} - Redirecting...
-            </div>
-          )}
-
           {/* Error Message */}
           {(loadError || processError) && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
@@ -303,18 +291,6 @@ export default function OrganizerResultsPage() {
                   </div>
                 </div>
               )}
-
-              {/* Progress Header */}
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Round {roundNumber} - Results
-                  </h2>
-                  <span className="text-sm text-gray-600">
-                    {remainingCount} of {totalFixtures} remaining
-                  </span>
-                </div>
-              </div>
 
               {/* Fixtures */}
               <div className="space-y-2 mb-6">
