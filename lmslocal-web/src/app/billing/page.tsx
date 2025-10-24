@@ -178,14 +178,14 @@ export default function BillingPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Credits Balance Card */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-8 mb-8">
-          <div className="text-white text-center">
-            <p className="text-sm font-medium text-blue-100 mb-2">Available Credits</p>
-            <p className="text-6xl font-bold mb-3">{slotsAvailable}</p>
-            <p className="text-blue-100 mb-4">
+        <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden mb-8">
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-8 text-center">
+            <p className="text-sm font-medium text-blue-700 mb-2">Available Credits</p>
+            <p className="text-7xl font-bold text-blue-900 mb-3">{slotsAvailable}</p>
+            <p className="text-blue-700 mb-4">
               You can add {slotsAvailable} more {slotsAvailable === 1 ? 'player' : 'players'} to your competitions
             </p>
-            <div className="text-sm text-blue-200">
+            <div className="text-sm text-blue-800">
               Current credits used: {slotsUsed} ({freeLimit} free • {credits.paid_players_used} purchased)
             </div>
           </div>
