@@ -395,13 +395,17 @@ export default function UnifiedGameDashboard() {
     }
   }, [competition, competitionId, router, currentRoundInfo]);
 
-  // Reset current round stats ref when competition data changes (happens after cache invalidation from processing results)
+  // Reset current round stats ref when round is locked
   useEffect(() => {
-    // When competition data updates, reset the ref so current round stats can be refetched
     if (currentRoundInfo && currentRoundInfo.is_locked) {
       currentRoundStatsLoadedRef.current = false;
     }
-  }, [competition?.player_count, currentRoundInfo]); // Watch for changes that indicate results were processed
+  }, [currentRoundInfo]);
+
+  // Reset pick stats ONLY when player count changes (results were processed and players eliminated)
+  useEffect(() => {
+    pickStatsLoadedRef.current = false;
+  }, [competition?.player_count]);
 
   if (loading) {
     return (

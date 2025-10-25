@@ -269,34 +269,7 @@ router.post('/', verifyToken, async (req, res) => {
         `, [competition.id, organiser_id, team_list_id]);
       }
 
-      // 5. Update user_type to reflect organiser status (check if first competition)
-      const existingCompetitionsResult = await client.query(
-        'SELECT COUNT(*) as count FROM competition WHERE organiser_id = $1',
-        [organiser_id]
-      );
-      
-      const isFirstCompetition = parseInt(existingCompetitionsResult.rows[0].count) === 1; // This competition is the first
-      
-      if (isFirstCompetition) {
-        // Check if user is already a player in other competitions
-        const playerCompetitionsResult = await client.query(
-          'SELECT COUNT(*) as count FROM competition_user WHERE user_id = $1',
-          [organiser_id]
-        );
-        
-        const isAlsoPlayer = parseInt(playerCompetitionsResult.rows[0].count) > 0;
-        const newUserType = isAlsoPlayer ? 'both' : 'admin';
-        
-        // Update user_type in app_user table
-        await client.query(`
-          UPDATE app_user 
-          SET user_type = $1, updated_at = CURRENT_TIMESTAMP 
-          WHERE id = $2
-        `, [newUserType, organiser_id]);
-        
-      }
-
-      // 6. Create audit log entry (same transaction ensures consistency)
+      // 5. Create audit log entry (same transaction ensures consistency)
       const participationStatus = organiser_joins_as_player ? 'as organiser and player' : 'as organiser only';
       await client.query(`
         INSERT INTO audit_log (competition_id, user_id, action, details)

@@ -21,7 +21,6 @@ Success Response (ALWAYS HTTP 200):
     "display_name": "John Doe",               // string, user's display name
     "email": "user@example.com",              // string, user's email address
     "email_verified": true,                   // boolean, email verification status (auto-verified)
-    "user_type": "player",                    // string, user account type
     "created_at": "2025-08-31T15:00:00Z"      // string, ISO datetime when account was created
   },
   "verification_sent": false                  // boolean, whether verification email was sent (disabled)
@@ -157,19 +156,17 @@ router.post('/', async (req, res) => {
           email_verified,             -- Auto-verified (no email verification required)
           auth_token,                 -- No verification token needed
           auth_token_expires,         -- No token expiry needed
-          user_type,                  -- Account type (player for regular users)
           created_at,                 -- Account creation timestamp
           updated_at                  -- Last update timestamp
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        RETURNING id, display_name, email, email_verified, user_type, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id, display_name, email, email_verified, created_at
       `, [
         trimmedDisplayName,
         trimmedEmail,
         hashedPassword,
         true,                         // Email auto-verified (no verification needed)
         null,                         // No verification token stored
-        null,                         // No token expiry needed
-        'player'                      // Default user type for registrations
+        null                          // No token expiry needed
       ]);
 
       newUser = userResult.rows[0];
@@ -202,7 +199,6 @@ router.post('/', async (req, res) => {
         display_name: newUser.display_name,     // Confirmed display name
         email: newUser.email,                   // Confirmed email address
         email_verified: newUser.email_verified, // Verification status (auto-verified)
-        user_type: newUser.user_type,           // Account type
         created_at: newUser.created_at          // Account creation timestamp
       },
       verification_sent: emailSent              // Whether verification email was sent successfully

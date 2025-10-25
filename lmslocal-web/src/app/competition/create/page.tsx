@@ -98,14 +98,6 @@ export default function CreateCompetitionPage() {
 
       if (response.data.return_code === 'SUCCESS') {
 
-        // Update user data in localStorage since they're now an admin
-        const currentUser = localStorage.getItem('user');
-        if (currentUser) {
-          const userData = JSON.parse(currentUser);
-          userData.user_type = 'admin'; // Update to admin since they created a competition
-          localStorage.setItem('user', JSON.stringify(userData));
-        }
-
         // Clear cache and refresh data properly
         setError('');
         cacheUtils.invalidateCompetitions();

@@ -34,6 +34,9 @@ export default function OrganizerResultsPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processError, setProcessError] = useState('');
 
+  // Track fixtures modified in this session
+  const [modifiedFixtures, setModifiedFixtures] = useState<Set<number>>(new Set());
+
   // Team names mapping (fetched from API with cache)
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
 
@@ -99,6 +102,8 @@ export default function OrganizerResultsPage() {
         setRoundNumber(response.data.round_number);
         setRoundStartTime(response.data.round_start_time);
         setFixtures(response.data.fixtures || []);
+        // Clear modified fixtures when loading fresh data
+        setModifiedFixtures(new Set());
       } else if (response.data.return_code === 'NO_ROUNDS') {
         setLoadError('No rounds exist for this competition yet. Please add fixtures first.');
       } else if (response.data.return_code === 'UNAUTHORIZED') {
@@ -116,7 +121,24 @@ export default function OrganizerResultsPage() {
 
   // Handle result button click
   const handleResultClick = async (fixture: FixtureWithClientState, result: 'home_win' | 'away_win' | 'draw') => {
-    // Optimistic update
+    // If clicking the same result, unselect it (UI only, no API call)
+    if (fixture.result_entered === result) {
+      setFixtures(prevFixtures =>
+        prevFixtures.map(f =>
+          f.id === fixture.id ? { ...f, result_entered: undefined } : f
+        )
+      );
+      // Remove from modified fixtures since it no longer has a result
+      setModifiedFixtures(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fixture.id);
+        return newSet;
+      });
+      return; // No API call when unselecting
+    }
+
+    // Selecting a new result - update UI and call API
+    const previousResult = fixture.result_entered;
     setFixtures(prevFixtures =>
       prevFixtures.map(f =>
         f.id === fixture.id ? { ...f, result_entered: result } : f
@@ -126,21 +148,24 @@ export default function OrganizerResultsPage() {
     try {
       const response = await organizerApi.setResult(fixture.id, result);
 
-      if (response.data.return_code !== 'SUCCESS') {
+      if (response.data.return_code === 'SUCCESS') {
+        // Mark this fixture as modified in this session
+        setModifiedFixtures(prev => new Set(prev).add(fixture.id));
+      } else {
         // Revert on error
         setFixtures(prevFixtures =>
           prevFixtures.map(f =>
-            f.id === fixture.id ? { ...f, result_entered: undefined } : f
+            f.id === fixture.id ? { ...f, result_entered: previousResult } : f
           )
         );
         alert(`Error: ${response.data.message || 'Failed to save result'}`);
       }
     } catch (error) {
       console.error('Error setting result:', error);
-      // Revert optimistic update
+      // Revert on error
       setFixtures(prevFixtures =>
         prevFixtures.map(f =>
-          f.id === fixture.id ? { ...f, result_entered: undefined } : f
+          f.id === fixture.id ? { ...f, result_entered: previousResult } : f
         )
       );
       alert('Network error - could not save result');
@@ -156,9 +181,13 @@ export default function OrganizerResultsPage() {
       const response = await organizerApi.processResults(parseInt(competitionId));
 
       if (response.data.return_code === 'SUCCESS') {
-        // Invalidate dashboard cache so stats refresh when organizer returns
+        // Invalidate caches so stats refresh when organizer returns to dashboard
         const { cacheUtils } = await import('@/lib/api');
         cacheUtils.invalidateKey(`user-dashboard`);
+        cacheUtils.invalidateKey(`pick-statistics-${competitionId}`);
+
+        // Clear modified fixtures tracking
+        setModifiedFixtures(new Set());
 
         // Reload fixtures to show updated processed status
         await loadFixtures();
@@ -176,8 +205,8 @@ export default function OrganizerResultsPage() {
     }
   };
 
-  // Calculate progress
-  const hasResultsToProcess = fixtures.some(f => f.result_entered && !f.processed);
+  // Only enable process button if there are newly modified fixtures in this session
+  const hasResultsToProcess = modifiedFixtures.size > 0;
 
   // Check if round has started (current time >= round start time)
   const roundHasStarted = useMemo(() => {
@@ -326,45 +355,45 @@ export default function OrganizerResultsPage() {
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'home_win')}
-                          disabled={!roundHasStarted || isProcessed || !!resultEntered}
+                          disabled={!roundHasStarted || isProcessed}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'home_win'
-                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white'
-                              : !roundHasStarted || resultEntered || isProcessed
+                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
+                              : !roundHasStarted || isProcessed
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
-                          title={!roundHasStarted ? 'Round has not started yet' : ''}
+                          title={!roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           {fixture.home_team_short}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'draw')}
-                          disabled={!roundHasStarted || isProcessed || !!resultEntered}
+                          disabled={!roundHasStarted || isProcessed}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'draw'
-                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white'
-                              : !roundHasStarted || resultEntered || isProcessed
+                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
+                              : !roundHasStarted || isProcessed
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-gray-600 text-white hover:bg-gray-700'
                           }`}
-                          title={!roundHasStarted ? 'Round has not started yet' : ''}
+                          title={!roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           Draw
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'away_win')}
-                          disabled={!roundHasStarted || isProcessed || !!resultEntered}
+                          disabled={!roundHasStarted || isProcessed}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'away_win'
-                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white'
-                              : !roundHasStarted || resultEntered || isProcessed
+                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
+                              : !roundHasStarted || isProcessed
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
-                          title={!roundHasStarted ? 'Round has not started yet' : ''}
+                          title={!roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           {fixture.away_team_short}
                         </button>

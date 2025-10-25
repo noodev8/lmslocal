@@ -3,7 +3,7 @@
 API Route: check-user-type
 =======================================================================================================================================
 Method: POST
-Purpose: Determines user's primary role (admin/player/both) for smart dashboard routing and provides user analytics
+Purpose: Dynamically calculates user's primary role (admin/player/both) based on actual competition participation and provides user analytics
 =======================================================================================================================================
 Request Payload:
 {}
@@ -42,9 +42,9 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const user_id = req.user.id;
 
-    // Get user type from app_user table
+    // Verify user exists
     const userResult = await query(
-      'SELECT user_type FROM app_user WHERE id = $1',
+      'SELECT id FROM app_user WHERE id = $1',
       [user_id]
     );
 
@@ -55,14 +55,12 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    const user_type = userResult.rows[0].user_type || 'player'; // Default to player if null
-    
     // Get competition statistics for enhanced user insights
     const organizedResult = await query(
       'SELECT COUNT(*) as count FROM competition WHERE organiser_id = $1',
       [user_id]
     );
-    
+
     const participatingResult = await query(
       'SELECT COUNT(*) as count FROM competition_user WHERE user_id = $1',
       [user_id]
@@ -72,8 +70,18 @@ router.post('/', verifyToken, async (req, res) => {
     const participating_count = parseInt(participatingResult.rows[0].count);
     const has_organized = organized_count > 0;
     const has_participated = participating_count > 0;
-    
-    // Determine suggested route based on user type
+
+    // Calculate user_type dynamically based on actual participation
+    let user_type;
+    if (has_organized && has_participated) {
+      user_type = 'both';
+    } else if (has_organized) {
+      user_type = 'admin';
+    } else {
+      user_type = 'player';
+    }
+
+    // Determine suggested route based on calculated user type
     let suggested_route;
     if (user_type === 'admin' || user_type === 'both') {
       suggested_route = "/dashboard";

@@ -192,11 +192,10 @@ router.post('/', verifyToken, async (req, res) => {
           password_hash,          -- Standard password hash for admin-added players
           created_by_user_id,     -- Admin who created this player
           email_verified,         -- Mark as verified for admin-added players
-          user_type,              -- Standard player type for competition participation
           created_at,             -- Account creation timestamp
           updated_at              -- Last update timestamp
         )
-        VALUES ($1, $2, $3, $4, true, 'player', NOW(), NOW())
+        VALUES ($1, $2, $3, $4, true, NOW(), NOW())
         RETURNING id, display_name, email
       `, [display_name.trim(), email || null, '$2b$12$PwWL.rUjgbzUAhPEAAGlUOwVdr9oqHpFyBITEr9NCLR7BKOZSoWn2', admin_id]);
 

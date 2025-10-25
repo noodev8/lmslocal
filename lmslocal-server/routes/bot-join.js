@@ -216,8 +216,8 @@ router.post('/', async (req, res) => {
         const tempEmail = `temp_bot_${Date.now()}_${i}@lms-guest.com`;
 
         const userResult = await client.query(`
-          INSERT INTO app_user (email, password_hash, display_name, email_verified, user_type, created_by_user_id)
-          VALUES ($1, $2, $3, true, 'player', 1)
+          INSERT INTO app_user (email, password_hash, display_name, email_verified, created_by_user_id)
+          VALUES ($1, $2, $3, true, 1)
           RETURNING id
         `, [tempEmail, standardPasswordHash, botName]);
 
