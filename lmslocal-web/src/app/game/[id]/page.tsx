@@ -94,7 +94,13 @@ export default function UnifiedGameDashboard() {
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
   const isParticipant = competition?.is_participant || false;
-  
+
+  // Permission detection (organiser has all permissions implicitly, plus delegated permissions)
+  const canManageResults = isOrganiser || competition?.manage_results || false;
+  const canManageFixtures = isOrganiser || competition?.manage_fixtures || false;
+  const canManagePlayers = isOrganiser || competition?.manage_players || false;
+  const canManagePromote = isOrganiser || competition?.manage_promote || false;
+
   // Winner detection only shows when competition status is COMPLETE
   const getWinnerStatus = (comp: CompetitionType) => {
     const isComplete = comp.status === 'COMPLETE';
@@ -894,9 +900,9 @@ export default function UnifiedGameDashboard() {
           )}
 
         {/* Action Buttons - Refined design */}
-        {isOrganiser ? (
+        {(isOrganiser || canManageResults || canManageFixtures || canManagePlayers) ? (
           <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
-            {/* Play button - only show if organizer is also a participant */}
+            {/* Play button - only show if user is also a participant */}
             {isParticipant && (
               <button
                 onClick={handlePlayClick}
@@ -915,33 +921,34 @@ export default function UnifiedGameDashboard() {
               </button>
             )}
 
-            {/* Organizer Fixture Management - Only show if fixture_service = false (manual mode) */}
-            {competition.fixture_service === false && (
-              <>
-                <Link
-                  href={`/game/${competitionId}/organizer-fixtures`}
-                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
-                >
-                  <div className="flex flex-col items-center space-y-3">
-                    <div className="p-3 rounded-lg bg-blue-50 group-hover:bg-blue-100">
-                      <CalendarIcon className="h-7 w-7 text-blue-600" />
-                    </div>
-                    <div className="text-base font-semibold text-gray-900">Fixtures</div>
+            {/* Fixture Management - Show if user has fixtures permission and fixture_service = false (manual mode) */}
+            {canManageFixtures && competition.fixture_service === false && (
+              <Link
+                href={`/game/${competitionId}/organizer-fixtures`}
+                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+              >
+                <div className="flex flex-col items-center space-y-3">
+                  <div className="p-3 rounded-lg bg-blue-50 group-hover:bg-blue-100">
+                    <CalendarIcon className="h-7 w-7 text-blue-600" />
                   </div>
-                </Link>
+                  <div className="text-base font-semibold text-gray-900">Fixtures</div>
+                </div>
+              </Link>
+            )}
 
-                <Link
-                  href={`/game/${competitionId}/organizer-results`}
-                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
-                >
-                  <div className="flex flex-col items-center space-y-3">
-                    <div className="p-3 rounded-lg bg-green-50 group-hover:bg-green-100">
-                      <CheckCircleIcon className="h-7 w-7 text-green-600" />
-                    </div>
-                    <div className="text-base font-semibold text-gray-900">Results</div>
+            {/* Results Management - Show if user has results permission and fixture_service = false (manual mode) */}
+            {canManageResults && competition.fixture_service === false && (
+              <Link
+                href={`/game/${competitionId}/organizer-results`}
+                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+              >
+                <div className="flex flex-col items-center space-y-3">
+                  <div className="p-3 rounded-lg bg-green-50 group-hover:bg-green-100">
+                    <CheckCircleIcon className="h-7 w-7 text-green-600" />
                   </div>
-                </Link>
-              </>
+                  <div className="text-base font-semibold text-gray-900">Results</div>
+                </div>
+              </Link>
             )}
 
             <Link
@@ -956,41 +963,50 @@ export default function UnifiedGameDashboard() {
               </div>
             </Link>
 
-            <Link
-              href={`/game/${competitionId}/players`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
-            >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <UserGroupIcon className="h-7 w-7 text-gray-600" />
+            {/* Players Management - Show if user has players permission OR is organiser */}
+            {canManagePlayers && (
+              <Link
+                href={`/game/${competitionId}/players`}
+                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+              >
+                <div className="flex flex-col items-center space-y-3">
+                  <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                    <UserGroupIcon className="h-7 w-7 text-gray-600" />
+                  </div>
+                  <div className="text-base font-semibold text-gray-900">Players</div>
                 </div>
-                <div className="text-base font-semibold text-gray-900">Players</div>
-              </div>
-            </Link>
+              </Link>
+            )}
 
-            <Link
-              href={`/game/${competitionId}/promote`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
-            >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <MegaphoneIcon className="h-7 w-7 text-gray-600" />
+            {/* Promote - For organisers and users with manage_promote permission */}
+            {canManagePromote && (
+              <Link
+                href={`/game/${competitionId}/promote`}
+                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+              >
+                <div className="flex flex-col items-center space-y-3">
+                  <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                    <MegaphoneIcon className="h-7 w-7 text-gray-600" />
+                  </div>
+                  <div className="text-base font-semibold text-gray-900">Promote</div>
                 </div>
-                <div className="text-base font-semibold text-gray-900">Promote</div>
-              </div>
-            </Link>
+              </Link>
+            )}
 
-            <Link
-              href={`/game/${competitionId}/settings`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
-            >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <Cog6ToothIcon className="h-7 w-7 text-gray-600" />
+            {/* Settings - Only for main organisers */}
+            {isOrganiser && (
+              <Link
+                href={`/game/${competitionId}/settings`}
+                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+              >
+                <div className="flex flex-col items-center space-y-3">
+                  <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
+                    <Cog6ToothIcon className="h-7 w-7 text-gray-600" />
+                  </div>
+                  <div className="text-base font-semibold text-gray-900">Settings</div>
                 </div>
-                <div className="text-base font-semibold text-gray-900">Settings</div>
-              </div>
-            </Link>
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">

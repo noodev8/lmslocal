@@ -44,6 +44,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -113,11 +114,12 @@ router.post('/', verifyToken, async (req, res) => {
 
     const competition = competitionResult.rows[0];
 
-    // Verify requesting user is the competition organiser
-    if (competition.organiser_id !== admin_id) {
+    // Verify user has permission to manage players (organiser or delegated permission)
+    const permission = await canManagePlayers(admin_id, competition_id);
+    if (!permission.authorized) {
       return res.json({
         return_code: "UNAUTHORIZED",
-        message: "Only the competition organiser can add players"
+        message: "You do not have permission to add players to this competition"
       });
     }
 

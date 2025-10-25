@@ -14,7 +14,7 @@ import {
   MagnifyingGlassIcon,
   EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, adminApi, roundApi, fixtureApi, teamApi, userApi, Competition, Player, Team, cacheUtils } from '@/lib/api';
+import { competitionApi, adminApi, roundApi, fixtureApi, teamApi, userApi, organizerApi, Competition, Player, Team, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useToast, ToastContainer } from '@/components/Toast';
@@ -78,6 +78,11 @@ export default function CompetitionPlayersPage() {
   const [selectedTeam, setSelectedTeam] = useState('');
   const [settingPick, setSettingPick] = useState(false);
   const [pickSuccess, setPickSuccess] = useState(false);
+
+  // Permissions modal state
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [selectedPlayerForPermissions, setSelectedPlayerForPermissions] = useState<Player | null>(null);
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -147,7 +152,7 @@ export default function CompetitionPlayersPage() {
         }
       } else {
         console.error('Failed to load players:', response.data.message);
-        router.push(`/game/${competitionId}/dashboard`);
+        router.push(`/game/${competitionId}`);
       }
     } catch (error) {
       if (abortControllerRef.current?.signal.aborted) return;
@@ -901,6 +906,23 @@ export default function CompetitionPlayersPage() {
                             </button>
                           )}
 
+                          {/* Manage Permissions - Only for main organiser */}
+                          {competition?.is_organiser && (
+                            <button
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                setSelectedPlayerForPermissions(player);
+                                setShowPermissionsModal(true);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                              </svg>
+                              <span>Manage Permissions</span>
+                            </button>
+                          )}
+
                           {/* Remove Player */}
                           {competition?.invite_code && (
                             <>
@@ -1146,6 +1168,158 @@ export default function CompetitionPlayersPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permissions Modal */}
+      {showPermissionsModal && selectedPlayerForPermissions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Manage Permissions - {selectedPlayerForPermissions.display_name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowPermissionsModal(false);
+                    setSelectedPlayerForPermissions(null);
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <p className="text-sm text-slate-600 mb-6">
+                Grant {selectedPlayerForPermissions.display_name} access to manage specific aspects of this competition.
+              </p>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setSavingPermissions(true);
+
+                  const formData = new FormData(e.currentTarget);
+                  const permissions = {
+                    manage_results: formData.get('manage_results') === 'on',
+                    manage_fixtures: formData.get('manage_fixtures') === 'on',
+                    manage_players: formData.get('manage_players') === 'on',
+                    manage_promote: formData.get('manage_promote') === 'on',
+                  };
+
+                  try {
+                    const response = await organizerApi.updatePlayerPermissions(
+                      competitionId,
+                      selectedPlayerForPermissions.id,
+                      permissions
+                    );
+
+                    if (response.data.return_code === 'SUCCESS') {
+                      // Update the player in the local state
+                      setPlayers(prev =>
+                        prev.map(p =>
+                          p.id === selectedPlayerForPermissions.id
+                            ? { ...p, ...permissions }
+                            : p
+                        )
+                      );
+
+                      showToast('Permissions updated successfully', 'success');
+                      setShowPermissionsModal(false);
+                      setSelectedPlayerForPermissions(null);
+                    } else {
+                      showToast(response.data.message || 'Failed to update permissions', 'error');
+                    }
+                  } catch (error) {
+                    console.error('Error updating permissions:', error);
+                    showToast('Network error - could not update permissions', 'error');
+                  } finally {
+                    setSavingPermissions(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                {/* Manage Results Permission */}
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="manage_results"
+                    defaultChecked={selectedPlayerForPermissions.manage_results || false}
+                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-slate-900">Manage Results</div>
+                    <div className="text-sm text-slate-600">Enter and process match results</div>
+                  </div>
+                </label>
+
+                {/* Manage Fixtures Permission */}
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="manage_fixtures"
+                    defaultChecked={selectedPlayerForPermissions.manage_fixtures || false}
+                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-slate-900">Manage Fixtures</div>
+                    <div className="text-sm text-slate-600">Add and modify fixtures</div>
+                  </div>
+                </label>
+
+                {/* Manage Players Permission */}
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="manage_players"
+                    defaultChecked={selectedPlayerForPermissions.manage_players || false}
+                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-slate-900">Manage Players</div>
+                    <div className="text-sm text-slate-600">Add, remove, and manage players</div>
+                  </div>
+                </label>
+
+                {/* Manage Promote Permission */}
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="manage_promote"
+                    defaultChecked={selectedPlayerForPermissions.manage_promote || false}
+                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-slate-900">Manage Promote</div>
+                    <div className="text-sm text-slate-600">Access promotion and marketing features</div>
+                  </div>
+                </label>
+
+                {/* Action Buttons */}
+                <div className="flex space-x-3 pt-4 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPermissionsModal(false);
+                      setSelectedPlayerForPermissions(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors"
+                    disabled={savingPermissions}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingPermissions}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                  >
+                    {savingPermissions ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

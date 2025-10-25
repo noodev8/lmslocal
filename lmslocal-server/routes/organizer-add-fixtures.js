@@ -51,6 +51,7 @@ const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { canManageFixtures } = require('../utils/permissions'); // Permission helper
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -175,11 +176,12 @@ router.post('/', verifyToken, async (req, res) => {
 
     const competition = competitionResult.rows[0];
 
-    // Verify user is the organiser
-    if (competition.organiser_id !== user_id) {
+    // Verify user is the organiser or has delegated manage_fixtures permission
+    const permission = await canManageFixtures(user_id, competition_id_int);
+    if (!permission.authorized) {
       return res.status(200).json({
         return_code: "UNAUTHORIZED",
-        message: "Only the competition organiser can manage fixtures"
+        message: "You do not have permission to manage fixtures for this competition"
       });
     }
 

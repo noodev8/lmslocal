@@ -113,6 +113,7 @@ const organizerAddFixturesRoute = require('./routes/organizer-add-fixtures');
 const organizerGetFixturesForResultsRoute = require('./routes/organizer-get-fixtures-for-results');
 const organizerSetResultRoute = require('./routes/organizer-set-result');
 const organizerProcessResultsRoute = require('./routes/organizer-process-results');
+const organizerUpdatePlayerPermissionsRoute = require('./routes/organizer-update-player-permissions');
 
 // Bot Routes
 const botJoinRoute = require('./routes/bot-join');
@@ -311,6 +312,7 @@ app.use('/organizer-add-fixtures', organizerAddFixturesRoute);
 app.use('/organizer-get-fixtures-for-results', organizerGetFixturesForResultsRoute);
 app.use('/organizer-set-result', organizerSetResultRoute);
 app.use('/organizer-process-results', organizerProcessResultsRoute);
+app.use('/organizer-update-player-permissions', organizerUpdatePlayerPermissionsRoute);
 
 // Bot API Routes (no rate limiting for testing)
 app.use('/bot-join', botJoinRoute);

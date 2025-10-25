@@ -68,6 +68,7 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database'); // Use central database with destructured import
 const { verifyToken } = require('../middleware/auth'); // Use correct auth middleware
+const { canManagePlayers } = require('../utils/permissions'); // Permission helper
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication and data validation
@@ -115,11 +116,12 @@ router.post('/', verifyToken, async (req, res) => {
 
     const competitionData = competitionResult.rows[0];
 
-    // Verify user authorization - only competition organiser can access
-    if (competitionData.organiser_id !== user_id) {
+    // Verify user authorization - organiser or delegated manage_players permission
+    const permission = await canManagePlayers(user_id, competition_id);
+    if (!permission.authorized) {
       return res.json({
         return_code: "UNAUTHORIZED",
-        message: "Only the competition organiser can view players"
+        message: "You do not have permission to view players for this competition"
       });
     }
 
@@ -176,6 +178,11 @@ router.post('/', verifyToken, async (req, res) => {
           cu.paid,
           cu.paid_date,
           cu.hidden,
+          -- Delegated permissions
+          cu.manage_results,
+          cu.manage_fixtures,
+          cu.manage_players,
+          cu.manage_promote,
           -- Get pick statistics for each player
           pick_stats.total_picks,
           pick_stats.successful_picks,
@@ -222,6 +229,11 @@ router.post('/', verifyToken, async (req, res) => {
           cu.paid,
           cu.paid_date,
           cu.hidden,
+          -- Delegated permissions
+          cu.manage_results,
+          cu.manage_fixtures,
+          cu.manage_players,
+          cu.manage_promote,
           -- Get pick statistics for each player
           pick_stats.total_picks,
           pick_stats.successful_picks,
@@ -268,7 +280,8 @@ router.post('/', verifyToken, async (req, res) => {
       eliminated_count: parseInt(playerStats.eliminated_players) || 0,
       invite_code: competitionData.invite_code,
       current_round: competitionData.current_round || 0,
-      total_rounds: parseInt(competitionData.total_rounds) || 0
+      total_rounds: parseInt(competitionData.total_rounds) || 0,
+      is_organiser: competitionData.organiser_id === user_id
     };
 
     // Build pagination object
@@ -292,6 +305,11 @@ router.post('/', verifyToken, async (req, res) => {
       paid: row.paid || false,
       paid_date: row.paid_date,
       hidden: row.hidden || false, // Include hidden status for admin visibility
+      // Delegated permissions
+      manage_results: row.manage_results || false,
+      manage_fixtures: row.manage_fixtures || false,
+      manage_players: row.manage_players || false,
+      manage_promote: row.manage_promote || false,
       total_picks: parseInt(row.total_picks) || 0,
       successful_picks: parseInt(row.successful_picks) || 0,
       pick_success_rate: parseFloat(row.pick_success_rate) || 0,

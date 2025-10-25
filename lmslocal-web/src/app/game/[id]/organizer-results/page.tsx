@@ -70,8 +70,9 @@ export default function OrganizerResultsPage() {
       return;
     }
 
-    // Check if user is organizer
-    if (competition && !competition.is_organiser) {
+    // Check if user has permission to manage results (organizer or delegated permission)
+    const canManageResults = competition?.is_organiser || competition?.manage_results;
+    if (competition && !canManageResults) {
       router.push(`/game/${competitionId}`);
       return;
     }

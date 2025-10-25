@@ -43,6 +43,7 @@ const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { canManageResults } = require('../utils/permissions');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -91,11 +92,12 @@ router.post('/', verifyToken, async (req, res) => {
 
     const competition = competitionResult.rows[0];
 
-    // Verify user is the organiser
-    if (competition.organiser_id !== user_id) {
+    // Verify user has permission to manage results (organiser or delegated permission)
+    const permission = await canManageResults(user_id, competition_id);
+    if (!permission.authorized) {
       return res.status(200).json({
         return_code: "UNAUTHORIZED",
-        message: "Only the competition organiser can process results"
+        message: "You do not have permission to process results for this competition"
       });
     }
 

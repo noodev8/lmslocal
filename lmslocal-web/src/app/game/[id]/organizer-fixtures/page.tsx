@@ -169,8 +169,9 @@ export default function OrganizerFixturesPage() {
       return;
     }
 
-    // Check if user is organizer
-    if (competition && !competition.is_organiser) {
+    // Check if user has permission to manage fixtures (organizer or delegated permission)
+    const canManageFixtures = competition?.is_organiser || competition?.manage_fixtures;
+    if (competition && !canManageFixtures) {
       router.push(`/game/${competitionId}`);
       return;
     }

@@ -56,6 +56,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
+const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety for player removal
@@ -144,11 +145,12 @@ router.post('/', verifyToken, async (req, res) => {
 
       const data = validationResult.rows[0];
 
-      // Verify user authorization - only competition organiser can remove players
-      if (data.organiser_id !== admin_id) {
+      // Verify user has permission to manage players (organiser or delegated permission)
+      const permission = await canManagePlayers(admin_id, competition_id);
+      if (!permission.authorized) {
         throw {
           return_code: "UNAUTHORIZED",
-          message: "Only the competition organiser can remove players"
+          message: "You do not have permission to remove players from this competition"
         };
       }
 

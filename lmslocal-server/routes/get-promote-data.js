@@ -87,6 +87,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../database');
 const verifyToken = require('../middleware/verifyToken');
+const { canManagePromote } = require('../utils/permissions'); // Permission helper
 
 router.post('/', verifyToken, async (req, res) => {
   try {
@@ -118,11 +119,12 @@ router.post('/', verifyToken, async (req, res) => {
 
     const competition = competitionResult.rows[0];
 
-    // Verify user is the organizer
-    if (competition.organiser_id !== user_id) {
+    // Verify user is the organizer or has delegated manage_promote permission
+    const permission = await canManagePromote(user_id, competition_id);
+    if (!permission.authorized) {
       return res.status(200).json({
         return_code: 'UNAUTHORIZED',
-        message: 'You are not the organizer of this competition'
+        message: 'You do not have permission to access promotion features for this competition'
       });
     }
 

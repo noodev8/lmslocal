@@ -173,6 +173,11 @@ export interface Competition {
   picks_required?: number;
   pick_completion_percentage?: number;
   needs_pick?: boolean;
+  // Delegated permissions (for participants with management access)
+  manage_results?: boolean;
+  manage_fixtures?: boolean;
+  manage_players?: boolean;
+  manage_promote?: boolean;
   current_pick?: {
     team: string;
     team_full_name: string;
@@ -235,6 +240,11 @@ export interface Player {
   joined_at: string;
   // Visibility tracking
   hidden?: boolean;
+  // Delegated permissions (for organisers to grant management access)
+  manage_results?: boolean;
+  manage_fixtures?: boolean;
+  manage_players?: boolean;
+  manage_promote?: boolean;
   // Additional fields for standings/detailed views
   current_pick?: unknown;
   history?: unknown[];
@@ -960,7 +970,30 @@ export const organizerApi = {
 
   // Process all results for round (eliminations, no-picks, completion)
   processResults: (competition_id: number) =>
-    api.post('/organizer-process-results', { competition_id })
+    api.post('/organizer-process-results', { competition_id }),
+
+  // Update player permissions (delegated access for results/fixtures/players/promote)
+  updatePlayerPermissions: (competition_id: number, player_id: number, permissions: {
+    manage_results: boolean;
+    manage_fixtures: boolean;
+    manage_players: boolean;
+    manage_promote: boolean;
+  }) => api.post<{
+    return_code: string;
+    message: string;
+    player?: {
+      id: number;
+      display_name: string;
+      manage_results: boolean;
+      manage_fixtures: boolean;
+      manage_players: boolean;
+      manage_promote: boolean;
+    };
+  }>('/organizer-update-player-permissions', {
+    competition_id,
+    player_id,
+    ...permissions
+  })
 };
 
 export default api;

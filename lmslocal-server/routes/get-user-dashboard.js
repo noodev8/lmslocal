@@ -33,6 +33,9 @@ Success Response (ALWAYS HTTP 200):
       "user_status": "active",                  // string, user's participation status (null if not participating)
       "lives_remaining": 2,                     // integer, user's remaining lives (null if not participating)
       "joined_at": "2025-01-01T12:00:00Z",     // string, when user joined (null if not participating)
+      "manage_results": true,                   // boolean, delegated permission to manage results (null if not participating)
+      "manage_fixtures": false,                 // boolean, delegated permission to manage fixtures (null if not participating)
+      "manage_players": false,                  // boolean, delegated permission to manage players (null if not participating)
       "needs_pick": true,                       // boolean, user needs to make pick (null if not participating)
       "current_pick": {                         // object, user's current pick (null if not participating or no pick)
         "team": "MAN",                          // string, picked team short name
@@ -111,13 +114,19 @@ router.post('/', verifyToken, async (req, res) => {
         -- === USER RELATIONSHIP STATUS ===
         CASE WHEN c.organiser_id = $1 THEN true ELSE false END as is_organiser,   -- User is organizer
         CASE WHEN cu.user_id IS NOT NULL THEN true ELSE false END as is_participant, -- User is participant
-        
+
         -- === PARTICIPATION DATA (null if not participating) ===
         cu.status as user_status,              -- User's competition status
         cu.lives_remaining,                    -- User's remaining lives
         cu.joined_at,                          -- When user joined as participant
         cu.personal_name,                      -- User's personal nickname for this competition
-        
+
+        -- === DELEGATED PERMISSIONS (for non-organizers with management access) ===
+        cu.manage_results,                     -- Permission to manage results
+        cu.manage_fixtures,                    -- Permission to manage fixtures
+        cu.manage_players,                     -- Permission to manage players
+        cu.manage_promote,                     -- Permission to manage promotion/marketing
+
         -- === COMPETITION STATISTICS ===
         COALESCE(player_counts.total_players, 0) as total_players,         -- Total players
         COALESCE(player_counts.active_players, 0) as active_players,       -- Active players remaining
@@ -348,14 +357,20 @@ router.post('/', verifyToken, async (req, res) => {
         // User relationship
         is_organiser: comp.is_organiser,
         is_participant: comp.is_participant,
-        
+
         // Participation data (null if not participating)
         user_status: comp.user_status || null,
         lives_remaining: comp.lives_remaining !== null ? parseInt(comp.lives_remaining) : null,
         joined_at: comp.joined_at || null,
         personal_name: comp.personal_name || null,
         needs_pick: comp.is_participant ? comp.needs_pick : null,
-        
+
+        // Delegated permissions (null if not participating)
+        manage_results: comp.manage_results || null,
+        manage_fixtures: comp.manage_fixtures || null,
+        manage_players: comp.manage_players || null,
+        manage_promote: comp.manage_promote || null,
+
         // Current pick data (null if not participating or no pick)
         current_pick: comp.current_pick_team ? {
           team: comp.current_pick_team,
