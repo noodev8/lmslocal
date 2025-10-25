@@ -712,6 +712,27 @@ export const userApi = {
     1 * 60 * 60 * 1000, // 1 hour cache - standings rarely needed during typical admin work
     () => api.post<{ return_code: string; message?: string; competition?: Competition; pagination?: { current_page: number; page_size: number; total_players: number; total_pages: number }; players?: Player[] }>('/get-competition-standings', { competition_id, show_full_user_history, page, page_size, search })
   ),
+  getPlayerHistory: (competition_id: number, player_id: number) =>
+    api.post<{
+      return_code: string;
+      message?: string;
+      player?: {
+        id: number;
+        display_name: string;
+        lives_remaining: number;
+        status: string;
+      };
+      history?: Array<{
+        round_id: number;
+        round_number: number;
+        pick_team: string;
+        pick_team_full_name: string;
+        fixture: string | null;
+        fixture_result: string | null;
+        pick_result: string;
+        lock_time: string;
+      }>;
+    }>('/get-player-history', { competition_id, player_id }),
   joinCompetitionByCode: (competition_code: string) => api.post<{ return_code: string; message?: string; competition?: { id: number; name: string } }>('/join-competition-by-code', { competition_code }),
 
   // Credit system APIs (PAYG model)

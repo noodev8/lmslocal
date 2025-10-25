@@ -70,6 +70,7 @@ const getCurrentPickRoute = require('./routes/get-current-pick');
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // const getCalculatedFixturesRoute = require('./routes/get-calculated-fixtures');
 const getCompetitionStandingsRoute = require('./routes/get-competition-standings');
+const getPlayerHistoryRoute = require('./routes/get-player-history');
 const joinCompetitionByCodeRoute = require('./routes/join-competition-by-code');
 const getFixturePickCountRoute = require('./routes/get-fixture-pick-count');
 const getRoundHistoryRoute = require('./routes/get-round-history');
@@ -269,6 +270,7 @@ app.use('/get-current-pick', getCurrentPickRoute);
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // app.use('/get-calculated-fixtures', getCalculatedFixturesRoute);
 app.use('/get-competition-standings', getCompetitionStandingsRoute);
+app.use('/get-player-history', getPlayerHistoryRoute);
 app.use('/join-competition-by-code', joinCompetitionByCodeRoute);
 app.use('/get-fixture-pick-count', getFixturePickCountRoute);
 app.use('/get-round-history', getRoundHistoryRoute);

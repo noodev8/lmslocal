@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
-  FireIcon,
   ClockIcon,
   TrophyIcon,
   HeartIcon,
@@ -44,13 +43,20 @@ interface CurrentPick {
   fixture: string | null;
 }
 
+interface EliminationPick {
+  round_number: number;
+  team: string;
+  fixture: string | null;
+  result: string | null;
+}
+
 interface Player {
   id: number;
   display_name: string;
   lives_remaining: number;
   status: string;
   current_pick: CurrentPick | null;
-  history: RoundHistory[];
+  elimination_pick?: EliminationPick | null;
 }
 
 export default function CompetitionStandingsPage() {
@@ -69,6 +75,12 @@ export default function CompetitionStandingsPage() {
   const [pageSize] = useState(50);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPlayers, setTotalPlayers] = useState(0);
+
+  // History modal state
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedPlayerForHistory, setSelectedPlayerForHistory] = useState<Player | null>(null);
+  const [fullHistoryData, setFullHistoryData] = useState<RoundHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const loadStandings = useCallback(async (page: number = currentPage) => {
     if (abortControllerRef.current?.signal.aborted) return;
@@ -103,6 +115,25 @@ export default function CompetitionStandingsPage() {
       }
     }
   }, [competitionId, router, currentPage, pageSize]);
+
+  const loadPlayerHistory = async (playerId: number) => {
+    setLoadingHistory(true);
+    try {
+      const historyResponse = await userApi.getPlayerHistory(parseInt(competitionId), playerId);
+
+      if (historyResponse.data.return_code === 'SUCCESS' && historyResponse.data.history) {
+        setFullHistoryData(historyResponse.data.history as RoundHistory[]);
+      } else {
+        console.error('Failed to load player history:', historyResponse.data.message);
+        setFullHistoryData([]);
+      }
+    } catch (error) {
+      console.error('Failed to load player history:', error);
+      setFullHistoryData([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,60 +185,6 @@ export default function CompetitionStandingsPage() {
   const isPickVisible = (playerId: number) => {
     const isOwnPlayer = currentUser && currentUser.id === playerId;
     return isCurrentRoundLocked || isOwnPlayer;
-  };
-
-  // Find the elimination pick (last losing pick that eliminated the player)
-  const getEliminationPick = (player: Player) => {
-    if (player.status === 'active') return null;
-
-    // Find the last losing pick in their history
-    for (let i = player.history.length - 1; i >= 0; i--) {
-      const round = player.history[i];
-      if (round.pick_result === 'loss' && round.pick_team_full_name) {
-        return {
-          team: round.pick_team_full_name,
-          round: round.round_number,
-          fixture: round.fixture,
-          result: round.fixture_result
-        };
-      }
-    }
-    return null;
-  };
-
-  // Calculate player streaks and stats
-  const getPlayerStats = (player: Player) => {
-    const recentHistory = player.history.slice(-5); // Last 5 rounds
-    let currentStreak = 0;
-    let streakType: 'win' | 'loss' | null = null;
-
-    if (recentHistory.length > 0) {
-      const latestResult = recentHistory[recentHistory.length - 1]?.pick_result;
-      if (latestResult === 'win' || latestResult === 'loss') {
-        streakType = latestResult;
-
-        // Count consecutive results of same type from the end
-        for (let i = recentHistory.length - 1; i >= 0; i--) {
-          if (recentHistory[i].pick_result === streakType) {
-            currentStreak++;
-          } else {
-            break;
-          }
-        }
-      }
-    }
-
-    const totalWins = recentHistory.filter(h => h.pick_result === 'win').length;
-    const totalRounds = recentHistory.length;
-
-    return {
-      currentStreak,
-      streakType,
-      recentWins: totalWins,
-      recentTotal: totalRounds,
-      winRate: totalRounds > 0 ? Math.round((totalWins / totalRounds) * 100) : 0,
-      recentForm: recentHistory.slice(-3).map(h => h.pick_result) // Last 3 for form display
-    };
   };
 
   // Get winner status
@@ -340,7 +317,6 @@ export default function CompetitionStandingsPage() {
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {activePlayers.map((player) => {
-                const stats = getPlayerStats(player);
                 const isCurrentUser = currentUser?.id === player.id;
 
                 return (
@@ -353,8 +329,8 @@ export default function CompetitionStandingsPage() {
                     }`}
                   >
                     {/* Player Header */}
-                    <div className="p-4 pb-3">
-                      <div className="flex items-center justify-between mb-3">
+                    <div className="p-3 pb-2">
+                      <div className="flex items-center justify-between mb-2">
                         <h4 className={`font-semibold text-lg ${isCurrentUser ? 'text-blue-900' : 'text-slate-900'}`}>
                           {player.display_name}
                           {isCurrentUser && (
@@ -386,9 +362,9 @@ export default function CompetitionStandingsPage() {
 
                       {/* Current Pick */}
                       {isPickVisible(player.id) && (
-                        <div className="mb-3">
+                        <div className="mb-2">
                           {player.current_pick && player.current_pick.outcome !== 'NO_PICK' ? (
-                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3">
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-2">
                               <div className="flex items-center space-x-2 mb-1">
                                 <div className="h-2 w-2 bg-green-500 rounded-full"></div>
                                 <span className="text-sm font-medium text-green-800">Current Pick</span>
@@ -412,85 +388,21 @@ export default function CompetitionStandingsPage() {
                           )}
                         </div>
                       )}
-
-                      {/* Stats & Streak */}
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-3">
-                          {/* Recent Form */}
-                          <div className="flex items-center space-x-1">
-                            <span className="text-slate-600">Form:</span>
-                            <div className="flex space-x-0.5">
-                              {stats.recentForm.slice(-3).map((result, i) => (
-                                <div
-                                  key={i}
-                                  className={`w-2 h-2 rounded-full ${
-                                    result === 'win' ? 'bg-green-500' :
-                                    result === 'loss' ? 'bg-red-500' :
-                                    'bg-slate-300'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Win Rate */}
-                          <div className="text-slate-600">
-                            <span className="font-medium">{stats.winRate}%</span> win rate
-                          </div>
-                        </div>
-
-                        {/* Streak */}
-                        {stats.currentStreak > 1 && (
-                          <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
-                            stats.streakType === 'win'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}>
-                            {stats.streakType === 'win' && <FireIcon className="h-3 w-3" />}
-                            <span>
-                              {stats.currentStreak} {stats.streakType === 'win' ? 'wins' : 'losses'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
                     </div>
 
-                    {/* Recent History */}
-                    {player.history.length > 0 && (
-                      <div className="border-t border-slate-100 px-4 py-3 bg-slate-50/50">
-                        <h5 className="text-xs font-medium text-slate-700 mb-2 uppercase tracking-wide">
-                          Recent History
-                        </h5>
-                        <div className="space-y-2">
-                          {player.history.sort((a, b) => b.round_number - a.round_number).slice(0, 3).map((round) => (
-                            <div key={round.round_id} className="flex items-center justify-between text-sm">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-slate-600 font-medium">R{round.round_number}</span>
-                                <span className="text-slate-900">
-                                  {round.pick_team_full_name || 'No Pick'}
-                                </span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                {round.pick_result === 'win' ? (
-                                  <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                                ) : round.pick_result === 'loss' ? (
-                                  <XCircleIcon className="h-4 w-4 text-red-500" />
-                                ) : (
-                                  <ClockIcon className="h-4 w-4 text-slate-400" />
-                                )}
-                                <span className={`text-xs font-medium ${
-                                  round.pick_result === 'win' ? 'text-green-600' :
-                                  round.pick_result === 'loss' ? 'text-red-600' :
-                                  'text-slate-500'
-                                }`}>
-                                  {round.pick_result === 'win' ? 'WIN' :
-                                   round.pick_result === 'loss' ? 'LOSE' :
-                                   'PENDING'}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                    {/* View Full History Button - Mobile-friendly touch target */}
+                    {competition && competition.current_round > 1 && (
+                      <div className="border-t border-slate-100 px-3 py-2">
+                        <button
+                          onClick={() => {
+                            setSelectedPlayerForHistory(player);
+                            setShowHistoryModal(true);
+                            loadPlayerHistory(player.id);
+                          }}
+                          className="w-full py-2.5 px-4 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors min-h-[44px]"
+                        >
+                          View Full History
+                        </button>
                       </div>
                     )}
                   </div>
@@ -510,14 +422,12 @@ export default function CompetitionStandingsPage() {
 
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
               {eliminatedPlayers.map((player) => {
-                const stats = getPlayerStats(player);
                 const isCurrentUser = currentUser?.id === player.id;
-                const eliminationPick = getEliminationPick(player);
 
                 return (
                   <div
                     key={player.id}
-                    className={`relative rounded-lg border-2 p-4 transition-all ${
+                    className={`relative rounded-lg border-2 p-3 transition-all ${
                       isCurrentUser
                         ? 'bg-red-50/50 border-red-200 shadow-sm'
                         : 'bg-slate-50 border-slate-200 opacity-75'
@@ -547,21 +457,21 @@ export default function CompetitionStandingsPage() {
                     </div>
 
                     {/* Elimination Pick */}
-                    {eliminationPick ? (
+                    {player.elimination_pick ? (
                       <div className={`text-sm mb-2 p-2 rounded border ${
                         isCurrentUser
                           ? 'bg-red-50 border-red-200 text-red-800'
                           : 'bg-slate-50 border-slate-200 text-slate-700'
                       }`}>
                         <div className="font-medium text-xs mb-1">
-                          Eliminated in Round {eliminationPick.round}
+                          Eliminated in Round {player.elimination_pick.round_number}
                         </div>
                         <div className="font-semibold">
-                          {eliminationPick.team}
+                          {player.elimination_pick.team}
                         </div>
-                        {eliminationPick.fixture && (
+                        {player.elimination_pick.fixture && (
                           <div className="text-xs mt-1 opacity-75">
-                            {eliminationPick.fixture} • {eliminationPick.result || 'Lost'}
+                            {player.elimination_pick.fixture}
                           </div>
                         )}
                       </div>
@@ -575,11 +485,17 @@ export default function CompetitionStandingsPage() {
                       </div>
                     )}
 
-                    <div className={`text-xs ${
-                      isCurrentUser ? 'text-red-600' : 'text-slate-500'
-                    }`}>
-                      {stats.winRate}% win rate • Lasted {player.history.length} round{player.history.length !== 1 ? 's' : ''}
-                    </div>
+                    {/* View Full History Button - Mobile-friendly touch target */}
+                    <button
+                      onClick={() => {
+                        setSelectedPlayerForHistory(player);
+                        setShowHistoryModal(true);
+                        loadPlayerHistory(player.id);
+                      }}
+                      className="mt-3 w-full py-2.5 px-4 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors min-h-[44px]"
+                    >
+                      View Full History
+                    </button>
                   </div>
                 );
               })}
@@ -626,6 +542,132 @@ export default function CompetitionStandingsPage() {
                     <ChevronRightIcon className="h-4 w-4 sm:ml-1" />
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Full History Modal - Mobile-first design */}
+        {showHistoryModal && selectedPlayerForHistory && (
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowHistoryModal(false);
+              setSelectedPlayerForHistory(null);
+              setFullHistoryData([]);
+            }}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold">{selectedPlayerForHistory.display_name}</h3>
+                  <p className="text-blue-100 text-sm">Complete Pick History</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowHistoryModal(false);
+                    setSelectedPlayerForHistory(null);
+                    setFullHistoryData([]);
+                  }}
+                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors min-w-[44px] min-h-[44px]"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content - Scrollable */}
+              <div className="overflow-y-auto max-h-[calc(90vh-120px)] p-6">
+                {loadingHistory ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-slate-600">Loading history...</p>
+                    </div>
+                  </div>
+                ) : fullHistoryData.length > 0 ? (
+                  <div className="space-y-1">
+                    {fullHistoryData
+                      .sort((a, b) => b.round_number - a.round_number) // Newest first
+                      .map((round) => (
+                        <div
+                          key={round.round_id}
+                          className={`flex items-center justify-between py-2 px-3 border-l-4 ${
+                            round.pick_result === 'win'
+                              ? 'bg-green-50/50 border-green-500'
+                              : round.pick_result === 'loss'
+                              ? 'bg-red-50/50 border-red-500'
+                              : 'bg-slate-50 border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <span className="text-sm font-semibold text-slate-600 w-8 flex-shrink-0">
+                              R{round.round_number}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-slate-900 truncate">
+                                {round.pick_team_full_name || round.pick_team || 'No Pick'}
+                              </div>
+                              {round.fixture && (
+                                <div className="text-xs text-slate-600 truncate">
+                                  {round.fixture}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1 flex-shrink-0">
+                            {round.pick_result === 'win' ? (
+                              <>
+                                <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                                <span className="font-bold text-green-700 text-sm">WIN</span>
+                              </>
+                            ) : round.pick_result === 'loss' ? (
+                              <>
+                                <XCircleIcon className="h-5 w-5 text-red-600" />
+                                <span className="font-bold text-red-700 text-sm">LOSE</span>
+                              </>
+                            ) : round.pick_result === 'pending' ? (
+                              <>
+                                <ClockIcon className="h-5 w-5 text-slate-400" />
+                                <span className="font-medium text-slate-600 text-sm">PENDING</span>
+                              </>
+                            ) : (
+                              <>
+                                <MinusCircleIcon className="h-5 w-5 text-slate-400" />
+                                <span className="font-medium text-slate-600 text-sm">NO PICK</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-slate-500">
+                    <p>No pick history available</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-t border-slate-200">
+                <div className="text-sm text-slate-600">
+                  {fullHistoryData.length} round{fullHistoryData.length !== 1 ? 's' : ''} played
+                </div>
+                <button
+                  onClick={() => {
+                    setShowHistoryModal(false);
+                    setSelectedPlayerForHistory(null);
+                    setFullHistoryData([]);
+                  }}
+                  className="px-6 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors min-h-[44px]"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

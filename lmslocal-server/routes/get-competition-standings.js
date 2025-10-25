@@ -37,23 +37,19 @@ Success Response (ALWAYS HTTP 200):
       "id": 456,                          // integer, unique player user ID
       "display_name": "John Doe",         // string, player's display name
       "lives_remaining": 2,               // integer, player's remaining lives
-      "status": "active",                 // string, player status: 'active', 'OUT', etc.
-      "current_pick": {                   // object, current round pick (null if round not locked)
+      "status": "active",                 // string, player status: 'active', 'out'
+      "current_pick": {                   // object, current round pick (null if no pick)
         "team": "CHE",                    // string, picked team short name
         "team_full_name": "Chelsea",      // string, full team name for display
         "fixture": "Chelsea vs Arsenal",  // string, fixture description
         "outcome": "pending"              // string, pick outcome: 'pending', 'WIN', 'LOSE', 'NO_PICK'
       },
-      "history": [                        // array, previous rounds history
-        {
-          "round_number": 2,              // integer, round number
-          "pick_team": "MAN",             // string, team picked
-          "pick_team_full_name": "Manchester United", // string, full team name
-          "fixture": "Manchester United vs Liverpool", // string, fixture description
-          "pick_result": "win",           // string, result: 'win', 'loss', 'no_pick', 'pending'
-          "lock_time": "2025-08-24T15:00:00Z" // string, ISO datetime when round locked
-        }
-      ]
+      "elimination_pick": {               // object, ONLY for status='out' players (null otherwise)
+        "round_number": 3,                // integer, round when eliminated
+        "team": "Newcastle",              // string, full team name that knocked them out
+        "fixture": "Brighton vs Newcastle", // string, fixture description
+        "result": "2-1"                   // string, match result (null if not played)
+      }
     }
   ]
 }
@@ -244,79 +240,58 @@ router.post('/', verifyToken, async (req, res) => {
       currentPicksData = currentPicksResult.rows;
     }
 
-    // === QUERY 3: ALL PLAYER HISTORY (BULK QUERY - ELIMINATES MASSIVE N+1) ===
-    // Get complete history for ALL players in ONE query instead of N queries
-    let historyData = [];
-    if (firstRow.current_round) {
-      const historyResult = await query(`
-        SELECT 
-          -- === ROUND INFO ===
-          r.round_number,                         -- Round number for display
-          r.lock_time,                            -- When round locked
-          r.id as round_id,                       -- Round ID for uniqueness
-          
+    // === QUERY 3: ELIMINATION PICKS FOR OUT PLAYERS ONLY (OPTIMIZED) ===
+    // Get ONLY the most recent losing pick for eliminated players to show what knocked them out
+    // This replaces fetching 5 rounds of history for everyone - massive performance improvement
+    let eliminationData = [];
+    const eliminatedPlayers = players.filter(p => p.status === 'out');
+
+    if (eliminatedPlayers.length > 0) {
+      const eliminationResult = await query(`
+        SELECT DISTINCT ON (p.user_id)
           -- === PLAYER INFO ===
-          player_ids.user_id,                     -- Player ID for matching
-          
+          p.user_id,                              -- Player ID for matching
+
+          -- === ROUND INFO ===
+          r.round_number,                         -- Round number when eliminated
+
           -- === PICK INFO ===
-          p.team as pick_team,                    -- Team picked (null if no pick)
-          p.outcome,                              -- Pick outcome (null if no pick)
+          p.team as pick_team,                    -- Team picked that lost
           t.name as pick_team_full_name,          -- Full team name for display
-          
+
           -- === FIXTURE INFO ===
           f.home_team,                            -- Home team in fixture
           f.away_team,                            -- Away team in fixture
           f.result as fixture_result              -- Fixture result
-          
-        FROM (
-          SELECT unnest($3::int[]) as user_id  -- All players
-        ) player_ids
-        CROSS JOIN round r                      -- All qualifying rounds
-        LEFT JOIN pick p ON p.round_id = r.id AND p.user_id = player_ids.user_id
+
+        FROM pick p
+        JOIN round r ON p.round_id = r.id
         LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
         LEFT JOIN fixture f ON p.fixture_id = f.id
-        WHERE r.competition_id = $1 
+        WHERE r.competition_id = $1
+          AND p.user_id = ANY($2)                 -- Only eliminated players
+          AND p.outcome IN ('LOSE', 'NO_PICK')    -- Only losing picks
           AND r.round_number IS NOT NULL
-          AND (
-            $4 = true AND player_ids.user_id = $5 OR  -- Show all rounds for authenticated user if requested
-            r.round_number >= GREATEST(1, $2 - 4)     -- Otherwise limit to last 5 rounds for performance
-          )
-          AND (
-            r.round_number < $2 OR                -- Previous rounds (always show)
-            (
-              r.round_number = $2                 -- Current round IF it's complete
-              AND r.lock_time IS NOT NULL 
-              AND NOW() >= r.lock_time            -- Round is locked
-              AND EXISTS (                        -- AND has some results
-                SELECT 1 FROM fixture f2 
-                WHERE f2.round_id = r.id 
-                AND f2.result IS NOT NULL
-              )
-            )
-          )
-        ORDER BY player_ids.user_id, r.round_number DESC  -- Group by player, newest first
-      `, [competition_id, firstRow.current_round, players.map(p => p.id), show_full_user_history, user_id]);
-      
-      historyData = historyResult.rows;
+        ORDER BY p.user_id, r.round_number DESC   -- Most recent loss first
+      `, [competition_id, eliminatedPlayers.map(p => p.id)]);
+
+      eliminationData = eliminationResult.rows;
     }
 
     // === DATA ASSEMBLY (CLIENT-SIDE PROCESSING) ===
-    // Efficiently attach picks and history to each player using lookup maps
+    // Efficiently attach picks and elimination data to each player using lookup maps
     const currentPicksMap = {};
     currentPicksData.forEach(pick => {
       currentPicksMap[pick.user_id] = pick;
     });
 
-    const historyMap = {};
-    historyData.forEach(history => {
-      if (!historyMap[history.user_id]) {
-        historyMap[history.user_id] = [];
-      }
-      historyMap[history.user_id].push(history);
+    const eliminationMap = {};
+    eliminationData.forEach(elimination => {
+      eliminationMap[elimination.user_id] = elimination;
     });
 
     // === FINAL PLAYER DATA ASSEMBLY ===
-    // Attach current picks and history to each player
+    // Attach current picks and elimination info to each player
     players.forEach(player => {
       // === CURRENT PICK ATTACHMENT ===
       // Always return current pick data if it exists - let frontend handle visibility
@@ -325,8 +300,8 @@ router.post('/', verifyToken, async (req, res) => {
         player.current_pick = {
           team: currentPick.team,                 // Short team name
           team_full_name: currentPick.team_full_name, // Full team name for display
-          fixture: currentPick.home_team && currentPick.away_team 
-            ? `${currentPick.home_team} vs ${currentPick.away_team}` 
+          fixture: currentPick.home_team && currentPick.away_team
+            ? `${currentPick.home_team} vs ${currentPick.away_team}`
             : null,                               // Human-readable fixture
           outcome: currentPick.outcome || 'pending' // Pick outcome status
         };
@@ -334,23 +309,23 @@ router.post('/', verifyToken, async (req, res) => {
         player.current_pick = null;               // No pick exists for this player
       }
 
-      // === HISTORY ATTACHMENT ===
-      const playerHistory = historyMap[player.id] || [];
-      player.history = playerHistory.map(round => ({
-        round_id: round.round_id,                 // Round ID for unique keys
-        round_number: round.round_number,         // Round number for display
-        pick_team: round.pick_team,              // Short team name
-        pick_team_full_name: round.pick_team, // Use short team name for display
-        fixture: round.home_team && round.away_team 
-          ? `${round.home_team} vs ${round.away_team}` 
-          : null,                                 // Human-readable fixture
-        fixture_result: round.fixture_result,     // Actual match result
-        pick_result: round.outcome === 'WIN' ? 'win' : 
-                    round.outcome === 'LOSE' ? 'loss' : 
-                    round.outcome === 'NO_PICK' ? 'loss' : 
-                    !round.pick_team ? 'loss' : 'pending', // No pick = loss in our game
-        lock_time: round.lock_time                // When round locked
-      }));
+      // === ELIMINATION INFO ATTACHMENT (OUT PLAYERS ONLY) ===
+      // For eliminated players, attach details about the pick that knocked them out
+      if (player.status === 'out') {
+        const elimination = eliminationMap[player.id];
+        if (elimination) {
+          player.elimination_pick = {
+            round_number: elimination.round_number,  // Round when eliminated
+            team: elimination.pick_team_full_name || elimination.pick_team, // Team that knocked them out
+            fixture: elimination.home_team && elimination.away_team
+              ? `${elimination.home_team} vs ${elimination.away_team}`
+              : null,                              // Fixture details
+            result: elimination.fixture_result     // Match result
+          };
+        } else {
+          player.elimination_pick = null;          // No elimination data found
+        }
+      }
     });
 
     // === BUILD PAGINATION METADATA ===
