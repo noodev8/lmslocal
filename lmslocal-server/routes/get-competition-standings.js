@@ -10,7 +10,9 @@ Request Payload:
   "competition_id": 123,                  // integer, required - ID of the competition to get standings for
   "show_full_user_history": false,       // boolean, optional - if true, show ALL rounds for authenticated user
   "page": 1,                              // integer, optional - Page number (default: 1)
-  "page_size": 50                         // integer, optional - Players per page (default: 50, max: 200)
+  "page_size": 50,                        // integer, optional - Players per page (default: 50, max: 200)
+  "filter_by_lives": "all",               // string, optional - Filter by lives: "all", "2", "1", "0", "out" (default: "all")
+  "search": ""                            // string, optional - Search players by name within filter
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -29,8 +31,15 @@ Success Response (ALWAYS HTTP 200):
   "pagination": {
     "current_page": 1,                    // integer, current page number
     "page_size": 50,                      // integer, players per page
-    "total_players": 200,                 // integer, total players in competition
-    "total_pages": 4                      // integer, total number of pages
+    "total_players": 200,                 // integer, total players matching current filter
+    "total_pages": 4                      // integer, total number of pages for current filter
+  },
+  "filter_counts": {
+    "all": 200,                           // integer, total players in competition
+    "lives_2": 15,                        // integer, players with 2 lives (active)
+    "lives_1": 42,                        // integer, players with 1 life (active)
+    "lives_0": 28,                        // integer, players with 0 lives (active, sudden death)
+    "out": 115                            // integer, eliminated players
   },
   "players": [
     {
@@ -77,7 +86,14 @@ const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id, show_full_user_history = false, page = 1, page_size = 50 } = req.body;
+    const {
+      competition_id,
+      show_full_user_history = false,
+      page = 1,
+      page_size = 50,
+      filter_by_lives = 'all',
+      search = ''
+    } = req.body;
     const user_id = req.user.id;
 
     // === INPUT VALIDATION ===
@@ -89,10 +105,32 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Validate filter parameter
+    const validFilters = ['all', '2', '1', '0', 'out'];
+    const filterValue = validFilters.includes(filter_by_lives) ? filter_by_lives : 'all';
+
     // Validate pagination parameters
     const currentPage = Math.max(1, parseInt(page) || 1);
     const itemsPerPage = Math.min(200, Math.max(1, parseInt(page_size) || 50));
     const offset = (currentPage - 1) * itemsPerPage;
+
+    // Sanitize search term for SQL LIKE
+    const searchTerm = search ? `%${search.trim().toLowerCase()}%` : null;
+
+    // === QUERY 0: GET FILTER COUNTS ===
+    // Calculate counts for all filter options for UI display
+    const filterCountsResult = await query(`
+      SELECT
+        COUNT(*) as all_count,
+        COUNT(*) FILTER (WHERE status = 'active' AND lives_remaining = 2) as lives_2_count,
+        COUNT(*) FILTER (WHERE status = 'active' AND lives_remaining = 1) as lives_1_count,
+        COUNT(*) FILTER (WHERE status = 'active' AND lives_remaining = 0) as lives_0_count,
+        COUNT(*) FILTER (WHERE status = 'out') as out_count
+      FROM competition_user
+      WHERE competition_id = $1
+    `, [competition_id]);
+
+    const filterCounts = filterCountsResult.rows[0] || {};
 
     // === QUERY 1: COMPREHENSIVE COMPETITION AND PLAYERS DATA ===
     // This MASSIVE optimization replaces what used to be 200+ separate queries!
@@ -159,14 +197,26 @@ router.post('/', verifyToken, async (req, res) => {
       LEFT JOIN competition_user user_access ON c.id = user_access.competition_id AND user_access.user_id = $2
       
       -- === ALL PLAYERS DATA ===
-      -- Get all players in competition with their status
+      -- Get all players in competition with their status (filtered by lives and search)
       LEFT JOIN competition_user cu ON c.id = cu.competition_id
+        AND (
+          -- Apply filter by lives
+          $5 = 'all' OR
+          ($5 = '2' AND cu.status = 'active' AND cu.lives_remaining = 2) OR
+          ($5 = '1' AND cu.status = 'active' AND cu.lives_remaining = 1) OR
+          ($5 = '0' AND cu.status = 'active' AND cu.lives_remaining = 0) OR
+          ($5 = 'out' AND cu.status = 'out')
+        )
       LEFT JOIN app_user u ON cu.user_id = u.id
+        AND (
+          -- Apply search filter (case-insensitive)
+          $6::text IS NULL OR LOWER(u.display_name) LIKE $6::text
+        )
 
       WHERE c.id = $1  -- Filter to requested competition only
       ORDER BY u.display_name ASC  -- Pure alphabetical order for easy friend finding
       LIMIT $3 OFFSET $4
-    `, [competition_id, user_id, itemsPerPage, offset]);
+    `, [competition_id, user_id, itemsPerPage, offset, filterValue, searchTerm]);
 
     // === AUTHORIZATION VALIDATION ===
     // Check if competition exists and user has access
@@ -329,13 +379,40 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
     // === BUILD PAGINATION METADATA ===
-    const totalPlayers = parseInt(competition.total_players) || 0;
-    const totalPages = Math.ceil(totalPlayers / itemsPerPage);
+    // Calculate total players based on current filter
+    let filteredTotal = 0;
+    switch (filterValue) {
+      case '2':
+        filteredTotal = parseInt(filterCounts.lives_2_count) || 0;
+        break;
+      case '1':
+        filteredTotal = parseInt(filterCounts.lives_1_count) || 0;
+        break;
+      case '0':
+        filteredTotal = parseInt(filterCounts.lives_0_count) || 0;
+        break;
+      case 'out':
+        filteredTotal = parseInt(filterCounts.out_count) || 0;
+        break;
+      default: // 'all'
+        filteredTotal = parseInt(filterCounts.all_count) || 0;
+    }
+
+    const totalPages = Math.ceil(filteredTotal / itemsPerPage);
     const pagination = {
       current_page: currentPage,
       page_size: itemsPerPage,
-      total_players: totalPlayers,
+      total_players: filteredTotal,
       total_pages: totalPages
+    };
+
+    // === BUILD FILTER COUNTS METADATA ===
+    const filter_counts = {
+      all: parseInt(filterCounts.all_count) || 0,
+      lives_2: parseInt(filterCounts.lives_2_count) || 0,
+      lives_1: parseInt(filterCounts.lives_1_count) || 0,
+      lives_0: parseInt(filterCounts.lives_0_count) || 0,
+      out: parseInt(filterCounts.out_count) || 0
     };
 
     // === SUCCESS RESPONSE ===
@@ -343,7 +420,8 @@ router.post('/', verifyToken, async (req, res) => {
     res.json({
       return_code: "SUCCESS",
       competition: competition,      // Competition overview with statistics
-      pagination: pagination,        // Pagination metadata
+      pagination: pagination,        // Pagination metadata for current filter
+      filter_counts: filter_counts,  // Counts for all filter options
       players: players              // Complete player data with picks and history
     });
 
