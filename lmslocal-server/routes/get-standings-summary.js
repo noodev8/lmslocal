@@ -134,8 +134,7 @@ router.post('/', verifyToken, async (req, res) => {
       SELECT
         id,
         round_number,
-        lock_time,
-        status
+        lock_time
       FROM round
       WHERE competition_id = $1
       ORDER BY round_number DESC
@@ -151,10 +150,23 @@ router.post('/', verifyToken, async (req, res) => {
       const lockTime = new Date(currentRound.lock_time);
       const isLocked = now >= lockTime;
 
-      if (currentRound.status === 'COMPLETE') {
-        roundState = "COMPLETE"; // Between rounds
-      } else if (isLocked) {
-        roundState = "ACTIVE"; // Mid-round (locked but not complete)
+      if (isLocked) {
+        // Check if all fixtures are processed to determine if round is complete
+        const fixturesResult = await query(`
+          SELECT
+            COUNT(*) as total_fixtures,
+            COUNT(processed) as processed_fixtures
+          FROM fixture
+          WHERE round_id = $1
+        `, [currentRound.id]);
+
+        const { total_fixtures, processed_fixtures } = fixturesResult.rows[0];
+
+        if (total_fixtures > 0 && parseInt(total_fixtures) === parseInt(processed_fixtures)) {
+          roundState = "COMPLETE"; // Between rounds - all fixtures processed
+        } else {
+          roundState = "ACTIVE"; // Mid-round - fixtures still being processed
+        }
       } else {
         roundState = "PENDING"; // Before round starts
       }

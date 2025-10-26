@@ -133,8 +133,7 @@ router.post('/', verifyToken, async (req, res) => {
       SELECT
         id,
         round_number,
-        lock_time,
-        status
+        lock_time
       FROM round
       WHERE competition_id = $1
       ORDER BY round_number DESC
