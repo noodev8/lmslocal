@@ -468,7 +468,7 @@ export const roundApi = {
     api.post<{ return_code: string; message?: string; round?: Round }>('/create-round', { competition_id: parseInt(competition_id), lock_time }),
   getRounds: (competition_id: number) => withCache(
     `rounds-${competition_id}`,
-    60 * 60 * 1000, // 1 hour cache - new round fixtures happen weekly
+    15 * 60 * 1000, // 15 minute cache - responsive to round status changes during active periods
     () => api.post<{ return_code: string; message?: string; rounds?: Round[] }>('/get-rounds', { competition_id })
   ),
   update: (round_id: string, lock_time: string) => api.post<{ return_code: string; message: string }>('/update-round', { round_id: parseInt(round_id), lock_time }),
@@ -672,7 +672,7 @@ export const userApi = {
     const userId = getUserId();
     return withCache(
       `user-dashboard-${userId}`, // User-specific cache key
-      60 * 60 * 1000, // 1 hour cache - competitions are weekly
+      15 * 60 * 1000, // 15 minute cache - responsive during active game periods
       () => api.post<{
         return_code: string;
         message?: string;
@@ -999,17 +999,21 @@ export const promoteApi = {
     };
   }>('/get-round-results-breakdown', { competition_id, round_number }),
 
-  getRoundStatistics: (competition_id: number, round_id: number) => api.post<{
-    return_code: string;
-    message?: string;
-    round_number?: number;
-    statistics?: {
-      total_players: number;
-      won: number;
-      lost: number;
-      eliminated: number;
-    };
-  }>('/get-round-statistics', { competition_id, round_id }),
+  getRoundStatistics: (competition_id: number, round_id: number) => withCache(
+    `round-statistics-${competition_id}-${round_id}`,
+    15 * 60 * 1000, // 15 minute cache - matches user-dashboard for consistency
+    () => api.post<{
+      return_code: string;
+      message?: string;
+      round_number?: number;
+      statistics?: {
+        total_players: number;
+        won: number;
+        lost: number;
+        eliminated: number;
+      };
+    }>('/get-round-statistics', { competition_id, round_id })
+  ),
 };
 
 // Cache utilities
@@ -1038,6 +1042,11 @@ export const cacheUtils = {
   // Clear specific cache key
   invalidateKey: (key: string) => {
     apiCache.delete(key);
+  },
+
+  // Clear cache keys matching a pattern
+  invalidatePattern: (pattern: string) => {
+    apiCache.deletePattern(pattern);
   },
 
   // Clear all cache entries

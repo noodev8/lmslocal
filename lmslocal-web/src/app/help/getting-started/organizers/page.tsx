@@ -70,8 +70,7 @@ export default function OrganizersGettingStartedPage() {
                 <div className="bg-slate-50 rounded-lg p-4">
                   <h4 className="font-semibold text-slate-900 mb-2">Rules Settings</h4>
                   <div className="text-slate-700 text-sm space-y-1">
-                    <p><strong>Lives:</strong> How many wrong picks players can survive (0-3)</p>
-                    <p><strong>No Team Twice:</strong> Recommended ON</p>
+                    <p><strong>Lives:</strong> How many wrong picks players can survive (0-2)</p>
                   </div>
                 </div>
               </div>
@@ -91,13 +90,13 @@ export default function OrganizersGettingStartedPage() {
                   <h4 className="font-semibold text-slate-900 mb-2">Premier League</h4>
                   <p className="text-slate-700 text-sm">20 teams</p>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 text-center">
+                <div className="bg-slate-50 rounded-lg p-4 text-center border-2 border-slate-300">
                   <h4 className="font-semibold text-slate-900 mb-2">Championship</h4>
-                  <p className="text-slate-700 text-sm">24 teams</p>
+                  <p className="text-slate-600 text-sm italic">Coming Soon</p>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4 text-center">
-                  <h4 className="font-semibold text-slate-900 mb-2">Custom Selection</h4>
-                  <p className="text-slate-700 text-sm">Choose your own</p>
+                <div className="bg-slate-50 rounded-lg p-4 text-center border-2 border-slate-300">
+                  <h4 className="font-semibold text-slate-900 mb-2">Custom Teams</h4>
+                  <p className="text-slate-600 text-sm italic">Coming Soon</p>
                 </div>
               </div>
             </div>
@@ -110,24 +109,14 @@ export default function OrganizersGettingStartedPage() {
             <div className="w-10 h-10 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold mr-4 mt-1">4</div>
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-slate-900 mb-3">Invite Players</h3>
-              <p className="text-slate-700 mb-4">Your competition generates:</p>
-              <div className="grid md:grid-cols-2 gap-4 mb-4">
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <div className="flex items-center mb-2">
-                    <span className="text-xl mr-2">🔑</span>
-                    <h4 className="font-semibold text-slate-900">Invite Code</h4>
-                  </div>
-                  <p className="text-slate-700 text-sm">6-character code (e.g., ABC123)</p>
+              <p className="text-slate-700 mb-4">Your competition generates an invite code that players can use to join.</p>
+              <div className="bg-slate-50 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <span className="text-xl mr-2">🔑</span>
+                  <h4 className="font-semibold text-slate-900">Invite Code</h4>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <div className="flex items-center mb-2">
-                    <span className="text-xl mr-2">🔗</span>
-                    <h4 className="font-semibold text-slate-900">Direct Link</h4>
-                  </div>
-                  <p className="text-slate-700 text-sm">Share via WhatsApp, email, or social media</p>
-                </div>
+                <p className="text-slate-700 text-sm">Share this code with your players so they can join your competition.</p>
               </div>
-              <p className="text-slate-600 text-sm italic">Players use either method to join your competition.</p>
             </div>
           </div>
         </div>
@@ -139,10 +128,9 @@ export default function OrganizersGettingStartedPage() {
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-slate-900 mb-3">Add Fixtures</h3>
               <div className="space-y-2 text-slate-700">
-                <p>1. Navigate to &quot;Manage Rounds&quot;</p>
-                <p>2. Click &quot;Add Round&quot;</p>
-                <p>3. Select fixture dates</p>
-                <p>4. Add matches for that gameweek</p>
+                <p>After creating your competition, you&apos;ll be asked to enter your first set of fixtures:</p>
+                <p>1. Set the lock date and time for the round (applies to the whole round)</p>
+                <p>2. Add matches for that round</p>
               </div>
             </div>
           </div>
@@ -153,38 +141,23 @@ export default function OrganizersGettingStartedPage() {
       <div className="bg-white rounded-lg p-8 mb-8 border">
         <h2 className="text-2xl font-bold text-slate-900 mb-6">⚙️ Managing Your Competition</h2>
 
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">📅 Before Each Round</h3>
-            <ul className="space-y-2 text-slate-700">
-              <li>• Add fixtures at least 2 days before matches</li>
-              <li>• Remind players to make their picks</li>
-              <li>• Set pick deadlines (default: 1 hour before kickoff)</li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">🏆 After Matches</h3>
-            <ul className="space-y-2 text-slate-700">
-              <li>• Enter match results</li>
-              <li>• System automatically eliminates players</li>
-              <li>• View standings and statistics</li>
-            </ul>
-          </div>
+        <div className="space-y-4 text-slate-700 mb-6">
+          <p>Once your competition is running, managing it is simple:</p>
+          <ol className="space-y-3 ml-4 list-decimal">
+            <li><strong>Enter fixtures</strong> for each round (click &quot;Fixtures&quot; to start a new round)</li>
+            <li><strong>Update results</strong> after matches are played</li>
+            <li><strong>Lives and eliminations are automatically calculated</strong> when the round is over</li>
+            <li><strong>Start the next round</strong> by clicking &quot;Fixtures&quot; again</li>
+          </ol>
         </div>
 
         <div className="bg-slate-50 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Key Features</h3>
-          <div className="grid md:grid-cols-2 gap-4">
-            <ul className="space-y-2 text-slate-700">
-              <li>• <strong>Override Picks:</strong> Help players who have issues</li>
-              <li>• <strong>Manage Players:</strong> Add or remove players</li>
-            </ul>
-            <ul className="space-y-2 text-slate-700">
-              <li>• <strong>Reset Competition:</strong> Start over if needed</li>
-              <li>• <strong>Export Data:</strong> Download player information</li>
-            </ul>
-          </div>
+          <ul className="space-y-2 text-slate-700 list-disc ml-4">
+            <li><strong>Override Picks:</strong> Help players who have issues</li>
+            <li><strong>Manage Players:</strong> Add or remove players</li>
+            <li><strong>View Standings:</strong> Track player progress and eliminations</li>
+          </ul>
         </div>
       </div>
 
@@ -234,49 +207,6 @@ export default function OrganizersGettingStartedPage() {
             <h3 className="font-semibold text-slate-900 mb-2">Q: Can I run multiple competitions?</h3>
             <p className="text-slate-700">A: Yes, you can manage multiple competitions from one account.</p>
           </div>
-          <div>
-            <h3 className="font-semibold text-slate-900 mb-2">Q: What if I make a mistake?</h3>
-            <p className="text-slate-700">A: You can edit fixtures, results, and even override player picks if needed.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Next Steps */}
-      <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Next Steps</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          <Link
-            href="/help/rules"
-            className="block bg-slate-50 rounded-lg border p-6 hover:bg-slate-100 transition-colors"
-          >
-            <div className="text-center">
-              <div className="text-2xl mb-3">📋</div>
-              <h3 className="font-semibold text-slate-900 mb-2">Competition Rules</h3>
-              <p className="text-slate-700 text-sm">Learn about detailed competition rules</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/help/guides/managing-rounds"
-            className="block bg-slate-50 rounded-lg border p-6 hover:bg-slate-100 transition-colors"
-          >
-            <div className="text-center">
-              <div className="text-2xl mb-3">⚙️</div>
-              <h3 className="font-semibold text-slate-900 mb-2">Round Management</h3>
-              <p className="text-slate-700 text-sm">Advanced round management tips</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/help/guides/creating-competition"
-            className="block bg-slate-50 rounded-lg border p-6 hover:bg-slate-100 transition-colors"
-          >
-            <div className="text-center">
-              <div className="text-2xl mb-3">🚀</div>
-              <h3 className="font-semibold text-slate-900 mb-2">Detailed Guides</h3>
-              <p className="text-slate-700 text-sm">View comprehensive setup guides</p>
-            </div>
-          </Link>
         </div>
       </div>
 
@@ -284,9 +214,7 @@ export default function OrganizersGettingStartedPage() {
       <div className="bg-slate-50 rounded-lg p-8 text-center border">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">Need Help?</h2>
         <p className="text-slate-700 mb-6">
-          Check our <Link href="/help/faq" className="text-blue-600 hover:underline">FAQ</Link> or{' '}
-          <Link href="/help/support" className="text-blue-600 hover:underline">contact support</Link>
-          {' '}if you need assistance.
+          If you need assistance, check our FAQ or contact support.
         </p>
         <div className="flex justify-center gap-4">
           <Link

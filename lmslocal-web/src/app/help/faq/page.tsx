@@ -38,7 +38,10 @@ export default function FAQPage() {
 
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How much does it cost?</h3>
-            <p className="text-slate-700">A: The platform is free to use. Individual competitions may have entry fees set by organizers - check with your competition organizer.</p>
+            <div className="text-slate-700">
+              <p>A: For players: Free to join competitions. Your organiser may charge their own entry fees.</p>
+              <p className="mt-2">For organisers: First 10 player slots are free. Additional slots require credits, which can be purchased in packs.</p>
+            </div>
           </div>
 
           <div>
@@ -48,11 +51,11 @@ export default function FAQPage() {
         </div>
       </div>
 
-      {/* For Organizers */}
+      {/* For Organisers */}
       <div className="bg-white rounded-lg p-8 mb-8 border">
         <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
           <span className="text-2xl mr-3">👥</span>
-          For Organizers
+          For Organisers
         </h2>
 
         <div className="space-y-6">
@@ -122,7 +125,7 @@ export default function FAQPage() {
 
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What happens if my team&apos;s match is postponed?</h3>
-            <p className="text-slate-700">A: Usually, postponed matches are void (no win or loss), but check with your organizer for their specific rules.</p>
+            <p className="text-slate-700">A: Usually, postponed matches are void (no win or loss), but check with your organiser for their specific rules.</p>
           </div>
         </div>
       </div>
@@ -151,11 +154,7 @@ export default function FAQPage() {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How do I join a competition?</h3>
             <div className="text-slate-700">
-              <p>A: Two ways:</p>
-              <ol className="mt-2 space-y-1 ml-4 list-decimal">
-                <li>Enter the 6-character invite code</li>
-                <li>Click a direct link from your organizer</li>
-              </ol>
+              <p>A: Enter the invite code from your organiser</p>
             </div>
           </div>
 
@@ -181,7 +180,7 @@ export default function FAQPage() {
         <div className="space-y-6">
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: When do picks lock?</h3>
-            <p className="text-slate-700">A: Default: 1 hour before the first match of the round. Organizers can set custom deadlines.</p>
+            <p className="text-slate-700">A: Default: 1 hour before the first match of the round. Organisers can set custom deadlines.</p>
           </div>
 
           <div>
@@ -237,7 +236,7 @@ export default function FAQPage() {
         <h2 className="text-2xl font-bold text-slate-900 mb-4">Still Have Questions?</h2>
         <p className="text-slate-700 mb-6">
           Can&apos;t find what you&apos;re looking for? Our support team is here to help,
-          or you can ask your competition organizer directly.
+          or you can ask your competition organiser directly.
         </p>
         <div className="flex justify-center gap-4">
           <a

@@ -189,6 +189,8 @@ export default function OrganizerResultsPage() {
         const { cacheUtils } = await import('@/lib/api');
         cacheUtils.invalidateKey(`user-dashboard`);
         cacheUtils.invalidateKey(`pick-statistics-${competitionId}`);
+        cacheUtils.invalidatePattern(`round-statistics-${competitionId}-*`); // Clear all round stats for this competition
+        cacheUtils.invalidateKey(`rounds-${competitionId}`); // Clear round status (Live vs Results)
 
         // Only refresh AppDataContext if players were eliminated (player count changed)
         if (playersEliminated > 0) {

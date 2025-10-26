@@ -31,75 +31,27 @@ export default function PlayersGettingStartedPage() {
       <div className="bg-white rounded-lg p-8 mb-8 border">
         <h2 className="text-2xl font-bold text-slate-900 mb-6">🎯 Joining a Competition</h2>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-slate-50 rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <span className="text-2xl mr-3">🔑</span>
-              <h3 className="text-xl font-semibold text-slate-900">Option 1: Using an Invite Code</h3>
-            </div>
-            <div className="space-y-2 text-slate-700">
-              <p>1. Get the 6-character code from your organizer</p>
-              <p>2. Go to <Link href="/join" className="text-blue-600 hover:underline">Join Competition</Link></p>
-              <p>3. Enter the code</p>
-              <p>4. Create your player account</p>
-            </div>
+        <div className="bg-slate-50 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <span className="text-2xl mr-3">🔑</span>
+            <h3 className="text-xl font-semibold text-slate-900">Using Your Invite Code</h3>
           </div>
-
-          <div className="bg-slate-50 rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <span className="text-2xl mr-3">🔗</span>
-              <h3 className="text-xl font-semibold text-slate-900">Option 2: Using a Direct Link</h3>
-            </div>
-            <div className="space-y-2 text-slate-700">
-              <p>1. Click the link shared by your organizer</p>
-              <p>2. You&apos;ll be taken directly to the competition</p>
-              <p>3. Create your player account</p>
-              <p>4. Start making picks!</p>
-            </div>
+          <div className="space-y-2 text-slate-700">
+            <p>1. Get the invite code from your organiser</p>
+            <p>2. Go to <Link href="/join" className="text-blue-600 hover:underline">Join Competition</Link></p>
+            <p>3. Enter the code</p>
           </div>
         </div>
       </div>
 
       {/* Making Your First Pick */}
       <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">🎲 Making Your First Pick</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">🎲 Making Your Pick</h2>
 
-        <div className="space-y-6">
-          <div className="flex items-start">
-            <div className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold mr-4 mt-1">1</div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">View Available Fixtures</h3>
-              <ul className="space-y-1 text-slate-700">
-                <li>• Check the upcoming matches for the round</li>
-                <li>• See kick-off times and venues</li>
-                <li>• Note which teams are playing</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="flex items-start">
-            <div className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold mr-4 mt-1">2</div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">Choose Your Team</h3>
-              <ul className="space-y-1 text-slate-700">
-                <li>• Select ONE team you think will win</li>
-                <li>• Remember: You can&apos;t pick the same team twice (in most competitions)</li>
-                <li>• Consider saving strong teams for later rounds</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="flex items-start">
-            <div className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-bold mr-4 mt-1">3</div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">Confirm Your Pick</h3>
-              <ul className="space-y-1 text-slate-700">
-                <li>• Double-check your selection</li>
-                <li>• Submit before the deadline</li>
-                <li>• <strong>You CANNOT change picks once submitted</strong></li>
-              </ul>
-            </div>
-          </div>
+        <div className="bg-slate-50 rounded-lg p-6">
+          <p className="text-slate-700 text-lg">
+            Press <strong>PLAY</strong> and choose your team
+          </p>
         </div>
       </div>
 
@@ -107,13 +59,13 @@ export default function PlayersGettingStartedPage() {
       <div className="bg-white rounded-lg p-8 mb-8 border">
         <h2 className="text-2xl font-bold text-slate-900 mb-6">📋 Understanding the Rules</h2>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-4">⚽ Basic Rules</h3>
             <ul className="space-y-2 text-slate-700">
               <li>• <strong>One pick per round</strong> - Choose wisely</li>
               <li>• <strong>Win = Advance</strong> - Your team must win (not draw)</li>
-              <li>• <strong>Deadline matters</strong> - Late picks aren&apos;t accepted</li>
+              <li>• <strong>Deadline matters</strong> - Late picks are penalised</li>
             </ul>
           </div>
 
@@ -127,15 +79,6 @@ export default function PlayersGettingStartedPage() {
               </ul>
             </div>
           </div>
-
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">⏱️ Results</h3>
-            <ul className="space-y-2 text-slate-700">
-              <li>• Based on 90 minutes + stoppage time</li>
-              <li>• Extra time/penalties don&apos;t count</li>
-              <li>• Postponed matches may be void</li>
-            </ul>
-          </div>
         </div>
       </div>
 
@@ -147,20 +90,19 @@ export default function PlayersGettingStartedPage() {
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-4">🎛️ Your Dashboard Shows</h3>
             <ul className="space-y-2 text-slate-700">
-              <li>• Current round and your pick</li>
-              <li>• Your remaining lives (if applicable)</li>
-              <li>• Competition standings</li>
-              <li>• Pick history</li>
+              <li>• Current round number</li>
+              <li>• Your status (In/Out)</li>
+              <li>• Lives remaining</li>
+              <li>• Round results (Won/Lost)</li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">🔄 After Each Round</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">📋 Standings Page</h3>
             <ul className="space-y-2 text-slate-700">
-              <li>• Check if your team won</li>
-              <li>• See if you&apos;re still active</li>
-              <li>• View next round&apos;s fixtures</li>
-              <li>• Plan your next pick</li>
+              <li>• See who has most lives</li>
+              <li>• View latest picks</li>
+              <li>• See who is eliminated</li>
             </ul>
           </div>
         </div>
@@ -176,7 +118,6 @@ export default function PlayersGettingStartedPage() {
             <ul className="space-y-2 text-slate-700">
               <li>✅ Check fixtures early each week</li>
               <li>✅ Make picks well before deadline</li>
-              <li>✅ Track which teams you&apos;ve used</li>
               <li>✅ Consider opponent strength</li>
               <li>✅ Save strong teams for difficult rounds</li>
             </ul>
@@ -185,8 +126,6 @@ export default function PlayersGettingStartedPage() {
           <div className="bg-red-50 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 text-red-800">❌ DON&apos;T</h3>
             <ul className="space-y-2 text-slate-700">
-              <li>❌ Wait until the last minute</li>
-              <li>❌ Use all strong teams early</li>
               <li>❌ Forget to make a pick</li>
               <li>❌ Pick teams playing away at difficult venues</li>
               <li>❌ Ignore team form and injuries</li>
@@ -207,7 +146,7 @@ export default function PlayersGettingStartedPage() {
 
           <div className="bg-slate-50 rounded-lg p-4">
             <h3 className="font-semibold text-slate-900 mb-2">⏸️ Your team&apos;s match was postponed?</h3>
-            <p className="text-slate-700">Usually void (no win/loss), but check with your organizer for specific rules.</p>
+            <p className="text-slate-700">Usually void (no win/loss), but check with your organiser for specific rules.</p>
           </div>
 
           <div className="bg-slate-50 rounded-lg p-4">
@@ -222,34 +161,25 @@ export default function PlayersGettingStartedPage() {
         </div>
       </div>
 
-      {/* Need Help */}
-      <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">❓ Need Help?</h2>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <Link href="/help/guides/making-picks" className="block bg-slate-50 rounded-lg p-4 hover:bg-slate-100 transition-colors">
-              <h3 className="font-semibold text-slate-900 mb-2">📝 Detailed Picking Guide</h3>
-              <p className="text-slate-700 text-sm">Step-by-step guide to making winning picks</p>
-            </Link>
-
-            <Link href="/help/rules" className="block bg-slate-50 rounded-lg p-4 hover:bg-slate-100 transition-colors">
-              <h3 className="font-semibold text-slate-900 mb-2">📋 Competition Rules</h3>
-              <p className="text-slate-700 text-sm">Complete rules and scoring information</p>
-            </Link>
-          </div>
-
-          <div className="space-y-4">
-            <Link href="/help/faq" className="block bg-slate-50 rounded-lg p-4 hover:bg-slate-100 transition-colors">
-              <h3 className="font-semibold text-slate-900 mb-2">❓ FAQ for Players</h3>
-              <p className="text-slate-700 text-sm">Answers to frequently asked questions</p>
-            </Link>
-
-            <div className="bg-slate-50 rounded-lg p-4">
-              <h3 className="font-semibold text-slate-900 mb-2">📞 Contact Organizer</h3>
-              <p className="text-slate-700 text-sm">Reach out to your competition organizer for help</p>
-            </div>
-          </div>
+      {/* Support CTA */}
+      <div className="bg-slate-50 rounded-lg p-8 text-center border">
+        <h2 className="text-2xl font-bold text-slate-900 mb-4">Need Help?</h2>
+        <p className="text-slate-700 mb-6">
+          If you need assistance, check our FAQ or contact support.
+        </p>
+        <div className="flex justify-center gap-4">
+          <Link
+            href="/help/faq"
+            className="px-4 py-2 bg-white text-slate-800 border rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            View FAQ
+          </Link>
+          <Link
+            href="/help/support"
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            Contact Support
+          </Link>
         </div>
       </div>
 

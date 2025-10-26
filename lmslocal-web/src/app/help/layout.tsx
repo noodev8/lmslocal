@@ -12,8 +12,6 @@ import {
   BookOpenIcon,
   PlayIcon,
   QuestionMarkCircleIcon,
-  ClipboardDocumentListIcon,
-  AcademicCapIcon,
   PhoneIcon
 } from '@heroicons/react/24/outline';
 
@@ -36,22 +34,11 @@ const navigation: NavigationItem[] = [
     name: 'Getting Started',
     icon: BookOpenIcon,
     children: [
-      { name: 'For Organizers', href: '/help/getting-started/organizers' },
+      { name: 'For Organisers', href: '/help/getting-started/organizers' },
       { name: 'For Players', href: '/help/getting-started/players' },
     ]
   },
-  { name: 'Rules', href: '/help/rules', icon: ClipboardDocumentListIcon },
   { name: 'FAQ', href: '/help/faq', icon: QuestionMarkCircleIcon },
-  {
-    name: 'Guides',
-    icon: AcademicCapIcon,
-    children: [
-      { name: 'Creating a Competition', href: '/help/guides/creating-competition' },
-      { name: 'Managing Rounds', href: '/help/guides/managing-rounds' },
-      { name: 'Joining a Competition', href: '/help/guides/joining-competition' },
-      { name: 'Making Picks', href: '/help/guides/making-picks' },
-    ]
-  },
   { name: 'Support', href: '/help/support', icon: PhoneIcon },
 ];
 
@@ -154,7 +141,7 @@ export default function HelpLayout({
                 href={mounted && isAuthenticated ? "/dashboard" : "/"}
                 className="text-lg font-bold text-slate-900"
               >
-                LMSLocal
+                LMS Local
               </Link>
               <span className="mx-3 text-slate-300">/</span>
               <span className="text-lg font-medium text-slate-700">Help Center</span>

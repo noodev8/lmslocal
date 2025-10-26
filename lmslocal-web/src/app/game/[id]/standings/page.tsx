@@ -385,22 +385,26 @@ export default function StandingsPage() {
                           </>
                         ) : (
                           <>
-                            {group.lives !== null && (
+                            {group.lives !== null ? (
                               <>
                                 <div className="flex items-center space-x-1">
                                   <HeartIcon className="h-5 w-5 text-red-500 fill-current" />
                                   <span>{group.lives}</span>
                                 </div>
-                                <span className="text-slate-400">•</span>
+                                {group.fixture_status !== null && (
+                                  <>
+                                    <span className="text-slate-400">•</span>
+                                    <span>
+                                      {group.fixture_status === 'played' ? 'Game Played'
+                                       : group.fixture_status === 'pending' ? 'Game Pending'
+                                       : 'No Pick'}
+                                    </span>
+                                  </>
+                                )}
                               </>
+                            ) : (
+                              <span>Eliminated</span>
                             )}
-                            <span>
-                              {group.lives !== null
-                                ? (group.fixture_status === 'played' ? 'Game Played'
-                                   : group.fixture_status === 'pending' ? 'Game Pending'
-                                   : 'No Pick')
-                                : 'Eliminated'}
-                            </span>
                           </>
                         )}
                       </div>
