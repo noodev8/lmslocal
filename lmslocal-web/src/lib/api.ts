@@ -719,6 +719,69 @@ export const userApi = {
       players?: Player[];
     }>('/get-competition-standings', { competition_id, show_full_user_history, page, page_size, filter_by_lives, search })
   ),
+  getStandingsSummary: (competition_id: number) => withCache(
+    `standings-summary-${competition_id}`,
+    1 * 60 * 60 * 1000, // 1 hour cache
+    () => api.post<{
+      return_code: string;
+      message?: string;
+      competition?: {
+        id: number;
+        name: string;
+        current_round: number;
+        status: string;
+      };
+      round_state?: string;
+      your_position?: {
+        lives: number;
+        status: string;
+        has_picked: boolean;
+        group_key: string;
+        group_name: string;
+      };
+      groups?: Array<{
+        key: string;
+        name: string;
+        lives: number | null;
+        has_picked: boolean | null;
+        count: number;
+        icon: string;
+      }>;
+    }>('/get-standings-summary', { competition_id })
+  ),
+  getStandingsGroup: (competition_id: number, group_key: string, page = 1, page_size = 20) =>
+    api.post<{
+      return_code: string;
+      message?: string;
+      group?: {
+        key: string;
+        name: string;
+      };
+      pagination?: {
+        current_page: number;
+        page_size: number;
+        total_players: number;
+        total_pages: number;
+      };
+      players?: Array<{
+        id: number;
+        display_name: string;
+        lives_remaining: number;
+        status: string;
+        current_pick: {
+          team: string;
+          team_full_name: string;
+          fixture: string;
+          outcome: string;
+        } | null;
+        elimination_pick: {
+          round_number: number;
+          team: string;
+          fixture: string;
+          result: string;
+        } | null;
+      }>;
+    }>('/get-standings-group', { competition_id, group_key, page, page_size }),
   getPlayerHistory: (competition_id: number, player_id: number) =>
     api.post<{
       return_code: string;
