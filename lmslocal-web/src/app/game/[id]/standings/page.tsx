@@ -11,7 +11,6 @@ import {
   XCircleIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  ArrowPathIcon,
   CheckCircleIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
@@ -76,7 +75,6 @@ export default function StandingsPage() {
   const [roundState, setRoundState] = useState<string>('');
   const [groups, setGroups] = useState<StandingsGroup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Expanded group state
   const [expandedGroups, setExpandedGroups] = useState<{ [key: string]: boolean }>({});
@@ -99,9 +97,8 @@ export default function StandingsPage() {
   const [hasSearched, setHasSearched] = useState(false);
 
   // Load summary on mount
-  const loadSummary = useCallback(async (showLoader = true) => {
-    if (showLoader) setLoading(true);
-    else setRefreshing(true);
+  const loadSummary = useCallback(async () => {
+    setLoading(true);
 
     try {
       const response = await userApi.getStandingsSummary(parseInt(competitionId));
@@ -116,8 +113,7 @@ export default function StandingsPage() {
     } catch (error) {
       console.error('Error loading standings:', error);
     } finally {
-      if (showLoader) setLoading(false);
-      else setRefreshing(false);
+      setLoading(false);
     }
   }, [competitionId]);
 
@@ -191,14 +187,6 @@ export default function StandingsPage() {
     } finally {
       setLoadingHistory(false);
     }
-  };
-
-  // Manual refresh
-  const handleRefresh = async () => {
-    // Clear cache and reload
-    const { cacheUtils } = await import('@/lib/api');
-    cacheUtils.invalidateKey(`standings-summary-${competitionId}`);
-    await loadSummary(false);
   };
 
   // Search players
@@ -297,23 +285,13 @@ export default function StandingsPage() {
                 <h1 className="text-lg font-bold text-white">Standings</h1>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setShowSearchModal(true)}
-                className="flex items-center space-x-2 px-3 py-2 text-sm text-slate-200 hover:text-white hover:bg-slate-600 rounded-lg transition-colors"
-              >
-                <MagnifyingGlassIcon className="h-4 w-4" />
-                <span>Search</span>
-              </button>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center space-x-2 px-3 py-2 text-sm text-slate-200 hover:text-white hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-slate-200 hover:text-white hover:bg-slate-600 rounded-lg transition-colors"
+            >
+              <MagnifyingGlassIcon className="h-4 w-4" />
+              <span>Search</span>
+            </button>
           </div>
         </div>
       </header>
@@ -595,7 +573,7 @@ export default function StandingsPage() {
 
             {/* Search Input */}
             <div className="p-6 border-b border-slate-200">
-              <div className="flex space-x-2">
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={searchTerm}
@@ -614,7 +592,7 @@ export default function StandingsPage() {
                     }
                   }}
                   placeholder="Enter name or email..."
-                  className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   autoFocus
                   spellCheck={false}
                   autoComplete="off"
@@ -622,17 +600,17 @@ export default function StandingsPage() {
                 <button
                   onClick={handleSearch}
                   disabled={searchLoading || searchTerm.trim().length < 2}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  className="px-3 sm:px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 flex-shrink-0"
                 >
                   {searchLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      <span>Searching...</span>
+                      <span className="hidden sm:inline text-sm">Searching...</span>
                     </>
                   ) : (
                     <>
                       <MagnifyingGlassIcon className="h-5 w-5" />
-                      <span>Search</span>
+                      <span className="hidden sm:inline text-sm">Search</span>
                     </>
                   )}
                 </button>
