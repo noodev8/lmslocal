@@ -198,8 +198,11 @@ export default function OrganizerResultsPage() {
         // Clear modified fixtures tracking
         setModifiedFixtures(new Set());
 
-        // Reload fixtures to show updated processed status
-        await loadFixtures();
+        // Wait for all cache operations to complete before redirecting
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Redirect to game dashboard with fresh data
+        router.push(`/game/${competitionId}`);
 
       } else if (response.data.return_code === 'NO_RESULTS_TO_PROCESS') {
         setProcessError('All fixtures have been processed or have no results set');
