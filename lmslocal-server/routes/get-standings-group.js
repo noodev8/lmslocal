@@ -182,6 +182,7 @@ router.post('/', verifyToken, async (req, res) => {
 
         whereClause = `cu.status = 'active' AND cu.lives_remaining = $${paramIndex}`;
         queryParams.push(lives);
+        paramIndex++;
 
         const livesLabel = `${lives} ${lives === 1 ? 'life' : 'lives'}`;
         groupName = livesLabel;
@@ -229,16 +230,24 @@ router.post('/', verifyToken, async (req, res) => {
     // STEP 5: GET TOTAL COUNT FOR PAGINATION
     // ========================================
 
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM competition_user cu
-      LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $${currentRound ? paramIndex : 'NULL'}
-      LEFT JOIN fixture f ON p.fixture_id = f.id
-      WHERE cu.competition_id = $1 AND ${whereClause}
-    `;
-
+    let countQuery;
     if (currentRound) {
+      countQuery = `
+        SELECT COUNT(*) as total
+        FROM competition_user cu
+        LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $${paramIndex}
+        LEFT JOIN fixture f ON p.fixture_id = f.id
+        WHERE cu.competition_id = $1 AND ${whereClause}
+      `;
       queryParams.push(currentRound.id);
+    } else {
+      countQuery = `
+        SELECT COUNT(*) as total
+        FROM competition_user cu
+        LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id IS NULL
+        LEFT JOIN fixture f ON p.fixture_id = f.id
+        WHERE cu.competition_id = $1 AND ${whereClause}
+      `;
     }
 
     const countResult = await query(countQuery, queryParams);

@@ -3,12 +3,12 @@
 API Route: search-players
 =======================================================================================================================================
 Method: POST
-Purpose: Search for players in a competition by name and return their current status
+Purpose: Search for players in a competition by name or email and return their current status
 =======================================================================================================================================
 Request Payload:
 {
   "competition_id": 123,                  // integer, required - ID of the competition
-  "search_term": "John",                  // string, required - Name to search for (partial match)
+  "search_term": "John",                  // string, required - Name or email to search for (partial match)
   "limit": 10                             // integer, optional - Max results (default: 10, max: 50)
 }
 
@@ -224,7 +224,7 @@ router.post('/', verifyToken, async (req, res) => {
       LEFT JOIN team t_away_elim ON f_elim.away_team_short = t_away_elim.short_name
 
       WHERE cu.competition_id = $1
-        AND au.display_name ILIKE $3
+        AND (au.display_name ILIKE $3 OR au.email ILIKE $3)
       ORDER BY au.display_name ASC
       LIMIT $4
     `;

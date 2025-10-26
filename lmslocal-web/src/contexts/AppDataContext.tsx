@@ -28,7 +28,7 @@ interface AppDataContextType {
 
   // Actions
   refreshData: () => void;
-  refreshCompetitions: () => void;
+  refreshCompetitions: (bypassCache?: boolean) => Promise<void>;
   forceRefresh: () => Promise<void>;
   updateCompetition: (competitionId: number, updates: Partial<Competition>) => void;
 

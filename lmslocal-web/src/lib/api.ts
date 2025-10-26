@@ -746,6 +746,7 @@ export const userApi = {
         fixture_status: string | null;
         count: number;
         icon: string;
+        winner_name?: string;
       }>;
     }>('/get-standings-summary', { competition_id })
   ),

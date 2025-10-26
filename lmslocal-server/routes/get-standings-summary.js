@@ -287,14 +287,40 @@ router.post('/', verifyToken, async (req, res) => {
 
         const groupName = `${livesLabel}, ${statusLabel}`;
 
-        groups.push({
+        const groupData = {
           key: groupKey,
           name: groupName,
           lives: row.lives_remaining,
           fixture_status: fixtureStatus,
           count: parseInt(row.player_count),
           icon
-        });
+        };
+
+        // If exactly 1 player in this group, include their name (for winner display)
+        if (parseInt(row.player_count) === 1) {
+          const playerResult = await query(`
+            SELECT au.display_name
+            FROM competition_user cu
+            INNER JOIN app_user au ON cu.user_id = au.id
+            LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $3
+            LEFT JOIN fixture f ON p.fixture_id = f.id
+            WHERE cu.competition_id = $1
+              AND cu.lives_remaining = $2
+              AND cu.status = 'active'
+              AND CASE
+                WHEN p.id IS NULL THEN 'no_pick'
+                WHEN f.result IS NOT NULL THEN 'played'
+                ELSE 'pending'
+              END = $4
+            LIMIT 1
+          `, [competition_id, row.lives_remaining, currentRound?.id, fixtureStatus]);
+
+          if (playerResult.rows.length > 0) {
+            groupData.winner_name = playerResult.rows[0].display_name;
+          }
+        }
+
+        groups.push(groupData);
       }
 
       // Add eliminated group
@@ -332,14 +358,33 @@ router.post('/', verifyToken, async (req, res) => {
         const groupKey = `${row.lives_remaining}`;
         const groupName = livesLabel;
 
-        groups.push({
+        const groupData = {
           key: groupKey,
           name: groupName,
           lives: row.lives_remaining,
           fixture_status: null,
           count: parseInt(row.player_count),
           icon: 'trophy'
-        });
+        };
+
+        // If exactly 1 player in this group, include their name (for winner display)
+        if (parseInt(row.player_count) === 1) {
+          const playerResult = await query(`
+            SELECT au.display_name
+            FROM competition_user cu
+            INNER JOIN app_user au ON cu.user_id = au.id
+            WHERE cu.competition_id = $1
+              AND cu.lives_remaining = $2
+              AND cu.status = 'active'
+            LIMIT 1
+          `, [competition_id, row.lives_remaining]);
+
+          if (playerResult.rows.length > 0) {
+            groupData.winner_name = playerResult.rows[0].display_name;
+          }
+        }
+
+        groups.push(groupData);
       }
 
       // Add eliminated group

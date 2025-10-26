@@ -572,10 +572,9 @@ export default function UnifiedGameDashboard() {
           <>
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-2">Round {currentRoundInfo.round_number}</div>
-                <div className="text-lg font-semibold text-green-600">
-                  {competition.player_count} <span className="text-gray-600">Active</span>
-                </div>
+                <div className="text-lg font-semibold text-gray-600 mb-3">Round {currentRoundInfo.round_number}</div>
+                <div className="text-6xl font-black text-green-600 mb-1">{competition.player_count}</div>
+                <div className="text-sm font-medium text-gray-600">Active</div>
               </div>
             </div>
 
@@ -772,7 +771,7 @@ export default function UnifiedGameDashboard() {
                         <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                           {roundStats.won > 0 && (
                             <div
-                              className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
+                              className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white"
                               style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
                             >
                               <div className="text-2xl font-black">{roundStats.won}</div>
@@ -781,7 +780,7 @@ export default function UnifiedGameDashboard() {
                           )}
                           {(roundStats.lost - roundStats.eliminated) > 0 && (
                             <div
-                              className="bg-gradient-to-br from-amber-500 to-amber-600 flex flex-col items-center justify-center text-white transition-all hover:from-amber-600 hover:to-amber-700"
+                              className="bg-gradient-to-br from-slate-400 to-slate-500 flex flex-col items-center justify-center text-white"
                               style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
                             >
                               <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
@@ -790,7 +789,7 @@ export default function UnifiedGameDashboard() {
                           )}
                           {roundStats.eliminated > 0 && (
                             <div
-                              className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white transition-all hover:from-red-600 hover:to-red-700"
+                              className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white"
                               style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
                             >
                               <div className="text-2xl font-black">{roundStats.eliminated}</div>
@@ -814,7 +813,7 @@ export default function UnifiedGameDashboard() {
                       <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                         {roundStats.won > 0 && (
                           <div
-                            className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
+                            className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white"
                             style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{roundStats.won}</div>
@@ -823,7 +822,7 @@ export default function UnifiedGameDashboard() {
                         )}
                         {(roundStats.lost - roundStats.eliminated) > 0 && (
                           <div
-                            className="bg-gradient-to-br from-amber-500 to-amber-600 flex flex-col items-center justify-center text-white transition-all hover:from-amber-600 hover:to-amber-700"
+                            className="bg-gradient-to-br from-slate-400 to-slate-500 flex flex-col items-center justify-center text-white"
                             style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
@@ -832,7 +831,7 @@ export default function UnifiedGameDashboard() {
                         )}
                         {roundStats.eliminated > 0 && (
                           <div
-                            className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white transition-all hover:from-red-600 hover:to-red-700"
+                            className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white"
                             style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{roundStats.eliminated}</div>
@@ -848,17 +847,17 @@ export default function UnifiedGameDashboard() {
                 /* After Lock, Before Results - Show Live Status */
                 <div className="space-y-3">
                   <div className="text-center">
-                    <div className="text-lg font-semibold text-blue-600">⚽ Round {currentRoundInfo.round_number} Live</div>
+                    <div className="text-lg font-semibold text-gray-600">Round {currentRoundInfo.round_number} Live</div>
                   </div>
 
                   {/* Show current round statistics if available */}
                   {currentRoundStats && currentRoundStats.round_number === currentRoundInfo.round_number && currentRoundStats.total_players > 0 ? (
-                    <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-5 border-2 border-blue-200 shadow-sm">
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
                       {/* Visual proportional bar */}
                       <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                         {currentRoundStats.won > 0 && (
                           <div
-                            className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white transition-all hover:from-green-600 hover:to-green-700"
+                            className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white"
                             style={{ width: `${(currentRoundStats.won / currentRoundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{currentRoundStats.won}</div>
@@ -867,7 +866,7 @@ export default function UnifiedGameDashboard() {
                         )}
                         {(currentRoundStats.lost - currentRoundStats.eliminated) > 0 && (
                           <div
-                            className="bg-gradient-to-br from-amber-500 to-amber-600 flex flex-col items-center justify-center text-white transition-all hover:from-amber-600 hover:to-amber-700"
+                            className="bg-gradient-to-br from-slate-400 to-slate-500 flex flex-col items-center justify-center text-white"
                             style={{ width: `${((currentRoundStats.lost - currentRoundStats.eliminated) / currentRoundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{currentRoundStats.lost - currentRoundStats.eliminated}</div>
@@ -876,7 +875,7 @@ export default function UnifiedGameDashboard() {
                         )}
                         {currentRoundStats.eliminated > 0 && (
                           <div
-                            className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white transition-all hover:from-red-600 hover:to-red-700"
+                            className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white"
                             style={{ width: `${(currentRoundStats.eliminated / currentRoundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{currentRoundStats.eliminated}</div>
