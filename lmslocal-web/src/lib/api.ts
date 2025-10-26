@@ -735,7 +735,7 @@ export const userApi = {
       your_position?: {
         lives: number;
         status: string;
-        has_picked: boolean;
+        fixture_status: string;
         group_key: string;
         group_name: string;
       };
@@ -743,7 +743,7 @@ export const userApi = {
         key: string;
         name: string;
         lives: number | null;
-        has_picked: boolean | null;
+        fixture_status: string | null;
         count: number;
         icon: string;
       }>;
@@ -782,6 +782,31 @@ export const userApi = {
         } | null;
       }>;
     }>('/get-standings-group', { competition_id, group_key, page, page_size }),
+  searchPlayers: (competition_id: number, search_term: string, limit = 10) =>
+    api.post<{
+      return_code: string;
+      message?: string;
+      results?: Array<{
+        id: number;
+        display_name: string;
+        lives_remaining: number;
+        status: string;
+        group_key: string;
+        group_name: string;
+        current_pick: {
+          team: string;
+          team_full_name: string;
+          fixture: string;
+          outcome: string;
+        } | null;
+        elimination_pick: {
+          round_number: number;
+          team: string;
+          fixture: string;
+          result: string;
+        } | null;
+      }>;
+    }>('/search-players', { competition_id, search_term, limit }),
   getPlayerHistory: (competition_id: number, player_id: number) =>
     api.post<{
       return_code: string;

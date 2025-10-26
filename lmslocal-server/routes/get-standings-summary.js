@@ -103,6 +103,7 @@ router.post('/', verifyToken, async (req, res) => {
         c.id,
         c.name,
         c.status,
+        c.organiser_id,
         cu.status as user_status
       FROM competition c
       LEFT JOIN competition_user cu ON c.id = cu.competition_id AND cu.user_id = $2
@@ -118,8 +119,9 @@ router.post('/', verifyToken, async (req, res) => {
 
     const competition = competitionResult.rows[0];
 
-    // Verify user is a participant
-    if (!competition.user_status) {
+    // Verify user is a participant OR organizer
+    const isOrganizer = competition.organiser_id === user_id;
+    if (!competition.user_status && !isOrganizer) {
       return res.status(200).json({
         return_code: "UNAUTHORIZED",
         message: "You are not a participant in this competition"
@@ -173,58 +175,56 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // ========================================
-    // STEP 4: GET USER'S CURRENT POSITION
+    // STEP 4: GET USER'S CURRENT POSITION (only if participant)
     // ========================================
 
-    const userPositionResult = await query(`
-      SELECT
-        cu.lives_remaining,
-        cu.status,
-        CASE
-          WHEN p.id IS NOT NULL THEN true
-          ELSE false
-        END as has_picked
-      FROM competition_user cu
-      LEFT JOIN pick p ON p.user_id = cu.user_id
-        AND p.round_id = $2
-      WHERE cu.competition_id = $1 AND cu.user_id = $3
-    `, [competition_id, currentRound?.id, user_id]);
+    let userPosition = null;
+    let userGroupKey = null;
+    let userGroupName = null;
 
-    const userPosition = userPositionResult.rows[0] || {
-      lives_remaining: 0,
-      status: 'out',
-      has_picked: false
-    };
+    // Only get user position if they're actually a participant
+    if (competition.user_status) {
+      const userPositionResult = await query(`
+        SELECT
+          cu.lives_remaining,
+          cu.status,
+          CASE
+            WHEN p.id IS NULL THEN 'no_pick'
+            WHEN f.result IS NOT NULL THEN 'played'
+            ELSE 'pending'
+          END as fixture_status
+        FROM competition_user cu
+        LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $2
+        LEFT JOIN fixture f ON p.fixture_id = f.id
+        WHERE cu.competition_id = $1 AND cu.user_id = $3
+      `, [competition_id, currentRound?.id, user_id]);
 
-    // Determine user's group
-    let userGroupKey = "eliminated";
-    let userGroupName = "Eliminated";
+      userPosition = userPositionResult.rows[0] || {
+        lives_remaining: 0,
+        status: 'out',
+        fixture_status: 'no_pick'
+      };
 
-    if (userPosition.status === 'active') {
-      if (roundState === "ACTIVE") {
-        // Mid-round: split by picked/not picked
-        const pickedStatus = userPosition.has_picked ? "picked" : "not_picked";
-        userGroupKey = `${userPosition.lives_remaining}_${pickedStatus}`;
+      // Determine user's group
+      userGroupKey = "eliminated";
+      userGroupName = "Eliminated";
 
-        const livesLabel = `${userPosition.lives_remaining} ${userPosition.lives_remaining === 1 ? 'life' : 'lives'}`;
-        const pickedLabel = userPosition.has_picked ? 'picked' : 'not picked';
+      if (userPosition.status === 'active') {
+        if (roundState === "ACTIVE") {
+          // Mid-round: split by fixture status
+          const fixtureStatus = userPosition.fixture_status;
+          userGroupKey = `${userPosition.lives_remaining}_${fixtureStatus}`;
 
-        if (userPosition.lives_remaining >= 2) {
-          userGroupName = userPosition.has_picked ?
-            `Leaders (${livesLabel}, ${pickedLabel})` :
-            `Pending (${livesLabel}, ${pickedLabel})`;
+          const livesLabel = `${userPosition.lives_remaining} ${userPosition.lives_remaining === 1 ? 'life' : 'lives'}`;
+          const statusLabel = fixtureStatus === 'played' ? 'Game Played' : fixtureStatus === 'pending' ? 'Game Pending' : 'No Pick';
+
+          userGroupName = `${livesLabel}, ${statusLabel}`;
         } else {
-          userGroupName = `In Contention (${livesLabel}, ${pickedLabel})`;
-        }
-      } else {
-        // Between rounds or before lock: just by lives
-        userGroupKey = `${userPosition.lives_remaining}`;
-        const livesLabel = `${userPosition.lives_remaining} ${userPosition.lives_remaining === 1 ? 'life' : 'lives'}`;
+          // Between rounds or before lock: just by lives
+          userGroupKey = `${userPosition.lives_remaining}`;
+          const livesLabel = `${userPosition.lives_remaining} ${userPosition.lives_remaining === 1 ? 'life' : 'lives'}`;
 
-        if (userPosition.lives_remaining >= 2) {
-          userGroupName = `Leaders (${livesLabel})`;
-        } else {
-          userGroupName = `In Contention (${livesLabel})`;
+          userGroupName = livesLabel;
         }
       }
     }
@@ -236,52 +236,65 @@ router.post('/', verifyToken, async (req, res) => {
     const groups = [];
 
     if (roundState === "ACTIVE") {
-      // Mid-round: split by lives AND picked status
+      // Mid-round: split by lives AND whether their fixture has played
       const groupCountsResult = await query(`
+        WITH player_status AS (
+          SELECT
+            cu.lives_remaining,
+            CASE
+              WHEN p.id IS NULL THEN 'no_pick'
+              WHEN f.result IS NOT NULL THEN 'played'
+              ELSE 'pending'
+            END as fixture_status
+          FROM competition_user cu
+          LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $2
+          LEFT JOIN fixture f ON p.fixture_id = f.id
+          WHERE cu.competition_id = $1 AND cu.status = 'active'
+        )
         SELECT
-          cu.lives_remaining,
-          CASE
-            WHEN p.id IS NOT NULL THEN true
-            ELSE false
-          END as has_picked,
+          lives_remaining,
+          fixture_status,
           COUNT(*) as player_count
-        FROM competition_user cu
-        LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $2
-        WHERE cu.competition_id = $1 AND cu.status = 'active'
-        GROUP BY cu.lives_remaining, has_picked
+        FROM player_status
+        GROUP BY lives_remaining, fixture_status
         ORDER BY
-          cu.lives_remaining DESC,
-          has_picked DESC
+          lives_remaining DESC,
+          CASE
+            WHEN fixture_status = 'played' THEN 1
+            WHEN fixture_status = 'pending' THEN 2
+            ELSE 3
+          END
       `, [competition_id, currentRound?.id]);
 
       // Process active players
       for (const row of groupCountsResult.rows) {
-        if (row.lives_remaining !== null) {
-          const livesLabel = `${row.lives_remaining} ${row.lives_remaining === 1 ? 'life' : 'lives'}`;
-          const pickedStatus = row.has_picked ? "picked" : "not_picked";
-          const pickedLabel = row.has_picked ? 'picked' : 'not picked';
-          const groupKey = `${row.lives_remaining}_${pickedStatus}`;
+        const livesLabel = `${row.lives_remaining} ${row.lives_remaining === 1 ? 'life' : 'lives'}`;
+        const fixtureStatus = row.fixture_status; // 'played', 'pending', or 'no_pick'
+        const groupKey = `${row.lives_remaining}_${fixtureStatus}`;
 
-          let groupName, icon;
-          if (row.lives_remaining >= 2) {
-            groupName = row.has_picked ?
-              `Leaders (${livesLabel}, ${pickedLabel})` :
-              `Pending (${livesLabel}, ${pickedLabel})`;
-            icon = row.has_picked ? 'trophy' : 'clock';
-          } else {
-            groupName = `In Contention (${livesLabel}, ${pickedLabel})`;
-            icon = row.has_picked ? 'heart' : 'clock';
-          }
+        let icon, statusLabel;
 
-          groups.push({
-            key: groupKey,
-            name: groupName,
-            lives: row.lives_remaining,
-            has_picked: row.has_picked,
-            count: parseInt(row.player_count),
-            icon
-          });
+        if (fixtureStatus === 'played') {
+          statusLabel = 'Game Played';
+          icon = 'trophy';
+        } else if (fixtureStatus === 'pending') {
+          statusLabel = 'Game Pending';
+          icon = 'clock';
+        } else {
+          statusLabel = 'No Pick';
+          icon = 'warning';
         }
+
+        const groupName = `${livesLabel}, ${statusLabel}`;
+
+        groups.push({
+          key: groupKey,
+          name: groupName,
+          lives: row.lives_remaining,
+          fixture_status: fixtureStatus,
+          count: parseInt(row.player_count),
+          icon
+        });
       }
 
       // Add eliminated group
@@ -296,7 +309,7 @@ router.post('/', verifyToken, async (req, res) => {
           key: "eliminated",
           name: "Eliminated",
           lives: null,
-          has_picked: null,
+          fixture_status: null,
           count: parseInt(eliminatedCount.rows[0].count),
           icon: "eliminated"
         });
@@ -317,23 +330,15 @@ router.post('/', verifyToken, async (req, res) => {
       for (const row of groupCountsResult.rows) {
         const livesLabel = `${row.lives_remaining} ${row.lives_remaining === 1 ? 'life' : 'lives'}`;
         const groupKey = `${row.lives_remaining}`;
-
-        let groupName, icon;
-        if (row.lives_remaining >= 2) {
-          groupName = `Leaders (${livesLabel})`;
-          icon = 'trophy';
-        } else {
-          groupName = `In Contention (${livesLabel})`;
-          icon = 'heart';
-        }
+        const groupName = livesLabel;
 
         groups.push({
           key: groupKey,
           name: groupName,
           lives: row.lives_remaining,
-          has_picked: null,
+          fixture_status: null,
           count: parseInt(row.player_count),
-          icon
+          icon: 'trophy'
         });
       }
 
@@ -349,7 +354,7 @@ router.post('/', verifyToken, async (req, res) => {
           key: "eliminated",
           name: "Eliminated",
           lives: null,
-          has_picked: null,
+          fixture_status: null,
           count: parseInt(eliminatedCount.rows[0].count),
           icon: "eliminated"
         });
@@ -360,7 +365,7 @@ router.post('/', verifyToken, async (req, res) => {
     // STEP 6: RETURN RESPONSE
     // ========================================
 
-    return res.status(200).json({
+    const response = {
       return_code: "SUCCESS",
       competition: {
         id: competition.id,
@@ -369,15 +374,21 @@ router.post('/', verifyToken, async (req, res) => {
         status: competition.status
       },
       round_state: roundState,
-      your_position: {
+      groups
+    };
+
+    // Only include your_position if user is a participant
+    if (userPosition) {
+      response.your_position = {
         lives: userPosition.lives_remaining,
         status: userPosition.status,
-        has_picked: userPosition.has_picked,
+        fixture_status: userPosition.fixture_status,
         group_key: userGroupKey,
         group_name: userGroupName
-      },
-      groups
-    });
+      };
+    }
+
+    return res.status(200).json(response);
 
   } catch (error) {
     console.error('Error in get-standings-summary:', error);

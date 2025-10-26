@@ -1,37 +1,28 @@
 /*
 =======================================================================================================================================
-API Route: get-standings-group
+API Route: search-players
 =======================================================================================================================================
 Method: POST
-Purpose: Returns detailed player list for a specific standings group with pagination
+Purpose: Search for players in a competition by name and return their current status
 =======================================================================================================================================
 Request Payload:
 {
   "competition_id": 123,                  // integer, required - ID of the competition
-  "group_key": "2_picked",                // string, required - Group identifier from summary API
-  "page": 1,                              // integer, optional - Page number (default: 1)
-  "page_size": 20                         // integer, optional - Players per page (default: 20, max: 50)
+  "search_term": "John",                  // string, required - Name to search for (partial match)
+  "limit": 10                             // integer, optional - Max results (default: 10, max: 50)
 }
 
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "group": {
-    "key": "2_picked",                    // string, group identifier
-    "name": "In Contention (2 lives, picked)" // string, display name
-  },
-  "pagination": {
-    "current_page": 1,                    // integer, current page
-    "page_size": 20,                      // integer, players per page
-    "total_players": 15,                  // integer, total players in this group
-    "total_pages": 1                      // integer, total pages
-  },
-  "players": [
+  "results": [
     {
       "id": 456,                          // integer, player user ID
       "display_name": "John Doe",         // string, player name
       "lives_remaining": 2,               // integer, remaining lives
       "status": "active",                 // string, player status
+      "group_key": "2_pending",           // string, group identifier
+      "group_name": "❤️ 2 • Game Pending", // string, group display name
       "current_pick": {                   // object|null, current round pick
         "team": "CHE",                    // string, team short code
         "team_full_name": "Chelsea",      // string, full team name
@@ -52,9 +43,8 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "MISSING_FIELDS"
-"INVALID_GROUP"             - Group key not recognized
 "COMPETITION_NOT_FOUND"
-"UNAUTHORIZED"              - User is not a participant
+"UNAUTHORIZED"              - User is not a participant or organizer
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -66,10 +56,10 @@ const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
-  logApiCall('get-standings-group');
+  logApiCall('search-players');
 
   try {
-    const { competition_id, group_key, page = 1, page_size = 20 } = req.body;
+    const { competition_id, search_term, limit = 10 } = req.body;
     const user_id = req.user.id;
 
     // ========================================
@@ -83,17 +73,15 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    if (!group_key || typeof group_key !== 'string') {
+    if (!search_term || typeof search_term !== 'string' || search_term.trim().length === 0) {
       return res.status(200).json({
         return_code: "MISSING_FIELDS",
-        message: "group_key is required and must be a string"
+        message: "search_term is required and must be a non-empty string"
       });
     }
 
-    // Validate pagination
-    const currentPage = Math.max(1, parseInt(page) || 1);
-    const itemsPerPage = Math.min(50, Math.max(1, parseInt(page_size) || 20));
-    const offset = (currentPage - 1) * itemsPerPage;
+    // Validate limit
+    const maxResults = Math.min(50, Math.max(1, parseInt(limit) || 10));
 
     // ========================================
     // STEP 2: VERIFY COMPETITION EXISTS AND USER ACCESS
@@ -145,141 +133,41 @@ router.post('/', verifyToken, async (req, res) => {
 
     let currentRound = null;
     let isRoundLocked = false;
+    let roundState = "PENDING";
 
     if (roundResult.rows.length > 0) {
       currentRound = roundResult.rows[0];
       const now = new Date();
       const lockTime = new Date(currentRound.lock_time);
       isRoundLocked = now >= lockTime;
-    }
 
-    // ========================================
-    // STEP 4: PARSE GROUP KEY AND BUILD QUERY
-    // ========================================
+      if (isRoundLocked) {
+        // Check if all fixtures are processed to determine if round is complete
+        const fixturesResult = await query(`
+          SELECT
+            COUNT(*) as total_fixtures,
+            COUNT(processed) as processed_fixtures
+          FROM fixture
+          WHERE round_id = $1
+        `, [currentRound.id]);
 
-    let groupName = "";
-    let whereClause = "";
-    let queryParams = [competition_id];
-    let paramIndex = 2;
+        const { total_fixtures, processed_fixtures } = fixturesResult.rows[0];
 
-    if (group_key === "eliminated") {
-      // Eliminated group
-      groupName = "Eliminated";
-      whereClause = "cu.status = 'out'";
-    } else {
-      // Parse group key (e.g., "2_picked", "3_not_picked", "2", "1")
-      const parts = group_key.split('_');
-
-      if (parts.length === 1) {
-        // Just lives (between rounds mode): "2", "1", "0"
-        const lives = parseInt(parts[0]);
-        if (isNaN(lives)) {
-          return res.status(200).json({
-            return_code: "INVALID_GROUP",
-            message: "Invalid group key format"
-          });
-        }
-
-        whereClause = `cu.status = 'active' AND cu.lives_remaining = $${paramIndex}`;
-        queryParams.push(lives);
-
-        const livesLabel = `${lives} ${lives === 1 ? 'life' : 'lives'}`;
-        groupName = livesLabel;
-
-      } else if (parts.length === 2) {
-        // Lives + fixture status (mid-round mode): "2_played", "3_pending", "2_no_pick"
-        const lives = parseInt(parts[0]);
-        const fixtureStatus = parts[1]; // "played", "pending", or "no_pick"
-
-        if (isNaN(lives) || !['played', 'pending', 'no_pick'].includes(fixtureStatus)) {
-          return res.status(200).json({
-            return_code: "INVALID_GROUP",
-            message: "Invalid group key format"
-          });
-        }
-
-        whereClause = `cu.status = 'active' AND cu.lives_remaining = $${paramIndex}`;
-        queryParams.push(lives);
-        paramIndex++;
-
-        // Add fixture status condition
-        if (fixtureStatus === 'played') {
-          whereClause += ` AND p.id IS NOT NULL AND f.result IS NOT NULL`;
-        } else if (fixtureStatus === 'pending') {
-          whereClause += ` AND p.id IS NOT NULL AND f.result IS NULL`;
+        if (total_fixtures > 0 && parseInt(total_fixtures) === parseInt(processed_fixtures)) {
+          roundState = "COMPLETE"; // Between rounds - all fixtures processed
         } else {
-          // no_pick
-          whereClause += ` AND p.id IS NULL`;
+          roundState = "ACTIVE"; // Mid-round - fixtures still being processed
         }
-
-        const livesLabel = `${lives} ${lives === 1 ? 'life' : 'lives'}`;
-        const statusLabel = fixtureStatus === 'played' ? 'Game Played' : fixtureStatus === 'pending' ? 'Game Pending' : 'No Pick';
-
-        groupName = `${livesLabel}, ${statusLabel}`;
-
-      } else {
-        return res.status(200).json({
-          return_code: "INVALID_GROUP",
-          message: "Invalid group key format"
-        });
       }
     }
 
     // ========================================
-    // STEP 5: GET TOTAL COUNT FOR PAGINATION
+    // STEP 4: SEARCH FOR PLAYERS
     // ========================================
 
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM competition_user cu
-      LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $${currentRound ? paramIndex : 'NULL'}
-      LEFT JOIN fixture f ON p.fixture_id = f.id
-      WHERE cu.competition_id = $1 AND ${whereClause}
-    `;
+    const searchPattern = `%${search_term.trim()}%`;
 
-    if (currentRound) {
-      queryParams.push(currentRound.id);
-    }
-
-    const countResult = await query(countQuery, queryParams);
-    const totalPlayers = parseInt(countResult.rows[0].total);
-    const totalPages = Math.ceil(totalPlayers / itemsPerPage);
-
-    // ========================================
-    // STEP 6: GET PLAYERS FOR THIS GROUP (PAGINATED)
-    // ========================================
-
-    // Reset query params for player query
-    queryParams = [competition_id];
-    paramIndex = 2;
-
-    // Rebuild params for main query
-    if (group_key !== "eliminated") {
-      const parts = group_key.split('_');
-      if (parts.length >= 1) {
-        queryParams.push(parseInt(parts[0])); // lives
-        paramIndex++;
-      }
-    }
-
-    let roundParamIndex = null;
-    if (currentRound) {
-      roundParamIndex = paramIndex;
-      queryParams.push(currentRound.id);
-      paramIndex++;
-    }
-
-    const limitParamIndex = paramIndex;
-    queryParams.push(itemsPerPage);
-    const offsetParamIndex = paramIndex + 1;
-    queryParams.push(offset);
-
-    // Build the pick join clause based on whether we have a round
-    const pickJoinClause = currentRound
-      ? `LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $${roundParamIndex}`
-      : `LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id IS NULL`;
-
-    const playersQuery = `
+    const searchQuery = `
       SELECT
         cu.user_id as id,
         au.display_name,
@@ -298,6 +186,11 @@ router.post('/', verifyToken, async (req, res) => {
           WHEN p.id IS NULL THEN 'NO_PICK'
           ELSE 'pending'
         END as pick_outcome,
+        CASE
+          WHEN p.id IS NULL THEN 'no_pick'
+          WHEN f.result IS NOT NULL THEN 'played'
+          ELSE 'pending'
+        END as fixture_status,
 
         -- Elimination info (for eliminated players only)
         pp_elim.round_id as elim_round_id,
@@ -311,7 +204,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       FROM competition_user cu
       INNER JOIN app_user au ON cu.user_id = au.id
-      ${pickJoinClause}
+      LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $2
       LEFT JOIN team t ON p.team = t.short_name
       LEFT JOIN fixture f ON p.fixture_id = f.id
       LEFT JOIN team t_home ON f.home_team_short = t_home.short_name
@@ -330,20 +223,52 @@ router.post('/', verifyToken, async (req, res) => {
       LEFT JOIN team t_home_elim ON f_elim.home_team_short = t_home_elim.short_name
       LEFT JOIN team t_away_elim ON f_elim.away_team_short = t_away_elim.short_name
 
-      WHERE cu.competition_id = $1 AND ${whereClause}
+      WHERE cu.competition_id = $1
+        AND au.display_name ILIKE $3
       ORDER BY au.display_name ASC
-      LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
+      LIMIT $4
     `;
 
-    const playersResult = await query(playersQuery, queryParams);
+    const searchResult = await query(searchQuery, [
+      competition_id,
+      currentRound?.id || null,
+      searchPattern,
+      maxResults
+    ]);
 
-    // Format players
-    const players = playersResult.rows.map(row => {
+    // ========================================
+    // STEP 5: FORMAT RESULTS
+    // ========================================
+
+    const results = searchResult.rows.map(row => {
+      // Determine group key and name
+      let groupKey = "eliminated";
+      let groupName = "Eliminated";
+
+      if (row.status === 'active') {
+        if (roundState === "ACTIVE") {
+          // Mid-round: split by fixture status
+          const fixtureStatus = row.fixture_status;
+          groupKey = `${row.lives_remaining}_${fixtureStatus}`;
+
+          const livesLabel = `${row.lives_remaining} ${row.lives_remaining === 1 ? 'life' : 'lives'}`;
+          const statusLabel = fixtureStatus === 'played' ? 'Game Played' : fixtureStatus === 'pending' ? 'Game Pending' : 'No Pick';
+
+          groupName = `❤️ ${row.lives_remaining} • ${statusLabel}`;
+        } else {
+          // Between rounds or before lock: just by lives
+          groupKey = `${row.lives_remaining}`;
+          groupName = `❤️ ${row.lives_remaining} ${row.lives_remaining === 1 ? 'life' : 'lives'}`;
+        }
+      }
+
       const player = {
         id: row.id,
         display_name: row.display_name,
         lives_remaining: row.lives_remaining,
         status: row.status,
+        group_key: groupKey,
+        group_name: groupName,
         current_pick: null,
         elimination_pick: null
       };
@@ -373,29 +298,19 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
     // ========================================
-    // STEP 7: RETURN RESPONSE
+    // STEP 6: RETURN RESPONSE
     // ========================================
 
     return res.status(200).json({
       return_code: "SUCCESS",
-      group: {
-        key: group_key,
-        name: groupName
-      },
-      pagination: {
-        current_page: currentPage,
-        page_size: itemsPerPage,
-        total_players: totalPlayers,
-        total_pages: totalPages
-      },
-      players
+      results
     });
 
   } catch (error) {
-    console.error('Error in get-standings-group:', error);
+    console.error('Error in search-players:', error);
     return res.status(200).json({
       return_code: "SERVER_ERROR",
-      message: "An error occurred while retrieving group standings"
+      message: "An error occurred while searching for players"
     });
   }
 });

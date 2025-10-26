@@ -13,7 +13,8 @@ import {
   ChevronUpIcon,
   ArrowPathIcon,
   CheckCircleIcon,
-  MinusCircleIcon
+  MinusCircleIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { userApi } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
@@ -22,17 +23,9 @@ interface StandingsGroup {
   key: string;
   name: string;
   lives: number | null;
-  has_picked: boolean | null;
+  fixture_status: string | null;
   count: number;
   icon: string;
-}
-
-interface YourPosition {
-  lives: number;
-  status: string;
-  has_picked: boolean;
-  group_key: string;
-  group_name: string;
 }
 
 interface Competition {
@@ -80,7 +73,6 @@ export default function StandingsPage() {
   const [currentUser, setCurrentUser] = useState<{ id: number; email: string; display_name: string } | null>(null);
   const [competition, setCompetition] = useState<Competition | null>(null);
   const [roundState, setRoundState] = useState<string>('');
-  const [yourPosition, setYourPosition] = useState<YourPosition | null>(null);
   const [groups, setGroups] = useState<StandingsGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,6 +89,12 @@ export default function StandingsPage() {
   const [playerHistory, setPlayerHistory] = useState<RoundHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // Search modal state
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<Player[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
   // Load summary on mount
   const loadSummary = async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -108,7 +106,6 @@ export default function StandingsPage() {
       if (response.data.return_code === 'SUCCESS') {
         setCompetition(response.data.competition || null);
         setRoundState(response.data.round_state || '');
-        setYourPosition(response.data.your_position || null);
         setGroups(response.data.groups || []);
       } else {
         console.error('Failed to load standings:', response.data.message);
@@ -122,7 +119,7 @@ export default function StandingsPage() {
   };
 
   // Load players for a specific group
-  const loadGroupPlayers = async (groupKey: string, page = 1) => {
+  const loadGroupPlayers = async (groupKey: string, page = 1, append = false) => {
     setGroupLoading(prev => ({ ...prev, [groupKey]: true }));
 
     try {
@@ -131,7 +128,9 @@ export default function StandingsPage() {
       if (response.data.return_code === 'SUCCESS') {
         setGroupPlayers(prev => ({
           ...prev,
-          [groupKey]: response.data.players || []
+          [groupKey]: append
+            ? [...(prev[groupKey] || []), ...(response.data.players || [])]
+            : response.data.players || []
         }));
         setGroupPagination(prev => ({
           ...prev,
@@ -145,6 +144,14 @@ export default function StandingsPage() {
       console.error('Error loading group players:', error);
     } finally {
       setGroupLoading(prev => ({ ...prev, [groupKey]: false }));
+    }
+  };
+
+  // Load more players for a group
+  const loadMorePlayers = (groupKey: string) => {
+    const pagination = groupPagination[groupKey];
+    if (pagination && pagination.current < pagination.total) {
+      loadGroupPlayers(groupKey, pagination.current + 1, true);
     }
   };
 
@@ -191,6 +198,30 @@ export default function StandingsPage() {
     await loadSummary(false);
   };
 
+  // Search players
+  const handleSearch = async () => {
+    if (searchTerm.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await userApi.searchPlayers(parseInt(competitionId), searchTerm.trim(), 20);
+
+      if (response.data.return_code === 'SUCCESS') {
+        setSearchResults(response.data.results || []);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Error searching players:', error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
     if (!token) {
@@ -202,6 +233,14 @@ export default function StandingsPage() {
     setCurrentUser(user);
     loadSummary();
   }, [router, competitionId]);
+
+  // Clear search when modal opens
+  useEffect(() => {
+    if (showSearchModal) {
+      setSearchTerm('');
+      setSearchResults([]);
+    }
+  }, [showSearchModal]);
 
   // Get icon component
   const getIconComponent = (iconName: string) => {
@@ -215,27 +254,9 @@ export default function StandingsPage() {
     }
   };
 
-  // Get color classes
-  const getGroupColor = (iconName: string) => {
-    switch (iconName) {
-      case 'trophy': return 'border-green-200 bg-green-50';
-      case 'clock': return 'border-blue-200 bg-blue-50';
-      case 'heart': return 'border-amber-200 bg-amber-50';
-      case 'warning': return 'border-orange-200 bg-orange-50';
-      case 'eliminated': return 'border-slate-200 bg-slate-50';
-      default: return 'border-slate-200 bg-slate-50';
-    }
-  };
-
-  const getIconColor = (iconName: string) => {
-    switch (iconName) {
-      case 'trophy': return 'text-green-600';
-      case 'clock': return 'text-blue-600';
-      case 'heart': return 'text-amber-600';
-      case 'warning': return 'text-orange-600';
-      case 'eliminated': return 'text-slate-500';
-      default: return 'text-slate-600';
-    }
+  // Get icon component only - no color coding
+  const getIconColor = () => {
+    return 'text-slate-600';
   };
 
   if (loading) {
@@ -281,14 +302,23 @@ export default function StandingsPage() {
                 <h1 className="text-lg font-bold text-white">Standings</h1>
               </div>
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-slate-200 hover:text-white hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowSearchModal(true)}
+                className="flex items-center space-x-2 px-3 py-2 text-sm text-slate-200 hover:text-white hover:bg-slate-600 rounded-lg transition-colors"
+              >
+                <MagnifyingGlassIcon className="h-4 w-4" />
+                <span>Search</span>
+              </button>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center space-x-2 px-3 py-2 text-sm text-slate-200 hover:text-white hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -301,48 +331,62 @@ export default function StandingsPage() {
           <p className="text-sm text-slate-600 text-center mt-1">Round {competition.current_round}</p>
         </div>
 
-        {/* Your Position Card */}
-        {yourPosition && yourPosition.status !== 'out' && (
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-md border-2 border-blue-500 p-5">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold text-white">Your Position</h3>
-              <div className="flex items-center space-x-2">
-                <HeartIcon className="h-5 w-5 text-blue-200 fill-current" />
-                <span className="text-xl font-bold text-white">{yourPosition.lives}</span>
-              </div>
-            </div>
-            <div className="text-blue-100 text-sm">{yourPosition.group_name}</div>
-            {roundState === 'ACTIVE' && (
-              <div className="mt-2 flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${yourPosition.has_picked ? 'bg-green-400' : 'bg-orange-400'}`}></div>
-                <span className="text-sm text-blue-100">
-                  {yourPosition.has_picked ? 'Pick submitted' : 'No pick yet'}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Groups */}
         <div className="space-y-3">
-          {groups.map((group) => {
+          {groups.map((group, index) => {
             const Icon = getIconComponent(group.icon);
             const isExpanded = expandedGroups[group.key];
             const players = groupPlayers[group.key] || [];
             const isLoading = groupLoading[group.key];
 
+            const isTopGroup = index === 0 && group.key !== 'eliminated';
+            const isBottomGroup = group.key === 'eliminated';
+
             return (
-              <div key={group.key} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div key={group.key} className={`rounded-xl shadow-sm overflow-hidden ${
+                isTopGroup ? 'border-2 border-green-300 shadow-md' : 'bg-white border border-slate-200'
+              }`}>
                 {/* Group Header - Clickable */}
                 <button
                   onClick={() => toggleGroup(group.key)}
-                  className={`w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors ${getGroupColor(group.icon)}`}
+                  className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${
+                    isTopGroup
+                      ? 'bg-gradient-to-r from-green-100 to-green-50 hover:from-green-200 hover:to-green-100'
+                      : isBottomGroup
+                      ? 'bg-slate-100 hover:bg-slate-200'
+                      : 'hover:bg-slate-50'
+                  }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <Icon className={`h-6 w-6 ${getIconColor(group.icon)}`} />
+                    {/* Player Count Badge */}
+                    <div className={`flex items-center justify-center min-w-[3rem] h-12 px-2 rounded-lg font-bold text-lg ${
+                      isTopGroup
+                        ? 'bg-green-600 text-white'
+                        : isBottomGroup
+                        ? 'bg-slate-400 text-white'
+                        : 'bg-slate-600 text-white'
+                    }`}>
+                      {group.count}
+                    </div>
                     <div className="text-left">
-                      <div className="font-semibold text-slate-900">{group.name}</div>
-                      <div className="text-sm text-slate-600">{group.count} {group.count === 1 ? 'player' : 'players'}</div>
+                      <div className={`flex items-center space-x-2 ${isTopGroup ? 'font-bold text-green-900' : 'font-semibold text-slate-900'}`}>
+                        {group.lives !== null && (
+                          <>
+                            <div className="flex items-center space-x-1">
+                              <HeartIcon className="h-5 w-5 text-red-500 fill-current" />
+                              <span>{group.lives}</span>
+                            </div>
+                            <span className="text-slate-400">•</span>
+                          </>
+                        )}
+                        <span>
+                          {group.lives !== null
+                            ? (group.fixture_status === 'played' ? 'Game Played'
+                               : group.fixture_status === 'pending' ? 'Game Pending'
+                               : 'No Pick')
+                            : 'Eliminated'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   {isExpanded ? (
@@ -355,22 +399,53 @@ export default function StandingsPage() {
                 {/* Expanded Player List */}
                 {isExpanded && (
                   <div className="border-t border-slate-200">
-                    {isLoading ? (
+                    {isLoading && players.length === 0 ? (
                       <div className="p-8 text-center">
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-slate-300 border-t-transparent"></div>
                       </div>
                     ) : players.length > 0 ? (
-                      <div className="divide-y divide-slate-100">
-                        {players.map((player) => {
-                          const isYou = currentUser?.id === player.id;
+                      <>
+                        <div className="divide-y divide-slate-100">
+                          {players.map((player) => {
+                            const isYou = currentUser?.id === player.id;
+                            const isEliminated = group.key === 'eliminated';
 
-                          return (
-                            <div
-                              key={player.id}
-                              className={`p-4 ${isYou ? 'bg-blue-50' : 'hover:bg-slate-50'} transition-colors`}
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center space-x-2">
+                            // Minimal display for eliminated players
+                            if (isEliminated) {
+                              return (
+                                <div
+                                  key={player.id}
+                                  className="px-4 py-2 hover:bg-slate-50 transition-colors flex items-center justify-between"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm text-slate-700">{player.display_name}</span>
+                                    {player.elimination_pick && (
+                                      <span className="text-xs text-slate-500">
+                                        (Round {player.elimination_pick.round_number})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPlayer(player);
+                                      setShowHistoryModal(true);
+                                      loadPlayerHistory(player.id);
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                  >
+                                    History
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            // Full display for active players
+                            return (
+                              <div
+                                key={player.id}
+                                className={`p-4 ${isYou ? 'bg-blue-50' : 'hover:bg-slate-50'} transition-colors`}
+                              >
+                                <div className="flex items-center space-x-2 mb-2">
                                   <span className="font-medium text-slate-900">{player.display_name}</span>
                                   {isYou && (
                                     <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full font-medium">
@@ -378,52 +453,66 @@ export default function StandingsPage() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center space-x-1">
-                                  <HeartIcon className="h-4 w-4 text-red-500 fill-current" />
-                                  <span className="text-sm font-medium text-slate-600">{player.lives_remaining}</span>
-                                </div>
+
+                                {/* Current Pick */}
+                                {player.current_pick && (
+                                  <div className={`text-sm rounded-lg p-2 border mb-2 ${
+                                    player.current_pick.outcome === 'WIN'
+                                      ? 'bg-green-50 border-green-200 text-green-900'
+                                      : player.current_pick.outcome === 'LOSE'
+                                      ? 'bg-red-50 border-red-200 text-red-900'
+                                      : 'bg-blue-50 border-blue-200 text-blue-900'
+                                  }`}>
+                                    <div className="font-medium">{player.current_pick.team_full_name}</div>
+                                    {player.current_pick.fixture && (
+                                      <div className="text-xs opacity-75">{player.current_pick.fixture}</div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* History Button */}
+                                {competition.current_round > 1 && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPlayer(player);
+                                      setShowHistoryModal(true);
+                                      loadPlayerHistory(player.id);
+                                    }}
+                                    className="w-full py-2 px-3 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                  >
+                                    View History
+                                  </button>
+                                )}
                               </div>
+                            );
+                          })}
+                        </div>
 
-                              {/* Current Pick */}
-                              {player.current_pick && (
-                                <div className={`text-sm rounded-lg p-2 border mb-2 ${
-                                  player.current_pick.outcome === 'WIN'
-                                    ? 'bg-green-50 border-green-200 text-green-900'
-                                    : player.current_pick.outcome === 'LOSE'
-                                    ? 'bg-red-50 border-red-200 text-red-900'
-                                    : 'bg-blue-50 border-blue-200 text-blue-900'
-                                }`}>
-                                  <div className="font-medium">{player.current_pick.team_full_name}</div>
-                                  {player.current_pick.fixture && (
-                                    <div className="text-xs opacity-75">{player.current_pick.fixture}</div>
-                                  )}
-                                </div>
+                        {/* Load More Button */}
+                        {groupPagination[group.key] && groupPagination[group.key].current < groupPagination[group.key].total && (
+                          <div className="border-t border-slate-200 p-4">
+                            <button
+                              onClick={() => loadMorePlayers(group.key)}
+                              disabled={isLoading}
+                              className="w-full py-2.5 px-4 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                            >
+                              {isLoading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent"></div>
+                                  <span>Loading...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDownIcon className="h-4 w-4" />
+                                  <span>
+                                    Load More ({groupPagination[group.key].current} of {groupPagination[group.key].total} pages)
+                                  </span>
+                                </>
                               )}
-
-                              {/* Elimination Info */}
-                              {player.elimination_pick && (
-                                <div className="text-xs text-slate-600 mb-2">
-                                  Out Round {player.elimination_pick.round_number} • {player.elimination_pick.team}
-                                </div>
-                              )}
-
-                              {/* History Button */}
-                              {competition.current_round > 1 && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedPlayer(player);
-                                    setShowHistoryModal(true);
-                                    loadPlayerHistory(player.id);
-                                  }}
-                                  className="w-full py-2 px-3 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                                >
-                                  View History
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                            </button>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="p-8 text-center text-slate-500 text-sm">
                         No players in this group
@@ -436,6 +525,166 @@ export default function StandingsPage() {
           })}
         </div>
       </main>
+
+      {/* Search Modal */}
+      {showSearchModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            setShowSearchModal(false);
+            setSearchTerm('');
+            setSearchResults([]);
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4">
+              <h3 className="text-xl font-bold">Search Players</h3>
+              <p className="text-blue-100 text-sm">Find any player in this competition</p>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-6 border-b border-slate-200">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch();
+                    }
+                  }}
+                  placeholder="Enter player name..."
+                  className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSearch}
+                  disabled={searchLoading || searchTerm.trim().length < 2}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {searchLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      <span>Searching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                      <span>Search</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {searchTerm.trim().length > 0 && searchTerm.trim().length < 2 && (
+                <p className="text-xs text-slate-500 mt-2">Enter at least 2 characters to search</p>
+              )}
+            </div>
+
+            {/* Search Results */}
+            <div className="overflow-y-auto max-h-[calc(90vh-240px)] p-6">
+              {searchResults.length > 0 ? (
+                <div className="space-y-3">
+                  {searchResults.map((player) => {
+                    const isYou = currentUser?.id === player.id;
+                    const isEliminated = player.status === 'out';
+
+                    return (
+                      <div
+                        key={player.id}
+                        className={`p-4 rounded-lg border ${
+                          isYou ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-slate-900">{player.display_name}</span>
+                            {isYou && (
+                              <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full font-medium">
+                                You
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Group/Status Info */}
+                        <div className="text-sm text-slate-600 mb-2">
+                          <span className="font-medium">{player.group_name}</span>
+                        </div>
+
+                        {/* Current Pick */}
+                        {player.current_pick && (
+                          <div className={`text-sm rounded-lg p-2 border mb-2 ${
+                            player.current_pick.outcome === 'WIN'
+                              ? 'bg-green-50 border-green-200 text-green-900'
+                              : player.current_pick.outcome === 'LOSE'
+                              ? 'bg-red-50 border-red-200 text-red-900'
+                              : 'bg-blue-50 border-blue-200 text-blue-900'
+                          }`}>
+                            <div className="font-medium">{player.current_pick.team_full_name}</div>
+                            {player.current_pick.fixture && (
+                              <div className="text-xs opacity-75">{player.current_pick.fixture}</div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Elimination Info */}
+                        {isEliminated && player.elimination_pick && (
+                          <div className="text-xs text-slate-500">
+                            Eliminated in Round {player.elimination_pick.round_number}
+                          </div>
+                        )}
+
+                        {/* View History Button */}
+                        {competition && competition.current_round > 1 && (
+                          <button
+                            onClick={() => {
+                              setSelectedPlayer(player);
+                              setShowSearchModal(false);
+                              setShowHistoryModal(true);
+                              loadPlayerHistory(player.id);
+                            }}
+                            className="w-full mt-2 py-2 px-3 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                          >
+                            View History
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : searchTerm.trim().length >= 2 && !searchLoading ? (
+                <div className="text-center py-12 text-slate-500">
+                  No players found matching "{searchTerm}"
+                </div>
+              ) : (
+                <div className="text-center py-12 text-slate-400">
+                  <MagnifyingGlassIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Enter a player name and click Search</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200">
+              <button
+                onClick={() => {
+                  setShowSearchModal(false);
+                  setSearchTerm('');
+                  setSearchResults([]);
+                }}
+                className="w-full px-6 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* History Modal */}
       {showHistoryModal && selectedPlayer && (
