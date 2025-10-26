@@ -18,7 +18,7 @@ export default function OrganizerResultsPage() {
   const competitionId = params.id as string;
 
   // Get competition from context
-  const { competitions } = useAppData();
+  const { competitions, refreshCompetitions } = useAppData();
   const competition = useMemo(() => {
     return competitions?.find(c => c.id.toString() === competitionId);
   }, [competitions, competitionId]);
@@ -182,10 +182,18 @@ export default function OrganizerResultsPage() {
       const response = await organizerApi.processResults(parseInt(competitionId));
 
       if (response.data.return_code === 'SUCCESS') {
+        // Check if any players were eliminated (which changes the active player count)
+        const playersEliminated = response.data.players_eliminated || 0;
+
         // Invalidate caches so stats refresh when organizer returns to dashboard
         const { cacheUtils } = await import('@/lib/api');
         cacheUtils.invalidateKey(`user-dashboard`);
         cacheUtils.invalidateKey(`pick-statistics-${competitionId}`);
+
+        // Only refresh AppDataContext if players were eliminated (player count changed)
+        if (playersEliminated > 0) {
+          await refreshCompetitions(true); // Pass true to bypass cache
+        }
 
         // Clear modified fixtures tracking
         setModifiedFixtures(new Set());
