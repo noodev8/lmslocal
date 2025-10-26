@@ -247,10 +247,9 @@ router.post('/', verifyToken, async (req, res) => {
           COUNT(*) as player_count
         FROM competition_user cu
         LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $2
-        WHERE cu.competition_id = $1
-        GROUP BY cu.lives_remaining, cu.status, has_picked
+        WHERE cu.competition_id = $1 AND cu.status = 'active'
+        GROUP BY cu.lives_remaining, has_picked
         ORDER BY
-          CASE WHEN cu.status = 'out' THEN 1 ELSE 0 END,
           cu.lives_remaining DESC,
           has_picked DESC
       `, [competition_id, currentRound?.id]);
