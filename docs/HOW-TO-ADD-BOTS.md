@@ -9,7 +9,7 @@ Compeitions: 106 - BOT League 1 Lives Knockout, 500 players, Also playing
 # Make Bot Picks
 **URL:** `http://localhost:3015/bot-pick`
 {
-  "competition_id": 105,
+  "competition_id": 106,
   "count": 200,
   "bot_manage": "BOT_MAGIC_2025"
 }
