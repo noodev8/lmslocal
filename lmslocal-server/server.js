@@ -126,6 +126,10 @@ const botPickRoute = require('./routes/bot-pick');
 const app = express();
 const PORT = process.env.PORT || 3015;
 
+// Trust proxy for production environments (nginx, load balancers, etc.)
+// This allows rate limiting to work correctly with X-Forwarded-For headers
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
@@ -146,7 +150,7 @@ app.use(helmet({
 // General rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // Limit each IP to 300 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs
   message: {
     return_code: "RATE_LIMIT_EXCEEDED",
     message: "Too many requests, please try again later"
@@ -159,7 +163,7 @@ app.use(limiter);
 // Aggressive rate limiting for database-heavy endpoints
 const dbIntensiveLimit = rateLimit({
   windowMs: 10 * 1000, // 10 seconds
-  max: 5, // Max 5 requests per 10 seconds per IP
+  max: 50, // Max 50 requests per 10 seconds per IP
   message: {
     return_code: "RATE_LIMIT_EXCEEDED",
     message: "Too many database requests. Please wait 10 seconds before trying again."

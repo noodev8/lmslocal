@@ -102,6 +102,7 @@ Return Codes:
 ### JWT Authentication
 - Use JWT (JSON Web Tokens) throughout the application
 - Store auth configuration in `config/config.js`
+- Only store the App_user ID in the JWT Token. use the database to find anything else you might need from there
 
 ### Middleware
 - Use `/middleware/auth.js` for authentication middleware

@@ -177,7 +177,7 @@ router.post('/', verifyToken, async (req, res) => {
     const competition = competitionResult.rows[0];
 
     // Verify user is the organiser or has delegated manage_fixtures permission
-    const permission = await canManageFixtures(user_id, competition_id_int);
+    const permission = await canManageFixtures(user_id, competitionIdInt);
     if (!permission.authorized) {
       return res.status(200).json({
         return_code: "UNAUTHORIZED",
