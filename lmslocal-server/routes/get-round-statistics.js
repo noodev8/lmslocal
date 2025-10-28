@@ -89,7 +89,7 @@ router.post('/', verifyToken, async (req, res) => {
         COUNT(*) as total_players,
         COUNT(*) FILTER (WHERE pp.outcome = 'WIN') as won,
         COUNT(*) FILTER (WHERE pp.outcome = 'LOSE') as lost,
-        COUNT(*) FILTER (WHERE pp.outcome = 'LOSE' AND cu.status = 'eliminated') as eliminated
+        COUNT(*) FILTER (WHERE pp.outcome = 'LOSE' AND cu.status = 'out') as eliminated
       FROM player_progress pp
       LEFT JOIN competition_user cu
         ON pp.player_id = cu.user_id
