@@ -1,3 +1,40 @@
+cd /lmslocal/lmslocal-server
+npm run dev
+Run Postman
+
+
+Compeitions: 105 - BOT League 0 Lives Knockout, 200 players
+Compeitions: 106 - BOT League 1 Lives Knockout, 500 players, Also playing
+
+# Make Bot Picks
+**URL:** `http://localhost:3015/bot-pick`
+{
+  "competition_id": 105,
+  "count": 200,
+  "bot_manage": "BOT_MAGIC_2025"
+}
+
+
+
+## Step 1: Add Bots to Competition
+**URL:** `http://localhost:3015/bot-join`
+{
+  "invite_code": "1004",
+  "count": 200,
+  "bot_manage": "BOT_MAGIC_2025"
+}
+
+
+
+
+
+
+
+
+
+
+
+
 # How to Add Bots to a Competition
 
 This guide shows you how to populate a competition with bot players for testing using Postman or any REST client.
