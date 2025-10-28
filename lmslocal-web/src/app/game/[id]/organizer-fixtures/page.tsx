@@ -338,6 +338,7 @@ export default function OrganizerFixturesPage() {
         cacheUtils.invalidateCompetition(parseInt(competitionId));
         cacheUtils.invalidateKey(`rounds-${competitionId}`); // Rounds cache
         cacheUtils.invalidatePattern(`fixtures-*`); // All fixture caches
+        cacheUtils.invalidateKey(`pick-stats-${competitionId}`); // Pick statistics cache
 
         // Redirect immediately
         router.push(`/game/${competitionId}`);

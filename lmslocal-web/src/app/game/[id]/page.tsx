@@ -408,10 +408,11 @@ export default function UnifiedGameDashboard() {
     }
   }, [currentRoundInfo]);
 
-  // Reset pick stats ONLY when player count changes (results were processed and players eliminated)
+  // Reset pick stats when player count changes (results were processed and players eliminated)
+  // OR when round number changes (new fixtures added)
   useEffect(() => {
     pickStatsLoadedRef.current = false;
-  }, [competition?.player_count]);
+  }, [competition?.player_count, currentRoundInfo?.round_number]);
 
   if (loading) {
     return (
