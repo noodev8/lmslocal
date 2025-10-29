@@ -90,30 +90,30 @@ export default function LandingPage() {
       <section className="bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100 py-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Splitdine-style Hero with Image */}
-          <div className="grid lg:grid-cols-2 gap-12 items-center mb-16">
+          <div className="grid lg:grid-cols-2 gap-8 items-center mb-16">
             {/* Left Side - Headline */}
             <div>
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 mb-6 leading-tight">
+              <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-slate-900 mb-4 leading-tight">
                 Last Match <span className="text-emerald-600">Standing</span>
               </h1>
-              <p className="text-xl md:text-2xl text-slate-600 mb-2">
+              <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-2">
                 — Competition Made Easy
               </p>
-              <p className="text-lg text-slate-600 mb-10 max-w-xl">
+              <p className="text-base md:text-lg text-slate-600 mb-6 max-w-xl">
                 Your control centre that handles everything easily. No spreadsheets or manual tracking - Just easy player management, fixtures, results and standings.
               </p>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
                 <Link
                   href="/register"
-                  className="bg-slate-800 hover:bg-slate-900 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-colors shadow-sm text-center"
+                  className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm text-center"
                 >
                   Create Competition
                 </Link>
                 <Link
                   href="/login"
-                  className="text-slate-700 hover:text-slate-900 px-8 py-4 rounded-xl font-semibold text-lg border-2 border-slate-300 hover:bg-slate-100 transition-all text-center"
+                  className="text-slate-700 hover:text-slate-900 px-6 py-3 rounded-xl font-semibold text-base border-2 border-slate-300 hover:bg-slate-100 transition-all text-center"
                 >
                   Join Competition
                 </Link>
@@ -121,15 +121,15 @@ export default function LandingPage() {
             </div>
 
             {/* Right Side - Dashboard Preview Image */}
-            <div className="relative hidden lg:flex justify-center items-center">
-              <div className="relative transform rotate-6 hover:rotate-3 transition-transform duration-300">
+            <div className="relative flex justify-center items-center lg:order-last order-first">
+              <div className="relative transform rotate-3 lg:rotate-6 hover:rotate-2 lg:hover:rotate-3 transition-transform duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-slate-600/20 rounded-3xl blur-2xl"></div>
                 <Image
                   src="/dashboard-preview.jpg"
                   alt="LMSLocal Dashboard Preview"
                   width={1200}
                   height={200}
-                  className="relative w-full max-w-md rounded-2xl shadow-2xl border-4 border-white"
+                  className="relative w-full max-w-xs lg:max-w-md rounded-2xl shadow-2xl border-4 border-white"
                   priority
                 />
               </div>
