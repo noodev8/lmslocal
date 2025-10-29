@@ -389,17 +389,11 @@ export default function OrganizerFixturesPage() {
         <div className="mb-6">
           <Link
             href={`/game/${competitionId}`}
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
+            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700"
           >
             <ArrowLeftIcon className="h-4 w-4" />
             Back to Dashboard
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Manage Fixtures - {competition.name}
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Add fixtures for the next round
-          </p>
         </div>
 
         {/* Loading State */}
