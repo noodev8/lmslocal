@@ -87,13 +87,13 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100 py-20 overflow-hidden">
+      <section className="bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100 py-8 md:py-16 lg:py-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Splitdine-style Hero with Image */}
-          <div className="mb-16">
+          <div className="mb-8 md:mb-12 lg:mb-16">
             {/* Headline First */}
-            <div className="text-center lg:text-left mb-8">
-              <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-slate-900 mb-4 leading-tight">
+            <div className="text-center lg:text-left mb-4 md:mb-6 lg:mb-8">
+              <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-slate-900 mb-2 md:mb-3 lg:mb-4 leading-tight">
                 Last Match <span className="text-emerald-600">Standing</span>
               </h1>
             </div>
@@ -323,36 +323,6 @@ export default function LandingPage() {
                 </div>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-20 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-              How It Works
-            </h2>
-            <p className="text-xl text-slate-600">Three simple steps to running professional competitions</p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center bg-white rounded-xl p-8 shadow-sm border border-slate-200">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-800 text-white rounded-full text-2xl font-bold mb-4">1</div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">Quick Setup</h3>
-              <p className="text-slate-600">Name your competition, choose your teams (EPL included), set basic rules. Takes 5 minutes.</p>
-            </div>
-            <div className="text-center bg-white rounded-xl p-8 shadow-sm border border-slate-200">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700 text-white rounded-full text-2xl font-bold mb-4">2</div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">Invite Players</h3>
-              <p className="text-slate-600">Share a simple link or access code. Add guest players for customers without smartphones.</p>
-            </div>
-            <div className="text-center bg-white rounded-xl p-8 shadow-sm border border-slate-200">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-600 text-white rounded-full text-2xl font-bold mb-4">3</div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">Manage & Win</h3>
-              <p className="text-slate-600">Track picks in real-time, handle disputes with override powers, let the system eliminate players automatically.</p>
-            </div>
           </div>
         </div>
       </section>
