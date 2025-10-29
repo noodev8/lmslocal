@@ -25,7 +25,7 @@ export default function OrganizerFixturesPage() {
 
   // Fixture form state
   const [kickoffDate, setKickoffDate] = useState('');
-  const [kickoffTime, setKickoffTime] = useState('15:00');
+  const [kickoffTime, setKickoffTime] = useState('20:00');
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [showCustomTime, setShowCustomTime] = useState(false);
   const [fixtures, setFixtures] = useState<OrganizerFixture[]>([
@@ -92,10 +92,10 @@ export default function OrganizerFixturesPage() {
   const dateShortcuts = useMemo(() => {
     const shortcuts = [];
 
-    // Next upcoming Fri, Sat, Sun (within next 7 days)
+    // Next upcoming Fri, Sat, Tue (within next 7 days)
     const thisFri = getNextDayOfWeek(5, 0);
     const thisSat = getNextDayOfWeek(6, 0);
-    const thisSun = getNextDayOfWeek(0, 0);
+    const thisTue = getNextDayOfWeek(2, 0);
 
     shortcuts.push({
       label: `This Fri ${thisFri.getDate()} ${thisFri.toLocaleString('en-GB', { month: 'short' })}`,
@@ -108,15 +108,15 @@ export default function OrganizerFixturesPage() {
       isCurrent: true
     });
     shortcuts.push({
-      label: `This Sun ${thisSun.getDate()} ${thisSun.toLocaleString('en-GB', { month: 'short' })}`,
-      value: thisSun.toISOString().split('T')[0],
+      label: `This Tue ${thisTue.getDate()} ${thisTue.toLocaleString('en-GB', { month: 'short' })}`,
+      value: thisTue.toISOString().split('T')[0],
       isCurrent: true
     });
 
-    // Following week's Fri, Sat, Sun (1 week after first set)
+    // Following week's Fri, Sat, Tue (1 week after first set)
     const nextFri = getNextDayOfWeek(5, 1);
     const nextSat = getNextDayOfWeek(6, 1);
-    const nextSun = getNextDayOfWeek(0, 1);
+    const nextTue = getNextDayOfWeek(2, 1);
 
     shortcuts.push({
       label: `Next Fri ${nextFri.getDate()} ${nextFri.toLocaleString('en-GB', { month: 'short' })}`,
@@ -129,8 +129,8 @@ export default function OrganizerFixturesPage() {
       isCurrent: false
     });
     shortcuts.push({
-      label: `Next Sun ${nextSun.getDate()} ${nextSun.toLocaleString('en-GB', { month: 'short' })}`,
-      value: nextSun.toISOString().split('T')[0],
+      label: `Next Tue ${nextTue.getDate()} ${nextTue.toLocaleString('en-GB', { month: 'short' })}`,
+      value: nextTue.toISOString().split('T')[0],
       isCurrent: false
     });
 
@@ -140,11 +140,17 @@ export default function OrganizerFixturesPage() {
   // Time shortcuts
   const timeShortcuts = [
     { label: '12:00', subLabel: 'Noon', value: '12:00' },
-    { label: '14:00', subLabel: '2pm', value: '14:00' },
     { label: '15:00', subLabel: '3pm', value: '15:00' },
-    { label: '17:00', subLabel: '5pm', value: '17:00' },
     { label: '20:00', subLabel: '8pm', value: '20:00' }
   ];
+
+  // Set default date to next Friday on component mount
+  useEffect(() => {
+    if (!kickoffDate && dateShortcuts.length > 0) {
+      // Default to first Friday (This Fri)
+      setKickoffDate(dateShortcuts[0].value);
+    }
+  }, [dateShortcuts, kickoffDate]);
 
   // Format selected date/time for display
   const selectedDateTimeDisplay = useMemo(() => {
@@ -445,7 +451,8 @@ export default function OrganizerFixturesPage() {
           <form onSubmit={handleSubmit}>
           {/* Kickoff Date/Time Section */}
           <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">📅 Fixture Date & Time</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">🔒 Set Round Lock Time</h3>
+            <p className="text-xs text-gray-600 mb-3">Players must make picks before this time</p>
 
             {/* Date Selection */}
             <div className="mb-4">
@@ -493,8 +500,8 @@ export default function OrganizerFixturesPage() {
 
             {/* Time Selection */}
             <div className="mb-3">
-              <label className="block text-xs font-medium text-gray-700 mb-2">Lock Time:</label>
-              <div className="grid grid-cols-5 gap-2 mb-2">
+              <label className="block text-xs font-medium text-gray-700 mb-2">Time:</label>
+              <div className="grid grid-cols-3 gap-2 mb-2">
                 {timeShortcuts.map((shortcut) => (
                   <button
                     key={shortcut.value}
