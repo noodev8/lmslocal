@@ -776,7 +776,7 @@ export default function UnifiedGameDashboard() {
                               style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
                             >
                               <div className="text-2xl font-black">{roundStats.won}</div>
-                              <div className="text-[10px] font-semibold opacity-90">WON</div>
+                              <div className="text-[10px] font-semibold opacity-90">WIN</div>
                             </div>
                           )}
                           {(roundStats.lost - roundStats.eliminated) > 0 && (
@@ -785,7 +785,7 @@ export default function UnifiedGameDashboard() {
                               style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
                             >
                               <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
-                              <div className="text-[10px] font-semibold opacity-90">LOST</div>
+                              <div className="text-[10px] font-semibold opacity-90">SLIP</div>
                             </div>
                           )}
                           {roundStats.eliminated > 0 && (
@@ -818,7 +818,7 @@ export default function UnifiedGameDashboard() {
                             style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{roundStats.won}</div>
-                            <div className="text-[10px] font-semibold opacity-90">WON</div>
+                            <div className="text-[10px] font-semibold opacity-90">WIN</div>
                           </div>
                         )}
                         {(roundStats.lost - roundStats.eliminated) > 0 && (
@@ -827,7 +827,7 @@ export default function UnifiedGameDashboard() {
                             style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
-                            <div className="text-[10px] font-semibold opacity-90">LOST</div>
+                            <div className="text-[10px] font-semibold opacity-90">SLIP</div>
                           </div>
                         )}
                         {roundStats.eliminated > 0 && (
@@ -862,7 +862,7 @@ export default function UnifiedGameDashboard() {
                             style={{ width: `${(currentRoundStats.won / currentRoundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{currentRoundStats.won}</div>
-                            <div className="text-[10px] font-semibold opacity-90">WON</div>
+                            <div className="text-[10px] font-semibold opacity-90">WIN</div>
                           </div>
                         )}
                         {(currentRoundStats.lost - currentRoundStats.eliminated) > 0 && (
@@ -871,7 +871,7 @@ export default function UnifiedGameDashboard() {
                             style={{ width: `${((currentRoundStats.lost - currentRoundStats.eliminated) / currentRoundStats.total_players) * 100}%` }}
                           >
                             <div className="text-2xl font-black">{currentRoundStats.lost - currentRoundStats.eliminated}</div>
-                            <div className="text-[10px] font-semibold opacity-90">LOST</div>
+                            <div className="text-[10px] font-semibold opacity-90">SLIP</div>
                           </div>
                         )}
                         {currentRoundStats.eliminated > 0 && (
