@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, UserGroupIcon, StarIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
+import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, StarIcon } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -123,10 +124,13 @@ export default function LandingPage() {
             <div className="relative hidden lg:flex justify-center items-center">
               <div className="relative transform rotate-6 hover:rotate-3 transition-transform duration-300">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-slate-600/20 rounded-3xl blur-2xl"></div>
-                <img
+                <Image
                   src="/dashboard-preview.jpg"
                   alt="LMSLocal Dashboard Preview"
+                  width={1200}
+                  height={200}
                   className="relative w-full max-w-md rounded-2xl shadow-2xl border-4 border-white"
+                  priority
                 />
               </div>
             </div>
@@ -143,7 +147,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-slate-700 mb-4 italic">
-                  "Built by football fans for everyone to enjoy"
+                  &quot;Built by football fans for everyone to enjoy&quot;
                 </p>
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
@@ -164,7 +168,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-slate-700 mb-4 italic">
-                  "Handles 100s of entries fast"
+                  &quot;Handles 100s of entries fast&quot;
                 </p>
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mr-3">
@@ -185,7 +189,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-slate-700 mb-4 italic">
-                  "Finally, a platform that just works. No more spreadsheet headaches!"
+                  &quot;Finally, a platform that just works. No more spreadsheet headaches!&quot;
                 </p>
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mr-3">
