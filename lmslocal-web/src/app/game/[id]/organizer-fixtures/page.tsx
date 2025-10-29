@@ -444,14 +444,19 @@ export default function OrganizerFixturesPage() {
         {!isBlocked && !isCheckingAccess && (
           <form onSubmit={handleSubmit}>
           {/* Kickoff Date/Time Section */}
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">🔒 Set Round Lock Time</h3>
-            <p className="text-xs text-gray-600 mb-3">Players must make picks before this time</p>
+          <div className="mb-6 p-6 bg-white rounded-2xl shadow-lg border border-slate-200">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
+                <span className="text-2xl">🔒</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900">Set Round Lock Time</h3>
+            </div>
+            <p className="text-sm text-slate-600 mb-6 ml-13">Players must make picks before this time</p>
 
             {/* Date Selection */}
-            <div className="mb-4">
-              <label className="block text-xs font-medium text-gray-700 mb-2">Date:</label>
-              <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-slate-700 mb-3">Date:</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 {dateShortcuts.map((shortcut) => (
                   <button
                     key={shortcut.value}
@@ -460,10 +465,10 @@ export default function OrganizerFixturesPage() {
                       setKickoffDate(shortcut.value);
                       setShowCustomDate(false);
                     }}
-                    className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                    className={`px-4 py-3 text-sm font-semibold rounded-xl transition-all transform hover:scale-105 ${
                       kickoffDate === shortcut.value
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50'
+                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-blue-300 hover:shadow-md'
                     }`}
                   >
                     {shortcut.label}
@@ -473,10 +478,10 @@ export default function OrganizerFixturesPage() {
               <button
                 type="button"
                 onClick={() => setShowCustomDate(!showCustomDate)}
-                className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                className={`px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
                   showCustomDate
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    ? 'bg-slate-700 text-white shadow-md'
+                    : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300 hover:shadow-md'
                 }`}
               >
                 Custom date...
@@ -493,9 +498,9 @@ export default function OrganizerFixturesPage() {
             </div>
 
             {/* Time Selection */}
-            <div className="mb-3">
-              <label className="block text-xs font-medium text-gray-700 mb-2">Time:</label>
-              <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-slate-700 mb-3">Time:</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 {timeShortcuts.map((shortcut) => (
                   <button
                     key={shortcut.value}
@@ -504,24 +509,24 @@ export default function OrganizerFixturesPage() {
                       setKickoffTime(shortcut.value);
                       setShowCustomTime(false);
                     }}
-                    className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                    className={`px-4 py-4 text-sm font-semibold rounded-xl transition-all transform hover:scale-105 ${
                       kickoffTime === shortcut.value
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50'
+                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-blue-300 hover:shadow-md'
                     }`}
                   >
-                    <div>{shortcut.label}</div>
-                    <div className="text-[10px] opacity-75">{shortcut.subLabel}</div>
+                    <div className="text-lg">{shortcut.label}</div>
+                    <div className="text-xs opacity-75">{shortcut.subLabel}</div>
                   </button>
                 ))}
               </div>
               <button
                 type="button"
                 onClick={() => setShowCustomTime(!showCustomTime)}
-                className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                className={`px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
                   showCustomTime
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    ? 'bg-slate-700 text-white shadow-md'
+                    : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300 hover:shadow-md'
                 }`}
               >
                 Custom time...
@@ -538,12 +543,17 @@ export default function OrganizerFixturesPage() {
 
             {/* Selected DateTime Display */}
             {selectedDateTimeDisplay && (
-              <div className="mt-3 pt-3 border-t border-blue-300">
-                <div className="text-sm font-medium text-blue-900">
-                  ✓ Selected: {selectedDateTimeDisplay}
-                </div>
-                <div className="text-xs text-blue-700 mt-1">
-                  (Lock time applied to all fixtures)
+              <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl border-2 border-emerald-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">✓</span>
+                  <div>
+                    <div className="text-base font-bold text-slate-900">
+                      {selectedDateTimeDisplay}
+                    </div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      Lock time applied to all fixtures in this round
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -554,26 +564,24 @@ export default function OrganizerFixturesPage() {
             {/* LEFT COLUMN: Team Selection Buttons */}
             <div className="order-2 lg:order-1">
               <div className="sticky top-4">
-                <div className="p-4 bg-white rounded-md border-2 border-blue-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-semibold text-gray-900">
+                <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-900">
                       Select Teams
                     </h2>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-semibold text-blue-600">
-                        {nextSlot.side === 'home' ? 'HOME' : 'AWAY'}
-                      </span>
+                    <div className="px-3 py-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-sm shadow-md">
+                      {nextSlot.side === 'home' ? 'HOME' : 'AWAY'}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-600 mb-3">
+                  <p className="text-sm text-slate-600 mb-4">
                     Click teams to add (alternates Home → Away)
                   </p>
                   {teamsLoading ? (
-                    <div className="text-center py-8 text-gray-600">Loading teams...</div>
+                    <div className="text-center py-8 text-slate-600">Loading teams...</div>
                   ) : teams.length === 0 ? (
                     <div className="text-center py-8 text-red-600">No teams available for this competition</div>
                   ) : (
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {teams.map((team) => {
                         const isUsed = usedTeams.has(team.short_name);
                         return (
@@ -582,10 +590,10 @@ export default function OrganizerFixturesPage() {
                             type="button"
                             onClick={() => !isUsed && handleTeamClick(team.short_name)}
                             disabled={isUsed}
-                            className={`px-3 py-2 rounded-md transition-colors font-bold text-sm ${
+                            className={`px-3 py-2.5 rounded-lg transition-all font-bold text-sm ${
                               isUsed
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 active:scale-95 shadow-md hover:shadow-lg'
                             }`}
                           >
                             {team.short_name}
@@ -600,10 +608,10 @@ export default function OrganizerFixturesPage() {
 
             {/* RIGHT COLUMN: Fixtures List */}
             <div className="order-1 lg:order-2">
-              <h2 className="text-sm font-semibold text-gray-900 mb-2">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3">
                 Fixtures ({fixtures.filter(f => f.home_team_short && f.away_team_short).length})
               </h2>
-              <div className="p-2 bg-gray-50 rounded-md border border-gray-300 max-h-[500px] overflow-y-auto">
+              <div className="p-4 bg-white rounded-2xl shadow-lg border border-slate-200 max-h-[500px] overflow-y-auto">
                 <div className="space-y-1">
                   {fixtures.map((fixture, index) => {
                     const isComplete = fixture.home_team_short && fixture.away_team_short;
@@ -652,11 +660,11 @@ export default function OrganizerFixturesPage() {
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-4">
             <button
               type="button"
               onClick={() => router.push(`/game/${competitionId}`)}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              className="px-8 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all font-semibold"
             >
               Cancel
             </button>
@@ -671,9 +679,9 @@ export default function OrganizerFixturesPage() {
                 setShowConfirmModal(true);
               }}
               disabled={isSubmitting || fixtures.filter(f => f.home_team_short && f.away_team_short).length === 0}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+              className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed transition-all font-bold shadow-lg shadow-emerald-500/50 hover:shadow-xl disabled:shadow-none"
             >
-              {isSubmitting ? 'Saving...' : 'Confirm & Lock Fixtures'}
+              {isSubmitting ? 'Saving...' : '🔒 Confirm & Lock Fixtures'}
             </button>
           </div>
         </form>
