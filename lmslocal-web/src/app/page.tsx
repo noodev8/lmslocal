@@ -96,6 +96,9 @@ export default function LandingPage() {
               <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-slate-900 mb-2 md:mb-3 lg:mb-4 leading-tight">
                 Last Match <span className="text-emerald-600">Standing</span>
               </h1>
+              <div className="inline-block bg-emerald-100 border-2 border-emerald-500 rounded-full px-4 py-2 mt-2">
+                <p className="text-emerald-800 font-bold text-sm">Play FREE • No Credit Card • No Subscription</p>
+              </div>
             </div>
 
             {/* Grid for Image and Content */}
@@ -103,19 +106,19 @@ export default function LandingPage() {
               {/* Left Side - Description and Buttons */}
               <div>
                 <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-2">
-                  — Competition Made Easy
+                  — For Pubs, Organisers & Groups of Friends
                 </p>
                 <p className="text-base md:text-lg text-slate-600 mb-6 max-w-xl">
-                  Your control centre that handles everything easily. No spreadsheets or manual tracking - Just easy player management, fixtures, results and standings.
+                  Run your Last Man Standing competition with zero hassle. No spreadsheets, no manual tracking. Perfect for pub landlords, workplace organisers, and friend groups.
                 </p>
 
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 mb-6">
                   <Link
                     href="/register"
-                    className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm text-center"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm text-center"
                   >
-                    Create Competition
+                    Start Free Competition
                   </Link>
                   <Link
                     href="/login"
@@ -124,6 +127,7 @@ export default function LandingPage() {
                     Join Competition
                   </Link>
                 </div>
+                <p className="text-sm text-slate-500 italic">No credit card required • Up to 10 players completely free</p>
               </div>
 
               {/* Right Side - Dashboard Preview Image */}
@@ -154,15 +158,15 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-slate-700 mb-4 italic">
-                  &quot;Built by football fans for everyone to enjoy&quot;
+                  &quot;Perfect for our pub! Customers love it and it&apos;s completely free for small groups.&quot;
                 </p>
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-emerald-700 font-bold text-sm">A</span>
+                    <span className="text-emerald-700 font-bold text-sm">M</span>
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 text-sm">Andreas</p>
-                    <p className="text-slate-500 text-xs">Noodev8</p>
+                    <p className="font-semibold text-slate-900 text-sm">Mike J.</p>
+                    <p className="text-slate-500 text-xs">Pub Landlord</p>
                   </div>
                 </div>
               </div>
@@ -175,15 +179,15 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-slate-700 mb-4 italic">
-                  &quot;Handles 100s of entries fast&quot;
+                  &quot;Running our work competition has never been easier. Set up in minutes!&quot;
                 </p>
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-slate-700 font-bold text-sm">M</span>
+                    <span className="text-slate-700 font-bold text-sm">S</span>
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 text-sm">Mike J.</p>
-                    <p className="text-slate-500 text-xs">Pub Organiser</p>
+                    <p className="font-semibold text-slate-900 text-sm">Sarah M.</p>
+                    <p className="text-slate-500 text-xs">Workplace Organiser</p>
                   </div>
                 </div>
               </div>
@@ -196,15 +200,15 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <p className="text-slate-700 mb-4 italic">
-                  &quot;Finally, a platform that just works. No more spreadsheet headaches!&quot;
+                  &quot;Me and my mates use this every season. Free, simple, no hassle.&quot;
                 </p>
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-slate-700 font-bold text-sm">S</span>
+                    <span className="text-slate-700 font-bold text-sm">J</span>
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 text-sm">Sarah M.</p>
-                    <p className="text-slate-500 text-xs">Pub Organiser</p>
+                    <p className="font-semibold text-slate-900 text-sm">James R.</p>
+                    <p className="text-slate-500 text-xs">Group of Friends</p>
                   </div>
                 </div>
               </div>
@@ -218,80 +222,80 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Why Choose LMSLocal?
+              Perfect For Your Audience
             </h2>
             <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-              Built by competition enthusiasts, for competition enthusiasts
+              Whether you&apos;re running a pub competition, workplace pool, or friendly bet
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
-            {/* Player Benefits */}
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-center">Great for Players</h3>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                  <p className="text-slate-300">Simple, clear interface - make picks in seconds</p>
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {/* Pubs */}
+            <div className="bg-white bg-opacity-10 rounded-xl p-6 backdrop-blur">
+              <h3 className="text-2xl font-bold text-center mb-4">🍺 Pubs & Bars</h3>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">Free for up to 10 players</p>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                  <p className="text-slate-300">Real-time updates and notifications</p>
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">Add offline players (no smartphone needed)</p>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                  <p className="text-slate-300">Track your progress and see standings</p>
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">Display on pub TV screens</p>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                  <p className="text-slate-300">Join with just a competition code</p>
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">Engage customers every matchday</p>
                 </div>
               </div>
             </div>
 
-            {/* Organizer Benefits */}
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-center">Easy for Organizers</h3>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                  <p className="text-slate-300">Set up competitions in 5 minutes</p>
+            {/* Organisers */}
+            <div className="bg-white bg-opacity-10 rounded-xl p-6 backdrop-blur">
+              <h3 className="text-2xl font-bold text-center mb-4">💼 Organisers</h3>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">No credit card to start</p>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                  <p className="text-slate-300">Handle all the admin work automatically</p>
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">5-minute setup process</p>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                  <p className="text-slate-300">Override results if needed</p>
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">Automated fixtures & results</p>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0" />
-                  <p className="text-slate-300">Add guest players for non-smartphone users</p>
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">Handle 100s of players easily</p>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Simple testimonial */}
-          <div className="mt-16 max-w-2xl mx-auto">
-            <div className="bg-white bg-opacity-10 rounded-xl p-8 backdrop-blur text-center">
-              <div className="flex items-center justify-center mb-6">
-                <div className="w-12 h-12 bg-slate-600 rounded-full flex items-center justify-center mr-4">
-                  <span className="text-white font-bold text-lg">S</span>
+            {/* Friends */}
+            <div className="bg-white bg-opacity-10 rounded-xl p-6 backdrop-blur">
+              <h3 className="text-2xl font-bold text-center mb-4">👥 Friend Groups</h3>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">100% free for small groups</p>
                 </div>
-                <div>
-                  <p className="font-bold">Sarah Mitchell</p>
-                  <p className="text-slate-300 text-sm">Player & Organizer</p>
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">No subscriptions or hidden fees</p>
                 </div>
-              </div>
-              <p className="text-slate-300 mb-4">
-                &quot;I&apos;ve been both a player and organizer on LMSLocal. It&apos;s the easiest system I&apos;ve used - players love how simple it is, and managing the competition takes no time at all.&quot;
-              </p>
-              <div className="flex space-x-1 justify-center">
-                {[...Array(5)].map((_, i) => (
-                  <StarIcon key={i} className="h-5 w-5 text-amber-400 fill-current" />
-                ))}
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">Simple join code to share</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-slate-300">Track who&apos;s top of the league</p>
+                </div>
               </div>
             </div>
           </div>
@@ -303,10 +307,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-              Built for Busy Organisers
+              Everything You Need, Nothing You Don&apos;t
             </h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Stop spending hours managing competitions. Focus on your business while we handle the complexity.
+              Simple, powerful tools that work for everyone - from small friend groups to busy pubs
             </p>
           </div>
           
@@ -430,65 +434,65 @@ export default function LandingPage() {
           <div className="text-center">
             <Link
               href="/register"
-              className="inline-block bg-slate-800 hover:bg-slate-900 text-white px-12 py-4 rounded-xl text-lg font-semibold transition-colors shadow-lg"
+              className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-4 rounded-xl text-lg font-semibold transition-colors shadow-lg"
             >
-              Get Started Free
+              Start Free - No Credit Card Needed
             </Link>
             <p className="text-slate-500 mt-4 text-sm">
-              Purchase additional credits anytime from your dashboard
+              10 players free forever • Only pay if you need more
             </p>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-700 to-stone-800 relative overflow-hidden">
-        <div className="absolute inset-0 bg-slate-900 bg-opacity-20"></div>
+      <section className="py-20 bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 relative overflow-hidden">
+        <div className="absolute inset-0 bg-emerald-900 bg-opacity-20"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to Start Your Competition?
+            Join Pubs, Organisers & Friend Groups
           </h2>
-          <p className="text-xl text-slate-300 mb-8 max-w-3xl mx-auto">
-            Be among the first to experience the simplest way to run Last Match Standing competitions.
+          <p className="text-xl text-emerald-100 mb-8 max-w-3xl mx-auto">
+            Start your Last Man Standing competition today - completely free for up to 10 players
           </p>
-          
+
           <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">
-            <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur border border-slate-600">
-              <p className="text-2xl font-bold text-white">READY</p>
-              <p className="text-slate-300 text-sm">Start your competition</p>
+            <div className="bg-white bg-opacity-20 rounded-lg p-6 backdrop-blur border border-emerald-400">
+              <p className="text-3xl font-bold text-white mb-2">FREE</p>
+              <p className="text-emerald-50 text-sm">No credit card needed</p>
             </div>
-            <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur border border-slate-600">
-              <p className="text-2xl font-bold text-white">FREE</p>
-              <p className="text-slate-300 text-sm">No credit card required</p>
+            <div className="bg-white bg-opacity-20 rounded-lg p-6 backdrop-blur border border-emerald-400">
+              <p className="text-3xl font-bold text-white mb-2">£0</p>
+              <p className="text-emerald-50 text-sm">No subscription fees</p>
             </div>
-            <div className="bg-white bg-opacity-10 rounded-lg p-4 backdrop-blur border border-slate-600">
-              <p className="text-2xl font-bold text-white">5 min</p>
-              <p className="text-slate-300 text-sm">Setup time</p>
+            <div className="bg-white bg-opacity-20 rounded-lg p-6 backdrop-blur border border-emerald-400">
+              <p className="text-3xl font-bold text-white mb-2">10</p>
+              <p className="text-emerald-50 text-sm">Free player slots</p>
             </div>
           </div>
-          
-          <Link 
-            href="/register" 
-            className="inline-block bg-white text-slate-800 px-12 py-4 rounded-xl text-xl font-bold hover:bg-slate-100 transform hover:scale-105 transition-all duration-200 shadow-2xl"
+
+          <Link
+            href="/register"
+            className="inline-block bg-white text-emerald-700 px-12 py-4 rounded-xl text-xl font-bold hover:bg-emerald-50 transform hover:scale-105 transition-all duration-200 shadow-2xl"
           >
-            Create Free Competition
+            Create Free Competition Now
           </Link>
-          <p className="text-slate-400 mt-4 text-lg">
-            Start with 10 free players • From £10 for more credits
+          <p className="text-emerald-100 mt-4 text-lg font-semibold">
+            Perfect for pubs, workplaces & friend groups • No credit card required
           </p>
-          
-          <div className="mt-8 flex justify-center items-center space-x-8 text-slate-300">
+
+          <div className="mt-8 flex flex-col md:flex-row justify-center items-center gap-4 md:gap-8 text-emerald-100">
             <div className="flex items-center">
               <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span>One-time payments</span>
+              <span>Start FREE today</span>
             </div>
             <div className="flex items-center">
               <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span>No recurring charges</span>
+              <span>No subscriptions</span>
             </div>
             <div className="flex items-center">
               <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span>UK support team</span>
+              <span>Pay only if you grow</span>
             </div>
           </div>
         </div>
