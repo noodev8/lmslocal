@@ -339,6 +339,28 @@ export default function LandingPage() {
             </p>
           </div>
 
+          {/* What is a Credit? */}
+          <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-6 mb-12 max-w-3xl mx-auto">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center">
+                  <UsersIcon className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">What is a Credit?</h3>
+                <p className="text-slate-700 mb-3">
+                  <strong>1 credit = 1 player slot in your competition</strong>
+                </p>
+                <ul className="text-sm text-slate-600 space-y-1.5">
+                  <li>• You always have <strong>10 player slots</strong> to use for free</li>
+                  <li>• Each additional player slot costs <strong>1 credit</strong> when they join</li>
+                  <li>• If the same person joins multiple competitions, each join uses 1 credit</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* Pricing Cards */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mb-12">
             {/* Free Tier */}
@@ -348,7 +370,7 @@ export default function LandingPage() {
               <div className="mb-6">
                 <span className="text-5xl font-bold text-slate-900">£0</span>
               </div>
-              <p className="text-slate-600 mb-6">20 credits</p>
+              <p className="text-slate-600 mb-6">10 credits</p>
               <div className="bg-slate-100 text-slate-700 text-center py-3 rounded-lg font-semibold">
                 Included
               </div>
