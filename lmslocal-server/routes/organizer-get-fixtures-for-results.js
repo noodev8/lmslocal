@@ -16,7 +16,7 @@ Success Response (ALWAYS HTTP 200):
   "return_code": "SUCCESS",
   "round_id": 5,                              // integer, Current round ID
   "round_number": 5,                          // integer, Current round number
-  "round_start_time": "2025-10-25T15:00:00Z", // string or null, Earliest kickoff time (round start)
+  "round_start_time": "2025-10-25T15:00:00Z", // string or null, Round lock time (when results can be entered)
   "fixtures": [                               // array, List of fixtures in current round
     {
       "id": 456,                              // integer, Fixture ID
@@ -164,14 +164,6 @@ router.post('/', verifyToken, async (req, res) => {
     const fixturesWithResults = fixtures.filter(f => f.result !== null).length;
     const fixturesPending = totalFixtures - fixturesWithResults;
 
-    // Get earliest kickoff time from fixtures (round start time)
-    const earliestKickoff = fixtures.length > 0
-      ? fixtures.reduce((earliest, fixture) => {
-          const fixtureTime = new Date(fixture.kickoff_time);
-          return earliest === null || fixtureTime < earliest ? fixtureTime : earliest;
-        }, null)
-      : null;
-
     // ========================================
     // STEP 6: RETURN SUCCESS RESPONSE
     // ========================================
@@ -180,7 +172,7 @@ router.post('/', verifyToken, async (req, res) => {
       return_code: "SUCCESS",
       round_id: round.id,
       round_number: round.round_number,
-      round_start_time: earliestKickoff ? earliestKickoff.toISOString() : null,
+      round_start_time: round.lock_time,
       fixtures: fixtures,
       total_fixtures: totalFixtures,
       fixtures_with_results: fixturesWithResults,

@@ -50,6 +50,7 @@ const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { checkAndLockRoundIfComplete } = require('../utils/roundLocking');
 const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   logApiCall('set-pick');
@@ -233,8 +234,8 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Check round lock status (admins can override)
-    if (!is_admin && validation.is_round_locked) {
+    // Check round lock status (applies to everyone including admins)
+    if (validation.is_round_locked) {
       return res.json({
         return_code: "ROUND_LOCKED",
         message: "This round is locked and picks cannot be changed"
@@ -298,6 +299,15 @@ router.post('/', verifyToken, async (req, res) => {
         INSERT INTO audit_log (competition_id, user_id, action, details)
         VALUES ($1, $2, $3, $4)
       `, [competition_id, authenticated_user_id, actionType, logDetails]);
+
+      // Step 4: Check if all picks are in and auto-lock round (round 2+ only)
+      const lockResult = await checkAndLockRoundIfComplete(client, round_id);
+      if (lockResult.locked) {
+        console.log(`Round ${lockResult.round_number} auto-locked - all ${lockResult.total_active_players} picks received (saved ${lockResult.time_saved_minutes} minutes)`);
+      }
+
+      // Store lock result to include in response
+      savedPick.round_locked = lockResult.locked || false;
     });
 
     // === SUCCESS RESPONSE ===
@@ -305,9 +315,10 @@ router.post('/', verifyToken, async (req, res) => {
     res.json({
       return_code: "SUCCESS",
       message: "Pick saved successfully",
+      round_locked: savedPick.round_locked,           // Boolean: true if this pick triggered auto-lock
       pick: {
         id: savedPick.id,                             // Pick database ID for future operations
-        team: selected_team_short,                    // Short team name for API consistency  
+        team: selected_team_short,                    // Short team name for API consistency
         team_full_name: selected_team_full,           // Full team name for rich display
         fixture_id: fixture_id,                       // Fixture ID for context
         fixture: `${validation.home_team} v ${validation.away_team}`, // Human-readable fixture description

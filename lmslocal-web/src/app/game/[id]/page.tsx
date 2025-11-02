@@ -889,7 +889,7 @@ export default function UnifiedGameDashboard() {
                     /* Show placeholder when no player results yet */
                     <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
                       <div className="text-center text-sm text-gray-600">
-                        No player changes so far
+                        All picks made - Check PLAY and STANDINGS to see what they are
                       </div>
                     </div>
                   )}

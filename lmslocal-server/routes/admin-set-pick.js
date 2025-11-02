@@ -54,6 +54,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
+const { checkAndLockRoundIfComplete } = require('../utils/roundLocking');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety
@@ -193,6 +194,9 @@ router.post('/', verifyToken, async (req, res) => {
           'ADMIN_REMOVE_PICK',
           auditDetails
         ]);
+
+        // Note: We don't check for auto-lock when removing picks
+        // Removing a pick means fewer picks are in, so it shouldn't trigger a lock
 
         return {
           return_code: "SUCCESS",
@@ -458,6 +462,12 @@ router.post('/', verifyToken, async (req, res) => {
         wasUpdated ? 'ADMIN_UPDATE_PICK' : 'ADMIN_SET_PICK',
         auditDetails
       ]);
+
+      // Check if all picks are in and auto-lock round (round 2+ only)
+      const lockResult = await checkAndLockRoundIfComplete(client, data.current_round_id);
+      if (lockResult.locked) {
+        console.log(`Round ${lockResult.round_number} auto-locked - all ${lockResult.total_active_players} picks received (saved ${lockResult.time_saved_minutes} minutes)`);
+      }
 
       // Return comprehensive pick information for frontend display
       return {

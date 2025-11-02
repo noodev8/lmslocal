@@ -9,6 +9,7 @@ import {
 import { roundApi, fixtureApi, playerActionApi, userApi } from '@/lib/api';
 import { withCache, apiCache } from '@/lib/cache';
 import { useAppData } from '@/contexts/AppDataContext';
+import { useToast, ToastContainer } from '@/components/Toast';
 
 interface Fixture {
   id: number;
@@ -27,7 +28,8 @@ export default function PickPage() {
   
   // Use AppDataProvider context for competitions data
   const { competitions, loading: contextLoading, refreshData } = useAppData();
-  
+  const { showToast, toasts, removeToast } = useToast();
+
   // Find the specific competition
   const competition = competitions?.find(c => c.id.toString() === competitionId);
 
@@ -269,6 +271,9 @@ export default function PickPage() {
       const response = await playerActionApi.setPick(selectedTeam.fixtureId, selectedTeam.position);
       
       if (response.data.return_code === 'SUCCESS') {
+        // Check if this pick triggered auto-lock
+        const roundLocked = (response.data as { round_locked?: boolean }).round_locked;
+
         // Clear pick-related caches and refresh data
         if (competition && currentRoundId) {
           // Clear pick-specific caches
@@ -287,13 +292,25 @@ export default function PickPage() {
           // Force dashboard data refresh for immediate stats update
           refreshData();
         }
+
         setSelectedTeam(null);
+
+        // Show appropriate success toast and handle refresh
+        if (roundLocked) {
+          showToast('You were the last player to pick. Pick choices are now available.', 'success');
+          // Refresh page to show updated lock status
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500); // Give user time to see the toast
+        } else {
+          showToast('Pick saved successfully!', 'success');
+        }
       } else {
-        alert('Failed to submit pick: ' + (response.data.message || 'Unknown error'));
+        showToast('Failed to submit pick: ' + (response.data.message || 'Unknown error'), 'error');
       }
     } catch (error) {
       console.error('Failed to submit pick:', error);
-      alert('Failed to submit pick');
+      showToast('Failed to submit pick. Please try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -621,6 +638,7 @@ export default function PickPage() {
           </div>
         )}
       </main>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 }

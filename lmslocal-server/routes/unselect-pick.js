@@ -165,8 +165,8 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Check round lock status (admins can override)
-    if (!is_admin && validation.is_round_locked) {
+    // Check round lock status (applies to everyone including admins)
+    if (validation.is_round_locked) {
       return res.json({
         return_code: "ROUND_LOCKED",
         message: "This round is locked and picks cannot be changed"

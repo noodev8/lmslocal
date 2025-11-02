@@ -41,6 +41,7 @@ Return Codes:
 
 const express = require('express');
 const { query, transaction } = require('../database');
+const { checkAndLockRoundIfComplete } = require('../utils/roundLocking');
 const router = express.Router();
 
 // Bot management identifier for testing endpoints
@@ -259,6 +260,12 @@ router.post('/', async (req, res) => {
           console.error(`Failed to make pick for bot ${bot.display_name}:`, error.message);
           // Continue with next bot
         }
+      }
+
+      // Check if all picks are in and auto-lock round (round 2+ only)
+      const lockResult = await checkAndLockRoundIfComplete(client, round.round_id);
+      if (lockResult.locked) {
+        console.log(`Round ${lockResult.round_number} auto-locked - all ${lockResult.total_active_players} picks received (saved ${lockResult.time_saved_minutes} minutes)`);
       }
     });
 
