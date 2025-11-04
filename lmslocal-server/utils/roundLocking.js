@@ -55,11 +55,16 @@ async function checkAndLockRoundIfComplete(client, round_id) {
           AND status = 'active'
         ) as total_active_players,
 
-        -- Count picks made for this round
+        -- Count picks made for this round (ONLY from active players)
+        -- FIX: Previously counted all picks including eliminated players
+        -- This caused premature auto-lock when admin set picks for eliminated players
         (
           SELECT COUNT(*)
-          FROM pick
-          WHERE round_id = r.id
+          FROM pick p
+          INNER JOIN competition_user cu ON cu.user_id = p.user_id
+            AND cu.competition_id = r.competition_id
+          WHERE p.round_id = r.id
+            AND cu.status = 'active'
         ) as picks_made
 
       FROM round r
