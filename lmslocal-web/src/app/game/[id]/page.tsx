@@ -766,7 +766,10 @@ export default function UnifiedGameDashboard() {
                   {/* Show previous round statistics if available */}
                   {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
                     <div className="pt-3 border-t border-gray-200">
-                      <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                      <button
+                        onClick={() => router.push(`/game/${competitionId}/standings`)}
+                        className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                      >
                         <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number} Results</div>
                         {/* Visual proportional bar */}
                         <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
@@ -799,7 +802,7 @@ export default function UnifiedGameDashboard() {
                           )}
                         </div>
 
-                      </div>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -808,7 +811,10 @@ export default function UnifiedGameDashboard() {
                 <div className="space-y-3">
                   {/* Round Statistics - Visual breakdown */}
                   {roundStats && (
-                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                    <button
+                      onClick={() => router.push(`/game/${competitionId}/standings`)}
+                      className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                    >
                       <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number} Results</div>
                       {/* Visual proportional bar */}
                       <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
@@ -841,7 +847,7 @@ export default function UnifiedGameDashboard() {
                         )}
                       </div>
 
-                    </div>
+                    </button>
                   )}
                 </div>
               ) : !competition.history?.[0] || (competition.history[0].round_number < currentRoundInfo.round_number) ? (
@@ -853,7 +859,10 @@ export default function UnifiedGameDashboard() {
 
                   {/* Show current round statistics if available */}
                   {currentRoundStats && currentRoundStats.round_number === currentRoundInfo.round_number && currentRoundStats.total_players > 0 ? (
-                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm">
+                    <button
+                      onClick={() => router.push(`/game/${competitionId}/standings`)}
+                      className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                    >
                       {/* Visual proportional bar */}
                       <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
                         {currentRoundStats.won > 0 && (
@@ -884,14 +893,17 @@ export default function UnifiedGameDashboard() {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </button>
                   ) : (
-                    /* Show placeholder when no player results yet */
-                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
+                    /* Show placeholder when no player results yet - Clickable to view picks */
+                    <button
+                      onClick={handlePlayClick}
+                      className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
+                    >
                       <div className="text-center text-sm text-gray-600">
-                        All picks made - Check PLAY and STANDINGS to see what they are
+                        All picks made - Check which teams have been chosen
                       </div>
-                    </div>
+                    </button>
                   )}
                 </div>
               ) : null

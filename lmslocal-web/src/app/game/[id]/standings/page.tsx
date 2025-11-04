@@ -298,11 +298,44 @@ export default function StandingsPage() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-        {/* Competition Name */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-          <h2 className="text-xl font-bold text-slate-900 text-center">{competition.name}</h2>
-          <p className="text-sm text-slate-600 text-center mt-1">Round {competition.current_round}</p>
-        </div>
+        {/* My History Button - Prominent one-click access */}
+        {currentUser && (
+          <button
+            onClick={() => {
+              // Find current user in the groups to get their player data
+              let currentUserPlayer = null;
+              for (const groupKey in groupPlayers) {
+                const found = groupPlayers[groupKey]?.find(p => p.id === currentUser.id);
+                if (found) {
+                  currentUserPlayer = found;
+                  break;
+                }
+              }
+
+              // If not found in loaded groups, create minimal player object
+              if (!currentUserPlayer) {
+                currentUserPlayer = {
+                  id: currentUser.id,
+                  display_name: currentUser.display_name,
+                  lives_remaining: 0,
+                  status: 'unknown',
+                  current_pick: null,
+                  elimination_pick: null
+                };
+              }
+
+              setSelectedPlayer(currentUserPlayer);
+              setShowHistoryModal(true);
+              loadPlayerHistory(currentUser.id);
+            }}
+            className="w-full bg-white hover:bg-slate-50 rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 transition-all p-5"
+          >
+            <div className="flex items-center justify-center space-x-3">
+              <ClockIcon className="h-6 w-6 text-slate-600" />
+              <span className="text-lg font-semibold text-slate-900">View My Pick History</span>
+            </div>
+          </button>
+        )}
 
         {/* Groups */}
         <div className="space-y-3">
@@ -389,7 +422,7 @@ export default function StandingsPage() {
                               <>
                                 <div className="flex items-center space-x-1">
                                   <HeartIcon className="h-5 w-5 text-red-500 fill-current" />
-                                  <span>{group.lives}</span>
+                                  <span>{group.lives} {group.lives === 1 ? 'Life' : 'Lives'}</span>
                                 </div>
                                 {group.fixture_status !== null && (
                                   <>
