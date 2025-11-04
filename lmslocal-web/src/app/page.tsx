@@ -357,7 +357,7 @@ export default function LandingPage() {
                   <strong>1 credit = 1 player slot in your competition</strong>
                 </p>
                 <ul className="text-sm text-slate-600 space-y-1.5">
-                  <li>• You always have <strong>10 player slots</strong> to use for free</li>
+                  <li>• You always have <strong>20 player slots</strong> to use for free</li>
                   <li>• Each additional player slot costs <strong>1 credit</strong> when they join</li>
                   <li>• If the same person joins multiple competitions, each join uses 1 credit</li>
                 </ul>
@@ -374,7 +374,7 @@ export default function LandingPage() {
               <div className="mb-6">
                 <span className="text-5xl font-bold text-slate-900">£0</span>
               </div>
-              <p className="text-slate-600 mb-6">10 credits</p>
+              <p className="text-slate-600 mb-6">20 credits</p>
               <div className="bg-slate-100 text-slate-700 text-center py-3 rounded-lg font-semibold">
                 Included
               </div>
@@ -439,7 +439,7 @@ export default function LandingPage() {
               Start Free - No Credit Card Needed
             </Link>
             <p className="text-slate-500 mt-4 text-sm">
-              10 players free forever • Only pay if you need more
+              20 players free forever • Only pay if you need more
             </p>
           </div>
         </div>
@@ -466,7 +466,7 @@ export default function LandingPage() {
               <p className="text-emerald-50 text-sm">No subscription fees</p>
             </div>
             <div className="bg-white bg-opacity-20 rounded-lg p-6 backdrop-blur border border-emerald-400">
-              <p className="text-3xl font-bold text-white mb-2">10</p>
+              <p className="text-3xl font-bold text-white mb-2">20</p>
               <p className="text-emerald-50 text-sm">Free player slots</p>
             </div>
           </div>
