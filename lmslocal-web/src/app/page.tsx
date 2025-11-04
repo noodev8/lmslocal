@@ -127,7 +127,7 @@ export default function LandingPage() {
                     Join Competition
                   </Link>
                 </div>
-                <p className="text-sm text-slate-500 italic">No credit card required • Up to 10 players completely free</p>
+                <p className="text-sm text-slate-500 italic">No credit card required • Up to 20 players completely free</p>
               </div>
 
               {/* Right Side - Dashboard Preview Image */}
@@ -236,7 +236,7 @@ export default function LandingPage() {
               <div className="space-y-3">
                 <div className="flex items-start space-x-3">
                   <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-slate-300">Free for up to 10 players</p>
+                  <p className="text-slate-300">Free for up to 20 players</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <CheckCircleIcon className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -453,7 +453,7 @@ export default function LandingPage() {
             Join Pubs, Organisers & Friend Groups
           </h2>
           <p className="text-xl text-emerald-100 mb-8 max-w-3xl mx-auto">
-            Start your Last Man Standing competition today - completely free for up to 10 players
+            Start your Last Man Standing competition today - completely free for up to 20 players
           </p>
 
           <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">

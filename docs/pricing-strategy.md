@@ -6,7 +6,7 @@ Player-based tiered pricing model with unlimited competitions across all tiers. 
 ## Final Pricing Tiers (IMPLEMENTED)
 
 ### FREE - £0/month
-- **Player limit**: Up to 10 players
+- **Player limit**: Up to 20 players
 - **Features**:
   - 1 active competition
   - Manual fixture/results entry
@@ -52,7 +52,7 @@ Player-based tiered pricing model with unlimited competitions across all tiers. 
 ## Key Strategic Decisions
 
 ### Why These Prices?
-- **Free tier**: 10 players is generous enough to demonstrate value
+- **Free tier**: 20 players is generous enough to demonstrate value
 - **Pro at £29**: Sweet spot for most organizers, includes key business features
 - **Enterprise at £79**: Premium automation justifies higher price point
 - **No unlimited players**: Forces upgrade conversations, keeps infrastructure manageable

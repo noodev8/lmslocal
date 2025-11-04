@@ -76,7 +76,7 @@ Game Set-Up
 Step 1 — Basics: competition name (e.g., “The Red Lion LMS”), logo (optional)
 Step 2 — Team List e.g. EPL 2025–26; choose start week
 Step 3 — Choose initial rules. “no team twice” toggle; number of lives (default 1);
-Step 4 — Subscription: choose plan → pay (Stripe or equivalent) → competition activated. FREE for 5 players so they can start
+Step 4 — Subscription: choose plan → pay (Stripe or equivalent) → competition activated. FREE for 20 players so they can start
 
 ACCOUNT & JOIN FLOW
 Sign‑up/Login: email or phone prompt;
