@@ -159,9 +159,10 @@ router.post('/', verifyToken, async (req, res) => {
     // ========================================
     // STEP 4: GET COMPLETE PICK HISTORY FOR THIS PLAYER
     // ========================================
-    // Fetch ALL rounds for this specific player (not limited to 5)
+    // Fetch rounds where player actually participated (has pick or player_progress entry)
+    // This prevents showing "No Pick" for rounds after elimination
     const historyResult = await query(`
-      SELECT
+      SELECT DISTINCT
         -- === ROUND INFO ===
         r.id as round_id,
         r.round_number,
@@ -183,6 +184,18 @@ router.post('/', verifyToken, async (req, res) => {
       LEFT JOIN fixture f ON p.fixture_id = f.id
       WHERE r.competition_id = $1
         AND r.round_number IS NOT NULL
+        AND (
+          -- Only include rounds where player has a pick
+          p.id IS NOT NULL
+          OR
+          -- Or where player has a player_progress entry (participated in that round)
+          EXISTS (
+            SELECT 1 FROM player_progress pp
+            WHERE pp.round_id = r.id
+              AND pp.player_id = $2
+              AND pp.competition_id = $1
+          )
+        )
       ORDER BY r.round_number DESC
     `, [competition_id_int, player_id_int]);
 
