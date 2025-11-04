@@ -493,7 +493,7 @@ export default function PickPage() {
                               : isCurrentPick
                               ? 'bg-white border-blue-500 shadow-md'
                               : isDisabled
-                              ? 'bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-50'
+                              ? 'bg-slate-300 border-slate-400 text-slate-400 cursor-not-allowed opacity-30'
                               : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
                           }`}
                         >
@@ -545,7 +545,7 @@ export default function PickPage() {
                               : isCurrentPick
                               ? 'bg-white border-blue-500 shadow-md'
                               : isDisabled
-                              ? 'bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-50'
+                              ? 'bg-slate-300 border-slate-400 text-slate-400 cursor-not-allowed opacity-30'
                               : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
                           }`}
                         >
