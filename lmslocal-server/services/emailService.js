@@ -1083,6 +1083,227 @@ const sendOrganiserTipEmail = async (templateData) => {
   }
 };
 
+/**
+ * Send onboarding application notification to admin
+ * @param {Object} applicationData - Application details
+ * @returns {Object} Result object with success status
+ */
+const sendOnboardingNotification = async (applicationData) => {
+  try {
+    const {
+      applicationId,
+      venueName,
+      venueType,
+      contactName,
+      email,
+      phone,
+      estimatedPlayers,
+      preferredStartDate,
+      description
+    } = applicationData;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>New Onboarding Application - LMS Local</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #10b981; margin: 0;">New Onboarding Application</h1>
+              <p style="color: #666; margin: 5px 0 0 0;">LMS Local - Free Launch Package</p>
+            </div>
+
+            <div style="background: #f9fafb; padding: 20px; border-radius: 10px; border-left: 4px solid #10b981;">
+              <h2 style="color: #1f2937; margin-top: 0;">Application #${applicationId}</h2>
+
+              <h3 style="color: #374151; margin-top: 20px; margin-bottom: 10px;">Venue Information</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-weight: bold; width: 40%;">Venue Name:</td>
+                  <td style="padding: 8px 0; color: #1f2937;">${venueName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Venue Type:</td>
+                  <td style="padding: 8px 0; color: #1f2937;">${venueType}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Estimated Players:</td>
+                  <td style="padding: 8px 0; color: #1f2937;">${estimatedPlayers}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Preferred Start:</td>
+                  <td style="padding: 8px 0; color: #1f2937;">${preferredStartDate}</td>
+                </tr>
+              </table>
+
+              <h3 style="color: #374151; margin-top: 20px; margin-bottom: 10px;">Contact Details</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-weight: bold; width: 40%;">Contact Name:</td>
+                  <td style="padding: 8px 0; color: #1f2937;">${contactName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Email:</td>
+                  <td style="padding: 8px 0; color: #1f2937;"><a href="mailto:${email}" style="color: #2563eb;">${email}</a></td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Phone:</td>
+                  <td style="padding: 8px 0; color: #1f2937;"><a href="tel:${phone}" style="color: #2563eb;">${phone}</a></td>
+                </tr>
+              </table>
+
+              ${description ? `
+              <h3 style="color: #374151; margin-top: 20px; margin-bottom: 10px;">Additional Information</h3>
+              <p style="color: #4b5563; background: white; padding: 15px; border-radius: 5px; margin: 0;">${description}</p>
+              ` : ''}
+            </div>
+
+            <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+              <p>LMS Local - Admin-first Last Man Standing competitions</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textContent = `
+      New Onboarding Application - LMS Local
+
+      Application #${applicationId}
+
+      VENUE INFORMATION
+      Venue Name: ${venueName}
+      Venue Type: ${venueType}
+      Estimated Players: ${estimatedPlayers}
+      Preferred Start: ${preferredStartDate}
+
+      CONTACT DETAILS
+      Contact Name: ${contactName}
+      Email: ${email}
+      Phone: ${phone}
+
+      ${description ? `ADDITIONAL INFORMATION\n${description}` : ''}
+    `;
+
+    const result = await sendEmail({
+      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
+      to: process.env.ADMIN_EMAIL || 'aandreou25@gmail.com',
+      subject: `New Onboarding Application: ${venueName}`,
+      html: htmlContent,
+      text: textContent
+    });
+
+    return {
+      success: true,
+      messageId: result.id
+    };
+  } catch (error) {
+    console.error('Failed to send onboarding notification:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Send confirmation email to onboarding applicant
+ * @param {string} email - Applicant email
+ * @param {string} contactName - Applicant name
+ * @returns {Object} Result object with success status
+ */
+const sendOnboardingConfirmation = async (email, contactName) => {
+  try {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Application Received - LMS Local</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f4f4f4;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #10b981; margin: 0;">LMS Local</h1>
+              <p style="color: #666; margin: 5px 0 0 0;">Last Man Standing Competitions</p>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 30px; border-radius: 10px; text-align: center;">
+              <h2 style="color: #1f2937; margin-top: 0;">Application Received! ✅</h2>
+              <p style="color: #4b5563; margin-bottom: 25px;">Hi ${contactName},</p>
+              <p style="color: #4b5563; margin-bottom: 25px;">
+                Thank you for applying for our free Done-For-You Launch Package! We've received your application and will review it shortly.
+              </p>
+
+              <div style="background: white; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #10b981;">
+                <h3 style="color: #1f2937; margin-top: 0; font-size: 18px;">What happens next?</h3>
+                <ul style="color: #4b5563; text-align: left; margin: 0; padding-left: 20px;">
+                  <li style="margin-bottom: 10px;"><strong>Within 24 hours</strong>: We'll review your application and reach out via email or phone</li>
+                  <li style="margin-bottom: 10px;"><strong>30-minute call</strong>: We'll discuss your requirements and competition setup</li>
+                  <li style="margin-bottom: 10px;"><strong>Full setup</strong>: We'll configure everything for you to get started</li>
+                  <li><strong>Ongoing support</strong>: Weekly check-ins throughout your first competition</li>
+                </ul>
+              </div>
+
+              <p style="color: #6b7280; font-size: 14px; margin-top: 25px;">
+                Have questions in the meantime? Feel free to reply to this email.
+              </p>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+              <p>LMS Local - Admin-first Last Man Standing competitions</p>
+              <p>We'll be in touch soon!</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textContent = `
+      LMS Local - Application Received
+
+      Hi ${contactName},
+
+      Thank you for applying for our free Done-For-You Launch Package! We've received your application and will review it shortly.
+
+      What happens next?
+
+      - Within 24 hours: We'll review your application and reach out via email or phone
+      - 30-minute call: We'll discuss your requirements and competition setup
+      - Full setup: We'll configure everything for you to get started
+      - Ongoing support: Weekly check-ins throughout your first competition
+
+      Have questions in the meantime? Feel free to reply to this email.
+
+      We'll be in touch soon!
+
+      LMS Local - Admin-first Last Man Standing competitions
+    `;
+
+    const result = await sendEmail({
+      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
+      to: email,
+      subject: 'Application Received - LMS Local Free Launch Package',
+      html: htmlContent,
+      text: textContent
+    });
+
+    return {
+      success: true,
+      messageId: result.id
+    };
+  } catch (error) {
+    console.error('Failed to send onboarding confirmation:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -1091,5 +1312,7 @@ module.exports = {
   sendPickReminderEmail,
   sendResultsEmail,
   sendWelcomeCompetitionEmail,
-  sendOrganiserTipEmail
+  sendOrganiserTipEmail,
+  sendOnboardingNotification,
+  sendOnboardingConfirmation
 };

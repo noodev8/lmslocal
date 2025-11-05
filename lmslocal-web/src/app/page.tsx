@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, StarIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, StarIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -86,6 +86,26 @@ export default function LandingPage() {
         </div>
       </header>
 
+      {/* Limited Time Onboarding Banner */}
+      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 py-3 border-b-4 border-emerald-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-3 text-center md:text-left">
+            <div className="flex items-center">
+              <SparklesIcon className="h-5 w-5 text-white mr-2" />
+              <span className="text-white font-bold">Limited Offer:</span>
+              <span className="text-emerald-100 ml-2">FREE Done-For-You Setup</span>
+            </div>
+            <Link
+              href="/onboarding"
+              className="bg-white text-emerald-700 px-6 py-2 rounded-lg font-bold text-sm hover:bg-emerald-50 transition-colors shadow-md inline-flex items-center"
+            >
+              Get Free Onboarding
+              <span className="ml-2">→</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100 py-8 md:py-16 lg:py-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -119,6 +139,13 @@ export default function LandingPage() {
                     className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm text-center"
                   >
                     Start Free Competition
+                  </Link>
+                  <Link
+                    href="/onboarding"
+                    className="bg-white hover:bg-slate-50 text-emerald-700 px-6 py-3 rounded-xl font-semibold text-base border-2 border-emerald-600 hover:border-emerald-700 transition-all text-center inline-flex items-center justify-center"
+                  >
+                    <SparklesIcon className="h-5 w-5 mr-2" />
+                    Get Free Setup Help
                   </Link>
                   <Link
                     href="/login"
@@ -341,6 +368,115 @@ export default function LandingPage() {
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
               Start free, pay only when you grow. One-time credits, no subscriptions.
             </p>
+          </div>
+
+          {/* Onboarding Services */}
+          <div className="mb-16">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Onboarding Services</h3>
+              <p className="text-slate-600">Need help getting started? We&apos;ve got you covered.</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-8">
+              {/* Free Launch Package (Limited) */}
+              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-8 shadow-lg border-2 border-emerald-500 relative">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-emerald-600 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg inline-flex items-center">
+                    <SparklesIcon className="h-4 w-4 mr-2" />
+                    LIMITED TIME
+                  </span>
+                </div>
+                <div className="text-center mt-4">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2">Free Launch Package</h3>
+                  <p className="text-slate-600 text-sm mb-6">Limited availability</p>
+                  <div className="mb-6">
+                    <span className="text-5xl font-bold text-slate-900">FREE</span>
+                    <p className="text-slate-500 line-through text-lg mt-1">Normally £149</p>
+                  </div>
+                  <ul className="text-left space-y-3 mb-6">
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700 text-sm">Complete competition setup</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700 text-sm">Support through first full competition</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700 text-sm">Weekly check-ins & direct support</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700 text-sm">Custom promotional materials (coming soon)</span>
+                    </li>
+                  </ul>
+                  <Link
+                    href="/onboarding"
+                    className="block w-full bg-emerald-600 hover:bg-emerald-700 text-white text-center py-3 rounded-lg font-semibold transition-colors shadow-md"
+                  >
+                    Apply Now
+                  </Link>
+                </div>
+              </div>
+
+              {/* Paid Launch Package */}
+              <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-slate-200">
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2">Launch Package</h3>
+                  <p className="text-slate-600 text-sm mb-6">After free slots fill</p>
+                  <div className="mb-6">
+                    <span className="text-5xl font-bold text-slate-900">£149</span>
+                    <p className="text-slate-600 text-sm mt-1">One-time fee</p>
+                  </div>
+                  <ul className="text-left space-y-3 mb-6">
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700 text-sm">Complete competition setup</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700 text-sm">Support through first full competition</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700 text-sm">Weekly check-ins & direct support</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span className="text-slate-700 text-sm">Custom promotional materials (coming soon)</span>
+                    </li>
+                  </ul>
+                  <div className="block w-full bg-slate-100 text-slate-700 text-center py-3 rounded-lg font-semibold">
+                    Coming Soon
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-6 max-w-3xl mx-auto border-2 border-slate-200">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center">
+                    <UsersIcon className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 mb-2">Prefer to do it yourself?</h4>
+                  <p className="text-slate-700 text-sm">
+                    No problem! You can always set up your competition yourself for free. The Launch Package is optional for those who want hands-on support and guidance.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t-2 border-slate-200 pt-16"></div>
+
+          {/* Player Credits Section */}
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">Player Credits</h3>
+            <p className="text-slate-600">Pay only for what you need, when you need it</p>
           </div>
 
           {/* What is a Credit? */}

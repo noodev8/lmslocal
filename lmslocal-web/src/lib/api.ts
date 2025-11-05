@@ -1122,4 +1122,25 @@ export const organizerApi = {
   })
 };
 
+// Onboarding API calls (public)
+export interface OnboardingApplicationRequest {
+  venueName?: string;
+  venueType?: 'pub' | 'club' | 'workplace' | 'friends' | 'other';
+  contactName: string;
+  email: string;
+  phone?: string;
+  estimatedPlayers?: number;
+  preferredStartDate?: string;
+  description?: string;
+}
+
+export const onboardingApi = {
+  submitApplication: (data: OnboardingApplicationRequest) =>
+    api.post<{
+      return_code: string;
+      message: string;
+      application_id?: number;
+    }>('/submit-onboarding-application', data)
+};
+
 export default api;
