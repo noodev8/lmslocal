@@ -11,7 +11,7 @@ import {
   UserGroupIcon,
   HeartIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, teamApi, cacheUtils } from '@/lib/api';
+import { competitionApi, teamApi, cacheUtils, CreateCompetitionRequest } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
 
@@ -27,6 +27,8 @@ interface CreateCompetitionForm {
   description?: string;
   logo_url?: string;
   venue_name?: string;
+  entry_fee?: string;
+  prize_structure?: string;
   team_list_id: number;
   lives_per_player: number;
   no_team_twice: boolean;
@@ -86,15 +88,43 @@ export default function CreateCompetitionPage() {
     setError('');
 
     try {
-      const response = await competitionApi.create({
+      // Build request with required fields
+      const requestData: CreateCompetitionRequest = {
         name: data.name,
-        description: data.description || undefined,
         team_list_id: data.team_list_id,
         lives_per_player: data.lives_per_player,
         no_team_twice: data.no_team_twice,
         organiser_joins_as_player: data.organiser_joins_as_player,
         start_delay_days: data.start_delay_days
-      });
+      };
+
+      // Add optional text fields if provided
+      if (data.description && data.description.trim()) {
+        requestData.description = data.description.trim();
+      }
+
+      if (data.venue_name && data.venue_name.trim()) {
+        requestData.venue_name = data.venue_name.trim();
+      }
+
+      if (data.logo_url && data.logo_url.trim()) {
+        requestData.logo_url = data.logo_url.trim();
+      }
+
+      // Add entry_fee if provided
+      if (data.entry_fee && data.entry_fee.trim()) {
+        const fee = parseFloat(data.entry_fee.trim());
+        if (!isNaN(fee) && fee >= 0) {
+          requestData.entry_fee = fee;
+        }
+      }
+
+      // Add prize_structure if provided
+      if (data.prize_structure && data.prize_structure.trim()) {
+        requestData.prize_structure = data.prize_structure.trim();
+      }
+
+      const response = await competitionApi.create(requestData);
 
       if (response.data.return_code === 'SUCCESS') {
 
@@ -265,6 +295,52 @@ export default function CreateCompetitionPage() {
                   <p className="mt-1 text-xs text-slate-500">
                     This will be shown to players in marketing messages. If not provided, your display name will be used.
                   </p>
+                </div>
+
+                {/* Entry Fee and Prize Structure */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="entry_fee" className="block text-sm font-medium text-slate-700 mb-2">
+                      Entry Fee <span className="text-slate-400">(optional)</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500">£</span>
+                      <input
+                        {...register('entry_fee')}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="block w-full appearance-none rounded-xl border border-slate-300 pl-7 pr-3 sm:pr-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
+                        placeholder="10.00"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Suggested entry fee (shown on leaflets)
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="prize_structure" className="block text-sm font-medium text-slate-700 mb-2">
+                      Prize Structure <span className="text-slate-400">(optional)</span>
+                    </label>
+                    <input
+                      {...register('prize_structure', {
+                        maxLength: {
+                          value: 500,
+                          message: 'Prize structure must be 500 characters or less'
+                        }
+                      })}
+                      type="text"
+                      className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
+                      placeholder="e.g., Winner takes all"
+                    />
+                    {errors.prize_structure && (
+                      <p className="mt-1 text-sm text-red-600">{errors.prize_structure.message}</p>
+                    )}
+                    <p className="mt-1 text-xs text-slate-500">
+                      How prizes are distributed
+                    </p>
+                  </div>
                 </div>
 
                 <div>

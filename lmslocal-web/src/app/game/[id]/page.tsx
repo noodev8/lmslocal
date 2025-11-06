@@ -492,81 +492,90 @@ export default function UnifiedGameDashboard() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
-        {/* Competition Name - Always visible */}
-        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-          <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-900">{competition.name}</h1>
-            {competition.personal_name && (
-              <p className="text-sm text-gray-600 italic mt-1">{competition.personal_name}</p>
-            )}
-            {competition.venue_name && (
-              <p className="text-sm text-gray-600 mt-1">{competition.venue_name}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Competition Logo & Extended Branding Section */}
-        {competition.logo_url && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <div className="flex justify-center mb-4">
-                  <Image
-                    src={competition.logo_url}
-                    alt="Competition logo"
-                    width={80}
-                    height={80}
-                    className="w-20 h-20 rounded-lg object-cover shadow-md"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+        {/* Competition Header - Horizontal layout with logo if available */}
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
+          {competition.logo_url ? (
+            /* With Logo - Horizontal Layout */
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-6">
+                <Image
+                  src={competition.logo_url}
+                  alt={`${competition.name} logo`}
+                  width={100}
+                  height={100}
+                  className="rounded-lg flex-shrink-0"
+                  unoptimized
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+                <div>
+                  <h1 className="text-2xl font-black text-gray-900 mb-1 uppercase tracking-tight leading-tight">
+                    {competition.name}
+                  </h1>
+                  <p className="text-base font-bold text-gray-700 uppercase tracking-wide">
+                    Last Man Standing Competition
+                  </p>
+                  {competition.personal_name && (
+                    <p className="text-sm text-gray-600 italic mt-2">{competition.personal_name}</p>
+                  )}
                 </div>
-                {competition.venue_name && (
-                  <p className="text-sm text-gray-600 mb-3">
-                    {competition.venue_name}
-                  </p>
-                )}
-
-                {/* Compact Address Display */}
-                {(competition.address_line_1 || competition.city || competition.postcode) && (
-                  <p className="text-xs text-gray-500 mb-1">
-                    {[
-                      competition.address_line_1,
-                      competition.address_line_2,
-                      competition.city,
-                      competition.postcode
-                    ].filter(Boolean).join(', ')}
-                  </p>
-                )}
-
-                {/* Contact Links */}
-                {(competition.phone || competition.email) && (
-                  <div className="flex items-center justify-center gap-3 text-xs">
-                    {competition.phone && (
-                      <a
-                        href={`tel:${competition.phone}`}
-                        className="text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
-                      >
-                        <span>📞</span>
-                        <span>{competition.phone}</span>
-                      </a>
-                    )}
-                    {competition.email && (
-                      <a
-                        href={`mailto:${competition.email}`}
-                        className="text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
-                      >
-                        <span>✉️</span>
-                        <span>{competition.email}</span>
-                      </a>
-                    )}
-                  </div>
-                )}
               </div>
+
+              {/* Contact Info - Only show if address or contact details exist */}
+              {(competition.address_line_1 || competition.city || competition.postcode || competition.phone || competition.email) && (
+                <div className="text-center pt-4 border-t border-gray-100">
+                  {/* Compact Address Display */}
+                  {(competition.address_line_1 || competition.city || competition.postcode) && (
+                    <p className="text-xs text-gray-500 mb-2">
+                      {[
+                        competition.address_line_1,
+                        competition.address_line_2,
+                        competition.city,
+                        competition.postcode
+                      ].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+
+                  {/* Contact Links */}
+                  {(competition.phone || competition.email) && (
+                    <div className="flex items-center justify-center gap-3 text-xs">
+                      {competition.phone && (
+                        <a
+                          href={`tel:${competition.phone}`}
+                          className="text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
+                        >
+                          <span>📞</span>
+                          <span>{competition.phone}</span>
+                        </a>
+                      )}
+                      {competition.email && (
+                        <a
+                          href={`mailto:${competition.email}`}
+                          className="text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
+                        >
+                          <span>✉️</span>
+                          <span>{competition.email}</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          ) : (
+            /* Without Logo - Centered Text Layout */
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-gray-900">{competition.name}</h1>
+              {competition.personal_name && (
+                <p className="text-sm text-gray-600 italic mt-1">{competition.personal_name}</p>
+              )}
+              {competition.venue_name && (
+                <p className="text-sm text-gray-600 mt-1">{competition.venue_name}</p>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Prominent Competition Status Card */}
         {currentRoundInfo && competition?.status !== 'COMPLETE' && (
