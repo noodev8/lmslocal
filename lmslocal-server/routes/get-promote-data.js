@@ -21,7 +21,10 @@ Success Response (ALWAYS HTTP 200):
     "invite_code": "RED-BARN",         // string, competition invite code
     "join_url": "https://lmslocal.co.uk/join/RED-BARN",  // string, full join URL (for pre-launch)
     "game_url": "https://lmslocal.co.uk/game/123",       // string, direct game URL (for active competitions)
-    "total_players": 35                // integer, total players ever in competition
+    "total_players": 35,               // integer, total players ever in competition
+    "entry_fee": 10.00,                // decimal, suggested entry fee (null if not set)
+    "prize_structure": "50% Winner / 50% Charity", // string, prize distribution (null if not set)
+    "start_date": "Friday 24 Jan at 7pm" // string, formatted start date from round 1 lock_time (or "Check with organiser" if not set)
   },
   "current_round": {
     "round_number": 5,                 // integer, current round number (null if no rounds)
@@ -104,7 +107,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Fetch competition details and verify organizer
     const competitionResult = await query(
-      `SELECT id, name, status, invite_code, slug, organiser_id
+      `SELECT id, name, status, invite_code, slug, organiser_id, logo_url, entry_fee, prize_structure, lives_per_player
        FROM competition
        WHERE id = $1`,
       [competition_id]
@@ -144,6 +147,38 @@ router.post('/', verifyToken, async (req, res) => {
       [competition_id]
     );
     const total_players = parseInt(totalPlayersResult.rows[0].count);
+
+    // Get round 1 lock_time for start date
+    const round1Result = await query(
+      `SELECT lock_time
+       FROM round
+       WHERE competition_id = $1 AND round_number = 1
+       LIMIT 1`,
+      [competition_id]
+    );
+
+    let start_date_formatted = 'Check with organiser';
+    if (round1Result.rows.length > 0 && round1Result.rows[0].lock_time) {
+      const startLockTime = new Date(round1Result.rows[0].lock_time);
+      const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/London',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        hour12: false
+      });
+
+      const parts = formatter.formatToParts(startLockTime);
+      const weekday = parts.find(p => p.type === 'weekday').value;
+      const day = parts.find(p => p.type === 'day').value;
+      const month = parts.find(p => p.type === 'month').value;
+      const hour24 = parseInt(parts.find(p => p.type === 'hour').value);
+      const hour12 = hour24 % 12 || 12;
+      const ampm = hour24 >= 12 ? 'pm' : 'am';
+
+      start_date_formatted = `${weekday} ${day} ${month} at ${hour12}${ampm}`;
+    }
 
     // Get current round information
     const roundResult = await query(
@@ -353,9 +388,9 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Calculate template visibility logic
     const template_context = {
-      // Pre-launch: Show if competition is in setup OR round 1 has no fixtures
+      // Pre-launch: Show if competition is in setup OR round 1 (regardless of status or fixtures)
       show_pre_launch: competition.status === 'setup' ||
-                       (!current_round || (current_round.round_number === 1 && current_round.fixture_count === 0)),
+                       (!current_round || current_round.round_number === 1),
 
       // Round update: Show if competition is active and ANY round has completed fixtures
       show_round_update: competition.status === 'active' && hasAnyCompletedRound,
@@ -380,7 +415,12 @@ router.post('/', verifyToken, async (req, res) => {
         invite_code: competition.invite_code,
         join_url,
         game_url,
-        total_players
+        total_players,
+        logo_url: competition.logo_url,
+        entry_fee: competition.entry_fee,
+        prize_structure: competition.prize_structure,
+        start_date: start_date_formatted,
+        lives_per_player: competition.lives_per_player
       },
       current_round,
       player_stats: {

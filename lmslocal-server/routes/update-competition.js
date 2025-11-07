@@ -12,6 +12,8 @@ Request Payload:
   "description": "New description",         // string, optional - New competition description (can be updated anytime)
   "logo_url": "https://res.cloudinary.com/...", // string, optional - Logo image URL (max 500 chars, can be updated anytime)
   "venue_name": "The Red Barn",             // string, optional - Venue/organization name (max 100 chars, can be updated anytime)
+  "entry_fee": 10.00,                      // decimal, optional - Entry fee in GBP (can be updated anytime)
+  "prize_structure": "Winner takes all",    // string, optional - Prize distribution (max 500 chars, can be updated anytime)
   "lives_per_player": 3,                   // integer, optional - New lives per player (only if not started)
   "no_team_twice": false                   // boolean, optional - Allow team reuse setting (only if not started)
 }
@@ -59,7 +61,7 @@ router.post('/', verifyToken, async (req, res) => {
   
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, lives_per_player, no_team_twice } = req.body;
+    const { competition_id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice } = req.body;
     const user_id = req.user.id;
 
 
@@ -73,7 +75,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Validate at least one field is being updated
-    if (name === undefined && description === undefined && logo_url === undefined && venue_name === undefined && address_line_1 === undefined && address_line_2 === undefined && city === undefined && postcode === undefined && phone === undefined && email === undefined && lives_per_player === undefined && no_team_twice === undefined) {
+    if (name === undefined && description === undefined && logo_url === undefined && venue_name === undefined && address_line_1 === undefined && address_line_2 === undefined && city === undefined && postcode === undefined && phone === undefined && email === undefined && entry_fee === undefined && prize_structure === undefined && lives_per_player === undefined && no_team_twice === undefined) {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "At least one field must be provided for update"
@@ -171,6 +173,25 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Validate entry_fee if provided (can be updated anytime)
+    if (entry_fee !== undefined && entry_fee !== null) {
+      const fee = Number(entry_fee);
+      if (isNaN(fee) || fee < 0) {
+        return res.json({
+          return_code: "VALIDATION_ERROR",
+          message: "Entry fee must be a positive number"
+        });
+      }
+    }
+
+    // Validate prize_structure if provided (can be updated anytime)
+    if (prize_structure !== undefined && prize_structure !== null && prize_structure.length > 500) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Prize structure must be 500 characters or less"
+      });
+    }
+
     // Validate lives_per_player if provided (only if not started)
     if (lives_per_player !== undefined) {
       if (!Number.isInteger(lives_per_player) || lives_per_player < 0 || lives_per_player > 2) {
@@ -195,7 +216,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 1. Get current competition details with row lock to prevent concurrent modifications
       const competitionResult = await client.query(`
-        SELECT id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, lives_per_player, no_team_twice,
+        SELECT id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice,
                organiser_id, invite_code, created_at
         FROM competition
         WHERE id = $1
@@ -233,6 +254,8 @@ router.post('/', verifyToken, async (req, res) => {
         postcode: postcode !== undefined ? (postcode ? postcode.trim() : null) : currentCompetition.postcode,
         phone: phone !== undefined ? (phone ? phone.trim() : null) : currentCompetition.phone,
         email: email !== undefined ? (email ? email.trim() : null) : currentCompetition.email,
+        entry_fee: entry_fee !== undefined ? (entry_fee !== null ? Number(entry_fee) : null) : currentCompetition.entry_fee,
+        prize_structure: prize_structure !== undefined ? (prize_structure ? prize_structure.trim() : null) : currentCompetition.prize_structure,
         lives_per_player: lives_per_player !== undefined ? lives_per_player : currentCompetition.lives_per_player,
         no_team_twice: no_team_twice !== undefined ? no_team_twice : currentCompetition.no_team_twice
       };
@@ -240,9 +263,9 @@ router.post('/', verifyToken, async (req, res) => {
       // 6. Update the competition record with new values
       const updatedCompetitionResult = await client.query(`
         UPDATE competition
-        SET name = $1, description = $2, logo_url = $3, venue_name = $4, address_line_1 = $5, address_line_2 = $6, city = $7, postcode = $8, phone = $9, email = $10, lives_per_player = $11, no_team_twice = $12
-        WHERE id = $13
-        RETURNING id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, lives_per_player, no_team_twice,
+        SET name = $1, description = $2, logo_url = $3, venue_name = $4, address_line_1 = $5, address_line_2 = $6, city = $7, postcode = $8, phone = $9, email = $10, entry_fee = $11, prize_structure = $12, lives_per_player = $13, no_team_twice = $14
+        WHERE id = $15
+        RETURNING id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice,
                   invite_code, created_at, organiser_id
       `, [
         updateData.name,
@@ -255,6 +278,8 @@ router.post('/', verifyToken, async (req, res) => {
         updateData.postcode,
         updateData.phone,
         updateData.email,
+        updateData.entry_fee,
+        updateData.prize_structure,
         updateData.lives_per_player,
         updateData.no_team_twice,
         competition_id
@@ -287,6 +312,12 @@ router.post('/', verifyToken, async (req, res) => {
       }
       if (logo_url !== undefined && logo_url !== currentCompetition.logo_url) {
         auditDetails.push(`logo updated`);
+      }
+      if (entry_fee !== undefined && Number(entry_fee) !== currentCompetition.entry_fee) {
+        auditDetails.push(`entry fee updated to £${entry_fee || 0}`);
+      }
+      if (prize_structure !== undefined && prize_structure !== currentCompetition.prize_structure) {
+        auditDetails.push(`prize structure updated`);
       }
       if (lives_per_player !== undefined && lives_per_player !== currentCompetition.lives_per_player) {
         auditDetails.push(`lives per player changed from ${currentCompetition.lives_per_player} to ${lives_per_player}`);

@@ -160,6 +160,8 @@ export interface Competition {
   postcode?: string;
   phone?: string;
   email?: string;
+  entry_fee?: number | null;
+  prize_structure?: string | null;
   is_organiser: boolean;
   is_participant?: boolean;
   organiser_id?: number;
@@ -308,6 +310,8 @@ export interface CreateCompetitionRequest {
   postcode?: string;
   phone?: string;
   email?: string;
+  entry_fee?: number;
+  prize_structure?: string;
   access_code?: string;
   slug?: string;
   team_list_id: number;
@@ -329,6 +333,8 @@ export interface UpdateCompetitionRequest {
   postcode?: string;
   phone?: string;
   email?: string;
+  entry_fee?: number;
+  prize_structure?: string;
   lives_per_player?: number;
   no_team_twice?: boolean;
 }
@@ -937,6 +943,11 @@ export const promoteApi = {
         join_url: string;
         game_url: string;
         total_players: number;
+        logo_url?: string | null;
+        entry_fee?: number | null;
+        prize_structure?: string | null;
+        start_date?: string;
+        lives_per_player?: number;
       };
       current_round?: {
         round_number: number;

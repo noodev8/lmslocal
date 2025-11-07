@@ -17,6 +17,8 @@ Request Payload:
   "postcode": "M1 2AB",                         // string, optional - UK postcode (max 20 chars)
   "phone": "01234 567890",                      // string, optional - Contact phone number (max 20 chars)
   "email": "contact@venue.com",                 // string, optional - Contact email address (max 255 chars)
+  "entry_fee": 10.00,                          // decimal, optional - Suggested entry fee in GBP
+  "prize_structure": "Winner takes all",        // string, optional - Prize distribution description (max 500 chars)
   "team_list_id": 1,                           // integer, required - ID of team list to use
   "lives_per_player": 1,                       // integer, optional - Number of lives per player (default: 1)
   "no_team_twice": true,                       // boolean, optional - Prevent team reuse (default: true)
@@ -63,7 +65,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, start_delay_days } = req.body;
+    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, start_delay_days } = req.body;
     const organiser_id = req.user.id;
 
     // Basic validation
@@ -140,6 +142,25 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Validate entry_fee if provided
+    if (entry_fee !== undefined && entry_fee !== null) {
+      const fee = Number(entry_fee);
+      if (isNaN(fee) || fee < 0) {
+        return res.json({
+          return_code: "VALIDATION_ERROR",
+          message: "Entry fee must be a positive number"
+        });
+      }
+    }
+
+    // Validate prize_structure length if provided
+    if (prize_structure && prize_structure.length > 500) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Prize structure must be 500 characters or less"
+      });
+    }
+
     // Validate start_delay_days if provided
     const validDelays = [0, 7, 14, 21];
     const delayDays = start_delay_days !== undefined ? Number(start_delay_days) : 7;
@@ -208,6 +229,8 @@ router.post('/', verifyToken, async (req, res) => {
           postcode,
           phone,
           email,
+          entry_fee,
+          prize_structure,
           team_list_id,
           status,
           lives_per_player,
@@ -218,7 +241,7 @@ router.post('/', verifyToken, async (req, res) => {
           fixture_service,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'SETUP', $12, $13, $14, $15, $16, false, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, false, CURRENT_TIMESTAMP)
         RETURNING *
       `, [
         name.trim(),
@@ -231,6 +254,8 @@ router.post('/', verifyToken, async (req, res) => {
         postcode ? postcode.trim() : null,
         phone ? phone.trim() : null,
         email ? email.trim() : null,
+        entry_fee ? Number(entry_fee) : null,
+        prize_structure ? prize_structure.trim() : null,
         team_list_id,
         lives_per_player || 1,
         no_team_twice !== false, // Default to true

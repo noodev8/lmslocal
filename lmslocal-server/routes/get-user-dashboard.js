@@ -100,6 +100,8 @@ router.post('/', verifyToken, async (req, res) => {
         c.postcode,                            -- Postcode
         c.phone,                               -- Contact phone number
         c.email,                               -- Contact email address
+        c.entry_fee,                           -- Entry fee
+        c.prize_structure,                     -- Prize structure
         c.status,                              -- Competition status
         c.lives_per_player,                    -- Lives per player setting
         c.no_team_twice,                       -- Team reuse restriction
@@ -327,6 +329,8 @@ router.post('/', verifyToken, async (req, res) => {
         postcode: comp.postcode,
         phone: comp.phone,
         email: comp.email,
+        entry_fee: comp.entry_fee,
+        prize_structure: comp.prize_structure,
         status: comp.status,
         lives_per_player: comp.lives_per_player,
         no_team_twice: comp.no_team_twice,

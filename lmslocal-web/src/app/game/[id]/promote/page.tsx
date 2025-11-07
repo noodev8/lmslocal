@@ -439,6 +439,31 @@ export default function PromotePage() {
           </div>
         </div>
 
+        {/* Promotional Leaflet - Only show before round 1 locks or if in round 1 */}
+        {(!data.current_round ||
+          (data.current_round.round_number === 1 && !data.current_round.is_locked) ||
+          data.current_round.round_number < 1) && (
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Promotional Leaflet</h3>
+                <p className="text-sm text-gray-600">
+                  Print-ready A4 leaflet for pubs and venues
+                </p>
+              </div>
+              <Link
+                href={`/leaflet/${competitionId}`}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-900 transition-colors"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                <span>View & Print</span>
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* WhatsApp Messages Section */}
         {(() => {
           // Get all visible templates based on template_context

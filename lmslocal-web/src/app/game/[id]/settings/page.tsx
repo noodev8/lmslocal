@@ -55,6 +55,8 @@ export default function CompetitionSettings() {
     email: '',
     lives_per_player: 0,
     no_team_twice: true,
+    entry_fee: '',
+    prize_structure: '',
   });
 
   // Track if competition has started (derived from invite_code presence)
@@ -97,6 +99,8 @@ export default function CompetitionSettings() {
             email: competition.email || '',
             lives_per_player: competition.lives_per_player || 0,
             no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
+            entry_fee: competition.entry_fee ? competition.entry_fee.toString() : '',
+            prize_structure: competition.prize_structure || '',
           });
 
           // Check if competition has started (no invite code means started)
@@ -204,6 +208,19 @@ export default function CompetitionSettings() {
         updateData.email = formData.email.trim();
       }
 
+      // Entry fee - convert to number if provided
+      if (formData.entry_fee.trim()) {
+        const fee = parseFloat(formData.entry_fee.trim());
+        if (!isNaN(fee) && fee >= 0) {
+          updateData.entry_fee = fee;
+        }
+      }
+
+      // Prize structure
+      if (formData.prize_structure.trim()) {
+        updateData.prize_structure = formData.prize_structure.trim();
+      }
+
       // Always include logo_url to allow clearing it (send empty string to clear)
       updateData.logo_url = formData.logo_url.trim();
 
@@ -252,6 +269,8 @@ export default function CompetitionSettings() {
         email: competition.email || '',
         lives_per_player: competition.lives_per_player || 0,
         no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
+        entry_fee: competition.entry_fee ? competition.entry_fee.toString() : '',
+        prize_structure: competition.prize_structure || '',
       });
     }
     setError(null);
@@ -693,6 +712,51 @@ export default function CompetitionSettings() {
                   placeholder="e.g., contact@venue.com"
                   maxLength={255}
                 />
+              </div>
+            </div>
+
+            {/* Entry Fee and Prize */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="entry_fee" className="block text-sm font-medium text-slate-700 mb-2">
+                  Entry Fee <span className="text-slate-400">(optional)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500">£</span>
+                  <input
+                    type="number"
+                    id="entry_fee"
+                    name="entry_fee"
+                    value={formData.entry_fee}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.01"
+                    className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                    placeholder="10.00"
+                  />
+                </div>
+                <p className="mt-1 text-sm text-slate-500">
+                  Suggested entry fee (for leaflets)
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="prize_structure" className="block text-sm font-medium text-slate-700 mb-2">
+                  Prize Structure <span className="text-slate-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="prize_structure"
+                  name="prize_structure"
+                  value={formData.prize_structure}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  placeholder="e.g., Winner takes all"
+                  maxLength={500}
+                />
+                <p className="mt-1 text-sm text-slate-500">
+                  How prizes are distributed
+                </p>
               </div>
             </div>
           </div>
