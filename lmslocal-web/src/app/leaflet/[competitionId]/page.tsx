@@ -264,7 +264,7 @@ export default function LeafletPage() {
           </div>
 
           {/* Competition Details - Full Width */}
-          <div className="border-4 border-gray-900 bg-gray-50 p-6 mb-8">
+          <div className="border-4 border-gray-900 bg-white p-6 mb-8">
             <h3 className="text-2xl font-black text-gray-900 mb-4 uppercase text-center border-b-2 border-gray-300 pb-2">Competition Details</h3>
             <div className="grid grid-cols-1 gap-3 text-base text-gray-900">
               <div className="flex items-start">
@@ -427,7 +427,7 @@ export default function LeafletPage() {
           </div>
 
           {/* Competition Details - Full Width */}
-          <div className="border-4 border-gray-900 bg-gray-50 p-6 mb-8">
+          <div className="border-4 border-gray-900 bg-white p-6 mb-8">
             <h3 className="text-2xl font-black text-gray-900 mb-4 uppercase text-center border-b-2 border-gray-300 pb-2">Competition Details</h3>
             <div className="grid grid-cols-1 gap-3 text-base text-gray-900">
               <div className="flex items-start">
