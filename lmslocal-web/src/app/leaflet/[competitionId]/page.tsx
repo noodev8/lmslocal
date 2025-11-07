@@ -214,7 +214,7 @@ export default function LeafletPage() {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-2 gap-8 mb-6">
 
             {/* Left Column - Join Info */}
             <div className="space-y-6">
@@ -235,7 +235,7 @@ export default function LeafletPage() {
                     <span className="font-bold mr-2 text-gray-900">1.</span>
                     <div>
                       <div>Scan QR code or visit:</div>
-                      <div className="text-sm font-mono mt-1">https://lmslocal.co.uk</div>
+                      <div className="text-sm font-mono mt-1">www.lmslocal.co.uk</div>
                     </div>
                   </li>
                   <li className="flex items-start">
@@ -248,16 +248,6 @@ export default function LeafletPage() {
                   </li>
                 </ol>
               </div>
-
-              {/* Entry Details */}
-              <div className="bg-gray-900 text-white p-4 rounded-lg">
-                <h3 className="text-lg font-bold mb-2 uppercase">Competition Details</h3>
-                <div className="space-y-1 text-sm">
-                  <p><strong>Entry Fee:</strong> {data.competition.entry_fee ? `£${Number(data.competition.entry_fee).toFixed(2)}` : 'Contact organiser'}</p>
-                  <p><strong>Starts:</strong> {data.competition.start_date || 'Check with organiser'}</p>
-                  <p><strong>Prize:</strong> {data.competition.prize_structure || 'To be confirmed'}</p>
-                </div>
-              </div>
             </div>
 
             {/* Right Column - QR Code */}
@@ -269,6 +259,25 @@ export default function LeafletPage() {
                 ) : (
                   <div className="w-[200px] h-[200px] bg-gray-200 animate-pulse mx-auto"></div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* Competition Details - Full Width */}
+          <div className="border-4 border-gray-900 bg-gray-50 p-6 mb-8">
+            <h3 className="text-2xl font-black text-gray-900 mb-4 uppercase text-center border-b-2 border-gray-300 pb-2">Competition Details</h3>
+            <div className="grid grid-cols-1 gap-3 text-base text-gray-900">
+              <div className="flex items-start">
+                <span className="font-bold min-w-[120px] text-gray-700">Entry Fee:</span>
+                <span className="font-semibold">{data.competition.entry_fee ? `£${Number(data.competition.entry_fee).toFixed(2)}` : 'Contact organiser'}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-bold min-w-[120px] text-gray-700">Start Date:</span>
+                <span className="font-semibold">{data.competition.start_date || 'Check with organiser'}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-bold min-w-[120px] text-gray-700 flex-shrink-0">Prize:</span>
+                <span className="font-semibold flex-1">{data.competition.prize_structure || 'To be confirmed'}</span>
               </div>
             </div>
           </div>
@@ -367,7 +376,7 @@ export default function LeafletPage() {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-2 gap-8 mb-6">
 
             {/* Left Column - Join Info */}
             <div className="space-y-6">
@@ -388,7 +397,7 @@ export default function LeafletPage() {
                     <span className="font-bold mr-2 text-gray-900">1.</span>
                     <div>
                       <div>Scan QR code or visit:</div>
-                      <div className="text-sm font-mono mt-1">https://lmslocal.co.uk</div>
+                      <div className="text-sm font-mono mt-1">www.lmslocal.co.uk</div>
                     </div>
                   </li>
                   <li className="flex items-start">
@@ -400,16 +409,6 @@ export default function LeafletPage() {
                     <span>Press &quot;PLAY&quot; to start playing</span>
                   </li>
                 </ol>
-              </div>
-
-              {/* Entry Details */}
-              <div className="bg-gray-900 text-white p-4 rounded-lg">
-                <h3 className="text-lg font-bold mb-2 uppercase">Competition Details</h3>
-                <div className="space-y-1 text-sm">
-                  <p><strong>Entry Fee:</strong> {data.competition.entry_fee ? `£${Number(data.competition.entry_fee).toFixed(2)}` : 'Contact organiser'}</p>
-                  <p><strong>Starts:</strong> {data.competition.start_date || 'Check with organiser'}</p>
-                  <p><strong>Prize:</strong> {data.competition.prize_structure || 'To be confirmed'}</p>
-                </div>
               </div>
             </div>
 
@@ -424,6 +423,25 @@ export default function LeafletPage() {
               <p className="text-xs text-gray-500 text-center max-w-[200px]">
                 Scan to visit website
               </p>
+            </div>
+          </div>
+
+          {/* Competition Details - Full Width */}
+          <div className="border-4 border-gray-900 bg-gray-50 p-6 mb-8">
+            <h3 className="text-2xl font-black text-gray-900 mb-4 uppercase text-center border-b-2 border-gray-300 pb-2">Competition Details</h3>
+            <div className="grid grid-cols-1 gap-3 text-base text-gray-900">
+              <div className="flex items-start">
+                <span className="font-bold min-w-[120px] text-gray-700">Entry Fee:</span>
+                <span className="font-semibold">{data.competition.entry_fee ? `£${Number(data.competition.entry_fee).toFixed(2)}` : 'Contact organiser'}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-bold min-w-[120px] text-gray-700">Start Date:</span>
+                <span className="font-semibold">{data.competition.start_date || 'Check with organiser'}</span>
+              </div>
+              <div className="flex items-start">
+                <span className="font-bold min-w-[120px] text-gray-700 flex-shrink-0">Prize:</span>
+                <span className="font-semibold flex-1">{data.competition.prize_structure || 'To be confirmed'}</span>
+              </div>
             </div>
           </div>
 
