@@ -41,7 +41,7 @@ Asking too many questions = frozen contact. Build first, present finished produc
 
 ## Execution Checklist (Linear Process)
 
-### STEP 1: Competition Build FIRST (30 mins - Day 0)
+### STEP 1: Competition Build FIRST (20 mins - Day 0)
 
 **BUILD BEFORE CONTACTING - Critical for "Done For You" approach**
 
@@ -55,8 +55,6 @@ Asking too many questions = frozen contact. Build first, present finished produc
 7. Set round 1 lock time: Saturday 2 weeks from today, 3pm
 8. Generate join link
 9. Note competition ID and access code
-10. Create WhatsApp group: "[Pub Name] Last Man Standing"
-11. Pin welcome message in WhatsApp group (see template below)
 
 **Required Information:**
 - Pub name (minimum)
@@ -66,35 +64,13 @@ Asking too many questions = frozen contact. Build first, present finished produc
 - ✅ Competition URL (join link)
 - ✅ Access Code
 - ✅ Leaflet URL (automatically generated at `/leaflet/[ID]`)
-- ✅ WhatsApp group with shareable link
 - ✅ Admin login credentials (if needed)
-
-**WhatsApp Group Pinned Message:**
-```
-Welcome to [Pub Name] Last Man Standing! ⚽
-
-Join the competition:
-🔗 [JOIN_URL]
-🔑 Code: [ACCESS_CODE]
-
-📅 Starts: [START_DATE]
-💰 Entry: £10 (pay at [Pub Name])
-🏆 Prize: 50% Winner / 50% Charity
-
-Rules: Pick one team each week. Win = stay alive. Can't repeat teams.
-
-I'll send reminders before each round locks.
-
-Questions? Ask here anytime! Good luck 🍀
-
-- [Your Name], LMSLocal
-```
 
 ---
 
 ### STEP 2: Initial Contact - "Done For You" Message (5 mins - Day 0)
 
-**Communication Method:** WhatsApp (preferred) or Email
+**Communication Method:** WhatsApp DM (preferred) or Email
 
 **IMPORTANT:** If contact seems overwhelmed or frozen from previous questions, use the "Unstick Message" template instead.
 
@@ -117,9 +93,8 @@ YOUR COMPETITION:
 Here's the best bit - you can be as hands-on or hands-off as you like:
 
 ✅ I'LL HANDLE:
-• Weekly pick reminders to players
+• Weekly pick reminders to players via WhatsApp
 • Results updates
-• Running the WhatsApp group
 • All the admin and technical stuff
 • Player questions and support
 
@@ -131,8 +106,6 @@ Here's the best bit - you can be as hands-on or hands-off as you like:
 That's it! I'll run the whole thing.
 
 Want to be more involved? Great! Want me to handle it all? Also great!
-
-Your promotional leaflet: [LEAFLET_URL]
 
 Sound good? 👍
 ```
@@ -154,9 +127,8 @@ YOUR COMPETITION IS READY:
 Here's the best bit - you can be as hands-on or hands-off as you like:
 
 ✅ I'LL HANDLE:
-• Weekly pick reminders to players
+• Weekly pick reminders to players via WhatsApp
 • Results updates
-• Running the WhatsApp group
 • All the admin and technical stuff
 • Player questions and support
 
@@ -169,15 +141,14 @@ That's literally it. I'll run the whole thing.
 
 Want to be more involved? Great! Want me to handle it all? Also great!
 
-Your promotional leaflet is ready here: [LEAFLET_URL]
-
 Sound good? 👍
 ```
 
 **Action:**
-- Send immediately after building competition
+- Send immediately after building competition (directly to pub contact via WhatsApp DM or email)
 - Don't send anything else until they respond
 - Wait for positive response before proceeding
+- **Note:** WhatsApp group will be created once they respond positively
 
 ---
 
@@ -187,12 +158,15 @@ Sound good? 👍
 
 The leaflet is now fully automated using your Next.js app. Each competition automatically gets a printable leaflet page.
 
+**IMPORTANT:** Leaflet URL requires organizer login - **for your use only**, not for sharing with pub.
+
 **Technical Implementation:**
-- **Location:** `/leaflet/[competitionId]` page in Next.js app
+- **Location:** `/leaflet/[competitionId]` page in Next.js app (requires authentication)
 - **Technology:** React + Tailwind CSS with print-optimized styling
 - **QR Code:** Auto-generated using `qrcode` npm package (free)
 - **Data Source:** Fetches from `promoteApi.getPromoteData()` endpoint
 - **Fully Responsive:** Beautiful on screen, perfect for printing
+- **Access:** Organizer only (verifyToken required)
 
 **How It Works:**
 1. Create competition in system → Get competition ID (e.g., 47)
@@ -224,11 +198,11 @@ The leaflet is now fully automated using your Next.js app. Each competition auto
 
 **Your Workflow:**
 1. Create competition → Note the competition ID
-2. Access leaflet via promote page OR visit: `https://lmslocal.com/leaflet/[ID]`
+2. Login to your account and visit: `https://lmslocal.com/leaflet/[ID]`
 3. Click "Print Leaflet" button
-4. Save as PDF or print directly
+4. Save as PDF
 5. Print 5 physical copies in office
-6. Send leaflet URL to pub in initial "Done For You" message
+6. Post physical copies to pub (do NOT share leaflet URL - it requires login)
 
 **Quick Access:**
 - From game dashboard → Promote → "View & Print" leaflet card
@@ -236,27 +210,54 @@ The leaflet is now fully automated using your Next.js app. Each competition auto
 - Leaflet card hidden once round 1 starts (no longer needed for recruitment)
 
 **Output Options:**
-- **Screen View:** Beautiful preview with "Print" button
+- **Screen View:** Beautiful preview with "Print" button (organizer only)
 - **Print to PDF:** Browser's built-in print-to-PDF (free)
 - **Direct Print:** Send to printer for physical copies
-- **Shareable Link:** Pub can view online and print more themselves
 
 **Physical Printing:**
 - Use browser's print-to-PDF for the 5 copies
 - Print directly in office OR send to local print shop
-- Include leaflet URL in initial message for pub to print more themselves
 - Post 5 physical copies to pub
-- Future: Offer paid bulk printing service (50+ copies)
+- Future options: Public leaflet URL (no login) or paid bulk printing service (50+ copies)
 
 ---
 
-### STEP 4: Delivery Package - When They Respond Positively (5 mins - Day 1)
+### STEP 4: Delivery Package - When They Respond Positively (10 mins - Day 1)
 
 **Wait for:** Positive response to "Done For You" message (e.g., "OK", "Sounds good", "👍")
 
 **IMPORTANT:** Don't send anything else until they acknowledge the initial message. Don't overwhelm.
 
 **Once They Respond:**
+
+**1. CREATE WHATSAPP GROUP (First Action):**
+- Create new WhatsApp group: "[Pub Name] Last Man Standing"
+- Add pub contact as first member (and admin)
+- Pin welcome message in group (see template below)
+- Get shareable group link (Group info → Invite via link)
+
+**WhatsApp Group Pinned Message Template:**
+```
+Welcome to [Pub Name] Last Man Standing! ⚽
+
+Join the competition:
+🔗 [JOIN_URL]
+🔑 Code: [ACCESS_CODE]
+
+📅 Starts: [START_DATE]
+💰 Entry: £10 (pay at [Pub Name])
+🏆 Prize: 50% Winner / 50% Charity
+
+Rules: Pick one team each week. Win = stay alive. Can't repeat teams.
+
+I'll send reminders before each round locks.
+
+Questions? Ask here anytime! Good luck 🍀
+
+- [Your Name], LMSLocal
+```
+
+**2. SEND DELIVERY MESSAGE (After Group Created):**
 
 **WhatsApp/Email Message:**
 
@@ -265,23 +266,28 @@ Great! I'm printing your leaflets today (5 copies) and posting them to you.
 
 Quick Guide attached - it's just 1 page showing the 3 simple steps.
 
-Also, here's the WhatsApp group link to share with your customers:
+Also, I've created the WhatsApp group for players and added you as admin:
 [WHATSAPP_GROUP_LINK]
 
-I've already added you as admin in the group so you can manage it if you want - but I'll handle all the reminders and admin stuff if you prefer!
+Share this link with your customers - they can join the group and get weekly reminders!
 
-Leaflets should arrive in 2-3 days. Let me know when they turn up 👍
+I'll handle all the reminders and admin stuff in the group, but you can post too if you want 👍
+
+Leaflets should arrive in 2-3 days. Let me know when they turn up!
 ```
 
 **Attachments (if Email):**
 1. Quick Start Guide PDF (1 page - don't overwhelm)
 
-**Actions:**
-- Print 5 leaflets (print to PDF, then print physically)
-- Post leaflets to pub address
-- Add pub contact to WhatsApp group as admin
-- Send WhatsApp group shareable link
-- Attach Quick Start Guide if using email
+**Actions Checklist:**
+- ✅ Create WhatsApp group with pub contact
+- ✅ Pin welcome message in group
+- ✅ Set pub contact as admin
+- ✅ Get shareable group link
+- ✅ Send delivery message with group link
+- ✅ Print 5 leaflets (print to PDF, then print physically)
+- ✅ Post leaflets to pub address
+- ✅ Attach Quick Start Guide if using email
 
 **WhatsApp Group Management:**
 - You are primary admin and manager
@@ -475,16 +481,18 @@ Would you like to run another one? Could make it a regular thing 👍
 **Day 0 (TODAY):**
 - ✅ Create competition in system (FIRST - before contacting)
 - ✅ Set all smart defaults (£10, 50/50 split, 2 weeks start)
-- ✅ Create WhatsApp group and pin welcome message
 - ✅ Note competition ID, join link, access code
-- ✅ Send "Done For You" message to pub
+- ✅ Send "Done For You" message to pub (via WhatsApp DM or email)
 - ✅ Wait for response (don't send anything else)
 
-**Day 1 (When They Respond):**
-- ✅ Send delivery package message with WhatsApp group link
+**Day 1 (When They Respond Positively):**
+- ✅ Create WhatsApp group: "[Pub Name] Last Man Standing"
+- ✅ Add pub contact as first member and admin
+- ✅ Pin welcome message in group
+- ✅ Get shareable group link
+- ✅ Send delivery message with WhatsApp group link
 - ✅ Print 5 leaflets (from leaflet URL)
 - ✅ Post leaflets to pub address
-- ✅ Add pub contact to WhatsApp group as admin
 - ✅ Attach Quick Start Guide if using email
 
 **Day 3-5 (When Leaflets Arrive):**
@@ -587,29 +595,35 @@ Would you like to run another one? Could make it a regular thing 👍
 
 **Not Needed Now - Document for Later:**
 
-1. **Automated Onboarding:**
+1. **Public Leaflet Access:**
+   - Create public `/leaflet/[competitionId]` endpoint (no authentication required)
+   - Allow pub contacts to view and print leaflets themselves
+   - Reduces your printing workload for larger competitions
+   - Security: Only show basic public info (name, access code, join URL)
+
+2. **Automated Onboarding:**
    - Self-service form
    - Auto-competition creation
    - Automated email sequences
 
-2. **Design Automation:**
+3. **Design Automation:**
    - Template system
    - Auto-branded leaflets
    - Logo placement automation
 
-3. **Support Scaling:**
+4. **Support Scaling:**
    - FAQ system
    - Video tutorials
    - Chatbot for common questions
    - Tiered support levels
 
-4. **Additional Services:**
+5. **Additional Services:**
    - Paid leaflet printing (50+ copies)
    - WhatsApp message templates
    - Social media post templates
    - Competition management training
 
-5. **Tracking System:**
+6. **Tracking System:**
    - Onboarding dashboard
    - Customer status tracking
    - Support ticket system
@@ -739,6 +753,16 @@ Would you like to run another one? Could make it a regular thing 👍
   - Created Quick Start Guide template
   - Pub as admin in WhatsApp group
   - Comprehensive message templates for entire lifecycle
+- **v1.4** - WhatsApp group workflow correction:
+  - Moved WhatsApp group creation from Step 1 (before contact) to Step 4 (after positive response)
+  - Practical fix: WhatsApp requires at least one member to create group
+  - Pub contact becomes first member and admin when group is created
+  - Updated all workflow steps, timeline template, and documentation
+- **v1.5** - Leaflet URL accessibility fix:
+  - Removed leaflet URL from "Done For You" message templates
+  - Clarified that leaflet URL requires organizer login (not shareable with pub)
+  - Updated workflow: print PDF and post physical copies only
+  - Added note for future enhancement: public leaflet endpoint
 - Future versions will incorporate learnings from completed competitions
 
 ---
@@ -780,6 +804,6 @@ Would you like to run another one? Could make it a regular thing 👍
 
 ---
 
-**Last Updated:** 6th November 2025
+**Last Updated:** 7th November 2025
 **Status:** Active - Beta Testing (Inglenook in progress)
 **Next Review:** After Inglenook completion

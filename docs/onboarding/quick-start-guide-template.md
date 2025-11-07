@@ -4,12 +4,12 @@
 
 ## COMPETITION DETAILS
 
-**Competition Name:** [COMPETITION_NAME]
-**Join Link:** [JOIN_URL]
-**Access Code:** [ACCESS_CODE]
-**Start Date:** [START_DATE]
-**Entry Fee:** £[AMOUNT]
-**Prize Split:** [PRIZE_STRUCTURE]
+**Competition Name:** Inglenook LMS
+**Join Link:** https://lmslocal.co.uk
+**Access Code:** 7110
+**Start Date:** 22nd November, 3pm
+**Entry Fee:** £10
+**Prize Split:** 50% Winner, 50% Charity
 
 ---
 
@@ -17,8 +17,8 @@
 
 ### 1️⃣ PROMOTE
 ✅ Put up the leaflets we've sent (5 copies)
-✅ Share the join link with your customers
-✅ Share the WhatsApp group link: [WHATSAPP_LINK]
+✅ Share the join link and access code with your customers
+✅ Share the WhatsApp group with your customers
 
 **That's it for promotion!**
 
@@ -35,7 +35,7 @@
 
 ### 3️⃣ RELAX - WE'LL HANDLE EVERYTHING ELSE!
 ✅ Weekly pick reminders to all players
-✅ Results updates after each round
+✅ Fixture and Result updates for each round
 ✅ WhatsApp group management
 ✅ Player questions and support
 ✅ All the admin and technical stuff
@@ -75,22 +75,14 @@ You're welcome to:
 ## SUPPORT
 
 **Questions? Need help?**
-
-📱 WhatsApp: [YOUR_WHATSAPP]
-📧 Email: [YOUR_EMAIL]
-☎️ Phone: [YOUR_PHONE]
+Contact: Andreas
+📧 Email: noodev8@gmail.com
+☎️ Phone: 07818 443886
 
 Just message me anytime - I'm here to help!
 
 ---
 
-## PROMOTIONAL LEAFLET
-
-View and print more copies anytime:
-🔗 [LEAFLET_URL]
-
----
-
-**Let's make this a brilliant competition! 🍀**
+**Let's make this a brilliant competition and have fun with it! 🍀**
 
 *LMSLocal - Last Man Standing Made Easy*
