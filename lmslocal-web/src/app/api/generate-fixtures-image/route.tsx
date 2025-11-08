@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate image using @vercel/og
-    // Design matches Fixture-Sample-FB.png:
-    // - Dark blue background (#1e3a5f)
+    // Design using Slate Grey theme:
+    // - Slate grey background (#334155 - Tailwind slate-700)
     // - White text throughout
     // - Clean, professional look
     // - 1080x1080px (Instagram square - works for Facebook, Instagram, X)
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#1e3a5f',
+            backgroundColor: '#334155',
             padding: '60px',
             fontFamily: 'system-ui, -apple-system, sans-serif'
           }}
@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
             style={{
               display: 'flex',
               flexDirection: 'column',
+              alignItems: 'center',
               gap: '14px',
               marginBottom: 40
             }}
@@ -162,7 +163,7 @@ export async function POST(req: NextRequest) {
                   letterSpacing: '0.02em'
                 }}
               >
-                {fixture.home} v {fixture.away}
+                {fixture.home.toUpperCase()} V {fixture.away.toUpperCase()}
               </div>
             ))}
           </div>
@@ -187,13 +188,34 @@ export async function POST(req: NextRequest) {
           <div
             style={{
               display: 'flex',
-              fontSize: 18,
-              color: '#b0c4de',
-              textAlign: 'center',
-              letterSpacing: '0.02em'
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
             }}
           >
-            Hosted by LMS Local
+            <div
+              style={{
+                display: 'flex',
+                fontSize: 18,
+                color: '#cbd5e1',
+                textAlign: 'center',
+                letterSpacing: '0.02em'
+              }}
+            >
+              Hosted by LMS Local
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                fontSize: 20,
+                fontWeight: '600',
+                color: '#ffffff',
+                textAlign: 'center',
+                letterSpacing: '0.03em'
+              }}
+            >
+              www.lmslocal.co.uk
+            </div>
           </div>
         </div>
       ),
