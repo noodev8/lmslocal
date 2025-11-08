@@ -26,3 +26,143 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Print styles for pricing page */
+@media print {
+  /* Hide header and footer when printing */
+  header, footer {
+    display: none !important;
+  }
+
+  /* Reset page background to white */
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Remove all shadows and decorative elements */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Page setup - tight margins */
+  @page {
+    margin: 0.3cm;
+    size: A4 portrait;
+  }
+
+  /* Compress main section */
+  section {
+    page-break-inside: avoid;
+    padding: 5px 10px !important;
+  }
+
+  /* Aggressive spacing reduction */
+  .mb-12, .mb-16, .mt-16 {
+    margin-bottom: 4px !important;
+    margin-top: 4px !important;
+  }
+
+  .mb-8 {
+    margin-bottom: 3px !important;
+  }
+
+  .mb-6, .mb-4, .mb-3, .mb-2 {
+    margin-bottom: 2px !important;
+  }
+
+  .py-20, .py-12, .py-8, .py-6 {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .p-6, .p-8 {
+    padding: 4px !important;
+  }
+
+  .pt-16 {
+    padding-top: 6px !important;
+  }
+
+  /* Reduce font sizes */
+  h2 {
+    font-size: 18px !important;
+    margin-bottom: 3px !important;
+  }
+
+  h3 {
+    font-size: 14px !important;
+    margin-bottom: 2px !important;
+  }
+
+  h4 {
+    font-size: 11px !important;
+    margin-bottom: 2px !important;
+  }
+
+  p, ul, li {
+    font-size: 9px !important;
+    line-height: 1.2 !important;
+  }
+
+  .text-5xl {
+    font-size: 24px !important;
+  }
+
+  .text-2xl {
+    font-size: 14px !important;
+  }
+
+  .text-xl {
+    font-size: 12px !important;
+  }
+
+  .text-lg {
+    font-size: 11px !important;
+  }
+
+  .text-sm, .text-xs {
+    font-size: 8px !important;
+  }
+
+  /* Make grid more compact */
+  .grid {
+    gap: 4px !important;
+  }
+
+  /* Ensure good contrast for print */
+  .bg-slate-50, .bg-white, .bg-gradient-to-br {
+    background: white !important;
+    border: 1px solid #999 !important;
+  }
+
+  /* Compact borders */
+  .border-t, .border-t-2 {
+    border-top: 1px solid #ccc !important;
+  }
+
+  /* Compress cards */
+  .rounded-xl, .rounded-lg, .rounded-2xl {
+    border-radius: 4px !important;
+  }
+
+  /* Icons smaller */
+  svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  /* Space-y adjustments */
+  .space-y-3 > * + *, .space-y-1\.5 > * + * {
+    margin-top: 1px !important;
+  }
+
+  /* Max width containers */
+  .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl, .max-w-3xl, .max-w-2xl {
+    max-width: 100% !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}

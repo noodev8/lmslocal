@@ -262,10 +262,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   useEffect(() => {
     // Don't load data on public pages
     if (typeof window !== 'undefined') {
-      const publicPages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+      const publicPages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/pricing', '/help', '/terms', '/privacy', '/onboarding'];
       const currentPath = window.location.pathname;
-      const isPublicPage = publicPages.some(page => currentPath.startsWith(page));
-      
+      const isPublicPage = publicPages.some(page => currentPath.startsWith(page)) || currentPath === '/';
+
       if (isPublicPage) {
         setLoading(false);
         return;
