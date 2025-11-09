@@ -40,10 +40,13 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database'); // Use central database with destructured import
 const { verifyToken } = require('../middleware/auth'); // Use correct auth middleware
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication and data validation
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('get-pick-statistics');
+
   try {
     const { competition_id } = req.body;
     const user_id = req.user.id; // Set by verifyToken middleware

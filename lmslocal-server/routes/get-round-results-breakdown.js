@@ -77,8 +77,11 @@ const router = express.Router();
 const { query } = require('../database');
 const verifyToken = require('../middleware/verifyToken');
 const { canManageResults } = require('../utils/permissions'); // Permission helper
+const { logApiCall } = require('../utils/apiLogger');
 
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('get-round-results-breakdown');
+
   try {
     const { competition_id, round_number } = req.body;
     const user_id = req.user.id;

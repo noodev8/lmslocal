@@ -6,8 +6,8 @@ This document tracks which API routes implement the API logging utility for perf
 
 ## Summary
 - Total APIs: 69
-- With Logging: 42
-- Without Logging: 27
+- With Logging: 45
+- Without Logging: 24
 
 ## API Routes
 
@@ -38,12 +38,12 @@ This document tracks which API routes implement the API logging utility for perf
 | /get-email-preferences | get-email-preferences.js | ✅ Yes | |
 | /get-fixture-pick-count | get-fixture-pick-count.js | ✅ Yes | |
 | /get-fixtures | get-fixtures.js | ✅ Yes | |
-| /get-pick-statistics | get-pick-statistics.js | ❌ No | |
+| /get-pick-statistics | get-pick-statistics.js | ✅ Yes | Added 2025-11-09 |
 | /get-player-current-round | get-player-current-round.js | ❌ No | |
 | /get-player-history | get-player-history.js | ✅ Yes | Added 2025-11-09 |
-| /get-promote-data | get-promote-data.js | ❌ No | |
+| /get-promote-data | get-promote-data.js | ✅ Yes | Added 2025-11-09 |
 | /get-round-history | get-round-history.js | ✅ Yes | Added 2025-11-09 |
-| /get-round-results-breakdown | get-round-results-breakdown.js | ❌ No | |
+| /get-round-results-breakdown | get-round-results-breakdown.js | ✅ Yes | Added 2025-11-09 |
 | /get-round-statistics | get-round-statistics.js | ✅ Yes | Added 2025-11-09 |
 | /get-rounds | get-rounds.js | ✅ Yes | |
 | /get-standings-group | get-standings-group.js | ✅ Yes | |
@@ -97,7 +97,7 @@ router.post('/', verifyToken, async (req, res) => {
 });
 ```
 
-## Routes Without Logging (27 APIs)
+## Routes Without Logging (24 APIs)
 
 These routes currently do not implement the API logging utility:
 
@@ -121,11 +121,8 @@ These routes currently do not implement the API logging utility:
 - team-lists.js
 - validate-promo-code.js
 
-### Game Data & Statistics (4)
-- get-pick-statistics.js
+### Game Data & Statistics (1)
 - get-player-current-round.js
-- get-round-results-breakdown.js
-- get-promote-data.js
 
 ### Billing & Credits (4)
 - create-checkout-session.js
@@ -150,9 +147,9 @@ These routes currently do not implement the API logging utility:
 
 2. **Medium Priority** - Add logging to game mechanics routes:
    - join-competition-by-code.js
-   - get-promote-data.js
-   - get-round-results-breakdown.js
    - create-competition.js
+   - add-offline-player.js
+   - update-competition.js
 
 3. **Low Priority** - Add logging to admin/utility routes:
    - Bot operations (bot-join.js, bot-pick.js)

@@ -91,8 +91,11 @@ const router = express.Router();
 const { query } = require('../database');
 const verifyToken = require('../middleware/verifyToken');
 const { canManagePromote } = require('../utils/permissions'); // Permission helper
+const { logApiCall } = require('../utils/apiLogger');
 
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('get-promote-data');
+
   try {
     const { competition_id } = req.body;
     const user_id = req.user.id; // verifyToken middleware sets req.user to the DB row (has 'id', not 'userId')
