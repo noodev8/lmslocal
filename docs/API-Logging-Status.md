@@ -6,10 +6,10 @@ This document tracks which API routes implement the API logging utility for perf
 
 ## Summary
 - Total APIs: 69
-- With Logging: 45
-- Without Logging: 24
+- With Logging: 46
+- Without Logging: 23
 
-## APIs WITH Logging (45 routes) ✅
+## APIs WITH Logging (46 routes) ✅
 
 | API Route | File Name | Notes |
 |-----------|-----------|-------|
@@ -18,6 +18,7 @@ This document tracks which API routes implement the API logging utility for perf
 | /admin-set-result | admin-set-result.js | |
 | /admin/push-fixtures-to-competitions | admin/push-fixtures-to-competitions.js | |
 | /admin/push-results-to-competitions | admin/push-results-to-competitions.js | |
+| /check-user-type | check-user-type.js | Added 2025-11-09 |
 | /delete-competition | delete-competition.js | |
 | /get-allowed-teams | get-allowed-teams.js | |
 | /get-competition-players | get-competition-players.js | Added 2025-11-09 |
@@ -61,23 +62,23 @@ This document tracks which API routes implement the API logging utility for perf
 
 ---
 
-## APIs WITHOUT Logging (24 routes) ❌
+## APIs WITHOUT Logging (23 routes) ❌
 
 | API Route | File Name | Category | Priority |
 |-----------|-----------|----------|----------|
+| /get-player-current-round | get-player-current-round.js | Game Data | Check if used |
+| /team-lists | team-lists.js | Setup | Low |
 | /add-offline-player | add-offline-player.js | Player Management | Medium |
 | /admin-set-pick | admin-set-pick.js | Admin Operations | Low |
 | /bot-join | bot-join.js | Bot Operations | Low |
 | /bot-pick | bot-pick.js | Bot Operations | Low |
 | /change-password | change-password.js | Auth/User Management | Low |
-| /check-user-type | check-user-type.js | User Management | Low |
 | /create-checkout-session | create-checkout-session.js | Billing | Low |
 | /create-competition | create-competition.js | Competition Setup | Medium |
 | /deduct-credit | deduct-credit.js | Billing | Low |
 | /delete-account | delete-account.js | User Management | Low |
 | /forgot-password | forgot-password.js | Auth/User Management | Low |
 | /get-billing-history | get-billing-history.js | Billing | Low |
-| /get-player-current-round | get-player-current-round.js | Game Data | Check if used |
 | /get-user-credits | get-user-credits.js | Billing | Low |
 | /join-competition-by-code | join-competition-by-code.js | Competition Setup | Medium |
 | /login | login.js | Auth | Low |
@@ -86,7 +87,6 @@ This document tracks which API routes implement the API logging utility for perf
 | /resend-verification | resend-verification.js | Auth/User Management | Low |
 | /reset-password | reset-password.js | Auth/User Management | Low |
 | /submit-onboarding-application | submit-onboarding-application.js | Onboarding | Low |
-| /team-lists | team-lists.js | Setup | Low |
 | /update-profile | update-profile.js | User Management | Low |
 | /validate-promo-code | validate-promo-code.js | Billing | Low |
 | /verify-email | verify-email.js | Auth (GET route - HTML) | Low |
