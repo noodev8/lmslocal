@@ -5,11 +5,11 @@ Last updated: 2025-11-09
 This document tracks which API routes implement the API logging utility for performance monitoring.
 
 ## Summary
-- Total APIs: 69
-- With Logging: 46
-- Without Logging: 23
+- Total APIs: 68
+- With Logging: 47
+- Without Logging: 21
 
-## APIs WITH Logging (46 routes) ✅
+## APIs WITH Logging (47 routes) ✅
 
 | API Route | File Name | Notes |
 |-----------|-----------|-------|
@@ -52,6 +52,7 @@ This document tracks which API routes implement the API logging utility for perf
 | /send-email | send-email.js | |
 | /set-pick | set-pick.js | |
 | /stripe-webhook | stripe-webhook.js | |
+| /team-lists | team-lists.js | Added 2025-11-09 |
 | /unhide-player | unhide-player.js | |
 | /unselect-pick | unselect-pick.js | |
 | /update-competition | update-competition.js | |
@@ -62,12 +63,10 @@ This document tracks which API routes implement the API logging utility for perf
 
 ---
 
-## APIs WITHOUT Logging (23 routes) ❌
+## APIs WITHOUT Logging (21 routes) ❌
 
 | API Route | File Name | Category | Priority |
 |-----------|-----------|----------|----------|
-| /get-player-current-round | get-player-current-round.js | Game Data | Check if used |
-| /team-lists | team-lists.js | Setup | Low |
 | /add-offline-player | add-offline-player.js | Player Management | Medium |
 | /admin-set-pick | admin-set-pick.js | Admin Operations | Low |
 | /bot-join | bot-join.js | Bot Operations | Low |
