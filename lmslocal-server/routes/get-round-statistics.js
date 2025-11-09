@@ -53,8 +53,11 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../database');
 const verifyToken = require('../middleware/verifyToken');
+const { logApiCall } = require('../utils/apiLogger');
 
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('get-round-statistics');
+
   try {
     const { competition_id, round_id } = req.body;
 

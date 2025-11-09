@@ -6,8 +6,8 @@ This document tracks which API routes implement the API logging utility for perf
 
 ## Summary
 - Total APIs: 69
-- With Logging: 40
-- Without Logging: 29
+- With Logging: 41
+- Without Logging: 28
 
 ## API Routes
 
@@ -44,7 +44,7 @@ This document tracks which API routes implement the API logging utility for perf
 | /get-promote-data | get-promote-data.js | ❌ No | |
 | /get-round-history | get-round-history.js | ❌ No | |
 | /get-round-results-breakdown | get-round-results-breakdown.js | ❌ No | |
-| /get-round-statistics | get-round-statistics.js | ❌ No | |
+| /get-round-statistics | get-round-statistics.js | ✅ Yes | Added 2025-11-09 |
 | /get-rounds | get-rounds.js | ✅ Yes | |
 | /get-standings-group | get-standings-group.js | ✅ Yes | |
 | /get-standings-summary | get-standings-summary.js | ✅ Yes | |
@@ -97,7 +97,7 @@ router.post('/', verifyToken, async (req, res) => {
 });
 ```
 
-## Routes Without Logging (29 APIs)
+## Routes Without Logging (28 APIs)
 
 These routes currently do not implement the API logging utility:
 
@@ -121,12 +121,11 @@ These routes currently do not implement the API logging utility:
 - team-lists.js
 - validate-promo-code.js
 
-### Game Data & Statistics (6)
+### Game Data & Statistics (5)
 - get-pick-statistics.js
 - get-player-current-round.js
 - get-round-history.js
 - get-round-results-breakdown.js
-- get-round-statistics.js
 - get-promote-data.js
 
 ### Billing & Credits (4)
@@ -152,9 +151,9 @@ These routes currently do not implement the API logging utility:
 
 2. **Medium Priority** - Add logging to game mechanics routes:
    - get-round-history.js
-   - get-round-statistics.js
    - join-competition-by-code.js
    - get-promote-data.js
+   - get-round-results-breakdown.js
 
 3. **Low Priority** - Add logging to admin/utility routes:
    - Bot operations (bot-join.js, bot-pick.js)
