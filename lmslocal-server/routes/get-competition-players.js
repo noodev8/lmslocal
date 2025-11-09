@@ -69,10 +69,13 @@ const express = require('express');
 const { query } = require('../database'); // Use central database with destructured import
 const { verifyToken } = require('../middleware/auth'); // Use correct auth middleware
 const { canManagePlayers } = require('../utils/permissions'); // Permission helper
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication and data validation
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('get-competition-players');
+
   try {
     const { competition_id, page = 1, page_size = 50, search } = req.body;
     const user_id = req.user.id; // Set by verifyToken middleware

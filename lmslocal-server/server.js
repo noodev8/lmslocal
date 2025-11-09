@@ -45,7 +45,7 @@ const getFixturesRoute = require('./routes/get-fixtures');
 // const lockUnlockRoundRoute = require('./routes/lock-unlock-round'); // DISABLED: Round status removed
 // const getCompetitionStatusRoute = require('./routes/get-competition-status'); // DISABLED: Superseded by get-user-dashboard
 // const joinCompetitionBySlugRoute = require('./routes/join-competition-by-slug'); // DISABLED - using single login
-const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round');
+// const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round'); // DISABLED - not used in web frontend
 const setPickRoute = require('./routes/set-pick');
 const adminSetPickRoute = require('./routes/admin-set-pick');
 const updatePlayerLivesRoute = require('./routes/update-player-lives');
@@ -70,7 +70,7 @@ const unselectPickRoute = require('./routes/unselect-pick');
 const getCurrentPickRoute = require('./routes/get-current-pick');
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // const getCalculatedFixturesRoute = require('./routes/get-calculated-fixtures');
-const getCompetitionStandingsRoute = require('./routes/get-competition-standings');
+// const getCompetitionStandingsRoute = require('./routes/get-competition-standings'); // DISABLED - replaced by get-standings-summary + get-standings-group
 const getStandingsSummaryRoute = require('./routes/get-standings-summary');
 const getStandingsGroupRoute = require('./routes/get-standings-group');
 const searchPlayersRoute = require('./routes/search-players');
@@ -253,7 +253,7 @@ app.use('/get-fixtures', getFixturesRoute);
 // app.use('/lock-unlock-round', lockUnlockRoundRoute); // DISABLED: Round status removed
 // app.use('/get-competition-status', getCompetitionStatusRoute); // DISABLED: Superseded by get-user-dashboard
 // app.use('/join-competition-by-slug', joinCompetitionBySlugRoute); // DISABLED - using single login
-app.use('/get-player-current-round', getPlayerCurrentRoundRoute);
+// app.use('/get-player-current-round', getPlayerCurrentRoundRoute); // DISABLED - not used in web frontend
 app.use('/set-pick', setPickRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/update-player-lives', updatePlayerLivesRoute);
@@ -278,7 +278,7 @@ app.use('/unselect-pick', unselectPickRoute);
 app.use('/get-current-pick', getCurrentPickRoute);
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // app.use('/get-calculated-fixtures', getCalculatedFixturesRoute);
-app.use('/get-competition-standings', getCompetitionStandingsRoute);
+// app.use('/get-competition-standings', getCompetitionStandingsRoute); // DISABLED - replaced by get-standings-summary + get-standings-group
 app.use('/get-standings-summary', getStandingsSummaryRoute);
 app.use('/get-standings-group', getStandingsGroupRoute);
 app.use('/search-players', searchPlayersRoute);

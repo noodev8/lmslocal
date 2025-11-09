@@ -68,9 +68,12 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
+  logApiCall('get-player-history');
+
   try {
     // Extract request parameters and authenticated user
     const { competition_id, player_id } = req.body;
