@@ -1,9 +1,16 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CheckCircleIcon, TrophyIcon } from '@heroicons/react/24/outline';
 
 export default function PricingPage() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(!!localStorage.getItem('jwt_token'));
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -22,10 +29,10 @@ export default function PricingPage() {
                 Help
               </Link>
               <Link
-                href="/login"
+                href={isLoggedIn ? "/dashboard" : "/login"}
                 className="bg-slate-800 hover:bg-slate-900 text-white px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
               >
-                Sign In
+                {isLoggedIn ? "Dashboard" : "Sign In"}
               </Link>
             </div>
           </div>
@@ -52,7 +59,7 @@ export default function PricingPage() {
                   <th className="text-left p-4 font-semibold text-slate-900 print:p-2 print:text-xs">Package</th>
                   <th className="text-left p-4 font-semibold text-slate-900 print:p-2 print:text-xs">Credits</th>
                   <th className="text-left p-4 font-semibold text-slate-900 print:p-2 print:text-xs">Price</th>
-                  <th className="text-left p-4 font-semibold text-slate-900 print:p-2 print:text-xs">Savings</th>
+                  <th className="hidden md:table-cell text-left p-4 font-semibold text-slate-900 print:table-cell print:p-2 print:text-xs">Savings</th>
                 </tr>
               </thead>
               <tbody>
@@ -63,7 +70,7 @@ export default function PricingPage() {
                   </td>
                   <td className="p-4 font-semibold print:p-2 print:text-xs">20 credits</td>
                   <td className="p-4 text-2xl font-bold text-emerald-600 print:p-2 print:text-base">£0</td>
-                  <td className="p-4 text-slate-600 print:p-2 print:text-xs">-</td>
+                  <td className="hidden md:table-cell p-4 text-slate-600 print:table-cell print:p-2 print:text-xs">-</td>
                 </tr>
                 <tr className="border-t border-slate-200 bg-slate-50">
                   <td className="p-4 print:p-2">
@@ -72,27 +79,33 @@ export default function PricingPage() {
                   </td>
                   <td className="p-4 font-semibold print:p-2 print:text-xs">+20 credits</td>
                   <td className="p-4 text-2xl font-bold text-slate-900 print:p-2 print:text-base">£10</td>
-                  <td className="p-4 text-slate-600 print:p-2 print:text-xs">-</td>
+                  <td className="hidden md:table-cell p-4 text-slate-600 print:table-cell print:p-2 print:text-xs">-</td>
                 </tr>
                 <tr className="border-t border-slate-200">
                   <td className="p-4 print:p-2">
-                    <div className="font-bold text-slate-900 print:text-xs">Popular Pack</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-slate-900 print:text-xs">Popular Pack</span>
+                      <span className="md:hidden inline-block bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">SAVE 20%</span>
+                    </div>
                     <div className="text-sm text-slate-600 print:text-xs">For regular competitions</div>
                   </td>
                   <td className="p-4 font-semibold print:p-2 print:text-xs">+50 credits</td>
                   <td className="p-4 text-2xl font-bold text-slate-900 print:p-2 print:text-base">£20</td>
-                  <td className="p-4 print:p-2">
+                  <td className="hidden md:table-cell p-4 print:table-cell print:p-2">
                     <span className="inline-block bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded print:text-xs">SAVE 20%</span>
                   </td>
                 </tr>
                 <tr className="border-t border-slate-200 bg-slate-50">
                   <td className="p-4 print:p-2">
-                    <div className="font-bold text-slate-900 print:text-xs">Best Value Pack</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-slate-900 print:text-xs">Best Value Pack</span>
+                      <span className="md:hidden inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-1 rounded">SAVE 33%</span>
+                    </div>
                     <div className="text-sm text-slate-600 print:text-xs">For venues & busy organizers</div>
                   </td>
                   <td className="p-4 font-semibold print:p-2 print:text-xs">+120 credits</td>
                   <td className="p-4 text-2xl font-bold text-slate-900 print:p-2 print:text-base">£40</td>
-                  <td className="p-4 print:p-2">
+                  <td className="hidden md:table-cell p-4 print:table-cell print:p-2">
                     <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-1 rounded print:text-xs">SAVE 33%</span>
                   </td>
                 </tr>
@@ -111,13 +124,13 @@ export default function PricingPage() {
         {/* CTA Button */}
         <div className="text-center mb-8 print:mb-4">
           <Link
-            href="/register"
+            href={isLoggedIn ? "/dashboard" : "/register"}
             className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-4 rounded-xl text-lg font-semibold transition-colors shadow-lg print:hidden"
           >
-            Start Free - No Credit Card Needed
+            {isLoggedIn ? "Go to Dashboard" : "Start Free - No Credit Card Needed"}
           </Link>
           <p className="text-slate-500 mt-4 text-sm print:text-xs">
-            20 players free forever • Only pay if you need more
+            {isLoggedIn ? "Manage your competitions and players" : "20 players free forever • Only pay if you need more"}
           </p>
         </div>
 
@@ -128,7 +141,10 @@ export default function PricingPage() {
           <div className="grid md:grid-cols-2 gap-4 print:gap-2">
             <div className="border-2 border-slate-300 rounded-lg p-4 bg-white print:p-2 print:border">
               <div className="flex items-start justify-between mb-2">
-                <h3 className="text-lg font-bold text-slate-900 print:text-sm">Free Launch Package</h3>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 print:text-sm">Free Launch Package</h3>
+                  <p className="text-xs text-slate-600 mt-0.5 print:text-xs">For qualified customers</p>
+                </div>
                 <span className="bg-emerald-600 text-white text-xs font-bold px-2 py-1 rounded print:text-xs">LIMITED</span>
               </div>
               <p className="text-2xl font-bold text-slate-900 mb-2 print:text-base">FREE <span className="text-sm text-slate-500 line-through ml-2 print:text-xs">£149</span></p>
@@ -139,7 +155,7 @@ export default function PricingPage() {
                 </li>
                 <li className="flex items-start text-sm print:text-xs">
                   <CheckCircleIcon className="h-4 w-4 text-emerald-600 mr-2 flex-shrink-0 mt-0.5 print:h-3 print:w-3" />
-                  Support through first full competition
+                  Fully managed for you
                 </li>
                 <li className="flex items-start text-sm print:text-xs">
                   <CheckCircleIcon className="h-4 w-4 text-emerald-600 mr-2 flex-shrink-0 mt-0.5 print:h-3 print:w-3" />
@@ -182,19 +198,11 @@ export default function PricingPage() {
               </div>
               <div className="flex items-start">
                 <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5 print:h-3 print:w-3" />
-                <span className="text-sm print:text-xs">Automated fixtures & results</span>
+                <span className="text-sm print:text-xs">Promotional templates (WhatsApp, social media)</span>
               </div>
               <div className="flex items-start">
                 <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5 print:h-3 print:w-3" />
-                <span className="text-sm print:text-xs">Add offline players (no smartphone needed)</span>
-              </div>
-              <div className="flex items-start">
-                <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5 print:h-3 print:w-3" />
-                <span className="text-sm print:text-xs">Display on pub TV screens</span>
-              </div>
-              <div className="flex items-start">
-                <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5 print:h-3 print:w-3" />
-                <span className="text-sm print:text-xs">Handle 100s of players easily</span>
+                <span className="text-sm print:text-xs">Add players without smartphones</span>
               </div>
               <div className="flex items-start">
                 <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5 print:h-3 print:w-3" />

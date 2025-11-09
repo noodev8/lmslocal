@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { userApi } from '@/lib/api';
 import { Competition, User } from '@/lib/api';
 import '@/lib/cache';
@@ -43,6 +44,7 @@ interface AppDataProviderProps {
 }
 
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
+  const pathname = usePathname();
   const [competitions, setCompetitions] = useState<Competition[] | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [latestRoundStats, setLatestRoundStats] = useState<AppDataContextType['latestRoundStats']>(null);
@@ -50,7 +52,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
-  const loadAppData = async () => {
+  const loadAppData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -64,7 +66,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       // Check if user is authenticated first
       const token = localStorage.getItem('jwt_token');
       const userData = localStorage.getItem('user');
-      
+
       if (!token || !userData) {
         // No authentication - set defaults and exit early
         setUser(null);
@@ -73,7 +75,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         setLoading(false);
         return;
       }
-      
+
       // Parse user data from localStorage
       try {
         const parsedUser = JSON.parse(userData) as User;
@@ -82,10 +84,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         console.error('Error parsing user data:', parseError);
         setUser(null);
       }
-      
+
       // Load app-level data using unified user dashboard API
       const competitionsData = await userApi.getUserDashboard();
-      
+
       // Handle competitions response
       if (competitionsData.data.return_code === 'SUCCESS') {
 
@@ -110,9 +112,9 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         console.error('Failed to load competitions:', competitionsData.data.message);
         setCompetitions([]);
       }
-      
+
       setLastUpdated(Date.now());
-      
+
     } catch (err) {
       console.error('Error loading app data:', err);
 
@@ -152,7 +154,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const refreshData = () => {
     loadAppData();
@@ -261,27 +263,24 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   // Load data only when authenticated and on appropriate pages
   useEffect(() => {
     // Don't load data on public pages
-    if (typeof window !== 'undefined') {
-      const publicPages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/pricing', '/help', '/terms', '/privacy', '/onboarding'];
-      const currentPath = window.location.pathname;
-      const isPublicPage = publicPages.some(page => currentPath.startsWith(page)) || currentPath === '/';
+    const publicPages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/pricing', '/help', '/terms', '/privacy', '/onboarding'];
+    const isPublicPage = publicPages.some(page => pathname.startsWith(page)) || pathname === '/';
 
-      if (isPublicPage) {
-        setLoading(false);
-        return;
-      }
+    if (isPublicPage) {
+      setLoading(false);
+      return;
     }
-    
+
     // Only load if we have authentication data
     const token = localStorage.getItem('jwt_token');
     const userData = localStorage.getItem('user');
-    
+
     if (token && userData) {
       loadAppData();
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [pathname, loadAppData]);
 
   // Listen for auth state changes
   useEffect(() => {
