@@ -175,9 +175,8 @@ export default function CompetitionSettings() {
         updateData.name = formData.name.trim();
       }
       
-      if (formData.description.trim()) {
-        updateData.description = formData.description.trim();
-      }
+      // Always include description (allow clearing it by sending empty string)
+      updateData.description = formData.description.trim() || '';
 
       if (formData.venue_name.trim()) {
         updateData.venue_name = formData.venue_name.trim();
