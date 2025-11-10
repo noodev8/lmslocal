@@ -938,6 +938,7 @@ export const promoteApi = {
       competition?: {
         id: number;
         name: string;
+        description?: string | null;
         status: string;
         invite_code: string;
         join_url: string;

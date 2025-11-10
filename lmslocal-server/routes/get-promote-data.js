@@ -110,7 +110,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Fetch competition details and verify organizer
     const competitionResult = await query(
-      `SELECT id, name, status, invite_code, slug, organiser_id, logo_url, entry_fee, prize_structure, lives_per_player
+      `SELECT id, name, description, status, invite_code, slug, organiser_id, logo_url, entry_fee, prize_structure, lives_per_player
        FROM competition
        WHERE id = $1`,
       [competition_id]
@@ -414,6 +414,7 @@ router.post('/', verifyToken, async (req, res) => {
       competition: {
         id: competition.id,
         name: competition.name,
+        description: competition.description,
         status: competition.status,
         invite_code: competition.invite_code,
         join_url,

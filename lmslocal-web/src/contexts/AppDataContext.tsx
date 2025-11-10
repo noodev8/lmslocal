@@ -307,7 +307,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       window.removeEventListener('auth-expired', handleAuthExpired);
       window.removeEventListener('auth-success', handleAuthSuccess);
     };
-  }, []);
+  }, [loadAppData]);
 
   const value: AppDataContextType = {
     competitions,

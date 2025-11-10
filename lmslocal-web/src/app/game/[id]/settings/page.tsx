@@ -235,9 +235,17 @@ export default function CompetitionSettings() {
 
       if (response.data.return_code === 'SUCCESS') {
         setSuccess(true);
+
+        // Clear the cache and refresh competitions to ensure fresh data
+        const { cacheUtils } = await import('@/lib/api');
+        cacheUtils.invalidateCompetitions();
+
+        // Also invalidate promote data cache (used by leaflet page)
+        cacheUtils.invalidateKey(`promote-data-${competition.id}`);
+
         // Refresh competitions to update the context with new data
-        refreshCompetitions();
-        
+        await refreshCompetitions(true); // Bypass cache to get fresh data
+
         // Auto-hide success message after 3 seconds
         setTimeout(() => setSuccess(false), 3000);
       } else {
@@ -253,29 +261,7 @@ export default function CompetitionSettings() {
     }
   };
 
-  const handleCancel = () => {
-    // Reset form to original values
-    if (competition) {
-      setFormData({
-        name: competition.name || '',
-        description: competition.description || '',
-        logo_url: competition.logo_url || '',
-        venue_name: competition.venue_name || '',
-        address_line_1: competition.address_line_1 || '',
-        address_line_2: competition.address_line_2 || '',
-        city: competition.city || '',
-        postcode: competition.postcode || '',
-        phone: competition.phone || '',
-        email: competition.email || '',
-        lives_per_player: competition.lives_per_player || 0,
-        no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
-        entry_fee: competition.entry_fee ? competition.entry_fee.toString() : '',
-        prize_structure: competition.prize_structure || '',
-      });
-    }
-    setError(null);
-    setSuccess(false);
-  };
+  // Removed Cancel button - users can navigate away if needed
 
   const handleResetCompetition = async () => {
     if (!competition) return;
@@ -487,10 +473,10 @@ export default function CompetitionSettings() {
         
         {/* Status Messages */}
         {success && (
-          <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2" />
-              <p className="text-emerald-800 font-medium">Settings updated successfully!</p>
+          <div className="mb-6 bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4 shadow-md animate-pulse">
+            <div className="flex items-center justify-center">
+              <CheckCircleIcon className="h-6 w-6 text-emerald-600 mr-3" />
+              <p className="text-emerald-900 font-semibold text-lg">Settings saved successfully!</p>
             </div>
           </div>
         )}
@@ -551,9 +537,13 @@ export default function CompetitionSettings() {
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={3}
+                maxLength={250}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                 placeholder="Enter competition description (optional)"
               />
+              <p className="mt-1 text-sm text-slate-500">
+                {formData.description.length}/250 characters
+              </p>
             </div>
 
             {/* Logo Upload */}
@@ -816,25 +806,24 @@ export default function CompetitionSettings() {
 
           {/* Actions */}
           <div className="p-6 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={saving}
-                className="inline-flex items-center justify-center px-4 sm:px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
+            <div className="flex justify-end">
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || !formData.name.trim()}
-                className="inline-flex items-center justify-center px-4 sm:px-6 py-3 bg-slate-800 text-white rounded-xl font-medium hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 shadow-md hover:shadow-lg transition-all text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={saving || !formData.name.trim() || success}
+                className={`inline-flex items-center justify-center px-6 sm:px-8 py-3 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-md hover:shadow-lg transition-all text-sm sm:text-base disabled:cursor-not-allowed ${
+                  success
+                    ? 'bg-emerald-600 text-white focus:ring-emerald-500'
+                    : 'bg-slate-800 text-white hover:bg-slate-900 focus:ring-slate-500 disabled:opacity-50'
+                }`}
               >
                 {saving && (
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
                 )}
-                {saving ? 'Saving...' : 'Save Changes'}
+                {success && (
+                  <CheckCircleIcon className="h-5 w-5 mr-2" />
+                )}
+                {success ? 'Saved!' : saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>

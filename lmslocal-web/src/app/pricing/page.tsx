@@ -12,9 +12,38 @@ export default function PricingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-sm shadow-sm border-b border-slate-200/50 print:hidden">
+    <>
+      {/* Simple print styles for pricing page */}
+      <style jsx global>{`
+        @media print {
+          /* Hide navigation elements */
+          .pricing-page header,
+          .pricing-page footer,
+          .print\\:hidden {
+            display: none !important;
+          }
+
+          /* Clean page setup */
+          @page {
+            margin: 1cm;
+            size: A4 portrait;
+          }
+
+          /* Clean background */
+          .pricing-page {
+            background: white !important;
+          }
+
+          /* Remove shadows */
+          .pricing-page * {
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
+
+      <div className="pricing-page min-h-screen bg-slate-50">
+        {/* Header */}
+        <header className="bg-white/95 backdrop-blur-sm shadow-sm border-b border-slate-200/50 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <Link href="/" className="flex items-center">
@@ -249,57 +278,7 @@ export default function PricingPage() {
           </div>
         </div>
       </footer>
-
-      {/* Print styles */}
-      <style jsx global>{`
-        @media print {
-          @page {
-            margin: 1cm;
-            size: A4 portrait;
-            /* Remove browser default headers/footers */
-            margin-top: 1cm;
-            margin-bottom: 1cm;
-          }
-
-          /* Hide browser print headers/footers */
-          html {
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-            background: white !important;
-          }
-
-          /* Hide all web navigation elements */
-          header, footer, nav, .print\\:hidden {
-            display: none !important;
-          }
-
-          /* Remove page background colors */
-          .bg-slate-50 {
-            background: white !important;
-          }
-
-          /* Ensure main content fills the page */
-          .min-h-screen {
-            min-height: auto !important;
-          }
-
-          /* Remove shadows for cleaner print */
-          * {
-            box-shadow: none !important;
-          }
-
-          /* Optimize link colors for print */
-          a {
-            color: inherit !important;
-            text-decoration: none !important;
-          }
-        }
-      `}</style>
-    </div>
+      </div>
+    </>
   );
 }

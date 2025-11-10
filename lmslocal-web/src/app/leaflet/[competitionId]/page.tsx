@@ -10,6 +10,7 @@ interface LeafletData {
   competition: {
     id: number;
     name: string;
+    description?: string | null;
     invite_code: string;
     join_url: string;
     logo_url?: string | null;
@@ -41,6 +42,7 @@ export default function LeafletPage() {
             competition: {
               id: response.data.competition.id,
               name: response.data.competition.name,
+              description: response.data.competition.description,
               invite_code: response.data.competition.invite_code,
               join_url: response.data.competition.join_url,
               logo_url: response.data.competition.logo_url,
@@ -211,6 +213,15 @@ export default function LeafletPage() {
                 </p>
               </div>
             )}
+
+            {/* Description */}
+            {data.competition.description && (
+              <div className="mt-4 text-center">
+                <p className="text-base text-gray-700 italic max-w-2xl mx-auto">
+                  {data.competition.description}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Main Content Grid */}
@@ -373,6 +384,15 @@ export default function LeafletPage() {
                 </p>
               </div>
             )}
+
+            {/* Description */}
+            {data.competition.description && (
+              <div className="mt-4 text-center">
+                <p className="text-base text-gray-700 italic max-w-2xl mx-auto">
+                  {data.competition.description}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Main Content Grid */}
@@ -420,9 +440,6 @@ export default function LeafletPage() {
                   <Image src={qrCodeUrl} alt="QR Code" width={200} height={200} className="mx-auto" unoptimized />
                 )}
               </div>
-              <p className="text-xs text-gray-500 text-center max-w-[200px]">
-                Scan to visit website
-              </p>
             </div>
           </div>
 
