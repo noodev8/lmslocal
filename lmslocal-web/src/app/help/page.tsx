@@ -99,32 +99,17 @@ export default function HelpHomePage() {
           </Link>
 
           <Link
-            href="/help/rules"
+            href="/help/support"
             className="bg-white rounded-lg border p-6 hover:bg-slate-50 transition-colors"
           >
             <div className="mb-4">
-              <span className="text-2xl">📋</span>
+              <span className="text-2xl">📞</span>
             </div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              Competition Rules
+              Contact Support
             </h3>
             <p className="text-slate-600 text-sm">
-              Detailed rules and scoring information
-            </p>
-          </Link>
-
-          <Link
-            href="/help/guides/creating-competition"
-            className="bg-white rounded-lg border p-6 hover:bg-slate-50 transition-colors"
-          >
-            <div className="mb-4">
-              <span className="text-2xl">📚</span>
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              Advanced Guides
-            </h3>
-            <p className="text-slate-600 text-sm">
-              In-depth tutorials and best practices
+              Get in touch with our support team
             </p>
           </Link>
         </div>
@@ -135,46 +120,32 @@ export default function HelpHomePage() {
         <h2 className="text-2xl font-bold text-slate-900 mb-6">Popular Topics</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <Link
-            href="/help/guides/creating-competition"
-            className="text-slate-700 hover:text-slate-900 hover:underline flex items-center"
-          >
-            <span className="mr-2">→</span>
-            Creating your first competition
-          </Link>
-          <Link
-            href="/help/rules#elimination"
-            className="text-slate-700 hover:text-slate-900 hover:underline flex items-center"
-          >
-            <span className="mr-2">→</span>
-            How elimination works
-          </Link>
-          <Link
-            href="/help/guides/managing-rounds"
-            className="text-slate-700 hover:text-slate-900 hover:underline flex items-center"
-          >
-            <span className="mr-2">→</span>
-            Managing multiple rounds
-          </Link>
-          <Link
             href="/help/getting-started/organizers"
             className="text-slate-700 hover:text-slate-900 hover:underline flex items-center"
           >
             <span className="mr-2">→</span>
-            Inviting players to join
+            Getting started as an organizer
           </Link>
           <Link
-            href="/help/guides/making-picks"
+            href="/help/getting-started/players"
             className="text-slate-700 hover:text-slate-900 hover:underline flex items-center"
           >
             <span className="mr-2">→</span>
-            Making your first pick
+            Getting started as a player
           </Link>
           <Link
-            href="/help/rules#lives-system"
+            href="/help/how-to-play"
             className="text-slate-700 hover:text-slate-900 hover:underline flex items-center"
           >
             <span className="mr-2">→</span>
-            Understanding lives system
+            How to play Last Man Standing
+          </Link>
+          <Link
+            href="/help/support"
+            className="text-slate-700 hover:text-slate-900 hover:underline flex items-center"
+          >
+            <span className="mr-2">→</span>
+            Contact our support team
           </Link>
         </div>
       </div>

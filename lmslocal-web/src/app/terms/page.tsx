@@ -1,5 +1,36 @@
 import Link from 'next/link';
 import { TrophyIcon } from '@heroicons/react/24/outline';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Terms of Service | LMSLocal',
+  description: 'Terms of Service for LMSLocal. Read our terms and conditions for using the Last Man Standing competition platform.',
+  keywords: 'terms of service, terms and conditions, user agreement, lmslocal, legal',
+  alternates: {
+    canonical: '/terms',
+  },
+  openGraph: {
+    title: 'Terms of Service | LMSLocal',
+    description: 'Terms of Service for LMSLocal. Read our terms and conditions for using the Last Man Standing competition platform.',
+    url: '/terms',
+    siteName: 'LMSLocal',
+    locale: 'en_GB',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Terms of Service | LMSLocal',
+    description: 'Terms of Service for LMSLocal. Read our terms and conditions for using the Last Man Standing competition platform.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+};
 
 export default function TermsOfService() {
   return (

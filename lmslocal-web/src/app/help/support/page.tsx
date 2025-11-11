@@ -3,7 +3,31 @@ import { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Contact Support | LMSLocal Help',
   description: 'Get help with LMSLocal. Contact our support team for technical issues, account problems, and platform questions.',
-  keywords: 'support, help, contact, technical issues, account problems, lmslocal'
+  keywords: 'support, help, contact, technical issues, account problems, lmslocal',
+  alternates: {
+    canonical: '/help/support',
+  },
+  openGraph: {
+    title: 'Contact Support | LMSLocal Help',
+    description: 'Get help with LMSLocal. Contact our support team for technical issues, account problems, and platform questions.',
+    url: '/help/support',
+    siteName: 'LMSLocal',
+    locale: 'en_GB',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Contact Support | LMSLocal Help',
+    description: 'Get help with LMSLocal. Contact our support team for technical issues, account problems, and platform questions.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 };
 
 export default function SupportPage() {
