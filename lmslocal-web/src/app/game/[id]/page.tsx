@@ -661,7 +661,7 @@ export default function UnifiedGameDashboard() {
         )}
 
         {/* Invite Players - Enhanced with Guest Player Option */}
-        {competition.invite_code && (
+        {competition.invite_code && (isOrganiser || canManagePlayers) && (
           <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             <div className="space-y-4">
               {/* Header with subtle outstanding step messaging */}
