@@ -693,7 +693,7 @@ export default function CompetitionPlayersPage() {
                 onChange={handleSearchChange}
                 onKeyPress={handleSearchKeyPress}
                 placeholder="Search players by name or email..."
-                className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               />
               {searchTerm && (
                 <button
@@ -706,7 +706,7 @@ export default function CompetitionPlayersPage() {
             </div>
             <button
               onClick={handleSearch}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
             >
               Search
             </button>
@@ -734,13 +734,13 @@ export default function CompetitionPlayersPage() {
 
         {/* Lives Changes Save/Cancel Bar - Show when there are pending changes */}
         {pendingLivesChanges.size > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-blue-900">
+                <span className="text-sm font-medium text-indigo-900">
                   {pendingLivesChanges.size} player{pendingLivesChanges.size !== 1 ? 's' : ''} with unsaved lives changes
                 </span>
-                <span className="text-xs text-blue-600">
+                <span className="text-xs text-indigo-600">
                   (* indicates changed)
                 </span>
               </div>
@@ -749,14 +749,14 @@ export default function CompetitionPlayersPage() {
                 <button
                   onClick={handleCancelLivesChanges}
                   disabled={savingLivesChanges}
-                  className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded hover:bg-blue-50 transition-colors disabled:opacity-50"
+                  className="px-3 py-1.5 text-sm font-medium text-indigo-700 bg-white border border-indigo-300 rounded hover:bg-indigo-50 transition-colors disabled:opacity-50"
                 >
                   Cancel Changes
                 </button>
                 <button
                   onClick={handleSaveLivesChanges}
                   disabled={savingLivesChanges}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-sm"
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
                 >
                   {savingLivesChanges ? (
                     <div className="flex items-center">
@@ -778,91 +778,78 @@ export default function CompetitionPlayersPage() {
             <div key={player.id} className={`p-4 hover:bg-slate-50 transition-colors ${
               player.hidden ? 'bg-red-50 border-l-4 border-red-200' : ''
             }`}>
-              {/* Row 1: Name + Primary Actions (Right Side) */}
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <h3 className="font-medium text-slate-900">{player.display_name}</h3>
-                  <p className="text-sm text-slate-600">{player.email || 'No email'}</p>
-                </div>
-
-                {/* Primary Action Buttons */}
-                <div className="flex items-center gap-2 ml-4">
-                  {/* Payment Toggle Button - Most Important */}
-                  <button
-                    onClick={() => handlePaymentToggle(player.id, player.paid)}
-                    disabled={updatingPayment.has(player.id)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 ${
-                      player.paid
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : 'bg-orange-500 text-white hover:bg-orange-600'
-                    }`}
-                  >
-                    {player.paid ? '✓ Paid' : 'Mark Paid'}
-                  </button>
-
-                  {/* Set Pick Button - Always Visible */}
-                  <button
-                    onClick={() => handleOpenSetPickModal(player)}
-                    disabled={!currentRoundId || !hasFixtures || roundIsLocked}
-                    title={!currentRoundId || !hasFixtures ? 'No fixtures available' : roundIsLocked ? 'Round is locked' : 'Set pick for player'}
-                    className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    Set Pick
-                  </button>
-                </div>
+              {/* Player Info */}
+              <div className="mb-3">
+                <h3 className="font-medium text-slate-900">{player.display_name}</h3>
+                <p className="text-sm text-slate-500">{player.email || 'No email'}</p>
               </div>
 
-              {/* Row 2: Info + Secondary Actions */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  {/* Lives Display with Inline Adjustment */}
-                  <div className="flex items-center gap-1">
-                    <span className={`font-medium ${
-                      pendingLivesChanges.has(player.id) ? 'text-blue-600' : ''
-                    }`}>
-                      {player.lives_remaining || 0} {(player.lives_remaining || 0) === 1 ? 'life' : 'lives'}
-                      {pendingLivesChanges.has(player.id) && <span className="text-blue-600">*</span>}
-                    </span>
-                    <span className="text-slate-400">•</span>
-                    <span className={`${
-                      (player.status || 'active') === 'active' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {(player.status || 'active') === 'active' ? 'Active' : 'OUT'}
-                    </span>
-                    {player.hidden && (
-                      <>
-                        <span className="text-slate-400">•</span>
-                        <span className="text-red-600">Hidden</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Secondary Actions */}
-                <div className="flex items-center gap-2">
-                  {/* Lives Adjustment Buttons */}
-                  <button
-                    onClick={() => handleLivesChange(player.id, 'add')}
-                    disabled={savingLivesChanges || (player.lives_remaining || 0) >= 2}
-                    title="Add Life"
-                    className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                  </button>
+              {/* Admin Controls Row - Mobile Optimized */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {/* Lives Control - Grouped pill style */}
+                <div className="flex items-center gap-1.5 bg-slate-100 rounded-md px-2.5 py-1.5">
                   <button
                     onClick={() => handleLivesChange(player.id, 'subtract')}
                     disabled={savingLivesChanges || (player.lives_remaining || 0) <= 0}
                     title="Remove Life"
-                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="p-0.5 text-slate-600 hover:text-slate-900 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <MinusIcon className="h-4 w-4" />
                   </button>
+                  <span className={`text-sm font-medium min-w-[4rem] text-center ${
+                    pendingLivesChanges.has(player.id) ? 'text-indigo-600' : 'text-slate-700'
+                  }`}>
+                    {player.lives_remaining || 0} {(player.lives_remaining || 0) === 1 ? 'life' : 'lives'}
+                    {pendingLivesChanges.has(player.id) && <span className="text-indigo-600">*</span>}
+                  </span>
+                  <button
+                    onClick={() => handleLivesChange(player.id, 'add')}
+                    disabled={savingLivesChanges || (player.lives_remaining || 0) >= 2}
+                    title="Add Life"
+                    className="p-0.5 text-slate-600 hover:text-slate-900 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </button>
+                </div>
 
-                  {/* More Options Menu (Rare Actions Only) */}
+                {/* Payment Button - PRIMARY ACTION */}
+                {player.paid ? (
+                  <button
+                    onClick={() => handlePaymentToggle(player.id, player.paid)}
+                    disabled={updatingPayment.has(player.id)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 shadow-sm"
+                    title="Click to mark as unpaid"
+                  >
+                    <CheckCircleIcon className="h-4 w-4" />
+                    Paid
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handlePaymentToggle(player.id, player.paid)}
+                    disabled={updatingPayment.has(player.id)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-50 shadow-sm"
+                    title="Click to mark as paid"
+                  >
+                    Mark as Paid
+                  </button>
+                )}
+
+                {/* Hidden Badge */}
+                {player.hidden && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-700">
+                    Hidden
+                  </span>
+                )}
+
+                {/* Spacer to push menu to the right */}
+                <div className="flex-1"></div>
+
+                {/* More Options Menu */}
+                <div className="flex items-center gap-2">
                   <div className="relative">
                     <button
                       onClick={() => setOpenDropdownId(openDropdownId === player.id ? null : player.id)}
-                      className="p-1 hover:bg-slate-200 rounded transition-colors"
+                      className="p-2 hover:bg-slate-200 rounded-md transition-colors"
                       title="More actions"
                     >
                       <EllipsisVerticalIcon className="h-5 w-5 text-slate-600" />
@@ -879,6 +866,23 @@ export default function CompetitionPlayersPage() {
 
                         {/* Menu */}
                         <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
+                          {/* Set Pick */}
+                          <button
+                            onClick={() => {
+                              setOpenDropdownId(null);
+                              handleOpenSetPickModal(player);
+                            }}
+                            disabled={!currentRoundId || !hasFixtures || roundIsLocked}
+                            className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50 disabled:text-slate-400"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Set Pick</span>
+                          </button>
+
+                          <div className="border-t border-slate-100 my-1" />
+
                           {/* Toggle Status */}
                           <button
                             onClick={() => {
