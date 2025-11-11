@@ -23,6 +23,8 @@ interface PromoteData {
     join_url: string;
     game_url: string;
     total_players: number;
+    entry_fee?: number | null;
+    prize_structure?: string | null;
   };
   current_round: {
     round_number: number;
@@ -237,6 +239,8 @@ export default function PromotePage() {
       total_players: data.competition.total_players,
       players_without_picks: data.player_stats.players_without_picks,
       pick_percentage: data.player_stats.pick_percentage,
+      entry_fee: data.competition.entry_fee,
+      prize_structure: data.competition.prize_structure,
       fixtures: fixtures || undefined,
       fixture_results: fixtureResults || undefined,
       round_stats: roundStats || undefined

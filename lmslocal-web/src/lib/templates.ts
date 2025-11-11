@@ -20,6 +20,7 @@
  * - [TOTAL_PLAYERS] - Total players who ever joined
  * - [PLAYERS_WITHOUT_PICKS] - Count of players who haven't picked
  * - [PICK_PERCENTAGE] - Percentage of players who have picked
+ * - [ENTRY_DETAILS] - Entry fee and prize structure (formatted based on competition settings)
  */
 
 export interface Template {
@@ -47,7 +48,9 @@ How to join:
 1. Go to: [JOIN_URL]
 2. Use code: [JOIN_CODE]
 
-It's free to play and easy to enter. Pick a team each round - if they win, you survive!
+[ENTRY_DETAILS]
+
+Pick a team each round - if they win, you survive!
 
 Good luck! ⚽`
   },
@@ -59,6 +62,7 @@ Good luck! ⚽`
     content: `🎯 Join Our Last Man Standing Competition
 
 Competition: [COMP_NAME]
+[ENTRY_DETAILS]
 
 HOW IT WORKS:
 • Pick one team each round
@@ -80,6 +84,8 @@ Don't miss out - join today! 🏆`
     content: `🔥 WHO WILL BE THE LAST ONE STANDING? 🔥
 
 We're kicking off [COMP_NAME] and YOU'RE invited!
+
+[ENTRY_DETAILS]
 
 The rules are simple:
 ✅ Pick a winning team each round
@@ -253,6 +259,8 @@ export function replaceTemplateVariables(
     total_players: number;
     players_without_picks: number;
     pick_percentage: number;
+    entry_fee?: number | null;
+    prize_structure?: string | null;
     fixtures?: Array<{
       home_team: string;
       away_team: string;
@@ -289,6 +297,19 @@ export function replaceTemplateVariables(
   result = result.replace(/\[TOTAL_PLAYERS\]/g, data.total_players.toString());
   result = result.replace(/\[PLAYERS_WITHOUT_PICKS\]/g, data.players_without_picks.toString());
   result = result.replace(/\[PICK_PERCENTAGE\]/g, data.pick_percentage.toString());
+
+  // Format entry details (entry fee + prize structure)
+  let entryDetails = '';
+  const entryFeeNum = data.entry_fee ? Number(data.entry_fee) : 0;
+  if (entryFeeNum > 0) {
+    entryDetails = `💷 Entry: £${entryFeeNum.toFixed(2)}`;
+    if (data.prize_structure) {
+      entryDetails += `\n🏆 Prizes: ${data.prize_structure}`;
+    }
+  } else if (data.prize_structure) {
+    entryDetails = `🏆 Prizes: ${data.prize_structure}`;
+  }
+  result = result.replace(/\[ENTRY_DETAILS\]/g, entryDetails);
 
   // Format top players list
   const topPlayersFormatted = data.top_players
