@@ -308,6 +308,9 @@ export default function CompetitionPlayersPage() {
               }
             : player
         ));
+
+        // Invalidate cached player data so fresh data is fetched on next visit
+        cacheUtils.invalidatePattern(`competition-players-${competition.id}`);
       } else {
         alert(`Failed to update payment status: ${response.data.message || 'Unknown error'}`);
       }

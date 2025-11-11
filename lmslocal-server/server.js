@@ -50,6 +50,7 @@ const setPickRoute = require('./routes/set-pick');
 const adminSetPickRoute = require('./routes/admin-set-pick');
 const updatePlayerLivesRoute = require('./routes/update-player-lives');
 const updatePlayerStatusRoute = require('./routes/update-player-status');
+const updatePaymentStatusRoute = require('./routes/update-payment-status');
 // REMOVED: calculate-results (orphaned code - never used)
 
 // const playerLoginRoute = require('./routes/player-login'); // DISABLED - using single login
@@ -258,6 +259,7 @@ app.use('/set-pick', setPickRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/update-player-lives', updatePlayerLivesRoute);
 app.use('/update-player-status', updatePlayerStatusRoute);
+app.use('/update-payment-status', updatePaymentStatusRoute);
 // REMOVED: /calculate-results (orphaned code - never used)
 
 // app.use('/player-login', playerLoginRoute); // DISABLED - using single login
