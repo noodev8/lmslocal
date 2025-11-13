@@ -33,7 +33,7 @@ export interface Template {
 
 export const templates: Template[] = [
   // ==================================================
-  // PRE-LAUNCH TEMPLATES (3)
+  // PRE-LAUNCH TEMPLATES (1)
   // ==================================================
   {
     id: 'pre_launch_1',
@@ -45,58 +45,15 @@ export const templates: Template[] = [
 I'm running a [COMP_NAME] competition!
 
 How to join:
-1. Go to: [JOIN_URL]
-2. Use code: [JOIN_CODE]
+1. Go to https://lmslocal.co.uk
+2. Click "Join Competition"
+3. Use code: [JOIN_CODE]
 
 [ENTRY_DETAILS]
 
 Pick a team each round - if they win, you survive!
 
 Good luck! ⚽`
-  },
-  {
-    id: 'pre_launch_2',
-    name: 'Detailed Invitation',
-    category: 'pre_launch',
-    tone: 'professional',
-    content: `🎯 Join Our Last Man Standing Competition
-
-Competition: [COMP_NAME]
-[ENTRY_DETAILS]
-
-HOW IT WORKS:
-• Pick one team each round
-• If your team wins, you survive
-• If they lose or draw, you lose a life
-• Last player standing wins!
-
-HOW TO JOIN:
-Visit: [JOIN_URL]
-Enter code: [JOIN_CODE]
-
-Don't miss out - join today! 🏆`
-  },
-  {
-    id: 'pre_launch_3',
-    name: 'Exciting Launch',
-    category: 'pre_launch',
-    tone: 'excited',
-    content: `🔥 WHO WILL BE THE LAST ONE STANDING? 🔥
-
-We're kicking off [COMP_NAME] and YOU'RE invited!
-
-[ENTRY_DETAILS]
-
-The rules are simple:
-✅ Pick a winning team each round
-✅ Winners survive, losers are OUT
-✅ Last survivor takes the glory!
-
-Ready to compete?
-👉 [JOIN_URL]
-🔑 Code: [JOIN_CODE]
-
-Let's do this! ⚽🏆`
   },
 
   // ==================================================
@@ -115,7 +72,7 @@ Let's do this! ⚽🏆`
 [FIXTURES]
 
 Make your pick before the deadline!
-[GAME_URL]
+https://lmslocal.co.uk
 
 Good luck! 👍`
   },

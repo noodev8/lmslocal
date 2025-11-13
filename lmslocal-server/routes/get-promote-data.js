@@ -391,18 +391,19 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Calculate template visibility logic
     const template_context = {
-      // Pre-launch: Show if competition is in setup OR round 1 (regardless of status or fixtures)
-      show_pre_launch: competition.status === 'setup' ||
+      // Pre-launch: Show if competition is in SETUP OR round 1 (regardless of status or fixtures)
+      show_pre_launch: competition.status === 'SETUP' ||
                        (!current_round || current_round.round_number === 1),
 
       // Round update: Show if competition is active and ANY round has completed fixtures
       show_round_update: competition.status === 'active' && hasAnyCompletedRound,
 
-      // Pick reminder: Show if competition is active, round is NOT locked, and pick percentage < 80%
-      show_pick_reminder: competition.status === 'active' &&
-                         current_round &&
+      // Pick reminder: Show if round is NOT locked and has fixtures
+      // Allow for both 'active' and 'SETUP' status to support Round 1 fixture sharing
+      show_pick_reminder: current_round &&
                          !current_round.is_locked &&
-                         pick_stats.pick_percentage < 80,
+                         current_round.fixture_count > 0 &&
+                         (competition.status === 'active' || competition.status === 'SETUP'),
 
       // Winner: Show if competition is complete
       show_winner: competition.status === 'COMPLETE'

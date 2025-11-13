@@ -408,39 +408,14 @@ export default function PromotePage() {
         {/* Page Title */}
         <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
           <div className="flex items-center space-x-3 mb-2">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <MegaphoneIcon className="h-6 w-6 text-gray-600" />
+            <div className="p-2 bg-slate-100 rounded-lg">
+              <MegaphoneIcon className="h-6 w-6 text-slate-700" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Promote Your Competition</h1>
           </div>
           <p className="text-gray-600 text-sm">
             Choose a template, customize it, and share with your players
           </p>
-        </div>
-
-        {/* Competition Info Card */}
-        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">{data.competition.name}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <div className="text-gray-500">Status</div>
-              <div className="font-medium text-gray-900 capitalize">{data.competition.status}</div>
-            </div>
-            {data.current_round && (
-              <div>
-                <div className="text-gray-500">Round</div>
-                <div className="font-medium text-gray-900">{data.current_round.round_number}</div>
-              </div>
-            )}
-            <div>
-              <div className="text-gray-500">Active Players</div>
-              <div className="font-medium text-gray-900">{data.player_stats.total_active_players}</div>
-            </div>
-            <div>
-              <div className="text-gray-500">Total Players</div>
-              <div className="font-medium text-gray-900">{data.competition.total_players}</div>
-            </div>
-          </div>
         </div>
 
         {/* Promotional Leaflet - Only show before round 1 locks or if in round 1 */}
@@ -457,7 +432,7 @@ export default function PromotePage() {
               </div>
               <Link
                 href={`/leaflet/${competitionId}`}
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-900 transition-colors"
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -486,8 +461,8 @@ export default function PromotePage() {
           return (
             <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <svg className="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <svg className="h-6 w-6 text-slate-700" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                   </svg>
                 </div>
@@ -509,7 +484,7 @@ export default function PromotePage() {
                       key={template.id}
                       onClick={() => handleTemplateSelect(template)}
                       disabled={isDisabled}
-                      className="flex items-center justify-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center justify-center space-x-2 px-6 py-3 bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isDisabled ? (
                         <>
@@ -572,8 +547,8 @@ export default function PromotePage() {
                   onClick={handleCopy}
                   className={`flex items-center space-x-2 px-6 py-2 rounded-lg font-medium transition-all ${
                     copied
-                      ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                      : 'bg-gray-800 text-white hover:bg-gray-900'
+                      ? 'bg-slate-100 text-slate-700 border-2 border-slate-300'
+                      : 'bg-slate-700 text-white hover:bg-slate-800'
                   }`}
                 >
                   {copied ? (
@@ -600,8 +575,8 @@ export default function PromotePage() {
          fixtures && (
           <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-2 bg-slate-100 rounded-lg">
+                <svg className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
@@ -613,24 +588,11 @@ export default function PromotePage() {
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <div className="text-gray-500">Round</div>
-                  <div className="font-medium text-gray-900">Round {data.current_round.round_number}</div>
-                </div>
-                <div className="col-span-2">
-                  <div className="text-gray-500">Lock Time</div>
-                  <div className="font-medium text-gray-900">{data.current_round.lock_time_formatted || 'TBC'}</div>
-                </div>
-              </div>
-            </div>
-
             {!imagePreviewUrl ? (
               <button
                 onClick={handleGenerateFacebookImage}
                 disabled={generatingImage}
-                className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generatingImage ? (
                   <>
@@ -659,7 +621,7 @@ export default function PromotePage() {
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={handleDownloadImage}
-                    className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                    className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors"
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
