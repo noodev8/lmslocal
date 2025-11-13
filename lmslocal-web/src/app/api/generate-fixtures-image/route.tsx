@@ -91,54 +91,56 @@ export async function POST(req: NextRequest) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
             backgroundColor: '#334155',
-            padding: '60px',
+            padding: '50px 60px',
             fontFamily: 'system-ui, -apple-system, sans-serif'
           }}
         >
-          {/* Competition Name */}
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 48,
-              fontWeight: 'bold',
-              color: '#ffffff',
-              marginBottom: 10,
-              textAlign: 'center',
-              letterSpacing: '0.1em'
-            }}
-          >
-            {competitionName.toUpperCase()}
-          </div>
+          {/* Header Section */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            {/* Competition Name */}
+            <div
+              style={{
+                display: 'flex',
+                fontSize: 46,
+                fontWeight: 'bold',
+                color: '#ffffff',
+                marginBottom: 6,
+                textAlign: 'center',
+                letterSpacing: '0.1em'
+              }}
+            >
+              {competitionName.toUpperCase()}
+            </div>
 
-          {/* Round X Fixtures Title */}
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 44,
-              fontWeight: 'bold',
-              color: '#ffffff',
-              marginBottom: 8,
-              textAlign: 'center',
-              letterSpacing: '0.05em'
-            }}
-          >
-            ROUND {roundNumber} FIXTURES
-          </div>
+            {/* Round X Fixtures Title */}
+            <div
+              style={{
+                display: 'flex',
+                fontSize: 42,
+                fontWeight: 'bold',
+                color: '#ffffff',
+                marginBottom: 4,
+                textAlign: 'center',
+                letterSpacing: '0.05em'
+              }}
+            >
+              ROUND {roundNumber} FIXTURES
+            </div>
 
-          {/* Lock Time */}
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 24,
-              fontWeight: '600',
-              color: '#ffffff',
-              marginBottom: 40,
-              textAlign: 'center'
-            }}
-          >
-            {String(lockTime || '').toUpperCase()}
+            {/* Lock Time */}
+            <div
+              style={{
+                display: 'flex',
+                fontSize: 22,
+                fontWeight: '600',
+                color: '#ffffff',
+                textAlign: 'center'
+              }}
+            >
+              {String(lockTime || '').toUpperCase()}
+            </div>
           </div>
 
           {/* Fixtures List */}
@@ -147,8 +149,11 @@ export async function POST(req: NextRequest) {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '14px',
-              marginBottom: 40
+              gap: '16px',
+              flex: 1,
+              justifyContent: 'center',
+              paddingTop: '20px',
+              paddingBottom: '20px'
             }}
           >
             {fixtures.slice(0, 10).map((fixture: { home: string; away: string }, index: number) => (
@@ -156,65 +161,66 @@ export async function POST(req: NextRequest) {
                 key={index}
                 style={{
                   display: 'flex',
-                  fontSize: 30,
-                  fontWeight: '500',
+                  fontSize: 36,
+                  fontWeight: '600',
                   color: '#ffffff',
                   textAlign: 'center',
                   letterSpacing: '0.02em'
                 }}
               >
-                {fixture.home.toUpperCase()} V {fixture.away.toUpperCase()}
+                {fixture.home.toUpperCase()} v {fixture.away.toUpperCase()}
               </div>
             ))}
           </div>
 
-          {/* Call to Action */}
-          <div
-            style={{
-              display: 'flex',
-              fontSize: 32,
-              fontWeight: 'bold',
-              color: '#ffffff',
-              marginTop: 20,
-              marginBottom: 15,
-              textAlign: 'center',
-              letterSpacing: '0.05em'
-            }}
-          >
-            JUST PICK A TEAM TO WIN
-          </div>
-
-          {/* LMSLocal Branding Footer */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
+          {/* Footer Section */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+            {/* Call to Action */}
             <div
               style={{
                 display: 'flex',
-                fontSize: 18,
-                color: '#cbd5e1',
-                textAlign: 'center',
-                letterSpacing: '0.02em'
-              }}
-            >
-              Hosted by LMS Local
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                fontSize: 20,
-                fontWeight: '600',
+                fontSize: 30,
+                fontWeight: 'bold',
                 color: '#ffffff',
                 textAlign: 'center',
-                letterSpacing: '0.03em'
+                letterSpacing: '0.05em'
               }}
             >
-              www.lmslocal.co.uk
+              JUST PICK A TEAM TO WIN
+            </div>
+
+            {/* LMSLocal Branding */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  fontSize: 16,
+                  color: '#cbd5e1',
+                  textAlign: 'center',
+                  letterSpacing: '0.02em'
+                }}
+              >
+                Hosted by LMS Local
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  fontSize: 18,
+                  fontWeight: '600',
+                  color: '#ffffff',
+                  textAlign: 'center',
+                  letterSpacing: '0.03em'
+                }}
+              >
+                www.lmslocal.co.uk
+              </div>
             </div>
           </div>
         </div>
