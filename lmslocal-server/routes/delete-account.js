@@ -76,15 +76,6 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Business Rule: Prevent deletion of managed player accounts
-    // Managed players are created by competition organisers and should only be deleted by them
-    if (req.user.is_managed) {
-      return res.json({
-        return_code: "MANAGED_PLAYER_ERROR",
-        message: "Managed player accounts can only be deleted by the competition organiser. Please contact your competition organiser."
-      });
-    }
-
     // STEP 2: Use transaction wrapper to ensure atomic operations
     // This ensures that either ALL data deletion succeeds or ALL changes are rolled back
     // Critical for GDPR compliance where partial deletion is not acceptable
@@ -150,7 +141,6 @@ router.post('/', verifyToken, async (req, res) => {
           id: user_id,
           email: user_email,
           display_name: user_display_name,
-          is_managed: req.user.is_managed,
           created_by_user_id: req.user.created_by_user_id
         },
         deletion_stats: stats,
@@ -326,7 +316,6 @@ router.post('/', verifyToken, async (req, res) => {
       user_id: req.user?.id,
       user_email: req.user?.email,
       confirmation_provided: !!req.body?.confirmation,
-      is_managed: req.user?.is_managed,
       timestamp: new Date().toISOString()
     });
     

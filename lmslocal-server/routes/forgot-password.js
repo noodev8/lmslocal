@@ -51,8 +51,9 @@ const router = express.Router();
 
 // Secure token generation utility function
 // Generates a cryptographically secure random token for password reset
+// Prefixed with 'reset_' to distinguish from verification tokens
 const generateSecureResetToken = () => {
-  return crypto.randomBytes(32).toString('hex'); // 64 character hex string
+  return 'reset_' + crypto.randomBytes(32).toString('hex'); // reset_ + 64 character hex string
 };
 
 // Calculate token expiration time (1 hour from now)
@@ -105,22 +106,20 @@ router.post('/', async (req, res) => {
       // Single comprehensive query to get user data and account status
       // This provides all necessary information for password reset validation
       const userQuery = `
-        SELECT 
+        SELECT
           id,
           email,
           display_name,
           email_verified,
-          is_managed,
           created_at,
           last_active_at,
           auth_token,
           auth_token_expires,
           -- Account status for logging
           CASE WHEN email_verified = false THEN 'unverified'
-               WHEN is_managed = true THEN 'managed'
                ELSE 'active'
           END as account_status
-        FROM app_user 
+        FROM app_user
         WHERE email = $1
       `;
 

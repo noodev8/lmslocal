@@ -390,7 +390,7 @@ export const authApi = {
   login: (data: LoginRequest) => api.post<{ return_code: string; token: string; user: User }>('/login', data),
   register: (data: RegisterRequest) => api.post<{ return_code: string; token: string; user: User }>('/register', data),
   forgotPassword: (email: string) => api.post<{ return_code: string; message: string }>('/forgot-password', { email }),
-  resetPassword: (token: string, password: string) => api.post<{ return_code: string; message: string }>('/reset-password', { token, password }),
+  resetPassword: (token: string, new_password: string) => api.post<{ return_code: string; message: string }>('/reset-password', { token, new_password }),
   verifyEmail: (token: string) => api.post<{ return_code: string; message: string }>('/verify-email', { token }),
   resendVerification: (email: string) => api.post<{ return_code: string; message: string }>('/resend-verification', { email }),
 };

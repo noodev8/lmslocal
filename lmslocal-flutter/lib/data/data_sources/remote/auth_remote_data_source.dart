@@ -55,6 +55,7 @@ class AuthRemoteDataSource {
   }
 
   /// Register new user account
+  /// NOTE: Register API doesn't return a token, so we auto-login after successful registration
   /// Throws ServerFailure or AuthFailure on error
   Future<AuthResultModel> register({
     required String displayName,
@@ -75,7 +76,9 @@ class AuthRemoteDataSource {
       final returnCode = data['return_code'] as String;
 
       if (returnCode == AppConstants.successCode) {
-        return AuthResultModel.fromJson(data);
+        // Registration successful! Now auto-login to get JWT token
+        print('✅ Registration successful, auto-logging in...');
+        return await login(email: email, password: password);
       } else {
         // API returned error response
         final message = data['message'] as String? ?? 'Registration failed';

@@ -17,6 +17,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegisterRequested>(_onAuthRegisterRequested);
     on<AuthForgotPasswordRequested>(_onAuthForgotPasswordRequested);
     on<AuthLogoutRequested>(_onAuthLogoutRequested);
+    on<AuthStateReset>(_onAuthStateReset);
     on<AuthSessionExpired>(_onAuthSessionExpired);
   }
 
@@ -121,6 +122,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     await _authRepository.logout();
 
+    emit(const AuthUnauthenticated());
+  }
+
+  /// Reset auth state to unauthenticated (clears success/error states)
+  Future<void> _onAuthStateReset(
+    AuthStateReset event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(const AuthUnauthenticated());
   }
 

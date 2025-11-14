@@ -116,7 +116,8 @@ const sendVerificationEmail = async (email, token, displayName) => {
  */
 const sendPasswordResetEmail = async (email, token, displayName) => {
   try {
-    const resetUrl = `${process.env.EMAIL_VERIFICATION_URL}/reset-password?token=${token}`;
+    // Use PLAYER_FRONTEND_URL (web app) instead of EMAIL_VERIFICATION_URL
+    const resetUrl = `${process.env.PLAYER_FRONTEND_URL}/reset-password?token=${token}`;
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -187,8 +188,19 @@ const sendPasswordResetEmail = async (email, token, displayName) => {
       text: textContent,
     });
 
-    console.log('Password reset email sent successfully:', result.id);
-    return { success: true, messageId: result.id };
+    // Resend SDK v2+ returns { data: { id }, error } format
+    const messageId = result?.data?.id || result?.id || 'unknown';
+
+    // Log only in development to avoid cluttering production logs
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Password reset email sent:', {
+        messageId,
+        recipient: email,
+        displayName
+      });
+    }
+
+    return { success: true, messageId };
 
   } catch (error) {
     console.error('Failed to send password reset email:', error);

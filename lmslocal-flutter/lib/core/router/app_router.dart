@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lmslocal_flutter/presentation/pages/auth/forgot_password_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/login_page.dart';
+import 'package:lmslocal_flutter/presentation/pages/auth/register_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/dashboard/dashboard_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/splash/splash_page.dart';
 
@@ -28,26 +30,16 @@ class AppRouter {
           builder: (context, state) => const DashboardPage(),
         ),
 
-        // Register screen - placeholder for now
+        // Register screen
         GoRoute(
           path: '/register',
-          builder: (context, state) => Scaffold(
-            appBar: AppBar(title: const Text('Register')),
-            body: const Center(
-              child: Text('Register page - Phase 1'),
-            ),
-          ),
+          builder: (context, state) => const RegisterPage(),
         ),
 
-        // Forgot password screen - placeholder for now
+        // Forgot password screen
         GoRoute(
           path: '/forgot-password',
-          builder: (context, state) => Scaffold(
-            appBar: AppBar(title: const Text('Forgot Password')),
-            body: const Center(
-              child: Text('Forgot Password page - Phase 1'),
-            ),
-          ),
+          builder: (context, state) => const ForgotPasswordPage(),
         ),
       ],
     );

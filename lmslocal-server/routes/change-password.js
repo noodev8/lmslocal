@@ -60,15 +60,6 @@ router.post('/', verifyToken, async (req, res) => {
     const user_display_name = req.user.display_name; // For audit trail and response
 
     // STEP 1: Validate required input parameters with comprehensive business rule checking
-    
-    // Check if this is a managed player account (admin-created accounts without passwords)
-    // Managed players use magic link authentication and cannot change passwords
-    if (req.user.is_managed) {
-      return res.json({
-        return_code: "MANAGED_ACCOUNT",
-        message: "This is a managed account. Password changes are not allowed for managed players."
-      });
-    }
 
     // Validate current password input
     if (!current_password || typeof current_password !== 'string' || current_password.trim().length === 0) {

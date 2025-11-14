@@ -58,6 +58,11 @@ class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
 
+/// Reset auth state to unauthenticated (for clearing success/error states)
+class AuthStateReset extends AuthEvent {
+  const AuthStateReset();
+}
+
 /// Session expired (401 from API)
 class AuthSessionExpired extends AuthEvent {
   final String message;

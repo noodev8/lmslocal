@@ -128,9 +128,18 @@ const botPickRoute = require('./routes/bot-pick');
 const app = express();
 const PORT = process.env.PORT || 3015;
 
-// Trust proxy for production environments (nginx, load balancers, etc.)
-// This allows rate limiting to work correctly with X-Forwarded-For headers
-app.set('trust proxy', true);
+// Trust proxy configuration for rate limiting and IP detection
+// IMPORTANT: Set to false in development, configure properly in production
+// If behind reverse proxy (nginx, CloudFlare, etc.), set to number of proxies or IP ranges
+// See: https://expressjs.com/en/guide/behind-proxies.html
+if (process.env.NODE_ENV === 'production') {
+  // Production: Set to number of proxies (1 for single reverse proxy)
+  // Or use specific IP ranges for more security
+  app.set('trust proxy', 1); // Adjust based on your proxy setup
+} else {
+  // Development: No reverse proxy
+  app.set('trust proxy', false);
+}
 
 // Security middleware
 app.use(helmet({

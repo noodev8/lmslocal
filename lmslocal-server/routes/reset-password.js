@@ -105,22 +105,20 @@ router.post('/', async (req, res) => {
       // Single comprehensive query to get user data and token validation information
       // This provides all necessary information for password reset validation
       const userQuery = `
-        SELECT 
+        SELECT
           id,
           email,
           display_name,
           auth_token,
           auth_token_expires,
           email_verified,
-          is_managed,
           created_at,
           last_active_at,
           -- Account status for logging
           CASE WHEN email_verified = false THEN 'unverified'
-               WHEN is_managed = true THEN 'managed'
                ELSE 'active'
           END as account_status
-        FROM app_user 
+        FROM app_user
         WHERE auth_token = $1 AND auth_token LIKE 'reset_%'
       `;
 

@@ -98,23 +98,21 @@ router.post('/', async (req, res) => {
       // Single comprehensive query to get user data and current verification status
       // This provides all necessary information for verification resend validation
       const userQuery = `
-        SELECT 
+        SELECT
           id,
           email,
           display_name,
           email_verified,
           auth_token,
           auth_token_expires,
-          is_managed,
           created_at,
           last_active_at,
           -- Account status for logging
           CASE WHEN email_verified = true THEN 'verified'
                WHEN email_verified = false THEN 'unverified'
-               WHEN is_managed = true THEN 'managed'
                ELSE 'unknown'
           END as account_status
-        FROM app_user 
+        FROM app_user
         WHERE email = $1
       `;
 
