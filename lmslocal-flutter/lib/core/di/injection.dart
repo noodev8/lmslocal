@@ -57,4 +57,9 @@ class Injection {
   static AuthRepository getAuthRepository() {
     return _authRepository;
   }
+
+  /// Get TokenStorage instance
+  static TokenStorage getTokenStorage() {
+    return _tokenStorage;
+  }
 }

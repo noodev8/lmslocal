@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/forgot_password_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/register_page.dart';
+import 'package:lmslocal_flutter/presentation/pages/competition/competition_navigation_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/dashboard/dashboard_page.dart';
+import 'package:lmslocal_flutter/presentation/pages/profile/profile_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/splash/splash_page.dart';
 
 /// App router configuration using GoRouter
@@ -24,10 +27,32 @@ class AppRouter {
           builder: (context, state) => const LoginPage(),
         ),
 
-        // Dashboard screen (protected)
+        // Dashboard (protected) - no bottom nav
         GoRoute(
           path: '/dashboard',
           builder: (context, state) => const DashboardPage(),
+        ),
+
+        // Profile (standalone page, no bottom nav)
+        GoRoute(
+          path: '/profile',
+          builder: (context, state) => Scaffold(
+            appBar: AppBar(
+              title: const Text('Profile'),
+              backgroundColor: AppConstants.primaryNavy,
+              foregroundColor: Colors.white,
+            ),
+            body: const ProfilePage(),
+          ),
+        ),
+
+        // Competition view with 4-tab bottom nav (protected)
+        GoRoute(
+          path: '/competition/:id',
+          builder: (context, state) {
+            final competitionId = state.pathParameters['id']!;
+            return CompetitionNavigationPage(competitionId: competitionId);
+          },
         ),
 
         // Register screen

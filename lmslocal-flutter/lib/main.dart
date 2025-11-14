@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:lmslocal_flutter/core/config/app_config.dart';
 import 'package:lmslocal_flutter/core/config/env_dev.dart';
 import 'package:lmslocal_flutter/core/config/env_prod.dart';
@@ -34,9 +35,22 @@ class LmsLocalApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => Injection.getAuthBloc()
-        ..add(const AuthCheckRequested()), // Check auth status on startup
+    return MultiProvider(
+      providers: [
+        // Provide AuthBloc
+        BlocProvider(
+          create: (context) => Injection.getAuthBloc()
+            ..add(const AuthCheckRequested()), // Check auth status on startup
+        ),
+        // Provide ApiClient for profile page
+        Provider.value(
+          value: Injection.getApiClient(),
+        ),
+        // Provide TokenStorage for profile page
+        Provider.value(
+          value: Injection.getTokenStorage(),
+        ),
+      ],
       child: MaterialApp.router(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
