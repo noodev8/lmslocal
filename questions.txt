@@ -1,0 +1,117 @@
+#### 🔄 New Questions:
+
+**Error Tracking Explained**:
+Error tracking tools (like Sentry or Firebase Crashlytics) automatically:
+- Capture app crashes and send crash reports to a dashboard
+- Track non-fatal errors (API failures, exceptions)
+- Show which device/OS version caused crashes
+- Provide stack traces for debugging
+- Alert you when new errors occur
+
+**Without error tracking**: You won't know if the app crashes for users unless they tell you.
+
+- [X] **Error Tracking Decision**: Do you want automatic crash reporting? (AA) Option 1
+  - **Option 1**: Use Firebase Crashlytics (free, simple, Google-hosted)
+  - **Option 2**: Use Sentry (more powerful, self-hosted or cloud)
+  - **Option 3**: None (rely on user reports and server logs)
+  - **Recommendation**: At minimum, use Crashlytics (free and catches production crashes you won't see in testing)
+
+#### ⏳ Still Open:
+- [X] **Backend Changes**: Any API modifications needed for mobile optimization?
+(AA) You are free to decide on new APIs if needed. This will be discussed on a case by case bases as all APIs should be avilable and using JSON
+  - Do current APIs support all mobile app features?
+  - Need any new endpoints for mobile-specific features?
+- [X] **Certificate Pinning**: Production-only or development too? (AA) Production only
+  - **Recommendation**: Production only (easier development workflow)
+- [X] **JWT Token Passing**: URL parameter method or In-App WebView? (See Section 4.2 for implementation details) (AA) Start simple
+  - **Recommendation**: Start with URL parameter (simple), upgrade to WebView if security concerns arise
+- [X] **Web App Changes**: Implement token URL parameter handler in web app for seamless authentication
+(AA) OK but we wil discuss implementation at the time
+  - Can this be done in parallel with Flutter Phase 2?
+(AA) Yes
+
+### 16.4 Backend/Web Implementation Requirements
+
+**CRITICAL**: The web application (lmslocal-web) must be updated to support seamless authentication from mobile app.
+(AA) Im getting worried about extensive changes This is not critical as they can log into either and their token will last 180 days on each anyway. Perhaps we should leave it separate afterall
+
+**Required Web App Changes**:
+
+1. **Token URL Parameter Handler** (See Section 4.2 for JavaScript code example):
+   - Detect `?token=XXX` in URL on app load
+   - Store token in localStorage
+   - Clean URL to remove token from address bar
+   - Auto-redirect to dashboard or intended page
+
+2. **Existing Token Validation**:
+   - Verify existing JWT token validation works with tokens from mobile app
+   - Ensure axios interceptor properly reads token from localStorage
+   - Confirm 401 handling redirects to login (or shows appropriate message)
+
+3. **No Breaking Changes**:
+   - Web app should continue to work for direct browser access
+   - Login page should still function normally
+   - Token parameter is optional (graceful degradation)
+
+**Implementation Priority**: Medium (can be done in parallel with Flutter Phase 2)
+
+### 16.5 App Store & Deployment Decisions
+(AA) I have a developer account on both and will take care of these detailos come the time
+(AA) We will test on my local mobile
+(AA) We will release directly to the app stores and rapid releasing while I test in the wild
+
+- [ ] **Apple Developer Account**: Do you have one, or need to create?
+  - **Cost**: $99/year (required for App Store submission)
+  - **Setup time**: 1-2 weeks for approval
+  - **Account type**: Individual or Organization?
+- [ ] **Google Play Developer Account**: Do you have one, or need to create?
+  - **Cost**: $25 one-time fee
+  - **Setup time**: 1-2 days for approval
+- [ ] **App Store Assets**: Who will create?
+  - Screenshots (required: iPhone, iPad, potentially Android)
+  - App preview videos (optional but recommended)
+  - App icon (1024x1024 for App Store)
+  - Feature graphics (Google Play)
+  - App description and keywords
+- [ ] **Beta Testing Strategy**: How to test before public release?
+  - **Option 1**: TestFlight (iOS) + Google Play Internal Testing (Android) - Small group (10-100 people)
+  - **Option 2**: TestFlight + Google Play Beta - Public beta (unlimited users)
+  - **Recommendation**: Start with internal testing, then public beta before full launch
+- [ ] **Release Strategy**: How to launch?
+  - **Option 1**: Phased rollout (e.g., 10% → 50% → 100% over 1 week)
+  - **Option 2**: Full launch immediately
+  - **Recommendation**: Phased rollout allows you to catch issues before everyone gets the app
+- [ ] **App Store Submission**: Who handles submission process?
+  - Developer/contractor?
+  - LMS Local team member?
+  - Need training on submission process?
+
+### 16.6 Development & Maintenance
+
+- [ ] **Developer Selection**: Who will build the Flutter app?
+  - In-house developer?
+  - Contractor/freelancer?
+  - Agency?
+(AA) You and I will beuild it in-house. We built the APIs and web version
+
+- [ ] **Development Timeline**: Is 12-week timeline acceptable?
+  - Any hard deadlines or milestones?
+  - Prefer faster delivery with reduced features?
+(AA) Timeline is good
+
+- [ ] **Post-Launch Support**: Who will maintain the app?
+  - Bug fixes
+  - OS updates (iOS/Android release new versions annually)
+  - Feature updates
+  - App store review updates
+(AA) We will
+
+- [ ] **Version Control**: Where to host code?
+  - GitHub (recommended - already using for web app?)
+  - GitLab
+  - Bitbucket
+  - Same repo as web app or separate?
+(AA) We will add a folder to the existing project and this is hosted on git already
+(AA) lmslocal/lmslocal-server
+(AA) lmslocal/lmslocal-web
+(AA) NEW** lmslocal/lmslocal-flutter
