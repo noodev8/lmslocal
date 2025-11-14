@@ -5,6 +5,7 @@ class Competition extends Equatable {
   final int id;
   final String name;
   final String? description;
+  final String? logoUrl;
   final String status;
   final int livesPerPlayer;
   final bool noTeamTwice;
@@ -28,11 +29,13 @@ class Competition extends Equatable {
   final bool? needsPick;
   final CurrentPick? currentPick;
   final List<PickHistory> history;
+  final String? winnerName;
 
   const Competition({
     required this.id,
     required this.name,
     this.description,
+    this.logoUrl,
     required this.status,
     required this.livesPerPlayer,
     required this.noTeamTwice,
@@ -56,6 +59,7 @@ class Competition extends Equatable {
     this.needsPick,
     this.currentPick,
     this.history = const [],
+    this.winnerName,
   });
 
   @override
@@ -63,6 +67,7 @@ class Competition extends Equatable {
         id,
         name,
         description,
+        logoUrl,
         status,
         livesPerPlayer,
         noTeamTwice,
@@ -86,6 +91,7 @@ class Competition extends Equatable {
         needsPick,
         currentPick,
         history,
+        winnerName,
       ];
 }
 

@@ -6,6 +6,7 @@ class CompetitionModel extends Competition {
     required super.id,
     required super.name,
     super.description,
+    super.logoUrl,
     required super.status,
     required super.livesPerPlayer,
     required super.noTeamTwice,
@@ -29,6 +30,7 @@ class CompetitionModel extends Competition {
     super.needsPick,
     super.currentPick,
     super.history,
+    super.winnerName,
   });
 
   factory CompetitionModel.fromJson(Map<String, dynamic> json) {
@@ -36,6 +38,7 @@ class CompetitionModel extends Competition {
       id: json['id'] as int,
       name: json['name'] as String,
       description: json['description'] as String?,
+      logoUrl: json['logo_url'] as String?,
       status: json['status'] as String,
       livesPerPlayer: json['lives_per_player'] as int,
       noTeamTwice: json['no_team_twice'] as bool,
@@ -67,6 +70,7 @@ class CompetitionModel extends Competition {
               .map((e) => PickHistoryModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : [],
+      winnerName: json['winner_name'] as String?,
     );
   }
 
@@ -75,6 +79,7 @@ class CompetitionModel extends Competition {
       'id': id,
       'name': name,
       'description': description,
+      'logo_url': logoUrl,
       'status': status,
       'lives_per_player': livesPerPlayer,
       'no_team_twice': noTeamTwice,
@@ -100,6 +105,7 @@ class CompetitionModel extends Competition {
           ? (currentPick as CurrentPickModel).toJson()
           : null,
       'history': history.map((e) => (e as PickHistoryModel).toJson()).toList(),
+      'winner_name': winnerName,
     };
   }
 }

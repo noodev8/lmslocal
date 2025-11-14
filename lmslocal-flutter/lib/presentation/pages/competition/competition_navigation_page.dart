@@ -13,10 +13,12 @@ import 'package:lmslocal_flutter/presentation/pages/standings/standings_page.dar
 /// Shows Home, Play, Standings, and Profile tabs within a competition context
 class CompetitionNavigationPage extends StatefulWidget {
   final String competitionId;
+  final Object? competition;
 
   const CompetitionNavigationPage({
     super.key,
     required this.competitionId,
+    this.competition,
   });
 
   @override
@@ -33,7 +35,10 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
   void initState() {
     super.initState();
     _pages = [
-      CompetitionHomePage(competitionId: widget.competitionId),
+      CompetitionHomePage(
+        competitionId: widget.competitionId,
+        initialCompetition: widget.competition,
+      ),
       PlayPage(competitionId: widget.competitionId),
       StandingsPage(competitionId: widget.competitionId),
       const ProfilePage(),

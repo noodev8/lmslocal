@@ -277,6 +277,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildCompetitionCard(Competition competition) {
     final needsPick = competition.needsPick ?? false;
+    final isComplete = competition.status == 'COMPLETE';
+    final hasWinner = isComplete && competition.winnerName != null;
 
     return Card(
       elevation: 1,
@@ -286,8 +288,8 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       child: InkWell(
         onTap: () {
-          // Navigate to competition with 4-tab bottom nav
-          context.go('/competition/${competition.id}');
+          // Navigate to competition with 4-tab bottom nav, passing competition data
+          context.go('/competition/${competition.id}', extra: competition);
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -452,13 +454,49 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ],
 
+              // Winner/Draw display for completed competitions
+              if (isComplete) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppConstants.primaryNavy.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        hasWinner ? 'Winner:' : 'Result:',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          hasWinner ? competition.winnerName! : 'Draw',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppConstants.primaryNavy,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               // Action button
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    context.go('/competition/${competition.id}');
+                    context.go('/competition/${competition.id}', extra: competition);
                   },
                   icon: const Icon(Icons.bar_chart),
                   label: Text(

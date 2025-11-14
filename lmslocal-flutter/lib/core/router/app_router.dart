@@ -51,7 +51,11 @@ class AppRouter {
           path: '/competition/:id',
           builder: (context, state) {
             final competitionId = state.pathParameters['id']!;
-            return CompetitionNavigationPage(competitionId: competitionId);
+            final competition = state.extra;
+            return CompetitionNavigationPage(
+              competitionId: competitionId,
+              competition: competition,
+            );
           },
         ),
 
