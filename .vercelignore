@@ -1,0 +1,8 @@
+# Exclude non-web directories when deploying from root
+lmslocal-flutter/
+lmslocal-server/
+docs/
+*.mp4
+*.mov
+*.avi
+server-check.txt
