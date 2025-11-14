@@ -13,9 +13,6 @@ class AuthRepositoryImpl implements AuthRepository {
   final TokenStorage _tokenStorage;
   final SharedPreferences _prefs;
 
-  // Cache keys
-  static const String _userCacheKey = 'cached_user';
-
   AuthRepositoryImpl({
     required AuthRemoteDataSource remoteDataSource,
     required TokenStorage tokenStorage,
@@ -93,18 +90,26 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User?> getCurrentUser() async {
+    // Check if token exists first
+    final hasToken = await _tokenStorage.hasToken();
+    if (!hasToken) return null;
+
     // Try to get cached user data
-    final userJson = _prefs.getString(_userCacheKey);
-    if (userJson != null) {
-      try {
-        // Parse cached user data
-        // For now, return null - will implement full caching later
-        // This is a simplified version for Phase 1
-        return null;
-      } catch (e) {
-        return null;
-      }
+    final userId = _prefs.getInt('user_id');
+    final email = _prefs.getString('user_email');
+    final displayName = _prefs.getString('user_display_name');
+    final emailVerified = _prefs.getBool('user_email_verified') ?? true;
+
+    // If we have cached user data, return it
+    if (userId != null && email != null && displayName != null) {
+      return User(
+        id: userId,
+        email: email,
+        displayName: displayName,
+        emailVerified: emailVerified,
+      );
     }
+
     return null;
   }
 
@@ -114,15 +119,17 @@ class AuthRepositoryImpl implements AuthRepository {
     await _tokenStorage.deleteToken();
 
     // Clear cached user data
-    await _prefs.remove(_userCacheKey);
+    await _prefs.remove('user_id');
+    await _prefs.remove('user_email');
+    await _prefs.remove('user_display_name');
+    await _prefs.remove('user_email_verified');
   }
 
-  /// Cache user data locally for offline access
+  /// Cache user data locally for persistent login
   Future<void> _cacheUser(User user) async {
-    // Simplified caching for Phase 1
-    // Store user ID for future reference
     await _prefs.setInt('user_id', user.id);
     await _prefs.setString('user_email', user.email);
     await _prefs.setString('user_display_name', user.displayName);
+    await _prefs.setBool('user_email_verified', user.emailVerified);
   }
 }

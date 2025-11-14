@@ -8,6 +8,29 @@
 
 ## 🐛 Issues Reported
 
+### 4. **Persistent Login Not Working** ✅ FIXED
+**Problem**: User logs in, closes app, reopens app → Goes to login page instead of dashboard
+
+**Root Cause**: `getCurrentUser()` was returning `null` because user caching was left as a placeholder. Even though JWT token was saved, the app couldn't retrieve cached user data, so it logged out on startup.
+
+**Fix**:
+- Implemented proper user caching in SharedPreferences
+- `getCurrentUser()` now reads cached user data (id, email, displayName, emailVerified)
+- Logout now properly clears all cached user data
+- Token + user data now persist across app restarts
+
+**Changed Files**:
+- `lib/data/repositories/auth_repository_impl.dart` - Fixed user caching and retrieval
+
+**How It Works Now**:
+1. Login → Save token to secure storage + user data to SharedPreferences ✅
+2. Close app ✅
+3. Reopen app → Splash screen checks auth ✅
+4. Token exists + User data cached → **Go directly to dashboard** ✅
+5. Show user info from cache ✅
+
+---
+
 ### 1. **Splash Screen Not Showing** ✅ FIXED
 **Problem**: App went straight to login, skipping the 2-second splash screen
 
