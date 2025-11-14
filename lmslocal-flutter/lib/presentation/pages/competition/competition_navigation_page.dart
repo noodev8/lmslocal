@@ -45,6 +45,21 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
     ];
   }
 
+  String _getPageTitle() {
+    switch (_currentIndex) {
+      case 0:
+        return 'Competition';
+      case 1:
+        return 'Play';
+      case 2:
+        return 'Standings';
+      case 3:
+        return 'Profile';
+      default:
+        return 'Competition';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
@@ -56,12 +71,22 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Competition'),
+          title: Text(_getPageTitle()),
           backgroundColor: AppConstants.primaryNavy,
           foregroundColor: Colors.white,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/dashboard'),
+            onPressed: () {
+              // If on any tab other than Home, go back to Home tab
+              if (_currentIndex != 0) {
+                setState(() {
+                  _currentIndex = 0;
+                });
+              } else {
+                // If on Home tab, go back to dashboard
+                context.go('/dashboard');
+              }
+            },
           ),
         ),
         body: IndexedStack(
