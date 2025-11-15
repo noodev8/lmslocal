@@ -326,6 +326,34 @@ class CompetitionRemoteDataSource {
     }
   }
 
+  /// Hide a competition from the user's dashboard
+  /// Sets the hidden flag to true in competition_user table
+  Future<void> hideCompetition({
+    required int competitionId,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/hide-competition',
+        data: {'competition_id': competitionId},
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final returnCode = data['return_code'] as String;
+
+      if (returnCode != AppConstants.successCode) {
+        final message =
+            data['message'] as String? ?? 'Failed to hide competition';
+        throw ServerFailure(message);
+      }
+
+      // Clear competition cache after hiding
+      await clearCompetitionCache(competitionId);
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw NetworkFailure('Failed to hide competition: ${e.toString()}');
+    }
+  }
+
   /// Clear all competition caches for a specific competition
   Future<void> clearCompetitionCache(int competitionId) async {
     final keys = _prefs.getKeys();

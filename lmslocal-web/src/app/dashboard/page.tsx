@@ -30,7 +30,7 @@ import JoinCompetitionModal from '@/components/JoinCompetitionModal';
 export default function DashboardPage() {
   const router = useRouter();
   // Use app-level data from context instead of local API calls
-  const { competitions, loading, updateCompetition } = useAppData();
+  const { competitions, loading, updateCompetition, refreshCompetitions } = useAppData();
   
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
@@ -187,8 +187,8 @@ export default function DashboardPage() {
     try {
       const response = await competitionApi.hide(competitionToDelete.id);
       if (response.data.return_code === 'SUCCESS') {
-        // Refresh the page to remove the hidden competition from view
-        window.location.reload();
+        // Refresh competitions to remove the hidden one from view
+        await refreshCompetitions(true);
       } else {
         console.error('Failed to hide competition:', response.data.message);
       }
@@ -641,14 +641,13 @@ export default function DashboardPage() {
                 <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
               </div>
               <div className="ml-3">
-                <h3 className="text-lg font-semibold text-slate-900">Remove Competition</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Hide Competition</h3>
               </div>
             </div>
 
             <div className="mb-6">
               <p className="text-sm text-slate-600">
-                Are you sure you want to remove &quot;{competitionToDelete.name}&quot; from your dashboard?
-                This will hide it from your view.
+                Hide &quot;{competitionToDelete.name}&quot; from your dashboard? This will remove it from your view.
               </p>
             </div>
 
@@ -663,7 +662,7 @@ export default function DashboardPage() {
                 onClick={handleConfirmDelete}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
               >
-                Remove
+                Hide
               </button>
             </div>
           </div>

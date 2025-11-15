@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:lmslocal_flutter/core/config/app_config.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_source.dart';
@@ -103,6 +105,21 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _openWebPlatform() async {
+    final webUrl = Config.instance.webBaseUrl;
+    final uri = Uri.parse(webUrl);
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open web platform')),
+        );
+      }
+    }
   }
 
   @override
@@ -247,10 +264,10 @@ class _DashboardPageState extends State<DashboardPage> {
       color: AppConstants.primaryNavy,
       child: ListView.builder(
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
-        itemCount: _competitions.length + 1, // +1 for "Join Competition" at bottom
+        itemCount: _competitions.length + 2, // +2 for join button and web platform card
         itemBuilder: (context, index) {
+          // "Join Competition" button (after all competitions)
           if (index == _competitions.length) {
-            // "Join Competition" text at bottom
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
@@ -268,6 +285,13 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             );
           }
+
+          // Web platform card (very last item at bottom)
+          if (index == _competitions.length + 1) {
+            return _buildWebPlatformCard();
+          }
+
+          // Competition card
           final competition = _competitions[index];
           return _buildCompetitionCard(competition);
         },
@@ -510,6 +534,65 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebPlatformCard() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Card(
+        elevation: 0,
+        color: Colors.grey[100],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.grey[300]!),
+        ),
+        child: InkWell(
+          onTap: _openWebPlatform,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.language,
+                  size: 20,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Want to organize your own competition?',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[800],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Visit our web platform',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: Colors.grey[500],
+                ),
+              ],
+            ),
           ),
         ),
       ),
