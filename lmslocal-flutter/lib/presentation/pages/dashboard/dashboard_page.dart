@@ -7,6 +7,7 @@ import 'package:lmslocal_flutter/core/config/app_config.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_source.dart';
+import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
@@ -82,29 +83,143 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _showJoinCompetitionDialog() {
+    final TextEditingController codeController = TextEditingController();
+    bool isLoading = false;
+    String? errorMessage;
+
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Join Competition'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Join competition functionality coming soon!'),
-            SizedBox(height: 16),
-            Text(
-              'You will be able to join competitions using an invite code or slug.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.group_add, color: AppConstants.primaryNavy),
+              SizedBox(width: 12),
+              Text('Join Competition'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter the invite code shared by the competition organiser',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: codeController,
+                decoration: InputDecoration(
+                  labelText: 'Invite Code',
+                  hintText: 'ABC123',
+                  border: const OutlineInputBorder(),
+                  errorText: errorMessage,
+                ),
+                textCapitalization: TextCapitalization.characters,
+                enabled: !isLoading,
+                autofocus: true,
+                onChanged: (value) {
+                  setState(() {
+                    if (errorMessage != null) {
+                      errorMessage = null;
+                    }
+                  });
+                },
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty && !isLoading) {
+                    _handleJoinCompetition(
+                      dialogContext,
+                      codeController.text,
+                      setState,
+                      (loading) => isLoading = loading,
+                      (error) => errorMessage = error,
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: (isLoading || codeController.text.trim().isEmpty)
+                  ? null
+                  : () => _handleJoinCompetition(
+                        dialogContext,
+                        codeController.text,
+                        setState,
+                        (loading) => isLoading = loading,
+                        (error) => errorMessage = error,
+                      ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConstants.primaryNavy,
+                foregroundColor: Colors.white,
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Join Competition'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
+  }
+
+  Future<void> _handleJoinCompetition(
+    BuildContext dialogContext,
+    String code,
+    StateSetter setDialogState,
+    Function(bool) setLoading,
+    Function(String?) setError,
+  ) async {
+    setDialogState(() {
+      setLoading(true);
+      setError(null);
+    });
+
+    try {
+      final apiClient = context.read<ApiClient>();
+      final userDataSource = UserRemoteDataSource(apiClient: apiClient);
+      final messenger = ScaffoldMessenger.of(context);
+
+      final result = await userDataSource.joinCompetitionByCode(
+        competitionCode: code.trim(),
+      );
+
+      if (!mounted) return;
+
+      // Close dialog
+      if (dialogContext.mounted) {
+        Navigator.of(dialogContext).pop();
+      }
+
+      // Show success message
+      final competitionName = result['competition']?['name'] ?? 'competition';
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Successfully joined $competitionName!'),
+          backgroundColor: AppConstants.successGreen,
+        ),
+      );
+
+      // Refresh dashboard to show newly joined competition
+      await _loadDashboard(forceRefresh: true);
+    } catch (e) {
+      setDialogState(() {
+        setLoading(false);
+        setError('Invalid code');
+      });
+    }
   }
 
   Future<void> _openWebPlatform() async {

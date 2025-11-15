@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/errors/failures.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
@@ -77,7 +78,7 @@ class AuthRemoteDataSource {
 
       if (returnCode == AppConstants.successCode) {
         // Registration successful! Now auto-login to get JWT token
-        print('✅ Registration successful, auto-logging in...');
+        debugPrint('✅ Registration successful, auto-logging in...');
         return await login(email: email, password: password);
       } else {
         // API returned error response

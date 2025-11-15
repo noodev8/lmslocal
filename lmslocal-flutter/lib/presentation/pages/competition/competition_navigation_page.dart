@@ -278,9 +278,14 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
+            // If Home tab is tapped, navigate to main dashboard
+            if (index == 0) {
+              context.go('/dashboard');
+            } else {
+              setState(() {
+                _currentIndex = index;
+              });
+            }
           },
           type: BottomNavigationBarType.fixed,
           selectedItemColor: AppConstants.primaryNavy,

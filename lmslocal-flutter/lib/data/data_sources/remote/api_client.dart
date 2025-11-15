@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lmslocal_flutter/core/config/app_config.dart';
 import 'package:lmslocal_flutter/data/data_sources/local/token_storage.dart';
 
@@ -34,23 +35,23 @@ class ApiClient {
           }
 
           if (config.enableLogging) {
-            print('🌐 REQUEST: ${options.method} ${options.path}');
-            print('📤 DATA: ${options.data}');
+            debugPrint('🌐 REQUEST: ${options.method} ${options.path}');
+            debugPrint('📤 DATA: ${options.data}');
           }
 
           return handler.next(options);
         },
         onResponse: (response, handler) {
           if (config.enableLogging) {
-            print('✅ RESPONSE: ${response.statusCode} ${response.requestOptions.path}');
-            print('📥 DATA: ${response.data}');
+            debugPrint('✅ RESPONSE: ${response.statusCode} ${response.requestOptions.path}');
+            debugPrint('📥 DATA: ${response.data}');
           }
           return handler.next(response);
         },
         onError: (error, handler) async {
           if (config.enableLogging) {
-            print('❌ ERROR: ${error.response?.statusCode} ${error.requestOptions.path}');
-            print('📥 ERROR DATA: ${error.response?.data}');
+            debugPrint('❌ ERROR: ${error.response?.statusCode} ${error.requestOptions.path}');
+            debugPrint('📥 ERROR DATA: ${error.response?.data}');
           }
 
           // Handle 401 Unauthorized - token expired or invalid

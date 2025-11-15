@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.10.0
@@ -81,14 +81,14 @@ flutter:
   # Assets
   assets:
     - assets/images/logo.png
-    - assets/lmslocal_icon_1024.png
 
 # Flutter Launcher Icons Configuration
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: "assets/lmslocal_icon_1024.png"
-  remove_alpha_ios: true
+# Icons already generated - source file moved to docs/lmslocal_icon_1024.png
+# flutter_launcher_icons:
+#   android: true
+#   ios: true
+#   image_path: "assets/lmslocal_icon_1024.png"
+#   remove_alpha_ios: true
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

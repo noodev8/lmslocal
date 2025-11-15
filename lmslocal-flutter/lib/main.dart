@@ -24,7 +24,7 @@ void main() async {
   final apiClient = Injection.getApiClient();
   apiClient.onUnauthorized = (message) {
     // This will be handled by AuthBloc listening to session expiry
-    print('⚠️ Session expired: $message');
+    debugPrint('⚠️ Session expired: $message');
   };
 
   runApp(const LmsLocalApp());

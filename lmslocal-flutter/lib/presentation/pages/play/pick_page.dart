@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
@@ -184,16 +183,10 @@ class _PickPageState extends State<PickPage> {
         // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                roundLocked
-                    ? 'You were the last player to pick! Round is now locked. Tap "Home" or "Standings" to see results.'
-                    : 'Pick saved successfully!',
-              ),
+            const SnackBar(
+              content: Text('Pick saved successfully!'),
               backgroundColor: AppConstants.successGreen,
-              duration: roundLocked
-                  ? const Duration(seconds: 5)
-                  : const Duration(seconds: 2),
+              duration: Duration(seconds: 2),
             ),
           );
         }
@@ -702,16 +695,6 @@ class _PickPageState extends State<PickPage> {
               fontWeight: FontWeight.bold,
               color: AppConstants.primaryNavy,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'All players have made their picks.\nNavigate to "Home" or "Standings" to see results.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

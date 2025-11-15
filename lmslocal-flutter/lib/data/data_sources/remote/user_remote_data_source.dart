@@ -147,4 +147,32 @@ class UserRemoteDataSource {
       throw ServerFailure('Failed to delete account: ${e.toString()}');
     }
   }
+
+  /// Join competition using invite code or slug
+  /// Throws ServerFailure or AuthFailure on error
+  Future<Map<String, dynamic>> joinCompetitionByCode({
+    required String competitionCode,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/join-competition-by-code',
+        data: {
+          'competition_code': competitionCode.trim().toUpperCase(),
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final returnCode = data['return_code'] as String;
+
+      if (returnCode == AppConstants.successCode) {
+        return data;
+      } else {
+        final message = data['message'] as String? ?? 'Failed to join competition';
+        throw AuthFailure(message, code: returnCode);
+      }
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw ServerFailure('Failed to join competition: ${e.toString()}');
+    }
+  }
 }
