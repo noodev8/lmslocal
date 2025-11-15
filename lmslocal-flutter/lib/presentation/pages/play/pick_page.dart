@@ -705,30 +705,13 @@ class _PickPageState extends State<PickPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'All players have made their picks.',
+            'All players have made their picks.\nNavigate to "Home" or "Standings" to see results.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[700],
               height: 1.5,
             ),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // Force full reload of competition by navigating to same route
-                context.go('/competition/${widget.competitionId}');
-              },
-              icon: const Icon(Icons.bar_chart),
-              label: const Text('View Results'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryNavy,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
           ),
         ],
       ),
