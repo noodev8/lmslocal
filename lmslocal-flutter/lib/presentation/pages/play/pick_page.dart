@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
@@ -41,6 +42,9 @@ class _PickPageState extends State<PickPage> {
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _error;
+
+  // Track if round has been locked (overrides widget.round.isLocked)
+  bool _roundLockedOverride = false;
 
   @override
   void initState() {
@@ -110,9 +114,29 @@ class _PickPageState extends State<PickPage> {
     }
   }
 
+  Future<void> _clearPickStatisticsCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Clear pick statistics cache for this round
+      final cacheKey = 'pick_stats_${widget.competition.id}_${widget.round.roundNumber}';
+      final cacheTimeKey = '${cacheKey}_time';
+      await prefs.remove(cacheKey);
+      await prefs.remove(cacheTimeKey);
+
+      // Also clear rounds cache to get updated lock status
+      final roundsCacheKey = 'competition_rounds_${widget.competition.id}';
+      final roundsCacheTimeKey = '${roundsCacheKey}_time';
+      await prefs.remove(roundsCacheKey);
+      await prefs.remove(roundsCacheTimeKey);
+    } catch (e) {
+      // Silently fail - not critical
+    }
+  }
+
   void _handleTeamSelect(String teamShort, int fixtureId, String position) {
     // Can't select if round is locked
-    if (widget.round.isLocked) return;
+    final isLocked = widget.round.isLocked || _roundLockedOverride;
+    if (isLocked) return;
 
     // User must remove current pick first
     if (_currentPick != null) return;
@@ -152,37 +176,33 @@ class _PickPageState extends State<PickPage> {
           _isSubmitting = false;
         });
 
+        // If round locked, clear caches before showing message
+        if (roundLocked) {
+          await _clearPickStatisticsCache();
+        }
+
         // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 roundLocked
-                    ? 'You were the last player to pick. Pick choices are now available.'
+                    ? 'You were the last player to pick! Round is now locked. Tap "Home" or "Standings" to see results.'
                     : 'Pick saved successfully!',
               ),
               backgroundColor: AppConstants.successGreen,
+              duration: roundLocked
+                  ? const Duration(seconds: 5)
+                  : const Duration(seconds: 2),
             ),
           );
         }
 
-        // If round locked, might want to navigate away
-        if (roundLocked) {
-          // Wait a moment for user to see message
-          await Future.delayed(const Duration(seconds: 2));
-          if (mounted) {
-            // Reload page to show locked state
-            Navigator.of(context).pop();
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => PickPage(
-                  competitionId: widget.competitionId,
-                  competition: widget.competition,
-                  round: widget.round,
-                ),
-              ),
-            );
-          }
+        // If round locked, update state to reflect locked round
+        if (roundLocked && mounted) {
+          setState(() {
+            _roundLockedOverride = true;
+          });
         }
       }
     } catch (e) {
@@ -293,12 +313,14 @@ class _PickPageState extends State<PickPage> {
           const SizedBox(height: 16),
 
           // Confirmation banner or remove pick card or help
-          if (_selectedTeam != null && !widget.round.isLocked)
+          if (_selectedTeam != null && !widget.round.isLocked && !_roundLockedOverride)
             _buildConfirmationBanner()
-          else if (_currentPick != null && !widget.round.isLocked)
+          else if (_currentPick != null && !widget.round.isLocked && !_roundLockedOverride)
             _buildRemovePickCard()
-          else if (!widget.round.isLocked && _currentPick == null)
-            _buildHelpSection(),
+          else if (!widget.round.isLocked && !_roundLockedOverride && _currentPick == null)
+            _buildHelpSection()
+          else if (_roundLockedOverride)
+            _buildRoundLockedMessage(),
         ],
       ),
     );
@@ -441,8 +463,9 @@ class _PickPageState extends State<PickPage> {
     // 1. Team not in allowed list
     // 2. There's already a current pick (user must remove it first)
     // 3. Round is locked
+    final roundIsLocked = widget.round.isLocked || _roundLockedOverride;
     final isDisabled =
-        !isAllowed || (_currentPick != null && !isCurrentPick) || widget.round.isLocked;
+        !isAllowed || (_currentPick != null && !isCurrentPick) || roundIsLocked;
 
     return GestureDetector(
       onTap: isDisabled
@@ -647,6 +670,64 @@ class _PickPageState extends State<PickPage> {
               fontSize: 14,
               color: Colors.grey[700],
               height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoundLockedMessage() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppConstants.primaryNavy.withValues(alpha: 0.05),
+        border: Border.all(
+          color: AppConstants.primaryNavy.withValues(alpha: 0.2),
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.lock_outline,
+            size: 48,
+            color: AppConstants.primaryNavy,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Round is now locked',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppConstants.primaryNavy,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'All players have made their picks.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Force full reload of competition by navigating to same route
+                context.go('/competition/${widget.competitionId}');
+              },
+              icon: const Icon(Icons.bar_chart),
+              label: const Text('View Results'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConstants.primaryNavy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
             ),
           ),
         ],

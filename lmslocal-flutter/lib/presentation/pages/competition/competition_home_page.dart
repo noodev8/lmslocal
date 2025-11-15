@@ -107,7 +107,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       RoundStatistics? roundStats;
 
       if (rounds.isNotEmpty) {
-        currentRound = rounds.last;
+        currentRound = rounds.first;
 
         if (!currentRound.isLocked) {
           try {
@@ -814,7 +814,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                 ),
               ),
               Text(
-                '${stats.pickPercentage.toStringAsFixed(0)}%',
+                '${stats.pickPercentage.floor()}%',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

@@ -183,8 +183,8 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
             _buildHeader(),
             const SizedBox(height: 24),
 
-            // No pick warning
-            if (_currentPick == null) ...[
+            // No pick warning (only show if user is a participant)
+            if (_currentPick == null && widget.competition.isParticipant) ...[
               _buildNoPickWarning(),
               const SizedBox(height: 24),
             ],
@@ -202,6 +202,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
   }
 
   Widget _buildHeader() {
+    final isParticipant = widget.competition.isParticipant;
     final isEliminated = widget.competition.userStatus?.toLowerCase() != 'active';
 
     return Column(
@@ -216,7 +217,8 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
           ),
         ),
         const SizedBox(height: 8),
-        if (isEliminated)
+        // Only show status messages if user is actually a participant
+        if (isParticipant && isEliminated)
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -235,9 +237,17 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
               ),
             ),
           )
-        else
+        else if (isParticipant)
           Text(
             'Round is locked - see what everyone picked',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          )
+        else
+          Text(
+            'Viewing results as organiser',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -374,8 +384,8 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
   Widget _buildPickCard(_TeamPickInfo info) {
     Color cardColor;
     Color textColor;
-    IconData statusIcon;
-    Color iconColor;
+    IconData? statusIcon;
+    Color? iconColor;
 
     if (info.didWin) {
       // Winner - green
@@ -393,14 +403,14 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       // User's pick (pending) - blue
       cardColor = AppConstants.primaryNavy.withValues(alpha: 0.1);
       textColor = AppConstants.primaryNavy;
-      statusIcon = Icons.remove_circle_outline;
-      iconColor = Colors.grey[600]!;
+      statusIcon = null;  // No icon for pending picks
+      iconColor = null;
     } else {
       // Other teams (pending) - grey
       cardColor = Colors.grey[100]!;
       textColor = Colors.grey[700]!;
-      statusIcon = Icons.remove_circle_outline;
-      iconColor = Colors.grey[400]!;
+      statusIcon = null;  // No icon for pending picks
+      iconColor = null;
     }
 
     return Container(
@@ -418,12 +428,14 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            statusIcon,
-            size: 24,
-            color: iconColor,
-          ),
-          const SizedBox(height: 8),
+          if (statusIcon != null) ...[
+            Icon(
+              statusIcon,
+              size: 24,
+              color: iconColor,
+            ),
+            const SizedBox(height: 8),
+          ],
           Text(
             info.shortName,
             style: TextStyle(

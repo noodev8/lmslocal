@@ -19,7 +19,7 @@ Success Response (ALWAYS HTTP 200):
   },
   "players_with_picks": 15,            // integer, number of players who made picks for current round
   "total_active_players": 20,          // integer, total number of active players in competition
-  "pick_percentage": 75                // integer, percentage (0-100) of active players who have made picks
+  "pick_percentage": 75                // integer, percentage (0-100) of active players who have made picks (floored, not rounded)
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -140,8 +140,9 @@ router.post('/', verifyToken, async (req, res) => {
     const totalActivePlayers = parseInt(data.total_active_players) || 0;
 
     // Calculate pick completion percentage with safe division
-    const pickPercentage = totalActivePlayers > 0 
-      ? Math.round((playersWithPicks / totalActivePlayers) * 100)
+    // Use floor to only show 100% when ALL players have picked (not 99.x% rounded up)
+    const pickPercentage = totalActivePlayers > 0
+      ? Math.floor((playersWithPicks / totalActivePlayers) * 100)
       : 0;
 
     // Build current round object (null if no rounds exist yet)
