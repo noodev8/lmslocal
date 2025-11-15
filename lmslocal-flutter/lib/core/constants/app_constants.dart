@@ -7,7 +7,7 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // Brand Colors (extracted from LMS-Local-Logo.png)
-  static const Color primaryNavy = Color(0xFF2B4E7E);
+  static const Color primaryNavy = Color(0xFF2C497C); // Matches logo background exactly
   static const Color primaryWhite = Color(0xFFFFFFFF);
   static const Color accentLightBlue = Color(0xFF6B8EBF);
 
