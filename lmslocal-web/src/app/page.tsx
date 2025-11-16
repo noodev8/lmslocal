@@ -7,6 +7,7 @@ import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, StarIcon, SparklesIc
 
 export default function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState('');
 
   // Check if user is logged in (for showing Dashboard button)
   useEffect(() => {
@@ -15,13 +16,15 @@ export default function LandingPage() {
 
     if (token && userData && userData !== 'undefined' && userData !== 'null') {
       try {
-        JSON.parse(userData);
+        const user = JSON.parse(userData);
         setIsLoggedIn(true);
+        setUserName(user.display_name || '');
       } catch {
         // Invalid user data, clear everything
         localStorage.removeItem('jwt_token');
         localStorage.removeItem('user');
         setIsLoggedIn(false);
+        setUserName('');
       }
     }
   }, []);
@@ -92,25 +95,45 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Limited Time Onboarding Banner */}
-      <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 py-3 border-b-4 border-emerald-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-3 text-center md:text-left">
-            <div className="flex items-center">
-              <SparklesIcon className="h-5 w-5 text-white mr-2" />
-              <span className="text-white font-bold">Limited Offer:</span>
-              <span className="text-emerald-100 ml-2">FREE Done-For-You Setup</span>
+      {/* Welcome Banner for Logged In Users / Onboarding Banner for Visitors */}
+      {isLoggedIn ? (
+        <div className="bg-gradient-to-r from-slate-700 to-slate-800 py-4 border-b-4 border-slate-900">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-3 text-center md:text-left">
+              <div className="flex items-center">
+                <TrophyIcon className="h-6 w-6 text-emerald-400 mr-3" />
+                <span className="text-white font-bold text-lg">Welcome back, {userName}!</span>
+              </div>
+              <Link
+                href="/dashboard"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold text-sm transition-colors shadow-md inline-flex items-center"
+              >
+                Go to Dashboard
+                <span className="ml-2">→</span>
+              </Link>
             </div>
-            <Link
-              href="/onboarding"
-              className="bg-white text-emerald-700 px-6 py-2 rounded-lg font-bold text-sm hover:bg-emerald-50 transition-colors shadow-md inline-flex items-center"
-            >
-              Get Free Onboarding
-              <span className="ml-2">→</span>
-            </Link>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 py-3 border-b-4 border-emerald-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-3 text-center md:text-left">
+              <div className="flex items-center">
+                <SparklesIcon className="h-5 w-5 text-white mr-2" />
+                <span className="text-white font-bold">Limited Offer:</span>
+                <span className="text-emerald-100 ml-2">FREE Done-For-You Setup</span>
+              </div>
+              <Link
+                href="/onboarding"
+                className="bg-white text-emerald-700 px-6 py-2 rounded-lg font-bold text-sm hover:bg-emerald-50 transition-colors shadow-md inline-flex items-center"
+              >
+                Get Free Onboarding
+                <span className="ml-2">→</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100 py-8 md:py-16 lg:py-20 overflow-hidden">
@@ -139,27 +162,40 @@ export default function LandingPage() {
                 </p>
 
                 {/* CTA Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                  <Link
-                    href="/register"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm text-center"
-                  >
-                    Start Free Competition
-                  </Link>
-                  <Link
-                    href="/onboarding"
-                    className="bg-white hover:bg-slate-50 text-emerald-700 px-6 py-3 rounded-xl font-semibold text-base border-2 border-emerald-600 hover:border-emerald-700 transition-all text-center inline-flex items-center justify-center"
-                  >
-                    <SparklesIcon className="h-5 w-5 mr-2" />
-                    Get Free Setup Help
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="text-slate-700 hover:text-slate-900 px-6 py-3 rounded-xl font-semibold text-base border-2 border-slate-300 hover:bg-slate-100 transition-all text-center"
-                  >
-                    Join Competition
-                  </Link>
-                </div>
+                {isLoggedIn ? (
+                  // Logged in: Show single Dashboard button
+                  <div className="mb-6">
+                    <Link
+                      href="/dashboard"
+                      className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                    >
+                      Go to Dashboard
+                    </Link>
+                  </div>
+                ) : (
+                  // Not logged in: Show all 3 marketing CTAs
+                  <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                    <Link
+                      href="/register"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm text-center"
+                    >
+                      Start Free Competition
+                    </Link>
+                    <Link
+                      href="/onboarding"
+                      className="bg-white hover:bg-slate-50 text-emerald-700 px-6 py-3 rounded-xl font-semibold text-base border-2 border-emerald-600 hover:border-emerald-700 transition-all text-center inline-flex items-center justify-center"
+                    >
+                      <SparklesIcon className="h-5 w-5 mr-2" />
+                      Get Free Setup Help
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="text-slate-700 hover:text-slate-900 px-6 py-3 rounded-xl font-semibold text-base border-2 border-slate-300 hover:bg-slate-100 transition-all text-center"
+                    >
+                      Join Competition
+                    </Link>
+                  </div>
+                )}
                 <p className="text-sm text-slate-500 italic">No credit card required • Up to 20 players completely free</p>
               </div>
 
