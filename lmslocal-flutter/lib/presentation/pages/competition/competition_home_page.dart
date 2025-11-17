@@ -632,31 +632,31 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
           const SizedBox(height: 8),
 
           // Number with gradient
-          ShaderMask(
-            shaderCallback: (bounds) => LinearGradient(
-              colors: [
-                const Color(0xFF4DD0E1),
-                const Color(0xFF26C6DA),
+          Text(
+            activeCount.toString(),
+            style: const TextStyle(
+              fontSize: 72,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              height: 0.9,
+              letterSpacing: -2,
+              shadows: [
+                Shadow(
+                  color: Colors.black26,
+                  blurRadius: 20,
+                  offset: Offset(0, 6),
+                ),
               ],
-            ).createShader(bounds),
-            child: Text(
-              activeCount.toString(),
-              style: const TextStyle(
-                fontSize: 64,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                height: 1,
-              ),
             ),
           ),
           const SizedBox(height: 6),
 
           Text(
             'Players Active',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
-              color: Colors.white.withValues(alpha: 0.85),
+              color: Colors.white,
             ),
           ),
         ],

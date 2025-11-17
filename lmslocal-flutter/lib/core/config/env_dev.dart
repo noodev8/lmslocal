@@ -9,6 +9,6 @@ const devConfig = AppConfig(
   // webBaseUrl: 'http://192.168.1.88:3000',
   environment: 'development',
   apiTimeout: 30000, // 30 seconds for development (allows debugging)
-  enableLogging: true,
+  enableLogging: false,
   enableCertificatePinning: false,
 );
