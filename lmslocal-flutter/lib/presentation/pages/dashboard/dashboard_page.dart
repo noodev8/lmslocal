@@ -247,17 +247,52 @@ class _DashboardPageState extends State<DashboardPage> {
         }
       },
       child: Scaffold(
+        backgroundColor: AppConstants.primaryNavy,
+        extendBodyBehindAppBar: true,
         appBar: widget.showAppBar
             ? AppBar(
-                title: const Text('LMS Local'),
-                backgroundColor: AppConstants.primaryNavy,
+                title: const Text(
+                  'LMS Local',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
                 automaticallyImplyLeading: false,
+                elevation: 0,
+                flexibleSpace: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppConstants.primaryNavy,
+                        AppConstants.primaryNavy.withValues(alpha: 0.95),
+                        AppConstants.primaryNavy.withValues(alpha: 0.7),
+                      ],
+                      stops: const [0.0, 0.7, 1.0],
+                    ),
+                  ),
+                ),
                 actions: [
-                  IconButton(
-                    icon: const Icon(Icons.person_outline),
-                    onPressed: () => context.push('/profile'),
-                    tooltip: 'Profile',
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.person_outline, size: 22),
+                      onPressed: () => context.push('/profile'),
+                      tooltip: 'Profile',
+                    ),
                   ),
                 ],
               )
@@ -275,141 +310,219 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                'Failed to load dashboard',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppConstants.primaryNavy,
+              AppConstants.primaryNavy.withValues(alpha: 0.92),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: const Text(
+                  'Failed to load dashboard',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                _error!,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _error!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => _loadDashboard(forceRefresh: true),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryNavy,
-                foregroundColor: Colors.white,
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => _loadDashboard(forceRefresh: true),
+                icon: const Icon(Icons.refresh),
+                label: const Text(
+                  'Retry',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  elevation: 0,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+        ),
         ),
       );
     }
 
     if (_competitions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.sports_soccer,
-              size: 80,
-              color: Colors.grey[300],
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No Competitions Yet',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppConstants.primaryNavy,
+              AppConstants.primaryNavy.withValues(alpha: 0.92),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.sports_soccer,
+                size: 80,
+                color: Colors.white.withValues(alpha: 0.5),
               ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
-              child: Text(
-                'Join a competition to get started with Last Man Standing!',
+              const SizedBox(height: 24),
+              const Text(
+                'No Competitions Yet',
                 style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: _showJoinCompetitionDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Join Competition'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryNavy,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 16,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 48),
+                child: Text(
+                  'Join a competition to get started with Last Man Standing!',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: _showJoinCompetitionDialog,
+                icon: const Icon(Icons.add),
+                label: const Text(
+                  'Join Competition',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ),
+        ),
         ),
       );
     }
 
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      color: AppConstants.primaryNavy,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
-        itemCount: _competitions.length + 2, // +2 for join button and web platform card
-        itemBuilder: (context, index) {
-          // "Join Competition" button (after all competitions)
-          if (index == _competitions.length) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: TextButton(
-                  onPressed: _showJoinCompetitionDialog,
-                  child: Text(
-                    'Join Competition',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppConstants.primaryNavy,
-                      fontWeight: FontWeight.w500,
+      color: Colors.white,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppConstants.primaryNavy,
+                AppConstants.primaryNavy.withValues(alpha: 0.92),
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppConstants.paddingMedium),
+              child: Column(
+              children: [
+                // Competition cards
+                ..._competitions.map((competition) => _buildCompetitionCard(competition)),
+
+                // "Join Competition" button
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: TextButton(
+                      onPressed: _showJoinCompetitionDialog,
+                      child: const Text(
+                        'Join Competition',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }
 
-          // Web platform card (very last item at bottom)
-          if (index == _competitions.length + 1) {
-            return _buildWebPlatformCard();
-          }
-
-          // Competition card
-          final competition = _competitions[index];
-          return _buildCompetitionCard(competition);
-        },
+                // Web platform card
+                _buildWebPlatformCard(),
+              ],
+            ),
+          ),
+          ),
+        ),
       ),
     );
   }
@@ -419,236 +532,331 @@ class _DashboardPageState extends State<DashboardPage> {
     final isComplete = competition.status == 'COMPLETE';
     final hasWinner = isComplete && competition.winnerName != null;
 
-    return Card(
-      elevation: 1,
+    // Different card styles based on state
+    final Color cardColorStart;
+    final Color cardColorEnd;
+
+    if (needsPick) {
+      // Bright attention-grabbing gradient for picks needed
+      cardColorStart = const Color(0xFF4CAF50).withValues(alpha: 0.4);
+      cardColorEnd = const Color(0xFF388E3C).withValues(alpha: 0.3);
+    } else if (isComplete) {
+      // Muted darker gradient for completed competitions
+      cardColorStart = Colors.white.withValues(alpha: 0.15);
+      cardColorEnd = Colors.white.withValues(alpha: 0.08);
+    } else {
+      // Lighter, brighter gradient for active competitions
+      cardColorStart = Colors.white.withValues(alpha: 0.35);
+      cardColorEnd = Colors.white.withValues(alpha: 0.25);
+    }
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 20),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [cardColorStart, cardColorEnd],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: needsPick
+              ? const Color(0xFF4CAF50).withValues(alpha: 0.5)
+              : Colors.white.withValues(alpha: 0.3),
+          width: needsPick ? 2 : 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: needsPick
+                ? const Color(0xFF4CAF50).withValues(alpha: 0.15)
+                : Colors.black.withValues(alpha: 0.08),
+            blurRadius: needsPick ? 20 : 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: InkWell(
-        onTap: () {
-          // Navigate to competition with 4-tab bottom nav, passing competition data
-          context.go('/competition/${competition.id}', extra: competition);
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header: Name and Role
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      competition.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  if (competition.isOrganiser)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryNavy.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            context.go('/competition/${competition.id}', extra: competition);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header: Name and Role
+                Row(
+                  children: [
+                    Expanded(
                       child: Text(
-                        'Organiser',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppConstants.primaryNavy,
+                        competition.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Pick status (if participant)
-              if (competition.isParticipant) ...[
-                if (needsPick)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppConstants.successGreen.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppConstants.successGreen.withValues(alpha: 0.3),
+                    if (competition.isOrganiser)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          'Organiser',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.95),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Row(
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Pick status (if participant)
+                if (competition.isParticipant) ...[
+                  if (needsPick)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.notification_important,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Pick Needed',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Row(
                       children: [
                         Icon(
-                          Icons.warning_amber,
-                          color: AppConstants.successGreen,
-                          size: 20,
+                          Icons.check_circle,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          size: 16,
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Pick Needed',
+                        const SizedBox(width: 4),
+                        Text(
+                          'Up to date',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppConstants.successGreen,
+                            fontSize: 14,
+                            color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
                       ],
                     ),
-                  )
-                else
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle,
-                        color: Colors.grey[600],
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Up to date',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 12),
-              ],
+                  const SizedBox(height: 12),
+                ],
 
-              // Competition info
-              Row(
-                children: [
-                  Icon(
-                    Icons.people,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${competition.playerCount} active',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                // Competition info
+                Row(
+                  children: [
+                    Icon(
+                      Icons.people,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(
-                    Icons.bar_chart,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Round ${competition.currentRound}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                    const SizedBox(width: 4),
+                    Text(
+                      '${competition.playerCount} active',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.bar_chart,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Round ${competition.currentRound}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Player invite code (if organiser)
+                if (competition.isOrganiser && competition.inviteCode != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF64B5F6).withValues(alpha: 0.3),
+                          const Color(0xFF42A5F5).withValues(alpha: 0.2),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF64B5F6).withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Player Invite Code',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          competition.inviteCode!,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 3,
+                            color: Colors.white,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Icon(
+                          Icons.copy,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
 
-              // Player invite code (if organiser)
-              if (competition.isOrganiser && competition.inviteCode != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Player Invite Code',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                // Winner/Draw display for completed competitions
+                if (isComplete) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: hasWinner
+                            ? [
+                                const Color(0xFFFFD700).withValues(alpha: 0.35),
+                                const Color(0xFFFFA500).withValues(alpha: 0.25),
+                              ]
+                            : [
+                                Colors.white.withValues(alpha: 0.2),
+                                Colors.white.withValues(alpha: 0.12),
+                              ],
                       ),
-                      const Spacer(),
-                      Text(
-                        competition.inviteCode!,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                        ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: hasWinner
+                            ? const Color(0xFFFFD700).withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.3),
+                        width: 1.5,
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.copy,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // Winner/Draw display for completed competitions
-              if (isComplete) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: AppConstants.primaryNavy.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        hasWinner ? 'Winner:' : 'Result:',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          hasWinner ? competition.winnerName! : 'Draw',
+                    ),
+                    child: Row(
+                      children: [
+                        if (hasWinner)
+                          const Icon(
+                            Icons.emoji_events,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        if (hasWinner) const SizedBox(width: 8),
+                        Text(
+                          hasWinner ? 'Winner:' : 'Result:',
                           style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppConstants.primaryNavy,
-                            letterSpacing: 0.3,
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            hasWinner ? competition.winnerName! : 'Draw',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Action button
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      context.go('/competition/${competition.id}', extra: competition);
+                    },
+                    icon: const Icon(Icons.bar_chart, size: 18),
+                    label: Text(
+                      competition.isOrganiser ? 'Manage Competition' : 'View Competition',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
                       ),
-                    ],
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      elevation: 0,
+                    ),
                   ),
                 ),
               ],
-
-              // Action button
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    context.go('/competition/${competition.id}', extra: competition);
-                  },
-                  icon: const Icon(Icons.bar_chart),
-                  label: Text(
-                    competition.isOrganiser ? 'Manage Competition' : 'View Competition',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryNavy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -658,55 +866,74 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildWebPlatformCard() {
     return Padding(
       padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Card(
-        elevation: 0,
-        color: Colors.grey[100],
-        shape: RoundedRectangleBorder(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withValues(alpha: 0.2),
+              Colors.white.withValues(alpha: 0.1),
+            ],
+          ),
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.grey[300]!),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.25),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-        child: InkWell(
-          onTap: _openWebPlatform,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.language,
-                  size: 20,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Want to organize your own competition?',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[800],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Visit our web platform',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _openWebPlatform,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.language,
+                    size: 20,
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
-                ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14,
-                  color: Colors.grey[500],
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Want to organize your own competition?',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Visit our web platform',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

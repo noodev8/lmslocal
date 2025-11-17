@@ -63,7 +63,7 @@ class _SplashPageState extends State<SplashPage> {
     return BlocListener<AuthBloc, AuthState>(
       listener: _handleAuthStateChange,
       child: Scaffold(
-        backgroundColor: AppConstants.primaryNavy,
+        backgroundColor: Colors.white,
         body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -78,7 +78,7 @@ class _SplashPageState extends State<SplashPage> {
             // Loading indicator
             const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(
-                AppConstants.primaryWhite,
+                AppConstants.primaryNavy,
               ),
             ),
           ],

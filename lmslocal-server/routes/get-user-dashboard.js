@@ -153,6 +153,8 @@ router.post('/', verifyToken, async (req, res) => {
           WHEN current_pick.id IS NULL
            AND round_info.current_round IS NOT NULL
            AND cu.user_id IS NOT NULL
+           AND round_info.current_round_lock_time > NOW()  -- Round is NOT locked yet
+           AND cu.status = 'active'  -- User is still active
           THEN true
           ELSE false
         END as needs_pick,                     -- User needs to make a pick

@@ -2,4 +2,5 @@
 <resources>
     <!-- LMS Local brand colors matching logo background -->
     <color name="primary_navy">#2C497C</color>
+    <color name="splash_white">#FFFFFF</color>
 </resources>
