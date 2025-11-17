@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { CheckCircleIcon, TrophyIcon, UsersIcon, ClockIcon, StarIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
@@ -138,83 +137,250 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-slate-100 via-slate-50 to-stone-100 py-8 md:py-16 lg:py-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Splitdine-style Hero with Image */}
-          <div className="mb-8 md:mb-12 lg:mb-16">
-            {/* Headline First */}
-            <div className="text-center lg:text-left mb-4 md:mb-6 lg:mb-8">
-              <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-slate-900 mb-2 md:mb-3 lg:mb-4 leading-tight">
-                Last Match <span className="text-emerald-600">Standing</span>
-              </h1>
-              <div className="inline-block bg-emerald-100 border-2 border-emerald-500 rounded-full px-4 py-2 mt-2">
-                <p className="text-emerald-800 font-bold text-sm">Play FREE • No Credit Card • No Subscription</p>
+          {/* Headline First */}
+          <div className="text-center mb-8 md:mb-12">
+            <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-slate-900 mb-2 md:mb-3 lg:mb-4 leading-tight">
+              Last Match <span className="text-emerald-600">Standing</span>
+            </h1>
+            <div className="inline-block bg-emerald-100 border-2 border-emerald-500 rounded-full px-4 py-2 mt-2">
+              <p className="text-emerald-800 font-bold text-sm">Play FREE • No Credit Card • No Subscription</p>
+            </div>
+          </div>
+
+          {/* Split Path: Player vs Organizer */}
+          {isLoggedIn ? (
+            // Logged in: Show split info for Players (App) and Organizers (Web)
+            <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-12">
+              {/* Mobile App Promotion */}
+              <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-6 md:p-8 text-white shadow-xl border-2 border-blue-500">
+                <div className="text-center mb-6">
+                  <div className="inline-block bg-white/20 rounded-full px-4 py-2 mb-3">
+                    <p className="text-sm font-bold">📱 MOBILE APP</p>
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-bold mb-2">
+                    Players: Use the App
+                  </h3>
+                  <p className="text-blue-100 text-base">
+                    Download our mobile app for easier picks, instant notifications, and on-the-go access
+                  </p>
+                </div>
+
+                {/* App Store Badges */}
+                <div className="flex flex-col gap-3 max-w-xs mx-auto">
+                  <div className="relative">
+                    <div className="bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold text-sm text-center flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
+                      <span className="text-2xl"></span>
+                      <div className="text-left">
+                        <div className="text-xs opacity-80">Download on the</div>
+                        <div className="text-base font-bold">App Store (iOS)</div>
+                      </div>
+                    </div>
+                    <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                      Coming Soon
+                    </div>
+                  </div>
+                  <a
+                    href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-black hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all text-center flex items-center justify-center gap-2"
+                  >
+                    <span className="text-2xl">▶</span>
+                    <div className="text-left">
+                      <div className="text-xs opacity-80">GET IT ON</div>
+                      <div className="text-base font-bold">Google Play (Android)</div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              {/* Organizer Web Management */}
+              <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-2xl p-6 md:p-8 text-white shadow-xl border-2 border-emerald-500">
+                <div className="text-center mb-6">
+                  <div className="inline-block bg-white/20 rounded-full px-4 py-2 mb-3">
+                    <p className="text-sm font-bold">💻 WEB PLATFORM</p>
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-bold mb-2">
+                    Organizers: Use the Web
+                  </h3>
+                  <p className="text-emerald-100 text-base">
+                    Manage your competitions, add players, and view detailed analytics from your dashboard
+                  </p>
+                </div>
+
+                {/* Features */}
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center gap-2 text-emerald-50 text-sm">
+                    <CheckCircleIcon className="h-5 w-5 flex-shrink-0" />
+                    <span>Full competition management</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-50 text-sm">
+                    <CheckCircleIcon className="h-5 w-5 flex-shrink-0" />
+                    <span>Add players without smartphones</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-50 text-sm">
+                    <CheckCircleIcon className="h-5 w-5 flex-shrink-0" />
+                    <span>Display on pub TV screens</span>
+                  </div>
+                </div>
+
+                {/* Dashboard Button */}
+                <Link
+                  href="/dashboard"
+                  className="block bg-white hover:bg-emerald-50 text-emerald-700 px-8 py-3 rounded-xl font-bold text-base transition-all shadow-lg text-center"
+                >
+                  Go to Dashboard
+                </Link>
               </div>
             </div>
-
-            {/* Grid for Image and Content */}
-            <div className="grid lg:grid-cols-2 gap-8 items-center">
-              {/* Left Side - Description and Buttons */}
-              <div>
-                <p className="text-lg md:text-xl lg:text-2xl text-slate-600 mb-2">
-                  — For Pubs, Organisers & Groups of Friends
-                </p>
-                <p className="text-base md:text-lg text-slate-600 mb-6 max-w-xl">
-                  Run your Last Man Standing competition with zero hassle. No spreadsheets, no manual tracking. Perfect for pub landlords, workplace organisers, and friend groups.
-                </p>
-
-                {/* CTA Buttons */}
-                {isLoggedIn ? (
-                  // Logged in: Show single Dashboard button
-                  <div className="mb-6">
-                    <Link
-                      href="/dashboard"
-                      className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                    >
-                      Go to Dashboard
-                    </Link>
+          ) : (
+            // Not logged in: Show split path
+            <div className="grid lg:grid-cols-2 gap-8 max-w-6xl mx-auto mb-12">
+              {/* LEFT SIDE - PLAYERS (Mobile App) */}
+              <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl p-8 md:p-10 text-white shadow-2xl border-4 border-blue-500 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl opacity-20 -mr-32 -mt-32"></div>
+                <div className="relative z-10">
+                  <div className="text-center mb-6">
+                    <div className="inline-block bg-white/20 rounded-full px-4 py-2 mb-4">
+                      <p className="text-sm font-bold">📱 FOR PLAYERS</p>
+                    </div>
+                    <h2 className="text-3xl md:text-4xl font-bold mb-3">
+                      Join a Competition
+                    </h2>
+                    <p className="text-blue-100 text-lg mb-6">
+                      Download our mobile app to make your picks, track results, and compete with friends
+                    </p>
                   </div>
-                ) : (
-                  // Not logged in: Show all 3 marketing CTAs
-                  <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                    <Link
-                      href="/register"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm text-center"
+
+                  {/* App Store Badges */}
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+                    <div className="relative">
+                      <div className="bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold text-sm text-center flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
+                        <span className="text-2xl"></span>
+                        <div className="text-left">
+                          <div className="text-xs opacity-80">Download on the</div>
+                          <div className="text-base font-bold">App Store (iOS)</div>
+                        </div>
+                      </div>
+                      <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        Coming Soon
+                      </div>
+                    </div>
+                    <a
+                      href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-black hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all text-center flex items-center justify-center gap-2"
                     >
-                      Start Free Competition
+                      <span className="text-2xl">▶</span>
+                      <div className="text-left">
+                        <div className="text-xs opacity-80">GET IT ON</div>
+                        <div className="text-base font-bold">Google Play (Android)</div>
+                      </div>
+                    </a>
+                  </div>
+
+                  {/* QR Codes */}
+                  <div className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/20">
+                    <p className="text-center text-sm font-semibold mb-4">Or scan to download:</p>
+                    <div className="flex justify-center gap-6">
+                      {/* Apple App Store QR */}
+                      <div className="text-center">
+                        <div className="bg-white p-3 rounded-xl mb-2 w-32 h-32 flex items-center justify-center">
+                          <div className="text-slate-400 text-xs">
+                            [QR: App Store]
+                          </div>
+                        </div>
+                        <p className="text-xs font-medium">iOS</p>
+                      </div>
+                      {/* Google Play QR */}
+                      <div className="text-center">
+                        <div className="bg-white p-3 rounded-xl mb-2 w-32 h-32 flex items-center justify-center">
+                          <div className="text-slate-400 text-xs">
+                            [QR: Play Store]
+                          </div>
+                        </div>
+                        <p className="text-xs font-medium">Android</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 text-center">
+                    <p className="text-blue-100 text-sm">
+                      ✓ Make picks on the go • ✓ Get notifications • ✓ Track your progress
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT SIDE - ORGANIZERS (Web Platform) */}
+              <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-3xl p-8 md:p-10 text-white shadow-2xl border-4 border-emerald-500 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500 rounded-full blur-3xl opacity-20 -mr-32 -mt-32"></div>
+                <div className="relative z-10">
+                  <div className="text-center mb-6">
+                    <div className="inline-block bg-white/20 rounded-full px-4 py-2 mb-4">
+                      <p className="text-sm font-bold">🏆 FOR ORGANIZERS</p>
+                    </div>
+                    <h2 className="text-3xl md:text-4xl font-bold mb-3">
+                      Run a Competition
+                    </h2>
+                    <p className="text-emerald-100 text-lg mb-6">
+                      Perfect for pubs, workplaces & friend groups. Set up and manage everything from the web
+                    </p>
+                  </div>
+
+                  {/* Features List */}
+                  <div className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/20 mb-6">
+                    <div className="space-y-3">
+                      <div className="flex items-start space-x-3">
+                        <CheckCircleIcon className="h-6 w-6 text-emerald-300 flex-shrink-0 mt-0.5" />
+                        <p className="text-emerald-50">5-minute setup - get running today</p>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <CheckCircleIcon className="h-6 w-6 text-emerald-300 flex-shrink-0 mt-0.5" />
+                        <p className="text-emerald-50">Free for up to 20 players</p>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <CheckCircleIcon className="h-6 w-6 text-emerald-300 flex-shrink-0 mt-0.5" />
+                        <p className="text-emerald-50">Add players without smartphones</p>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <CheckCircleIcon className="h-6 w-6 text-emerald-300 flex-shrink-0 mt-0.5" />
+                        <p className="text-emerald-50">Automated fixtures & results</p>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <CheckCircleIcon className="h-6 w-6 text-emerald-300 flex-shrink-0 mt-0.5" />
+                        <p className="text-emerald-50">Display on pub TV screens</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CTA Buttons */}
+                  <div className="flex flex-col gap-3">
+                    <Link
+                      href="/competition/create"
+                      className="bg-white hover:bg-emerald-50 text-emerald-700 px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg text-center"
+                    >
+                      Create Free Competition
                     </Link>
                     <Link
                       href="/onboarding"
-                      className="bg-white hover:bg-slate-50 text-emerald-700 px-6 py-3 rounded-xl font-semibold text-base border-2 border-emerald-600 hover:border-emerald-700 transition-all text-center inline-flex items-center justify-center"
+                      className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-xl font-semibold text-base border-2 border-white/40 transition-all text-center inline-flex items-center justify-center"
                     >
                       <SparklesIcon className="h-5 w-5 mr-2" />
                       Get Free Setup Help
                     </Link>
-                    <Link
-                      href="/login"
-                      className="text-slate-700 hover:text-slate-900 px-6 py-3 rounded-xl font-semibold text-base border-2 border-slate-300 hover:bg-slate-100 transition-all text-center"
-                    >
-                      Join Competition
-                    </Link>
                   </div>
-                )}
-                <p className="text-sm text-slate-500 italic">No credit card required • Up to 20 players completely free</p>
-              </div>
 
-              {/* Right Side - Dashboard Preview Image */}
-              <div className="relative flex justify-center items-center">
-                <div className="relative transform rotate-3 lg:rotate-6 hover:rotate-2 lg:hover:rotate-3 transition-transform duration-300">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-slate-600/20 rounded-3xl blur-2xl"></div>
-                  <Image
-                    src="/dashboard-preview.jpg"
-                    alt="LMSLocal Dashboard Preview"
-                    width={1200}
-                    height={200}
-                    className="relative w-full max-w-xs lg:max-w-md rounded-2xl shadow-2xl border-4 border-white"
-                    priority
-                  />
+                  <div className="mt-6 text-center">
+                    <p className="text-emerald-100 text-sm">
+                      No credit card required • Cancel anytime
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Testimonials */}
           <div className="max-w-6xl mx-auto mt-16">
@@ -401,53 +567,77 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 relative overflow-hidden">
-        <div className="absolute inset-0 bg-emerald-900 bg-opacity-20"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Join Pubs, Organisers & Friend Groups
-          </h2>
-          <p className="text-xl text-emerald-100 mb-8 max-w-3xl mx-auto">
-            Start your Last Man Standing competition today - completely free for up to 20 players
-          </p>
-
-          <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">
-            <div className="bg-white bg-opacity-20 rounded-lg p-6 backdrop-blur border border-emerald-400">
-              <p className="text-3xl font-bold text-white mb-2">FREE</p>
-              <p className="text-emerald-50 text-sm">No credit card needed</p>
-            </div>
-            <div className="bg-white bg-opacity-20 rounded-lg p-6 backdrop-blur border border-emerald-400">
-              <p className="text-3xl font-bold text-white mb-2">£0</p>
-              <p className="text-emerald-50 text-sm">No subscription fees</p>
-            </div>
-            <div className="bg-white bg-opacity-20 rounded-lg p-6 backdrop-blur border border-emerald-400">
-              <p className="text-3xl font-bold text-white mb-2">20</p>
-              <p className="text-emerald-50 text-sm">Free player slots</p>
-            </div>
+      <section className="py-20 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 relative overflow-hidden">
+        <div className="absolute inset-0 bg-slate-900 bg-opacity-20"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Ready to Get Started?
+            </h2>
+            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
+              Choose your path - play on mobile or organize on the web
+            </p>
           </div>
 
-          <Link
-            href="/register"
-            className="inline-block bg-white text-emerald-700 px-12 py-4 rounded-xl text-xl font-bold hover:bg-emerald-50 transform hover:scale-105 transition-all duration-200 shadow-2xl"
-          >
-            Create Free Competition Now
-          </Link>
-          <p className="text-emerald-100 mt-4 text-lg font-semibold">
-            Perfect for pubs, workplaces & friend groups • No credit card required
-          </p>
+          {/* Split CTA */}
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* Players - Mobile App */}
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-8 text-white text-center">
+              <h3 className="text-2xl font-bold mb-3">📱 Players</h3>
+              <p className="text-blue-100 mb-6">Download the mobile app to join competitions</p>
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="relative">
+                  <div className="bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold text-sm text-center flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
+                    <span className="text-xl"></span>
+                    <div className="text-left">
+                      <div className="text-xs opacity-80">Download on the</div>
+                      <div className="text-sm font-bold">App Store (iOS)</div>
+                    </div>
+                  </div>
+                  <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    Coming Soon
+                  </div>
+                </div>
+                <a
+                  href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-black hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all text-center flex items-center justify-center gap-2"
+                >
+                  <span className="text-xl">▶</span>
+                  <div className="text-left">
+                    <div className="text-xs opacity-80">GET IT ON</div>
+                    <div className="text-sm font-bold">Google Play (Android)</div>
+                  </div>
+                </a>
+              </div>
+              <p className="text-blue-200 text-sm">100% Free • Make picks anywhere</p>
+            </div>
 
-          <div className="mt-8 flex flex-col md:flex-row justify-center items-center gap-4 md:gap-8 text-emerald-100">
-            <div className="flex items-center">
-              <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span>Start FREE today</span>
-            </div>
-            <div className="flex items-center">
-              <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span>No subscriptions</span>
-            </div>
-            <div className="flex items-center">
-              <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span>Pay only if you grow</span>
+            {/* Organizers - Web Platform */}
+            <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-2xl p-8 text-white text-center">
+              <h3 className="text-2xl font-bold mb-3">🏆 Organizers</h3>
+              <p className="text-emerald-100 mb-6">Create and manage competitions on the web</p>
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center justify-center gap-2 text-emerald-50">
+                  <CheckCircleIcon className="h-5 w-5" />
+                  <span className="text-sm">FREE for up to 20 players</span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-emerald-50">
+                  <CheckCircleIcon className="h-5 w-5" />
+                  <span className="text-sm">No credit card required</span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-emerald-50">
+                  <CheckCircleIcon className="h-5 w-5" />
+                  <span className="text-sm">5-minute setup</span>
+                </div>
+              </div>
+              <Link
+                href="/competition/create"
+                className="inline-block bg-white hover:bg-emerald-50 text-emerald-700 px-8 py-3 rounded-xl text-base font-bold transition-all shadow-lg w-full"
+              >
+                Create Free Competition
+              </Link>
             </div>
           </div>
         </div>

@@ -53,6 +53,22 @@ export default function DashboardPage() {
     return competitions?.filter(comp => comp.is_organiser || comp.is_participant) || [];
   }, [competitions]);
 
+  // Calculate player count from existing competition data (no extra API calls)
+  // Note: We don't show credit warnings here since we don't have paid_credit balance
+  // Users can click through to billing page for full credit details
+  const playerStats = useMemo(() => {
+    if (!competitions) return { totalPlayers: 0, hasOrganizedCompetitions: false };
+
+    // Sum total_players from competitions where user is organiser
+    const organizedCompetitions = competitions.filter(comp => comp.is_organiser);
+    const totalPlayers = organizedCompetitions.reduce((sum, comp) => sum + (comp.total_players || 0), 0);
+
+    return {
+      totalPlayers,
+      hasOrganizedCompetitions: organizedCompetitions.length > 0
+    };
+  }, [competitions]);
+
   // No complex timing logic - just show the latest round stats if available
 
   // Winner detection only shows when competition status is COMPLETE
@@ -299,6 +315,17 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Billing Link - Only show if user has organized competitions */}
+              {playerStats.hasOrganizedCompetitions && (
+                <Link
+                  href="/billing"
+                  className="flex items-center space-x-1 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
+                  title="View credits and billing"
+                >
+                  <CreditCardIcon className="h-5 w-5" />
+                  <span className="text-sm font-medium hidden sm:block">Credits</span>
+                </Link>
+              )}
               <Link
                 href="/help"
                 className="flex items-center space-x-1 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
@@ -364,8 +391,103 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Competitions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
+        {/* Empty State - Show when no competitions */}
+        {userCompetitions.length === 0 ? (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-8 sm:p-12 text-center">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 rounded-full mb-6">
+                <TrophyIcon className="h-10 w-10 text-emerald-600" />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">
+                Ready to Organize?
+              </h2>
+              <p className="text-slate-600 mb-8 text-lg">
+                Create your first Last Man Standing competition in minutes. It&apos;s free for up to 20 players!
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  href="/competition/create"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                >
+                  <PlusIcon className="h-6 w-6 mr-2" />
+                  Create Your First Competition
+                </Link>
+                <button
+                  onClick={() => {
+                    setShowJoinModal(true);
+                    setJoinError(null);
+                  }}
+                  className="inline-flex items-center justify-center px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-lg rounded-xl border-2 border-slate-300 hover:border-slate-400 transition-all duration-200"
+                >
+                  <UserGroupIcon className="h-6 w-6 mr-2" />
+                  Join a Competition
+                </button>
+              </div>
+              <div className="mt-8 pt-8 border-t border-slate-200">
+                <p className="text-sm text-slate-500 mb-4">Why create with LMSLocal?</p>
+                <div className="grid sm:grid-cols-3 gap-4 text-left">
+                  <div className="flex items-start space-x-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    </div>
+                    <p className="text-sm text-slate-600">5-minute setup</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    </div>
+                    <p className="text-sm text-slate-600">Free up to 20 players</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    </div>
+                    <p className="text-sm text-slate-600">Automated results</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Create Competition Button - Show when user has competitions */}
+            <div className="mb-6">
+              <Link
+                href="/competition/create"
+                className="inline-flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create New Competition
+              </Link>
+            </div>
+
+            {/* Credits Info Banner - Only show for organizers */}
+            {playerStats.hasOrganizedCompetitions && (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-start space-x-3">
+                    <CreditCardIcon className="h-5 w-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">
+                        Growing your competitions?
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Check your player credits and purchase more capacity as needed
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/billing"
+                    className="flex-shrink-0 inline-flex items-center px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium text-sm rounded-lg transition-all duration-200"
+                  >
+                    View Credits
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Competitions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
           {/* Competition Cards */}
           {userCompetitions.map((competition) => {
             const competitionStatus = getWinnerStatus(competition);
@@ -592,31 +714,62 @@ export default function DashboardPage() {
               </div>
             );
           })}
-          
-        </div>
 
-        {/* Action Links - Create and Join */}
-        <div className="text-center mt-8 pt-6 border-t border-slate-200">
-          <div className="flex items-center justify-center space-x-8">
-            <Link
-              href="/competition/create"
-              className="inline-flex items-center space-x-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              <PlusIcon className="h-4 w-4" />
-              <span>Create New Competition</span>
-            </Link>
-            <button
-              onClick={() => {
-                setShowJoinModal(true);
-                setJoinError(null);
-              }}
-              className="inline-flex items-center space-x-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              <UserGroupIcon className="h-4 w-4" />
-              <span>Join Competition</span>
-            </button>
-          </div>
-        </div>
+            </div>
+
+            {/* Mobile App Promotion Banner */}
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-center sm:text-left">
+                    <p className="text-sm font-semibold text-blue-900 mb-1">
+                      📱 Players: Get our mobile app
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      Make picks easier with instant notifications on iOS & Android
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <div className="relative">
+                      <div className="bg-gray-600 text-white px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 opacity-60 cursor-not-allowed">
+                        <span className="text-base"></span>
+                        <span>iOS</span>
+                      </div>
+                      <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        Soon
+                      </div>
+                    </div>
+                    <a
+                      href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-black hover:bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1"
+                    >
+                      <span className="text-base">▶</span>
+                      <span>Android</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Links - Join Competition */}
+            <div className="text-center mt-6">
+              <div className="flex items-center justify-center">
+                <button
+                  onClick={() => {
+                    setShowJoinModal(true);
+                    setJoinError(null);
+                  }}
+                  className="inline-flex items-center space-x-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  <UserGroupIcon className="h-4 w-4" />
+                  <span>Join a Competition</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
       </main>
 

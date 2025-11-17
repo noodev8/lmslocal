@@ -10,3 +10,10 @@ pm2 restart server.js --name lmslocal_prod
 -- Vercel
 cd /lmslocal
 vercel --prod
+
+== App Stores
+223344
+Google - tester@test.com - 866
+Apple - testera@test.com - 867
+SELECT * FROM competition_user WHERE competition_id = 117
+UPDATE competition_user SET hidden = False Where competition_id = 117
