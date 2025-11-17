@@ -247,49 +247,40 @@ class _DashboardPageState extends State<DashboardPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppConstants.primaryNavy,
-        extendBodyBehindAppBar: true,
+        backgroundColor: const Color(0xFFF5F7FA),
         appBar: widget.showAppBar
             ? AppBar(
-                title: const Text(
+                title: Text(
                   'LMS Local',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
+                    color: AppConstants.primaryNavy,
                   ),
                 ),
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.white,
+                foregroundColor: AppConstants.primaryNavy,
                 automaticallyImplyLeading: false,
-                elevation: 0,
-                flexibleSpace: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        AppConstants.primaryNavy,
-                        AppConstants.primaryNavy.withValues(alpha: 0.95),
-                        AppConstants.primaryNavy.withValues(alpha: 0.7),
-                      ],
-                      stops: const [0.0, 0.7, 1.0],
-                    ),
-                  ),
-                ),
+                elevation: 0.5,
+                shadowColor: Colors.black.withValues(alpha: 0.1),
                 actions: [
                   Container(
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
+                      color: AppConstants.primaryNavy.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.25),
+                        color: AppConstants.primaryNavy.withValues(alpha: 0.15),
                         width: 1,
                       ),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.person_outline, size: 22),
+                      icon: Icon(
+                        Icons.person_outline,
+                        size: 22,
+                        color: AppConstants.primaryNavy,
+                      ),
                       onPressed: () => context.push('/profile'),
                       tooltip: 'Profile',
                     ),
@@ -316,30 +307,29 @@ class _DashboardPageState extends State<DashboardPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppConstants.primaryNavy,
-              AppConstants.primaryNavy.withValues(alpha: 0.92),
+              const Color(0xFFF5F7FA),  // Light blue-gray
+              const Color(0xFFFFFFFF),  // White
             ],
           ),
         ),
-        child: SafeArea(
-          child: Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.error_outline,
                 size: 64,
-                color: Colors.white.withValues(alpha: 0.5),
+                color: Colors.grey[400],
               ),
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: const Text(
+                child: Text(
                   'Failed to load dashboard',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Colors.grey[800],
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -351,7 +341,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   _error!,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.grey[600],
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -368,7 +358,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  backgroundColor: AppConstants.primaryNavy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -376,17 +366,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 1.5,
-                    ),
                   ),
-                  elevation: 0,
+                  elevation: 2,
                 ),
               ),
             ],
           ),
-        ),
         ),
       );
     }
@@ -398,28 +383,27 @@ class _DashboardPageState extends State<DashboardPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppConstants.primaryNavy,
-              AppConstants.primaryNavy.withValues(alpha: 0.92),
+              const Color(0xFFF5F7FA),  // Light blue-gray
+              const Color(0xFFFFFFFF),  // White
             ],
           ),
         ),
-        child: SafeArea(
-          child: Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.sports_soccer,
                 size: 80,
-                color: Colors.white.withValues(alpha: 0.5),
+                color: Colors.grey[300],
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'No Competitions Yet',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Colors.grey[800],
                 ),
               ),
               const SizedBox(height: 8),
@@ -429,7 +413,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   'Join a competition to get started with Last Man Standing!',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.grey[600],
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -446,7 +430,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  backgroundColor: AppConstants.primaryNavy,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -454,17 +438,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 1.5,
-                    ),
                   ),
-                  elevation: 0,
+                  elevation: 2,
                 ),
               ),
             ],
           ),
-        ),
         ),
       );
     }
@@ -483,15 +462,14 @@ class _DashboardPageState extends State<DashboardPage> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                AppConstants.primaryNavy,
-                AppConstants.primaryNavy.withValues(alpha: 0.92),
+                const Color(0xFFF5F7FA),  // Light blue-gray
+                const Color(0xFFFFFFFF),  // White
               ],
             ),
           ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(AppConstants.paddingMedium),
-              child: Column(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.paddingMedium),
+            child: Column(
               children: [
                 // Competition cards
                 ..._competitions.map((competition) => _buildCompetitionCard(competition)),
@@ -502,14 +480,14 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: Center(
                     child: TextButton(
                       onPressed: _showJoinCompetitionDialog,
-                      child: const Text(
+                      child: Text(
                         'Join Competition',
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.white,
+                          color: AppConstants.primaryNavy,
                           fontWeight: FontWeight.w500,
                           decoration: TextDecoration.underline,
-                          decorationColor: Colors.white,
+                          decorationColor: AppConstants.primaryNavy,
                         ),
                       ),
                     ),
@@ -520,7 +498,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 _buildWebPlatformCard(),
               ],
             ),
-          ),
           ),
         ),
       ),
@@ -538,40 +515,41 @@ class _DashboardPageState extends State<DashboardPage> {
 
     if (needsPick) {
       // Bright attention-grabbing gradient for picks needed
-      cardColorStart = const Color(0xFF4CAF50).withValues(alpha: 0.4);
-      cardColorEnd = const Color(0xFF388E3C).withValues(alpha: 0.3);
+      cardColorStart = const Color(0xFF4CAF50).withValues(alpha: 0.45);
+      cardColorEnd = const Color(0xFF388E3C).withValues(alpha: 0.35);
     } else if (isComplete) {
       // Muted darker gradient for completed competitions
-      cardColorStart = Colors.white.withValues(alpha: 0.15);
-      cardColorEnd = Colors.white.withValues(alpha: 0.08);
+      cardColorStart = Colors.white.withValues(alpha: 0.25);
+      cardColorEnd = Colors.white.withValues(alpha: 0.18);
     } else {
       // Lighter, brighter gradient for active competitions
-      cardColorStart = Colors.white.withValues(alpha: 0.35);
-      cardColorEnd = Colors.white.withValues(alpha: 0.25);
+      cardColorStart = Colors.white.withValues(alpha: 0.45);
+      cardColorEnd = Colors.white.withValues(alpha: 0.35);
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 32),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [cardColorStart, cardColorEnd],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: needsPick
-              ? const Color(0xFF4CAF50).withValues(alpha: 0.5)
-              : Colors.white.withValues(alpha: 0.3),
-          width: needsPick ? 2 : 1.5,
+              ? const Color(0xFF4CAF50)
+              : Colors.grey[300]!,
+          width: needsPick ? 3 : 2,
         ),
         boxShadow: [
           BoxShadow(
             color: needsPick
-                ? const Color(0xFF4CAF50).withValues(alpha: 0.15)
-                : Colors.black.withValues(alpha: 0.08),
-            blurRadius: needsPick ? 20 : 16,
-            offset: const Offset(0, 4),
+                ? const Color(0xFF4CAF50).withValues(alpha: 0.25)
+                : Colors.black.withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -583,7 +561,7 @@ class _DashboardPageState extends State<DashboardPage> {
           },
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -593,10 +571,10 @@ class _DashboardPageState extends State<DashboardPage> {
                     Expanded(
                       child: Text(
                         competition.name,
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: 19,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Colors.grey[900],
                         ),
                       ),
                     ),
@@ -607,10 +585,10 @@ class _DashboardPageState extends State<DashboardPage> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: AppConstants.primaryNavy.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.35),
+                            color: AppConstants.primaryNavy.withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
@@ -619,14 +597,14 @@ class _DashboardPageState extends State<DashboardPage> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.95),
+                            color: AppConstants.primaryNavy,
                             letterSpacing: 0.5,
                           ),
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
                 // Pick status (if participant)
                 if (competition.isParticipant) ...[
@@ -645,15 +623,15 @@ class _DashboardPageState extends State<DashboardPage> {
                         children: [
                           Icon(
                             Icons.notification_important,
-                            color: Colors.white,
+                            color: Colors.grey[900],
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'Pick Needed',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: Colors.grey[900],
                               fontSize: 15,
                             ),
                           ),
@@ -665,7 +643,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       children: [
                         Icon(
                           Icons.check_circle,
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: Colors.grey[700],
                           size: 16,
                         ),
                         const SizedBox(width: 4),
@@ -673,7 +651,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           'Up to date',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: Colors.grey[700],
                           ),
                         ),
                       ],
@@ -687,28 +665,28 @@ class _DashboardPageState extends State<DashboardPage> {
                     Icon(
                       Icons.people,
                       size: 16,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.grey[700],
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${competition.playerCount} active',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.grey[700],
                       ),
                     ),
                     const SizedBox(width: 16),
                     Icon(
                       Icons.bar_chart,
                       size: 16,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.grey[700],
                     ),
                     const SizedBox(width: 4),
                     Text(
                       'Round ${competition.currentRound}',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.grey[700],
                       ),
                     ),
                   ],
@@ -738,7 +716,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           'Player Invite Code',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: Colors.grey[700],
                             fontWeight: FontWeight.w500,
                             letterSpacing: 0.5,
                           ),
@@ -746,11 +724,11 @@ class _DashboardPageState extends State<DashboardPage> {
                         const Spacer(),
                         Text(
                           competition.inviteCode!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 3,
-                            color: Colors.white,
+                            color: Colors.grey[900],
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -758,7 +736,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         Icon(
                           Icons.copy,
                           size: 18,
-                          color: Colors.white,
+                          color: Colors.grey[700],
                         ),
                       ],
                     ),
@@ -793,9 +771,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: Row(
                       children: [
                         if (hasWinner)
-                          const Icon(
+                          Icon(
                             Icons.emoji_events,
-                            color: Colors.white,
+                            color: Colors.grey[900],
                             size: 18,
                           ),
                         if (hasWinner) const SizedBox(width: 8),
@@ -803,7 +781,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           hasWinner ? 'Winner:' : 'Result:',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: Colors.grey[700],
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -811,10 +789,10 @@ class _DashboardPageState extends State<DashboardPage> {
                         Expanded(
                           child: Text(
                             hasWinner ? competition.winnerName! : 'Draw',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: Colors.grey[900],
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -841,17 +819,13 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      backgroundColor: AppConstants.primaryNavy,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 1.5,
-                        ),
                       ),
-                      elevation: 0,
+                      elevation: 2,
                     ),
                   ),
                 ),
@@ -868,24 +842,17 @@ class _DashboardPageState extends State<DashboardPage> {
       padding: const EdgeInsets.only(top: 16, bottom: 8),
       child: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white.withValues(alpha: 0.2),
-              Colors.white.withValues(alpha: 0.1),
-            ],
-          ),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.25),
-            width: 1.5,
+            color: Colors.grey[300]!,
+            width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -901,7 +868,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Icon(
                     Icons.language,
                     size: 20,
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: AppConstants.primaryNavy,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -912,7 +879,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           'Want to organize your own competition?',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white,
+                            color: Colors.grey[800],
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -921,7 +888,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           'Visit our web platform',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Colors.grey[600],
                           ),
                         ),
                       ],
@@ -930,7 +897,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Icon(
                     Icons.arrow_forward_ios,
                     size: 14,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.grey[500],
                   ),
                 ],
               ),
