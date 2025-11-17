@@ -378,7 +378,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
               // App Version
               Text(
-                'Version 1.0.0',
+                'Version ${AppConstants.appVersion}',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[400],

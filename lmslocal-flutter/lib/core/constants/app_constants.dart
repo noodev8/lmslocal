@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class AppConstants {
   // App Info
   static const String appName = 'LMS Local';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.1.0';
 
   // Brand Colors (extracted from LMS-Local-Logo.png)
   static const Color primaryNavy = Color(0xFF2C497C); // Matches logo background exactly
