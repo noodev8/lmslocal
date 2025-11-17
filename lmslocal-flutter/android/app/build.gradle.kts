@@ -63,6 +63,11 @@ android {
     }
 }
 
+dependencies {
+    // AndroidX Core library for edge-to-edge support (Android 15 compatibility)
+    implementation("androidx.core:core-ktx:1.13.1")
+}
+
 flutter {
     source = "../.."
 }
