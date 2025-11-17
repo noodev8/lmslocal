@@ -27,6 +27,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
   }) async {
     try {
+      // Clear any existing cached data from previous sessions
+      await _clearAllCache();
+
       // Call API to login
       final authResultModel = await _remoteDataSource.login(
         email: email,
@@ -118,11 +121,8 @@ class AuthRepositoryImpl implements AuthRepository {
     // Clear token from secure storage
     await _tokenStorage.deleteToken();
 
-    // Clear cached user data
-    await _prefs.remove('user_id');
-    await _prefs.remove('user_email');
-    await _prefs.remove('user_display_name');
-    await _prefs.remove('user_email_verified');
+    // Clear all cached data
+    await _clearAllCache();
   }
 
   /// Cache user data locally for persistent login
@@ -131,5 +131,26 @@ class AuthRepositoryImpl implements AuthRepository {
     await _prefs.setString('user_email', user.email);
     await _prefs.setString('user_display_name', user.displayName);
     await _prefs.setBool('user_email_verified', user.emailVerified);
+  }
+
+  /// Clear ALL cached data including user data, dashboard, and competition data
+  /// This prevents data leakage between different user sessions
+  Future<void> _clearAllCache() async {
+    // Clear cached user data
+    await _prefs.remove('user_id');
+    await _prefs.remove('user_email');
+    await _prefs.remove('user_display_name');
+    await _prefs.remove('user_email_verified');
+
+    // Clear ALL cached competition and dashboard data
+    final keys = _prefs.getKeys();
+    for (final key in keys) {
+      if (key.startsWith('dashboard_') ||
+          key.startsWith('competition_') ||
+          key.startsWith('pick_stats_') ||
+          key.startsWith('round_stats_')) {
+        await _prefs.remove(key);
+      }
+    }
   }
 }
