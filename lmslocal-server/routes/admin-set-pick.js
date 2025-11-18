@@ -55,6 +55,7 @@ const express = require('express');
 const { query, transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const { checkAndLockRoundIfComplete } = require('../utils/roundLocking');
+const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety
@@ -142,11 +143,12 @@ router.post('/', verifyToken, async (req, res) => {
 
         const data = removeResult.rows[0];
 
-        // Verify user authorization
-        if (data.organiser_id !== admin_id) {
+        // Verify user has permission to manage players (organiser or delegated permission)
+        const permission = await canManagePlayers(admin_id, competition_id);
+        if (!permission.authorized) {
           throw {
             return_code: "UNAUTHORIZED",
-            message: "Only the competition organiser can remove picks for players"
+            message: "You do not have permission to remove picks for players in this competition"
           };
         }
 
@@ -315,11 +317,12 @@ router.post('/', verifyToken, async (req, res) => {
 
       const data = mainResult.rows[0];
 
-      // Verify user authorization - only competition organiser can set picks for players
-      if (data.organiser_id !== admin_id) {
+      // Verify user has permission to manage players (organiser or delegated permission)
+      const permission = await canManagePlayers(admin_id, competition_id);
+      if (!permission.authorized) {
         throw {
           return_code: "UNAUTHORIZED",
-          message: "Only the competition organiser can set picks for players"
+          message: "You do not have permission to set picks for players in this competition"
         };
       }
 

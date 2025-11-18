@@ -44,6 +44,7 @@ const express = require('express');
 const { query, transaction } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
 const { verifyToken } = require('../middleware/auth');
+const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication and validation for status management
@@ -137,11 +138,12 @@ router.post('/', verifyToken, async (req, res) => {
 
       const data = validationResult.rows[0];
 
-      // Verify user authorization - only competition organiser can update player status
-      if (data.organiser_id !== admin_id) {
+      // Verify user has permission to manage players (organiser or delegated permission)
+      const permission = await canManagePlayers(admin_id, competition_id);
+      if (!permission.authorized) {
         throw {
           return_code: "UNAUTHORIZED",
-          message: "Only the competition organiser can update player status"
+          message: "You do not have permission to update player status in this competition"
         };
       }
 

@@ -40,6 +40,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -101,11 +102,12 @@ router.post('/', verifyToken, async (req, res) => {
 
     const competition = organiserResult.rows[0];
 
-    // User is not the organiser of this competition
-    if (competition.organiser_id !== admin_user_id) {
+    // Verify user has permission to manage players (organiser or delegated permission)
+    const permission = await canManagePlayers(admin_user_id, competition_id);
+    if (!permission.authorized) {
       return res.status(200).json({
-        return_code: "NOT_ORGANISER",
-        message: "You are not authorized to manage players for this competition"
+        return_code: "UNAUTHORIZED",
+        message: "You do not have permission to manage players for this competition"
       });
     }
 
