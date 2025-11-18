@@ -720,14 +720,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     // Header
                     Row(
                       children: [
@@ -774,13 +775,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
                     // Show current name when competition selected
                     if (_selectedCompetitionId != null) ...[
-                      Text(
-                        'Current name: $currentName',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                          fontStyle: FontStyle.italic,
-                        ),
+                      Builder(
+                        builder: (context) {
+                          // Recalculate on every build to show fresh data
+                          final comp = _competitions?.firstWhere((c) => c['id'] == _selectedCompetitionId);
+                          final displayName = comp != null
+                              ? (comp['player_display_name'] as String? ?? user.displayName)
+                              : currentName;
+                          return Text(
+                            'Current name: $displayName',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
 
@@ -802,8 +812,13 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: OutlinedButton(
                               onPressed: () async {
                                 await _handleResetToGlobal(user);
-                                setModalState(() {});
-                                setState(() {});
+                                // Refresh modal to show updated name
+                                setModalState(() {
+                                  final competition = _competitions?.firstWhere((c) => c['id'] == _selectedCompetitionId);
+                                  if (competition != null) {
+                                    _competitionNameController.text = user.displayName;
+                                  }
+                                });
                               },
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -816,8 +831,13 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: ElevatedButton(
                               onPressed: () async {
                                 await _handleSaveCompetitionName(user);
-                                setModalState(() {});
-                                setState(() {});
+                                // Refresh modal to show updated name
+                                setModalState(() {
+                                  final competition = _competitions?.firstWhere((c) => c['id'] == _selectedCompetitionId);
+                                  if (competition != null) {
+                                    // The controller already has the new value
+                                  }
+                                });
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.grey[600],
@@ -831,6 +851,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ],
                   ],
+                ),
                 ),
               ),
             );
