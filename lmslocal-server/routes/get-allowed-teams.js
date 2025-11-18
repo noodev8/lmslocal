@@ -45,6 +45,7 @@ const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   logApiCall('get-allowed-teams');
@@ -65,6 +66,18 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Determine target user: use requested user_id if provided (admin feature), otherwise authenticated user
     const target_user_id = requested_user_id || authenticated_user_id;
+
+    // === AUTHORIZATION CHECK FOR VIEWING OTHER PLAYERS' TEAMS ===
+    // If requesting another player's teams, verify permission to manage players
+    if (requested_user_id && requested_user_id !== authenticated_user_id) {
+      const permission = await canManagePlayers(authenticated_user_id, competition_id);
+      if (!permission.authorized) {
+        return res.json({
+          return_code: "UNAUTHORIZED",
+          message: "You do not have permission to view other players' allowed teams"
+        });
+      }
+    }
 
     // === SINGLE COMPREHENSIVE QUERY (ELIMINATES N+1 PROBLEM) ===
     // This optimized query replaces what used to be 3 separate queries:
@@ -120,16 +133,12 @@ router.post('/', verifyToken, async (req, res) => {
                           AND (f.home_team = t.name OR f.away_team = t.name)
       
       WHERE c.id = $1                     -- Filter to requested competition only
-        AND (
-          $3 = $2 OR                      -- User requesting own teams
-          c.organiser_id = $2             -- OR authenticated user is organiser (admin feature)
-        )
         AND at.team_id IS NOT NULL        -- Only include teams user is allowed to pick
         AND t.id IS NOT NULL              -- Only include valid active teams
         AND f.id IS NOT NULL              -- Only include teams with fixtures in current round
-      
+
       ORDER BY t.name ASC                 -- Alphabetical order for consistent UI
-    `, [competition_id, authenticated_user_id, target_user_id]);
+    `, [competition_id, target_user_id]);
 
     
     // === AUTHORIZATION AND AUTO-RESET VALIDATION ===
@@ -165,15 +174,6 @@ router.post('/', verifyToken, async (req, res) => {
       }
 
       const validation = validationResult.rows[0];
-
-      // Competition exists but user lacks permission (admin requesting other user's teams)
-      if (requested_user_id && requested_user_id !== authenticated_user_id && 
-          validation.organiser_id !== authenticated_user_id) {
-        return res.json({
-          return_code: "UNAUTHORIZED",
-          message: "Only competition organiser can view other players' allowed teams"
-        });
-      }
 
       // Check if target user is actually in this competition
       if (!validation.is_participant) {
