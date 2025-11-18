@@ -42,6 +42,10 @@ class LmsLocalApp extends StatelessWidget {
           create: (context) => Injection.getAuthBloc()
             ..add(const AuthCheckRequested()), // Check auth status on startup
         ),
+        // Provide AuthRepository for profile page
+        Provider.value(
+          value: Injection.getAuthRepository(),
+        ),
         // Provide ApiClient for profile page
         Provider.value(
           value: Injection.getApiClient(),

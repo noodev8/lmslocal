@@ -229,11 +229,13 @@ router.post('/', verifyToken, async (req, res) => {
 
       // Join user to competition with atomic operation
       const joinQuery = `
-        INSERT INTO competition_user (competition_id, user_id, status, lives_remaining, joined_at)
-        VALUES ($1, $2, 'active', $3, NOW())
-        RETURNING id, status, lives_remaining, joined_at
+        INSERT INTO competition_user (competition_id, user_id, status, lives_remaining, joined_at, player_display_name)
+        SELECT $1, $2, 'active', $3, NOW(), u.display_name
+        FROM app_user u
+        WHERE u.id = $2
+        RETURNING id, status, lives_remaining, joined_at, player_display_name
       `;
-      
+
       const joinResult = await client.query(joinQuery, [
         data.competition_id,
         user_id,

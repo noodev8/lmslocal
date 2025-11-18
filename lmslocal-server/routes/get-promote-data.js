@@ -363,7 +363,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Get top 5 players by lives remaining (randomized for tied players)
     const topPlayersResult = await query(
-      `SELECT u.display_name, cu.lives_remaining
+      `SELECT cu.player_display_name as display_name, cu.lives_remaining
        FROM competition_user cu
        INNER JOIN app_user u ON cu.user_id = u.id
        WHERE cu.competition_id = $1 AND cu.status = 'active'

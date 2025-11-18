@@ -144,7 +144,7 @@ router.post('/', verifyToken, async (req, res) => {
         FROM competition_user cu
         INNER JOIN app_user u ON cu.user_id = u.id
         WHERE cu.competition_id = $1
-          AND (LOWER(u.display_name) LIKE LOWER($2) OR LOWER(u.email) LIKE LOWER($2))
+          AND (LOWER(cu.player_display_name) LIKE LOWER($2) OR LOWER(u.email) LIKE LOWER($2))
       `;
       playerStatsParams = [competition_id, searchTerm];
     } else {
@@ -173,7 +173,7 @@ router.post('/', verifyToken, async (req, res) => {
       playersQuery = `
         SELECT
           u.id as player_id,
-          u.display_name,
+          cu.player_display_name as display_name,
           u.email,
           cu.status,
           cu.lives_remaining,
@@ -215,8 +215,8 @@ router.post('/', verifyToken, async (req, res) => {
           GROUP BY p.user_id
         ) pick_stats ON u.id = pick_stats.user_id
         WHERE cu.competition_id = $1
-          AND (LOWER(u.display_name) LIKE LOWER($2) OR LOWER(u.email) LIKE LOWER($2))
-        ORDER BY u.display_name ASC
+          AND (LOWER(cu.player_display_name) LIKE LOWER($2) OR LOWER(u.email) LIKE LOWER($2))
+        ORDER BY cu.player_display_name ASC
         LIMIT $3 OFFSET $4
       `;
       playersParams = [competition_id, searchTerm, itemsPerPage, offset];
@@ -224,7 +224,7 @@ router.post('/', verifyToken, async (req, res) => {
       playersQuery = `
         SELECT
           u.id as player_id,
-          u.display_name,
+          cu.player_display_name as display_name,
           u.email,
           cu.status,
           cu.lives_remaining,
@@ -266,7 +266,7 @@ router.post('/', verifyToken, async (req, res) => {
           GROUP BY p.user_id
         ) pick_stats ON u.id = pick_stats.user_id
         WHERE cu.competition_id = $1
-        ORDER BY u.display_name ASC
+        ORDER BY cu.player_display_name ASC
         LIMIT $2 OFFSET $3
       `;
       playersParams = [competition_id, itemsPerPage, offset];

@@ -125,6 +125,12 @@ class AuthRepositoryImpl implements AuthRepository {
     await _clearAllCache();
   }
 
+  @override
+  Future<void> updateCachedDisplayName(String displayName) async {
+    // Update only the display name in the cache
+    await _prefs.setString('user_display_name', displayName);
+  }
+
   /// Cache user data locally for persistent login
   Future<void> _cacheUser(User user) async {
     await _prefs.setInt('user_id', user.id);

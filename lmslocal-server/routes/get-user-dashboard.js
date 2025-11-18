@@ -11,6 +11,12 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
+  "user": {                                     // object, current user information for cross-client sync
+    "id": 1,                                    // integer, user ID
+    "display_name": "John Smith",               // string, user's global display name
+    "email": "john@example.com",                // string, user's email
+    "email_verified": true                      // boolean, email verification status
+  },
   "competitions": [
     {
       "id": 123,                                // integer, unique competition ID
@@ -122,6 +128,7 @@ router.post('/', verifyToken, async (req, res) => {
         cu.lives_remaining,                    -- User's remaining lives
         cu.joined_at,                          -- When user joined as participant
         cu.personal_name,                      -- User's personal nickname for this competition
+        cu.player_display_name,                -- User's display name as player in this competition
 
         -- === DELEGATED PERMISSIONS (for non-organizers with management access) ===
         cu.manage_results,                     -- Permission to manage results
@@ -369,6 +376,7 @@ router.post('/', verifyToken, async (req, res) => {
         lives_remaining: comp.lives_remaining !== null ? parseInt(comp.lives_remaining) : null,
         joined_at: comp.joined_at || null,
         personal_name: comp.personal_name || null,
+        player_display_name: comp.player_display_name || null,
         needs_pick: comp.is_participant ? comp.needs_pick : null,
 
         // Delegated permissions (null if not participating)
@@ -473,9 +481,24 @@ router.post('/', verifyToken, async (req, res) => {
       // Don't fail the whole response if round stats fail
     }
 
+    // === GET USER'S DISPLAY NAME FOR CROSS-CLIENT SYNC ===
+    // Fetch latest display_name from database to sync with Flutter/other clients
+    const userDataResult = await query(
+      `SELECT display_name, email, email_verified FROM app_user WHERE id = $1`,
+      [user_id]
+    );
+
+    const userData = userDataResult.rows.length > 0 ? {
+      id: user_id,
+      display_name: userDataResult.rows[0].display_name,
+      email: userDataResult.rows[0].email,
+      email_verified: userDataResult.rows[0].email_verified
+    } : null;
+
     // === SUCCESS RESPONSE ===
     res.json({
       return_code: "SUCCESS",
+      user: userData,
       competitions: competitions,
       latest_round_stats: latestRoundStats
     });

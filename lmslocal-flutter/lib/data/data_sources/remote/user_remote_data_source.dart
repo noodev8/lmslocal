@@ -175,4 +175,35 @@ class UserRemoteDataSource {
       throw ServerFailure('Failed to join competition: ${e.toString()}');
     }
   }
+
+  /// Update player display name for a specific competition
+  /// Pass null or empty string to reset to global display name
+  /// Throws ServerFailure or AuthFailure on error
+  Future<Map<String, dynamic>> updatePlayerDisplayName({
+    required int competitionId,
+    String? playerDisplayName,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/update-player-display-name',
+        data: {
+          'competition_id': competitionId,
+          'player_display_name': playerDisplayName,
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final returnCode = data['return_code'] as String;
+
+      if (returnCode == AppConstants.successCode) {
+        return data;
+      } else {
+        final message = data['message'] as String? ?? 'Failed to update player display name';
+        throw AuthFailure(message, code: returnCode);
+      }
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw ServerFailure('Failed to update player display name: ${e.toString()}');
+    }
+  }
 }

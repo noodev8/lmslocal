@@ -11,8 +11,9 @@ import {
   BellIcon,
   BellSlashIcon
 } from '@heroicons/react/24/outline';
-import { userApi, type EmailPreferences } from '@/lib/api';
+import { userApi, type EmailPreferences, type Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
+import { invalidateCache } from '@/lib/cache';
 
 interface ProfileForm {
   display_name: string;
@@ -48,6 +49,14 @@ export default function ProfilePage() {
   const [emailPrefsChanged, setEmailPrefsChanged] = useState<EmailPreferences | null>(null);
   const [savingEmailPrefs, setSavingEmailPrefs] = useState(false);
   const [emailPrefsSaveSuccess, setEmailPrefsSaveSuccess] = useState(false);
+
+  // Competition display names state
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [loadingCompetitions, setLoadingCompetitions] = useState(false);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
+  const [playerDisplayName, setPlayerDisplayName] = useState('');
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
 
   const {
     register,
@@ -293,6 +302,102 @@ export default function ProfilePage() {
     logout(router);
   };
 
+  // Load competitions for player display name management
+  const loadCompetitions = async () => {
+    setLoadingCompetitions(true);
+    try {
+      const response = await userApi.getUserDashboard();
+      if (response.data.return_code === 'SUCCESS' && response.data.competitions) {
+        // Only show competitions where user is a participant
+        const participantCompetitions = response.data.competitions.filter(c => c.is_participant);
+        setCompetitions(participantCompetitions);
+      }
+    } catch (error) {
+      console.error('Failed to load competitions:', error);
+    } finally {
+      setLoadingCompetitions(false);
+    }
+  };
+
+  // Open modal for managing player display name
+  const handleManageNames = () => {
+    loadCompetitions();
+    setShowNameModal(true);
+  };
+
+  // Handle competition selection in modal
+  const handleCompetitionSelect = (competitionId: number) => {
+    setSelectedCompetitionId(competitionId);
+    const competition = competitions.find(c => c.id === competitionId);
+    if (competition) {
+      setPlayerDisplayName(competition.player_display_name || '');
+    }
+  };
+
+  // Reset player display name to global name
+  const handleResetToGlobal = async () => {
+    if (!selectedCompetitionId) return;
+
+    setSavingDisplayName(true);
+    try {
+      const response = await userApi.updatePlayerDisplayName(selectedCompetitionId, null);
+      if (response.data.return_code === 'SUCCESS') {
+        // Invalidate dashboard cache to ensure fresh data
+        if (user?.id) {
+          invalidateCache.invalidateKey(`user-dashboard-${user.id}`);
+        }
+
+        // Update local state
+        setCompetitions(prev => prev.map(c =>
+          c.id === selectedCompetitionId
+            ? { ...c, player_display_name: null }
+            : c
+        ));
+        setPlayerDisplayName('');
+        alert('Display name reset to profile name successfully');
+      } else {
+        alert(response.data.message || 'Failed to reset display name');
+      }
+    } catch (error) {
+      console.error('Reset display name error:', error);
+      alert('Failed to reset display name. Please try again.');
+    } finally {
+      setSavingDisplayName(false);
+    }
+  };
+
+  // Save player display name for selected competition
+  const handleSaveDisplayName = async () => {
+    if (!selectedCompetitionId) return;
+
+    setSavingDisplayName(true);
+    try {
+      const nameValue = playerDisplayName.trim() || null;
+      const response = await userApi.updatePlayerDisplayName(selectedCompetitionId, nameValue);
+      if (response.data.return_code === 'SUCCESS') {
+        // Invalidate dashboard cache to ensure fresh data
+        if (user?.id) {
+          invalidateCache.invalidateKey(`user-dashboard-${user.id}`);
+        }
+
+        // Update local state
+        setCompetitions(prev => prev.map(c =>
+          c.id === selectedCompetitionId
+            ? { ...c, player_display_name: response.data.player_display_name || null }
+            : c
+        ));
+        alert('Player display name updated successfully');
+      } else {
+        alert(response.data.message || 'Failed to update display name');
+      }
+    } catch (error) {
+      console.error('Update display name error:', error);
+      alert('Failed to update display name. Please try again.');
+    } finally {
+      setSavingDisplayName(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -395,6 +500,26 @@ export default function ProfilePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        {/* Competition Display Names Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 mt-6">
+          <div className="p-4 sm:p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-slate-900">Competition Display Names</h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Choose how your name appears in each competition. By default, your profile name is used.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleManageNames}
+              className="inline-flex items-center px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-medium text-sm rounded-lg transition-colors duration-200"
+            >
+              Manage Competition Names
+            </button>
           </div>
         </div>
 
@@ -745,6 +870,142 @@ export default function ProfilePage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Player Display Name Modal */}
+      {showNameModal && (
+        <div className="fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-slate-900">Edit Competition Display Name</h3>
+                <button
+                  onClick={() => {
+                    setShowNameModal(false);
+                    setSelectedCompetitionId(null);
+                    setPlayerDisplayName('');
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <span className="text-2xl">&times;</span>
+                </button>
+              </div>
+
+              {loadingCompetitions ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Competition Dropdown */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Competition
+                    </label>
+                    <select
+                      value={selectedCompetitionId || ''}
+                      onChange={(e) => handleCompetitionSelect(Number(e.target.value))}
+                      className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                    >
+                      <option value="">Select a competition...</option>
+                      {competitions.map((comp) => (
+                        <option key={comp.id} value={comp.id}>
+                          {comp.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Show current name and input when competition is selected */}
+                  {selectedCompetitionId && (() => {
+                    const selectedComp = competitions.find(c => c.id === selectedCompetitionId);
+                    return (
+                      <>
+                        <div className="bg-slate-50 rounded-md p-3">
+                          <p className="text-sm text-slate-600">
+                            Current name in &quot;{selectedComp?.name}&quot;:
+                          </p>
+                          <p className="text-sm font-medium text-slate-900 mt-1">
+                            {selectedComp?.player_display_name || user?.display_name}{' '}
+                            <span className="text-slate-500 text-xs">
+                              ({selectedComp?.player_display_name ? 'custom' : 'using profile name'})
+                            </span>
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Custom display name (leave blank for profile name)
+                          </label>
+                          <input
+                            type="text"
+                            value={playerDisplayName}
+                            onChange={(e) => setPlayerDisplayName(e.target.value)}
+                            className="block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"
+                            placeholder={user?.display_name || 'Your name'}
+                            disabled={savingDisplayName}
+                          />
+                          <p className="mt-1 text-xs text-slate-500">
+                            2-50 characters. Letters, numbers, spaces, hyphens, underscores, apostrophes, and periods allowed.
+                          </p>
+                        </div>
+
+                        <div className="flex justify-between space-x-3 pt-2">
+                          {selectedComp?.player_display_name && (
+                            <button
+                              type="button"
+                              onClick={handleResetToGlobal}
+                              disabled={savingDisplayName}
+                              className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
+                            >
+                              Reset to Profile Name
+                            </button>
+                          )}
+                          <div className="flex-1"></div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowNameModal(false);
+                              setSelectedCompetitionId(null);
+                              setPlayerDisplayName('');
+                            }}
+                            disabled={savingDisplayName}
+                            className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveDisplayName}
+                            disabled={savingDisplayName}
+                            className="px-4 py-2 text-sm font-medium text-white bg-slate-600 rounded-md hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50"
+                          >
+                            {savingDisplayName ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Saving...
+                              </div>
+                            ) : (
+                              'Save'
+                            )}
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {/* Show message if no competitions */}
+                  {!selectedCompetitionId && competitions.length === 0 && (
+                    <div className="text-center py-8 text-slate-500">
+                      <p>You are not a participant in any competitions yet.</p>
+                      <p className="text-sm mt-2">Join a competition to customize your display name.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

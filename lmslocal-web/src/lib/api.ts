@@ -190,6 +190,7 @@ export interface Competition {
   joined_at?: string;
   team_list_name?: string;
   personal_name?: string | null;
+  player_display_name?: string | null;
   created_at?: string;
   is_complete?: boolean;
   winner_id?: number | null;
@@ -664,6 +665,11 @@ export const userApi = {
   updateProfile: (updates: Partial<User>) => api.post<{ return_code: string; message?: string; user?: User }>('/update-profile', updates),
   changePassword: (current_password: string, new_password: string) => api.post<{ return_code: string; message: string }>('/change-password', { current_password, new_password }),
   deleteAccount: (confirmation: string) => api.post<{ return_code: string; message: string }>('/delete-account', { confirmation }),
+  updatePlayerDisplayName: (competition_id: number, player_display_name: string | null) => api.post<{
+    return_code: string;
+    message?: string;
+    player_display_name?: string | null
+  }>('/update-player-display-name', { competition_id, player_display_name }),
   getEmailPreferences: (competition_id?: number) => api.post<{
     return_code: string;
     message?: string;
@@ -682,6 +688,12 @@ export const userApi = {
       () => api.post<{
         return_code: string;
         message?: string;
+        user?: {
+          id: number;
+          display_name: string;
+          email: string;
+          email_verified: boolean;
+        };
         competitions?: Competition[];
         latest_round_stats?: {
           competition_id: number;

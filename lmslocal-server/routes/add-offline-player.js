@@ -228,10 +228,11 @@ router.post('/', verifyToken, async (req, res) => {
           user_id,                -- Newly created user ID
           status,                 -- Active status for participation
           lives_remaining,        -- Competition's configured lives per player
-          joined_at               -- Timestamp of joining
+          joined_at,              -- Timestamp of joining
+          player_display_name     -- Competition-specific display name
         )
-        VALUES ($1, $2, 'active', $3, NOW())
-      `, [competition_id, newPlayer.id, competition.lives_per_player]);
+        VALUES ($1, $2, 'active', $3, NOW(), $4)
+      `, [competition_id, newPlayer.id, competition.lives_per_player, newPlayer.display_name]);
 
       // Step 3: Initialize allowed teams for this player
       // All active teams from competition's team list are initially available

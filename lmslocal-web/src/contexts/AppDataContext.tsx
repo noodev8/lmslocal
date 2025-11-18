@@ -76,10 +76,11 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         return;
       }
 
-      // Parse user data from localStorage
+      // Parse user data from localStorage (temporary - will be synced with server)
+      let localUser: User | null = null;
       try {
-        const parsedUser = JSON.parse(userData) as User;
-        setUser(parsedUser);
+        localUser = JSON.parse(userData) as User;
+        setUser(localUser);
       } catch (parseError) {
         console.error('Error parsing user data:', parseError);
         setUser(null);
@@ -90,6 +91,19 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
 
       // Handle competitions response
       if (competitionsData.data.return_code === 'SUCCESS') {
+        // Sync user data with fresh data from server (for cross-client updates)
+        if (competitionsData.data.user && localUser) {
+          const freshUser = {
+            ...localUser,
+            display_name: competitionsData.data.user.display_name,
+            email: competitionsData.data.user.email,
+            email_verified: competitionsData.data.user.email_verified
+          };
+
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(freshUser));
+          setUser(freshUser);
+        }
 
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
         setLatestRoundStats(competitionsData.data.latest_round_stats || null);

@@ -24,6 +24,7 @@ class CompetitionModel extends Competition {
     super.userStatus,
     super.livesRemaining,
     super.joinedAt,
+    super.playerDisplayName,
     super.manageResults,
     super.manageFixtures,
     super.managePlayers,
@@ -58,6 +59,7 @@ class CompetitionModel extends Competition {
       joinedAt: json['joined_at'] != null
           ? DateTime.parse(json['joined_at'] as String)
           : null,
+      playerDisplayName: json['player_display_name'] as String?,
       manageResults: json['manage_results'] as bool?,
       manageFixtures: json['manage_fixtures'] as bool?,
       managePlayers: json['manage_players'] as bool?,
@@ -97,6 +99,7 @@ class CompetitionModel extends Competition {
       'user_status': userStatus,
       'lives_remaining': livesRemaining,
       'joined_at': joinedAt?.toIso8601String(),
+      'player_display_name': playerDisplayName,
       'manage_results': manageResults,
       'manage_fixtures': manageFixtures,
       'manage_players': managePlayers,

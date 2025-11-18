@@ -36,4 +36,8 @@ abstract class AuthRepository {
 
   /// Logout current user (clear token and cached data)
   Future<void> logout();
+
+  /// Update cached display name after profile update
+  /// This keeps the cached user data in sync with the server
+  Future<void> updateCachedDisplayName(String displayName);
 }

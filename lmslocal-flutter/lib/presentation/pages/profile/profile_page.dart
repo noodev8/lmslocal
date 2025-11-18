@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
+import 'package:lmslocal_flutter/domain/repositories/auth_repository.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
@@ -18,11 +19,18 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late UserRemoteDataSource _userDataSource;
+  late AuthRepository _authRepository;
 
   // Display name editing
   final _displayNameController = TextEditingController();
   bool _isEditingDisplayName = false;
   bool _isSavingDisplayName = false;
+
+  // Competition display names
+  List<dynamic>? _competitions;
+  bool _isLoadingCompetitions = false;
+  int? _selectedCompetitionId;
+  final _competitionNameController = TextEditingController();
 
   // Password change
   final _currentPasswordController = TextEditingController();
@@ -46,6 +54,9 @@ class _ProfilePageState extends State<ProfilePage> {
     final apiClient = context.read<ApiClient>();
     _userDataSource = UserRemoteDataSource(apiClient: apiClient);
 
+    // Initialize auth repository
+    _authRepository = context.read<AuthRepository>();
+
     // Load email preferences
     _loadEmailPreferences();
   }
@@ -53,6 +64,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void dispose() {
     _displayNameController.dispose();
+    _competitionNameController.dispose();
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
@@ -86,20 +98,26 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isSavingDisplayName = true);
     try {
+      // Update display name on server
       await _userDataSource.updateProfile(displayName: newName);
+
+      // Update cached display name locally to keep cache in sync
+      await _authRepository.updateCachedDisplayName(newName);
 
       if (mounted) {
         setState(() {
           _isEditingDisplayName = false;
           _isSavingDisplayName = false;
         });
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Display name updated successfully'),
             backgroundColor: AppConstants.successGreen,
           ),
         );
-        // Trigger auth state refresh to update user data
+        // Trigger auth state refresh to update user data in UI
+        // ignore: use_build_context_synchronously
         context.read<AuthBloc>().add(const AuthCheckRequested());
       }
     } catch (e) {
@@ -107,6 +125,124 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() => _isSavingDisplayName = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update display name: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadCompetitions() async {
+    setState(() => _isLoadingCompetitions = true);
+    try {
+      // Get competitions from dashboard API directly
+      final apiClient = context.read<ApiClient>();
+      final dashboardResponse = await apiClient.post('/get-user-dashboard', data: {});
+
+      if (dashboardResponse.data['return_code'] == 'SUCCESS') {
+        setState(() {
+          _competitions = dashboardResponse.data['competitions'] as List;
+          _isLoadingCompetitions = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCompetitions = false);
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load competitions: $e')),
+        );
+      }
+    }
+  }
+
+  void _handleManageCompetitionNames(dynamic user) {
+    _loadCompetitions().then((_) {
+      if (_competitions != null && _competitions!.isNotEmpty) {
+        _showCompetitionNamesModal(user);
+      } else {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No competitions found')),
+        );
+      }
+    });
+  }
+
+  void _handleCompetitionSelect(int? competitionId, dynamic user) {
+    if (competitionId == null) return;
+
+    setState(() {
+      _selectedCompetitionId = competitionId;
+      final competition = _competitions?.firstWhere((c) => c['id'] == competitionId);
+      if (competition != null) {
+        final playerName = competition['player_display_name'] as String?;
+        _competitionNameController.text = playerName ?? user.displayName;
+      }
+    });
+  }
+
+  Future<void> _handleResetToGlobal(dynamic user) async {
+    if (_selectedCompetitionId == null) return;
+
+    try {
+      await _userDataSource.updatePlayerDisplayName(
+        competitionId: _selectedCompetitionId!,
+        playerDisplayName: null,
+      );
+
+      // Update cached display name locally
+      await _authRepository.updateCachedDisplayName(user.displayName);
+
+      if (mounted) {
+        _competitionNameController.text = user.displayName;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reset to profile name'),
+            backgroundColor: AppConstants.successGreen,
+          ),
+        );
+        // Reload competitions to refresh data
+        await _loadCompetitions();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to reset name: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleSaveCompetitionName(dynamic user) async {
+    if (_selectedCompetitionId == null) return;
+
+    final newName = _competitionNameController.text.trim();
+    if (newName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name cannot be empty')),
+      );
+      return;
+    }
+
+    try {
+      await _userDataSource.updatePlayerDisplayName(
+        competitionId: _selectedCompetitionId!,
+        playerDisplayName: newName,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Competition name updated'),
+            backgroundColor: AppConstants.successGreen,
+          ),
+        );
+        // Reload competitions to refresh data
+        await _loadCompetitions();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update name: $e')),
         );
       }
     }
@@ -360,6 +496,10 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildDisplayNameCard(user),
               const SizedBox(height: 12),
 
+              // Competition Display Names Card
+              _buildCompetitionNamesCard(user),
+              const SizedBox(height: 12),
+
               // Notifications Card
               _buildNotificationsCard(),
               const SizedBox(height: 12),
@@ -496,6 +636,207 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCompetitionNamesCard(dynamic user) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppConstants.paddingLarge),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.badge, color: AppConstants.primaryNavy),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Competition Display Names',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Set different display names for each competition you play in',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _handleManageCompetitionNames(user),
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Manage Competition Names'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCompetitionNamesModal(dynamic user) {
+    // Reset selection when opening modal
+    setState(() {
+      _selectedCompetitionId = null;
+      _competitionNameController.clear();
+    });
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            final selectedCompetition = _selectedCompetitionId != null
+                ? _competitions?.firstWhere((c) => c['id'] == _selectedCompetitionId)
+                : null;
+            final currentName = selectedCompetition != null
+                ? (selectedCompetition['player_display_name'] as String? ?? user.displayName)
+                : null;
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Icon(Icons.badge, color: AppConstants.primaryNavy),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Manage Competition Names',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Competition Dropdown
+                    DropdownButtonFormField<int>(
+                      initialValue: _selectedCompetitionId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Competition',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _competitions?.map((comp) {
+                        return DropdownMenuItem<int>(
+                          value: comp['id'] as int,
+                          child: Text(comp['name'] as String),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setModalState(() {
+                          _handleCompetitionSelect(value, user);
+                        });
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Show current name when competition selected
+                    if (_selectedCompetitionId != null) ...[
+                      Text(
+                        'Current name: $currentName',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Name input
+                      TextField(
+                        controller: _competitionNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Display Name',
+                          border: OutlineInputBorder(),
+                          hintText: 'Enter your display name',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                await _handleResetToGlobal(user);
+                                setModalState(() {});
+                                setState(() {});
+                              },
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Reset to Profile Name'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                await _handleSaveCompetitionName(user);
+                                setModalState(() {});
+                                setState(() {});
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.grey[600],
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Save'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

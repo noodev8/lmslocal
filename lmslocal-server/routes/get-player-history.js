@@ -141,7 +141,7 @@ router.post('/', verifyToken, async (req, res) => {
     const playerResult = await query(`
       SELECT
         u.id,
-        u.display_name,
+        cu.player_display_name as display_name,
         cu.lives_remaining,
         cu.status
       FROM competition_user cu

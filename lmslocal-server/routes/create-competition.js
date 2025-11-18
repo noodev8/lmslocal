@@ -268,7 +268,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 4. If organiser wants to join as a player, add them atomically
       if (organiser_joins_as_player === true) {
-        
+
         // Add organiser to competition_user table
         await client.query(`
           INSERT INTO competition_user (
@@ -276,9 +276,12 @@ router.post('/', verifyToken, async (req, res) => {
             user_id,
             status,
             lives_remaining,
-            joined_at
+            joined_at,
+            player_display_name
           )
-          VALUES ($1, $2, 'active', $3, CURRENT_TIMESTAMP)
+          SELECT $1, $2, 'active', $3, CURRENT_TIMESTAMP, u.display_name
+          FROM app_user u
+          WHERE u.id = $2
         `, [
           competition.id,
           organiser_id,

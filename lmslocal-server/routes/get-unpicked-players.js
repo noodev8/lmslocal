@@ -152,14 +152,14 @@ router.post('/', verifyToken, async (req, res) => {
     const unpickedQuery = await query(`
       SELECT
         au.id as user_id,
-        au.display_name
+        cu.player_display_name as display_name
       FROM competition_user cu
       INNER JOIN app_user au ON cu.user_id = au.id
       LEFT JOIN pick p ON p.round_id = $2 AND p.user_id = au.id
       WHERE cu.competition_id = $1
         AND cu.status = 'active'
         AND p.id IS NULL
-      ORDER BY au.display_name ASC
+      ORDER BY cu.player_display_name ASC
     `, [competition_id, targetRoundId]);
 
     // Build unpicked players array from query results

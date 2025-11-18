@@ -23,6 +23,7 @@ class Competition extends Equatable {
   final String? userStatus;
   final int? livesRemaining;
   final DateTime? joinedAt;
+  final String? playerDisplayName;
   final bool? manageResults;
   final bool? manageFixtures;
   final bool? managePlayers;
@@ -53,6 +54,7 @@ class Competition extends Equatable {
     this.userStatus,
     this.livesRemaining,
     this.joinedAt,
+    this.playerDisplayName,
     this.manageResults,
     this.manageFixtures,
     this.managePlayers,
@@ -85,6 +87,7 @@ class Competition extends Equatable {
         userStatus,
         livesRemaining,
         joinedAt,
+        playerDisplayName,
         manageResults,
         manageFixtures,
         managePlayers,

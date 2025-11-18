@@ -291,7 +291,7 @@ router.post('/', verifyToken, async (req, res) => {
     const playersQuery = `
       SELECT
         cu.user_id as id,
-        au.display_name,
+        cu.player_display_name as display_name,
         cu.lives_remaining,
         cu.status,
 
@@ -340,7 +340,7 @@ router.post('/', verifyToken, async (req, res) => {
       LEFT JOIN team t_away_elim ON f_elim.away_team_short = t_away_elim.short_name
 
       WHERE cu.competition_id = $1 AND ${whereClause}
-      ORDER BY au.display_name ASC
+      ORDER BY cu.player_display_name ASC
       LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
     `;
 

@@ -232,9 +232,9 @@ router.post('/', async (req, res) => {
 
         // Join competition
         await client.query(`
-          INSERT INTO competition_user (competition_id, user_id, status, lives_remaining, joined_at)
-          VALUES ($1, $2, 'active', $3, NOW())
-        `, [competition.competition_id, userId, competition.lives_per_player]);
+          INSERT INTO competition_user (competition_id, user_id, status, lives_remaining, joined_at, player_display_name)
+          VALUES ($1, $2, 'active', $3, NOW(), $4)
+        `, [competition.competition_id, userId, competition.lives_per_player, botName]);
 
         // Populate allowed teams
         await client.query(`

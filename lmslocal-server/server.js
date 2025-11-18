@@ -91,6 +91,7 @@ const hideCompetitionRoute = require('./routes/hide-competition');
 const unhidePlayerRoute = require('./routes/unhide-player');
 
 const updatePersonalCompetitionNameRoute = require('./routes/update-personal-competition-name');
+const updatePlayerDisplayNameRoute = require('./routes/update-player-display-name');
 
 // Promote/Marketing Routes
 const getPromoteDataRoute = require('./routes/get-promote-data');
@@ -309,6 +310,7 @@ app.use('/hide-competition', hideCompetitionRoute);
 app.use('/unhide-player', unhidePlayerRoute);
 
 app.use('/update-personal-competition-name', updatePersonalCompetitionNameRoute);
+app.use('/update-player-display-name', updatePlayerDisplayNameRoute);
 
 // Promote/Marketing API Routes
 app.use('/get-promote-data', getPromoteDataRoute);
