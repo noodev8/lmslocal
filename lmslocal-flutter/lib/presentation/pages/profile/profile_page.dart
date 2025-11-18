@@ -709,27 +709,36 @@ class _ProfilePageState extends State<ProfilePage> {
                 ? (selectedCompetition['player_display_name'] as String? ?? user.displayName)
                 : null;
 
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.badge, color: AppConstants.primaryNavy),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Manage Competition Names',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
+            return Dialog(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Header
+                    Row(
+                      children: [
+                        Icon(Icons.badge, color: AppConstants.primaryNavy, size: 24),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Competition Names',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
                     // Competition Dropdown
                     DropdownButtonFormField<int>(
                       initialValue: _selectedCompetitionId,
@@ -782,42 +791,69 @@ class _ProfilePageState extends State<ProfilePage> {
                           hintText: 'Enter your display name',
                         ),
                       ),
+                      const SizedBox(height: 20),
+
+                      // Buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () async {
+                              await _handleResetToGlobal(user);
+                              if (mounted) {
+                                // ignore: use_build_context_synchronously
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: const Text('Reset'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () async {
+                              await _handleSaveCompetitionName(user);
+                              if (mounted) {
+                                // ignore: use_build_context_synchronously
+                                Navigator.pop(context);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[600],
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      // Show message when no competition selected
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          'Please select a competition to manage its display name',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      // Cancel button when nothing selected
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close'),
+                        ),
+                      ),
                     ],
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                if (_selectedCompetitionId != null) ...[
-                  TextButton(
-                    onPressed: () async {
-                      await _handleResetToGlobal(user);
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: const Text('Reset to Profile Name'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      await _handleSaveCompetitionName(user);
-                      if (mounted) {
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[600],
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Save'),
-                  ),
-                ],
-              ],
             );
           },
         );
