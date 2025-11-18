@@ -48,6 +48,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   logApiCall('get-current-pick');
@@ -147,10 +148,11 @@ router.post('/', verifyToken, async (req, res) => {
     // === ADMIN PERMISSION CHECK ===
     // If requesting another user's pick, verify admin permissions
     if (requested_user_id && requested_user_id !== authenticated_user_id) {
-      if (roundData.organiser_id !== authenticated_user_id) {
+      const permission = await canManagePlayers(authenticated_user_id, roundData.competition_id);
+      if (!permission.authorized) {
         return res.json({
           return_code: "UNAUTHORIZED",
-          message: "Only competition organiser can view other players' picks"
+          message: "You do not have permission to view other players' picks"
         });
       }
     }
