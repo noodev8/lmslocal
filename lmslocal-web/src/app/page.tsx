@@ -140,10 +140,17 @@ export default function LandingPage() {
           {/* Headline First */}
           <div className="text-center mb-8 md:mb-12">
             <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-slate-900 mb-2 md:mb-3 lg:mb-4 leading-tight">
-              Last Match <span className="text-emerald-600">Standing</span>
+              Last Man <span className="text-emerald-600">Standing</span>
             </h1>
-            <div className="inline-block bg-emerald-100 border-2 border-emerald-500 rounded-full px-4 py-2 mt-2">
+            <div className="inline-block bg-emerald-100 border-2 border-emerald-500 rounded-full px-4 py-2 mt-2 mb-6">
               <p className="text-emerald-800 font-bold text-sm">Play FREE • No Credit Card • No Subscription</p>
+            </div>
+
+            {/* Game Description */}
+            <div className="max-w-4xl mx-auto mt-6 px-4">
+              <p className="text-xl text-slate-700 leading-loose">
+                Last Man Standing is an elimination-style football competition where players pick <span className="font-bold text-slate-900">one team each round</span> from real fixtures. If your team <span className="font-bold text-emerald-600">wins</span>, you survive to the next round. If they draw or lose, you&apos;re <span className="font-bold text-red-600">eliminated</span>. The catch? You <span className="font-bold text-slate-900">can&apos;t pick the same team twice</span> throughout the competition, so strategy matters. <span className="font-bold text-slate-900">The last player remaining wins.</span>
+              </p>
             </div>
           </div>
 
@@ -445,6 +452,65 @@ export default function LandingPage() {
                     <p className="font-semibold text-slate-900 text-sm">James R.</p>
                     <p className="text-slate-500 text-xs">Group of Friends</p>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Fundraising Section */}
+      <section className="py-16 bg-gradient-to-br from-emerald-50 to-emerald-100 border-y-4 border-emerald-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-block bg-emerald-600 text-white px-4 py-2 rounded-full text-sm font-bold mb-4">
+              💰 FUNDRAISING OPPORTUNITY
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+              Raise Money For Your Club or Charity
+            </h2>
+            <p className="text-xl text-slate-700 leading-relaxed mb-8">
+              Turn your Last Man Standing competition into a fundraiser. Charge an entry fee, cover your costs, and <span className="font-bold text-emerald-700">keep the profit for your club or donate to charity</span>.
+            </p>
+
+            {/* Real Example Box */}
+            <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-emerald-300 max-w-3xl mx-auto">
+              <div className="flex items-center justify-center mb-6">
+                <div className="bg-emerald-100 p-3 rounded-full">
+                  <TrophyIcon className="h-8 w-8 text-emerald-600" />
+                </div>
+              </div>
+              <p className="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-4">Example: 30 Players</p>
+
+              {/* Breakdown */}
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between items-center text-lg">
+                  <span className="text-slate-700">30 players × £10 entry</span>
+                  <span className="font-bold text-slate-900">£300</span>
+                </div>
+                <div className="flex justify-between items-center text-lg text-slate-600 pl-4">
+                  <span>Prize (75% to winner)</span>
+                  <span>-£225</span>
+                </div>
+                <div className="flex justify-between items-center text-lg text-slate-600 pl-4">
+                  <span>Platform fees</span>
+                  <span>-£10</span>
+                </div>
+                <div className="border-t-2 border-emerald-200 pt-3 flex justify-between items-center">
+                  <span className="text-xl font-bold text-slate-900">Left for club/charity</span>
+                  <span className="text-3xl font-bold text-emerald-600">£65</span>
+                </div>
+              </div>
+
+              {/* Benefits */}
+              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                <div className="flex items-start text-sm text-slate-700">
+                  <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <span><span className="font-semibold">Keeps customers engaged</span> with your club and inviting others</span>
+                </div>
+                <div className="flex items-start text-sm text-slate-700">
+                  <CheckCircleIcon className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <span><span className="font-semibold">That&apos;s just with 30 players</span> – scale up for even more</span>
                 </div>
               </div>
             </div>
