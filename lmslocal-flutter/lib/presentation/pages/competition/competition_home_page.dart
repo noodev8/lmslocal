@@ -457,31 +457,19 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
 
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      color: Colors.white,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height,
-          ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppConstants.primaryNavy,
-                AppConstants.primaryNavy.withValues(alpha: 0.92),
-              ],
-            ),
-          ),
+      color: AppConstants.primaryNavy,
+      child: Container(
+        color: const Color(0xFFF5F7FA), // Match main dashboard background
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              // Hero Header
+              // Hero Header with navy background
               _buildHeroHeader(_competition!),
 
               // Main Content with cards
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: Column(
                   children: [
                     // Current Round Card (if not complete)
@@ -529,62 +517,68 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
   }
 
   Widget _buildHeroHeader(Competition competition) {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-        child: Column(
-          children: [
-            // Logo
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: competition.logoUrl != null
-                  ? Image.network(
-                      competition.logoUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.white,
-                          child: Icon(
-                            Icons.sports_soccer,
-                            size: 45,
-                            color: AppConstants.primaryNavy,
-                          ),
-                        );
-                      },
-                    )
-                  : Icon(
-                      Icons.sports_soccer,
-                      size: 45,
-                      color: AppConstants.primaryNavy,
+    return Container(
+      width: double.infinity,
+      color: AppConstants.primaryNavy,
+      child: SafeArea(
+        bottom: false,
+        left: false,
+        right: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          child: Column(
+            children: [
+              // Logo
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-            ),
-            const SizedBox(height: 16),
-
-            // Competition Name
-            Text(
-              competition.name,
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: competition.logoUrl != null
+                    ? Image.network(
+                        competition.logoUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.white,
+                            child: Icon(
+                              Icons.sports_soccer,
+                              size: 45,
+                              color: AppConstants.primaryNavy,
+                            ),
+                          );
+                        },
+                      )
+                    : Icon(
+                        Icons.sports_soccer,
+                        size: 45,
+                        color: AppConstants.primaryNavy,
+                      ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 16),
+
+              // Competition Name
+              Text(
+                competition.name,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -595,26 +589,15 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.25),
-            Colors.white.withValues(alpha: 0.15),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -625,7 +608,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.white.withValues(alpha: 0.9),
+              color: AppConstants.primaryNavy,
               letterSpacing: 0.3,
             ),
           ),
@@ -634,29 +617,22 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
           // Number with gradient
           Text(
             activeCount.toString(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 72,
               fontWeight: FontWeight.w900,
-              color: Colors.white,
+              color: AppConstants.primaryNavy,
               height: 0.9,
               letterSpacing: -2,
-              shadows: [
-                Shadow(
-                  color: Colors.black26,
-                  blurRadius: 20,
-                  offset: Offset(0, 6),
-                ),
-              ],
             ),
           ),
           const SizedBox(height: 6),
 
           Text(
             'Players Active',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
-              color: Colors.white,
+              color: Colors.grey[700],
             ),
           ),
         ],
@@ -678,63 +654,31 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF5C7A99),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Column(
               children: [
-                Text(
-                  'Your Status',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontWeight: FontWeight.w600,
-                  ),
+                Icon(
+                  isIn ? Icons.check_circle : Icons.cancel,
+                  color: isIn ? AppConstants.successGreen : AppConstants.errorRed,
+                  size: 32,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: isIn
-                            ? const Color(0xFF4DD0E1)
-                            : Colors.red[400],
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: isIn
-                                ? const Color(0xFF4DD0E1).withValues(alpha: 0.6)
-                                : Colors.red[400]!.withValues(alpha: 0.6),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isIn ? 'In' : 'Out',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 8),
+                Text(
+                  isIn ? 'Still In' : 'Knocked Out',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isIn ? AppConstants.successGreen : AppConstants.errorRed,
+                  ),
                 ),
               ],
             ),
@@ -747,17 +691,13 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF5C7A99),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -767,10 +707,10 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Lives Left',
+                      'Lives',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 12,
+                        color: Colors.grey[600],
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -779,19 +719,15 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.orange[700],
+                          color: Colors.grey[300],
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.orange[400]!,
-                            width: 1,
-                          ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'KNOCKOUT',
                           style: TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: Colors.grey[700],
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -799,22 +735,22 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.favorite,
-                      color: Colors.white,
+                      color: lives > 0 ? AppConstants.errorRed : Colors.grey[400],
                       size: 22,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       lives.toString(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: lives > 0 ? AppConstants.errorRed : Colors.grey[600],
                       ),
                     ),
                   ],
@@ -1057,24 +993,13 @@ $inviteCode''';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.25),
-            Colors.white.withValues(alpha: 0.15),
-          ],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -1086,26 +1011,22 @@ $inviteCode''';
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: AppConstants.primaryNavy.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.group_add,
-                  color: Colors.white,
+                  color: AppConstants.primaryNavy,
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'Invite Players',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: AppConstants.primaryNavy,
                 ),
               ),
             ],
@@ -1116,27 +1037,27 @@ $inviteCode''';
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.25),
+                color: Colors.orange[50],
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: Colors.orange.withValues(alpha: 0.4),
+                  color: Colors.orange[200]!,
                   width: 1,
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.info_outline,
                     size: 16,
-                    color: Colors.white,
+                    color: Colors.orange[700],
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Add more players to start',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white,
+                        color: Colors.orange[900],
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1152,10 +1073,10 @@ $inviteCode''';
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.grey[100],
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
+                color: Colors.grey[300]!,
                 width: 1.5,
               ),
             ),
@@ -1164,21 +1085,21 @@ $inviteCode''';
               children: [
                 Text(
                   inviteCode,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 4,
                     fontFamily: 'monospace',
-                    color: Colors.white,
+                    color: AppConstants.primaryNavy,
                   ),
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: AppConstants.primaryNavy.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.copy, color: Colors.white),
+                    icon: Icon(Icons.copy, color: AppConstants.primaryNavy),
                     onPressed: () => _copyToClipboard(inviteCode, 'Invite code'),
                     tooltip: 'Copy Code',
                   ),
@@ -1204,17 +1125,13 @@ $inviteCode''';
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                backgroundColor: AppConstants.primaryNavy,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
                 ),
-                elevation: 0,
+                elevation: 2,
               ),
             ),
           ),
@@ -1229,24 +1146,13 @@ $inviteCode''';
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.25),
-            Colors.white.withValues(alpha: 0.15),
-          ],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -1256,7 +1162,7 @@ $inviteCode''';
             'Competition Complete',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.9),
+              color: AppConstants.primaryNavy.withValues(alpha: 0.7),
               fontWeight: FontWeight.w500,
               letterSpacing: 0.5,
             ),
@@ -1265,10 +1171,10 @@ $inviteCode''';
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.green[50],
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.green[200]!,
                 width: 1,
               ),
             ),
@@ -1277,19 +1183,19 @@ $inviteCode''';
               children: [
                 Text(
                   winner != null ? 'Winner:' : 'Result:',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white,
+                    color: AppConstants.primaryNavy,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   winner ?? 'Draw',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Colors.green[800],
                     letterSpacing: 0.5,
                   ),
                 ),

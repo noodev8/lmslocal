@@ -509,24 +509,6 @@ class _DashboardPageState extends State<DashboardPage> {
     final isComplete = competition.status == 'COMPLETE';
     final hasWinner = isComplete && competition.winnerName != null;
 
-    // Different card styles based on state
-    final Color cardColorStart;
-    final Color cardColorEnd;
-
-    if (needsPick) {
-      // Bright attention-grabbing gradient for picks needed
-      cardColorStart = const Color(0xFF4CAF50).withValues(alpha: 0.45);
-      cardColorEnd = const Color(0xFF388E3C).withValues(alpha: 0.35);
-    } else if (isComplete) {
-      // Muted darker gradient for completed competitions
-      cardColorStart = Colors.white.withValues(alpha: 0.25);
-      cardColorEnd = Colors.white.withValues(alpha: 0.18);
-    } else {
-      // Lighter, brighter gradient for active competitions
-      cardColorStart = Colors.white.withValues(alpha: 0.45);
-      cardColorEnd = Colors.white.withValues(alpha: 0.35);
-    }
-
     return Container(
       margin: const EdgeInsets.only(bottom: 32),
       decoration: BoxDecoration(
@@ -839,7 +821,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildWebPlatformCard() {
     return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      padding: const EdgeInsets.only(top: 16, bottom: 64),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,

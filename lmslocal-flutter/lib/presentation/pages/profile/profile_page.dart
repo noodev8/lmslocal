@@ -28,7 +28,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Competition display names
   List<dynamic>? _competitions;
-  bool _isLoadingCompetitions = false;
   int? _selectedCompetitionId;
   final _competitionNameController = TextEditingController();
 
@@ -131,7 +130,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadCompetitions() async {
-    setState(() => _isLoadingCompetitions = true);
     try {
       // Get competitions from dashboard API directly
       final apiClient = context.read<ApiClient>();
@@ -140,12 +138,10 @@ class _ProfilePageState extends State<ProfilePage> {
       if (dashboardResponse.data['return_code'] == 'SUCCESS') {
         setState(() {
           _competitions = dashboardResponse.data['competitions'] as List;
-          _isLoadingCompetitions = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingCompetitions = false);
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load competitions: $e')),
