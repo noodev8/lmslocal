@@ -98,6 +98,13 @@ router.post('/', verifyToken, async (req, res) => {
           FROM competition c
           WHERE c.id = $1
         ),
+        admin_permissions AS (
+          -- Get admin's permissions in this competition
+          SELECT
+            cu.manage_players
+          FROM competition_user cu
+          WHERE cu.competition_id = $1 AND cu.user_id = $3
+        ),
         player_data AS (
           -- Get player info and current payment status
           SELECT
@@ -113,15 +120,17 @@ router.post('/', verifyToken, async (req, res) => {
           cd.competition_id,
           cd.competition_name,
           cd.organiser_id,
+          ap.manage_players,
           pd.user_id as player_user_id,
           pd.player_name,
           pd.current_paid,
           pd.current_paid_date
         FROM competition_data cd
+        LEFT JOIN admin_permissions ap ON true
         LEFT JOIN player_data pd ON true
       `;
 
-      const validationResult = await client.query(validationQuery, [competition_id, user_id]);
+      const validationResult = await client.query(validationQuery, [competition_id, user_id, admin_id]);
 
       // Check if competition exists
       if (validationResult.rows.length === 0) {
@@ -133,11 +142,14 @@ router.post('/', verifyToken, async (req, res) => {
 
       const data = validationResult.rows[0];
 
-      // Verify user authorization - only competition organiser can update payment status
-      if (data.organiser_id !== admin_id) {
+      // Verify user authorization - competition organiser OR users with 'manage_players' permission can update payment status
+      const isOrganiser = data.organiser_id === admin_id;
+      const hasPlayersPermission = data.manage_players === true;
+
+      if (!isOrganiser && !hasPlayersPermission) {
         throw {
           return_code: "UNAUTHORIZED",
-          message: "Only the competition organiser can update player payment status"
+          message: "You must be the competition organiser or have 'Players' permission to update player payment status"
         };
       }
 
