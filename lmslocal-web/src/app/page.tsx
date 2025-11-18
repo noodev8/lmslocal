@@ -167,18 +167,18 @@ export default function LandingPage() {
 
                 {/* App Store Badges */}
                 <div className="flex flex-col gap-3 max-w-xs mx-auto">
-                  <div className="relative">
-                    <div className="bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold text-sm text-center flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
-                      <span className="text-2xl"></span>
-                      <div className="text-left">
-                        <div className="text-xs opacity-80">Download on the</div>
-                        <div className="text-base font-bold">App Store (iOS)</div>
-                      </div>
+                  <a
+                    href="https://apps.apple.com/gb/app/lms-local/id6755344736"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-black hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all text-center flex items-center justify-center gap-2"
+                  >
+                    <span className="text-2xl"></span>
+                    <div className="text-left">
+                      <div className="text-xs opacity-80">Download on the</div>
+                      <div className="text-base font-bold">App Store (iOS)</div>
                     </div>
-                    <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                      Coming Soon
-                    </div>
-                  </div>
+                  </a>
                   <a
                     href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
                     target="_blank"
@@ -254,18 +254,18 @@ export default function LandingPage() {
 
                   {/* App Store Badges */}
                   <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-                    <div className="relative">
-                      <div className="bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold text-sm text-center flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
-                        <span className="text-2xl"></span>
-                        <div className="text-left">
-                          <div className="text-xs opacity-80">Download on the</div>
-                          <div className="text-base font-bold">App Store (iOS)</div>
-                        </div>
+                    <a
+                      href="https://apps.apple.com/gb/app/lms-local/id6755344736"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-black hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all text-center flex items-center justify-center gap-2"
+                    >
+                      <span className="text-2xl"></span>
+                      <div className="text-left">
+                        <div className="text-xs opacity-80">Download on the</div>
+                        <div className="text-base font-bold">App Store (iOS)</div>
                       </div>
-                      <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        Coming Soon
-                      </div>
-                    </div>
+                    </a>
                     <a
                       href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
                       target="_blank"
@@ -586,18 +586,18 @@ export default function LandingPage() {
               <h3 className="text-2xl font-bold mb-3">📱 Players</h3>
               <p className="text-blue-100 mb-6">Download the mobile app to join competitions</p>
               <div className="flex flex-col gap-3 mb-4">
-                <div className="relative">
-                  <div className="bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold text-sm text-center flex items-center justify-center gap-2 opacity-60 cursor-not-allowed">
-                    <span className="text-xl"></span>
-                    <div className="text-left">
-                      <div className="text-xs opacity-80">Download on the</div>
-                      <div className="text-sm font-bold">App Store (iOS)</div>
-                    </div>
+                <a
+                  href="https://apps.apple.com/gb/app/lms-local/id6755344736"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-black hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold text-sm text-center flex items-center justify-center gap-2 transition-all"
+                >
+                  <span className="text-xl"></span>
+                  <div className="text-left">
+                    <div className="text-xs opacity-80">Download on the</div>
+                    <div className="text-sm font-bold">App Store (iOS)</div>
                   </div>
-                  <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    Coming Soon
-                  </div>
-                </div>
+                </a>
                 <a
                   href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
                   target="_blank"

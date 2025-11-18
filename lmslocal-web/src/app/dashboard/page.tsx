@@ -730,15 +730,15 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <div className="relative">
-                      <div className="bg-gray-600 text-white px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 opacity-60 cursor-not-allowed">
-                        <span className="text-base"></span>
-                        <span>iOS</span>
-                      </div>
-                      <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                        Soon
-                      </div>
-                    </div>
+                    <a
+                      href="https://apps.apple.com/gb/app/lms-local/id6755344736"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-black hover:bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all"
+                    >
+                      <span className="text-base"></span>
+                      <span>iOS</span>
+                    </a>
                     <a
                       href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
                       target="_blank"
