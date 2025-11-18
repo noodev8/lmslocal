@@ -582,9 +582,10 @@ export default function CompetitionPlayersPage() {
         const actionText = selectedTeam === 'NO_PICK' ? 'removed' : 'set';
         const teamText = selectedTeam === 'NO_PICK' ? '' : `: ${selectedTeam}`;
 
-        // Invalidate picks cache
+        // Invalidate picks cache and allowed teams cache
         cacheUtils.invalidateKey(`picks-${competitionId}`);
         cacheUtils.invalidateKey(`competition-players-${competitionId}`);
+        cacheUtils.invalidatePattern(`allowed-teams-${competitionId}`);
 
         // Show toast notification
         showToast(`Pick ${actionText}${teamText} for ${selectedPlayerForPick.display_name}`, 'success');

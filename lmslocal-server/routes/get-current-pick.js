@@ -107,9 +107,8 @@ router.post('/', verifyToken, async (req, res) => {
       
       -- === USER ACCESS CHECK ===
       -- Verify user either participates in competition OR is the organiser
-      LEFT JOIN competition_user cu ON c.id = cu.competition_id 
-                                    AND cu.user_id = $2 
-                                    AND cu.user_id = $3  -- Only check access for authenticated user
+      LEFT JOIN competition_user cu ON c.id = cu.competition_id
+                                    AND cu.user_id = $2  -- Check if authenticated user is in competition
       
       -- === PICK DATA (TARGET USER SPECIFIC) ===
       -- Get pick made by target user (could be different from authenticated user for admin feature)
