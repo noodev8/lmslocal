@@ -61,12 +61,25 @@ build/
 # iOS
 ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
+ios/Flutter/Debug.xcconfig
+ios/Flutter/Release.xcconfig
 ios/Flutter/ephemeral/
 ios/.symlinks/
 ios/Pods/
+ios/Podfile
+ios/Podfile.lock
 ios/Runner.xcworkspace/xcuserdata/
 ios/Runner.xcodeproj/xcuserdata/
+ios/Runner.xcodeproj/project.pbxproj
 DerivedData/
+
+# macOS
+macos/Flutter/Flutter-Debug.xcconfig
+macos/Flutter/Flutter-Release.xcconfig
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/Podfile
+macos/Podfile.lock
 
 # Android
 android/.gradle/

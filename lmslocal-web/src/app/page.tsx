@@ -287,31 +287,6 @@ export default function LandingPage() {
                     </a>
                   </div>
 
-                  {/* QR Codes */}
-                  <div className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/20">
-                    <p className="text-center text-sm font-semibold mb-4">Or scan to download:</p>
-                    <div className="flex justify-center gap-6">
-                      {/* Apple App Store QR */}
-                      <div className="text-center">
-                        <div className="bg-white p-3 rounded-xl mb-2 w-32 h-32 flex items-center justify-center">
-                          <div className="text-slate-400 text-xs">
-                            [QR: App Store]
-                          </div>
-                        </div>
-                        <p className="text-xs font-medium">iOS</p>
-                      </div>
-                      {/* Google Play QR */}
-                      <div className="text-center">
-                        <div className="bg-white p-3 rounded-xl mb-2 w-32 h-32 flex items-center justify-center">
-                          <div className="text-slate-400 text-xs">
-                            [QR: Play Store]
-                          </div>
-                        </div>
-                        <p className="text-xs font-medium">Android</p>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="mt-6 text-center">
                     <p className="text-blue-100 text-sm">
                       ✓ Make picks on the go • ✓ Get notifications • ✓ Track your progress
