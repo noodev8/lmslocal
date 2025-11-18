@@ -697,10 +697,8 @@ class _ProfilePageState extends State<ProfilePage> {
       _competitionNameController.clear();
     });
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
@@ -711,46 +709,27 @@ class _ProfilePageState extends State<ProfilePage> {
                 ? (selectedCompetition['player_display_name'] as String? ?? user.displayName)
                 : null;
 
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                    // Header
-                    Row(
-                      children: [
-                        Icon(Icons.badge, color: AppConstants.primaryNavy),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Manage Competition Names',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.badge, color: AppConstants.primaryNavy),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Manage Competition Names',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(height: 24),
-
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     // Competition Dropdown
                     DropdownButtonFormField<int>(
                       initialValue: _selectedCompetitionId,
@@ -803,57 +782,42 @@ class _ProfilePageState extends State<ProfilePage> {
                           hintText: 'Enter your display name',
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Action Buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                await _handleResetToGlobal(user);
-                                // Refresh modal to show updated name
-                                setModalState(() {
-                                  final competition = _competitions?.firstWhere((c) => c['id'] == _selectedCompetitionId);
-                                  if (competition != null) {
-                                    _competitionNameController.text = user.displayName;
-                                  }
-                                });
-                              },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              child: const Text('Reset to Profile Name'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                await _handleSaveCompetitionName(user);
-                                // Refresh modal to show updated name
-                                setModalState(() {
-                                  final competition = _competitions?.firstWhere((c) => c['id'] == _selectedCompetitionId);
-                                  if (competition != null) {
-                                    // The controller already has the new value
-                                  }
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey[600],
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              child: const Text('Save'),
-                            ),
-                          ),
-                        ],
-                      ),
                     ],
                   ],
                 ),
-                ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                if (_selectedCompetitionId != null) ...[
+                  TextButton(
+                    onPressed: () async {
+                      await _handleResetToGlobal(user);
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: const Text('Reset to Profile Name'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await _handleSaveCompetitionName(user);
+                      if (mounted) {
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[600],
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ],
+              ],
             );
           },
         );
