@@ -126,6 +126,9 @@ const organizerUpdatePlayerPermissionsRoute = require('./routes/organizer-update
 const botJoinRoute = require('./routes/bot-join');
 const botPickRoute = require('./routes/bot-pick');
 
+// Mobile App Routes
+const checkAppVersionRoute = require('./routes/check-app-version');
+
 const app = express();
 const PORT = process.env.PORT || 3015;
 
@@ -344,6 +347,9 @@ app.use('/organizer-update-player-permissions', organizerUpdatePlayerPermissions
 // Bot API Routes (no rate limiting for testing)
 app.use('/bot-join', botJoinRoute);
 app.use('/bot-pick', botPickRoute);
+
+// Mobile App API Routes
+app.use('/check-app-version', checkAppVersionRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {
