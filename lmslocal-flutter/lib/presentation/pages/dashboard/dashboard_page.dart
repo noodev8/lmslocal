@@ -72,7 +72,9 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     } on UpdateRequiredException catch (e) {
       // App update is required - show blocking dialog
+      debugPrint('⚠️ Dashboard - Caught UpdateRequiredException: ${e.minimumVersion}');
       if (mounted) {
+        debugPrint('⚠️ Dashboard - Showing update dialog');
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -83,6 +85,7 @@ class _DashboardPageState extends State<DashboardPage> {
         );
       }
     } catch (e) {
+      debugPrint('❌ Dashboard - Error loading: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;

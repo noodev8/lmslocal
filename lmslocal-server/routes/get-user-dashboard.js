@@ -506,6 +506,11 @@ router.post('/', verifyToken, async (req, res) => {
       store_url: null
     };
 
+    console.log('🔍 Dashboard version check - Received:', {
+      current_version: req.body.current_version,
+      platform: req.body.platform
+    });
+
     if (req.body.current_version && req.body.platform) {
       try {
         const versionResult = await query(
@@ -514,6 +519,8 @@ router.post('/', verifyToken, async (req, res) => {
            WHERE platform = $1`,
           [req.body.platform]
         );
+
+        console.log('🔍 Database version query result:', versionResult.rows);
 
         if (versionResult.rows.length > 0) {
           const { minimum_version, store_url } = versionResult.rows[0];
@@ -531,18 +538,29 @@ router.post('/', verifyToken, async (req, res) => {
             return 0;
           };
 
-          if (compareVersions(currentVersion, minimum_version) < 0) {
+          const comparison = compareVersions(currentVersion, minimum_version);
+          console.log('🔍 Version comparison:', {
+            current: currentVersion,
+            minimum: minimum_version,
+            comparison: comparison,
+            updateRequired: comparison < 0
+          });
+
+          if (comparison < 0) {
             versionCheckData = {
               update_required: true,
               minimum_version,
               store_url
             };
+            console.log('⚠️ UPDATE REQUIRED - Sending to client:', versionCheckData);
           }
         }
       } catch (versionError) {
         console.error('Version check error in dashboard:', versionError);
         // Don't fail the whole request if version check fails
       }
+    } else {
+      console.log('ℹ️ No version info provided by client - skipping version check');
     }
 
     // === SUCCESS RESPONSE ===

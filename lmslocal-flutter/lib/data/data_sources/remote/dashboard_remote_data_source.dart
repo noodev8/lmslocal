@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
@@ -43,6 +44,8 @@ class DashboardRemoteDataSource {
       final packageInfo = await PackageInfo.fromPlatform();
       final platform = Platform.isIOS ? 'ios' : 'android';
 
+      debugPrint('🔍 Dashboard API - Sending version info: ${packageInfo.version}, platform: $platform');
+
       final response = await _apiClient.post(
         '/get-user-dashboard',
         data: {
@@ -54,12 +57,16 @@ class DashboardRemoteDataSource {
       final data = response.data as Map<String, dynamic>;
       final returnCode = data['return_code'] as String;
 
+      debugPrint('🔍 Dashboard API - Response received: $returnCode');
+      debugPrint('🔍 Dashboard API - Version check data: update_required=${data['update_required']}, minimum_version=${data['minimum_version']}');
+
       if (returnCode == AppConstants.successCode) {
         // Check if update is required
         final updateRequired = data['update_required'] as bool? ?? false;
         if (updateRequired) {
           final minimumVersion = data['minimum_version'] as String;
           final storeUrl = data['store_url'] as String;
+          debugPrint('⚠️ Dashboard API - UPDATE REQUIRED! Throwing exception');
           throw UpdateRequiredException(
             minimumVersion: minimumVersion,
             storeUrl: storeUrl,
