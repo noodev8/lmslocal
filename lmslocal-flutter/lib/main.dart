@@ -8,6 +8,7 @@ import 'package:lmslocal_flutter/core/config/env_prod.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
 import 'package:lmslocal_flutter/core/router/app_router.dart';
+import 'package:lmslocal_flutter/core/services/app_lifecycle_manager.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 
 void main() async {
@@ -55,33 +56,35 @@ class LmsLocalApp extends StatelessWidget {
           value: Injection.getTokenStorage(),
         ),
       ],
-      child: MaterialApp.router(
-        title: AppConstants.appName,
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: AppConstants.primaryNavy,
-            primary: AppConstants.primaryNavy,
-          ),
-          useMaterial3: true,
-          appBarTheme: AppBarTheme(
-            backgroundColor: AppConstants.primaryNavy,
-            foregroundColor: Colors.white,
-            elevation: 0,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
+      child: AppLifecycleManager(
+        child: MaterialApp.router(
+          title: AppConstants.appName,
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: AppConstants.primaryNavy,
+              primary: AppConstants.primaryNavy,
+            ),
+            useMaterial3: true,
+            appBarTheme: AppBarTheme(
               backgroundColor: AppConstants.primaryNavy,
               foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConstants.primaryNavy,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppConstants.primaryNavy,
+              ),
             ),
           ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: AppConstants.primaryNavy,
-            ),
-          ),
+          routerConfig: AppRouter.createRouter(),
         ),
-        routerConfig: AppRouter.createRouter(),
       ),
     );
   }
