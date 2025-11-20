@@ -34,27 +34,13 @@ class UpdateRequiredDialog extends StatelessWidget {
             Text('Update Required'),
           ],
         ),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'A new version of LMS Local is available.',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 16),
             Text(
-              'Please update to version $minimumVersion or higher to continue.',
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'The app will not work until you update.',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.red,
-              ),
+              'A new version is available, please update.',
+              style: TextStyle(fontSize: 16),
             ),
           ],
         ),
