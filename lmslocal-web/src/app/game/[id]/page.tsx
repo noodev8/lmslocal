@@ -19,6 +19,19 @@ import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayer
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 
+/**
+ * FEATURE FLAG: Round Statistics Progress Bar
+ *
+ * Controls whether the Win/Slip/Loss visual progress bar is displayed on the game dashboard.
+ * When set to false:
+ * - The visual progress bars (green WIN / grey SLIP / red OUT) are hidden
+ * - API calls to getRoundStatistics() are skipped to reduce backend load
+ * - All related state management is bypassed
+ *
+ * Set to true to re-enable the feature if needed in the future.
+ */
+const SHOW_ROUND_STATISTICS = false;
+
 export default function UnifiedGameDashboard() {
   const router = useRouter();
   const params = useParams();
@@ -345,7 +358,7 @@ export default function UnifiedGameDashboard() {
       }
 
       // Load round statistics for the most recently completed round
-      if (!roundStatsLoadedRef.current && currentRoundInfo) {
+      if (SHOW_ROUND_STATISTICS && !roundStatsLoadedRef.current && currentRoundInfo) {
         roundStatsLoadedRef.current = true;
 
         // Fetch all rounds to find the most recently completed one
@@ -377,7 +390,7 @@ export default function UnifiedGameDashboard() {
       }
 
       // Load current round statistics (for live rounds with results being processed)
-      if (!currentRoundStatsLoadedRef.current && currentRoundInfo && currentRoundInfo.is_locked) {
+      if (SHOW_ROUND_STATISTICS && !currentRoundStatsLoadedRef.current && currentRoundInfo && currentRoundInfo.is_locked) {
         currentRoundStatsLoadedRef.current = true;
 
         // Fetch statistics for the current round
@@ -773,7 +786,7 @@ export default function UnifiedGameDashboard() {
                   </div>
 
                   {/* Show previous round statistics if available */}
-                  {roundStats && roundStats.round_number < currentRoundInfo.round_number && (
+                  {SHOW_ROUND_STATISTICS && roundStats && roundStats.round_number < currentRoundInfo.round_number && (
                     <div className="pt-3 border-t border-gray-200">
                       <button
                         onClick={() => router.push(`/game/${competitionId}/standings`)}
@@ -819,7 +832,7 @@ export default function UnifiedGameDashboard() {
                 /* Round Complete - Waiting for new fixtures */
                 <div className="space-y-3">
                   {/* Round Statistics - Visual breakdown */}
-                  {roundStats && (
+                  {SHOW_ROUND_STATISTICS && roundStats && (
                     <button
                       onClick={() => router.push(`/game/${competitionId}/standings`)}
                       className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
@@ -867,7 +880,7 @@ export default function UnifiedGameDashboard() {
                   </div>
 
                   {/* Show current round statistics if available */}
-                  {currentRoundStats && currentRoundStats.round_number === currentRoundInfo.round_number && currentRoundStats.total_players > 0 ? (
+                  {SHOW_ROUND_STATISTICS && currentRoundStats && currentRoundStats.round_number === currentRoundInfo.round_number && currentRoundStats.total_players > 0 ? (
                     <button
                       onClick={() => router.push(`/game/${competitionId}/standings`)}
                       className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
