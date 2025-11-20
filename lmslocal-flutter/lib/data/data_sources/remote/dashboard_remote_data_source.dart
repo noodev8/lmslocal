@@ -85,6 +85,9 @@ class DashboardRemoteDataSource {
         final message = data['message'] as String? ?? 'Failed to fetch dashboard';
         throw ServerFailure(message);
       }
+    } on UpdateRequiredException {
+      // Rethrow update required exception without modification
+      rethrow;
     } catch (e) {
       if (e is Failure) rethrow;
 
