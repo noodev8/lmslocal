@@ -44,3 +44,17 @@ class ValidationFailure extends Failure {
 class CacheFailure extends Failure {
   const CacheFailure(super.message);
 }
+
+/// App update required exception
+class UpdateRequiredException extends Failure {
+  final String minimumVersion;
+  final String storeUrl;
+
+  const UpdateRequiredException({
+    required this.minimumVersion,
+    required this.storeUrl,
+  }) : super('App update required');
+
+  @override
+  List<Object?> get props => [message, minimumVersion, storeUrl];
+}

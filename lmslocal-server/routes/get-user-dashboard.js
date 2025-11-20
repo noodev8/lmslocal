@@ -11,6 +11,9 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
+  "update_required": false,                     // boolean, whether app update is required
+  "minimum_version": "1.0.0",                   // string, minimum required version (if update_required)
+  "store_url": "https://...",                   // string, app store URL (if update_required)
   "user": {                                     // object, current user information for cross-client sync
     "id": 1,                                    // integer, user ID
     "display_name": "John Smith",               // string, user's global display name
@@ -495,9 +498,57 @@ router.post('/', verifyToken, async (req, res) => {
       email_verified: userDataResult.rows[0].email_verified
     } : null;
 
+    // === VERSION CHECK (for mobile apps) ===
+    // Check if client provided version and platform info
+    let versionCheckData = {
+      update_required: false,
+      minimum_version: null,
+      store_url: null
+    };
+
+    if (req.body.current_version && req.body.platform) {
+      try {
+        const versionResult = await query(
+          `SELECT minimum_version, store_url
+           FROM app_version
+           WHERE platform = $1`,
+          [req.body.platform]
+        );
+
+        if (versionResult.rows.length > 0) {
+          const { minimum_version, store_url } = versionResult.rows[0];
+          const currentVersion = req.body.current_version;
+
+          // Simple version comparison (assumes semantic versioning: "1.2.3")
+          const compareVersions = (current, minimum) => {
+            const currentParts = current.split('.').map(Number);
+            const minimumParts = minimum.split('.').map(Number);
+
+            for (let i = 0; i < 3; i++) {
+              if ((currentParts[i] || 0) < (minimumParts[i] || 0)) return -1;
+              if ((currentParts[i] || 0) > (minimumParts[i] || 0)) return 1;
+            }
+            return 0;
+          };
+
+          if (compareVersions(currentVersion, minimum_version) < 0) {
+            versionCheckData = {
+              update_required: true,
+              minimum_version,
+              store_url
+            };
+          }
+        }
+      } catch (versionError) {
+        console.error('Version check error in dashboard:', versionError);
+        // Don't fail the whole request if version check fails
+      }
+    }
+
     // === SUCCESS RESPONSE ===
     res.json({
       return_code: "SUCCESS",
+      ...versionCheckData,
       user: userData,
       competitions: competitions,
       latest_round_stats: latestRoundStats

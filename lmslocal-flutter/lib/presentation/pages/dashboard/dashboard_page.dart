@@ -5,12 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:lmslocal_flutter/core/config/app_config.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/errors/failures.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_source.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
+import 'package:lmslocal_flutter/presentation/widgets/update_required_dialog.dart';
 
 /// Dashboard page - Home screen
 /// Shows user's competitions with status, picks, and navigation
@@ -67,6 +69,18 @@ class _DashboardPageState extends State<DashboardPage> {
           _isLoading = false;
           _error = null;
         });
+      }
+    } on UpdateRequiredException catch (e) {
+      // App update is required - show blocking dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => UpdateRequiredDialog(
+            minimumVersion: e.minimumVersion,
+            storeUrl: e.storeUrl,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
