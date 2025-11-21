@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/errors/failures.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
@@ -37,35 +35,17 @@ class DashboardRemoteDataSource {
       }
     }
 
-    // Fetch from API with version info
+    // Fetch from API
     try {
-      // Get current app version and platform
-      final packageInfo = await PackageInfo.fromPlatform();
-      final platform = Platform.isIOS ? 'ios' : 'android';
-
       final response = await _apiClient.post(
         '/get-user-dashboard',
-        data: {
-          'current_version': packageInfo.version,
-          'platform': platform,
-        },
+        data: {},
       );
 
       final data = response.data as Map<String, dynamic>;
       final returnCode = data['return_code'] as String;
 
       if (returnCode == AppConstants.successCode) {
-        // Check if update is required
-        final updateRequired = data['update_required'] as bool? ?? false;
-        if (updateRequired) {
-          final minimumVersion = data['minimum_version'] as String;
-          final storeUrl = data['store_url'] as String;
-          throw UpdateRequiredException(
-            minimumVersion: minimumVersion,
-            storeUrl: storeUrl,
-          );
-        }
-
         final competitions = (data['competitions'] as List)
             .map((e) => CompetitionModel.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -78,9 +58,6 @@ class DashboardRemoteDataSource {
         final message = data['message'] as String? ?? 'Failed to fetch dashboard';
         throw ServerFailure(message);
       }
-    } on UpdateRequiredException {
-      // Rethrow update required exception without modification
-      rethrow;
     } catch (e) {
       if (e is Failure) rethrow;
 
