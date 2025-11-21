@@ -585,7 +585,10 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
   }
 
   Widget _buildCurrentRoundCard(RoundInfo round) {
-    final activeCount = round.activePlayers ?? _competition!.playerCount;
+    // Use fresh pick statistics total when available - it's the accurate count from DB
+    final activeCount = _pickStats?.totalActivePlayers ??
+                       round.activePlayers ??
+                       _competition!.playerCount;
 
     return Container(
       width: double.infinity,
