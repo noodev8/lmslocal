@@ -436,7 +436,7 @@ class _StandingsPageState extends State<StandingsPage> {
     } else if (isBottomGroup) {
       borderColor = GameTheme.border;
       backgroundColor = GameTheme.backgroundLight;
-      badgeColor = GameTheme.textMuted;
+      badgeColor = GameTheme.textSecondary;
       badgeTextColor = GameTheme.background;
     } else {
       borderColor = GameTheme.border;

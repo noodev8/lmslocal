@@ -72,37 +72,92 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
           index: _currentIndex,
           children: _pages,
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: GameTheme.background,
-          selectedItemColor: GameTheme.accentGreen,
-          unselectedItemColor: GameTheme.textMuted,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard),
-              label: 'Game',
+        bottomNavigationBar: _buildNavBar(),
+      ),
+    );
+  }
+
+  Widget _buildNavBar() {
+    // Order: Game | Play | Standings | Profile
+    return Container(
+      decoration: BoxDecoration(
+        color: GameTheme.cardBackground,
+        border: Border(
+          top: BorderSide(
+            color: GameTheme.border,
+            width: 1,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // Game
+              _buildNavItem(
+                icon: _currentIndex == 0 ? Icons.dashboard : Icons.dashboard_outlined,
+                label: 'Game',
+                isActive: _currentIndex == 0,
+                onTap: () => setState(() => _currentIndex = 0),
+              ),
+              // Play
+              _buildNavItem(
+                icon: _currentIndex == 1 ? Icons.sports_soccer : Icons.sports_soccer_outlined,
+                label: 'Play',
+                isActive: _currentIndex == 1,
+                onTap: () => setState(() => _currentIndex = 1),
+              ),
+              // Standings
+              _buildNavItem(
+                icon: _currentIndex == 2 ? Icons.leaderboard : Icons.leaderboard_outlined,
+                label: 'Standings',
+                isActive: _currentIndex == 2,
+                onTap: () => setState(() => _currentIndex = 2),
+              ),
+              // Profile
+              _buildNavItem(
+                icon: _currentIndex == 3 ? Icons.person : Icons.person_outline,
+                label: 'Profile',
+                isActive: _currentIndex == 3,
+                onTap: () => setState(() => _currentIndex = 3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 80,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 30,
+              color: isActive ? GameTheme.accentGreen : GameTheme.textMuted,
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.sports_soccer_outlined),
-              activeIcon: Icon(Icons.sports_soccer),
-              label: 'Play',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.leaderboard_outlined),
-              activeIcon: Icon(Icons.leaderboard),
-              label: 'Standings',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile',
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive ? GameTheme.accentGreen : GameTheme.textMuted,
+              ),
             ),
           ],
         ),

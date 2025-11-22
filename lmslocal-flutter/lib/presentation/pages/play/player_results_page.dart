@@ -399,8 +399,8 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     Color cardColor;
     Color borderColor;
     Color textColor;
-    IconData? statusIcon;
-    Color? iconColor;
+    late IconData statusIcon;
+    late Color iconColor;
 
     if (info.didWin) {
       // Winner - green with visible background
@@ -454,14 +454,12 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (statusIcon != null) ...[
-            Icon(
-              statusIcon,
-              size: 24,
-              color: iconColor,
-            ),
-            const SizedBox(height: 6),
-          ],
+          Icon(
+            statusIcon,
+            size: 24,
+            color: iconColor,
+          ),
+          const SizedBox(height: 6),
           Text(
             info.shortName,
             style: TextStyle(

@@ -776,30 +776,49 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
 
-                // Action button
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.go('/competition/${competition.id}', extra: competition);
-                    },
-                    icon: const Icon(Icons.arrow_forward, size: 18),
-                    label: Text(
-                      competition.isOrganiser ? 'Manage Competition' : 'View Competition',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                // Action button - sleek gaming style
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () {
+                    context.go('/competition/${competition.id}', extra: competition);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: GameTheme.glowCyan.withValues(alpha: 0.6),
+                        width: 1.5,
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          GameTheme.glowCyan.withValues(alpha: 0.1),
+                          GameTheme.glowCyan.withValues(alpha: 0.05),
+                        ],
                       ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GameTheme.glowCyan,
-                      foregroundColor: GameTheme.background,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Enter',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: GameTheme.glowCyan,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 20,
+                          color: GameTheme.glowCyan,
+                        ),
+                      ],
                     ),
                   ),
                 ),
