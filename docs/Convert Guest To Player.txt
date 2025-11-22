@@ -1,0 +1,23 @@
+Old User ID: 871
+New User ID: 880
+
+select * from app_user where id = 871
+select * from app_user where id = 880
+
+select * from allowed_teams where competition_id = 114 and user_id = 871
+select * from competition_user where user_id = 871
+select * from email_preference where user_id = 871
+select * from email_queue where user_id = 871
+select * from email_tracking where user_id = 871
+select * from pick where user_id = 871
+select * from player_progress where player_id = 871
+
+update allowed_teams set user_id = 880 where competition_id = 114 and user_id = 871
+update competition_user set user_id = 880 where user_id = 871
+update email_preference set user_id = 880 where user_id = 871
+update email_queue set user_id = 880 where user_id = 871
+update email_tracking set user_id = 880 where user_id = 871
+update pick set user_id = 880 where user_id = 871
+update player_progress set player_id = 880 where player_id = 871
+
+delete from app_user where id = 871
