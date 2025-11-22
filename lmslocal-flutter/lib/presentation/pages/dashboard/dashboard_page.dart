@@ -300,10 +300,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 foregroundColor: GameTheme.textPrimary,
                 automaticallyImplyLeading: false,
                 elevation: 0,
-                systemOverlayStyle: SystemUiOverlayStyle(
-                  statusBarColor: GameTheme.background,
+                systemOverlayStyle: const SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
                   statusBarIconBrightness: Brightness.light,
                   statusBarBrightness: Brightness.dark,
+                  systemNavigationBarColor: Colors.transparent,
+                  systemNavigationBarIconBrightness: Brightness.light,
                 ),
                 actions: [
                   Container(

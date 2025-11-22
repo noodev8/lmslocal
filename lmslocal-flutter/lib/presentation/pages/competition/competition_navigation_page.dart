@@ -62,10 +62,12 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
           backgroundColor: GameTheme.background,
           elevation: 0,
           toolbarHeight: 0,
-          systemOverlayStyle: SystemUiOverlayStyle(
-            statusBarColor: GameTheme.background,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
             statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarIconBrightness: Brightness.light,
           ),
         ),
         body: IndexedStack(
