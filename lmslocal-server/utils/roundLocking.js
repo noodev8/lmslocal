@@ -30,6 +30,13 @@ Business Rules:
  * });
  */
 async function checkAndLockRoundIfComplete(client, round_id) {
+  // AUTO-LOCK DISABLED: Waiting for first fixture is more exciting
+  // To re-enable, remove this early return
+  return {
+    locked: false,
+    reason: 'AUTO_LOCK_DISABLED'
+  };
+
   try {
     // === COMPREHENSIVE VALIDATION QUERY ===
     // Single query to get all data needed for lock decision
