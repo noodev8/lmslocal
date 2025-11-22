@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
@@ -10,6 +11,9 @@ import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/domain/entities/pick_statistics.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/round_statistics.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/presentation/pages/competition/widgets/glowing_players_circle.dart';
+import 'package:lmslocal_flutter/presentation/pages/competition/widgets/dark_status_cards.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/pick_status_card.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/round_results_card.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/invite_section.dart';
@@ -266,9 +270,9 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
 
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      color: AppConstants.primaryNavy,
+      color: GameTheme.glowCyan,
       child: Container(
-        color: const Color(0xFFF5F7FA), // Match main dashboard background
+        color: GameTheme.background, // Dark game theme background
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
@@ -331,29 +335,35 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
   Widget _buildHeroHeader(Competition competition) {
     return Container(
       width: double.infinity,
-      color: AppConstants.primaryNavy,
+      color: GameTheme.background,
       child: SafeArea(
         bottom: false,
         left: false,
         right: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          child: Row(
             children: [
-              // Logo
+              // Back arrow
+              IconButton(
+                icon: Icon(
+                  Icons.arrow_back,
+                  color: GameTheme.textPrimary,
+                ),
+                onPressed: () => context.go('/dashboard'),
+              ),
+              const Spacer(),
+              // Small Logo
               Container(
-                width: 90,
-                height: 90,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: GameTheme.cardBackground,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: GameTheme.border,
+                    width: 1,
+                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: competition.logoUrl != null
@@ -361,34 +371,33 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                         competition.logoUrl!,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.white,
-                            child: Icon(
-                              Icons.sports_soccer,
-                              size: 45,
-                              color: AppConstants.primaryNavy,
-                            ),
+                          return Icon(
+                            Icons.sports_soccer,
+                            size: 20,
+                            color: GameTheme.glowCyan,
                           );
                         },
                       )
                     : Icon(
                         Icons.sports_soccer,
-                        size: 45,
-                        color: AppConstants.primaryNavy,
+                        size: 20,
+                        color: GameTheme.glowCyan,
                       ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(width: 12),
 
               // Competition Name
               Text(
                 competition.name,
-                style: const TextStyle(
-                  fontSize: 26,
+                style: TextStyle(
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: GameTheme.textPrimary,
                 ),
-                textAlign: TextAlign.center,
               ),
+              const Spacer(),
+              // Empty space to balance back arrow
+              const SizedBox(width: 48),
             ],
           ),
         ),
@@ -404,53 +413,12 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GameTheme.background,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Column(
-        children: [
-          Text(
-            'Round ${round.roundNumber}',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppConstants.primaryNavy,
-              letterSpacing: 0.3,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Number with gradient
-          Text(
-            activeCount.toString(),
-            style: TextStyle(
-              fontSize: 72,
-              fontWeight: FontWeight.w900,
-              color: AppConstants.primaryNavy,
-              height: 0.9,
-              letterSpacing: -2,
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          Text(
-            'Players Active',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
-            ),
-          ),
-        ],
+      child: GlowingPlayersCircle(
+        playerCount: activeCount,
       ),
     );
   }
@@ -459,122 +427,9 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     final isIn = competition.userStatus?.toLowerCase() == 'active';
     final lives = competition.livesRemaining ?? 0;
 
-    // Determine knockout mode
-    final bool isKnockout = isIn && lives == 0;
-
-    return Row(
-      children: [
-        // Your Status
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  isIn ? Icons.check_circle : Icons.cancel,
-                  color: isIn ? AppConstants.successGreen : AppConstants.errorRed,
-                  size: 32,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isIn ? 'Still In' : 'Knocked Out',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isIn ? AppConstants.successGreen : AppConstants.errorRed,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        // Lives Remaining (with knockout indicator)
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Lives',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (isKnockout) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'KNOCKOUT',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[700],
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.favorite,
-                      color: lives > 0 ? AppConstants.errorRed : Colors.grey[400],
-                      size: 22,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      lives.toString(),
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: lives > 0 ? AppConstants.errorRed : Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return DarkStatusCards(
+      isStillIn: isIn,
+      livesRemaining: lives,
     );
   }
 

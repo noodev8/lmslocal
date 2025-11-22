@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/standings_group.dart';
 import 'package:lmslocal_flutter/domain/entities/standings_player.dart';
 import 'package:lmslocal_flutter/domain/entities/round_history.dart';
@@ -194,14 +195,12 @@ class _StandingsPageState extends State<StandingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        color: const Color(0xFFF8FAFC),
-        child: _buildBody(),
-      ),
+      backgroundColor: GameTheme.background,
+      body: _buildBody(),
       floatingActionButton: FloatingActionButton(
         onPressed: _showSearchModal,
-        backgroundColor: AppConstants.primaryNavy,
-        child: const Icon(Icons.search, color: Colors.white),
+        backgroundColor: GameTheme.glowCyan,
+        child: Icon(Icons.search, color: GameTheme.background),
       ),
     );
   }
@@ -212,33 +211,14 @@ class _StandingsPageState extends State<StandingsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(32),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: AppConstants.primaryNavy,
-                ),
-              ),
-            ),
+            CircularProgressIndicator(color: GameTheme.glowCyan),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Loading Standings',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: AppConstants.primaryNavy,
+                color: GameTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -246,7 +226,7 @@ class _StandingsPageState extends State<StandingsPage> {
               'Getting the latest results...',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
+                color: GameTheme.textMuted,
               ),
             ),
           ],
@@ -264,15 +244,15 @@ class _StandingsPageState extends State<StandingsPage> {
               Icon(
                 Icons.error_outline,
                 size: 64,
-                color: AppConstants.errorRed,
+                color: GameTheme.accentRed,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Failed to load standings',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppConstants.primaryNavy,
+                  color: GameTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -280,7 +260,7 @@ class _StandingsPageState extends State<StandingsPage> {
                 _errorMessage!,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: GameTheme.textMuted,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -288,8 +268,8 @@ class _StandingsPageState extends State<StandingsPage> {
               ElevatedButton(
                 onPressed: _loadStandingsSummary,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryNavy,
-                  foregroundColor: Colors.white,
+                  backgroundColor: GameTheme.glowCyan,
+                  foregroundColor: GameTheme.background,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,
                     vertical: 16,
@@ -305,7 +285,7 @@ class _StandingsPageState extends State<StandingsPage> {
 
     return RefreshIndicator(
       onRefresh: _loadStandingsSummary,
-      color: AppConstants.primaryNavy,
+      color: GameTheme.glowCyan,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppConstants.paddingMedium),
@@ -316,42 +296,47 @@ class _StandingsPageState extends State<StandingsPage> {
             if (_currentUser != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  elevation: 1,
-                  child: InkWell(
-                    onTap: () {
-                      // Create minimal player object for current user
-                      final currentUserPlayer = StandingsPlayer(
-                        id: _currentUser!.id,
-                        displayName: _currentUser!.displayName,
-                        livesRemaining: 0,
-                        status: 'unknown',
-                      );
-                      _showHistoryModal(currentUserPlayer);
-                    },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: GameTheme.cardBackground,
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.history,
-                            size: 24,
-                            color: AppConstants.primaryNavy,
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'View My Pick History',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppConstants.primaryNavy,
+                    border: Border.all(color: GameTheme.border),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        // Create minimal player object for current user
+                        final currentUserPlayer = StandingsPlayer(
+                          id: _currentUser!.id,
+                          displayName: _currentUser!.displayName,
+                          livesRemaining: 0,
+                          status: 'unknown',
+                        );
+                        _showHistoryModal(currentUserPlayer);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.history,
+                              size: 24,
+                              color: GameTheme.glowCyan,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Text(
+                              'View My Pick History',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: GameTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -368,7 +353,7 @@ class _StandingsPageState extends State<StandingsPage> {
                       Icon(
                         Icons.people_outline,
                         size: 64,
-                        color: Colors.grey[400],
+                        color: GameTheme.textMuted,
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -376,7 +361,7 @@ class _StandingsPageState extends State<StandingsPage> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
+                          color: GameTheme.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -384,7 +369,7 @@ class _StandingsPageState extends State<StandingsPage> {
                         'Players will appear here once the competition starts',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: GameTheme.textMuted,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -427,37 +412,37 @@ class _StandingsPageState extends State<StandingsPage> {
         group.fixtureStatus != 'played' &&
         index > 0;
 
-    // Determine colors
+    // Determine colors - dark theme
     Color borderColor;
     Color backgroundColor;
     Color badgeColor;
     Color badgeTextColor;
 
     if (isWinner) {
-      borderColor = const Color(0xFFFBBF24); // Amber
-      backgroundColor = const Color(0xFFFEF3C7); // Amber-50
-      badgeColor = const Color(0xFFF59E0B); // Amber-500
-      badgeTextColor = Colors.white;
+      borderColor = GameTheme.glowCyan;
+      backgroundColor = GameTheme.glowCyan.withValues(alpha: 0.1);
+      badgeColor = GameTheme.glowCyan;
+      badgeTextColor = GameTheme.background;
     } else if (isTopGroup) {
-      borderColor = const Color(0xFF86EFAC); // Green-300
-      backgroundColor = const Color(0xFFF0FDF4); // Green-50
-      badgeColor = const Color(0xFF16A34A); // Green-600
-      badgeTextColor = Colors.white;
+      borderColor = GameTheme.accentGreen;
+      backgroundColor = GameTheme.accentGreen.withValues(alpha: 0.1);
+      badgeColor = GameTheme.accentGreen;
+      badgeTextColor = GameTheme.background;
     } else if (isDangerZone) {
-      borderColor = Colors.grey[300]!;
-      backgroundColor = Colors.white;
-      badgeColor = const Color(0xFFDC2626); // Red-600
+      borderColor = GameTheme.accentRed.withValues(alpha: 0.5);
+      backgroundColor = GameTheme.cardBackground;
+      badgeColor = GameTheme.accentRed;
       badgeTextColor = Colors.white;
     } else if (isBottomGroup) {
-      borderColor = Colors.grey[300]!;
-      backgroundColor = const Color(0xFFF1F5F9); // Slate-100
-      badgeColor = const Color(0xFF94A3B8); // Slate-400
-      badgeTextColor = Colors.white;
+      borderColor = GameTheme.border;
+      backgroundColor = GameTheme.backgroundLight;
+      badgeColor = GameTheme.textMuted;
+      badgeTextColor = GameTheme.background;
     } else {
-      borderColor = Colors.grey[300]!;
-      backgroundColor = Colors.white;
-      badgeColor = const Color(0xFF475569); // Slate-600
-      badgeTextColor = Colors.white;
+      borderColor = GameTheme.border;
+      backgroundColor = GameTheme.cardBackground;
+      badgeColor = GameTheme.glowCyan;
+      badgeTextColor = GameTheme.background;
     }
 
     return Container(
@@ -468,14 +453,15 @@ class _StandingsPageState extends State<StandingsPage> {
           color: borderColor,
           width: isWinner ? 2 : 1,
         ),
-        boxShadow: [
-          if (isWinner || isTopGroup)
-            BoxShadow(
-              color: borderColor.withValues(alpha: 0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-        ],
+        boxShadow: (isWinner || isTopGroup)
+            ? [
+                BoxShadow(
+                  color: borderColor.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -524,31 +510,31 @@ class _StandingsPageState extends State<StandingsPage> {
                       Row(
                         children: [
                           if (isWinner) ...[
-                            const Text(
+                            Text(
                               'Champion',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF78350F), // Amber-900
+                                color: GameTheme.glowCyan,
                               ),
                             ),
                             if (group.winnerName != null) ...[
                               const SizedBox(width: 8),
-                              const Text(
+                              Text(
                                 '•',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Color(0xFFF59E0B), // Amber-600
+                                  color: GameTheme.glowCyan,
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   group.winnerName!,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF92400E), // Amber-800
+                                    color: GameTheme.textPrimary,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -558,7 +544,7 @@ class _StandingsPageState extends State<StandingsPage> {
                             Icon(
                               Icons.favorite,
                               size: 20,
-                              color: AppConstants.errorRed,
+                              color: GameTheme.accentRed,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -566,9 +552,7 @@ class _StandingsPageState extends State<StandingsPage> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: isTopGroup
-                                    ? const Color(0xFF14532D) // Green-900
-                                    : const Color(0xFF0F172A), // Slate-900
+                                color: GameTheme.textPrimary,
                               ),
                             ),
                             if (group.fixtureStatus != null) ...[
@@ -577,7 +561,7 @@ class _StandingsPageState extends State<StandingsPage> {
                                 '•',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Colors.grey[400],
+                                  color: GameTheme.textMuted,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -590,19 +574,19 @@ class _StandingsPageState extends State<StandingsPage> {
                                           : 'No Pick',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey[700],
+                                    color: GameTheme.textSecondary,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
                           ] else
-                            const Text(
+                            Text(
                               'Eliminated',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF0F172A), // Slate-900
+                                color: GameTheme.textMuted,
                               ),
                             ),
                         ],
@@ -617,8 +601,8 @@ class _StandingsPageState extends State<StandingsPage> {
                             style: TextStyle(
                               fontSize: 14,
                               color: isTopGroup
-                                  ? const Color(0xFF15803D) // Green-700
-                                  : Colors.grey[600],
+                                  ? GameTheme.accentGreen
+                                  : GameTheme.textMuted,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -632,7 +616,7 @@ class _StandingsPageState extends State<StandingsPage> {
                   _expandedGroups[group.key] == true
                       ? Icons.expand_more
                       : Icons.chevron_right,
-                  color: Colors.grey[400],
+                  color: GameTheme.textMuted,
                   size: 20,
                 ),
               ],
@@ -662,7 +646,7 @@ class _StandingsPageState extends State<StandingsPage> {
         padding: const EdgeInsets.all(24),
         child: Center(
           child: CircularProgressIndicator(
-            color: AppConstants.primaryNavy,
+            color: GameTheme.glowCyan,
           ),
         ),
       );
@@ -676,7 +660,7 @@ class _StandingsPageState extends State<StandingsPage> {
             'No players in this group',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: GameTheme.textMuted,
             ),
           ),
         ),
@@ -689,7 +673,7 @@ class _StandingsPageState extends State<StandingsPage> {
         Divider(
           height: 1,
           thickness: 1,
-          color: Colors.grey[300],
+          color: GameTheme.border,
         ),
 
         // Player list
@@ -704,7 +688,7 @@ class _StandingsPageState extends State<StandingsPage> {
           separatorBuilder: (context, index) => Divider(
             height: 1,
             thickness: 1,
-            color: Colors.grey[200],
+            color: GameTheme.border.withValues(alpha: 0.5),
           ),
           itemBuilder: (context, index) {
             return _buildPlayerCard(players[index]);
@@ -716,12 +700,12 @@ class _StandingsPageState extends State<StandingsPage> {
           Padding(
             padding: const EdgeInsets.all(12),
             child: isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     height: 32,
                     width: 32,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: AppConstants.primaryNavy,
+                      color: GameTheme.glowCyan,
                     ),
                   )
                 : TextButton.icon(
@@ -729,7 +713,7 @@ class _StandingsPageState extends State<StandingsPage> {
                     icon: const Icon(Icons.expand_more),
                     label: const Text('Load More'),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppConstants.primaryNavy,
+                      foregroundColor: GameTheme.glowCyan,
                     ),
                   ),
           ),
@@ -750,8 +734,8 @@ class _StandingsPageState extends State<StandingsPage> {
               height: 40,
               decoration: BoxDecoration(
                 color: player.livesRemaining > 0
-                    ? AppConstants.primaryNavy.withValues(alpha: 0.1)
-                    : Colors.grey[200],
+                    ? GameTheme.glowCyan.withValues(alpha: 0.15)
+                    : GameTheme.backgroundLight,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
@@ -762,8 +746,8 @@ class _StandingsPageState extends State<StandingsPage> {
                       Icons.favorite,
                       size: 14,
                       color: player.livesRemaining > 0
-                          ? AppConstants.errorRed
-                          : Colors.grey[400],
+                          ? GameTheme.accentRed
+                          : GameTheme.textMuted,
                     ),
                     const SizedBox(width: 2),
                     Text(
@@ -772,8 +756,8 @@ class _StandingsPageState extends State<StandingsPage> {
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: player.livesRemaining > 0
-                            ? AppConstants.primaryNavy
-                            : Colors.grey[600],
+                            ? GameTheme.textPrimary
+                            : GameTheme.textMuted,
                       ),
                     ),
                   ],
@@ -794,8 +778,8 @@ class _StandingsPageState extends State<StandingsPage> {
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: player.status == 'eliminated'
-                          ? Colors.grey[600]
-                          : AppConstants.primaryNavy,
+                          ? GameTheme.textMuted
+                          : GameTheme.textPrimary,
                     ),
                   ),
 
@@ -812,10 +796,10 @@ class _StandingsPageState extends State<StandingsPage> {
                                   : Icons.schedule,
                           size: 14,
                           color: player.currentPick!.outcome == 'won'
-                              ? Colors.green[600]
+                              ? GameTheme.accentGreen
                               : player.currentPick!.outcome == 'lost'
-                                  ? AppConstants.errorRed
-                                  : Colors.grey[600],
+                                  ? GameTheme.accentRed
+                                  : GameTheme.textMuted,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -823,7 +807,7 @@ class _StandingsPageState extends State<StandingsPage> {
                             player.currentPick!.team,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[700],
+                              color: GameTheme.textSecondary,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -836,7 +820,7 @@ class _StandingsPageState extends State<StandingsPage> {
                       'Out: Round ${player.eliminationPick!.roundNumber}',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        color: GameTheme.textMuted,
                       ),
                     ),
                   ],
@@ -848,7 +832,7 @@ class _StandingsPageState extends State<StandingsPage> {
             Icon(
               Icons.chevron_right,
               size: 20,
-              color: Colors.grey[400],
+              color: GameTheme.textMuted,
             ),
           ],
         ),
@@ -963,9 +947,9 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
       maxChildSize: 0.95,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
+          decoration: BoxDecoration(
+            color: GameTheme.background,
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(20),
             ),
@@ -978,7 +962,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: GameTheme.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -986,12 +970,10 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
               // Header
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppConstants.primaryNavy,
-                      Color(0xFF1e3a8a),
-                    ],
+                decoration: BoxDecoration(
+                  color: GameTheme.cardBackground,
+                  border: Border(
+                    bottom: BorderSide(color: GameTheme.border),
                   ),
                 ),
                 child: Row(
@@ -1002,18 +984,18 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                         children: [
                           Text(
                             widget.player.displayName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: GameTheme.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'Complete Pick History',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFFbfdbfe),
+                              color: GameTheme.textMuted,
                             ),
                           ),
                         ],
@@ -1021,9 +1003,9 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.close,
-                        color: Colors.white,
+                        color: GameTheme.textMuted,
                       ),
                     ),
                   ],
@@ -1033,9 +1015,9 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
               // Content
               Expanded(
                 child: _isLoading
-                    ? const Center(
+                    ? Center(
                         child: CircularProgressIndicator(
-                          color: AppConstants.primaryNavy,
+                          color: GameTheme.glowCyan,
                         ),
                       )
                     : _filteredHistory.isEmpty
@@ -1048,14 +1030,14 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                                   Icon(
                                     Icons.history,
                                     size: 64,
-                                    color: Colors.grey[400],
+                                    color: GameTheme.textMuted,
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
                                     'No history available',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: Colors.grey[600],
+                                      color: GameTheme.textMuted,
                                     ),
                                   ),
                                 ],
@@ -1090,24 +1072,24 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
 
     switch (history.pickResult.toLowerCase()) {
       case 'win':
-        borderColor = Colors.green[500]!;
-        backgroundColor = Colors.green[50]!;
-        iconColor = Colors.green[600]!;
+        borderColor = GameTheme.accentGreen;
+        backgroundColor = GameTheme.accentGreen.withValues(alpha: 0.15);
+        iconColor = GameTheme.accentGreen;
         resultIcon = Icons.check_circle;
         resultText = 'WIN';
         break;
       case 'loss':
-        borderColor = AppConstants.errorRed;
-        backgroundColor = const Color(0xFFFEE2E2);
-        iconColor = AppConstants.errorRed;
+        borderColor = GameTheme.accentRed;
+        backgroundColor = GameTheme.accentRed.withValues(alpha: 0.15);
+        iconColor = GameTheme.accentRed;
         resultIcon = Icons.cancel;
         resultText = 'LOSE';
         break;
       case 'pending':
       default:
-        borderColor = Colors.grey[300]!;
-        backgroundColor = Colors.grey[50]!;
-        iconColor = Colors.grey[600]!;
+        borderColor = GameTheme.border;
+        backgroundColor = GameTheme.cardBackground;
+        iconColor = GameTheme.textMuted;
         resultIcon = Icons.schedule;
         resultText = 'PENDING';
         break;
@@ -1132,10 +1114,10 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: GameTheme.backgroundLight,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Colors.grey[300]!,
+                color: GameTheme.border,
               ),
             ),
             child: Center(
@@ -1144,7 +1126,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
+                  color: GameTheme.textSecondary,
                 ),
               ),
             ),
@@ -1162,10 +1144,10 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                       : history.pickTeam.isNotEmpty
                           ? history.pickTeam
                           : 'No Pick',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppConstants.primaryNavy,
+                    color: GameTheme.textPrimary,
                   ),
                 ),
                 if (history.fixture != null && history.fixture!.isNotEmpty)
@@ -1175,7 +1157,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                       history.fixture!,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey[700],
+                        color: GameTheme.textSecondary,
                       ),
                     ),
                   ),
@@ -1187,7 +1169,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: iconColor,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
@@ -1196,7 +1178,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                 Icon(
                   resultIcon,
                   size: 16,
-                  color: iconColor,
+                  color: GameTheme.background,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -1204,7 +1186,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: iconColor,
+                    color: GameTheme.background,
                   ),
                 ),
               ],
@@ -1307,9 +1289,9 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
       maxChildSize: 0.95,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
+          decoration: BoxDecoration(
+            color: GameTheme.background,
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(20),
             ),
@@ -1322,7 +1304,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: GameTheme.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1330,12 +1312,10 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
               // Header
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF2563EB),
-                      Color(0xFF1D4ED8),
-                    ],
+                decoration: BoxDecoration(
+                  color: GameTheme.cardBackground,
+                  border: Border(
+                    bottom: BorderSide(color: GameTheme.border),
                   ),
                 ),
                 child: Column(
@@ -1343,7 +1323,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1352,15 +1332,15 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: GameTheme.textPrimary,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
                                 'Search by name or email',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFFBFDBFE),
+                                  color: GameTheme.textMuted,
                                 ),
                               ),
                             ],
@@ -1368,9 +1348,9 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(context),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.close,
-                            color: Colors.white,
+                            color: GameTheme.textMuted,
                           ),
                         ),
                       ],
@@ -1384,9 +1364,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(
-                      color: Colors.grey[200]!,
-                    ),
+                    bottom: BorderSide(color: GameTheme.border),
                   ),
                 ),
                 child: Row(
@@ -1395,16 +1373,22 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                       child: TextField(
                         controller: _searchController,
                         autofocus: true,
+                        style: TextStyle(color: GameTheme.textPrimary),
                         decoration: InputDecoration(
                           hintText: 'Enter name or email...',
+                          hintStyle: TextStyle(color: GameTheme.textMuted),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
+                            borderSide: BorderSide(color: GameTheme.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: GameTheme.border),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF2563EB),
+                            borderSide: BorderSide(
+                              color: GameTheme.glowCyan,
                               width: 2,
                             ),
                           ),
@@ -1436,8 +1420,9 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                           ? _performSearch
                           : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2563EB),
-                        foregroundColor: Colors.white,
+                        backgroundColor: GameTheme.glowCyan,
+                        foregroundColor: GameTheme.background,
+                        disabledBackgroundColor: GameTheme.border,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 12,
@@ -1447,12 +1432,12 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                         ),
                       ),
                       child: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: GameTheme.background,
                               ),
                             )
                           : const Icon(Icons.search, size: 20),
@@ -1485,16 +1470,16 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDCEAFB),
+                  color: GameTheme.glowCyan.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(32),
                 ),
                 child: Center(
                   child: Text(
                     _totalResults.toString(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2563EB),
+                      color: GameTheme.glowCyan,
                     ),
                   ),
                 ),
@@ -1502,10 +1487,10 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
               const SizedBox(height: 16),
               Text(
                 '$_totalResults players found',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: AppConstants.primaryNavy,
+                  color: GameTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -1513,7 +1498,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                 'Please refine your search to see details',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: GameTheme.textMuted,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1532,7 +1517,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
         separatorBuilder: (context, index) => Divider(
           height: 1,
           thickness: 1,
-          color: Colors.grey[200],
+          color: GameTheme.border.withValues(alpha: 0.5),
         ),
         itemBuilder: (context, index) {
           final player = _results[index];
@@ -1553,10 +1538,10 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                             Flexible(
                               child: Text(
                                 player.displayName,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
-                                  color: AppConstants.primaryNavy,
+                                  color: GameTheme.textPrimary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -1569,15 +1554,15 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF2563EB),
+                                  color: GameTheme.glowCyan,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'You',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                                    color: GameTheme.background,
                                   ),
                                 ),
                               ),
@@ -1590,7 +1575,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                             player.groupName!,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[600],
+                              color: GameTheme.textSecondary,
                             ),
                           ),
                         ],
@@ -1600,7 +1585,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                   Icon(
                     Icons.chevron_right,
                     size: 20,
-                    color: Colors.grey[400],
+                    color: GameTheme.textMuted,
                   ),
                 ],
               ),
@@ -1621,14 +1606,14 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
               Icon(
                 Icons.search_off,
                 size: 64,
-                color: Colors.grey[400],
+                color: GameTheme.textMuted,
               ),
               const SizedBox(height: 16),
               Text(
                 'No players found matching "${_searchController.text}"',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: GameTheme.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1648,14 +1633,14 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
             Icon(
               Icons.search,
               size: 64,
-              color: Colors.grey[300],
+              color: GameTheme.textMuted,
             ),
             const SizedBox(height: 16),
             Text(
               'Enter a name or email and click Search',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[500],
+                color: GameTheme.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/fixture.dart';
@@ -79,123 +80,135 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppConstants.primaryNavy,
+      return Container(
+        color: GameTheme.background,
+        child: Center(
+          child: CircularProgressIndicator(
+            color: GameTheme.glowCyan,
+          ),
         ),
       );
     }
 
     if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.paddingLarge),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: AppConstants.errorRed,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Failed to load results',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppConstants.primaryNavy,
+      return Container(
+        color: GameTheme.background,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.paddingLarge),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: GameTheme.accentRed,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage!,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _loadData,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryNavy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
+                const SizedBox(height: 16),
+                Text(
+                  'Failed to load results',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: GameTheme.textPrimary,
                   ),
                 ),
-                child: const Text('Retry'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  _errorMessage!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: GameTheme.textMuted,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _loadData,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GameTheme.glowCyan,
+                    foregroundColor: GameTheme.background,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
     if (_fixtures.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.paddingLarge),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.sports_soccer,
-                size: 64,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No Fixtures',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppConstants.primaryNavy,
+      return Container(
+        color: GameTheme.background,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppConstants.paddingLarge),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.sports_soccer,
+                  size: 64,
+                  color: GameTheme.textMuted,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'No fixtures available for this round',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
+                const SizedBox(height: 16),
+                Text(
+                  'No Fixtures',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: GameTheme.textPrimary,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'No fixtures available for this round',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: GameTheme.textMuted,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      color: AppConstants.primaryNavy,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            _buildHeader(),
-            const SizedBox(height: 24),
-
-            // No pick warning (only show if user is a participant)
-            if (_currentPick == null && widget.competition.isParticipant) ...[
-              _buildNoPickWarning(),
+    return Container(
+      color: GameTheme.background,
+      child: RefreshIndicator(
+        onRefresh: _loadData,
+        color: GameTheme.glowCyan,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppConstants.paddingMedium),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              _buildHeader(),
               const SizedBox(height: 24),
+
+              // No pick warning (only show if user is a participant)
+              if (_currentPick == null && widget.competition.isParticipant) ...[
+                _buildNoPickWarning(),
+                const SizedBox(height: 24),
+              ],
+
+              // Pick distribution grid
+              _buildPickDistributionGrid(),
+              const SizedBox(height: 32),
+
+              // Match results list
+              _buildMatchResultsList(),
             ],
-
-            // Pick distribution grid
-            _buildPickDistributionGrid(),
-            const SizedBox(height: 32),
-
-            // Match results list
-            _buildMatchResultsList(),
-          ],
+          ),
         ),
       ),
     );
@@ -210,10 +223,10 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       children: [
         Text(
           'Round ${widget.round.roundNumber} Results',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppConstants.primaryNavy,
+            color: GameTheme.textPrimary,
           ),
         ),
         const SizedBox(height: 8),
@@ -225,14 +238,14 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
               vertical: 6,
             ),
             decoration: BoxDecoration(
-              color: AppConstants.errorRed.withValues(alpha: 0.1),
+              color: GameTheme.accentRed.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
               'You\'ve been eliminated',
               style: TextStyle(
                 fontSize: 14,
-                color: AppConstants.errorRed,
+                color: GameTheme.accentRed,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -242,7 +255,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
             'Round is locked - see what everyone picked',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: GameTheme.textMuted,
             ),
           )
         else
@@ -250,7 +263,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
             'Viewing results as organiser',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: GameTheme.textMuted,
             ),
           ),
       ],
@@ -261,10 +274,10 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppConstants.warningOrange.withValues(alpha: 0.1),
+        color: AppConstants.warningOrange.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppConstants.warningOrange.withValues(alpha: 0.3),
+          color: AppConstants.warningOrange.withValues(alpha: 0.4),
         ),
       ),
       child: Row(
@@ -280,7 +293,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
               'You didn\'t make a pick this round',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[800],
+                color: GameTheme.textPrimary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -336,12 +349,12 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Pick Distribution',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppConstants.primaryNavy,
+            color: GameTheme.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -349,15 +362,16 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: GameTheme.cardBackground,
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: GameTheme.border),
             ),
             child: Center(
               child: Text(
                 'No picks made yet',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: GameTheme.textMuted,
                 ),
               ),
             ),
@@ -383,45 +397,57 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
 
   Widget _buildPickCard(_TeamPickInfo info) {
     Color cardColor;
+    Color borderColor;
     Color textColor;
     IconData? statusIcon;
     Color? iconColor;
 
     if (info.didWin) {
-      // Winner - green
-      cardColor = AppConstants.successGreen.withValues(alpha: 0.1);
-      textColor = AppConstants.successGreen;
+      // Winner - green with visible background
+      cardColor = GameTheme.accentGreen.withValues(alpha: 0.2);
+      borderColor = GameTheme.accentGreen.withValues(alpha: 0.5);
+      textColor = GameTheme.accentGreen;
       statusIcon = Icons.check_circle;
-      iconColor = AppConstants.successGreen;
+      iconColor = GameTheme.accentGreen;
     } else if (info.didLose) {
-      // Loser - red
-      cardColor = AppConstants.errorRed.withValues(alpha: 0.1);
-      textColor = AppConstants.errorRed;
+      // Loser - red with visible background
+      cardColor = GameTheme.accentRed.withValues(alpha: 0.2);
+      borderColor = GameTheme.accentRed.withValues(alpha: 0.5);
+      textColor = GameTheme.accentRed;
       statusIcon = Icons.cancel;
-      iconColor = AppConstants.errorRed;
+      iconColor = GameTheme.accentRed;
     } else if (info.isUserPick) {
-      // User's pick (pending) - blue
-      cardColor = AppConstants.primaryNavy.withValues(alpha: 0.1);
-      textColor = AppConstants.primaryNavy;
-      statusIcon = null;  // No icon for pending picks
-      iconColor = null;
+      // User's pick (pending) - cyan highlight
+      cardColor = GameTheme.glowCyan.withValues(alpha: 0.15);
+      borderColor = GameTheme.glowCyan.withValues(alpha: 0.5);
+      textColor = GameTheme.glowCyan;
+      statusIcon = Icons.schedule;
+      iconColor = GameTheme.glowCyan;
     } else {
-      // Other teams (pending) - grey
-      cardColor = Colors.grey[100]!;
-      textColor = Colors.grey[700]!;
-      statusIcon = null;  // No icon for pending picks
-      iconColor = null;
+      // Other teams (pending) - card background (more visible)
+      cardColor = GameTheme.cardBackground;
+      borderColor = GameTheme.border;
+      textColor = GameTheme.textPrimary;
+      statusIcon = Icons.schedule;
+      iconColor = GameTheme.textMuted;
     }
 
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: info.isUserPick
-            ? Border.all(
-                color: AppConstants.primaryNavy.withValues(alpha: 0.3),
-                width: 2,
-              )
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: borderColor,
+          width: info.isUserPick || info.didWin || info.didLose ? 2 : 1,
+        ),
+        boxShadow: info.didWin
+            ? [
+                BoxShadow(
+                  color: GameTheme.accentGreen.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
             : null,
       ),
       padding: const EdgeInsets.all(12),
@@ -434,7 +460,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
               size: 24,
               color: iconColor,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
           ],
           Text(
             info.shortName,
@@ -446,35 +472,24 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
-          Text(
-            '${info.pickCount} ${info.pickCount == 1 ? 'player' : 'players'}',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 3,
             ),
-            textAlign: TextAlign.center,
+            decoration: BoxDecoration(
+              color: GameTheme.glowCyan,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${info.pickCount} ${info.pickCount == 1 ? 'player' : 'players'}',
+              style: TextStyle(
+                fontSize: 11,
+                color: GameTheme.background,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          if (info.isUserPick) ...[
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 6,
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: AppConstants.primaryNavy,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Your pick',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -484,12 +499,12 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Match Results',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppConstants.primaryNavy,
+            color: GameTheme.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -530,9 +545,9 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        color: GameTheme.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GameTheme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,8 +564,8 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
                         width: 8,
                         height: 8,
                         margin: const EdgeInsets.only(right: 8),
-                        decoration: const BoxDecoration(
-                          color: AppConstants.primaryNavy,
+                        decoration: BoxDecoration(
+                          color: GameTheme.glowCyan,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -560,7 +575,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: homeIsWinner ? FontWeight.bold : FontWeight.normal,
-                          color: homeIsWinner ? AppConstants.successGreen : Colors.black,
+                          color: homeIsWinner ? GameTheme.accentGreen : GameTheme.textPrimary,
                         ),
                       ),
                     ),
@@ -573,7 +588,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
                   'vs',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey[600],
+                    color: GameTheme.textMuted,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -588,7 +603,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: awayIsWinner ? FontWeight.bold : FontWeight.normal,
-                          color: awayIsWinner ? AppConstants.successGreen : Colors.black,
+                          color: awayIsWinner ? GameTheme.accentGreen : GameTheme.textPrimary,
                         ),
                         textAlign: TextAlign.right,
                       ),
@@ -598,8 +613,8 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
                         width: 8,
                         height: 8,
                         margin: const EdgeInsets.only(left: 8),
-                        decoration: const BoxDecoration(
-                          color: AppConstants.primaryNavy,
+                        decoration: BoxDecoration(
+                          color: GameTheme.glowCyan,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -627,21 +642,22 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
                 ),
                 decoration: BoxDecoration(
                   color: homeIsWinner || awayIsWinner
-                      ? AppConstants.successGreen.withValues(alpha: 0.1)
-                      : !isPending
-                          ? Colors.grey[100]
-                          : Colors.grey[100],
+                      ? GameTheme.accentGreen.withValues(alpha: 0.15)
+                      : GameTheme.backgroundLight,
                   borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: homeIsWinner || awayIsWinner
+                        ? GameTheme.accentGreen.withValues(alpha: 0.3)
+                        : GameTheme.border,
+                  ),
                 ),
                 child: Text(
                   resultText,
                   style: TextStyle(
                     fontSize: 12,
                     color: homeIsWinner || awayIsWinner
-                        ? AppConstants.successGreen
-                        : !isPending
-                            ? Colors.grey[600]
-                            : Colors.grey[600],
+                        ? GameTheme.accentGreen
+                        : GameTheme.textMuted,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

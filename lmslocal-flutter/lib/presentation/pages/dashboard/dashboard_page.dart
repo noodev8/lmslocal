@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:lmslocal_flutter/core/config/app_config.dart';
+import 'package:flutter/services.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/core/errors/failures.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_source.dart';
@@ -105,29 +107,49 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Row(
+          backgroundColor: GameTheme.cardBackground,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: GameTheme.border),
+          ),
+          title: Row(
             children: [
-              Icon(Icons.group_add, color: AppConstants.primaryNavy),
-              SizedBox(width: 12),
-              Text('Join Competition'),
+              Icon(Icons.group_add, color: GameTheme.glowCyan),
+              const SizedBox(width: 12),
+              Text(
+                'Join Competition',
+                style: TextStyle(color: GameTheme.textPrimary),
+              ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Enter the invite code shared by the competition organiser',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(fontSize: 14, color: GameTheme.textMuted),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: codeController,
+                style: TextStyle(color: GameTheme.textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Invite Code',
+                  labelStyle: TextStyle(color: GameTheme.textMuted),
                   hintText: 'ABC123',
-                  border: const OutlineInputBorder(),
+                  hintStyle: TextStyle(color: GameTheme.textMuted.withValues(alpha: 0.5)),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: GameTheme.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: GameTheme.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: GameTheme.glowCyan),
+                  ),
                   errorText: errorMessage,
+                  errorStyle: TextStyle(color: GameTheme.accentRed),
                 ),
                 textCapitalization: TextCapitalization.characters,
                 enabled: !isLoading,
@@ -156,7 +178,7 @@ class _DashboardPageState extends State<DashboardPage> {
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              child: Text('Cancel', style: TextStyle(color: GameTheme.textMuted)),
             ),
             ElevatedButton(
               onPressed: (isLoading || codeController.text.trim().isEmpty)
@@ -169,16 +191,17 @@ class _DashboardPageState extends State<DashboardPage> {
                         (error) => errorMessage = error,
                       ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryNavy,
-                foregroundColor: Colors.white,
+                backgroundColor: GameTheme.glowCyan,
+                foregroundColor: GameTheme.background,
+                disabledBackgroundColor: GameTheme.border,
               ),
               child: isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
                       ),
                     )
                   : const Text('Join Competition'),
@@ -261,7 +284,7 @@ class _DashboardPageState extends State<DashboardPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
+        backgroundColor: GameTheme.background,
         appBar: widget.showAppBar
             ? AppBar(
                 title: Text(
@@ -270,22 +293,26 @@ class _DashboardPageState extends State<DashboardPage> {
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
-                    color: AppConstants.primaryNavy,
+                    color: GameTheme.textPrimary,
                   ),
                 ),
-                backgroundColor: Colors.white,
-                foregroundColor: AppConstants.primaryNavy,
+                backgroundColor: GameTheme.background,
+                foregroundColor: GameTheme.textPrimary,
                 automaticallyImplyLeading: false,
-                elevation: 0.5,
-                shadowColor: Colors.black.withValues(alpha: 0.1),
+                elevation: 0,
+                systemOverlayStyle: SystemUiOverlayStyle(
+                  statusBarColor: GameTheme.background,
+                  statusBarIconBrightness: Brightness.light,
+                  statusBarBrightness: Brightness.dark,
+                ),
                 actions: [
                   Container(
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color: AppConstants.primaryNavy.withValues(alpha: 0.08),
+                      color: GameTheme.cardBackground,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: AppConstants.primaryNavy.withValues(alpha: 0.15),
+                        color: GameTheme.border,
                         width: 1,
                       ),
                     ),
@@ -293,7 +320,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       icon: Icon(
                         Icons.person_outline,
                         size: 22,
-                        color: AppConstants.primaryNavy,
+                        color: GameTheme.textPrimary,
                       ),
                       onPressed: () => context.push('/profile'),
                       tooltip: 'Profile',
@@ -309,23 +336,14 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
+      return Center(
+        child: CircularProgressIndicator(color: GameTheme.glowCyan),
       );
     }
 
     if (_error != null) {
       return Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFFF5F7FA),  // Light blue-gray
-              const Color(0xFFFFFFFF),  // White
-            ],
-          ),
-        ),
+        color: GameTheme.background,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -333,7 +351,7 @@ class _DashboardPageState extends State<DashboardPage> {
               Icon(
                 Icons.error_outline,
                 size: 64,
-                color: Colors.grey[400],
+                color: GameTheme.textMuted,
               ),
               const SizedBox(height: 16),
               Padding(
@@ -343,7 +361,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
+                    color: GameTheme.textPrimary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -355,7 +373,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   _error!,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: GameTheme.textMuted,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -372,8 +390,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryNavy,
-                  foregroundColor: Colors.white,
+                  backgroundColor: GameTheme.glowCyan,
+                  foregroundColor: GameTheme.background,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 16,
@@ -381,7 +399,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 2,
+                  elevation: 0,
                 ),
               ),
             ],
@@ -392,16 +410,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     if (_competitions.isEmpty) {
       return Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFFF5F7FA),  // Light blue-gray
-              const Color(0xFFFFFFFF),  // White
-            ],
-          ),
-        ),
+        color: GameTheme.background,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -409,7 +418,7 @@ class _DashboardPageState extends State<DashboardPage> {
               Icon(
                 Icons.sports_soccer,
                 size: 80,
-                color: Colors.grey[300],
+                color: GameTheme.textMuted,
               ),
               const SizedBox(height: 24),
               Text(
@@ -417,7 +426,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+                  color: GameTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -427,7 +436,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   'Join a competition to get started with Last Man Standing!',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey[600],
+                    color: GameTheme.textMuted,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -444,8 +453,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryNavy,
-                  foregroundColor: Colors.white,
+                  backgroundColor: GameTheme.glowCyan,
+                  foregroundColor: GameTheme.background,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 16,
@@ -453,7 +462,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 2,
+                  elevation: 0,
                 ),
               ),
             ],
@@ -464,23 +473,14 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      color: Colors.white,
+      color: GameTheme.glowCyan,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Container(
           constraints: BoxConstraints(
             minHeight: MediaQuery.of(context).size.height,
           ),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                const Color(0xFFF5F7FA),  // Light blue-gray
-                const Color(0xFFFFFFFF),  // White
-              ],
-            ),
-          ),
+          color: GameTheme.background,
           child: Padding(
             padding: const EdgeInsets.all(AppConstants.paddingMedium),
             child: Column(
@@ -498,10 +498,10 @@ class _DashboardPageState extends State<DashboardPage> {
                         'Join Competition',
                         style: TextStyle(
                           fontSize: 16,
-                          color: AppConstants.primaryNavy,
+                          color: GameTheme.glowCyan,
                           fontWeight: FontWeight.w500,
                           decoration: TextDecoration.underline,
-                          decorationColor: AppConstants.primaryNavy,
+                          decorationColor: GameTheme.glowCyan,
                         ),
                       ),
                     ),
@@ -524,28 +524,23 @@ class _DashboardPageState extends State<DashboardPage> {
     final hasWinner = isComplete && competition.winnerName != null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 32),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: needsPick
-              ? const Color(0xFF4CAF50)
-              : Colors.grey[300]!,
-          width: needsPick ? 3 : 2,
+              ? GameTheme.accentGreen
+              : GameTheme.glowCyan.withValues(alpha: 0.6),
+          width: needsPick ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
             color: needsPick
-                ? const Color(0xFF4CAF50).withValues(alpha: 0.25)
-                : Colors.black.withValues(alpha: 0.15),
+                ? GameTheme.accentGreen.withValues(alpha: 0.4)
+                : GameTheme.glowCyan.withValues(alpha: 0.25),
             blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            spreadRadius: 2,
           ),
         ],
       ),
@@ -570,7 +565,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         style: TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey[900],
+                          color: GameTheme.textPrimary,
                         ),
                       ),
                     ),
@@ -581,10 +576,10 @@ class _DashboardPageState extends State<DashboardPage> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: AppConstants.primaryNavy.withValues(alpha: 0.1),
+                          color: GameTheme.glowCyan.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: AppConstants.primaryNavy.withValues(alpha: 0.2),
+                            color: GameTheme.glowCyan.withValues(alpha: 0.3),
                             width: 1,
                           ),
                         ),
@@ -593,7 +588,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: AppConstants.primaryNavy,
+                            color: GameTheme.glowCyan,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -608,18 +603,18 @@ class _DashboardPageState extends State<DashboardPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
+                        color: GameTheme.accentGreen.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          width: 1.5,
+                          color: GameTheme.accentGreen.withValues(alpha: 0.3),
+                          width: 1,
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.notification_important,
-                            color: Colors.grey[900],
+                            color: GameTheme.accentGreen,
                             size: 20,
                           ),
                           const SizedBox(width: 8),
@@ -627,7 +622,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             'Pick Needed',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[900],
+                              color: GameTheme.accentGreen,
                               fontSize: 15,
                             ),
                           ),
@@ -639,7 +634,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       children: [
                         Icon(
                           Icons.check_circle,
-                          color: Colors.grey[700],
+                          color: GameTheme.textMuted,
                           size: 16,
                         ),
                         const SizedBox(width: 4),
@@ -647,7 +642,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           'Up to date',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[700],
+                            color: GameTheme.textMuted,
                           ),
                         ),
                       ],
@@ -661,28 +656,28 @@ class _DashboardPageState extends State<DashboardPage> {
                     Icon(
                       Icons.people,
                       size: 16,
-                      color: Colors.grey[700],
+                      color: GameTheme.textMuted,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${competition.playerCount} active',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[700],
+                        color: GameTheme.textSecondary,
                       ),
                     ),
                     const SizedBox(width: 16),
                     Icon(
                       Icons.bar_chart,
                       size: 16,
-                      color: Colors.grey[700],
+                      color: GameTheme.textMuted,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       'Round ${competition.currentRound}',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[700],
+                        color: GameTheme.textSecondary,
                       ),
                     ),
                   ],
@@ -694,16 +689,11 @@ class _DashboardPageState extends State<DashboardPage> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF64B5F6).withValues(alpha: 0.3),
-                          const Color(0xFF42A5F5).withValues(alpha: 0.2),
-                        ],
-                      ),
+                      color: GameTheme.glowCyan.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: const Color(0xFF64B5F6).withValues(alpha: 0.5),
-                        width: 1.5,
+                        color: GameTheme.glowCyan.withValues(alpha: 0.3),
+                        width: 1,
                       ),
                     ),
                     child: Row(
@@ -712,7 +702,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           'Player Invite Code',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[700],
+                            color: GameTheme.textMuted,
                             fontWeight: FontWeight.w500,
                             letterSpacing: 0.5,
                           ),
@@ -724,7 +714,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 3,
-                            color: Colors.grey[900],
+                            color: GameTheme.glowCyan,
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -732,7 +722,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         Icon(
                           Icons.copy,
                           size: 18,
-                          color: Colors.grey[700],
+                          color: GameTheme.textMuted,
                         ),
                       ],
                     ),
@@ -745,31 +735,19 @@ class _DashboardPageState extends State<DashboardPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: hasWinner
-                            ? [
-                                const Color(0xFFFFD700).withValues(alpha: 0.35),
-                                const Color(0xFFFFA500).withValues(alpha: 0.25),
-                              ]
-                            : [
-                                Colors.white.withValues(alpha: 0.2),
-                                Colors.white.withValues(alpha: 0.12),
-                              ],
-                      ),
+                      color: GameTheme.accentGreen.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: hasWinner
-                            ? const Color(0xFFFFD700).withValues(alpha: 0.5)
-                            : Colors.white.withValues(alpha: 0.3),
-                        width: 1.5,
+                        color: GameTheme.accentGreen.withValues(alpha: 0.3),
+                        width: 1,
                       ),
                     ),
                     child: Row(
                       children: [
                         if (hasWinner)
                           Icon(
-                            Icons.emoji_events,
-                            color: Colors.grey[900],
+                            Icons.emoji_events_outlined,
+                            color: GameTheme.glowCyan,
                             size: 18,
                           ),
                         if (hasWinner) const SizedBox(width: 8),
@@ -777,7 +755,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           hasWinner ? 'Winner:' : 'Result:',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[700],
+                            color: GameTheme.textMuted,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -788,7 +766,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[900],
+                              color: GameTheme.accentGreen,
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -806,7 +784,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     onPressed: () {
                       context.go('/competition/${competition.id}', extra: competition);
                     },
-                    icon: const Icon(Icons.bar_chart, size: 18),
+                    icon: const Icon(Icons.arrow_forward, size: 18),
                     label: Text(
                       competition.isOrganiser ? 'Manage Competition' : 'View Competition',
                       style: const TextStyle(
@@ -815,13 +793,13 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConstants.primaryNavy,
-                      foregroundColor: Colors.white,
+                      backgroundColor: GameTheme.glowCyan,
+                      foregroundColor: GameTheme.background,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      elevation: 2,
+                      elevation: 0,
                     ),
                   ),
                 ),
@@ -838,19 +816,13 @@ class _DashboardPageState extends State<DashboardPage> {
       padding: const EdgeInsets.only(top: 16, bottom: 64),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: GameTheme.cardBackground,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Colors.grey[300]!,
+            color: GameTheme.border,
             width: 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: GameTheme.borderGlowShadow,
         ),
         child: Material(
           color: Colors.transparent,
@@ -864,7 +836,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Icon(
                     Icons.language,
                     size: 20,
-                    color: AppConstants.primaryNavy,
+                    color: GameTheme.glowCyan,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -875,7 +847,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           'Want to organize your own competition?',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey[800],
+                            color: GameTheme.textPrimary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -884,7 +856,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           'Visit our web platform',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: GameTheme.textMuted,
                           ),
                         ),
                       ],
@@ -893,7 +865,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Icon(
                     Icons.arrow_forward_ios,
                     size: 14,
-                    color: Colors.grey[500],
+                    color: GameTheme.textMuted,
                   ),
                 ],
               ),

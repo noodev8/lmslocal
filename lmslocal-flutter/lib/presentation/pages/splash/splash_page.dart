@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 import 'package:lmslocal_flutter/presentation/widgets/update_required_dialog.dart';
@@ -113,27 +113,27 @@ class _SplashPageState extends State<SplashPage> {
     return BlocListener<AuthBloc, AuthState>(
       listener: _handleAuthStateChange,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: GameTheme.background,
         body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // LMS Local Logo
-            Image.asset(
-              'assets/images/logo.png',
-              width: 200,
-              height: 200,
-            ),
-            const SizedBox(height: 24),
-            // Loading indicator
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                AppConstants.primaryNavy,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // LMS Local Logo
+              Image.asset(
+                'assets/images/logo.png',
+                width: 200,
+                height: 200,
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+              // Loading indicator
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  GameTheme.glowCyan,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

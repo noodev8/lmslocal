@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/repositories/auth_repository.dart';
@@ -474,53 +475,61 @@ class _ProfilePageState extends State<ProfilePage> {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         if (state is! AuthAuthenticated) {
-          return const Center(child: CircularProgressIndicator());
+          return Container(
+            color: GameTheme.background,
+            child: Center(
+              child: CircularProgressIndicator(color: GameTheme.glowCyan),
+            ),
+          );
         }
 
         final user = state.user;
         _displayNameController.text = user.displayName;
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(AppConstants.paddingMedium),
-          child: Column(
-            children: [
-              // Profile Header
-              _buildProfileHeader(user),
-              const SizedBox(height: 16),
+        return Container(
+          color: GameTheme.background,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppConstants.paddingMedium),
+            child: Column(
+              children: [
+                // Profile Header
+                _buildProfileHeader(user),
+                const SizedBox(height: 16),
 
-              // Display Name Card
-              _buildDisplayNameCard(user),
-              const SizedBox(height: 12),
+                // Display Name Card
+                _buildDisplayNameCard(user),
+                const SizedBox(height: 12),
 
-              // Competition Display Names Card
-              _buildCompetitionNamesCard(user),
-              const SizedBox(height: 12),
+                // Competition Display Names Card
+                _buildCompetitionNamesCard(user),
+                const SizedBox(height: 12),
 
-              // Notifications Card
-              _buildNotificationsCard(),
-              const SizedBox(height: 12),
+                // Notifications Card
+                _buildNotificationsCard(),
+                const SizedBox(height: 12),
 
-              // Change Password Card
-              _buildChangePasswordCard(),
-              const SizedBox(height: 12),
+                // Change Password Card
+                _buildChangePasswordCard(),
+                const SizedBox(height: 12),
 
-              // Danger Zone Card
-              _buildDangerZoneCard(),
-              const SizedBox(height: 12),
+                // Danger Zone Card
+                _buildDangerZoneCard(),
+                const SizedBox(height: 12),
 
-              // Logout Button
-              _buildLogoutButton(),
-              const SizedBox(height: 16),
+                // Logout Button
+                _buildLogoutButton(),
+                const SizedBox(height: 16),
 
-              // App Version
-              Text(
-                'Version ${AppConstants.appVersion}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[400],
+                // App Version
+                Text(
+                  'Version ${AppConstants.appVersion}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: GameTheme.textMuted,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -528,10 +537,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileHeader(dynamic user) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        border: Border.all(color: GameTheme.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.paddingLarge),
@@ -540,15 +550,15 @@ class _ProfilePageState extends State<ProfilePage> {
             // Avatar
             CircleAvatar(
               radius: 32,
-              backgroundColor: AppConstants.primaryNavy,
+              backgroundColor: GameTheme.glowCyan,
               child: Text(
                 user.displayName.isNotEmpty
                     ? user.displayName[0].toUpperCase()
                     : 'U',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: GameTheme.background,
                 ),
               ),
             ),
@@ -560,9 +570,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Text(
                     user.displayName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: GameTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -570,7 +581,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     user.email,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: GameTheme.textMuted,
                     ),
                   ),
                 ],
@@ -583,63 +594,77 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildDisplayNameCard(dynamic user) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        border: Border.all(color: GameTheme.border),
       ),
-      child: ExpansionTile(
-        leading: Icon(Icons.person, color: AppConstants.primaryNavy),
-        title: const Text('Display Name'),
-        subtitle: Text(_isEditingDisplayName ? 'Editing...' : user.displayName),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppConstants.paddingMedium),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: _displayNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Display Name',
-                    border: OutlineInputBorder(),
-                  ),
-                  enabled: !_isSavingDisplayName,
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: _isSavingDisplayName
-                      ? null
-                      : () => _updateDisplayName(user.displayName),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryNavy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: _isSavingDisplayName
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text('Save Changes'),
-                ),
-              ],
-            ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Icon(Icons.person, color: GameTheme.glowCyan),
+          title: Text('Display Name', style: TextStyle(color: GameTheme.textPrimary)),
+          subtitle: Text(
+            _isEditingDisplayName ? 'Editing...' : user.displayName,
+            style: TextStyle(color: GameTheme.textMuted),
           ),
-        ],
+          iconColor: GameTheme.textMuted,
+          collapsedIconColor: GameTheme.textMuted,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppConstants.paddingMedium),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _displayNameController,
+                    style: TextStyle(color: GameTheme.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: 'Display Name',
+                      labelStyle: TextStyle(color: GameTheme.textMuted),
+                      border: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.glowCyan)),
+                    ),
+                    enabled: !_isSavingDisplayName,
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _isSavingDisplayName
+                        ? null
+                        : () => _updateDisplayName(user.displayName),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GameTheme.glowCyan,
+                      foregroundColor: GameTheme.background,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: _isSavingDisplayName
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
+                            ),
+                          )
+                        : const Text('Save Changes'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildCompetitionNamesCard(dynamic user) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        border: Border.all(color: GameTheme.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.paddingLarge),
@@ -648,23 +673,24 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Row(
               children: [
-                Icon(Icons.badge, color: AppConstants.primaryNavy),
+                Icon(Icons.badge, color: GameTheme.glowCyan),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Competition Display Names',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: GameTheme.textPrimary,
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Set different display names for each competition you play in',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              style: TextStyle(fontSize: 13, color: GameTheme.textMuted),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -674,8 +700,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 icon: const Icon(Icons.edit, size: 18),
                 label: const Text('Manage Competition Names'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[600],
-                  foregroundColor: Colors.white,
+                  backgroundColor: GameTheme.backgroundLight,
+                  foregroundColor: GameTheme.textPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -861,245 +887,275 @@ class _ProfilePageState extends State<ProfilePage> {
     final global = _emailPreferences?['global'] as Map<String, dynamic>?;
     final competitionSpecific = _emailPreferences?['competition_specific'] as List?;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        border: Border.all(color: GameTheme.border),
       ),
-      child: ExpansionTile(
-        leading: Icon(Icons.notifications, color: AppConstants.primaryNavy),
-        title: const Text('Notifications'),
-        subtitle: const Text('Manage your preferences'),
-        children: [
-          if (_isLoadingPreferences)
-            const Padding(
-              padding: EdgeInsets.all(AppConstants.paddingLarge),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (global != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingMedium),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      'Global Settings',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  // All Emails
-                  SwitchListTile(
-                    title: const Text('All Email Notifications'),
-                    subtitle: const Text('Master switch for all emails'),
-                    value: _getPreferenceValue('global_all', global['all_emails'] ?? true),
-                    onChanged: (value) => _toggleEmailPreference('global_all', global['all_emails'] ?? true),
-                    activeTrackColor: AppConstants.primaryNavy,
-                  ),
-                  // Pick Reminders
-                  SwitchListTile(
-                    title: const Text('Pick Reminders'),
-                    value: _getPreferenceValue('global_pick_reminder', global['pick_reminder'] ?? true),
-                    onChanged: (value) => _toggleEmailPreference('global_pick_reminder', global['pick_reminder'] ?? true),
-                    activeTrackColor: AppConstants.primaryNavy,
-                  ),
-                  // Results
-                  SwitchListTile(
-                    title: const Text('Results Notifications'),
-                    value: _getPreferenceValue('global_results', global['results'] ?? true),
-                    onChanged: (value) => _toggleEmailPreference('global_results', global['results'] ?? true),
-                    activeTrackColor: AppConstants.primaryNavy,
-                  ),
-
-                  // Per-competition
-                  if (competitionSpecific != null && competitionSpecific.isNotEmpty) ...[
-                    const Divider(),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Icon(Icons.notifications, color: GameTheme.glowCyan),
+          title: Text('Notifications', style: TextStyle(color: GameTheme.textPrimary)),
+          subtitle: Text('Manage your preferences', style: TextStyle(color: GameTheme.textMuted)),
+          iconColor: GameTheme.textMuted,
+          collapsedIconColor: GameTheme.textMuted,
+          children: [
+            if (_isLoadingPreferences)
+              Padding(
+                padding: const EdgeInsets.all(AppConstants.paddingLarge),
+                child: Center(child: CircularProgressIndicator(color: GameTheme.glowCyan)),
+              )
+            else if (global != null) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingMedium),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        'Enable competition emails for:',
+                        'Global Settings',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
+                          color: GameTheme.textPrimary,
                         ),
                       ),
                     ),
-                    ...competitionSpecific.map((comp) {
-                      final compId = comp['competition_id'] as int;
-                      final compName = comp['personal_name'] ?? comp['competition_name'] ?? 'Competition $compId';
-                      final allEmails = comp['all_emails'] ?? true;
-
-                      return SwitchListTile(
-                        title: Text(compName),
-                        value: _getPreferenceValue('comp_$compId', allEmails),
-                        onChanged: (value) => _toggleEmailPreference('comp_$compId', allEmails),
-                        activeTrackColor: AppConstants.primaryNavy,
-                      );
-                    }),
-                  ],
-
-                  // Save button
-                  if (_pendingPreferenceChanges.isNotEmpty) ...[
-                    const Divider(),
-                    Padding(
-                      padding: const EdgeInsets.all(AppConstants.paddingMedium),
-                      child: ElevatedButton(
-                        onPressed: _isSavingPreferences ? null : _saveEmailPreferences,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConstants.primaryNavy,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: _isSavingPreferences
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Text('Update Notifications'),
-                      ),
+                    // All Emails
+                    SwitchListTile(
+                      title: Text('All Email Notifications', style: TextStyle(color: GameTheme.textPrimary)),
+                      subtitle: Text('Master switch for all emails', style: TextStyle(color: GameTheme.textMuted)),
+                      value: _getPreferenceValue('global_all', global['all_emails'] ?? true),
+                      onChanged: (value) => _toggleEmailPreference('global_all', global['all_emails'] ?? true),
+                      activeTrackColor: GameTheme.glowCyan,
                     ),
+                    // Pick Reminders
+                    SwitchListTile(
+                      title: Text('Pick Reminders', style: TextStyle(color: GameTheme.textPrimary)),
+                      value: _getPreferenceValue('global_pick_reminder', global['pick_reminder'] ?? true),
+                      onChanged: (value) => _toggleEmailPreference('global_pick_reminder', global['pick_reminder'] ?? true),
+                      activeTrackColor: GameTheme.glowCyan,
+                    ),
+                    // Results
+                    SwitchListTile(
+                      title: Text('Results Notifications', style: TextStyle(color: GameTheme.textPrimary)),
+                      value: _getPreferenceValue('global_results', global['results'] ?? true),
+                      onChanged: (value) => _toggleEmailPreference('global_results', global['results'] ?? true),
+                      activeTrackColor: GameTheme.glowCyan,
+                    ),
+
+                    // Per-competition
+                    if (competitionSpecific != null && competitionSpecific.isNotEmpty) ...[
+                      Divider(color: GameTheme.border),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'Enable competition emails for:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: GameTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      ...competitionSpecific.map((comp) {
+                        final compId = comp['competition_id'] as int;
+                        final compName = comp['personal_name'] ?? comp['competition_name'] ?? 'Competition $compId';
+                        final allEmails = comp['all_emails'] ?? true;
+
+                        return SwitchListTile(
+                          title: Text(compName, style: TextStyle(color: GameTheme.textPrimary)),
+                          value: _getPreferenceValue('comp_$compId', allEmails),
+                          onChanged: (value) => _toggleEmailPreference('comp_$compId', allEmails),
+                          activeTrackColor: GameTheme.glowCyan,
+                        );
+                      }),
+                    ],
+
+                    // Save button
+                    if (_pendingPreferenceChanges.isNotEmpty) ...[
+                      Divider(color: GameTheme.border),
+                      Padding(
+                        padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                        child: ElevatedButton(
+                          onPressed: _isSavingPreferences ? null : _saveEmailPreferences,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: GameTheme.glowCyan,
+                            foregroundColor: GameTheme.background,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: _isSavingPreferences
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
+                                  ),
+                                )
+                              : const Text('Update Notifications'),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildChangePasswordCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        border: Border.all(color: GameTheme.border),
       ),
-      child: ExpansionTile(
-        leading: Icon(Icons.lock, color: AppConstants.primaryNavy),
-        title: const Text('Change Password'),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppConstants.paddingMedium),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Current Password
-                TextField(
-                  controller: _currentPasswordController,
-                  obscureText: !_showCurrentPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Current Password',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(_showCurrentPassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _showCurrentPassword = !_showCurrentPassword),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Icon(Icons.lock, color: GameTheme.glowCyan),
+          title: Text('Change Password', style: TextStyle(color: GameTheme.textPrimary)),
+          iconColor: GameTheme.textMuted,
+          collapsedIconColor: GameTheme.textMuted,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppConstants.paddingMedium),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Current Password
+                  TextField(
+                    controller: _currentPasswordController,
+                    obscureText: !_showCurrentPassword,
+                    style: TextStyle(color: GameTheme.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: 'Current Password',
+                      labelStyle: TextStyle(color: GameTheme.textMuted),
+                      border: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.glowCyan)),
+                      suffixIcon: IconButton(
+                        icon: Icon(_showCurrentPassword ? Icons.visibility_off : Icons.visibility, color: GameTheme.textMuted),
+                        onPressed: () => setState(() => _showCurrentPassword = !_showCurrentPassword),
+                      ),
                     ),
+                    enabled: !_isChangingPassword,
                   ),
-                  enabled: !_isChangingPassword,
-                ),
-                const SizedBox(height: 12),
-                // New Password
-                TextField(
-                  controller: _newPasswordController,
-                  obscureText: !_showNewPassword,
-                  decoration: InputDecoration(
-                    labelText: 'New Password',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(_showNewPassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _showNewPassword = !_showNewPassword),
+                  const SizedBox(height: 12),
+                  // New Password
+                  TextField(
+                    controller: _newPasswordController,
+                    obscureText: !_showNewPassword,
+                    style: TextStyle(color: GameTheme.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      labelStyle: TextStyle(color: GameTheme.textMuted),
+                      border: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.glowCyan)),
+                      suffixIcon: IconButton(
+                        icon: Icon(_showNewPassword ? Icons.visibility_off : Icons.visibility, color: GameTheme.textMuted),
+                        onPressed: () => setState(() => _showNewPassword = !_showNewPassword),
+                      ),
                     ),
+                    enabled: !_isChangingPassword,
                   ),
-                  enabled: !_isChangingPassword,
-                ),
-                const SizedBox(height: 12),
-                // Confirm Password
-                TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: !_showConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirm New Password',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(_showConfirmPassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _showConfirmPassword = !_showConfirmPassword),
+                  const SizedBox(height: 12),
+                  // Confirm Password
+                  TextField(
+                    controller: _confirmPasswordController,
+                    obscureText: !_showConfirmPassword,
+                    style: TextStyle(color: GameTheme.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      labelStyle: TextStyle(color: GameTheme.textMuted),
+                      border: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.glowCyan)),
+                      suffixIcon: IconButton(
+                        icon: Icon(_showConfirmPassword ? Icons.visibility_off : Icons.visibility, color: GameTheme.textMuted),
+                        onPressed: () => setState(() => _showConfirmPassword = !_showConfirmPassword),
+                      ),
                     ),
+                    enabled: !_isChangingPassword,
                   ),
-                  enabled: !_isChangingPassword,
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: _isChangingPassword ? null : _changePassword,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryNavy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _isChangingPassword ? null : _changePassword,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GameTheme.glowCyan,
+                      foregroundColor: GameTheme.background,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: _isChangingPassword
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
+                            ),
+                          )
+                        : const Text('Change Password'),
                   ),
-                  child: _isChangingPassword
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text('Change Password'),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildDangerZoneCard() {
-    return Card(
-      elevation: 2,
-      color: Colors.red[50],
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: GameTheme.accentRed.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-        side: BorderSide(color: AppConstants.errorRed.withValues(alpha: 0.3)),
+        border: Border.all(color: GameTheme.accentRed.withValues(alpha: 0.4)),
       ),
-      child: ExpansionTile(
-        leading: Icon(Icons.warning_amber, color: AppConstants.errorRed),
-        title: const Text(
-          'Danger Zone',
-          style: TextStyle(color: AppConstants.errorRed, fontWeight: FontWeight.bold),
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppConstants.paddingMedium),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Delete your account and all associated data permanently. This action cannot be undone.',
-                  style: TextStyle(color: AppConstants.errorRed),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: _showDeleteAccountDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.errorRed,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('Delete My Account'),
-                ),
-              ],
-            ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Icon(Icons.warning_amber, color: GameTheme.accentRed),
+          title: Text(
+            'Danger Zone',
+            style: TextStyle(color: GameTheme.accentRed, fontWeight: FontWeight.bold),
           ),
-        ],
+          iconColor: GameTheme.accentRed,
+          collapsedIconColor: GameTheme.accentRed,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppConstants.paddingMedium),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Delete your account and all associated data permanently. This action cannot be undone.',
+                    style: TextStyle(color: GameTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _showDeleteAccountDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GameTheme.accentRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Delete My Account'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1111,18 +1167,18 @@ class _ProfilePageState extends State<ProfilePage> {
         onPressed: _showLogoutDialog,
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          side: BorderSide(color: AppConstants.primaryNavy),
+          side: BorderSide(color: GameTheme.glowCyan),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
           ),
         ),
-        icon: Icon(Icons.logout, color: AppConstants.primaryNavy),
+        icon: Icon(Icons.logout, color: GameTheme.glowCyan),
         label: Text(
           'Logout',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: AppConstants.primaryNavy,
+            color: GameTheme.glowCyan,
           ),
         ),
       ),
