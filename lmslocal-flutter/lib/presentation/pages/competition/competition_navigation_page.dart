@@ -75,14 +75,9 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) {
-            // If Home tab is tapped, navigate to main dashboard
-            if (index == 0) {
-              context.go('/dashboard');
-            } else {
-              setState(() {
-                _currentIndex = index;
-              });
-            }
+            setState(() {
+              _currentIndex = index;
+            });
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: GameTheme.background,
@@ -90,9 +85,9 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
           unselectedItemColor: GameTheme.textMuted,
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
+              icon: Icon(Icons.dashboard_outlined),
+              activeIcon: Icon(Icons.dashboard),
+              label: 'Game',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.sports_soccer_outlined),
