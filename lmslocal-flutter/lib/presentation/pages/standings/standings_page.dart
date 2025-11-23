@@ -15,11 +15,13 @@ import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 class StandingsPage extends StatefulWidget {
   final String competitionId;
   final String competitionName;
+  final String? playerDisplayName;
 
   const StandingsPage({
     super.key,
     required this.competitionId,
     this.competitionName = '',
+    this.playerDisplayName,
   });
 
   @override
@@ -306,10 +308,10 @@ class _StandingsPageState extends State<StandingsPage> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
-                        // Create minimal player object for current user
+                        // Use competition display name if available, fallback to account name
                         final currentUserPlayer = StandingsPlayer(
                           id: _currentUser!.id,
-                          displayName: _currentUser!.displayName,
+                          displayName: widget.playerDisplayName ?? _currentUser!.displayName,
                           livesRemaining: 0,
                           status: 'unknown',
                         );
@@ -799,7 +801,7 @@ class _StandingsPageState extends State<StandingsPage> {
                               ? GameTheme.accentGreen
                               : player.currentPick!.outcome == 'lost'
                                   ? GameTheme.accentRed
-                                  : GameTheme.textMuted,
+                                  : GameTheme.textPrimary.withValues(alpha: 0.6),
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -807,7 +809,7 @@ class _StandingsPageState extends State<StandingsPage> {
                             player.currentPick!.team,
                             style: TextStyle(
                               fontSize: 13,
-                              color: GameTheme.textSecondary,
+                              color: GameTheme.textPrimary.withValues(alpha: 0.8),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -820,7 +822,7 @@ class _StandingsPageState extends State<StandingsPage> {
                       'Out: Round ${player.eliminationPick!.roundNumber}',
                       style: TextStyle(
                         fontSize: 13,
-                        color: GameTheme.textMuted,
+                        color: GameTheme.textPrimary.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -832,7 +834,7 @@ class _StandingsPageState extends State<StandingsPage> {
             Icon(
               Icons.chevron_right,
               size: 20,
-              color: GameTheme.textMuted,
+              color: GameTheme.textPrimary.withValues(alpha: 0.5),
             ),
           ],
         ),

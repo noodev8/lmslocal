@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 
 /// Section for organizers to invite players to their competition
@@ -27,15 +27,9 @@ $inviteCode''';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: GameTheme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,12 +39,12 @@ $inviteCode''';
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryNavy.withValues(alpha: 0.1),
+                  color: GameTheme.glowCyan.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.group_add,
-                  color: AppConstants.primaryNavy,
+                  color: GameTheme.glowCyan,
                   size: 20,
                 ),
               ),
@@ -60,46 +54,11 @@ $inviteCode''';
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: AppConstants.primaryNavy,
+                  color: GameTheme.textPrimary,
                 ),
               ),
             ],
           ),
-
-          if (competition.playerCount < 5) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.orange[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.orange[200]!,
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Colors.orange[700],
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Add more players to start',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange[900],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
 
           const SizedBox(height: 16),
 
@@ -107,10 +66,10 @@ $inviteCode''';
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: GameTheme.backgroundLight,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.grey[300]!,
+                color: GameTheme.border,
                 width: 1.5,
               ),
             ),
@@ -124,16 +83,16 @@ $inviteCode''';
                     fontWeight: FontWeight.bold,
                     letterSpacing: 4,
                     fontFamily: 'monospace',
-                    color: AppConstants.primaryNavy,
+                    color: GameTheme.glowCyan,
                   ),
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryNavy.withValues(alpha: 0.1),
+                    color: GameTheme.glowCyan.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: IconButton(
-                    icon: Icon(Icons.copy, color: AppConstants.primaryNavy),
+                    icon: Icon(Icons.copy, color: GameTheme.glowCyan),
                     onPressed: () => onCopyToClipboard(inviteCode, 'Invite code'),
                     tooltip: 'Copy Code',
                   ),
@@ -158,13 +117,13 @@ $inviteCode''';
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryNavy,
-                foregroundColor: Colors.white,
+                backgroundColor: GameTheme.glowCyan,
+                foregroundColor: GameTheme.background,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                elevation: 2,
+                elevation: 0,
               ),
             ),
           ),

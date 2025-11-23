@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/competition_home_page.dart';
@@ -36,13 +37,20 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
   void initState() {
     super.initState();
 
+    // Extract playerDisplayName from competition if available
+    final competition = widget.competition as Competition?;
+    final playerDisplayName = competition?.playerDisplayName;
+
     _pages = [
       CompetitionHomePage(
         competitionId: widget.competitionId,
         initialCompetition: widget.competition,
       ),
       PlayPage(competitionId: widget.competitionId),
-      StandingsPage(competitionId: widget.competitionId),
+      StandingsPage(
+        competitionId: widget.competitionId,
+        playerDisplayName: playerDisplayName,
+      ),
       const ProfilePage(),
     ];
   }

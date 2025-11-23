@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/pick_statistics.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 
@@ -24,15 +25,9 @@ class PickStatusCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: GameTheme.cardBackground,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          border: Border.all(color: GameTheme.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,12 +37,12 @@ class PickStatusCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD1F2EB),
+                    color: GameTheme.accentGreen.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.check_circle_outline,
-                    color: Color(0xFF00897B),
+                    color: GameTheme.accentGreen,
                     size: 20,
                   ),
                 ),
@@ -55,18 +50,19 @@ class PickStatusCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Round ${round.roundNumber} Picks',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: GameTheme.textPrimary,
                     ),
                   ),
                 ),
                 Text(
                   '${stats.pickPercentage.floor()}%',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF00897B),
+                    color: GameTheme.accentGreen,
                   ),
                 ),
               ],
@@ -79,9 +75,9 @@ class PickStatusCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: stats.pickPercentage / 100,
                 minHeight: 10,
-                backgroundColor: Colors.grey[200],
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF00897B),
+                backgroundColor: GameTheme.backgroundLight,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  GameTheme.accentGreen,
                 ),
               ),
             ),
@@ -91,7 +87,7 @@ class PickStatusCard extends StatelessWidget {
               '${stats.playersWithPicks} of ${stats.totalActivePlayers} players have picked',
               style: TextStyle(
                 fontSize: 13,
-                color: Colors.grey[600],
+                color: GameTheme.textSecondary,
               ),
             ),
           ],

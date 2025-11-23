@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/pick_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
@@ -253,7 +254,7 @@ class _PickPageState extends State<PickPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator(color: GameTheme.glowCyan));
     }
 
     if (_error != null) {
@@ -261,18 +262,18 @@ class _PickPageState extends State<PickPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            Icon(Icons.error_outline, size: 64, color: GameTheme.textMuted),
             const SizedBox(height: 16),
             Text(
               'Failed to load',
-              style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 18, color: GameTheme.textPrimary),
             ),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
                 _error!,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 14, color: GameTheme.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -282,8 +283,8 @@ class _PickPageState extends State<PickPage> {
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryNavy,
-                foregroundColor: Colors.white,
+                backgroundColor: GameTheme.glowCyan,
+                foregroundColor: GameTheme.background,
               ),
             ),
           ],
@@ -293,7 +294,7 @@ class _PickPageState extends State<PickPage> {
 
     return RefreshIndicator(
       onRefresh: _loadPickData,
-      color: AppConstants.primaryNavy,
+      color: GameTheme.glowCyan,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -326,8 +327,9 @@ class _PickPageState extends State<PickPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppConstants.primaryNavy.withValues(alpha: 0.05),
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: GameTheme.border),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -337,10 +339,10 @@ class _PickPageState extends State<PickPage> {
             children: [
               Text(
                 'Round ${widget.round.roundNumber}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppConstants.primaryNavy,
+                  color: GameTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -348,7 +350,7 @@ class _PickPageState extends State<PickPage> {
                 '${widget.round.fixtureCount} fixtures',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: GameTheme.textSecondary,
                 ),
               ),
             ],
@@ -360,15 +362,15 @@ class _PickPageState extends State<PickPage> {
                 'Deadline',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: GameTheme.textSecondary,
                 ),
               ),
               Text(
                 deadline,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: AppConstants.primaryNavy,
+                  color: GameTheme.glowCyan,
                 ),
               ),
             ],
@@ -381,22 +383,16 @@ class _PickPageState extends State<PickPage> {
   Widget _buildFixturesList() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: GameTheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: GameTheme.border),
       ),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         itemCount: _fixtures.length,
-        separatorBuilder: (context, index) => const Divider(height: 32),
+        separatorBuilder: (context, index) => Divider(height: 32, color: GameTheme.border),
         itemBuilder: (context, index) {
           final fixture = _fixtures[index];
           return _buildFixtureRow(fixture);
@@ -425,7 +421,7 @@ class _PickPageState extends State<PickPage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+              color: GameTheme.textMuted,
             ),
           ),
         ),
@@ -471,16 +467,16 @@ class _PickPageState extends State<PickPage> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isDisabled
-                  ? Colors.grey[300]
+                  ? GameTheme.backgroundLight
                   : (isSelected || isCurrentPick)
-                      ? Colors.blue[50]
-                      : Colors.white,
+                      ? GameTheme.glowCyan.withValues(alpha: 0.15)
+                      : GameTheme.cardBackground,
               border: Border.all(
                 color: (isSelected || isCurrentPick)
-                    ? Colors.blue
+                    ? GameTheme.glowCyan
                     : isDisabled
-                        ? Colors.grey[400]!
-                        : Colors.grey[300]!,
+                        ? GameTheme.border
+                        : GameTheme.border,
                 width: (isSelected || isCurrentPick) ? 2 : 1,
               ),
               borderRadius: BorderRadius.circular(12),
@@ -491,7 +487,7 @@ class _PickPageState extends State<PickPage> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: isDisabled ? Colors.grey[400] : Colors.black,
+                  color: isDisabled ? GameTheme.textMuted : GameTheme.textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -505,13 +501,13 @@ class _PickPageState extends State<PickPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryNavy,
+                  color: GameTheme.glowCyan,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
+                child: Text(
                   'PICK',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: GameTheme.background,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -527,9 +523,9 @@ class _PickPageState extends State<PickPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppConstants.successGreen.withValues(alpha: 0.1),
+        color: GameTheme.accentGreen.withValues(alpha: 0.15),
         border: Border.all(
-          color: AppConstants.successGreen.withValues(alpha: 0.3),
+          color: GameTheme.accentGreen.withValues(alpha: 0.3),
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -537,10 +533,10 @@ class _PickPageState extends State<PickPage> {
         children: [
           Text(
             'Confirm your pick: ${_getFullTeamName(_selectedTeam!.teamShort)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppConstants.successGreen,
+              color: GameTheme.accentGreen,
             ),
             textAlign: TextAlign.center,
           ),
@@ -551,17 +547,17 @@ class _PickPageState extends State<PickPage> {
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submitPick,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryNavy,
-                    foregroundColor: Colors.white,
+                    backgroundColor: GameTheme.accentGreen,
+                    foregroundColor: GameTheme.background,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: _isSubmitting
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: GameTheme.background,
                           ),
                         )
                       : const Text('Confirm Pick'),
@@ -574,6 +570,8 @@ class _PickPageState extends State<PickPage> {
                       ? null
                       : () => setState(() => _selectedTeam = null),
                   style: OutlinedButton.styleFrom(
+                    foregroundColor: GameTheme.textSecondary,
+                    side: BorderSide(color: GameTheme.border),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: const Text('Cancel'),
@@ -590,17 +588,18 @@ class _PickPageState extends State<PickPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        border: Border.all(color: Colors.grey[300]!),
+        color: GameTheme.cardBackground,
+        border: Border.all(color: GameTheme.border),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
           Text(
             'Current Pick: ${_getFullTeamName(_currentPick!)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
+              color: GameTheme.textPrimary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -609,7 +608,7 @@ class _PickPageState extends State<PickPage> {
             'Want to change your pick? Remove it first to select a different team.',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[700],
+              color: GameTheme.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -617,17 +616,17 @@ class _PickPageState extends State<PickPage> {
           ElevatedButton(
             onPressed: _isSubmitting ? null : _removePick,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryNavy,
-              foregroundColor: Colors.white,
+              backgroundColor: GameTheme.glowCyan,
+              foregroundColor: GameTheme.background,
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
             ),
             child: _isSubmitting
-                ? const SizedBox(
+                ? SizedBox(
                     height: 20,
                     width: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: GameTheme.background,
                     ),
                   )
                 : const Text('Remove Pick'),
@@ -641,17 +640,18 @@ class _PickPageState extends State<PickPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        border: Border.all(color: Colors.grey[300]!),
+        color: GameTheme.cardBackground,
+        border: Border.all(color: GameTheme.border),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          const Text(
-            '💡 How to make your pick',
+          Text(
+            'How to make your pick',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
+              color: GameTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -661,7 +661,7 @@ class _PickPageState extends State<PickPage> {
             '• Your team must WIN to advance - draws and losses eliminate you',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[700],
+              color: GameTheme.textSecondary,
               height: 1.5,
             ),
           ),
@@ -674,10 +674,8 @@ class _PickPageState extends State<PickPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppConstants.primaryNavy.withValues(alpha: 0.05),
-        border: Border.all(
-          color: AppConstants.primaryNavy.withValues(alpha: 0.2),
-        ),
+        color: GameTheme.cardBackground,
+        border: Border.all(color: GameTheme.border),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -685,15 +683,15 @@ class _PickPageState extends State<PickPage> {
           Icon(
             Icons.lock_outline,
             size: 48,
-            color: AppConstants.primaryNavy,
+            color: GameTheme.textMuted,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Round is now locked',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppConstants.primaryNavy,
+              color: GameTheme.textPrimary,
             ),
           ),
         ],
