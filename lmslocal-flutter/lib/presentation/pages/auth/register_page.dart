@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
@@ -47,14 +48,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
   String? _validateDisplayName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Please enter your display name';
+      return 'Please enter your account name';
     }
     final trimmed = value.trim();
     if (trimmed.length < 2) {
-      return 'Display name must be at least 2 characters';
+      return 'Account name must be at least 2 characters';
     }
     if (trimmed.length > 50) {
-      return 'Display name must be 50 characters or less';
+      return 'Account name must be 50 characters or less';
     }
     return null;
   }
@@ -92,12 +93,12 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: GameTheme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppConstants.primaryNavy),
+          icon: const Icon(Icons.arrow_back, color: GameTheme.textPrimary),
           onPressed: () => context.pop(),
         ),
       ),
@@ -136,21 +137,21 @@ class _RegisterPageState extends State<RegisterPage> {
                       const SizedBox(height: 32),
 
                       // Title
-                      Text(
+                      const Text(
                         'Create Account',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: AppConstants.primaryNavy,
+                          color: GameTheme.textPrimary,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      const Text(
                         'Sign up to get started',
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey[600],
+                          color: GameTheme.textSecondary,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -161,13 +162,27 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _displayNameController,
                         textCapitalization: TextCapitalization.words,
                         enabled: !isLoading,
+                        style: const TextStyle(color: GameTheme.textPrimary),
                         decoration: InputDecoration(
-                          labelText: 'Display Name',
-                          prefixIcon: const Icon(Icons.person_outlined),
+                          labelText: 'Account Name',
+                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
+                          prefixIcon: const Icon(Icons.person_outlined, color: GameTheme.textSecondary),
+                          filled: true,
+                          fillColor: GameTheme.cardBackground,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
                           ),
                           helperText: '2-50 characters',
+                          helperStyle: const TextStyle(color: GameTheme.textMuted),
                         ),
                         validator: _validateDisplayName,
                       ),
@@ -178,11 +193,24 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         enabled: !isLoading,
+                        style: const TextStyle(color: GameTheme.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          prefixIcon: const Icon(Icons.email_outlined),
+                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
+                          prefixIcon: const Icon(Icons.email_outlined, color: GameTheme.textSecondary),
+                          filled: true,
+                          fillColor: GameTheme.cardBackground,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
                           ),
                         ),
                         validator: _validateEmail,
@@ -194,12 +222,15 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         enabled: !isLoading,
+                        style: const TextStyle(color: GameTheme.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outlined),
+                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
+                          prefixIcon: const Icon(Icons.lock_outlined, color: GameTheme.textSecondary),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              color: GameTheme.textSecondary,
                             ),
                             onPressed: () {
                               setState(() {
@@ -207,10 +238,22 @@ class _RegisterPageState extends State<RegisterPage> {
                               });
                             },
                           ),
+                          filled: true,
+                          fillColor: GameTheme.cardBackground,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
                           ),
                           helperText: 'Minimum 6 characters',
+                          helperStyle: const TextStyle(color: GameTheme.textMuted),
                         ),
                         validator: _validatePassword,
                       ),
@@ -221,12 +264,15 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
                         enabled: !isLoading,
+                        style: const TextStyle(color: GameTheme.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Confirm Password',
-                          prefixIcon: const Icon(Icons.lock_outlined),
+                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
+                          prefixIcon: const Icon(Icons.lock_outlined, color: GameTheme.textSecondary),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              color: GameTheme.textSecondary,
                             ),
                             onPressed: () {
                               setState(() {
@@ -234,8 +280,19 @@ class _RegisterPageState extends State<RegisterPage> {
                               });
                             },
                           ),
+                          filled: true,
+                          fillColor: GameTheme.cardBackground,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
                           ),
                         ),
                         validator: _validateConfirmPassword,
@@ -246,8 +303,8 @@ class _RegisterPageState extends State<RegisterPage> {
                       ElevatedButton(
                         onPressed: isLoading ? null : _handleRegister,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConstants.primaryNavy,
-                          foregroundColor: Colors.white,
+                          backgroundColor: GameTheme.glowCyan,
+                          foregroundColor: GameTheme.background,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
@@ -259,7 +316,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
                                 ),
                               )
                             : const Text(
@@ -276,13 +333,16 @@ class _RegisterPageState extends State<RegisterPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
+                          const Text(
                             'Already have an account? ',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: TextStyle(color: GameTheme.textSecondary),
                           ),
                           TextButton(
                             onPressed: isLoading ? null : () => context.pop(),
-                            child: const Text('Login'),
+                            child: const Text(
+                              'Login',
+                              style: TextStyle(color: GameTheme.glowCyan),
+                            ),
                           ),
                         ],
                       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/forgot_password_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/register_page.dart';
@@ -37,10 +37,12 @@ class AppRouter {
         GoRoute(
           path: '/profile',
           builder: (context, state) => Scaffold(
+            backgroundColor: GameTheme.background,
             appBar: AppBar(
               title: const Text('Profile'),
-              backgroundColor: AppConstants.primaryNavy,
-              foregroundColor: Colors.white,
+              backgroundColor: GameTheme.background,
+              foregroundColor: GameTheme.textPrimary,
+              elevation: 0,
             ),
             body: const ProfilePage(),
           ),

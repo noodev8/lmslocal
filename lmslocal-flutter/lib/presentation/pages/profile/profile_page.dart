@@ -126,7 +126,7 @@ class _ProfilePageState extends State<ProfilePage> {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Display name updated successfully'),
+            content: Text('Account name updated successfully'),
             backgroundColor: AppConstants.successGreen,
           ),
         );
@@ -138,7 +138,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (mounted) {
         setState(() => _isSavingDisplayName = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update display name: $e')),
+          SnackBar(content: Text('Failed to update account name: $e')),
         );
       }
     }
@@ -619,7 +619,7 @@ class _ProfilePageState extends State<ProfilePage> {
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           leading: Icon(Icons.person, color: GameTheme.glowCyan),
-          title: Text('Display Name', style: TextStyle(color: GameTheme.textPrimary)),
+          title: Text('Account Name', style: TextStyle(color: GameTheme.textPrimary)),
           subtitle: Text(
             _isEditingDisplayName ? 'Editing...' : user.displayName,
             style: TextStyle(color: GameTheme.textMuted),
@@ -636,7 +636,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     controller: _displayNameController,
                     style: TextStyle(color: GameTheme.textPrimary),
                     decoration: InputDecoration(
-                      labelText: 'Display Name',
+                      labelText: 'Account Name',
                       labelStyle: TextStyle(color: GameTheme.textMuted),
                       border: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),
                       enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: GameTheme.border)),

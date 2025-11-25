@@ -39,10 +39,6 @@
                     android:scheme="https"
                     android:host="lmslocal.co.uk"
                     android:pathPattern="/game/.*"/>
-                <data
-                    android:scheme="https"
-                    android:host="lmslocal.co.uk"
-                    android:pathPattern="/competition/.*"/>
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
@@ -52,10 +48,6 @@
                     android:scheme="https"
                     android:host="www.lmslocal.co.uk"
                     android:pathPattern="/game/.*"/>
-                <data
-                    android:scheme="https"
-                    android:host="www.lmslocal.co.uk"
-                    android:pathPattern="/competition/.*"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

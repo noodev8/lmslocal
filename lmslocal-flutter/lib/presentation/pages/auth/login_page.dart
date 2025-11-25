@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
@@ -44,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
     return PopScope(
       canPop: false, // Prevent back button on login screen
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: GameTheme.background,
         body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
@@ -85,7 +86,7 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: AppConstants.primaryNavy,
+                          color: GameTheme.textPrimary,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -94,7 +95,7 @@ class _LoginPageState extends State<LoginPage> {
                         'Login to your account',
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey[600],
+                          color: GameTheme.textSecondary,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -105,11 +106,24 @@ class _LoginPageState extends State<LoginPage> {
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         enabled: !isLoading,
+                        style: const TextStyle(color: GameTheme.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          prefixIcon: const Icon(Icons.email_outlined),
+                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
+                          prefixIcon: const Icon(Icons.email_outlined, color: GameTheme.textSecondary),
+                          filled: true,
+                          fillColor: GameTheme.cardBackground,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
                           ),
                         ),
                         validator: (value) {
@@ -129,12 +143,15 @@ class _LoginPageState extends State<LoginPage> {
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         enabled: !isLoading,
+                        style: const TextStyle(color: GameTheme.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outlined),
+                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
+                          prefixIcon: const Icon(Icons.lock_outlined, color: GameTheme.textSecondary),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              color: GameTheme.textSecondary,
                             ),
                             onPressed: () {
                               setState(() {
@@ -142,8 +159,19 @@ class _LoginPageState extends State<LoginPage> {
                               });
                             },
                           ),
+                          filled: true,
+                          fillColor: GameTheme.cardBackground,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
                           ),
                         ),
                         validator: (value) {
@@ -160,7 +188,10 @@ class _LoginPageState extends State<LoginPage> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: isLoading ? null : () => context.push('/forgot-password'),
-                          child: const Text('Forgot Password?'),
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(color: GameTheme.textSecondary),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -169,8 +200,8 @@ class _LoginPageState extends State<LoginPage> {
                       ElevatedButton(
                         onPressed: isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppConstants.primaryNavy,
-                          foregroundColor: Colors.white,
+                          backgroundColor: GameTheme.glowCyan,
+                          foregroundColor: GameTheme.background,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
@@ -182,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
                                 ),
                               )
                             : const Text(
@@ -193,21 +224,45 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
 
-                      // Register link
+                      // Divider
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            'Don\'t have an account? ',
-                            style: TextStyle(color: Colors.grey[600]),
+                          Expanded(child: Divider(color: GameTheme.border)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'New to LMS Local?',
+                              style: TextStyle(
+                                color: GameTheme.textMuted,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
-                          TextButton(
-                            onPressed: isLoading ? null : () => context.push('/register'),
-                            child: const Text('Register'),
-                          ),
+                          Expanded(child: Divider(color: GameTheme.border)),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Prominent Register button
+                      OutlinedButton(
+                        onPressed: isLoading ? null : () => context.push('/register'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: GameTheme.glowCyan,
+                          side: const BorderSide(color: GameTheme.glowCyan, width: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                          ),
+                        ),
+                        child: const Text(
+                          'Create Account',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
