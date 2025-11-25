@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "uk.co.lmslocal.lmslocal_flutter",
       "sha256_cert_fingerprints": [
-        "57:74:8D:3C:CF:BA:6C:B7:05:BD:D5:CC:40:5C:D1:BF:40:6F:29:C6:51:30:90:92:B0:E7:E8:7E:22:9C:35:2F"
+        "57:74:8D:3C:CF:BA:6C:B7:05:BD:D5:CC:40:5C:D1:BF:40:6F:29:C6:51:30:90:92:B0:E7:E8:7E:22:9C:35:2F",
+        "47:2D:B6:BF:68:5D:C4:A5:00:11:A5:69:EF:31:54:34:B9:01:E2:0F:4F:08:B9:33:A1:70:8E:08:9A:3A:4A:5D"
       ]
     }
   }
