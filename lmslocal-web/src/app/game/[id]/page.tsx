@@ -748,9 +748,8 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Round Progress Card - Context-aware */}
-        {/* Only show this card if competition is not complete */}
-        {currentRoundInfo && competition?.status !== 'COMPLETE' && (
+        {/* Round Progress Card - Only show before lock when pick progress is useful */}
+        {currentRoundInfo && competition?.status !== 'COMPLETE' && !currentRoundInfo.is_locked && (
           <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
             {!currentRoundInfo.is_locked ? (
               /* Before Lock - Show Pick Progress (Clickable) */
