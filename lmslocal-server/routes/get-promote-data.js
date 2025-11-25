@@ -391,9 +391,10 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Calculate template visibility logic
     const template_context = {
-      // Pre-launch: Show if competition is in SETUP OR round 1 (regardless of status or fixtures)
+      // Pre-launch: Show if competition is in SETUP OR no round exists OR round 1 is not locked
       show_pre_launch: competition.status === 'SETUP' ||
-                       (!current_round || current_round.round_number === 1),
+                       (!current_round) ||
+                       (current_round.round_number === 1 && !current_round.is_locked),
 
       // Round update: Show if competition is active and ANY round has completed fixtures
       show_round_update: competition.status === 'active' && hasAnyCompletedRound,

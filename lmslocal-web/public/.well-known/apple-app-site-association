@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "43A5Y7KJMA.uk.co.lmslocal.lmslocalflutter",
+        "paths": [
+          "/game/*",
+          "/competition/*"
+        ]
+      }
+    ]
+  }
+}

@@ -29,6 +29,34 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Deep Links for Universal Links (lmslocal.co.uk) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="lmslocal.co.uk"
+                    android:pathPattern="/game/.*"/>
+                <data
+                    android:scheme="https"
+                    android:host="lmslocal.co.uk"
+                    android:pathPattern="/competition/.*"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.lmslocal.co.uk"
+                    android:pathPattern="/game/.*"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.lmslocal.co.uk"
+                    android:pathPattern="/competition/.*"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

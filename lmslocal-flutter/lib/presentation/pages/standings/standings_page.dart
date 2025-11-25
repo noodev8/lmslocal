@@ -572,7 +572,7 @@ class _StandingsPageState extends State<StandingsPage> {
                                   group.fixtureStatus == 'played'
                                       ? 'Game Played'
                                       : group.fixtureStatus == 'pending'
-                                          ? 'Game Pending'
+                                          ? 'Game still to play'
                                           : 'No Pick',
                                   style: TextStyle(
                                     fontSize: 14,
@@ -602,9 +602,8 @@ class _StandingsPageState extends State<StandingsPage> {
                             group.winnerName!,
                             style: TextStyle(
                               fontSize: 14,
-                              color: isTopGroup
-                                  ? GameTheme.accentGreen
-                                  : GameTheme.textMuted,
+                              fontWeight: FontWeight.w600,
+                              color: GameTheme.textPrimary,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),

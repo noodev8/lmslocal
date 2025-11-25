@@ -59,6 +59,18 @@ class AppRouter {
           },
         ),
 
+        // Deep link: /game/:id - same as /competition/:id (matches web URL structure)
+        GoRoute(
+          path: '/game/:id',
+          builder: (context, state) {
+            final competitionId = state.pathParameters['id']!;
+            return CompetitionNavigationPage(
+              competitionId: competitionId,
+              competition: null,
+            );
+          },
+        ),
+
         // Register screen
         GoRoute(
           path: '/register',

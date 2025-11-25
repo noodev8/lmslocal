@@ -299,9 +299,8 @@ router.post('/', verifyToken, async (req, res) => {
         // If exactly 1 player in this group, include their name (for winner display)
         if (parseInt(row.player_count) === 1) {
           const playerResult = await query(`
-            SELECT au.display_name
+            SELECT cu.player_display_name as display_name
             FROM competition_user cu
-            INNER JOIN app_user au ON cu.user_id = au.id
             LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $3
             LEFT JOIN fixture f ON p.fixture_id = f.id
             WHERE cu.competition_id = $1
@@ -370,9 +369,8 @@ router.post('/', verifyToken, async (req, res) => {
         // If exactly 1 player in this group, include their name (for winner display)
         if (parseInt(row.player_count) === 1) {
           const playerResult = await query(`
-            SELECT au.display_name
+            SELECT cu.player_display_name as display_name
             FROM competition_user cu
-            INNER JOIN app_user au ON cu.user_id = au.id
             WHERE cu.competition_id = $1
               AND cu.lives_remaining = $2
               AND cu.status = 'active'

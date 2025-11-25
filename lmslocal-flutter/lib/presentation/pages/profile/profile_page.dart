@@ -8,6 +8,7 @@ import 'package:lmslocal_flutter/domain/repositories/auth_repository.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 /// Profile page
 /// Shows user information with editable display name, notifications, password change, and logout
@@ -47,6 +48,9 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isSavingPreferences = false;
   final Map<String, bool> _pendingPreferenceChanges = {};
 
+  // App version
+  String _appVersion = '';
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +63,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
     // Load email preferences
     _loadEmailPreferences();
+
+    // Load app version
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+    });
   }
 
   @override
@@ -522,12 +536,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 // App Version
                 Text(
-                  'Version ${AppConstants.appVersion}',
+                  _appVersion.isNotEmpty ? 'Version $_appVersion' : 'Loading version...',
                   style: TextStyle(
                     fontSize: 12,
                     color: GameTheme.textMuted,
                   ),
                 ),
+                const SizedBox(height: 60),
               ],
             ),
           ),

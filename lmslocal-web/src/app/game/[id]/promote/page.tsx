@@ -25,6 +25,7 @@ interface PromoteData {
     total_players: number;
     entry_fee?: number | null;
     prize_structure?: string | null;
+    lives_per_player?: number;
   };
   current_round: {
     round_number: number;
@@ -243,7 +244,8 @@ export default function PromotePage() {
       prize_structure: data.competition.prize_structure,
       fixtures: fixtures || undefined,
       fixture_results: fixtureResults || undefined,
-      round_stats: roundStats || undefined
+      round_stats: roundStats || undefined,
+      lives_per_player: data.competition.lives_per_player
     });
 
     setSelectedTemplate(template);

@@ -90,7 +90,7 @@ Good luck! 👍`
 
 [PLAYERS_REMAINING] survivors remain
 
-Top performers:
+[SURVIVORS_LABEL]
 [TOP_3_PLAYERS]
 
 📊 View full standings online:
@@ -237,6 +237,7 @@ export function replaceTemplateVariables(
       lost: number;
       eliminated: number;
     };
+    lives_per_player?: number;
   }
 ): string {
   let result = template;
@@ -255,6 +256,10 @@ export function replaceTemplateVariables(
   result = result.replace(/\[PLAYERS_WITHOUT_PICKS\]/g, data.players_without_picks.toString());
   result = result.replace(/\[PICK_PERCENTAGE\]/g, data.pick_percentage.toString());
 
+  // Dynamic survivors label based on count (>5 shows sample, ≤5 shows all)
+  const survivorsLabel = data.players_remaining > 5 ? 'Some of our survivors:' : 'Still standing:';
+  result = result.replace(/\[SURVIVORS_LABEL\]/g, survivorsLabel);
+
   // Format entry details (entry fee + prize structure)
   let entryDetails = '';
   const entryFeeNum = data.entry_fee ? Number(data.entry_fee) : 0;
@@ -268,9 +273,13 @@ export function replaceTemplateVariables(
   }
   result = result.replace(/\[ENTRY_DETAILS\]/g, entryDetails);
 
-  // Format top players list
+  // Format top players list - only show lives count if competition has multiple lives
+  const hasMultipleLives = data.lives_per_player && data.lives_per_player > 1;
   const topPlayersFormatted = data.top_players
-    .map((p, index) => `${index === 0 ? '👑' : '  '} ${p.display_name} (${p.lives_remaining} ${p.lives_remaining === 1 ? 'life' : 'lives'})`)
+    .map((p) => {
+      const livesText = hasMultipleLives ? ` (${p.lives_remaining} ${p.lives_remaining === 1 ? 'life' : 'lives'})` : '';
+      return `• ${p.display_name}${livesText}`;
+    })
     .join('\n');
   result = result.replace(/\[TOP_3_PLAYERS\]/g, topPlayersFormatted || 'No players yet');
 
@@ -293,10 +302,13 @@ export function replaceTemplateVariables(
   // Format round statistics
   if (data.round_stats) {
     const lostLife = data.round_stats.lost - data.round_stats.eliminated;
+    // Only show "lost a life" line if competition has multiple lives (lives_per_player > 1)
+    const hasMultipleLives = data.lives_per_player && data.lives_per_player > 1;
+    const lostLifeLine = hasMultipleLives ? `\n⚠️ ${lostLife} lost a life` : '';
     const roundStatsFormatted =
-      `📊 ${data.round_stats.total_players} played → ${data.round_stats.won} won\n` +
-      `⚠️ ${lostLife} lost a life\n` +
-      `☠️ ${data.round_stats.eliminated} eliminated`;
+      `📊 ${data.round_stats.total_players} played → ${data.round_stats.won} won` +
+      lostLifeLine +
+      `\n☠️ ${data.round_stats.eliminated} eliminated`;
     result = result.replace(/\[ROUND_STATS\]/g, roundStatsFormatted);
   } else {
     result = result.replace(/\[ROUND_STATS\]/g, `[PLAYERS_ELIMINATED] players eliminated from [COMP_NAME]!`);
