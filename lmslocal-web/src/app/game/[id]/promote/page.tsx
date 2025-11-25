@@ -82,6 +82,11 @@ export default function PromotePage() {
     survivors: number;
     eliminated: number;
   }> | null>(null);
+  const [unluckyPick, setUnluckyPick] = useState<{
+    team: string;
+    team_short: string;
+    eliminated: number;
+  } | null>(null);
   const [roundStats, setRoundStats] = useState<{
     total_players: number;
     won: number;
@@ -164,6 +169,8 @@ export default function PromotePage() {
 
               if (fixturesResponse.data.return_code === 'SUCCESS' && fixturesResponse.data.fixture_results) {
                 setFixtureResults(fixturesResponse.data.fixture_results);
+                // Set unlucky pick if available (team that eliminated most players, >= 3, no tie)
+                setUnluckyPick(fixturesResponse.data.unlucky_pick || null);
               }
 
               // Fetch round statistics for completed round
@@ -245,7 +252,8 @@ export default function PromotePage() {
       fixtures: fixtures || undefined,
       fixture_results: fixtureResults || undefined,
       round_stats: roundStats || undefined,
-      lives_per_player: data.competition.lives_per_player
+      lives_per_player: data.competition.lives_per_player,
+      unlucky_pick: unluckyPick
     });
 
     setSelectedTemplate(template);

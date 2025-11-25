@@ -1021,6 +1021,11 @@ export const promoteApi = {
       total_eliminated: number;
       total_picks: number;
     };
+    unlucky_pick?: {
+      team: string;
+      team_short: string;
+      eliminated: number;
+    } | null;
   }>('/get-round-results-breakdown', { competition_id, round_number }),
 
   getRoundStatistics: (competition_id: number, round_id: number) => withCache(

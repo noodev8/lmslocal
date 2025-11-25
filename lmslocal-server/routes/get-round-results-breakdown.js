@@ -38,7 +38,12 @@ Success Response (ALWAYS HTTP 200):
     "total_survivors": 27,             // integer, total players who survived
     "total_eliminated": 20,            // integer, total players eliminated
     "total_picks": 47                  // integer, total picks made this round
-  }
+  },
+  "unlucky_pick": {                    // object or null, losing team that eliminated most players
+    "team": "Liverpool",               // string, full team name
+    "team_short": "LIV",               // string, team short code
+    "eliminated": 5                    // integer, number of players eliminated
+  }                                    // null if: <3 eliminations, tie for max, or no results
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -264,12 +269,75 @@ router.post('/', verifyToken, async (req, res) => {
       total_picks: fixture_results.reduce((sum, f) => sum + f.home_picks + f.away_picks, 0)
     };
 
+    // Calculate unlucky_pick - the losing/drawing team that eliminated the most players
+    // Only shown if >= 3 players eliminated and no tie for highest
+    let unlucky_pick = null;
+    const teamEliminations = {}; // team_name -> { eliminated: count, short: team_short }
+
+    fixture_results.forEach(f => {
+      if (!f.outcome) return; // No result yet
+
+      if (f.outcome === 'home_win') {
+        // Away team lost - they eliminated their pickers
+        if (f.away_picks > 0) {
+          teamEliminations[f.away_team] = {
+            eliminated: f.away_picks,
+            short: f.away_team_short
+          };
+        }
+      } else if (f.outcome === 'away_win') {
+        // Home team lost - they eliminated their pickers
+        if (f.home_picks > 0) {
+          teamEliminations[f.home_team] = {
+            eliminated: f.home_picks,
+            short: f.home_team_short
+          };
+        }
+      } else if (f.outcome === 'draw') {
+        // Both teams eliminated their pickers
+        if (f.home_picks > 0) {
+          teamEliminations[f.home_team] = {
+            eliminated: f.home_picks,
+            short: f.home_team_short
+          };
+        }
+        if (f.away_picks > 0) {
+          teamEliminations[f.away_team] = {
+            eliminated: f.away_picks,
+            short: f.away_team_short
+          };
+        }
+      }
+    });
+
+    // Find max elimination count and check for ties
+    const eliminationCounts = Object.entries(teamEliminations);
+    if (eliminationCounts.length > 0) {
+      const maxEliminated = Math.max(...eliminationCounts.map(([, data]) => data.eliminated));
+
+      // Only proceed if >= 3 eliminations
+      if (maxEliminated >= 3) {
+        const teamsWithMax = eliminationCounts.filter(([, data]) => data.eliminated === maxEliminated);
+
+        // Only return if there's no tie (exactly one team with max)
+        if (teamsWithMax.length === 1) {
+          const [teamName, data] = teamsWithMax[0];
+          unlucky_pick = {
+            team: teamName,
+            team_short: data.short,
+            eliminated: data.eliminated
+          };
+        }
+      }
+    }
+
     // Return success response
     return res.status(200).json({
       return_code: 'SUCCESS',
       round_number: targetRound.round_number,
       fixture_results,
-      summary
+      summary,
+      unlucky_pick
     });
 
   } catch (error) {

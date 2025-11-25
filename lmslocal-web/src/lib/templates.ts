@@ -14,6 +14,7 @@
  * - [NEXT_ROUND_INFO] - Next round info message (e.g., "Saturday 15 Jan at 3:00pm" or "Fixtures coming soon")
  * - [FIXTURES] - Upcoming fixture list (for pick reminders)
  * - [FIXTURE_RESULTS] - Fixture-by-fixture breakdown with results (for round updates)
+ * - [UNLUCKY_PICK] - The losing team that eliminated the most players (if >= 3 and no tie)
  * - [JOIN_CODE] - Competition invite code
  * - [JOIN_URL] - Full join URL (for pre-launch)
  * - [GAME_URL] - Direct game URL (for active competitions)
@@ -87,6 +88,7 @@ Good luck! 👍`
     content: `💥 Round [ROUND_NUMBER] Results
 
 [ROUND_STATS]
+[UNLUCKY_PICK]
 
 [PLAYERS_REMAINING] survivors remain
 
@@ -238,6 +240,11 @@ export function replaceTemplateVariables(
       eliminated: number;
     };
     lives_per_player?: number;
+    unlucky_pick?: {
+      team: string;
+      team_short: string;
+      eliminated: number;
+    } | null;
   }
 ): string {
   let result = template;
@@ -312,6 +319,16 @@ export function replaceTemplateVariables(
     result = result.replace(/\[ROUND_STATS\]/g, roundStatsFormatted);
   } else {
     result = result.replace(/\[ROUND_STATS\]/g, `[PLAYERS_ELIMINATED] players eliminated from [COMP_NAME]!`);
+  }
+
+  // Format unlucky pick (team that eliminated the most players)
+  // Only shown if >= 3 eliminations and no tie for highest
+  if (data.unlucky_pick) {
+    const unluckyPickFormatted = `😬 Unlucky pick: ${data.unlucky_pick.team} (${data.unlucky_pick.eliminated} players)`;
+    result = result.replace(/\[UNLUCKY_PICK\]/g, unluckyPickFormatted);
+  } else {
+    // Remove the placeholder and any trailing newline if no unlucky pick
+    result = result.replace(/\[UNLUCKY_PICK\]\n?/g, '');
   }
 
   return result;
