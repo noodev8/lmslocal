@@ -102,6 +102,8 @@ class _SplashPageState extends State<SplashPage> {
 
     // Navigate based on auth state
     if (state is AuthAuthenticated) {
+      // Initialize push notifications (user already logged in)
+      Injection.getNotificationService().initialize();
       context.go('/dashboard');
     } else if (state is AuthUnauthenticated) {
       context.go('/login');

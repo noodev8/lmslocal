@@ -380,6 +380,21 @@ router.post('/', async (req, res) => {
             }
           }
 
+          // === QUEUE MOBILE NOTIFICATIONS ===
+          // Queue 'results' notifications for all players who were active this round
+          // (either they made a pick or they were penalized for no-pick)
+          // Excludes guest users (email starts with 'lms-guest')
+          await client.query(`
+            INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
+            SELECT DISTINCT pp.player_id, 'results', $1, $2, r.round_number, 'pending', NOW()
+            FROM player_progress pp
+            JOIN round r ON r.id = pp.round_id
+            JOIN app_user au ON au.id = pp.player_id
+            WHERE pp.competition_id = $1
+              AND pp.round_id = $2
+              AND au.email NOT LIKE '%@lms-guest.%'
+          `, [competitionId, roundId]);
+
           competitionsProcessed.push({
             competition_id: competitionId,
             status: 'processed',

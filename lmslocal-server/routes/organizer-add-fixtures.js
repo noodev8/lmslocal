@@ -332,6 +332,33 @@ router.post('/', verifyToken, async (req, res) => {
         ]);
       }
 
+      // === QUEUE MOBILE NOTIFICATIONS ===
+      // Queue 'new_round' and 'pick_reminder' notifications for all active players
+      // new_round: sends immediately on next cron run
+      // pick_reminder: sends when within 24hrs of lock_time
+      // Excludes guest users (email starts with 'lms-guest')
+      await client.query(`
+        INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
+        SELECT cu.user_id, 'new_round', $1, $2, $3, 'pending', NOW()
+        FROM competition_user cu
+        JOIN app_user au ON au.id = cu.user_id
+        WHERE cu.competition_id = $1
+          AND cu.status = 'active'
+          AND cu.hidden IS NOT TRUE
+          AND au.email NOT LIKE '%@lms-guest.%'
+      `, [competitionIdInt, roundId, roundNumber]);
+
+      await client.query(`
+        INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
+        SELECT cu.user_id, 'pick_reminder', $1, $2, $3, 'pending', NOW()
+        FROM competition_user cu
+        JOIN app_user au ON au.id = cu.user_id
+        WHERE cu.competition_id = $1
+          AND cu.status = 'active'
+          AND cu.hidden IS NOT TRUE
+          AND au.email NOT LIKE '%@lms-guest.%'
+      `, [competitionIdInt, roundId, roundNumber]);
+
       // Add audit log entry
       await client.query(`
         INSERT INTO audit_log (competition_id, user_id, action, details)

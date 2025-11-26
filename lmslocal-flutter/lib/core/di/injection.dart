@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:lmslocal_flutter/core/config/app_config.dart';
+import 'package:lmslocal_flutter/core/services/notification_service.dart';
 import 'package:lmslocal_flutter/data/data_sources/local/token_storage.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/auth_remote_data_source.dart';
@@ -20,6 +21,7 @@ class Injection {
   static late AuthRemoteDataSource _authRemoteDataSource;
   static late VersionRemoteDataSource _versionRemoteDataSource;
   static late AuthRepository _authRepository;
+  static late NotificationService _notificationService;
 
   /// Initialize all dependencies
   static Future<void> init(AppConfig config) async {
@@ -44,6 +46,9 @@ class Injection {
       tokenStorage: _tokenStorage,
       prefs: _prefs,
     );
+
+    // Services
+    _notificationService = NotificationService(apiClient: _apiClient);
   }
 
   /// Get AuthBloc instance
@@ -69,5 +74,10 @@ class Injection {
   /// Get VersionRemoteDataSource instance
   static VersionRemoteDataSource getVersionRemoteDataSource() {
     return _versionRemoteDataSource;
+  }
+
+  /// Get NotificationService instance
+  static NotificationService getNotificationService() {
+    return _notificationService;
   }
 }

@@ -107,12 +107,12 @@ Setup required:
 ┌─────────────────────────────────────────────────────────────────┐
 │                        TRIGGERS                                 │
 ├─────────────────────────────────────────────────────────────────┤
-│ • Round created        → API adds 'new_round' + 'reminder'      │
+│ • Round created        → API adds 'new_round' + 'pick_reminder' │
 │ • Results processed    → API adds 'results' entry               │
 └─────────────────────────────────────────────────────────────────┘
                                 ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│                   notification_queue table                      │
+│               mobile_notification_queue table                   │
 └─────────────────────────────────────────────────────────────────┘
                                 ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -131,22 +131,23 @@ Setup required:
 
 ---
 
-### Database: notification_queue Table
+### Database: mobile_notification_queue Table
 
 ```sql
-CREATE TABLE notification_queue (
+CREATE TABLE mobile_notification_queue (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES app_user(user_id),
-    type VARCHAR(20) NOT NULL,          -- 'new_round' | 'reminder' | 'results'
-    competition_id INTEGER NOT NULL REFERENCES competitions(competition_id),
-    round_id INTEGER NOT NULL REFERENCES rounds(round_id),
+    user_id INTEGER NOT NULL,
+    type VARCHAR(20) NOT NULL,          -- 'new_round' | 'pick_reminder' | 'results'
+    competition_id INTEGER NOT NULL,
+    round_id INTEGER NOT NULL,
+    round_number INTEGER NOT NULL,
     status VARCHAR(20) DEFAULT 'pending', -- 'pending' | 'sent' | 'skipped'
     created_at TIMESTAMP DEFAULT NOW(),
     sent_at TIMESTAMP
 );
 
-CREATE INDEX idx_notification_queue_pending
-ON notification_queue(status, created_at)
+CREATE INDEX idx_mobile_notification_queue_pending
+ON mobile_notification_queue(status, created_at)
 WHERE status = 'pending';
 ```
 
@@ -157,7 +158,7 @@ WHERE status = 'pending';
 ```sql
 CREATE TABLE device_tokens (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES app_user(user_id),
+    user_id INTEGER NOT NULL,
     fcm_token TEXT NOT NULL,
     platform VARCHAR(10),               -- 'ios' | 'android'
     created_at TIMESTAMP DEFAULT NOW(),
@@ -182,7 +183,7 @@ CREATE TABLE device_tokens (
 | Type | When queued | When sent |
 |------|-------------|-----------|
 | **new_round** | Round created | Next cron run (immediate) |
-| **reminder** | Round created | When `lock_time - 24hrs <= NOW()` |
+| **pick_reminder** | Round created | When `lock_time - 24hrs <= NOW()` |
 | **results** | Results processed | Next cron run (immediate) |
 
 **Note:** Reminder timing calculated at send time (not queue time) so lock time changes are automatically respected.
@@ -193,7 +194,7 @@ CREATE TABLE device_tokens (
 
 ```
 1. Get all pending 'new_round' and 'results' entries
-2. Get all pending 'reminder' entries WHERE round.lock_time - 24hrs <= NOW()
+2. Get all pending 'pick_reminder' entries WHERE round.lock_time - 24hrs <= NOW()
 3. For each entry, check conditions:
    - Player still active in competition?
    - For reminders: player hasn't picked yet?
@@ -285,24 +286,26 @@ Before implementation can begin, you need to set up Firebase:
 - [x] Add iOS app config (`GoogleService-Info.plist`) - committed
 - [x] Get Firebase service account JSON (saved to `lmslocal-server/`, gitignored)
 - [x] Upload APNs key to Firebase (Production)
-- [ ] Create `notification_queue` table in database
-- [ ] Create `device_tokens` table in database
+- [x] Create `mobile_notification_queue` table in database
+- [x] Create `device_tokens` table in database
 
 ### Phase 2: Backend Implementation
-- [ ] Create `/register-device-token` API route
-- [ ] Create `/process-mobile-notifications` API route
-- [ ] Add FCM service to send notifications
-- [ ] Modify round creation to queue 'new_round' + 'reminder' entries
-- [ ] Modify results processing to queue 'results' entries
+- [x] Create `/register-device-token` API route
+- [x] Create `/process-mobile-notifications` API route
+- [x] Add FCM service to send notifications (`services/fcmService.js`)
+- [x] Install `firebase-admin` npm package on server
+- [x] Modify round creation to queue 'new_round' + 'pick_reminder' entries
+- [x] Modify results processing to queue 'results' entries
 - [ ] Set up server cron job
 
 ### Phase 3: Flutter Implementation
-- [ ] Add `firebase_core` and `firebase_messaging` packages
-- [ ] Initialize Firebase in app
-- [ ] Request notification permissions on startup
-- [ ] Get and send FCM token to backend on login
-- [ ] Handle token refresh
-- [ ] Handle notification tap (open app)
+- [x] Add `firebase_core` and `firebase_messaging` packages
+- [x] Initialize Firebase in app
+- [x] Create NotificationService (`lib/core/services/notification_service.dart`)
+- [x] Request notification permissions on login/app start
+- [x] Get and send FCM token to backend
+- [x] Handle token refresh (automatic via listener)
+- [x] Handle notification tap (opens app - default behavior)
 
 ### Phase 4: Testing
 - [ ] Test token registration (new install)
@@ -327,5 +330,7 @@ Before implementation can begin, you need to set up Firebase:
 ## Resume Point
 
 When resuming, start with:
-1. Create database tables (`notification_queue`, `device_tokens`)
-2. Then backend APIs
+1. ~~Create database tables~~ ✓ Done
+2. Create `/register-device-token` API route
+3. Create `/process-mobile-notifications` API route
+4. Then Flutter integration

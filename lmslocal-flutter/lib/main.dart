@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:lmslocal_flutter/core/config/app_config.dart';
 import 'package:lmslocal_flutter/core/config/env_dev.dart';
 import 'package:lmslocal_flutter/core/config/env_prod.dart';
@@ -12,6 +13,9 @@ import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp();
 
   // Automatically use production config for release builds
   // Development builds (flutter run, debug APKs) use dev config
@@ -24,8 +28,11 @@ void main() async {
   final apiClient = Injection.getApiClient();
   apiClient.onUnauthorized = (message) {
     // This will be handled by AuthBloc listening to session expiry
-    debugPrint('⚠️ Session expired: $message');
+    debugPrint('Session expired: $message');
   };
+
+  // Setup foreground notification handler
+  Injection.getNotificationService().setupForegroundHandler();
 
   runApp(const LmsLocalApp());
 }
