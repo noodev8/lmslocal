@@ -714,7 +714,43 @@ export default function UnifiedGameDashboard() {
                 {/* Copy Message Button */}
                 <button
                   onClick={() => {
-                    const message = `🏆 Join our Last Man Standing competition!\n\nGo to: https://lmslocal.co.uk\nUse code: ${competition.invite_code}\n\nGood luck! ⚽`;
+                    // Format lock time if available
+                    let lockTimeText = '';
+                    if (currentRoundInfo?.lock_time) {
+                      const lockDate = new Date(currentRoundInfo.lock_time);
+                      lockTimeText = `\n⏰ First round locks: ${lockDate.toLocaleString('en-GB', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}`;
+                    }
+
+                    // Format entry details if available
+                    let entryDetails = '';
+                    const entryFee = competition.entry_fee ? Number(competition.entry_fee) : 0;
+                    if (entryFee > 0) {
+                      entryDetails = `\n💷 Entry: £${entryFee.toFixed(2)}`;
+                      if (competition.prize_structure) {
+                        entryDetails += `\n🏆 Prizes: ${competition.prize_structure}`;
+                      }
+                    } else if (competition.prize_structure) {
+                      entryDetails = `\n🏆 Prizes: ${competition.prize_structure}`;
+                    }
+
+                    const message = `🏆 Last Man Standing Competition 🏆
+
+I'm running a ${competition.name} competition!
+
+📱 Download the app:
+Search "LMS Local" in App Store or Google Play, then join using code: ${competition.invite_code}${lockTimeText}
+${entryDetails}
+Pick a team each round - if they win, you survive!
+
+🌐 Or join on web: https://lmslocal.co.uk (use same code)
+
+Good luck! ⚽`;
                     navigator.clipboard.writeText(message);
                     setMessageCopied(true);
                     showToast('Message copied! Paste it into WhatsApp, email, or any messaging app', 'success');

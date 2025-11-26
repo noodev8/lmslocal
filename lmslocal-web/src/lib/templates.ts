@@ -45,14 +45,16 @@ export const templates: Template[] = [
 
 I'm running a [COMP_NAME] competition!
 
-How to join:
-1. Go to https://lmslocal.co.uk
-2. Click "Join Competition"
-3. Use code: [JOIN_CODE]
+📱 Download the app:
+Search "LMS Local" in App Store or Google Play, then join using code: [JOIN_CODE]
+
+⏰ First round locks: [PICK_DEADLINE]
 
 [ENTRY_DETAILS]
 
 Pick a team each round - if they win, you survive!
+
+🌐 Or join on web: https://lmslocal.co.uk (use same code)
 
 Good luck! ⚽`
   },

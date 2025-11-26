@@ -101,9 +101,13 @@ export default function PromotePage() {
   const [originalContent, setOriginalContent] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  // Facebook image generation
+  // Facebook fixtures image generation
   const [generatingImage, setGeneratingImage] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+
+  // Invite image generation
+  const [generatingInviteImage, setGeneratingInviteImage] = useState(false);
+  const [inviteImagePreviewUrl, setInviteImagePreviewUrl] = useState<string | null>(null);
 
   const { toasts, showToast, removeToast } = useToast();
 
@@ -321,6 +325,51 @@ export default function PromotePage() {
     }
   };
 
+  const handleGenerateInviteImage = async () => {
+    if (!data || generatingInviteImage) return;
+
+    try {
+      setGeneratingInviteImage(true);
+
+      // Call API to generate invite image
+      const response = await fetch(`/api/generate-invite-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          competitionName: data.competition.name,
+          inviteCode: data.competition.invite_code,
+          lockTime: data.current_round?.lock_time_formatted || null,
+          entryFee: data.competition.entry_fee,
+          prizeStructure: data.competition.prize_structure
+        }),
+      });
+
+      // Check if we got an error response (JSON) or success (image)
+      const contentType = response.headers.get('Content-Type');
+
+      if (contentType?.includes('application/json')) {
+        // Error response following API-Rules.md
+        const errorData = await response.json();
+        showToast(errorData.message || 'Failed to generate image', 'error');
+        return;
+      }
+
+      // Success - we got an image
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setInviteImagePreviewUrl(url);
+
+      showToast('Invitation image generated successfully!', 'success');
+    } catch (error) {
+      console.error('Error generating invite image:', error);
+      showToast('Network error - please check your connection', 'error');
+    } finally {
+      setGeneratingInviteImage(false);
+    }
+  };
+
   const handleDownloadImage = () => {
     if (!imagePreviewUrl || !data) return;
 
@@ -339,6 +388,26 @@ export default function PromotePage() {
       URL.revokeObjectURL(imagePreviewUrl);
     }
     setImagePreviewUrl(null);
+  };
+
+  const handleDownloadInviteImage = () => {
+    if (!inviteImagePreviewUrl || !data) return;
+
+    const link = document.createElement('a');
+    link.href = inviteImagePreviewUrl;
+    link.download = `${data.competition.name}-Invitation.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast('Invitation image downloaded!', 'success');
+  };
+
+  const handleCloseInviteImagePreview = () => {
+    if (inviteImagePreviewUrl) {
+      URL.revokeObjectURL(inviteImagePreviewUrl);
+    }
+    setInviteImagePreviewUrl(null);
   };
 
   if (loading) {
@@ -424,7 +493,7 @@ export default function PromotePage() {
             <h1 className="text-2xl font-bold text-gray-900">Promote Your Competition</h1>
           </div>
           <p className="text-gray-600 text-sm">
-            Choose a template, customize it, and share with your players
+            Choose a template, customise it, and share with your players
           </p>
         </div>
 
@@ -450,6 +519,77 @@ export default function PromotePage() {
                 <span>View & Print</span>
               </Link>
             </div>
+          </div>
+        )}
+
+        {/* Invitation Image for Social Media - Only show before round 1 locks or if in round 1 */}
+        {(!data.current_round ||
+          (data.current_round.round_number === 1 && !data.current_round.is_locked) ||
+          data.current_round.round_number < 1) && (
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="p-2 bg-slate-100 rounded-lg">
+                <svg className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Invitation Image</h3>
+                <p className="text-sm text-gray-600">
+                  Share on Facebook, Instagram, or X
+                </p>
+              </div>
+            </div>
+
+            {!inviteImagePreviewUrl ? (
+              <button
+                onClick={handleGenerateInviteImage}
+                disabled={generatingInviteImage}
+                className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generatingInviteImage ? (
+                  <>
+                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    <span>Generating Invitation...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Generate Invitation</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <div className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={inviteImagePreviewUrl}
+                    alt="Invitation preview"
+                    className="w-full h-auto"
+                  />
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleDownloadInviteImage}
+                    className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-slate-700 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>Download PNG</span>
+                  </button>
+                  <button
+                    onClick={handleCloseInviteImagePreview}
+                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
