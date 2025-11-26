@@ -769,7 +769,27 @@ export default function StandingsPage() {
                 </div>
               ) : playerHistory.length > 0 ? (
                 <div className="space-y-2">
-                  {playerHistory.sort((a, b) => b.round_number - a.round_number).map((round) => (
+                  {playerHistory
+                    .filter((round) => {
+                      // If viewing own history, show everything
+                      const isViewingOwnHistory = currentUser?.id === selectedPlayer?.id;
+                      if (isViewingOwnHistory) return true;
+
+                      // For past rounds, always show
+                      if (round.round_number < (competition?.current_round || 0)) return true;
+
+                      // For current round, only show if lock_time has passed
+                      if (round.lock_time) {
+                        const lockTime = new Date(round.lock_time);
+                        const now = new Date();
+                        return now >= lockTime; // Show only if lock time has arrived
+                      }
+
+                      // Hide if no lock_time available
+                      return false;
+                    })
+                    .sort((a, b) => b.round_number - a.round_number)
+                    .map((round) => (
                     <div
                       key={round.round_id}
                       className={`flex items-center justify-between py-2 px-3 rounded border-l-4 ${
