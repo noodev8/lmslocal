@@ -249,13 +249,13 @@ Before implementation can begin, you need to set up Firebase:
 
 ### 2. Add Android App
 - In Firebase Console → Project Settings → Add app → Android
-- Package name: use your Flutter app's package name (check `android/app/build.gradle` for `applicationId`)
+- **Package name:** `uk.co.lmslocal.lmslocal_flutter`
 - Download `google-services.json`
 - Place it in `lmslocal-flutter/android/app/google-services.json`
 
 ### 3. Add iOS App
 - In Firebase Console → Project Settings → Add app → iOS
-- Bundle ID: use your Flutter app's bundle ID (check Xcode or `ios/Runner.xcodeproj`)
+- **Bundle ID:** `uk.co.lmslocal.lmslocalflutter`
 - Download `GoogleService-Info.plist`
 - Place it in `lmslocal-flutter/ios/Runner/GoogleService-Info.plist`
 
@@ -267,6 +267,11 @@ Before implementation can begin, you need to set up Firebase:
 ### 5. Enable Cloud Messaging
 - Firebase Console → Build → Cloud Messaging
 - Ensure it's enabled for your project
+
+### 6. Git Ignore Considerations
+
+**Backend .env** - Already gitignored. Add `FCM_SERVER_KEY` there (never commit server keys).
+- I need to add this to the .env file on the VPS server
 
 ---
 

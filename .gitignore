@@ -101,6 +101,10 @@ venv/
 # Any Private Keys
 splitdine-ocr-6921886ed122.json
 
+# Firebase Service Account
+lms-local-907f0-firebase-adminsdk-fbsvc-74ebe28724.json
+*firebase-adminsdk*.json
+
 # Screenshot files (help files)
 screenshot*.*
 

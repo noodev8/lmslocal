@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "585779558620",
+    "project_id": "lms-local-907f0",
+    "storage_bucket": "lms-local-907f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:585779558620:android:2089400af72ad72e385c19",
+        "android_client_info": {
+          "package_name": "uk.co.lmslocal.lmslocal_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDh2ng_5n0UkjI_zNMCBpX2L2l8d_ui0LQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
