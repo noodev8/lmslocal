@@ -259,10 +259,12 @@ Before implementation can begin, you need to set up Firebase:
 - Download `GoogleService-Info.plist`
 - Place it in `lmslocal-flutter/ios/Runner/GoogleService-Info.plist`
 
-### 4. Get Server Key for Backend
-- Firebase Console → Project Settings → Cloud Messaging tab
-- Copy the **Server key** (or create one if needed)
-- Add to backend `.env`: `FCM_SERVER_KEY=your_key_here`
+### 4. Get Service Account for Backend
+- Firebase Console → Project Settings → **Service accounts** tab
+- Click **Generate new private key**
+- Download the JSON file (e.g., `lms-local-xxxxx-firebase-adminsdk-xxxxx.json`)
+- Save to `lmslocal-server/` folder
+- Already added to `.gitignore` - never commit this file
 
 ### 5. Enable Cloud Messaging
 - Firebase Console → Build → Cloud Messaging
@@ -278,10 +280,11 @@ Before implementation can begin, you need to set up Firebase:
 ## Implementation Checklist
 
 ### Phase 1: Firebase & Database Setup
-- [ ] Create Firebase project
-- [ ] Add Android app config (`google-services.json`)
-- [ ] Add iOS app config (`GoogleService-Info.plist`)
-- [ ] Get FCM server key and add to backend `.env`
+- [x] Create Firebase project ("LMS Local")
+- [x] Add Android app config (`google-services.json`) - committed
+- [x] Add iOS app config (`GoogleService-Info.plist`) - committed
+- [x] Get Firebase service account JSON (saved to `lmslocal-server/`, gitignored)
+- [x] Upload APNs key to Firebase (Production)
 - [ ] Create `notification_queue` table in database
 - [ ] Create `device_tokens` table in database
 
@@ -316,7 +319,13 @@ Before implementation can begin, you need to set up Firebase:
 
 - [x] Requirements defined
 - [x] Technical design
-- [ ] Firebase setup (user action)
-- [ ] Backend implementation
+- [x] Firebase setup (completed 2025-11-26)
+- [ ] Backend implementation ← **NEXT**
 - [ ] Flutter implementation
 - [ ] Testing
+
+## Resume Point
+
+When resuming, start with:
+1. Create database tables (`notification_queue`, `device_tokens`)
+2. Then backend APIs
