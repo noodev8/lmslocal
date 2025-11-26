@@ -1,0 +1,5 @@
+select * from app_user where 
+ email not like '%lms-guest%' and
+ email not like '%test%' and
+ email not like '%example%' and
+ email not like '%brookfieldcomfort%'
