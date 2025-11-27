@@ -295,7 +295,7 @@ async function checkEntryConditions(entry) {
 
     // === TYPE-SPECIFIC CHECKS ===
 
-    if (entry.type === 'pick_reminder') {
+    if (entry.type === 'pick_reminder' || entry.type === 'new_round') {
       // === CHECK 2: Has player already made a pick for this round? ===
       const pickResult = await query(`
         SELECT id FROM pick
@@ -303,7 +303,7 @@ async function checkEntryConditions(entry) {
       `, [entry.user_id, entry.round_id]);
 
       if (pickResult.rows.length > 0) {
-        // Player already picked, don't send reminder
+        // Player already picked, don't send notification
         return false;
       }
 
@@ -321,7 +321,7 @@ async function checkEntryConditions(entry) {
       }
     }
 
-    // For 'new_round' and 'results', active player check is sufficient
+    // For 'results', active player check is sufficient
 
     return true;
   } catch (error) {
