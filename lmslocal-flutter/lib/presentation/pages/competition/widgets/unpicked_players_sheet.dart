@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/unpicked_player.dart';
 
@@ -78,7 +79,7 @@ class UnpickedPlayersSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppConstants.successGreen.withValues(alpha: 0.1),
+              color: GameTheme.accentGreen.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Text(

@@ -7,15 +7,10 @@ class AppConstants {
   static const String appVersion = '1.1.0';
 
   // Brand Colors (extracted from LMS-Local-Logo.png)
-  static const Color primaryNavy = Color(0xFF2C497C); // Matches logo background exactly
+  // Note: For UI colors, use GameTheme instead (accentGreen, accentRed, accentOrange)
+  static const Color primaryNavy = Color(0xFF2C497C);
   static const Color primaryWhite = Color(0xFFFFFFFF);
   static const Color accentLightBlue = Color(0xFF6B8EBF);
-
-  // Additional UI Colors
-  static const Color successGreen = Color(0xFF10B981);
-  static const Color errorRed = Color(0xFFEF4444);
-  static const Color warningOrange = Color(0xFFF59E0B);
-  static const Color infoBlue = Color(0xFF3B82F6);
 
   // JWT Token
   static const String tokenKey = 'jwt_token';

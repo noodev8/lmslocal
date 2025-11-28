@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/round_statistics.dart';
 
@@ -69,7 +70,7 @@ class RoundResultsCard extends StatelessWidget {
                     flex: stats.won,
                     child: Container(
                       height: 10,
-                      color: AppConstants.successGreen,
+                      color: GameTheme.accentGreen,
                     ),
                   ),
                 if (stats.lost > 0)
@@ -85,7 +86,7 @@ class RoundResultsCard extends StatelessWidget {
                     flex: stats.eliminated,
                     child: Container(
                       height: 10,
-                      color: AppConstants.errorRed,
+                      color: GameTheme.accentRed,
                     ),
                   ),
               ],
@@ -97,7 +98,7 @@ class RoundResultsCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildStatItem('WON', stats.won, AppConstants.successGreen),
+              _buildStatItem('WON', stats.won, GameTheme.accentGreen),
               Container(
                 width: 1,
                 height: 40,
@@ -109,7 +110,7 @@ class RoundResultsCard extends StatelessWidget {
                 height: 40,
                 color: Colors.grey[300],
               ),
-              _buildStatItem('OUT', stats.eliminated, AppConstants.errorRed),
+              _buildStatItem('OUT', stats.eliminated, GameTheme.accentRed),
             ],
           ),
         ],

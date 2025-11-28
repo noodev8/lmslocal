@@ -274,17 +274,17 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppConstants.warningOrange.withValues(alpha: 0.15),
+        color: GameTheme.accentOrange.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppConstants.warningOrange.withValues(alpha: 0.4),
+          color: GameTheme.accentOrange.withValues(alpha: 0.4),
         ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.warning_amber_rounded,
-            color: AppConstants.warningOrange,
+            color: GameTheme.accentOrange,
             size: 24,
           ),
           const SizedBox(width: 12),

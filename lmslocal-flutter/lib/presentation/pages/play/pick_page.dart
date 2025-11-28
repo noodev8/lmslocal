@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/pick_remote_data_source.dart';
@@ -186,7 +185,7 @@ class _PickPageState extends State<PickPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Pick saved successfully!'),
-              backgroundColor: AppConstants.successGreen,
+              backgroundColor: GameTheme.accentGreen,
               duration: Duration(seconds: 2),
             ),
           );
@@ -205,7 +204,7 @@ class _PickPageState extends State<PickPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to submit pick: ${e.toString()}'),
-            backgroundColor: AppConstants.errorRed,
+            backgroundColor: GameTheme.accentRed,
           ),
         );
       }
@@ -233,7 +232,7 @@ class _PickPageState extends State<PickPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Pick removed successfully!'),
-              backgroundColor: AppConstants.successGreen,
+              backgroundColor: GameTheme.accentGreen,
             ),
           );
         }
@@ -244,7 +243,7 @@ class _PickPageState extends State<PickPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to remove pick: ${e.toString()}'),
-            backgroundColor: AppConstants.errorRed,
+            backgroundColor: GameTheme.accentRed,
           ),
         );
       }

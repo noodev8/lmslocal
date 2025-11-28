@@ -109,7 +109,7 @@ class _RegisterPageState extends State<RegisterPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: AppConstants.errorRed,
+                backgroundColor: GameTheme.accentRed,
               ),
             );
           } else if (state is AuthAuthenticated) {

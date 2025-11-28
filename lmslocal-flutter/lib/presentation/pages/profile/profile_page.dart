@@ -127,7 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Account name updated successfully'),
-            backgroundColor: AppConstants.successGreen,
+            backgroundColor: GameTheme.accentGreen,
           ),
         );
         // Trigger auth state refresh to update user data in UI
@@ -208,7 +208,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Reset to profile name'),
-            backgroundColor: AppConstants.successGreen,
+            backgroundColor: GameTheme.accentGreen,
           ),
         );
         // Reload competitions to refresh data
@@ -244,7 +244,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Competition name updated'),
-            backgroundColor: AppConstants.successGreen,
+            backgroundColor: GameTheme.accentGreen,
           ),
         );
         // Reload competitions to refresh data
@@ -300,7 +300,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Password changed successfully'),
-            backgroundColor: AppConstants.successGreen,
+            backgroundColor: GameTheme.accentGreen,
           ),
         );
       }
@@ -344,7 +344,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Notification preferences updated'),
-            backgroundColor: AppConstants.successGreen,
+            backgroundColor: GameTheme.accentGreen,
           ),
         );
         // Reload preferences to get fresh state
@@ -378,7 +378,7 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (dialogContext) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.warning_amber, color: AppConstants.errorRed),
+            Icon(Icons.warning_amber, color: GameTheme.accentRed),
             const SizedBox(width: 8),
             const Text('Delete Account'),
           ],
@@ -400,7 +400,7 @@ class _ProfilePageState extends State<ProfilePage> {
             const Text(
               'This action cannot be undone.',
               style: TextStyle(
-                color: AppConstants.errorRed,
+                color: GameTheme.accentRed,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -435,7 +435,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 );
               }
             },
-            style: TextButton.styleFrom(foregroundColor: AppConstants.errorRed),
+            style: TextButton.styleFrom(foregroundColor: GameTheme.accentRed),
             child: const Text('Delete My Account'),
           ),
         ],
@@ -476,7 +476,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Navigator.of(dialogContext).pop();
               context.read<AuthBloc>().add(const AuthLogoutRequested());
             },
-            style: TextButton.styleFrom(foregroundColor: AppConstants.errorRed),
+            style: TextButton.styleFrom(foregroundColor: GameTheme.accentRed),
             child: const Text('Logout'),
           ),
         ],

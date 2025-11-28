@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
@@ -71,7 +72,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: AppConstants.errorRed,
+                backgroundColor: GameTheme.accentRed,
               ),
             );
           } else if (state is AuthForgotPasswordSuccess) {
@@ -79,7 +80,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: AppConstants.successGreen,
+                backgroundColor: GameTheme.accentGreen,
                 duration: const Duration(seconds: 3),
               ),
             );
@@ -183,7 +184,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         Icon(
                           Icons.check_circle_outline,
                           size: 80,
-                          color: AppConstants.successGreen,
+                          color: GameTheme.accentGreen,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -191,7 +192,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: AppConstants.successGreen,
+                            color: GameTheme.accentGreen,
                           ),
                           textAlign: TextAlign.center,
                         ),
