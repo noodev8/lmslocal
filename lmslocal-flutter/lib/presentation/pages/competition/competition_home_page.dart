@@ -95,11 +95,11 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
         competition = _competition!;
       } else {
         // Load from cache/API
-        final competitions = await _dashboardDataSource.getUserDashboard(
+        final dashboardData = await _dashboardDataSource.getUserDashboard(
           forceRefresh: forceRefresh,
         );
 
-        competition = competitions.firstWhere(
+        competition = dashboardData.competitions.firstWhere(
           (c) => c.id.toString() == widget.competitionId,
           orElse: () => throw Exception('Competition not found'),
         );
@@ -209,7 +209,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load unpicked players: ${e.toString()}'),
-            backgroundColor: AppConstants.errorRed,
+            backgroundColor: GameTheme.accentRed,
           ),
         );
       }
@@ -221,7 +221,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$label copied to clipboard'),
-        backgroundColor: AppConstants.successGreen,
+        backgroundColor: GameTheme.accentGreen,
         duration: const Duration(seconds: 2),
       ),
     );

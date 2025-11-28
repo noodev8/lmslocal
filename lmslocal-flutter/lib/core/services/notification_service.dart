@@ -52,7 +52,6 @@ class NotificationService {
       final token = await _messaging.getToken();
 
       if (token != null) {
-        debugPrint('🔔 FCM Token: ${token.substring(0, 20)}...');
         await _registerTokenWithBackend(token);
       } else {
         debugPrint('🔔 Failed to get FCM token');
@@ -76,9 +75,7 @@ class NotificationService {
       );
 
       final returnCode = response.data['return_code'];
-      if (returnCode == 'SUCCESS') {
-        debugPrint('🔔 Device token registered with backend');
-      } else {
+      if (returnCode != 'SUCCESS') {
         debugPrint('🔔 Failed to register token: $returnCode');
       }
     } catch (e) {

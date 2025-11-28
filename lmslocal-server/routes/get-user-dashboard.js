@@ -59,6 +59,20 @@ Success Response (ALWAYS HTTP 200):
         }
       ]
     }
+  ],
+  "promoted_competitions": [                    // array, promoted competitions user is NOT in (can join)
+    {
+      "id": 456,                                // integer, competition ID
+      "name": "Winter Premier League LMS",      // string, competition name
+      "venue_name": "The Red Lion",             // string, venue name
+      "city": "Manchester",                     // string, city
+      "prize_structure": "Winner takes £500",   // string, prize details
+      "entry_fee": "5.00",                      // string, entry fee
+      "logo_url": "https://...",                // string, logo URL (nullable)
+      "slug": "winter-lms",                     // string, competition slug for joining
+      "player_count": 45,                       // integer, current player count
+      "lock_time": "2025-12-01T15:00:00Z"       // string, Round 1 lock time (join deadline)
+    }
   ]
 }
 
@@ -481,6 +495,61 @@ router.post('/', verifyToken, async (req, res) => {
       // Don't fail the whole response if round stats fail
     }
 
+    // === PROMOTED COMPETITIONS ===
+    // Get competitions marked as promoted that the user is NOT already in
+    // Only show if Round 1 lock time hasn't passed (can still join)
+    // Order by lock time ASC (most urgent deadline first)
+    let promotedCompetitions = [];
+    try {
+      const promotedQuery = `
+        SELECT
+          c.id,
+          c.name,
+          c.venue_name,
+          c.city,
+          c.prize_structure,
+          c.entry_fee,
+          c.logo_url,
+          c.invite_code,
+          COALESCE(player_counts.total_players, 0) as player_count,
+          r1.lock_time
+        FROM competition c
+        -- Get Round 1 lock time
+        INNER JOIN round r1 ON c.id = r1.competition_id AND r1.round_number = 1
+        -- Get player count
+        LEFT JOIN (
+          SELECT competition_id, COUNT(*) as total_players
+          FROM competition_user
+          GROUP BY competition_id
+        ) player_counts ON c.id = player_counts.competition_id
+        WHERE c.is_promoted = true
+          AND r1.lock_time > NOW()
+          AND NOT EXISTS (
+            SELECT 1 FROM competition_user cu
+            WHERE cu.competition_id = c.id AND cu.user_id = $1
+          )
+        ORDER BY r1.lock_time ASC
+      `;
+
+      const promotedResult = await query(promotedQuery, [user_id]);
+
+      promotedCompetitions = promotedResult.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        venue_name: row.venue_name || null,
+        city: row.city || null,
+        prize_structure: row.prize_structure || null,
+        entry_fee: row.entry_fee || null,
+        logo_url: row.logo_url || null,
+        invite_code: row.invite_code,
+        player_count: parseInt(row.player_count || 0),
+        lock_time: row.lock_time
+      }));
+    } catch (error) {
+      console.error('Error fetching promoted competitions:', error);
+      // Don't fail the whole response if promoted competitions fail
+    }
+
     // === GET USER'S DISPLAY NAME FOR CROSS-CLIENT SYNC ===
     // Fetch latest display_name from database to sync with Flutter/other clients
     const userDataResult = await query(
@@ -500,6 +569,7 @@ router.post('/', verifyToken, async (req, res) => {
       return_code: "SUCCESS",
       user: userData,
       competitions: competitions,
+      promoted_competitions: promotedCompetitions,
       latest_round_stats: latestRoundStats
     });
 

@@ -56,8 +56,8 @@ class _PlayPageState extends State<PlayPage> {
   Future<void> _determineDestination() async {
     try {
       // Step 1: Get competition data
-      final competitions = await _dashboardDataSource.getUserDashboard();
-      final competition = competitions.firstWhere(
+      final dashboardData = await _dashboardDataSource.getUserDashboard();
+      final competition = dashboardData.competitions.firstWhere(
         (c) => c.id.toString() == widget.competitionId,
         orElse: () => throw Exception('Competition not found'),
       );

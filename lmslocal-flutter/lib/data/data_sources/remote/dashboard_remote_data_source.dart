@@ -4,6 +4,20 @@ import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/errors/failures.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/models/competition_model.dart';
+import 'package:lmslocal_flutter/data/models/promoted_competition_model.dart';
+import 'package:lmslocal_flutter/domain/entities/competition.dart';
+import 'package:lmslocal_flutter/domain/entities/promoted_competition.dart';
+
+/// Dashboard data containing user's competitions and promoted competitions
+class DashboardData {
+  final List<Competition> competitions;
+  final List<PromotedCompetition> promotedCompetitions;
+
+  const DashboardData({
+    required this.competitions,
+    required this.promotedCompetitions,
+  });
+}
 
 /// Remote data source for dashboard-related API calls
 /// Includes caching for offline support and performance
@@ -12,6 +26,7 @@ class DashboardRemoteDataSource {
   final SharedPreferences _prefs;
 
   static const String _cacheKey = 'dashboard_competitions';
+  static const String _promotedCacheKey = 'dashboard_promoted';
   static const String _cacheTimeKey = 'dashboard_cache_time';
   static const int _cacheDurationMinutes = 5; // Cache for 5 minutes
 
@@ -24,7 +39,7 @@ class DashboardRemoteDataSource {
   /// Get user dashboard data
   /// Returns cached data if fresh, otherwise fetches from API
   /// Throws ServerFailure, NetworkFailure, or UpdateRequiredException on error
-  Future<List<CompetitionModel>> getUserDashboard({
+  Future<DashboardData> getUserDashboard({
     bool forceRefresh = false,
   }) async {
     // Check cache first unless force refresh
@@ -50,10 +65,19 @@ class DashboardRemoteDataSource {
             .map((e) => CompetitionModel.fromJson(e as Map<String, dynamic>))
             .toList();
 
-        // Cache the response
-        await _cacheDashboard(competitions);
+        final promotedCompetitions = (data['promoted_competitions'] as List?)
+            ?.map((e) => PromotedCompetitionModel.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [];
 
-        return competitions;
+        final dashboardData = DashboardData(
+          competitions: competitions,
+          promotedCompetitions: promotedCompetitions,
+        );
+
+        // Cache the response
+        await _cacheDashboard(competitions, promotedCompetitions);
+
+        return dashboardData;
       } else {
         final message = data['message'] as String? ?? 'Failed to fetch dashboard';
         throw ServerFailure(message);
@@ -72,11 +96,12 @@ class DashboardRemoteDataSource {
   }
 
   /// Get cached dashboard data if available and fresh
-  Future<List<CompetitionModel>?> _getCachedDashboard({
+  Future<DashboardData?> _getCachedDashboard({
     bool ignoreExpiry = false,
   }) async {
     try {
       final cachedJson = _prefs.getString(_cacheKey);
+      final promotedJson = _prefs.getString(_promotedCacheKey);
       final cacheTime = _prefs.getInt(_cacheTimeKey);
 
       if (cachedJson == null || cacheTime == null) {
@@ -93,13 +118,25 @@ class DashboardRemoteDataSource {
         }
       }
 
-      // Decode cached data
-      final List<dynamic> decoded = jsonDecode(cachedJson);
-      final competitions = decoded
+      // Decode cached competitions
+      final List<dynamic> decodedCompetitions = jsonDecode(cachedJson);
+      final competitions = decodedCompetitions
           .map((e) => CompetitionModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      return competitions;
+      // Decode cached promoted competitions
+      List<PromotedCompetitionModel> promotedCompetitions = [];
+      if (promotedJson != null) {
+        final List<dynamic> decodedPromoted = jsonDecode(promotedJson);
+        promotedCompetitions = decodedPromoted
+            .map((e) => PromotedCompetitionModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+
+      return DashboardData(
+        competitions: competitions,
+        promotedCompetitions: promotedCompetitions,
+      );
     } catch (e) {
       // If cache is corrupted, clear it
       await clearCache();
@@ -108,12 +145,19 @@ class DashboardRemoteDataSource {
   }
 
   /// Cache dashboard data
-  Future<void> _cacheDashboard(List<CompetitionModel> competitions) async {
+  Future<void> _cacheDashboard(
+    List<CompetitionModel> competitions,
+    List<PromotedCompetitionModel> promotedCompetitions,
+  ) async {
     try {
-      final encoded = jsonEncode(
+      final encodedCompetitions = jsonEncode(
         competitions.map((e) => e.toJson()).toList(),
       );
-      await _prefs.setString(_cacheKey, encoded);
+      final encodedPromoted = jsonEncode(
+        promotedCompetitions.map((e) => e.toJson()).toList(),
+      );
+      await _prefs.setString(_cacheKey, encodedCompetitions);
+      await _prefs.setString(_promotedCacheKey, encodedPromoted);
       await _prefs.setInt(_cacheTimeKey, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
       // Silently fail - caching is optional
@@ -123,6 +167,7 @@ class DashboardRemoteDataSource {
   /// Clear cached dashboard data
   Future<void> clearCache() async {
     await _prefs.remove(_cacheKey);
+    await _prefs.remove(_promotedCacheKey);
     await _prefs.remove(_cacheTimeKey);
   }
 }
