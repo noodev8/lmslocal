@@ -152,9 +152,10 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          backgroundColor: GameTheme.cardBackground,
+          backgroundColor: const Color(0xFF2A3F5F),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: GameTheme.glowCyan.withValues(alpha: 0.3)),
           ),
           title: Row(
             children: [
@@ -162,7 +163,10 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(width: 16),
               Text(
                 'Join Competition',
-                style: TextStyle(color: GameTheme.textPrimary),
+                style: TextStyle(
+                  color: GameTheme.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -172,25 +176,35 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               Text(
                 'Enter the invite code shared by the competition organiser',
-                style: TextStyle(fontSize: 14, color: GameTheme.textMuted),
+                style: TextStyle(fontSize: 14, color: GameTheme.textSecondary),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: codeController,
-                style: TextStyle(color: GameTheme.textPrimary),
+                style: TextStyle(
+                  color: GameTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: InputDecoration(
                   labelText: 'Invite Code',
-                  labelStyle: TextStyle(color: GameTheme.textMuted),
+                  labelStyle: TextStyle(color: GameTheme.textSecondary),
                   hintText: 'ABC123',
-                  hintStyle: TextStyle(color: GameTheme.textMuted.withValues(alpha: 0.5)),
+                  hintStyle: TextStyle(color: GameTheme.textMuted),
+                  filled: true,
+                  fillColor: GameTheme.background,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   border: OutlineInputBorder(
-                    borderSide: BorderSide(color: GameTheme.border),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: GameTheme.textMuted),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: GameTheme.border),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: GameTheme.textMuted),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: GameTheme.glowCyan),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: GameTheme.glowCyan, width: 2),
                   ),
                   errorText: errorMessage,
                   errorStyle: TextStyle(color: GameTheme.accentRed),
@@ -222,7 +236,7 @@ class _DashboardPageState extends State<DashboardPage> {
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.of(dialogContext).pop(),
-              child: Text('Cancel', style: TextStyle(color: GameTheme.textMuted)),
+              child: Text('Cancel', style: TextStyle(color: GameTheme.textSecondary)),
             ),
             ElevatedButton(
               onPressed: (isLoading || codeController.text.trim().isEmpty)
@@ -235,9 +249,11 @@ class _DashboardPageState extends State<DashboardPage> {
                         (error) => errorMessage = error,
                       ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: GameTheme.glowCyan,
-                foregroundColor: GameTheme.background,
-                disabledBackgroundColor: GameTheme.border,
+                backgroundColor: GameTheme.glowBlue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: GameTheme.cardBackground,
+                disabledForegroundColor: GameTheme.textSecondary,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
               child: isLoading
                   ? SizedBox(
@@ -248,7 +264,10 @@ class _DashboardPageState extends State<DashboardPage> {
                         valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
                       ),
                     )
-                  : const Text('Join Competition'),
+                  : const Text(
+                      'Join Competition',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
             ),
           ],
         ),
@@ -719,30 +738,31 @@ class _DashboardPageState extends State<DashboardPage> {
 
                 const SizedBox(height: 16),
 
-                // Join button
+                // Join button - matches "Enter >" style
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    color: GameTheme.glowCyan,
                     borderRadius: BorderRadius.circular(8),
+                    color: GameTheme.glowCyan.withValues(alpha: 0.15),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.add,
-                        size: 20,
-                        color: GameTheme.background,
-                      ),
-                      const SizedBox(width: 8),
                       Text(
-                        'Join Competition',
+                        'Join',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: GameTheme.background,
+                          color: GameTheme.glowCyan,
+                          letterSpacing: 0.5,
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 20,
+                        color: GameTheme.glowCyan,
                       ),
                     ],
                   ),

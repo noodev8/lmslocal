@@ -88,7 +88,7 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
   }
 
   Widget _buildNavBar() {
-    // Order: Game | Play | Standings | Profile
+    // Order: Home | Game | Play | Standings | Profile
     return Container(
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
@@ -104,35 +104,51 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
+              // Home - navigates to main dashboard
+              Expanded(
+                child: _buildNavItem(
+                  icon: Icons.home_outlined,
+                  label: 'Home',
+                  isActive: false,
+                  onTap: () => context.go('/dashboard'),
+                ),
+              ),
               // Game
-              _buildNavItem(
-                icon: _currentIndex == 0 ? Icons.dashboard : Icons.dashboard_outlined,
-                label: 'Game',
-                isActive: _currentIndex == 0,
-                onTap: () => setState(() => _currentIndex = 0),
+              Expanded(
+                child: _buildNavItem(
+                  icon: _currentIndex == 0 ? Icons.dashboard : Icons.dashboard_outlined,
+                  label: 'Game',
+                  isActive: _currentIndex == 0,
+                  onTap: () => setState(() => _currentIndex = 0),
+                ),
               ),
               // Play
-              _buildNavItem(
-                icon: _currentIndex == 1 ? Icons.sports_soccer : Icons.sports_soccer_outlined,
-                label: 'Play',
-                isActive: _currentIndex == 1,
-                onTap: () => setState(() => _currentIndex = 1),
+              Expanded(
+                child: _buildNavItem(
+                  icon: _currentIndex == 1 ? Icons.sports_soccer : Icons.sports_soccer_outlined,
+                  label: 'Play',
+                  isActive: _currentIndex == 1,
+                  onTap: () => setState(() => _currentIndex = 1),
+                ),
               ),
               // Standings
-              _buildNavItem(
-                icon: _currentIndex == 2 ? Icons.leaderboard : Icons.leaderboard_outlined,
-                label: 'Standings',
-                isActive: _currentIndex == 2,
-                onTap: () => setState(() => _currentIndex = 2),
+              Expanded(
+                child: _buildNavItem(
+                  icon: _currentIndex == 2 ? Icons.leaderboard : Icons.leaderboard_outlined,
+                  label: 'Standings',
+                  isActive: _currentIndex == 2,
+                  onTap: () => setState(() => _currentIndex = 2),
+                ),
               ),
               // Profile
-              _buildNavItem(
-                icon: _currentIndex == 3 ? Icons.person : Icons.person_outline,
-                label: 'Profile',
-                isActive: _currentIndex == 3,
-                onTap: () => setState(() => _currentIndex = 3),
+              Expanded(
+                child: _buildNavItem(
+                  icon: _currentIndex == 3 ? Icons.person : Icons.person_outline,
+                  label: 'Profile',
+                  isActive: _currentIndex == 3,
+                  onTap: () => setState(() => _currentIndex = 3),
+                ),
               ),
             ],
           ),
@@ -150,27 +166,24 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 80,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 30,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 26,
+            color: isActive ? GameTheme.accentGreen : GameTheme.textMuted,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               color: isActive ? GameTheme.accentGreen : GameTheme.textMuted,
             ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive ? GameTheme.accentGreen : GameTheme.textMuted,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
