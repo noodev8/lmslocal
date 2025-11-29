@@ -42,11 +42,11 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _showNewPassword = false;
   bool _showConfirmPassword = false;
 
-  // Email preferences
-  Map<String, dynamic>? _emailPreferences;
-  bool _isLoadingPreferences = false;
-  bool _isSavingPreferences = false;
-  final Map<String, bool> _pendingPreferenceChanges = {};
+  // TODO: Email preferences temporarily disabled - not currently used
+  // Map<String, dynamic>? _emailPreferences;
+  // bool _isLoadingPreferences = false;
+  // bool _isSavingPreferences = false;
+  // final Map<String, bool> _pendingPreferenceChanges = {};
 
   // App version
   String _appVersion = '';
@@ -61,8 +61,8 @@ class _ProfilePageState extends State<ProfilePage> {
     // Initialize auth repository
     _authRepository = context.read<AuthRepository>();
 
-    // Load email preferences
-    _loadEmailPreferences();
+    // TODO: Email preferences temporarily disabled
+    // _loadEmailPreferences();
 
     // Load app version
     _loadAppVersion();
@@ -85,6 +85,8 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  // TODO: Email preferences temporarily disabled
+  /*
   Future<void> _loadEmailPreferences() async {
     setState(() => _isLoadingPreferences = true);
     try {
@@ -102,6 +104,7 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() => _isLoadingPreferences = false);
     }
   }
+  */
 
   Future<void> _updateDisplayName(String currentName) async {
     final newName = _displayNameController.text.trim();
@@ -314,6 +317,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // TODO: Email preferences temporarily disabled
+  /*
   Future<void> _saveEmailPreferences() async {
     if (_pendingPreferenceChanges.isEmpty) return;
 
@@ -369,6 +374,7 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _getPreferenceValue(String key, bool defaultValue) {
     return _pendingPreferenceChanges[key] ?? defaultValue;
   }
+  */
 
   void _showDeleteAccountDialog() {
     final confirmController = TextEditingController();
@@ -900,6 +906,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // TODO: Notifications feature temporarily hidden - not currently used
+  // Uncomment _buildNotificationsCard when ready to re-enable
+  /*
   Widget _buildNotificationsCard() {
     final global = _emailPreferences?['global'] as Map<String, dynamic>?;
     final competitionSpecific = _emailPreferences?['competition_specific'] as List?;
@@ -1026,6 +1035,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+  */
 
   Widget _buildChangePasswordCard() {
     return Container(
