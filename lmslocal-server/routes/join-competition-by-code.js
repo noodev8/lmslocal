@@ -264,9 +264,10 @@ router.post('/', verifyToken, async (req, res) => {
         console.log(`⚠️ No teams found to populate for user ${user_id} in competition ${data.competition_id} - check if competition has teams`);
       }
 
-      // === QUEUE MOBILE NOTIFICATIONS ===
-      // If there's an active round (not yet locked), queue notifications for this new player
-      // Excludes guest users (but they shouldn't be using this route anyway)
+      // === QUEUE PICK REMINDER NOTIFICATION ===
+      // If there's an active round, queue a pick_reminder for this new player
+      // They know about the round (just joined) but might forget to pick
+      // Excludes guest users
       const activeRoundResult = await client.query(`
         SELECT r.id as round_id, r.round_number
         FROM round r
@@ -279,20 +280,13 @@ router.post('/', verifyToken, async (req, res) => {
       if (activeRoundResult.rows.length > 0) {
         const activeRound = activeRoundResult.rows[0];
 
-        // Check user is not a guest before queueing notifications
+        // Check user is not a guest before queueing notification
         const userCheckResult = await client.query(`
           SELECT email FROM app_user WHERE id = $1
         `, [user_id]);
 
         const userEmail = userCheckResult.rows[0]?.email || '';
         if (!userEmail.includes('@lms-guest.')) {
-          // Queue new_round notification
-          await client.query(`
-            INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-            VALUES ($1, 'new_round', $2, $3, $4, 'pending', NOW())
-          `, [user_id, data.competition_id, activeRound.round_id, activeRound.round_number]);
-
-          // Queue pick_reminder notification
           await client.query(`
             INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
             VALUES ($1, 'pick_reminder', $2, $3, $4, 'pending', NOW())

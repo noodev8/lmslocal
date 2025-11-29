@@ -42,17 +42,52 @@ const router = express.Router();
 // ===========================================================================================================
 // Notification Priority Order (highest first)
 // ===========================================================================================================
-// 1. pick_reminder - Time-sensitive, prevents life loss
-// 2. new_round - Action needed
+// 1. new_round - Inform player of new round first
+// 2. pick_reminder - Reminder if they haven't picked (24hrs before lock)
 // 3. results - Informational
 // ===========================================================================================================
-const PRIORITY_ORDER = ['pick_reminder', 'new_round', 'results'];
+const PRIORITY_ORDER = ['new_round', 'pick_reminder', 'results'];
 
 router.post('/', async (req, res) => {
   // Log API call for debugging when enabled
   logApiCall('process-mobile-notifications');
 
   try {
+    // === STEP 0: CLEANUP STALE NOTIFICATIONS ===
+    // Mark as skipped any pending notifications for rounds that are no longer current
+    const staleCleanupResult = await query(`
+      UPDATE mobile_notification_queue mnq
+      SET status = 'skipped', sent_at = NOW()
+      WHERE mnq.status = 'pending'
+        AND mnq.round_number < (
+          SELECT MAX(r.round_number)
+          FROM round r
+          WHERE r.competition_id = mnq.competition_id
+        )
+    `);
+
+    if (staleCleanupResult.rowCount > 0) {
+      console.log(`Marked ${staleCleanupResult.rowCount} stale notifications as skipped`);
+    }
+
+    // Delete pending/skipped 'new_round' and 'pick_reminder' entries for rounds that are complete
+    // Don't delete 'results' - they need to be sent after results are processed
+    // Keep 'sent' entries for record-keeping
+    const deleteCompletedResult = await query(`
+      DELETE FROM mobile_notification_queue mnq
+      WHERE mnq.status IN ('pending', 'skipped')
+        AND mnq.type IN ('new_round', 'pick_reminder')
+        AND EXISTS (
+          SELECT 1 FROM fixture f
+          WHERE f.round_id = mnq.round_id
+            AND f.processed IS NOT NULL
+        )
+    `);
+
+    if (deleteCompletedResult.rowCount > 0) {
+      console.log(`Deleted ${deleteCompletedResult.rowCount} notifications for completed rounds`);
+    }
+
     // === STEP 1: GET PENDING NOTIFICATIONS ===
     // Get 'new_round' and 'results' entries that are ready to send immediately
     // Get 'pick_reminder' entries only if we're within 24 hours of lock time

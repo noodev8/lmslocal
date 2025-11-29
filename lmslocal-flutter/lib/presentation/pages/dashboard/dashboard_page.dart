@@ -314,9 +314,8 @@ class _DashboardPageState extends State<DashboardPage> {
     try {
       final apiClient = context.read<ApiClient>();
       final userDataSource = UserRemoteDataSource(apiClient: apiClient);
-      final messenger = ScaffoldMessenger.of(context);
 
-      final result = await userDataSource.joinCompetitionByCode(
+      await userDataSource.joinCompetitionByCode(
         competitionCode: code.trim(),
       );
 
@@ -326,15 +325,6 @@ class _DashboardPageState extends State<DashboardPage> {
       if (dialogContext.mounted) {
         Navigator.of(dialogContext).pop();
       }
-
-      // Show success message
-      final competitionName = result['competition']?['name'] ?? 'competition';
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Successfully joined $competitionName!'),
-          backgroundColor: GameTheme.accentGreen,
-        ),
-      );
 
       // Refresh dashboard to show newly joined competition
       await _loadDashboard(forceRefresh: true);
@@ -890,14 +880,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
       // Close loading dialog
       Navigator.of(context).pop();
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Successfully joined ${promo.name}!'),
-          backgroundColor: GameTheme.accentGreen,
-        ),
-      );
 
       // Refresh dashboard
       await _loadDashboard(forceRefresh: true);

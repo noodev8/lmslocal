@@ -335,7 +335,9 @@ router.post('/', verifyToken, async (req, res) => {
       // === QUEUE MOBILE NOTIFICATIONS ===
       // Queue 'new_round' and 'pick_reminder' notifications for all active players
       // new_round: sends immediately on next cron run
-      // pick_reminder: sends when within 24hrs of lock_time
+      //   - Round 1: excludes the creator (they just set up the competition)
+      //   - Round 2+: includes everyone (organizer may have delegated fixture creation)
+      // pick_reminder: sends when within 24hrs of lock_time (includes everyone)
       // Excludes guest users (email starts with 'lms-guest')
       await client.query(`
         INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
@@ -346,7 +348,8 @@ router.post('/', verifyToken, async (req, res) => {
           AND cu.status = 'active'
           AND cu.hidden IS NOT TRUE
           AND au.email NOT LIKE '%@lms-guest.%'
-      `, [competitionIdInt, roundId, roundNumber]);
+          AND ($3 > 1 OR cu.user_id != $4)
+      `, [competitionIdInt, roundId, roundNumber, user_id]);
 
       await client.query(`
         INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)

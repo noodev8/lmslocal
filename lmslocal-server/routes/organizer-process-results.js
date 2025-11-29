@@ -315,6 +315,18 @@ router.post('/', verifyToken, async (req, res) => {
         }
       }
 
+      // === CLEANUP OLD NOTIFICATIONS FOR THIS ROUND ===
+      // Mark any pending 'new_round' or 'pick_reminder' for this round as skipped
+      // They're no longer relevant since results are being processed
+      await client.query(`
+        UPDATE mobile_notification_queue
+        SET status = 'skipped', sent_at = NOW()
+        WHERE competition_id = $1
+          AND round_id = $2
+          AND type IN ('new_round', 'pick_reminder')
+          AND status = 'pending'
+      `, [competitionIdInt, roundId]);
+
       // === QUEUE MOBILE NOTIFICATIONS ===
       // Queue 'results' notifications for all players who were active this round
       // (either they made a pick or they were penalized for no-pick)
