@@ -321,7 +321,7 @@ router.post('/', verifyToken, async (req, res) => {
       // Excludes guest users (email starts with 'lms-guest')
       await client.query(`
         INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-        SELECT DISTINCT pp.player_id, 'results', $1, $2, $3, 'pending', NOW()
+        SELECT DISTINCT pp.player_id, 'results', $1::integer, $2::integer, $3::integer, 'pending', NOW()
         FROM player_progress pp
         JOIN app_user au ON au.id = pp.player_id
         WHERE pp.competition_id = $1
