@@ -50,6 +50,12 @@ class DashboardRemoteDataSource {
       }
     }
 
+    // If force refresh, also clear competition-specific caches
+    // This ensures consistency when user pulls to refresh
+    if (forceRefresh) {
+      await _clearCompetitionCaches();
+    }
+
     // Fetch from API
     try {
       final response = await _apiClient.post(
@@ -169,5 +175,23 @@ class DashboardRemoteDataSource {
     await _prefs.remove(_cacheKey);
     await _prefs.remove(_promotedCacheKey);
     await _prefs.remove(_cacheTimeKey);
+  }
+
+  /// Clear all competition-specific caches (rounds, pick stats, round stats)
+  /// Called when force refreshing dashboard to ensure data consistency
+  Future<void> _clearCompetitionCaches() async {
+    try {
+      final keys = _prefs.getKeys();
+      final competitionCacheKeys = keys.where((key) =>
+          key.startsWith('competition_rounds_') ||
+          key.startsWith('pick_stats_') ||
+          key.startsWith('round_stats_'));
+
+      for (final key in competitionCacheKeys) {
+        await _prefs.remove(key);
+      }
+    } catch (e) {
+      // Silently fail - cache clearing is best effort
+    }
   }
 }

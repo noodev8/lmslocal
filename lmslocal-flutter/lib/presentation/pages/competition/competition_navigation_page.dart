@@ -31,28 +31,46 @@ class CompetitionNavigationPage extends StatefulWidget {
 class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
   int _currentIndex = 0;
 
-  late final List<Widget> _pages;
+  // Cache built pages to preserve state when switching tabs
+  final Map<int, Widget> _builtPages = {};
 
-  @override
-  void initState() {
-    super.initState();
+  Widget _getPage(int index) {
+    // Return cached page if already built
+    if (_builtPages.containsKey(index)) {
+      return _builtPages[index]!;
+    }
 
     // Extract playerDisplayName from competition if available
     final competition = widget.competition as Competition?;
     final playerDisplayName = competition?.playerDisplayName;
 
-    _pages = [
-      CompetitionHomePage(
-        competitionId: widget.competitionId,
-        initialCompetition: widget.competition,
-      ),
-      PlayPage(competitionId: widget.competitionId),
-      StandingsPage(
-        competitionId: widget.competitionId,
-        playerDisplayName: playerDisplayName,
-      ),
-      const ProfilePage(),
-    ];
+    // Build and cache the page
+    final Widget page;
+    switch (index) {
+      case 0:
+        page = CompetitionHomePage(
+          competitionId: widget.competitionId,
+          initialCompetition: widget.competition,
+        );
+        break;
+      case 1:
+        page = PlayPage(competitionId: widget.competitionId);
+        break;
+      case 2:
+        page = StandingsPage(
+          competitionId: widget.competitionId,
+          playerDisplayName: playerDisplayName,
+        );
+        break;
+      case 3:
+        page = const ProfilePage();
+        break;
+      default:
+        page = const SizedBox.shrink();
+    }
+
+    _builtPages[index] = page;
+    return page;
   }
 
   @override
@@ -78,10 +96,7 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
             systemNavigationBarIconBrightness: Brightness.light,
           ),
         ),
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _pages,
-        ),
+        body: _getPage(_currentIndex),
         bottomNavigationBar: _buildNavBar(),
       ),
     );
