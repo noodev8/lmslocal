@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 
-/// Dark themed status cards for "Still In" and "Lives"
-/// Matches the game dashboard dark theme with subtle glow effects
+/// Dark themed status cards for "Round", "Still In" and "Lives"
+/// Compact, responsive design - mobile first
 class DarkStatusCards extends StatelessWidget {
+  final int roundNumber;
   final bool isStillIn;
   final int livesRemaining;
 
   const DarkStatusCards({
     super.key,
+    required this.roundNumber,
     required this.isStillIn,
     required this.livesRemaining,
   });
@@ -20,31 +22,48 @@ class DarkStatusCards extends StatelessWidget {
     // Game over: not still in
     final bool isGameOver = !isStillIn;
 
-    return Row(
-      children: [
-        // Still In card
-        Expanded(
-          child: _buildCard(
-            icon: isStillIn ? Icons.confirmation_num : Icons.cancel,
-            iconColor: isStillIn ? GameTheme.accentGreen : GameTheme.accentRed,
-            label: 'Still In',
-            value: isStillIn ? 'YES' : 'OUT',
-            valueColor: isStillIn ? GameTheme.accentGreen : GameTheme.accentRed,
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Lives card
-        Expanded(
-          child: _buildCard(
-            icon: Icons.favorite,
-            iconColor: isGameOver ? GameTheme.textMuted : GameTheme.accentRed,
-            label: isKnockout ? 'Knockout' : 'Lives',
-            value: isGameOver ? 'Game Over' : livesRemaining.toString(),
-            valueColor: isGameOver ? GameTheme.textMuted : GameTheme.textPrimary,
-            isSmallText: isGameOver,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Responsive gap based on available width
+        final gap = constraints.maxWidth < 320 ? 4.0 : 6.0;
+
+        return Row(
+          children: [
+            // Round card
+            Expanded(
+              child: _buildCard(
+                icon: Icons.flag_outlined,
+                iconColor: GameTheme.glowCyan,
+                label: 'Round',
+                value: roundNumber.toString(),
+                valueColor: GameTheme.textPrimary,
+              ),
+            ),
+            SizedBox(width: gap),
+            // Status card
+            Expanded(
+              child: _buildCard(
+                icon: isStillIn ? Icons.check_circle : Icons.cancel,
+                iconColor: isStillIn ? GameTheme.accentGreen : GameTheme.accentRed,
+                label: 'Status',
+                value: isStillIn ? 'IN' : 'OUT',
+                valueColor: isStillIn ? GameTheme.accentGreen : GameTheme.accentRed,
+              ),
+            ),
+            SizedBox(width: gap),
+            // Lives card
+            Expanded(
+              child: _buildCard(
+                icon: Icons.favorite,
+                iconColor: isGameOver ? GameTheme.textMuted : GameTheme.accentRed,
+                label: isKnockout ? 'Mode' : 'Lives',
+                value: isKnockout ? 'KO' : (isGameOver ? '-' : livesRemaining.toString()),
+                valueColor: isGameOver ? GameTheme.textMuted : GameTheme.textPrimary,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -54,51 +73,48 @@ class DarkStatusCards extends StatelessWidget {
     required String label,
     required String value,
     required Color valueColor,
-    bool isSmallText = false,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: GameTheme.border,
           width: 1,
         ),
-        boxShadow: GameTheme.borderGlowShadow,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Label at top
+          // Icon
+          Icon(
+            icon,
+            color: iconColor,
+            size: 18,
+          ),
+          const SizedBox(height: 4),
+          // Value
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: valueColor,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          // Label
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
               color: GameTheme.textMuted,
-              letterSpacing: 0.5,
             ),
-          ),
-          const SizedBox(height: 10),
-          // Icon and value
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: iconColor,
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: isSmallText ? 14 : 22,
-                  fontWeight: FontWeight.bold,
-                  color: valueColor,
-                ),
-              ),
-            ],
           ),
         ],
       ),

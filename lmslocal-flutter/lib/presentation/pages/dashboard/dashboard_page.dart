@@ -122,45 +122,10 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  /// Sort competitions by priority:
-  /// 1. Needs pick (by lock time ASC - most urgent first)
-  /// 2. Active, already picked
-  /// 3. Organizer-only (not participating)
-  /// 4. Eliminated (user is out)
-  /// 5. Completed
+  /// Sort competitions by creation date (newest first)
   List<Competition> _sortCompetitions(List<Competition> competitions) {
-    return List<Competition>.from(competitions)..sort((a, b) {
-      final aPriority = _getCompetitionPriority(a);
-      final bPriority = _getCompetitionPriority(b);
-
-      if (aPriority != bPriority) {
-        return aPriority.compareTo(bPriority);
-      }
-
-      // For same priority, sort by created_at DESC (newest first)
-      return b.createdAt.compareTo(a.createdAt);
-    });
-  }
-
-  /// Get sort priority for a competition (lower = higher priority)
-  int _getCompetitionPriority(Competition comp) {
-    // Completed competitions always last
-    if (comp.status == 'COMPLETE') return 5;
-
-    // User is eliminated
-    if (comp.isParticipant && comp.userStatus == 'out') return 4;
-
-    // Organizer-only (not participating)
-    if (comp.isOrganiser && !comp.isParticipant) return 3;
-
-    // Active and already picked
-    if (comp.isParticipant && comp.userStatus == 'active' && !(comp.needsPick ?? false)) return 2;
-
-    // Needs pick - highest priority
-    if (comp.needsPick ?? false) return 1;
-
-    // Default
-    return 3;
+    return List<Competition>.from(competitions)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   Future<void> _onRefresh() async {
@@ -1306,20 +1271,19 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ),
                     ),
-                    // Only show delete for participants (not organisers)
-                    if (competition.isParticipant && !competition.isOrganiser)
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _showDeleteConfirmation(competition),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Icon(
-                            Icons.delete_outline,
-                            size: 22,
-                            color: GameTheme.textMuted,
-                          ),
+                    // Allow hiding any competition from dashboard
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _showDeleteConfirmation(competition),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 22,
+                          color: GameTheme.textMuted,
                         ),
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),

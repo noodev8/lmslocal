@@ -49,7 +49,7 @@ class PickStatusCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Round ${round.roundNumber} Picks',
+                    'Picks',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

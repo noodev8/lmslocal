@@ -296,7 +296,10 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
 
                     // Personal Status Cards (participants only)
                     if (_competition!.isParticipant) ...[
-                      _buildPersonalStatusCards(_competition!),
+                      _buildPersonalStatusCards(
+                        _competition!,
+                        _currentRound?.roundNumber ?? _competition!.currentRound,
+                      ),
                       const SizedBox(height: 16),
                     ],
 
@@ -609,11 +612,12 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     );
   }
 
-  Widget _buildPersonalStatusCards(Competition competition) {
+  Widget _buildPersonalStatusCards(Competition competition, int roundNumber) {
     final isIn = competition.userStatus?.toLowerCase() == 'active';
     final lives = competition.livesRemaining ?? 0;
 
     return DarkStatusCards(
+      roundNumber: roundNumber,
       isStillIn: isIn,
       livesRemaining: lives,
     );
