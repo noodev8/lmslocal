@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class AppConstants {
   // App Info
   static const String appName = 'LMS Local';
-  static const String appVersion = '1.2.5';
+  static const String appVersion = '1.2.5'; // Not used - version comes from pubspec.yaml
 
   // Brand Colors (extracted from LMS-Local-Logo.png)
   // Note: For UI colors, use GameTheme instead (accentGreen, accentRed, accentOrange)
