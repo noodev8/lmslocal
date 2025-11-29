@@ -654,15 +654,22 @@ class _StandingsPageState extends State<StandingsPage> {
     }
 
     if (players.isEmpty) {
+      // Show contextual message for no-pick groups
+      final isNoPickGroup = groupKey.endsWith('_no_pick');
+      final message = isNoPickGroup
+          ? 'No-pick players will be processed when the round completes'
+          : 'No players in this group';
+
       return Padding(
         padding: const EdgeInsets.all(24),
         child: Center(
           child: Text(
-            'No players in this group',
+            message,
             style: TextStyle(
               fontSize: 14,
               color: GameTheme.textMuted,
             ),
+            textAlign: TextAlign.center,
           ),
         ),
       );
