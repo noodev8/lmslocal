@@ -518,9 +518,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 _buildCompetitionNamesCard(user),
                 const SizedBox(height: 12),
 
-                // Notifications Card
-                _buildNotificationsCard(),
-                const SizedBox(height: 12),
+                // TODO: Notifications feature temporarily hidden - not currently used
+                // Uncomment when ready to re-enable notifications
+                // // Notifications Card
+                // _buildNotificationsCard(),
+                // const SizedBox(height: 12),
 
                 // Change Password Card
                 _buildChangePasswordCard(),

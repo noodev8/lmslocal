@@ -47,7 +47,8 @@ class CompleteBanner extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
             decoration: BoxDecoration(
               color: GameTheme.accentGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
@@ -67,13 +68,17 @@ class CompleteBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  winner ?? 'Draw',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: GameTheme.accentGreen,
-                    letterSpacing: 0.5,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    winner ?? 'Draw',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: GameTheme.accentGreen,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
