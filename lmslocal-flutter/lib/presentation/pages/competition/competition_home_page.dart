@@ -322,12 +322,198 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                     // Competition Complete Banner
                     if (_competition!.status == 'COMPLETE')
                       CompleteBanner(competition: _competition!),
+
+                    // Info button - always show, displays competition details
+                    const SizedBox(height: 24),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () => _showCompetitionInfoModal(_competition!),
+                        icon: Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: GameTheme.textMuted,
+                        ),
+                        label: Text(
+                          'Competition Info',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: GameTheme.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showCompetitionInfoModal(Competition competition) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: GameTheme.cardBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(
+              color: GameTheme.glowCyan.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: GameTheme.textMuted,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: GameTheme.glowCyan,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        competition.name,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: GameTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: GameTheme.textMuted,
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(color: GameTheme.border, height: 1),
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Prize structure as headline
+                      if (competition.prizeStructure != null && competition.prizeStructure!.isNotEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: GameTheme.glowCyan.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: GameTheme.glowCyan.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.emoji_events,
+                                size: 24,
+                                color: GameTheme.glowCyan,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  competition.prizeStructure!,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: GameTheme.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      // Details section
+                      Text(
+                        'Details',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: GameTheme.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Description
+                      if (competition.description != null && competition.description!.isNotEmpty) ...[
+                        Text(
+                          competition.description!,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: GameTheme.textPrimary,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      // Info items
+                      if (competition.venueName != null || competition.city != null)
+                        _buildInfoRow(
+                          Icons.location_on_outlined,
+                          [competition.venueName, competition.city].where((p) => p != null).join(', '),
+                        ),
+                      _buildInfoRow(Icons.people_outline, '${competition.playerCount} players'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: GameTheme.textMuted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 15,
+                color: GameTheme.textSecondary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

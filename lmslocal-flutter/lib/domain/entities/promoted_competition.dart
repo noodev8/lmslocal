@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 class PromotedCompetition extends Equatable {
   final int id;
   final String name;
+  final String? description;
   final String? venueName;
   final String? city;
   final String? prizeStructure;
@@ -17,6 +18,7 @@ class PromotedCompetition extends Equatable {
   const PromotedCompetition({
     required this.id,
     required this.name,
+    this.description,
     this.venueName,
     this.city,
     this.prizeStructure,
@@ -31,6 +33,7 @@ class PromotedCompetition extends Equatable {
   List<Object?> get props => [
         id,
         name,
+        description,
         venueName,
         city,
         prizeStructure,

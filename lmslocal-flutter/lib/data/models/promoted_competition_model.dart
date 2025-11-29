@@ -5,6 +5,7 @@ class PromotedCompetitionModel extends PromotedCompetition {
   const PromotedCompetitionModel({
     required super.id,
     required super.name,
+    super.description,
     super.venueName,
     super.city,
     super.prizeStructure,
@@ -19,6 +20,7 @@ class PromotedCompetitionModel extends PromotedCompetition {
     return PromotedCompetitionModel(
       id: json['id'] as int,
       name: json['name'] as String,
+      description: json['description'] as String?,
       venueName: json['venue_name'] as String?,
       city: json['city'] as String?,
       prizeStructure: json['prize_structure'] as String?,
@@ -34,6 +36,7 @@ class PromotedCompetitionModel extends PromotedCompetition {
     return {
       'id': id,
       'name': name,
+      'description': description,
       'venue_name': venueName,
       'city': city,
       'prize_structure': prizeStructure,

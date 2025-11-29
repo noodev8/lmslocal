@@ -968,6 +968,13 @@ Good luck! ⚽`;
             </div>
           )}
 
+        {/* Competition Description */}
+        {competition.description && (
+          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+            <p className="text-sm text-gray-600 text-center">{competition.description}</p>
+          </div>
+        )}
+
         {/* Action Buttons - Refined design */}
         {(isOrganiser || canManageResults || canManageFixtures || canManagePlayers) ? (
           <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>

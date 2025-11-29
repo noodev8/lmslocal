@@ -10,6 +10,7 @@ import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/core/errors/failures.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
+import 'package:lmslocal_flutter/data/data_sources/remote/competition_remote_data_source.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_source.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
@@ -68,10 +69,33 @@ class _DashboardPageState extends State<DashboardPage> {
         forceRefresh: forceRefresh,
       );
 
+      // Filter out dismissed promotions and cleanup stale entries
+      final prefs = await SharedPreferences.getInstance();
+      final dismissed = prefs.getStringList('dismissed_promotions') ?? [];
+
+      // Get current promotion IDs
+      final currentPromoIds = dashboardData.promotedCompetitions
+          .map((p) => p.id.toString())
+          .toSet();
+
+      // Filter out dismissed promotions
+      final filteredPromotions = dashboardData.promotedCompetitions
+          .where((p) => !dismissed.contains(p.id.toString()))
+          .toList();
+
+      // Cleanup: remove dismissed IDs that are no longer in current list
+      final cleanedDismissed = dismissed
+          .where((id) => currentPromoIds.contains(id))
+          .toList();
+
+      if (cleanedDismissed.length != dismissed.length) {
+        await prefs.setStringList('dismissed_promotions', cleanedDismissed);
+      }
+
       if (mounted) {
         setState(() {
           _competitions = _sortCompetitions(dashboardData.competitions);
-          _promotedCompetitions = dashboardData.promotedCompetitions;
+          _promotedCompetitions = filteredPromotions;
           _isLoading = false;
           _error = null;
         });
@@ -665,21 +689,40 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _joinPromotedCompetition(promo),
+          onTap: () => _showCompetitionInfoModal(promo),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Competition name
-                Text(
-                  promo.name,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: GameTheme.textPrimary,
-                  ),
+                // Competition name and delete button
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        promo.name,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: GameTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _showDismissPromotionConfirmation(promo),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 22,
+                          color: GameTheme.textMuted,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
 
                 // Location
@@ -694,17 +737,39 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
 
-                const SizedBox(height: 16),
+                // Prize structure - full width, no truncation
+                if (promo.prizeStructure != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.emoji_events,
+                        size: 18,
+                        color: GameTheme.glowCyan,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          promo.prizeStructure!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: GameTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
 
-                // Info row
+                const SizedBox(height: 12),
+
+                // Info row - entry fee and player count
                 Wrap(
                   spacing: 16,
                   runSpacing: 8,
                   children: [
-                    // Prize
-                    if (promo.prizeStructure != null)
-                      _buildInfoChip(Icons.emoji_events, promo.prizeStructure!),
-
                     // Entry fee
                     if (promo.entryFee != null)
                       _buildInfoChip(Icons.payments_outlined, '\u00A3${promo.entryFee}'),
@@ -738,7 +803,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
                 const SizedBox(height: 16),
 
-                // Join button - matches "Enter >" style
+                // View Details button - prominent styling
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -749,20 +814,20 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color: GameTheme.glowCyan,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        'Join',
+                        'View Details',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: GameTheme.glowCyan,
                           letterSpacing: 0.5,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 20,
-                        color: GameTheme.glowCyan,
                       ),
                     ],
                   ),
@@ -776,23 +841,30 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildInfoChip(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: GameTheme.textMuted,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            color: GameTheme.textSecondary,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 200),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: GameTheme.textMuted,
           ),
-        ),
-      ],
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                color: GameTheme.textSecondary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -845,6 +917,358 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  void _showDismissPromotionConfirmation(PromotedCompetition promo) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: GameTheme.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Remove Competition',
+          style: TextStyle(
+            color: GameTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to remove "${promo.name}" from your dashboard?',
+          style: TextStyle(
+            color: GameTheme.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: GameTheme.textMuted),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _dismissPromotion(promo);
+            },
+            child: Text(
+              'Remove',
+              style: TextStyle(color: GameTheme.accentRed),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _dismissPromotion(PromotedCompetition promo) async {
+    final prefs = await SharedPreferences.getInstance();
+    final dismissed = prefs.getStringList('dismissed_promotions') ?? [];
+
+    if (!dismissed.contains(promo.id.toString())) {
+      dismissed.add(promo.id.toString());
+      await prefs.setStringList('dismissed_promotions', dismissed);
+    }
+
+    // Update state to remove from display
+    setState(() {
+      _promotedCompetitions.removeWhere((p) => p.id == promo.id);
+    });
+  }
+
+  void _showDeleteConfirmation(Competition competition) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: GameTheme.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Remove Competition',
+          style: TextStyle(
+            color: GameTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to remove "${competition.name}" from your dashboard?',
+          style: TextStyle(
+            color: GameTheme.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: GameTheme.textMuted),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _hideCompetition(competition);
+            },
+            child: Text(
+              'Remove',
+              style: TextStyle(color: GameTheme.accentRed),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _hideCompetition(Competition competition) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: CircularProgressIndicator(color: GameTheme.glowCyan),
+      ),
+    );
+
+    try {
+      final apiClient = context.read<ApiClient>();
+      final prefs = await SharedPreferences.getInstance();
+      final competitionDataSource = CompetitionRemoteDataSource(
+        apiClient: apiClient,
+        prefs: prefs,
+      );
+
+      await competitionDataSource.hideCompetition(
+        competitionId: competition.id,
+      );
+
+      if (!mounted) return;
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${competition.name} removed from your dashboard'),
+          backgroundColor: GameTheme.accentGreen,
+        ),
+      );
+
+      // Refresh dashboard
+      await _loadDashboard(forceRefresh: true);
+    } catch (e) {
+      if (!mounted) return;
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to remove competition: ${e.toString()}'),
+          backgroundColor: GameTheme.accentRed,
+        ),
+      );
+    }
+  }
+
+  void _showCompetitionInfoModal(PromotedCompetition promo) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: GameTheme.cardBackground,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border.all(
+              color: GameTheme.glowCyan.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: GameTheme.textMuted,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: GameTheme.glowCyan,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        promo.name,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: GameTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: GameTheme.textMuted,
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(color: GameTheme.border, height: 1),
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Prize structure as headline
+                      if (promo.prizeStructure != null && promo.prizeStructure!.isNotEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: GameTheme.glowCyan.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: GameTheme.glowCyan.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.emoji_events,
+                                size: 24,
+                                color: GameTheme.glowCyan,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  promo.prizeStructure!,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: GameTheme.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      // Details section
+                      Text(
+                        'Details',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: GameTheme.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Description
+                      if (promo.description != null && promo.description!.isNotEmpty) ...[
+                        Text(
+                          promo.description!,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: GameTheme.textPrimary,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      // Info items
+                      if (promo.venueName != null || promo.city != null)
+                        _buildInfoRow(
+                          Icons.location_on_outlined,
+                          [promo.venueName, promo.city].where((p) => p != null).join(', '),
+                        ),
+                      if (promo.entryFee != null)
+                        _buildInfoRow(Icons.payments_outlined, '\u00A3${promo.entryFee}'),
+                      _buildInfoRow(Icons.people_outline, '${promo.playerCount} players joined'),
+                    ],
+                  ),
+                ),
+              ),
+              // Join button at bottom
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _joinPromotedCompetition(promo);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GameTheme.glowCyan,
+                      foregroundColor: GameTheme.background,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Join Competition',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: GameTheme.textMuted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 15,
+                color: GameTheme.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCompetitionCard(Competition competition) {
     final needsPick = competition.needsPick ?? false;
     final isComplete = competition.status == 'COMPLETE';
@@ -886,14 +1310,35 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header: Name
-                Text(
-                  competition.name,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: GameTheme.textPrimary,
-                  ),
+                // Header: Name and delete button
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        competition.name,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: GameTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    // Only show delete for participants (not organisers)
+                    if (competition.isParticipant && !competition.isOrganiser)
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _showDeleteConfirmation(competition),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.delete_outline,
+                            size: 22,
+                            color: GameTheme.textMuted,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 16),
 

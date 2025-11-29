@@ -255,11 +255,23 @@ export default function CreateCompetitionPage() {
                     Description <span className="text-slate-400">(optional)</span>
                   </label>
                   <textarea
-                    {...register('description')}
+                    {...register('description', {
+                      maxLength: {
+                        value: 250,
+                        message: 'Description must be 250 characters or less'
+                      }
+                    })}
                     rows={3}
+                    maxLength={250}
                     className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
                     placeholder="Tell your players what this competition is about..."
                   />
+                  {errors.description && (
+                    <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-500">
+                    {(watchedValues.description?.length || 0)}/250 characters
+                  </p>
                 </div>
 
                 {/* Logo Upload */}
@@ -297,50 +309,29 @@ export default function CreateCompetitionPage() {
                   </p>
                 </div>
 
-                {/* Entry Fee and Prize Structure */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="entry_fee" className="block text-sm font-medium text-slate-700 mb-2">
-                      Entry Fee <span className="text-slate-400">(optional)</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500">£</span>
-                      <input
-                        {...register('entry_fee')}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="block w-full appearance-none rounded-xl border border-slate-300 pl-7 pr-3 sm:pr-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
-                        placeholder="10.00"
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Suggested entry fee (shown on leaflets)
-                    </p>
-                  </div>
-
-                  <div>
-                    <label htmlFor="prize_structure" className="block text-sm font-medium text-slate-700 mb-2">
-                      Prize Structure <span className="text-slate-400">(optional)</span>
-                    </label>
-                    <input
-                      {...register('prize_structure', {
-                        maxLength: {
-                          value: 500,
-                          message: 'Prize structure must be 500 characters or less'
-                        }
-                      })}
-                      type="text"
-                      className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
-                      placeholder="e.g., Winner takes all"
-                    />
-                    {errors.prize_structure && (
-                      <p className="mt-1 text-sm text-red-600">{errors.prize_structure.message}</p>
-                    )}
-                    <p className="mt-1 text-xs text-slate-500">
-                      How prizes are distributed
-                    </p>
-                  </div>
+                {/* Prize Structure */}
+                <div>
+                  <label htmlFor="prize_structure" className="block text-sm font-medium text-slate-700 mb-2">
+                    Prize Structure <span className="text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    {...register('prize_structure', {
+                      maxLength: {
+                        value: 60,
+                        message: 'Prize structure must be 60 characters or less'
+                      }
+                    })}
+                    type="text"
+                    maxLength={60}
+                    className="block w-full appearance-none rounded-xl border border-slate-300 px-3 sm:px-4 py-3 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-slate-500 text-sm sm:text-base"
+                    placeholder="e.g., FREE entry - £20 Prize for Winner!"
+                  />
+                  {errors.prize_structure && (
+                    <p className="mt-1 text-sm text-red-600">{errors.prize_structure.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-slate-500">
+                    {(watchedValues.prize_structure?.length || 0)}/60 characters
+                  </p>
                 </div>
 
                 <div>

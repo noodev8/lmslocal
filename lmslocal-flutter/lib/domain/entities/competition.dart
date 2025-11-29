@@ -5,6 +5,9 @@ class Competition extends Equatable {
   final int id;
   final String name;
   final String? description;
+  final String? prizeStructure;
+  final String? venueName;
+  final String? city;
   final String? logoUrl;
   final String status;
   final int livesPerPlayer;
@@ -36,6 +39,9 @@ class Competition extends Equatable {
     required this.id,
     required this.name,
     this.description,
+    this.prizeStructure,
+    this.venueName,
+    this.city,
     this.logoUrl,
     required this.status,
     required this.livesPerPlayer,
@@ -69,6 +75,9 @@ class Competition extends Equatable {
         id,
         name,
         description,
+        prizeStructure,
+        venueName,
+        city,
         logoUrl,
         status,
         livesPerPlayer,

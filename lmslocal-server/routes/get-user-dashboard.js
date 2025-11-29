@@ -505,6 +505,7 @@ router.post('/', verifyToken, async (req, res) => {
         SELECT
           c.id,
           c.name,
+          c.description,
           c.venue_name,
           c.city,
           c.prize_structure,
@@ -536,6 +537,7 @@ router.post('/', verifyToken, async (req, res) => {
       promotedCompetitions = promotedResult.rows.map(row => ({
         id: row.id,
         name: row.name,
+        description: row.description || null,
         venue_name: row.venue_name || null,
         city: row.city || null,
         prize_structure: row.prize_structure || null,
