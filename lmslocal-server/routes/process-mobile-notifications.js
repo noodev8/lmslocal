@@ -42,11 +42,10 @@ const router = express.Router();
 // ===========================================================================================================
 // Notification Priority Order (highest first)
 // ===========================================================================================================
-// 1. new_round - Inform player of new round first
+// 1. new_round - Inform player results are in and new fixtures available
 // 2. pick_reminder - Reminder if they haven't picked (24hrs before lock)
-// 3. results - Informational
 // ===========================================================================================================
-const PRIORITY_ORDER = ['new_round', 'pick_reminder', 'results'];
+const PRIORITY_ORDER = ['new_round', 'pick_reminder'];
 
 router.post('/', async (req, res) => {
   // Log API call for debugging when enabled
@@ -71,7 +70,6 @@ router.post('/', async (req, res) => {
     }
 
     // Delete pending/skipped 'new_round' and 'pick_reminder' entries for rounds that are complete
-    // Don't delete 'results' - they need to be sent after results are processed
     // Keep 'sent' entries for record-keeping
     const deleteCompletedResult = await query(`
       DELETE FROM mobile_notification_queue mnq
@@ -89,7 +87,7 @@ router.post('/', async (req, res) => {
     }
 
     // === STEP 1: GET PENDING NOTIFICATIONS ===
-    // Get 'new_round' and 'results' entries that are ready to send immediately
+    // Get 'new_round' entries that are ready to send immediately
     // Get 'pick_reminder' entries only if we're within 24 hours of lock time
     const pendingResult = await query(`
       SELECT
@@ -104,8 +102,8 @@ router.post('/', async (req, res) => {
       JOIN round r ON r.id = mnq.round_id
       WHERE mnq.status = 'pending'
         AND (
-          -- new_round and results: send immediately
-          mnq.type IN ('new_round', 'results')
+          -- new_round: send immediately
+          mnq.type = 'new_round'
           OR
           -- pick_reminder: only send if within 24 hours of lock time
           (mnq.type = 'pick_reminder' AND r.lock_time - INTERVAL '24 hours' <= NOW())
@@ -355,8 +353,6 @@ async function checkEntryConditions(entry) {
         }
       }
     }
-
-    // For 'results', active player check is sufficient
 
     return true;
   } catch (error) {

@@ -57,23 +57,19 @@ const initializeFirebase = () => {
 
 const NOTIFICATION_MESSAGES = {
   new_round: {
-    title: 'New Round Open',
-    body: 'Fixtures are ready - time to make your pick!'
+    title: 'Results Are In',
+    body: 'Results are in - see how you did!'
   },
   pick_reminder: {
     title: 'Pick Reminder',
     body: "Don't forget to make your pick before it locks!"
-  },
-  results: {
-    title: 'Results Are In',
-    body: 'Results are in - see how you did!'
   }
 };
 
 /**
  * Send a push notification to a single device
  * @param {string} fcmToken - The device's FCM token
- * @param {string} notificationType - 'new_round' | 'pick_reminder' | 'results'
+ * @param {string} notificationType - 'new_round' | 'pick_reminder'
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 const sendNotification = async (fcmToken, notificationType) => {
@@ -131,7 +127,7 @@ const sendNotification = async (fcmToken, notificationType) => {
 /**
  * Send notifications to multiple devices for the same user
  * @param {string[]} fcmTokens - Array of FCM tokens for the user's devices
- * @param {string} notificationType - 'new_round' | 'pick_reminder' | 'results'
+ * @param {string} notificationType - 'new_round' | 'pick_reminder'
  * @returns {Promise<{success: boolean, sent: number, failed: number, invalidTokens: string[]}>}
  */
 const sendNotificationToUser = async (fcmTokens, notificationType) => {

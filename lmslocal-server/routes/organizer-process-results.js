@@ -327,29 +327,9 @@ router.post('/', verifyToken, async (req, res) => {
           AND status = 'pending'
       `, [competitionIdInt, roundId]);
 
-      // === QUEUE MOBILE NOTIFICATIONS ===
-      // Queue 'results' notifications for all players who were active this round
-      // (either they made a pick or they were penalized for no-pick)
-      // Excludes guest users (email starts with 'lms-guest')
-      // Requires user has a device token registered (no point queueing if they can't receive)
-      // Uses NOT EXISTS to avoid duplicate notifications for same user/type/competition/round
-      await client.query(`
-        INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-        SELECT DISTINCT pp.player_id, 'results', $1::integer, $2::integer, $3::integer, 'pending', NOW()
-        FROM player_progress pp
-        JOIN app_user au ON au.id = pp.player_id
-        WHERE pp.competition_id = $1
-          AND pp.round_id = $2
-          AND au.email NOT LIKE '%@lms-guest.%'
-          AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = pp.player_id)
-          AND NOT EXISTS (
-            SELECT 1 FROM mobile_notification_queue mnq
-            WHERE mnq.user_id = pp.player_id
-              AND mnq.type = 'results'
-              AND mnq.competition_id = $1
-              AND mnq.round_id = $2
-          )
-      `, [competitionIdInt, roundId, roundNumber]);
+      // NOTE: No 'results' notification queued here - the 'new_round' notification
+      // (sent when fixtures are added) now serves this purpose with message
+      // "Results are in - see how you did!"
 
       // ========================================
       // ADD AUDIT LOG ENTRY

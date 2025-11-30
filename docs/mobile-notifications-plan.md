@@ -17,15 +17,15 @@ Simple, non-intrusive notifications to keep players engaged without spamming. Fo
 
 ## Notification Types
 
-### 1. New Round Open
+### 1. New Round (Results + Fixtures)
 
 | Aspect | Detail |
 |--------|--------|
-| **Purpose** | Alert player that a new round is available for picks |
-| **Trigger** | Admin creates/opens a new round |
+| **Purpose** | Alert player that results are in and new fixtures are available |
+| **Trigger** | Admin adds fixtures for a new round (after processing previous results) |
 | **Condition** | Player is active (not eliminated) in that competition |
-| **Message** | "A new round is open - time to make your pick!" |
-| **Deep link** | Opens app (competition pick screen) |
+| **Message** | "Results are in - see how you did!" |
+| **Deep link** | Opens app - player sees their result AND can make next pick |
 | **Priority** | High - this is the primary engagement driver |
 
 ### 2. Pick Reminder
@@ -38,17 +38,6 @@ Simple, non-intrusive notifications to keep players engaged without spamming. Fo
 | **Message** | "Don't forget to make your pick before it locks!" |
 | **Deep link** | Opens app (competition pick screen) |
 | **Priority** | High - prevents accidental life loss |
-
-### 3. Round Results
-
-| Aspect | Detail |
-|--------|--------|
-| **Purpose** | Inform player that results are in |
-| **Trigger** | Results are processed for the round |
-| **Condition** | Player was active during that round (made a pick or was still in competition) |
-| **Message** | "Results are in - see how you did!" |
-| **Deep link** | Opens app (results/standings screen) |
-| **Priority** | Medium - informational |
 
 ---
 
@@ -72,9 +61,8 @@ The notification brings them to the app. They discover all updates once inside.
 
 When multiple notification types are pending, send the highest priority:
 
-1. **Pick Reminder** (time-sensitive, prevents life loss)
-2. **New Round Open** (action needed)
-3. **Round Results** (informational)
+1. **New Round** (results + new fixtures - action needed)
+2. **Pick Reminder** (time-sensitive, prevents life loss)
 
 ---
 
@@ -107,8 +95,7 @@ Setup required:
 ┌─────────────────────────────────────────────────────────────────┐
 │                        TRIGGERS                                 │
 ├─────────────────────────────────────────────────────────────────┤
-│ • Round created        → API adds 'new_round' + 'pick_reminder' │
-│ • Results processed    → API adds 'results' entry               │
+│ • Fixtures added       → API adds 'new_round' + 'pick_reminder' │
 └─────────────────────────────────────────────────────────────────┘
                                 ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -137,7 +124,7 @@ Setup required:
 CREATE TABLE mobile_notification_queue (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
-    type VARCHAR(20) NOT NULL,          -- 'new_round' | 'pick_reminder' | 'results'
+    type VARCHAR(20) NOT NULL,          -- 'new_round' | 'pick_reminder'
     competition_id INTEGER NOT NULL,
     round_id INTEGER NOT NULL,
     round_number INTEGER NOT NULL,
@@ -182,9 +169,8 @@ CREATE TABLE device_tokens (
 
 | Type | When queued | When sent |
 |------|-------------|-----------|
-| **new_round** | Round created | Next cron run (immediate) |
-| **pick_reminder** | Round created | When `lock_time - 24hrs <= NOW()` |
-| **results** | Results processed | Next cron run (immediate) |
+| **new_round** | Fixtures added | Next cron run (immediate) |
+| **pick_reminder** | Fixtures added | When `lock_time - 24hrs <= NOW()` |
 
 **Note:** Reminder timing calculated at send time (not queue time) so lock time changes are automatically respected.
 
@@ -193,12 +179,11 @@ CREATE TABLE device_tokens (
 ### Processing Logic (process-mobile-notifications API)
 
 ```
-1. Get all pending 'new_round' and 'results' entries
+1. Get all pending 'new_round' entries (send immediately)
 2. Get all pending 'pick_reminder' entries WHERE round.lock_time - 24hrs <= NOW()
 3. For each entry, check conditions:
    - Player still active in competition?
-   - For reminders: player hasn't picked yet?
-   - For results: player was active that round?
+   - For reminders: player hasn't picked yet? Round not locked?
 4. Group by user_id
 5. Apply one-notification rule (highest priority wins)
 6. Send one FCM notification per user
@@ -310,9 +295,8 @@ Before implementation can begin, you need to set up Firebase:
 ### Phase 4: Testing
 - [ ] Test token registration (new install)
 - [ ] Test token registration (existing user update)
-- [ ] Test 'new_round' notification
-- [ ] Test 'reminder' notification (24hr before lock)
-- [ ] Test 'results' notification
+- [ ] Test 'new_round' notification (message: "Results are in - see how you did!")
+- [ ] Test 'pick_reminder' notification (24hr before lock)
 - [ ] Test one-notification rule with multiple competitions
 - [ ] Test skipping eliminated players
 

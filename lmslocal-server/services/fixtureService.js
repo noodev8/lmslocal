@@ -333,14 +333,13 @@ async function pushFixturesToCompetitions(client) {
 
     // === QUEUE MOBILE NOTIFICATIONS ===
     // Queue 'new_round' and 'pick_reminder' notifications for all active players
-    // new_round: sends immediately on next cron run - only if user has no pending new_round at all
+    // new_round: sends immediately on next cron run - message is "Results are in - see how you did!"
     // pick_reminder: sends when within 24hrs of lock_time
     // Excludes guest users (email starts with 'lms-guest')
 
     // NEW_ROUND: Only insert if user has no pending new_round notification (any competition)
     // This avoids spamming users in multiple competitions with separate notifications
     // Also requires user has a device token registered (no point queueing if they can't receive)
-    // Skip if user received ANY notification in last 4 hours (e.g. results just came in)
     await client.query(`
       INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
       SELECT cu.user_id, 'new_round', $1, $2, $3, 'pending', NOW()
@@ -356,14 +355,6 @@ async function pushFixturesToCompetitions(client) {
           WHERE mnq.user_id = cu.user_id
             AND mnq.type = 'new_round'
             AND mnq.status = 'pending'
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM mobile_notification_queue mnq
-          WHERE mnq.user_id = cu.user_id
-            AND (
-              (mnq.type = 'results' AND mnq.status = 'pending')
-              OR (mnq.status = 'sent' AND mnq.sent_at > NOW() - INTERVAL '4 hours')
-            )
         )
     `, [compId, targetRoundId, targetRoundNumber]);
 
