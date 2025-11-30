@@ -217,8 +217,11 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Check if player is eliminated (only admins can override this)
-    if (!is_admin && validation.user_status !== 'active') {
+    // Admin override only applies when setting picks for OTHER users, not themselves
+    const isAdminOverride = is_admin && !is_own_pick;
+
+    // Check if player is eliminated (admins can override for other players, but not themselves)
+    if (!isAdminOverride && validation.user_status !== 'active') {
       return res.json({
         return_code: "PLAYER_ELIMINATED",
         message: "You are OUT of this competition and cannot make picks"
@@ -226,7 +229,6 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Check if team is allowed (admin override only applies when setting picks for OTHER users)
-    const isAdminOverride = is_admin && !is_own_pick;
     if (!isAdminOverride && !validation.is_team_allowed) {
       return res.json({
         return_code: "TEAM_NOT_ALLOWED",
