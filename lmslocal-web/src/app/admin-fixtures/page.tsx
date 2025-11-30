@@ -157,7 +157,7 @@ export default function AdminFixturesPage() {
     { label: '14:00', subLabel: '2pm', value: '14:00' },
     { label: '15:00', subLabel: '3pm', value: '15:00' },
     { label: '17:00', subLabel: '5pm', value: '17:00' },
-    { label: '20:00', subLabel: '8pm', value: '20:00' }
+    { label: '19:30', subLabel: '7:30pm', value: '19:30' }
   ];
 
   // Format selected date/time for display

@@ -25,7 +25,7 @@ export default function OrganizerFixturesPage() {
 
   // Fixture form state
   const [kickoffDate, setKickoffDate] = useState('');
-  const [kickoffTime, setKickoffTime] = useState('20:00');
+  const [kickoffTime, setKickoffTime] = useState('19:30');
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [showCustomTime, setShowCustomTime] = useState(false);
   const [fixtures, setFixtures] = useState<OrganizerFixture[]>([
@@ -141,7 +141,7 @@ export default function OrganizerFixturesPage() {
   const timeShortcuts = [
     { label: '12:00', subLabel: 'Noon', value: '12:00' },
     { label: '15:00', subLabel: '3pm', value: '15:00' },
-    { label: '20:00', subLabel: '8pm', value: '20:00' }
+    { label: '19:30', subLabel: '7:30pm', value: '19:30' }
   ];
 
   // Set default date to next Friday on component mount
@@ -160,9 +160,10 @@ export default function OrganizerFixturesPage() {
     const dayName = date.toLocaleDateString('en-GB', { weekday: 'long' });
     const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    const [hours] = kickoffTime.split(':');
+    const [hours, minutes] = kickoffTime.split(':');
     const hour = parseInt(hours);
-    const timeStr = hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : hour === 0 ? '12am' : `${hour}am`;
+    const mins = minutes !== '00' ? `:${minutes}` : '';
+    const timeStr = hour === 12 ? `12${mins}pm` : hour > 12 ? `${hour - 12}${mins}pm` : hour === 0 ? `12${mins}am` : `${hour}${mins}am`;
 
     return `${dayName} ${dateStr} at ${timeStr}`;
   }, [kickoffDate, kickoffTime]);

@@ -287,9 +287,19 @@ router.post('/', verifyToken, async (req, res) => {
 
         const userEmail = userCheckResult.rows[0]?.email || '';
         if (!userEmail.includes('@lms-guest.')) {
+          // Use INSERT ... SELECT with NOT EXISTS to avoid duplicate notifications
+          // Also requires user has a device token registered (no point queueing if they can't receive)
           await client.query(`
             INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-            VALUES ($1, 'pick_reminder', $2, $3, $4, 'pending', NOW())
+            SELECT $1, 'pick_reminder', $2, $3, $4, 'pending', NOW()
+            WHERE EXISTS (SELECT 1 FROM device_tokens WHERE user_id = $1)
+              AND NOT EXISTS (
+                SELECT 1 FROM mobile_notification_queue
+                WHERE user_id = $1
+                  AND type = 'pick_reminder'
+                  AND competition_id = $2
+                  AND round_id = $3
+              )
           `, [user_id, data.competition_id, activeRound.round_id, activeRound.round_number]);
         }
       }
