@@ -24,7 +24,10 @@ Success Response (ALWAYS HTTP 200):
     "picks_deleted": 5,               // integer, number of picks deleted
     "allowed_teams_deleted": 20,      // integer, number of allowed team entries deleted
     "progress_deleted": 3,            // integer, number of progress records deleted
-    "total_records_deleted": 29       // integer, total records removed
+    "notifications_deleted": 2,       // integer, number of pending push notifications deleted
+    "email_queue_deleted": 1,         // integer, number of pending emails deleted
+    "email_preferences_deleted": 3,   // integer, number of email preference records deleted
+    "total_records_deleted": 35       // integer, total records removed
   },
   "competition": {
     "id": 123,                        // integer, competition ID
@@ -235,12 +238,33 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 3. Delete player progress records for this competition
       const progressDeleteQuery = `
-        DELETE FROM player_progress 
+        DELETE FROM player_progress
         WHERE player_id = $1 AND competition_id = $2
       `;
       const progressResult = await client.query(progressDeleteQuery, [player_id, competition_id]);
 
-      // 4. Finally, remove the player from competition membership
+      // 4. Delete pending mobile notifications for this player in this competition
+      const notificationsDeleteQuery = `
+        DELETE FROM mobile_notification_queue
+        WHERE user_id = $1 AND competition_id = $2
+      `;
+      const notificationsResult = await client.query(notificationsDeleteQuery, [player_id, competition_id]);
+
+      // 5. Delete pending emails for this player in this competition
+      const emailQueueDeleteQuery = `
+        DELETE FROM email_queue
+        WHERE user_id = $1 AND competition_id = $2
+      `;
+      const emailQueueResult = await client.query(emailQueueDeleteQuery, [player_id, competition_id]);
+
+      // 6. Delete email preferences for this player in this competition
+      const emailPrefsDeleteQuery = `
+        DELETE FROM email_preference
+        WHERE user_id = $1 AND competition_id = $2
+      `;
+      const emailPrefsResult = await client.query(emailPrefsDeleteQuery, [player_id, competition_id]);
+
+      // 7. Finally, remove the player from competition membership
       const membershipDeleteQuery = `
         DELETE FROM competition_user 
         WHERE user_id = $1 AND competition_id = $2
@@ -248,10 +272,13 @@ router.post('/', verifyToken, async (req, res) => {
       const membershipResult = await client.query(membershipDeleteQuery, [player_id, competition_id]);
 
       // Calculate total records removed for audit purposes
-      const totalRecordsDeleted = 
-        (picksResult.rowCount || 0) + 
-        (allowedTeamsResult.rowCount || 0) + 
-        (progressResult.rowCount || 0) + 
+      const totalRecordsDeleted =
+        (picksResult.rowCount || 0) +
+        (allowedTeamsResult.rowCount || 0) +
+        (progressResult.rowCount || 0) +
+        (notificationsResult.rowCount || 0) +
+        (emailQueueResult.rowCount || 0) +
+        (emailPrefsResult.rowCount || 0) +
         (membershipResult.rowCount || 0);
 
       // STEP 4: Create comprehensive audit log entry within the same transaction
@@ -273,6 +300,9 @@ router.post('/', verifyToken, async (req, res) => {
           picks: picksResult.rowCount || 0,
           allowed_teams: allowedTeamsResult.rowCount || 0,
           progress: progressResult.rowCount || 0,
+          notifications: notificationsResult.rowCount || 0,
+          email_queue: emailQueueResult.rowCount || 0,
+          email_preferences: emailPrefsResult.rowCount || 0,
           membership: membershipResult.rowCount || 0,
           total: totalRecordsDeleted
         },
@@ -309,6 +339,9 @@ router.post('/', verifyToken, async (req, res) => {
           picks_deleted: picksResult.rowCount || 0,
           allowed_teams_deleted: allowedTeamsResult.rowCount || 0,
           progress_deleted: progressResult.rowCount || 0,
+          notifications_deleted: notificationsResult.rowCount || 0,
+          email_queue_deleted: emailQueueResult.rowCount || 0,
+          email_preferences_deleted: emailPrefsResult.rowCount || 0,
           total_records_deleted: totalRecordsDeleted
         },
         competition: {
