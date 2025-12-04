@@ -1,0 +1,172 @@
+7 tiny UI fixes that can make any product look premium
+
+
+People imagine ‘premium design’ means glossy gradients, fancy motion graphics or a font that looks like it costs rent money. In reality, most premium-looking products are doing something far simpler.
+
+They’ve cleaned up the tiny details.
+
+The stuff nobody talks about because it doesn’t sound impressive. The stuff clients ignore until you fix it and suddenly they think you’re some kind of sorcerer. Tools like MadeinFigma help with the heavy lifting, but these tweaks matter no matter what you use.
+
+So here are seven small UI tweaks that can instantly upgrade almost any product. These won’t take weeks, you don’t need a design degree from Hogwarts, and none of them involve adding more drop shadows.
+
+1. Tighten your spacing. Then tighten it again.
+Press enter or click to view image in full size
+
+Most interfaces don’t look cheap because of color or typography.
+
+They look cheap because everything sits too close or too far apart, like the layout was arranged by someone who just eyeballed it while half-asleep.
+
+Premium products feel calm. You can breathe while looking at them. Poorly spaced products feel like someone is shouting at you through the screen.
+
+The fix:
+Pick a spacing scale and stick to it. Something predictable like 4, 8, 12, 16. It doesn’t matter which scale as long as you commit. If your layout spacing looks like 7, 13, 19, 22 and 9 pixels all mixed together, congratulations, you’ve just invented visual chaos.
+
+Fix it and suddenly your UI looks like it belongs to a real company instead of a school project.
+
+2. Reduce the number of font sizes
+Press enter or click to view image in full size
+
+If your product uses nine different font sizes across a single page, there is no way it’s going to look premium. It will look like every department in the company chose their own size.
+
+“Marketing likes 22px. Engineering prefers 14px. The intern likes 17.5px.”
+
+Perfect. Now the product looks like a buffet.
+
+Premium apps rely on a tiny set of sizes. Three or four base sizes can create hundreds of variations through weight, spacing and hierarchy.
+
+The fix:
+Cut your font sizes until you can count them on one hand. Seriously. Five max.
+
+It’s wild how much more polished a product looks when everything follows the same rhythm. It’s like giving your UI a haircut. Suddenly it looks put together instead of “experimental.”
+
+3. Use fewer colors, not more
+Press enter or click to view image in full size
+
+This one hurts people. Designers love colors. Developers love colors. Product managers REALLY love colors. Before you know it, you’ve got twenty.
+
+Green for success.
+Red for danger.
+Blue for info.
+Yellow for warning.
+Purple because someone insisted it “feels modern.”
+Orange because the COO once said something about “energy.”
+Stop.
+
+Premium design is clean. Controlled. Focused.
+
+The fix:
+Pick one primary color. Then choose a couple of supporting shades. Everything else should come from a grayscale palette.
+
+You don’t need a rainbow to sho
+
+4. Give elements consistent corner radiuses
+Press enter or click to view image in full size
+
+I know it sounds ridiculous. But mismatched corner radiuses are like mismatched socks.
+
+Technically everything works, but it looks like you got dressed in the dark.
+
+If your buttons have 4px radius, your inputs have 10px, your cards are squared and your drop-downs are fully rounded, your interface will look confused.
+
+The fix:
+Pick one style.
+
+Sharp. Slightly rounded. Soft. Pill-shaped. Whatever works for your brand.
+
+Then roll it out everywhere.
+
+Your UI will instantly look more intentional.
+
+5. Simplify your icons to look like a pack
+Press enter or click to view image in full size
+
+Icon chaos is real.
+
+Nothing ruins a premium UI faster than using:
+
+One filled icon
+One outline
+Two thick-line icons
+One thin-line icon
+One random icon someone downloaded at 3AM from an unknown corner of the internet
+Premium design relies on uniformity.
+
+If your icons look like a committee created them during separate lunch breaks, your app will feel awkward.
+
+The fix:
+Your icons should all come from the same set and share the same style. That’s it. This is not art theory. This is common sense.
+
+Fix this and the entire interface feels cleaner.
+
+6. Reduce borders. Use contrast and spacing instead.
+Press enter or click to view image in full size
+
+Nothing screams “budget design” like thick borders everywhere.
+
+Container here. Border around the card. Border around the input. Border around the dropdown. Border around the border. I’ve seen UIs that look like they were built by someone who used borders for emotional support.
+
+Premium products avoid boxing everything.
+
+Instead, they use:
+
+Spacing
+Subtle shadows
+Softer contrast
+Light dividers
+Smart grouping
+This makes the UI feel open and modern. Borders everywhere make it feel heavy and cramped.
+
+The fix:
+Try removing half your borders. If everything suddenly feels more expensive, you’re doing it right.
+
+7. Improve your text alignment
+Press enter or click to view image in full size
+
+Nothing will expose a messy UI faster than text that’s misaligned.
+
+Especially on mobile.
+
+Especially when someone screenshares and zooms in.
+
+Align your text first and then make sure everything follows that alignment
+
+Align your labels.
+Align your components.
+Align your icons.
+Align your buttons.
+If something looks off, it probably is.
+
+Premium products feel balanced, even if you don’t consciously notice why.
+
+Most non-premium products feel like they were aligned by someone who used the “drag until it looks right” technique.
+
+The fix:
+Use a grid system to design.
+
+Use proper alignment, be it left, center or right justified.
+
+Use consistent padding throughout the design.
+
+Your UI will look like it was built by someone who cares.
+
+The real secret: Premium UI is mostly discipline
+People think premium design comes from fancy visuals, clever animations or a special palette that only “premium apps” know about. But it all comes down to the simple, tiny details that make the interface feel intentional.
+
+Premium = controlled, consistent and thoughtful.
+
+Cheap = random, inconsistent and chaotic.
+
+The fixes above aren’t fancy. They’re not complex. But they transform the product because they reduce visual noise.
+
+When you fix these small things, everything else suddenly looks better. Users can focus. The UI looks mature. Your product suddenly feels like something people trust.
+
+And your client will look at it and say, “Wow, this looks so premium now.”
+
+While you quietly know all you really did was:
+
+Adjust spacing
+Delete borders
+Fix font sizes
+Clean up icons
+And align text
+Tiny things. Big impact.

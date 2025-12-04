@@ -401,11 +401,14 @@ class _StandingsPageState extends State<StandingsPage> {
     final isTopGroup = index == 0 && group.key != 'eliminated';
     final isBottomGroup = group.key == 'eliminated';
 
-    // Calculate if this is a winner (exactly 1 active player total)
+    // Winner: Exactly 1 active player remaining AND their game has been decided
+    // (either round is complete, or their specific fixture has been played)
     final totalActivePlayers = _groups
         .where((g) => g.key != 'eliminated')
         .fold(0, (sum, g) => sum + g.count);
-    final isWinner = isTopGroup && totalActivePlayers == 1;
+    final isWinner = isTopGroup &&
+        totalActivePlayers == 1 &&
+        (_roundState == 'COMPLETE' || group.fixtureStatus == 'played');
 
     // Danger zone: 0 lives, game not played, during active round
     final isDangerZone = !isWinner &&

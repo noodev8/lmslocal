@@ -263,6 +263,7 @@ export async function POST(req: NextRequest) {
                   borderRadius: '8px'
                 }}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse/Satori requires raw img tags */}
                 <img
                   src={qrCodeUrl}
                   alt="QR Code"

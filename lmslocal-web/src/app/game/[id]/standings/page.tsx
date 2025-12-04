@@ -347,11 +347,13 @@ export default function StandingsPage() {
             const isTopGroup = index === 0 && group.key !== 'eliminated';
             const isBottomGroup = group.key === 'eliminated';
 
-            // Winner: Exactly 1 active player remaining (sole champion) - count total active players across all groups
+            // Winner: Exactly 1 active player remaining AND their game has been decided
+            // (either round is complete, or their specific fixture has been played)
             const totalActivePlayers = groups
               .filter(g => g.key !== 'eliminated')
               .reduce((sum, g) => sum + g.count, 0);
-            const isWinner = isTopGroup && totalActivePlayers === 1;
+            const isWinner = isTopGroup && totalActivePlayers === 1 &&
+                             (roundState === 'COMPLETE' || group.fixture_status === 'played');
 
             // Danger zone: 0 lives, game not played, during active round, and groups exist above
             const isDangerZone = !isWinner && roundState === 'ACTIVE' &&

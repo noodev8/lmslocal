@@ -1,5 +1,16 @@
+-- Number of users
 select * from app_user where 
  email not like '%lms-guest%' and
  email not like '%test%' and
  email not like '%example%' and
  email not like '%brookfieldcomfort%'
+
+-- Number of active users
+SELECT COUNT(DISTINCT cu.user_id) AS active_user_count
+  FROM competition_user cu
+  JOIN app_user au ON au.id = cu.user_id
+  WHERE cu.status = 'active'
+    AND au.email IS NOT NULL
+    AND LOWER(au.email) NOT LIKE '%@lms-guest%'
+    AND LOWER(au.email) NOT LIKE '%test%';
+
