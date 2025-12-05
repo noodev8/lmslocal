@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 16.10 (Ubuntu 16.10-0ubuntu0.24.04.1)
+-- Dumped from database version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 17.4
 
--- Started on 2025-11-27 23:13:38
+-- Started on 2025-12-05 17:55:45
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -1226,7 +1226,8 @@ CREATE TABLE public.player_progress (
     fixture_id integer,
     chosen_team character varying(100),
     outcome character varying(20) NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    round_number integer
 );
 
 
@@ -2640,7 +2641,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT,INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,UPDATE ON TABLES TO lmslocal_prod_user;
 
 
--- Completed on 2025-11-27 23:13:40
+-- Completed on 2025-12-05 17:55:48
 
 --
 -- PostgreSQL database dump complete

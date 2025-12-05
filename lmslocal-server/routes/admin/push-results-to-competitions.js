@@ -183,7 +183,7 @@ router.post('/', async (req, res) => {
         try {
           // Get the latest round for this competition
           const roundResult = await client.query(`
-            SELECT r.id as round_id
+            SELECT r.id as round_id, r.round_number
             FROM round r
             WHERE r.competition_id = $1
             ORDER BY r.round_number DESC
@@ -200,6 +200,7 @@ router.post('/', async (req, res) => {
           }
 
           const roundId = roundResult.rows[0].round_id;
+          const roundNumber = roundResult.rows[0].round_number;
 
           // Find fixtures with results that are NOT yet processed
           const unprocessedResults = await client.query(`
@@ -260,9 +261,9 @@ router.post('/', async (req, res) => {
 
               // Insert player progress record
               await client.query(`
-                INSERT INTO player_progress (player_id, competition_id, round_id, fixture_id, chosen_team, outcome)
-                VALUES ($1, $2, $3, $4, $5, $6)
-              `, [pick.user_id, competitionId, roundId, fixture.id, pick.team, outcome]);
+                INSERT INTO player_progress (player_id, competition_id, round_id, round_number, fixture_id, chosen_team, outcome)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+              `, [pick.user_id, competitionId, roundId, roundNumber, fixture.id, pick.team, outcome]);
 
               // Update player lives based on outcome
               if (outcome === 'LOSE') {
@@ -317,9 +318,9 @@ router.post('/', async (req, res) => {
             for (const player of noPickPlayersResult.rows) {
               // Insert player progress record for NO-PICK
               await client.query(`
-                INSERT INTO player_progress (player_id, competition_id, round_id, chosen_team, outcome)
-                VALUES ($1, $2, $3, $4, $5)
-              `, [player.user_id, competitionId, roundId, 'NO-PICK', 'LOSE']);
+                INSERT INTO player_progress (player_id, competition_id, round_id, round_number, chosen_team, outcome)
+                VALUES ($1, $2, $3, $4, $5, $6)
+              `, [player.user_id, competitionId, roundId, roundNumber, 'NO-PICK', 'LOSE']);
 
               // Deduct life and potentially eliminate player
               const noPickLivesUpdateResult = await client.query(`

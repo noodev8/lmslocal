@@ -182,9 +182,9 @@ router.post('/', verifyToken, async (req, res) => {
 
           // Insert player progress record
           await client.query(`
-            INSERT INTO player_progress (player_id, competition_id, round_id, fixture_id, chosen_team, outcome)
-            VALUES ($1, $2, $3, $4, $5, $6)
-          `, [pick.user_id, competitionIdInt, roundId, fixture.id, pick.team, outcome]);
+            INSERT INTO player_progress (player_id, competition_id, round_id, round_number, fixture_id, chosen_team, outcome)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `, [pick.user_id, competitionIdInt, roundId, roundNumber, fixture.id, pick.team, outcome]);
 
           // Update player lives based on outcome
           if (outcome === 'LOSE') {
@@ -246,9 +246,9 @@ router.post('/', verifyToken, async (req, res) => {
         for (const player of noPickPlayersResult.rows) {
           // Insert player progress record for NO-PICK
           await client.query(`
-            INSERT INTO player_progress (player_id, competition_id, round_id, chosen_team, outcome)
-            VALUES ($1, $2, $3, $4, $5)
-          `, [player.user_id, competitionIdInt, roundId, 'NO-PICK', 'LOSE']);
+            INSERT INTO player_progress (player_id, competition_id, round_id, round_number, chosen_team, outcome)
+            VALUES ($1, $2, $3, $4, $5, $6)
+          `, [player.user_id, competitionIdInt, roundId, roundNumber, 'NO-PICK', 'LOSE']);
 
           // Deduct life and potentially eliminate player
           const updateResult = await client.query(`
