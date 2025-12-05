@@ -82,7 +82,20 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
           context.go('/login');
         }
       },
-      child: Scaffold(
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            if (_currentIndex == 0) {
+              // On Game tab: go to main dashboard
+              context.go('/dashboard');
+            } else {
+              // On other tabs: go back to Game tab
+              setState(() => _currentIndex = 0);
+            }
+          }
+        },
+        child: Scaffold(
         backgroundColor: GameTheme.background,
         appBar: AppBar(
           backgroundColor: GameTheme.background,
@@ -98,6 +111,7 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
         ),
         body: _getPage(_currentIndex),
         bottomNavigationBar: _buildNavBar(),
+        ),
       ),
     );
   }
