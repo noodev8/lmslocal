@@ -27,7 +27,7 @@
 export interface Template {
   id: string;
   name: string;
-  category: 'pre_launch' | 'pick_reminder' | 'round_update' | 'winner';
+  category: 'pre_launch' | 'pick_reminder' | 'round_update' | 'winner' | 'draw';
   tone?: 'casual' | 'excited' | 'dramatic' | 'professional' | 'gentle' | 'urgent' | 'critical';
   content: string;
 }
@@ -140,6 +140,28 @@ COMPETITION STATS:
 • Rounds completed: [ROUND_NUMBER]
 
 Congratulations to our champion and well played to all competitors.
+
+View final standings: [GAME_URL]`
+  },
+
+  // ==================================================
+  // DRAW ANNOUNCEMENT TEMPLATE (1)
+  // ==================================================
+  {
+    id: 'draw_announce',
+    name: 'Announce Draw',
+    category: 'draw',
+    tone: 'casual',
+    content: `⚽ [COMP_NAME] - Competition Complete
+
+Well, that was close! After [ROUND_NUMBER] rounds, all remaining players went out in the same round.
+
+No winner this time - it's a draw! 🤝
+
+• Total participants: [TOTAL_PLAYERS]
+• Rounds completed: [ROUND_NUMBER]
+
+Better luck next time everyone! Thanks for playing.
 
 View final standings: [GAME_URL]`
   }

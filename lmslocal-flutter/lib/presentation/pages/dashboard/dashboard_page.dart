@@ -924,6 +924,11 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _showDeleteConfirmation(Competition competition) {
+    final hasNotStarted = competition.status == 'SETUP';
+    final message = hasNotStarted
+        ? 'Are you sure you want to remove "${competition.name}"?\n\nThis competition has not started yet, so you will also be removed as a participant.'
+        : 'Are you sure you want to remove "${competition.name}" from your dashboard?';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -939,7 +944,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         content: Text(
-          'Are you sure you want to remove "${competition.name}" from your dashboard?',
+          message,
           style: TextStyle(
             color: GameTheme.textSecondary,
           ),
@@ -994,14 +999,6 @@ class _DashboardPageState extends State<DashboardPage> {
       // Close loading dialog
       Navigator.of(context).pop();
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${competition.name} removed from your dashboard'),
-          backgroundColor: GameTheme.accentGreen,
-        ),
-      );
-
       // Refresh dashboard
       await _loadDashboard(forceRefresh: true);
     } catch (e) {
@@ -1009,14 +1006,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
       // Close loading dialog
       Navigator.of(context).pop();
-
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to remove competition: ${e.toString()}'),
-          backgroundColor: GameTheme.accentRed,
-        ),
-      );
     }
   }
 

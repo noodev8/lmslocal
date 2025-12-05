@@ -24,7 +24,8 @@ Success Response (ALWAYS HTTP 200):
     "total_players": 35,               // integer, total players ever in competition
     "entry_fee": 10.00,                // decimal, suggested entry fee (null if not set)
     "prize_structure": "50% Winner / 50% Charity", // string, prize distribution (null if not set)
-    "start_date": "Friday 24 Jan at 7pm" // string, formatted start date from round 1 lock_time (or "Check with organiser" if not set)
+    "start_date": "Friday 24 Jan at 7pm", // string, formatted start date from round 1 lock_time (or "Check with organiser" if not set)
+    "winner_name": "John Smith"        // string, winner's display name (null if no winner or draw)
   },
   "current_round": {
     "round_number": 5,                 // integer, current round number (null if no rounds)
@@ -57,7 +58,8 @@ Success Response (ALWAYS HTTP 200):
     "show_pre_launch": true,           // boolean, show pre-launch templates
     "show_round_update": false,        // boolean, show round update templates
     "show_pick_reminder": true,        // boolean, show pick reminder templates
-    "show_winner": false               // boolean, show winner announcement templates
+    "show_winner": false,              // boolean, show winner announcement templates (competition complete WITH winner)
+    "show_draw": false                 // boolean, show draw announcement templates (competition complete, all eliminated)
   }
 }
 
@@ -108,11 +110,13 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Fetch competition details and verify organizer
+    // Fetch competition details and verify organizer (including winner info)
     const competitionResult = await query(
-      `SELECT id, name, description, status, invite_code, slug, organiser_id, logo_url, entry_fee, prize_structure, lives_per_player
-       FROM competition
-       WHERE id = $1`,
+      `SELECT c.id, c.name, c.description, c.status, c.invite_code, c.slug, c.organiser_id, c.logo_url, c.entry_fee, c.prize_structure, c.lives_per_player,
+              c.winner_id, winner.display_name as winner_name
+       FROM competition c
+       LEFT JOIN app_user winner ON c.winner_id = winner.id
+       WHERE c.id = $1`,
       [competition_id]
     );
 
@@ -389,6 +393,9 @@ router.post('/', verifyToken, async (req, res) => {
     );
     const hasAnyCompletedRound = parseInt(completedRoundCheck.rows[0].count) > 0;
 
+    // Determine if competition ended in a draw (complete but no winner)
+    const is_draw = competition.status === 'COMPLETE' && !competition.winner_name;
+
     // Calculate template visibility logic
     const template_context = {
       // Pre-launch: Show if competition is in SETUP OR no round exists OR round 1 is not locked
@@ -406,8 +413,11 @@ router.post('/', verifyToken, async (req, res) => {
                          current_round.fixture_count > 0 &&
                          (competition.status === 'active' || competition.status === 'SETUP'),
 
-      // Winner: Show if competition is complete
-      show_winner: competition.status === 'COMPLETE'
+      // Winner: Show if competition is complete WITH a winner
+      show_winner: competition.status === 'COMPLETE' && !!competition.winner_name,
+
+      // Draw: Show if competition is complete WITHOUT a winner (all eliminated)
+      show_draw: is_draw
     };
 
     // Return success response
@@ -426,7 +436,8 @@ router.post('/', verifyToken, async (req, res) => {
         entry_fee: competition.entry_fee,
         prize_structure: competition.prize_structure,
         start_date: start_date_formatted,
-        lives_per_player: competition.lives_per_player
+        lives_per_player: competition.lives_per_player,
+        winner_name: competition.winner_name || null
       },
       current_round,
       player_stats: {

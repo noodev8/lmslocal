@@ -195,12 +195,6 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
               _buildHeader(),
               const SizedBox(height: 24),
 
-              // No pick warning (only show if user is a participant)
-              if (_currentPick == null && widget.competition.isParticipant) ...[
-                _buildNoPickWarning(),
-                const SizedBox(height: 24),
-              ],
-
               // Pick distribution grid
               _buildPickDistributionGrid(),
               const SizedBox(height: 32),
@@ -267,39 +261,6 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildNoPickWarning() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GameTheme.accentOrange.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: GameTheme.accentOrange.withValues(alpha: 0.4),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            color: GameTheme.accentOrange,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'You didn\'t make a pick this round',
-              style: TextStyle(
-                fontSize: 14,
-                color: GameTheme.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

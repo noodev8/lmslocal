@@ -992,6 +992,7 @@ export const promoteApi = {
         show_round_update: boolean;
         show_pick_reminder: boolean;
         show_winner: boolean;
+        show_draw: boolean;
       };
     }>('/get-promote-data', { competition_id })
   ),

@@ -57,6 +57,7 @@ interface PromoteData {
     show_round_update: boolean;
     show_pick_reminder: boolean;
     show_winner: boolean;
+    show_draw: boolean;
   };
 }
 
@@ -601,6 +602,7 @@ export default function PromotePage() {
             if (template.category === 'pick_reminder') return data.template_context.show_pick_reminder;
             if (template.category === 'round_update') return data.template_context.show_round_update;
             if (template.category === 'winner') return data.template_context.show_winner;
+            if (template.category === 'draw') return data.template_context.show_draw;
             return false;
           });
 
