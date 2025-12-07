@@ -1,6 +1,8 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
@@ -25,6 +27,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _acceptedTerms = false;
+  bool _showTermsError = false;
 
   @override
   void dispose() {
@@ -36,7 +40,16 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _handleRegister() {
-    if (_formKey.currentState!.validate()) {
+    final isFormValid = _formKey.currentState!.validate();
+
+    // Check terms acceptance
+    if (!_acceptedTerms) {
+      setState(() {
+        _showTermsError = true;
+      });
+    }
+
+    if (isFormValid && _acceptedTerms) {
       context.read<AuthBloc>().add(
             AuthRegisterRequested(
               displayName: _displayNameController.text.trim(),
@@ -44,6 +57,13 @@ class _RegisterPageState extends State<RegisterPage> {
               password: _passwordController.text,
             ),
           );
+    }
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -299,6 +319,91 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                         ),
                         validator: _validateConfirmPassword,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Terms acceptance checkbox
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: Checkbox(
+                                  value: _acceptedTerms,
+                                  onChanged: isLoading
+                                      ? null
+                                      : (value) {
+                                          setState(() {
+                                            _acceptedTerms = value ?? false;
+                                            if (_acceptedTerms) {
+                                              _showTermsError = false;
+                                            }
+                                          });
+                                        },
+                                  activeColor: GameTheme.glowCyan,
+                                  checkColor: GameTheme.background,
+                                  side: BorderSide(
+                                    color: _showTermsError
+                                        ? GameTheme.accentRed
+                                        : GameTheme.border,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: GameTheme.textSecondary,
+                                      height: 1.4,
+                                    ),
+                                    children: [
+                                      const TextSpan(text: 'I agree to the '),
+                                      TextSpan(
+                                        text: 'Terms of Service',
+                                        style: const TextStyle(
+                                          color: GameTheme.glowCyan,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        recognizer: TapGestureRecognizer()
+                                          ..onTap = () => _launchUrl(
+                                              'https://lmslocal.co.uk/terms'),
+                                      ),
+                                      const TextSpan(text: ' and '),
+                                      TextSpan(
+                                        text: 'Privacy Policy',
+                                        style: const TextStyle(
+                                          color: GameTheme.glowCyan,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        recognizer: TapGestureRecognizer()
+                                          ..onTap = () => _launchUrl(
+                                              'https://lmslocal.co.uk/privacy'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_showTermsError)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 36, top: 8),
+                              child: Text(
+                                'You must accept the Terms of Service and Privacy Policy',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: GameTheme.accentRed,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 24),
 

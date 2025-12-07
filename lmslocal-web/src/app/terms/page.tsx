@@ -57,7 +57,7 @@ export default function TermsOfService() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 lg:p-12">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Terms of Service</h1>
-          <p className="text-slate-600 mb-8">Last updated: September 22, 2025</p>
+          <p className="text-slate-600 mb-8">Last updated: December 7, 2025</p>
 
           <div className="prose prose-slate max-w-none">
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">1. Acceptance of Terms</h2>
@@ -80,12 +80,26 @@ export default function TermsOfService() {
               Competition organizers are responsible for setting and enforcing their own rules. LMSLocal provides the platform but does not mediate disputes between participants. All competition results are final as determined by the organizer.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">5. Payment and Fees</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">5. Weekly Challenge (Free Prize Competition)</h2>
+            <p className="text-slate-700 mb-4">
+              The following terms apply specifically to our free Weekly Challenge competition with cash prizes:
+            </p>
+            <ul className="list-disc pl-6 text-slate-700 mb-4">
+              <li><strong>Eligibility:</strong> You must be 18 years or older and a UK resident to be eligible to win prizes.</li>
+              <li><strong>Single Entry:</strong> Each person may only have one entry in the competition. Multiple entries are not permitted.</li>
+              <li><strong>Multiple Entry Violation:</strong> If we discover that a participant has multiple entries, all entries associated with that person will be voided and they will be disqualified from current and future competitions.</li>
+              <li><strong>Cancellation:</strong> We reserve the right to cancel, suspend, or modify the competition at any time without prior notice.</li>
+              <li><strong>Draw Outcome:</strong> If the competition ends in a draw (multiple players remain at the end), no prize will be awarded for that competition period.</li>
+              <li><strong>AI Challenger Outcome:</strong> If an AI challenger (Bot) is the last remaining participant, no prize will be awarded for that competition period.</li>
+              <li><strong>Prize Payment:</strong> Winners will be contacted by email to arrange payment. You must have a valid email address registered to your account for the prize to be valid.</li>
+            </ul>
+
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">6. Payment and Fees</h2>
             <p className="text-slate-700 mb-4">
               LMSLocal offers both free and paid subscription plans. We reserve the right to modify our pricing structure, introduce new fees, or change existing pricing at any time with 30 days notice to existing customers. Current pricing is available on our pricing page. Competition organizers are responsible for collecting any entry fees directly from participants.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">6. Prohibited Use</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">7. Prohibited Use</h2>
             <p className="text-slate-700 mb-4">You agree not to:</p>
             <ul className="list-disc pl-6 text-slate-700 mb-4">
               <li>Use the Service for any unlawful purpose or to solicit unlawful activity</li>
@@ -95,12 +109,12 @@ export default function TermsOfService() {
               <li>Create competitions for illegal gambling purposes</li>
             </ul>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">7. Content and Data</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">8. Content and Data</h2>
             <p className="text-slate-700 mb-4">
               You retain ownership of any content you submit. By using the Service, you grant us a license to use, display, and distribute your content as necessary to provide the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">8. Data Retention and Account Management</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">9. Data Retention and Account Management</h2>
             <p className="text-slate-700 mb-4">
               To maintain system performance and manage storage efficiently, we implement the following data retention policies:
             </p>
@@ -110,27 +124,27 @@ export default function TermsOfService() {
               <li><strong>Data Export:</strong> Before deletion, we recommend downloading any competition data you wish to preserve through the available export features.</li>
             </ul>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">9. Privacy</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Privacy</h2>
             <p className="text-slate-700 mb-4">
               Your privacy is important to us. Please review our <Link href="/privacy" className="text-slate-800 underline hover:text-slate-900">Privacy Policy</Link>, which also governs your use of the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Termination</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">11. Termination</h2>
             <p className="text-slate-700 mb-4">
               We may terminate or suspend your account at any time for violation of these terms. You may delete your account at any time through your profile settings.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">11. Limitation of Liability</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">12. Limitation of Liability</h2>
             <p className="text-slate-700 mb-4">
               LMSLocal shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">12. Changes to Terms</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">13. Changes to Terms</h2>
             <p className="text-slate-700 mb-4">
               We reserve the right to modify these terms at any time. We will notify users of significant changes via email or through the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">13. Contact Information</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">14. Contact Information</h2>
             <p className="text-slate-700 mb-4">
               If you have any questions about these Terms of Service, please contact us at noodev8@gmail.com.
             </p>
@@ -140,7 +154,7 @@ export default function TermsOfService() {
               Registered Address: 3 Cumberland Place, Welshpool, SY21 7SB
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">14. Governing Law</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">15. Governing Law</h2>
             <p className="text-slate-700 mb-4">
               These terms shall be governed by and construed in accordance with the laws of England and Wales.
             </p>
