@@ -108,7 +108,7 @@ export default function ChallengeCompetitionPage() {
 
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white mb-4 leading-tight">
-              Win Up To <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-500">£1,000</span>
+              Win Up To <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-500">£250</span>
               <br />
               <span className="text-3xl sm:text-4xl md:text-5xl">Playing Football Predictions</span>
             </h1>
@@ -123,7 +123,7 @@ export default function ChallengeCompetitionPage() {
               <div className="text-slate-500 text-2xl font-bold">+</div>
               <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500/50 rounded-2xl px-6 py-5 backdrop-blur-sm w-full sm:w-auto">
                 <p className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">New Game Every Month</p>
-                <p className="text-4xl md:text-5xl font-black text-white">£1,000</p>
+                <p className="text-4xl md:text-5xl font-black text-white">£250</p>
                 <p className="text-slate-400 text-xs mt-1">Beat the AI challengers</p>
               </div>
             </div>
@@ -324,7 +324,7 @@ export default function ChallengeCompetitionPage() {
                   Choose wisely - the easy picks run out fast!
                 </p>
                 <p className="text-slate-400 text-sm mt-3">
-                  In £1,000 games, AI challengers (Bots) compete alongside real players and start with an extra life. Beat them to win!
+                  In monthly games, AI challengers (Bots) may compete alongside real players and start with an extra life. Beat them to win!
                 </p>
               </div>
             </div>
@@ -391,7 +391,7 @@ export default function ChallengeCompetitionPage() {
             {[
               { icon: GiftIcon, label: '100% Free Entry', sublabel: 'No credit card' },
               { icon: ShieldCheckIcon, label: 'Secure & Safe', sublabel: 'UK regulated' },
-              { icon: TrophyIcon, label: 'Real Prizes', sublabel: '£20 weekly + £1k monthly' },
+              { icon: TrophyIcon, label: 'Real Prizes', sublabel: '£20 weekly + £250 monthly' },
               { icon: DevicePhoneMobileIcon, label: 'Easy to Play', sublabel: 'Mobile app' },
             ].map((item, i) => (
               <div key={i} className="text-center">
@@ -457,12 +457,12 @@ export default function ChallengeCompetitionPage() {
                 a: "Yes! 100% free. No entry fee, no hidden costs, no credit card required. Just download the app and join."
               },
               {
-                q: "What's the difference between £20 and £1,000 games?",
-                a: "£20 games start every week and are real players only. The £1,000 jackpot starts at the beginning of each month and includes AI challengers to beat."
+                q: "What's the difference between £20 and £250 games?",
+                a: "£20 games start every week and are real players only. The £250 monthly game starts at the beginning of each month and may include AI challengers to beat."
               },
               {
                 q: "Who am I competing against?",
-                a: "In £20 games, it's just real players. In the £1,000 jackpot, you're also competing against AI challengers (marked with 'Bot' in their name). Full transparency - you can see everyone on the leaderboard!"
+                a: "In £20 games, it's just real players. In the monthly game, you may also be competing against AI challengers (marked with 'Bot' in their name). Full transparency - you can see everyone on the leaderboard!"
               },
               {
                 q: "How do I get paid if I win?",
@@ -494,7 +494,7 @@ export default function ChallengeCompetitionPage() {
           </div>
 
           <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-            Win <span className="text-amber-400">£20</span> Weekly or <span className="text-emerald-400">£1,000</span> Monthly
+            Win <span className="text-amber-400">£20</span> Weekly or <span className="text-emerald-400">£250</span> Monthly
           </h2>
           <p className="text-xl text-slate-400 mb-8">
             Download now and start playing. New games every week.
