@@ -108,26 +108,28 @@ export default function ChallengeCompetitionPage() {
 
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white mb-4 leading-tight">
-              Win <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-500">Real Cash</span>
+              Win Up To <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-500">£1,000</span>
               <br />
               <span className="text-3xl sm:text-4xl md:text-5xl">Playing Football Predictions</span>
             </h1>
 
             {/* Prize Amounts */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 my-8">
-              <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/10 border-2 border-amber-500/50 rounded-2xl px-8 py-6 backdrop-blur-sm">
-                <p className="text-amber-400 text-sm font-semibold uppercase tracking-wider mb-1">Weekly Prize</p>
-                <p className="text-5xl md:text-6xl font-black text-white">£20</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 my-8">
+              <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/10 border-2 border-amber-500/50 rounded-2xl px-6 py-5 backdrop-blur-sm w-full sm:w-auto">
+                <p className="text-amber-400 text-xs font-semibold uppercase tracking-wider mb-1">New Game Every Week</p>
+                <p className="text-4xl md:text-5xl font-black text-white">£20</p>
+                <p className="text-slate-400 text-xs mt-1">Real players only</p>
               </div>
               <div className="text-slate-500 text-2xl font-bold">+</div>
-              <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500/50 rounded-2xl px-8 py-6 backdrop-blur-sm">
-                <p className="text-emerald-400 text-sm font-semibold uppercase tracking-wider mb-1">Monthly Prize</p>
-                <p className="text-5xl md:text-6xl font-black text-white">£250</p>
+              <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500/50 rounded-2xl px-6 py-5 backdrop-blur-sm w-full sm:w-auto">
+                <p className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">New Game Every Month</p>
+                <p className="text-4xl md:text-5xl font-black text-white">£1,000</p>
+                <p className="text-slate-400 text-xs mt-1">Beat the AI challengers</p>
               </div>
             </div>
 
             <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-8">
-              No entry fee. No catch. Outsmart our AI challengers and outlast real players to claim the prize.
+              No entry fee. No catch. Pick a winning team and survive to the next round.
               <span className="block text-amber-400 font-semibold mt-2">The last player standing wins!</span>
             </p>
 
@@ -183,7 +185,7 @@ export default function ChallengeCompetitionPage() {
             </div>
 
             <p className="text-slate-500 text-sm mt-4">
-              Already have the app? The <span className="text-amber-400 font-semibold">Weekly Challenge</span> appears at the top of your competition list
+              Already have the app? Free games appear at the top of your dashboard
             </p>
           </div>
         </div>
@@ -232,7 +234,7 @@ export default function ChallengeCompetitionPage() {
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">Register & Join</h3>
                   <p className="text-slate-400">
-                    Create your free account. The Weekly Challenge appears at the top of your list - just tap to join!
+                    Create your free account and join any game from your dashboard. New games start every week!
                   </p>
                 </div>
               </div>
@@ -318,8 +320,11 @@ export default function ChallengeCompetitionPage() {
                   <span className="text-amber-400 font-bold">THE TWIST</span>
                 </div>
                 <p className="text-slate-300">
-                  You <span className="text-white font-bold">can&apos;t pick the same team twice</span> in the competition.
+                  You <span className="text-white font-bold">can&apos;t pick the same team twice</span> in a game.
                   Choose wisely - the easy picks run out fast!
+                </p>
+                <p className="text-slate-400 text-sm mt-3">
+                  In £1,000 games, AI challengers (Bots) compete alongside real players and start with an extra life. Beat them to win!
                 </p>
               </div>
             </div>
@@ -329,6 +334,7 @@ export default function ChallengeCompetitionPage() {
               <div className="text-center mb-6">
                 <TrophyIcon className="h-12 w-12 text-amber-400 mx-auto mb-3" />
                 <h3 className="text-xl font-bold text-white">Last Player Standing Wins</h3>
+                <p className="text-slate-400 text-sm mt-1">Monthly Jackpot example</p>
               </div>
 
               {/* Mock Leaderboard */}
@@ -385,7 +391,7 @@ export default function ChallengeCompetitionPage() {
             {[
               { icon: GiftIcon, label: '100% Free Entry', sublabel: 'No credit card' },
               { icon: ShieldCheckIcon, label: 'Secure & Safe', sublabel: 'UK regulated' },
-              { icon: TrophyIcon, label: 'Real Prizes', sublabel: 'Paid weekly' },
+              { icon: TrophyIcon, label: 'Real Prizes', sublabel: '£20 weekly + £1k monthly' },
               { icon: DevicePhoneMobileIcon, label: 'Easy to Play', sublabel: 'Mobile app' },
             ].map((item, i) => (
               <div key={i} className="text-center">
@@ -451,8 +457,12 @@ export default function ChallengeCompetitionPage() {
                 a: "Yes! 100% free. No entry fee, no hidden costs, no credit card required. Just download the app and join."
               },
               {
+                q: "What's the difference between £20 and £1,000 games?",
+                a: "£20 games start every week and are real players only. The £1,000 jackpot starts at the beginning of each month and includes AI challengers to beat."
+              },
+              {
                 q: "Who am I competing against?",
-                a: "You're competing against real players and AI challengers (marked with 'Bot' in their name). Once the competition starts, you can see the full leaderboard with everyone's picks - complete transparency!"
+                a: "In £20 games, it's just real players. In the £1,000 jackpot, you're also competing against AI challengers (marked with 'Bot' in their name). Full transparency - you can see everyone on the leaderboard!"
               },
               {
                 q: "How do I get paid if I win?",
@@ -464,7 +474,7 @@ export default function ChallengeCompetitionPage() {
               },
               {
                 q: "Can I pick any team?",
-                a: "You can pick any Premier League team, but you can only use each team ONCE per competition. Plan ahead!"
+                a: "You can pick any Premier League team, but you can only use each team ONCE per game. Plan ahead!"
               },
             ].map((faq, i) => (
               <div key={i} className="bg-slate-900 rounded-xl p-6 border border-slate-700">
@@ -484,10 +494,10 @@ export default function ChallengeCompetitionPage() {
           </div>
 
           <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-            Ready to Win <span className="text-amber-400">£20</span> This Week?
+            Win <span className="text-amber-400">£20</span> Weekly or <span className="text-emerald-400">£1,000</span> Monthly
           </h2>
           <p className="text-xl text-slate-400 mb-8">
-            Download now and make your first pick. It only takes 2 minutes.
+            Download now and start playing. New games every week.
           </p>
 
           {/* App Store Buttons */}
@@ -513,7 +523,7 @@ export default function ChallengeCompetitionPage() {
           </div>
 
           <p className="text-slate-500 text-sm">
-            The Weekly Challenge appears at the top of your competition list - no code needed
+            Free games appear at the top of your dashboard - no code needed
           </p>
         </div>
       </section>
