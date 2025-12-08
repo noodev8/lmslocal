@@ -3,7 +3,7 @@
 API Route: delete-competition
 =======================================================================================================================================
 Method: POST
-Purpose: Permanently deletes a competition and all associated data including players, rounds, fixtures, picks, and progress records (bot users are preserved)
+Purpose: Permanently deletes a competition and all associated data including players, guest users, rounds, fixtures, picks, and progress records (bot users are preserved)
 =======================================================================================================================================
 Request Payload:
 {
@@ -18,6 +18,7 @@ Success Response (ALWAYS HTTP 200):
     "competition_id": 123,                          // integer, deleted competition ID
     "competition_name": "My Competition",           // string, name of deleted competition
     "players_removed": 15,                          // integer, number of players removed
+    "guest_users_deleted": 3,                       // integer, number of guest users deleted (bots preserved)
     "rounds_deleted": 8,                            // integer, number of rounds deleted
     "fixtures_deleted": 24,                         // integer, number of fixtures deleted
     "picks_deleted": 120,                           // integer, number of picks deleted
@@ -198,9 +199,22 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING id
       `, [competition_id]);
 
-      // Note: Bot users (@lms-guest.com) are NOT deleted from app_user table
-      // They are permanent, reusable accounts managed via the bot system
-      // Only the competition_user link is removed below
+      // Delete guest users but PRESERVE all bots (bot_*@lms-guest.com)
+      // Bots are permanent, reusable accounts managed via the bot system
+      const deletedGuestUsersResult = await client.query(`
+        DELETE FROM app_user
+        WHERE id IN (
+          SELECT DISTINCT au.id
+          FROM app_user au
+          INNER JOIN competition_user cu ON au.id = cu.user_id
+          WHERE cu.competition_id = $1
+          AND au.email LIKE '%@lms-guest.com'
+          AND au.email NOT LIKE 'bot_%'
+        )
+        RETURNING id, email
+      `, [competition_id]);
+
+      const guestUsersCount = deletedGuestUsersResult.rows.length;
 
       // Delete competition_user records (references competition_id and user_id)
       // This removes all players from the competition
@@ -215,6 +229,7 @@ router.post('/', verifyToken, async (req, res) => {
       const deletionDetails = [
         `Deleted competition "${competition.name}" (ID: ${competition.id})`,
         `Removed ${playersCount} players from competition`,
+        `Deleted ${guestUsersCount} guest users (bots preserved)`,
         `Deleted ${roundsCount} rounds`,
         `Deleted ${fixturesCount} fixtures`,
         `Deleted ${picksCount} picks`,
@@ -249,6 +264,7 @@ router.post('/', verifyToken, async (req, res) => {
         },
         deletionCounts: {
           players: playersCount,
+          guestUsers: guestUsersCount,
           rounds: roundsCount,
           fixtures: fixturesCount,
           picks: picksCount,
@@ -269,6 +285,7 @@ router.post('/', verifyToken, async (req, res) => {
         competition_id: result.competition.id,
         competition_name: result.competition.name,
         players_removed: result.deletionCounts.players,
+        guest_users_deleted: result.deletionCounts.guestUsers,
         rounds_deleted: result.deletionCounts.rounds,
         fixtures_deleted: result.deletionCounts.fixtures,
         picks_deleted: result.deletionCounts.picks,
