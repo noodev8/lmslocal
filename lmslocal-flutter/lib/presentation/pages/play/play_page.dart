@@ -86,8 +86,8 @@ class _PlayPageState extends State<PlayPage> {
 
       // Step 5: Check player status (eliminated players can't pick)
       final isEliminated = competition.userStatus?.toLowerCase() != 'active';
-      if (isEliminated && !competition.isOrganiser) {
-        // Eliminated non-organizer player - always show results (read-only)
+      if (competition.isParticipant && isEliminated) {
+        // Eliminated participant - show results (read-only)
         _setDestination(
           PlayerResultsPage(
             competitionId: widget.competitionId,

@@ -453,14 +453,9 @@ export default function OrganizerFixturesPage() {
               <h3 className="text-xl sm:text-2xl font-bold text-slate-900">Set Round Lock Time</h3>
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-slate-700 mb-2">
-                <span className="font-semibold">How lock time works:</span>
+              <p className="text-sm text-slate-700">
+                Players must make picks <strong>before</strong> this time.
               </p>
-              <ul className="text-sm text-slate-600 space-y-1 ml-4">
-                <li>• Players must make picks <strong>before</strong> this time</li>
-                <li>• <strong>Round 1:</strong> Locks at the time you set (allows new players to join)</li>
-                <li>• <strong>Round 2+:</strong> Locks automatically when all players have picked</li>
-              </ul>
             </div>
 
             {/* Date Selection */}

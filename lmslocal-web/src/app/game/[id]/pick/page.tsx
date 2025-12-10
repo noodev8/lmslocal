@@ -124,10 +124,16 @@ export default function PickPage() {
 
     const initializeData = async () => {
       if (!competition || contextLoading) return;
-      
+
       try {
         hasInitialized.current = true;
-        
+
+        // Check if user is an eliminated participant - redirect to results
+        if (competition.is_participant && competition.user_status && competition.user_status !== 'active') {
+          router.push(`/game/${competitionId}/player-results`);
+          return;
+        }
+
         // Get rounds to find current round (use cache for better performance)
         const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
         

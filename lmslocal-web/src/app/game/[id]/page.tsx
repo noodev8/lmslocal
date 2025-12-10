@@ -179,9 +179,9 @@ export default function UnifiedGameDashboard() {
       }
 
       // Check player status AFTER we know rounds exist
-      // Eliminated non-organizer players can view results but cannot make picks
-      if (competition?.user_status && competition.user_status !== 'active' && !isOrganiser) {
-        // Eliminated player - always show player results view (never allow picking)
+      // Eliminated participants can view results but cannot make picks
+      if (competition?.is_participant && competition?.user_status && competition.user_status !== 'active') {
+        // Eliminated participant - always show player results view (never allow picking)
         router.push(`/game/${competitionId}/player-results`);
         return;
       }
