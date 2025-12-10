@@ -130,13 +130,19 @@ export default function PlayerResultsPage() {
           return;
         }
 
-        // Check if round is locked - this page is only for locked rounds
+        // Check if round is locked
         const now = new Date();
         const lockTime = new Date(latestRound.lock_time || '');
         const locked = !!(latestRound.lock_time && now >= lockTime);
 
-        // If round is not locked, redirect back to pick page
-        if (!locked) {
+        // Check if user is an eliminated participant
+        const isEliminatedParticipant = competition.is_participant &&
+          competition.user_status &&
+          competition.user_status !== 'active';
+
+        // If round is not locked AND user is not eliminated, redirect to pick page
+        // Eliminated participants should stay on results page (they can't pick anyway)
+        if (!locked && !isEliminatedParticipant) {
           router.push(`/game/${competitionId}/pick`);
           return;
         }
