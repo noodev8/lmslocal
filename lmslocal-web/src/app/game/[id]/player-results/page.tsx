@@ -232,6 +232,13 @@ export default function PlayerResultsPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Eliminated Banner */}
+        {competition?.is_participant && competition?.user_status && competition.user_status !== 'active' && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <p className="text-red-700 font-medium">You&apos;ve been eliminated from this competition</p>
+          </div>
+        )}
+
         {/* Round Information */}
         {currentRound && (
           <div className="mb-6">
