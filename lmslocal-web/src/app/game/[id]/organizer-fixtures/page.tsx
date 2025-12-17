@@ -139,7 +139,7 @@ export default function OrganizerFixturesPage() {
 
   // Time shortcuts
   const timeShortcuts = [
-    { label: '12:00', subLabel: 'Noon', value: '12:00' },
+    { label: '12:30', subLabel: '12:30pm', value: '12:30' },
     { label: '15:00', subLabel: '3pm', value: '15:00' },
     { label: '19:30', subLabel: '7:30pm', value: '19:30' }
   ];

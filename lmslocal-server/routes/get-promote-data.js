@@ -216,7 +216,7 @@ router.post('/', verifyToken, async (req, res) => {
       const fixture_count = parseInt(fixtureResult.rows[0].count);
       const completed_fixtures = parseInt(fixtureResult.rows[0].completed);
 
-      // Format lock time in UK timezone (e.g., "Friday 25 Oct at 3pm")
+      // Format lock time in UK timezone (e.g., "Friday 25 Oct at 3pm" or "Friday 25 Oct at 12:30pm")
       let lock_time_formatted = null;
       if (lockTime) {
         // Convert UTC to UK time using Intl.DateTimeFormat (handles BST/GMT automatically)
@@ -226,6 +226,7 @@ router.post('/', verifyToken, async (req, res) => {
           day: 'numeric',
           month: 'short',
           hour: 'numeric',
+          minute: 'numeric',
           hour12: false
         });
 
@@ -234,10 +235,13 @@ router.post('/', verifyToken, async (req, res) => {
         const day = parts.find(p => p.type === 'day').value;
         const month = parts.find(p => p.type === 'month').value;
         const hour24 = parseInt(parts.find(p => p.type === 'hour').value);
+        const minute = parseInt(parts.find(p => p.type === 'minute').value);
         const hour12 = hour24 % 12 || 12;
         const ampm = hour24 >= 12 ? 'pm' : 'am';
 
-        lock_time_formatted = `${weekday} ${day} ${month} at ${hour12}${ampm}`;
+        // Include minutes only if not zero (e.g., "3pm" but "12:30pm")
+        const timeStr = minute > 0 ? `${hour12}:${minute.toString().padStart(2, '0')}${ampm}` : `${hour12}${ampm}`;
+        lock_time_formatted = `${weekday} ${day} ${month} at ${timeStr}`;
       }
 
       // Get NEXT round information (for "Next round starts..." messaging)

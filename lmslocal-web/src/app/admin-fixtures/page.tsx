@@ -153,7 +153,7 @@ export default function AdminFixturesPage() {
 
   // Time shortcuts
   const timeShortcuts = [
-    { label: '12:00', subLabel: 'Noon', value: '12:00' },
+    { label: '12:30', subLabel: '12:30pm', value: '12:30' },
     { label: '14:00', subLabel: '2pm', value: '14:00' },
     { label: '15:00', subLabel: '3pm', value: '15:00' },
     { label: '17:00', subLabel: '5pm', value: '17:00' },
