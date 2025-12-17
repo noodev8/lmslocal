@@ -1,6 +1,3 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   TrophyIcon,
@@ -16,8 +13,6 @@ import {
   MapPinIcon,
   TicketIcon
 } from '@heroicons/react/24/outline';
-import { StarIcon } from '@heroicons/react/24/solid';
-
 // ============================================================
 // PUB SPONSOR TEMPLATE - Duplicate and customize for each pub
 // ============================================================
@@ -45,16 +40,6 @@ const PUB_CONFIG = {
 };
 
 export default function PubChallengePage() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
-    const userData = localStorage.getItem('user');
-    if (token && userData && userData !== 'undefined' && userData !== 'null') {
-      setIsLoggedIn(true);
-    }
-  }, []);
-
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Sticky Header */}

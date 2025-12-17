@@ -1,6 +1,3 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   TrophyIcon,
@@ -17,20 +14,7 @@ import {
   UserGroupIcon,
   TicketIcon
 } from '@heroicons/react/24/outline';
-import { StarIcon } from '@heroicons/react/24/solid';
-
 export default function BrookfieldSocialsChallengePage() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // Check if user is logged in
-  useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
-    const userData = localStorage.getItem('user');
-    if (token && userData && userData !== 'undefined' && userData !== 'null') {
-      setIsLoggedIn(true);
-    }
-  }, []);
-
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Sticky Header */}

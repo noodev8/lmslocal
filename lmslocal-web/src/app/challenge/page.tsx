@@ -19,18 +19,8 @@ import {
 import { StarIcon } from '@heroicons/react/24/solid';
 
 export default function ChallengeCompetitionPage() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [hasDeadline, setHasDeadline] = useState(false);
-
-  // Check if user is logged in
-  useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
-    const userData = localStorage.getItem('user');
-    if (token && userData && userData !== 'undefined' && userData !== 'null') {
-      setIsLoggedIn(true);
-    }
-  }, []);
 
   // Countdown timer to deadline set via NEXT_PUBLIC_CHALLENGE_DEADLINE env var
   // Format: "2025-12-14T12:00:00" (ISO format, local time)
