@@ -22,7 +22,7 @@ Success Response (ALWAYS HTTP 200):
     "email_verified": true,                 // boolean, email verification status
     "last_login": "2025-01-15T10:30:00Z"    // string, ISO datetime of this login
   },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", // string, JWT authentication token (30 day expiry)
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", // string, JWT authentication token (5 year expiry)
   "session_info": {
     "expires_at": "2025-02-14T10:30:00Z",   // string, ISO datetime when token expires
     "issued_at": "2025-01-15T10:30:00Z"     // string, ISO datetime when token was issued
@@ -45,7 +45,7 @@ Return Codes:
 =======================================================================================================================================
 Security Features:
 - bcrypt password hashing with salt
-- JWT tokens with 30-day expiration
+- JWT tokens with 5-year expiration
 - Email format validation
 - Rate limiting protection (handled by server middleware)
 - Comprehensive audit trail for login attempts
@@ -211,11 +211,11 @@ router.post('/', async (req, res) => {
       const token = jwt.sign(
         tokenPayload,
         process.env.JWT_SECRET,
-        { expiresIn: '90d' }
+        { expiresIn: '1825d' }
       );
 
       // Calculate token expiration time for response
-      const expiresAt = new Date(loginTimestamp.getTime() + (90 * 24 * 60 * 60 * 1000)); // 90 days
+      const expiresAt = new Date(loginTimestamp.getTime() + (5 * 365 * 24 * 60 * 60 * 1000)); // 5 years
 
       // STEP 6: Update user activity tracking atomically
       const updateActivityQuery = `
