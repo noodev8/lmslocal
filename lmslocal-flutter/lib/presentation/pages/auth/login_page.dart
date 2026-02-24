@@ -49,7 +49,15 @@ class _LoginPageState extends State<LoginPage> {
         backgroundColor: GameTheme.background,
         body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthError) {
+          if (state is AuthSessionExpiredState) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: GameTheme.accentRed,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),

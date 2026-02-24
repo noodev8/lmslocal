@@ -22,6 +22,7 @@ class Injection {
   static late VersionRemoteDataSource _versionRemoteDataSource;
   static late AuthRepository _authRepository;
   static late NotificationService _notificationService;
+  static late AuthBloc _authBloc;
 
   /// Initialize all dependencies
   static Future<void> init(AppConfig config) async {
@@ -49,11 +50,14 @@ class Injection {
 
     // Services
     _notificationService = NotificationService(apiClient: _apiClient);
+
+    // BLoCs (singletons so API client callbacks can reach them)
+    _authBloc = AuthBloc(authRepository: _authRepository);
   }
 
-  /// Get AuthBloc instance
+  /// Get AuthBloc singleton instance
   static AuthBloc getAuthBloc() {
-    return AuthBloc(authRepository: _authRepository);
+    return _authBloc;
   }
 
   /// Get ApiClient instance (for setting 401 callback)

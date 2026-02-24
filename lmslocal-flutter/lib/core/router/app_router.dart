@@ -11,8 +11,13 @@ import 'package:lmslocal_flutter/presentation/pages/splash/splash_page.dart';
 
 /// App router configuration using GoRouter
 class AppRouter {
+  static GoRouter? _instance;
+
+  /// Access the router instance (e.g. for navigating from outside the widget tree)
+  static GoRouter get router => _instance!;
+
   static GoRouter createRouter() {
-    return GoRouter(
+    _instance = GoRouter(
       initialLocation: '/',
       routes: [
         // Splash screen (handles its own navigation)
@@ -86,5 +91,6 @@ class AppRouter {
         ),
       ],
     );
+    return _instance!;
   }
 }

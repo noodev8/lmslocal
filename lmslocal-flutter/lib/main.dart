@@ -24,11 +24,12 @@ void main() async {
   // Initialize dependencies
   await Injection.init(Config.instance);
 
-  // Set up 401 handler - navigate to login on session expiry
+  // Set up 401 handler - clean up auth state and navigate to login
   final apiClient = Injection.getApiClient();
   apiClient.onUnauthorized = (message) {
-    // This will be handled by AuthBloc listening to session expiry
     debugPrint('Session expired: $message');
+    Injection.getAuthBloc().add(AuthSessionExpired(message: message));
+    AppRouter.router.go('/login');
   };
 
   // Setup foreground notification handler
