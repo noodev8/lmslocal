@@ -67,7 +67,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Validate each preference object
-    const validEmailTypes = ['all', 'pick_reminder', 'welcome', 'results', null];
+    const validEmailTypes = ['all', 'pick_reminder', 'welcome', 'results', 'competition_announcement', null];
 
     for (let i = 0; i < preferences.length; i++) {
       const pref = preferences[i];

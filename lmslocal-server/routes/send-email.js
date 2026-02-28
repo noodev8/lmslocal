@@ -36,7 +36,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const { sendPickReminderEmail, sendResultsEmail, sendWelcomeCompetitionEmail, sendOrganiserTipEmail } = require('../services/emailService');
+const { sendPickReminderEmail, sendResultsEmail, sendWelcomeCompetitionEmail, sendOrganiserTipEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
@@ -105,6 +105,8 @@ router.post('/', async (req, res) => {
           emailResult = await sendWelcomeCompetitionEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'update_scores_mid_round_tip') {
           emailResult = await sendOrganiserTipEmail(templateData);
+        } else if (emailRecord.email_type === 'competition_announcement') {
+          emailResult = await sendCompetitionAnnouncementEmail(userEmail, templateData);
         } else {
           throw new Error(`Unknown email type: ${emailRecord.email_type}`);
         }

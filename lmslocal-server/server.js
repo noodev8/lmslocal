@@ -102,9 +102,11 @@ const getRoundStatisticsRoute = require('./routes/get-round-statistics');
 const loadPickReminderRoute = require('./routes/load-pick-reminder');
 const loadResultsEmailRoute = require('./routes/load-results-email');
 const loadWelcomeCompetitionRoute = require('./routes/load-welcome-competition');
+const loadCompetitionAnnouncementRoute = require('./routes/load-competition-announcement');
 const sendEmailRoute = require('./routes/send-email');
 const getEmailPreferencesRoute = require('./routes/get-email-preferences');
 const updateEmailPreferencesBatchRoute = require('./routes/update-email-preferences-batch');
+const unsubscribeRoute = require('./routes/unsubscribe');
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // const organiserMidRoundSubmitTipRoute = require('./routes/organiser-mid-round-submit-tip');
 
@@ -326,9 +328,11 @@ app.use('/get-round-statistics', getRoundStatisticsRoute);
 app.use('/load-pick-reminder', loadPickReminderRoute);
 app.use('/load-results-email', loadResultsEmailRoute);
 app.use('/load-welcome-competition', loadWelcomeCompetitionRoute);
+app.use('/load-competition-announcement', loadCompetitionAnnouncementRoute);
 app.use('/send-email', sendEmailRoute);
 app.use('/get-email-preferences', getEmailPreferencesRoute);
 app.use('/update-email-preferences-batch', updateEmailPreferencesBatchRoute);
+app.use('/unsubscribe', unsubscribeRoute);
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // app.use('/organiser-mid-round-submit-tip', organiserMidRoundSubmitTipRoute);
 

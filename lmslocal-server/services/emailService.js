@@ -1316,6 +1316,172 @@ const sendOnboardingConfirmation = async (email, contactName) => {
   }
 };
 
+/**
+ * Send competition announcement email to a user
+ * @param {string} email - User's email address
+ * @param {object} templateData - All data needed for email template
+ * @returns {Object} Result object with success status and resend_message_id
+ */
+const sendCompetitionAnnouncementEmail = async (email, templateData) => {
+  try {
+    // Extract template data for easier access
+    const {
+      user_display_name,
+      competition_name,
+      access_code,
+      competition_slug,
+      competition_id,
+      unsubscribe_token,
+      email_tracking_id
+    } = templateData;
+
+    // Build the join URL using PLAYER_FRONTEND_URL and competition slug
+    const joinUrl = `${process.env.PLAYER_FRONTEND_URL}/competition/${competition_slug}`;
+
+    // Build unsubscribe URL using EMAIL_VERIFICATION_URL (server-side GET route, same as verify-email)
+    const unsubscribeUrl = `${process.env.EMAIL_VERIFICATION_URL}/unsubscribe?token=${unsubscribe_token}`;
+
+    // HTML email content
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>New Competition: ${competition_name} - LMS Local</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+            <!-- Header -->
+            <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+              <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">New Competition Available</p>
+            </div>
+
+            <!-- Main Content -->
+            <div style="padding: 40px 30px;">
+
+              <!-- Greeting -->
+              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+              <!-- Main Message -->
+              <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+                A new Last Man Standing competition is starting and you're invited to join!
+              </p>
+
+              <!-- Competition Info Box -->
+              <div style="background: #f1f5f9; border-left: 4px solid #2563eb; padding: 20px; margin: 0 0 30px 0; border-radius: 0 6px 6px 0;">
+                <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 18px; font-weight: 600;">${competition_name}</p>
+                <p style="margin: 0; color: #475569; font-size: 14px;">Access Code: <strong>${access_code}</strong></p>
+              </div>
+
+              <!-- How to Join -->
+              <div style="margin: 0 0 30px 0;">
+                <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">How to Join</h3>
+                <ol style="color: #334155; font-size: 15px; margin: 0; padding-left: 20px; line-height: 1.8;">
+                  <li>Click the button below or visit LMS Local</li>
+                  <li>Enter access code: <strong>${access_code}</strong></li>
+                  <li>Make your pick and you're in!</li>
+                </ol>
+              </div>
+
+              <!-- Call to Action Button -->
+              <div style="margin: 40px 0; text-align: center;">
+                <a href="${joinUrl}"
+                   style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                  Join Competition
+                </a>
+              </div>
+
+              <!-- Sign Off -->
+              <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+                Good luck!<br>
+                The LMS Local Team
+              </p>
+
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 12px; margin: 0 0 4px 0;">
+                LMS Local - Last Man Standing Competitions
+              </p>
+              <p style="color: #cbd5e1; font-size: 11px; margin: 0 0 8px 0;">
+                ${email}
+              </p>
+              <p style="margin: 0;">
+                <a href="${unsubscribeUrl}" style="color: #94a3b8; font-size: 11px; text-decoration: underline;">
+                  Unsubscribe from competition announcements
+                </a>
+              </p>
+            </div>
+
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Plain text version for email clients that don't support HTML
+    const textContent = `
+New Competition: ${competition_name} - LMS Local
+
+Hi ${user_display_name},
+
+A new Last Man Standing competition is starting and you're invited to join!
+
+COMPETITION: ${competition_name}
+ACCESS CODE: ${access_code}
+
+HOW TO JOIN:
+1. Visit LMS Local: ${joinUrl}
+2. Enter access code: ${access_code}
+3. Make your pick and you're in!
+
+Good luck!
+The LMS Local Team
+
+---
+LMS Local - Last Man Standing Competitions
+${email}
+
+Unsubscribe from competition announcements: ${unsubscribeUrl}
+    `;
+
+    // Send email via Resend (uses sendEmail wrapper for test override)
+    const result = await sendEmail({
+      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
+      to: [email],
+      subject: `New Competition: ${competition_name} - LMS Local`,
+      html: htmlContent,
+      text: textContent,
+      headers: {
+        'X-Entity-Ref-ID': email_tracking_id, // For webhook correlation
+      },
+      tags: [
+        { name: 'email_type', value: 'competition_announcement' },
+        { name: 'competition_id', value: String(competition_id) }
+      ]
+    });
+
+    // Resend returns { data: { id: '...' }, error: null } format
+    const resendMessageId = result?.data?.id || result?.id || 'unknown';
+
+    return {
+      success: true,
+      messageId: resendMessageId,
+      resend_message_id: resendMessageId
+    };
+
+  } catch (error) {
+    console.error('Failed to send competition announcement email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -1326,5 +1492,6 @@ module.exports = {
   sendWelcomeCompetitionEmail,
   sendOrganiserTipEmail,
   sendOnboardingNotification,
-  sendOnboardingConfirmation
+  sendOnboardingConfirmation,
+  sendCompetitionAnnouncementEmail
 };
