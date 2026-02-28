@@ -52,7 +52,7 @@ No test framework is currently configured.
 ## API Development Standards
 
 ### Route Conventions
-- **All routes use POST method** for consistency
+- **Use POST or GET methods** as appropriate (POST for mutations, GET for data retrieval)
 - **All responses include "return_code"** field ("SUCCESS" or error type)
 - **ALWAYS return HTTP 200** - Use `return_code` for success/error status (prevents frontend crashes)
 - **Single route file per function** - no combining multiple endpoints
@@ -66,7 +66,7 @@ No test framework is currently configured.
 =======================================================================================================================================
 API Route: [route_name]
 =======================================================================================================================================
-Method: POST
+Method: POST | GET
 Purpose: [Clear description of what this route does]
 =======================================================================================================================================
 Request Payload:
@@ -133,7 +133,7 @@ if (error) {
 ### Backend Architecture
 - **Server Entry**: server.js configures Express with comprehensive security middleware
 - **Database Layer**: database.js provides connection pooling and query utilities
-- **Route Pattern**: Each API endpoint is a separate file with standardized POST-only interface
+- **Route Pattern**: Each API endpoint is a separate file with standardized interface
 - **Authentication**: JWT-based with separate middleware for admin vs player verification
 - **Error Handling**: Centralized error handling with structured return_code responses
 
@@ -180,7 +180,7 @@ lmslocal-web/
 
 1. **Backend development**: Use `npm run dev` in lmslocal-server (nodemon auto-restart)
 2. **Frontend development**: Use `npm run dev` in lmslocal-web (Next.js hot reload on port 3000)
-3. **New API routes**: Each route in separate file, follow header format, POST-only
+3. **New API routes**: Each route in separate file, follow header format, use POST or GET as appropriate
 4. **Database operations**: Use database.js query/transaction functions, never direct pool access
 5. **Authentication**: Player routes use JWT middleware, admin routes use different verification
 
