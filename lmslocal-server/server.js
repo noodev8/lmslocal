@@ -117,6 +117,9 @@ const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-c
 // Admin Tool Routes (lmslocal-admin) - gated by app_user.is_admin + JWT_ADMIN_SECRET
 const adminLoginRoute = require('./routes/admin/admin-login');
 const getAdminStatsRoute = require('./routes/admin/get-admin-stats');
+
+// Shared-secret auth for machine-invoked routes (the email pipeline)
+const { verifyServiceToken } = require('./middleware/service-auth');
 const getAdminCompetitionsRoute = require('./routes/admin/get-admin-competitions');
 const adminAddFixturesRoute = require('./routes/admin-add-fixtures');
 const adminGetFixturesForResultsRoute = require('./routes/admin-get-fixtures-for-results');
@@ -329,12 +332,23 @@ app.use('/get-promote-data', getPromoteDataRoute);
 app.use('/get-round-results-breakdown', getRoundResultsBreakdownRoute);
 app.use('/get-round-statistics', getRoundStatisticsRoute);
 
-// Email API Routes
-app.use('/load-pick-reminder', loadPickReminderRoute);
-app.use('/load-results-email', loadResultsEmailRoute);
-app.use('/load-welcome-competition', loadWelcomeCompetitionRoute);
-app.use('/load-competition-announcement', loadCompetitionAnnouncementRoute);
-app.use('/send-email', sendEmailRoute);
+/*
+Email API Routes
+
+The queue-and-send pipeline is machine-invoked (scheduler or operator), never called by the
+web, admin or mobile clients. Every one of these routes was previously open to anyone who knew
+the URL, and between them they accept user_id / competition_id from the request body and
+dispatch real email - enough to mail arbitrary players repeatedly. They now require the
+X-Service-Token header. See middleware/service-auth.js.
+
+/unsubscribe is deliberately unauthenticated: it is the one-click link inside an email and
+carries its own signed JWT in the query string.
+*/
+app.use('/load-pick-reminder', verifyServiceToken, loadPickReminderRoute);
+app.use('/load-results-email', verifyServiceToken, loadResultsEmailRoute);
+app.use('/load-welcome-competition', verifyServiceToken, loadWelcomeCompetitionRoute);
+app.use('/load-competition-announcement', verifyServiceToken, loadCompetitionAnnouncementRoute);
+app.use('/send-email', verifyServiceToken, sendEmailRoute);
 app.use('/get-email-preferences', getEmailPreferencesRoute);
 app.use('/update-email-preferences-batch', updateEmailPreferencesBatchRoute);
 app.use('/unsubscribe', unsubscribeRoute);

@@ -38,10 +38,10 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 /*
-SECURITY GAP - THIS ROUTE IS UNAUTHENTICATED.
-verifyToken was imported here but never applied to the handler. The handler takes round_id and
-competition_id straight from the request body, so an unauthenticated caller can queue results
-emails for any competition, repeatedly. Needs auth before the next release.
+Machine-invoked. Requires the X-Service-Token header, applied at mount time in server.js.
+This matters here: the handler takes round_id and competition_id straight from the request
+body, so without that gate anyone could queue email for any competition.
+See middleware/service-auth.js.
 */
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();

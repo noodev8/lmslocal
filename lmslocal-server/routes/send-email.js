@@ -15,7 +15,9 @@ Success Response (ALWAYS HTTP 200):
   "return_code": "SUCCESS",
   "message": "Emails processed successfully",
   "sent_count": 5,                     // integer, number of emails sent successfully
-  "failed_count": 1                    // integer, number of emails that failed
+  "failed_count": 1,                   // integer, number of emails that failed
+  "skipped_stale": 0                   // integer, pending emails older than the freshness floor,
+                                       //          left unsent and still visible in email_queue
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -35,23 +37,35 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 /*
-SECURITY GAP - THIS ROUTE IS UNAUTHENTICATED.
-verifyToken was imported here but never applied to the handler, so anyone who can reach the
-server can trigger a flush of the email queue. It takes no request input, so it cannot be used
-to send arbitrary content - the exposure is forced early sending and Resend quota burn.
-Intended to be called by a scheduler; needs a service token like the fixture push routes use.
+Machine-invoked. Requires the X-Service-Token header, applied at mount time in server.js.
+See middleware/service-auth.js.
 */
 const { logApiCall } = require('../utils/apiLogger');
 const { sendPickReminderEmail, sendResultsEmail, sendWelcomeCompetitionEmail, sendOrganiserTipEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
 const router = express.Router();
 
+/*
+Freshness floor. A queued email older than this is never dispatched - it is left pending and
+reported as skipped_stale. Guards against a dormant queue being emptied in one burst.
+*/
+const MAX_AGE_DAYS = 10;
+
 router.post('/', async (req, res) => {
   logApiCall('send-email');
 
   try {
-    // Fetch all pending emails from the queue that are ready to send
-    // Status 'pending' means the email has been queued but not yet sent
-    // scheduled_send_at <= NOW() means it's time to send
+    /*
+    Fetch pending emails that are due AND still fresh.
+
+    The MAX_AGE_DAYS floor is the important half. Without it a row queued months ago is still
+    "due", so a single call can dispatch an entire backlog at once. That is not theoretical:
+    on 2 Aug 2026 one call sent 232 welcome emails queued between Oct 2025 and Jul 2026, and
+    one player received ten of them in a burst.
+
+    Rows older than the floor are left pending and reported as skipped_stale rather than being
+    sent or deleted, so they stay visible in email_queue for inspection. A welcome email a few
+    days late is fine; one ten months late is not.
+    */
     const pendingEmailsResult = await query(`
       SELECT
         id,
@@ -64,8 +78,23 @@ router.post('/', async (req, res) => {
       FROM email_queue
       WHERE status = 'pending'
         AND scheduled_send_at <= NOW()
+        AND scheduled_send_at > NOW() - ($1 || ' days')::interval
       ORDER BY scheduled_send_at ASC
-    `);
+    `, [MAX_AGE_DAYS]);
+
+    // Count what the freshness floor held back, so a caller can see the backlog exists
+    const staleResult = await query(`
+      SELECT COUNT(*) AS stale_count
+      FROM email_queue
+      WHERE status = 'pending'
+        AND scheduled_send_at <= NOW() - ($1 || ' days')::interval
+    `, [MAX_AGE_DAYS]);
+
+    const staleCount = parseInt(staleResult.rows[0].stale_count, 10) || 0;
+
+    if (staleCount > 0) {
+      console.warn(`send-email: ${staleCount} pending email(s) older than ${MAX_AGE_DAYS} days were skipped as stale`);
+    }
 
     const pendingEmails = pendingEmailsResult.rows;
 
@@ -73,9 +102,12 @@ router.post('/', async (req, res) => {
     if (pendingEmails.length === 0) {
       return res.json({
         return_code: "NO_PENDING_EMAILS",
-        message: "No pending emails to send",
+        message: staleCount > 0
+          ? `No emails due to send. ${staleCount} pending email(s) were skipped as older than ${MAX_AGE_DAYS} days.`
+          : "No pending emails to send",
         sent_count: 0,
-        failed_count: 0
+        failed_count: 0,
+        skipped_stale: staleCount
       });
     }
 
@@ -168,9 +200,11 @@ router.post('/', async (req, res) => {
     // Return summary of processing results
     return res.json({
       return_code: "SUCCESS",
-      message: `Processed ${pendingEmails.length} emails: ${sentCount} sent, ${failedCount} failed`,
+      message: `Processed ${pendingEmails.length} emails: ${sentCount} sent, ${failedCount} failed`
+        + (staleCount > 0 ? `. ${staleCount} skipped as older than ${MAX_AGE_DAYS} days.` : ''),
       sent_count: sentCount,
-      failed_count: failedCount
+      failed_count: failedCount,
+      skipped_stale: staleCount
     });
 
   } catch (error) {
