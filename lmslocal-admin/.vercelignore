@@ -1,0 +1,16 @@
+# Files excluded from every Vercel deploy in this repo.
+#
+# IMPORTANT: this file lives at the repository root and Vercel applies it to ALL projects
+# built from this repo, whichever Root Directory they use. Never list lmslocal-web/ or
+# lmslocal-admin/ here - excluding an app directory deletes it before the build and the
+# deploy fails with the Root Directory pointing at nothing.
+#
+# Each project's Root Directory setting already limits what gets built, so listing the
+# other app here buys nothing. Only genuinely non-deployable directories belong below.
+lmslocal-flutter/
+lmslocal-server/
+docs/
+*.mp4
+*.mov
+*.avi
+server-check.txt
