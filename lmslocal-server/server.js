@@ -121,6 +121,8 @@ const getAdminStatsRoute = require('./routes/admin/get-admin-stats');
 // Shared-secret auth for machine-invoked routes (the email pipeline)
 const { verifyServiceToken } = require('./middleware/service-auth');
 const getAdminCompetitionsRoute = require('./routes/admin/get-admin-competitions');
+const deleteAdminCompetitionRoute = require('./routes/admin/delete-admin-competition');
+const impersonateOrganiserRoute = require('./routes/admin/impersonate-organiser');
 const adminAddFixturesRoute = require('./routes/admin-add-fixtures');
 const adminGetFixturesForResultsRoute = require('./routes/admin-get-fixtures-for-results');
 const adminSetResultRoute = require('./routes/admin-set-result');
@@ -363,6 +365,8 @@ app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
 app.use('/admin/admin-login', adminLoginRoute);
 app.use('/admin/get-admin-stats', getAdminStatsRoute);
 app.use('/admin/get-admin-competitions', getAdminCompetitionsRoute);
+app.use('/admin/delete-admin-competition', deleteAdminCompetitionRoute);
+app.use('/admin/impersonate-organiser', impersonateOrganiserRoute);
 app.use('/admin-add-fixtures', adminAddFixturesRoute);
 app.use('/admin-get-fixtures-for-results', adminGetFixturesForResultsRoute);
 app.use('/admin-set-result', adminSetResultRoute);

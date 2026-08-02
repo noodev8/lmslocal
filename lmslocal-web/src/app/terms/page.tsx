@@ -57,7 +57,7 @@ export default function TermsOfService() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 lg:p-12">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Terms of Service</h1>
-          <p className="text-slate-600 mb-8">Last updated: December 7, 2025</p>
+          <p className="text-slate-600 mb-8">Last updated: August 2, 2026</p>
 
           <div className="prose prose-slate max-w-none">
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">1. Acceptance of Terms</h2>
@@ -121,7 +121,7 @@ export default function TermsOfService() {
             <ul className="list-disc pl-6 text-slate-700 mb-4">
               <li><strong>Competition Data:</strong> Completed competitions and their associated data will be automatically removed from our systems 60 days after completion. Unused competitions that remain in setup status may also be removed after 60 days of inactivity.</li>
               <li><strong>Inactive User Accounts:</strong> User accounts that remain inactive for 60 consecutive days will be automatically removed from our system. This policy does not apply to paying subscribers, whose accounts will be preserved for the duration of their subscription period.</li>
-              <li><strong>Data Export:</strong> Before deletion, we recommend downloading any competition data you wish to preserve through the available export features.</li>
+              <li><strong>Data Export:</strong> If you wish to preserve any competition data before it is removed, please contact us before the deletion date and we will assist you.</li>
             </ul>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Privacy</h2>

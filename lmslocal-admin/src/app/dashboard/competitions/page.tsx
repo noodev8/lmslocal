@@ -11,8 +11,15 @@ Purpose: Drill-down from the dashboard's "Competitions" cards - every competitio
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeftIcon, ArrowPathIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-import { adminApi, getToken, AdminCompetition, apiBaseUrl } from '@/lib/api';
+import {
+  ArrowLeftIcon,
+  ArrowPathIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  TrashIcon,
+  ArrowTopRightOnSquareIcon,
+} from '@heroicons/react/24/outline';
+import { adminApi, getToken, AdminCompetition, apiBaseUrl, webBaseUrl } from '@/lib/api';
 
 type SortKey = 'name' | 'status' | 'player_count' | 'created_at' | 'last_activity';
 type SortDirection = 'asc' | 'desc';
@@ -24,6 +31,10 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'created_at', label: 'Created' },
   { key: 'last_activity', label: 'Last activity' },
 ];
+
+// Local-only marker for "which competition did I last click View as organiser on" - not an
+// audit trail, just a convenience so the row is easy to find again after tabbing back.
+const LAST_VIEWED_KEY = 'admin_last_viewed_competition';
 
 const STATUS_BADGE: Record<string, string> = {
   active: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
@@ -112,6 +123,90 @@ function StatusTile({
   );
 }
 
+function DeleteModal({
+  competition,
+  onCancel,
+  onDeleted,
+}: {
+  competition: AdminCompetition;
+  onCancel: () => void;
+  onDeleted: () => void;
+}) {
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError('');
+    try {
+      const result = await adminApi.deleteCompetition(competition.id);
+      if (result.return_code === 'SUCCESS') {
+        onDeleted();
+      } else {
+        setError(result.message || 'Could not delete competition');
+      }
+    } catch {
+      setError(`Could not reach ${apiBaseUrl}.`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+        <h2 className="text-lg font-semibold text-slate-900">Delete competition</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          This permanently removes <strong>{competition.name}</strong> and everything attached to
+          it - rounds, fixtures, picks, player progress, and membership records. This cannot be
+          undone.
+        </p>
+
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {competition.player_count} player{competition.player_count === 1 ? '' : 's'} &middot;
+          status: {competition.status}
+        </div>
+
+        <label htmlFor="confirm-name" className="mt-4 block text-sm font-medium text-slate-700">
+          Type the competition name <strong>{competition.name}</strong> to confirm:
+        </label>
+        <input
+          id="confirm-name"
+          type="text"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400"
+          autoComplete="off"
+        />
+
+        {error && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting || confirmText !== competition.name}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleting ? 'Deleting...' : 'Delete permanently'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CompetitionsList() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -123,6 +218,45 @@ function CompetitionsList() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('last_activity');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [deleteTarget, setDeleteTarget] = useState<AdminCompetition | null>(null);
+  const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
+  const [lastViewed, setLastViewed] = useState<{ id: number; at: number } | null>(null);
+
+  // Remembers which competition "View as organiser" last opened, purely so the row is easy to
+  // spot again when tabbing back - not an audit trail, just a local convenience marker.
+  useEffect(() => {
+    const raw = localStorage.getItem(LAST_VIEWED_KEY);
+    if (raw) {
+      try {
+        setLastViewed(JSON.parse(raw));
+      } catch {
+        // Corrupt entry - ignore, treat as never viewed
+      }
+    }
+  }, []);
+
+  const handleImpersonate = async (competition: AdminCompetition) => {
+    setImpersonatingId(competition.id);
+    setError('');
+    try {
+      const result = await adminApi.impersonateOrganiser(competition.id);
+      if (result.return_code === 'SUCCESS' && result.token && result.user) {
+        const userParam = encodeURIComponent(JSON.stringify(result.user));
+        const url = `${webBaseUrl}/admin-bridge#token=${result.token}&user=${userParam}&competition_id=${competition.id}`;
+        window.open(url, '_blank', 'noopener');
+
+        const marker = { id: competition.id, at: Date.now() };
+        localStorage.setItem(LAST_VIEWED_KEY, JSON.stringify(marker));
+        setLastViewed(marker);
+      } else {
+        setError(result.message || 'Could not view as organiser');
+      }
+    } catch {
+      setError(`Could not reach ${apiBaseUrl}.`);
+    } finally {
+      setImpersonatingId(null);
+    }
+  };
 
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -283,17 +417,42 @@ function CompetitionsList() {
                   <SortableHeader col={COLUMNS[2]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
                   <SortableHeader col={COLUMNS[3]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
                   <SortableHeader col={COLUMNS[4]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((c) => (
-                  <tr key={c.id} className="transition hover:bg-slate-50">
+                  <tr
+                    key={c.id}
+                    className={`transition hover:bg-slate-50 ${
+                      lastViewed?.id === c.id ? 'bg-indigo-50/50' : ''
+                    }`}
+                  >
                     <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
                     <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
                     <td className="px-4 py-3 text-slate-600">{c.organiser_email || '—'}</td>
                     <td className="px-4 py-3 tabular-nums text-slate-600">{c.player_count}</td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(c.created_at)}</td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(c.last_activity)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => handleImpersonate(c)}
+                          disabled={impersonatingId === c.id}
+                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50"
+                          title="View as organiser"
+                        >
+                          <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(c)}
+                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                          title="Delete competition"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -301,6 +460,17 @@ function CompetitionsList() {
           </div>
         )}
       </main>
+
+      {deleteTarget && (
+        <DeleteModal
+          competition={deleteTarget}
+          onCancel={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            setDeleteTarget(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }

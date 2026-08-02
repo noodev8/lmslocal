@@ -31,6 +31,16 @@ when the build ran and a redeploy is needed - worth being able to see that from 
 */
 export const apiBaseUrl = getApiBaseUrl();
 
+const getWebBaseUrl = (): string => {
+  if (process.env.NEXT_PUBLIC_WEB_URL) {
+    return process.env.NEXT_PUBLIC_WEB_URL.replace(/\/+$/, '');
+  }
+  return 'http://localhost:3000';
+};
+
+// Where the player-facing app lives, for "View as organiser" to open a new tab against.
+export const webBaseUrl = getWebBaseUrl();
+
 const api = axios.create({
   baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
@@ -122,6 +132,27 @@ export type CompetitionsResponse = ApiResponse & {
   generated_at?: string;
 };
 
+export type ImpersonateResponse = ApiResponse & {
+  token?: string;
+  user?: { id: number; email: string; display_name: string };
+  competition_id?: number;
+};
+
+export type DeleteCompetitionResponse = ApiResponse & {
+  deletion_summary?: {
+    competition_id: number;
+    competition_name: string;
+    players_removed: number;
+    guest_users_deleted: number;
+    rounds_deleted: number;
+    fixtures_deleted: number;
+    picks_deleted: number;
+    progress_records_deleted: number;
+    allowed_teams_deleted: number;
+    deleted_at: string;
+  };
+};
+
 // ======================================================================================
 // Session helpers
 // ======================================================================================
@@ -171,6 +202,20 @@ export const adminApi = {
   getCompetitions: async (status?: string): Promise<CompetitionsResponse> => {
     const response = await api.get<CompetitionsResponse>('/admin/get-admin-competitions', {
       params: status ? { status } : undefined,
+    });
+    return response.data;
+  },
+
+  impersonateOrganiser: async (competitionId: number): Promise<ImpersonateResponse> => {
+    const response = await api.post<ImpersonateResponse>('/admin/impersonate-organiser', {
+      competition_id: competitionId,
+    });
+    return response.data;
+  },
+
+  deleteCompetition: async (competitionId: number): Promise<DeleteCompetitionResponse> => {
+    const response = await api.post<DeleteCompetitionResponse>('/admin/delete-admin-competition', {
+      competition_id: competitionId,
     });
     return response.data;
   },
