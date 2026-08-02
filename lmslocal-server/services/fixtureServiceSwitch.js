@@ -104,7 +104,11 @@ async function checkSafeToEnable(competition, exec = query, options = {}) {
     };
   }
 
-  if (total > 0 && processed < total) {
+  // resulted === total is required here, not just implied by having fallen through the check
+  // above - that check can now be bypassed by allowUnfinishedRound, and without this guard an
+  // unresulted round (resulted=0, processed=0) would wrongly trip this branch too, since
+  // processed < total is true either way.
+  if (total > 0 && resulted === total && processed < total) {
     return {
       return_code: 'ROUND_NOT_PROCESSED',
       message:
