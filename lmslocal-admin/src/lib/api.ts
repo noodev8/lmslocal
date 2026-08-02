@@ -104,7 +104,7 @@ export interface AdminStats {
   generated_at: string;
 }
 
-interface ApiResponse {
+export interface ApiResponse {
   return_code: string;
   message?: string;
 }
@@ -125,7 +125,86 @@ export interface AdminCompetition {
   player_count: number;
   created_at: string;
   last_activity: string;
+  /* Opted into the automated fixture service - the flag every push reads. */
+  fixture_service: boolean;
+  team_list_id: number;
+  team_list_name: string | null;
 }
+
+export interface AdminTeam {
+  id: number;
+  name: string;
+  short_name: string;
+}
+
+export interface FixtureTeamList {
+  id: number;
+  name: string;
+  type: string;
+  season: string | null;
+  /* The gameweek a batch submitted now would be given. Shown so the number is never a surprise. */
+  next_gameweek: number;
+  teams: AdminTeam[];
+}
+
+export interface StagedFixture {
+  fixture_id: number;
+  home_team_short: string;
+  away_team_short: string;
+  home_team_name: string;
+  away_team_name: string;
+  kickoff_time: string;
+}
+
+export interface PendingGameweek {
+  gameweek: number;
+  remaining: number;
+  first_kickoff: string;
+}
+
+/* One fixture as entered in the UI, before it is staged. */
+export interface FixturePair {
+  home_team_short: string;
+  away_team_short: string;
+}
+
+export type ResultOutcome = 'home_win' | 'away_win' | 'draw';
+
+export type TeamListsResponse = ApiResponse & { team_lists?: FixtureTeamList[] };
+
+export type AddFixturesResponse = ApiResponse & {
+  fixtures_added?: number;
+  gameweek?: number;
+  team_list_name?: string;
+};
+
+export type StagedResultsResponse = ApiResponse & {
+  gameweek?: number | null;
+  fixtures?: StagedFixture[];
+  total_fixtures?: number;
+  remaining_fixtures?: number;
+  /* Zero means this gameweek never reached a competition, so results for it change nothing. */
+  pushed_to_competitions?: number;
+  pending_gameweeks?: PendingGameweek[];
+};
+
+export type PushFixturesResponse = ApiResponse & {
+  competitions_updated?: number;
+  competitions_skipped?: number;
+  fixtures_pushed?: number;
+};
+
+export type PushResultsResponse = ApiResponse & {
+  fixtures_updated?: number;
+  results_marked_pushed?: number;
+  competitions_processed?: { competition_id: number; status: string; reason?: string }[];
+};
+
+export type SetFixtureServiceResponse = ApiResponse & {
+  competition_id?: number;
+  competition_name?: string;
+  fixture_service?: boolean;
+};
 
 export type CompetitionsResponse = ApiResponse & {
   competitions?: AdminCompetition[];
@@ -217,6 +296,64 @@ export const adminApi = {
     const response = await api.post<DeleteCompetitionResponse>('/admin/delete-admin-competition', {
       competition_id: competitionId,
     });
+    return response.data;
+  },
+
+  setFixtureService: async (
+    competitionId: number,
+    fixtureService: boolean
+  ): Promise<SetFixtureServiceResponse> => {
+    const response = await api.post<SetFixtureServiceResponse>('/admin/set-fixture-service', {
+      competition_id: competitionId,
+      fixture_service: fixtureService,
+    });
+    return response.data;
+  },
+
+  // ---- Fixture staging -------------------------------------------------------------------
+
+  getFixtureTeamLists: async (): Promise<TeamListsResponse> => {
+    const response = await api.get<TeamListsResponse>('/admin/get-fixture-team-lists');
+    return response.data;
+  },
+
+  addStagedFixtures: async (
+    teamListId: number,
+    kickoffTimeIso: string,
+    fixtures: FixturePair[]
+  ): Promise<AddFixturesResponse> => {
+    const response = await api.post<AddFixturesResponse>('/admin/add-staged-fixtures', {
+      team_list_id: teamListId,
+      kickoff_time: kickoffTimeIso,
+      fixtures,
+    });
+    return response.data;
+  },
+
+  getStagedResults: async (teamListId: number): Promise<StagedResultsResponse> => {
+    const response = await api.get<StagedResultsResponse>('/admin/get-staged-results', {
+      params: { team_list_id: teamListId },
+    });
+    return response.data;
+  },
+
+  setStagedResult: async (fixtureId: number, result: ResultOutcome): Promise<ApiResponse> => {
+    const response = await api.post<ApiResponse>('/admin/set-staged-result', {
+      fixture_id: fixtureId,
+      result,
+    });
+    return response.data;
+  },
+
+  // ---- Distribution ----------------------------------------------------------------------
+
+  pushFixtures: async (): Promise<PushFixturesResponse> => {
+    const response = await api.post<PushFixturesResponse>('/admin/push-fixtures-to-competitions');
+    return response.data;
+  },
+
+  pushResults: async (): Promise<PushResultsResponse> => {
+    const response = await api.post<PushResultsResponse>('/admin/push-results-to-competitions');
     return response.data;
   },
 };

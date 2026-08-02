@@ -12,7 +12,11 @@ Purpose: Provides reusable functions for pushing fixtures from fixture_load tabl
  * Pushes fixtures from fixture_load table to competitions that need them.
  * Uses gameweek-based system:
  * 1. Find competitions needing fixtures (blank round or completed round)
- * 2. Get earliest available gameweek (gameweek > 0, kickoff >= NOW() + 6 days)
+ * 2. Get the earliest gameweek (gameweek > 0) whose first kickoff is at or after the
+ *    competition's earliest_start_date, or NOW() when that is not set. There is no minimum
+ *    lead time - a gameweek kicking off tomorrow is eligible, and one whose kickoff has
+ *    already passed for a competition with an earlier start date is too, which would create
+ *    a round that is locked on arrival.
  * 3. Push that gameweek to eligible competitions
  *
  * @param {object} client - Database client (transaction or query context)

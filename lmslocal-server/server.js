@@ -110,11 +110,9 @@ const unsubscribeRoute = require('./routes/unsubscribe');
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // const organiserMidRoundSubmitTipRoute = require('./routes/organiser-mid-round-submit-tip');
 
-// Admin Routes
+// Admin Tool Routes (lmslocal-admin) - gated by app_user.is_admin + JWT_ADMIN_SECRET
 const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
 const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-competitions');
-
-// Admin Tool Routes (lmslocal-admin) - gated by app_user.is_admin + JWT_ADMIN_SECRET
 const adminLoginRoute = require('./routes/admin/admin-login');
 const getAdminStatsRoute = require('./routes/admin/get-admin-stats');
 
@@ -123,9 +121,11 @@ const { verifyServiceToken } = require('./middleware/service-auth');
 const getAdminCompetitionsRoute = require('./routes/admin/get-admin-competitions');
 const deleteAdminCompetitionRoute = require('./routes/admin/delete-admin-competition');
 const impersonateOrganiserRoute = require('./routes/admin/impersonate-organiser');
-const adminAddFixturesRoute = require('./routes/admin-add-fixtures');
-const adminGetFixturesForResultsRoute = require('./routes/admin-get-fixtures-for-results');
-const adminSetResultRoute = require('./routes/admin-set-result');
+const getFixtureTeamListsRoute = require('./routes/admin/get-fixture-team-lists');
+const addStagedFixturesRoute = require('./routes/admin/add-staged-fixtures');
+const getStagedResultsRoute = require('./routes/admin/get-staged-results');
+const setStagedResultRoute = require('./routes/admin/set-staged-result');
+const setFixtureServiceRoute = require('./routes/admin/set-fixture-service');
 
 // Organizer Fixture Management Routes (for manual competitions - fixture_service = false)
 const organizerAddFixturesRoute = require('./routes/organizer-add-fixtures');
@@ -357,19 +357,27 @@ app.use('/unsubscribe', unsubscribeRoute);
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // app.use('/organiser-mid-round-submit-tip', organiserMidRoundSubmitTipRoute);
 
-// Admin API Routes
-app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
-app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
+/*
+Admin Tool API Routes (lmslocal-admin)
 
-// Admin Tool API Routes (lmslocal-admin)
+Every one of these requires an admin token - see middleware/admin-auth.js. The fixture and
+result routes replace /admin-add-fixtures, /admin-get-fixtures-for-results and
+/admin-set-result, which were gated by the string '12221' in the request body and served the
+now-deleted /admin-fixtures and /admin-results pages in lmslocal-web. The two push routes were
+gated by BOT_MAGIC_2025, which those same public pages shipped in the browser bundle.
+*/
 app.use('/admin/admin-login', adminLoginRoute);
 app.use('/admin/get-admin-stats', getAdminStatsRoute);
 app.use('/admin/get-admin-competitions', getAdminCompetitionsRoute);
 app.use('/admin/delete-admin-competition', deleteAdminCompetitionRoute);
 app.use('/admin/impersonate-organiser', impersonateOrganiserRoute);
-app.use('/admin-add-fixtures', adminAddFixturesRoute);
-app.use('/admin-get-fixtures-for-results', adminGetFixturesForResultsRoute);
-app.use('/admin-set-result', adminSetResultRoute);
+app.use('/admin/get-fixture-team-lists', getFixtureTeamListsRoute);
+app.use('/admin/add-staged-fixtures', addStagedFixturesRoute);
+app.use('/admin/get-staged-results', getStagedResultsRoute);
+app.use('/admin/set-staged-result', setStagedResultRoute);
+app.use('/admin/set-fixture-service', setFixtureServiceRoute);
+app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
+app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
 
 // Organizer Fixture Management API Routes (manual competitions only - fixture_service = false)
 app.use('/organizer-add-fixtures', organizerAddFixturesRoute);

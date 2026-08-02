@@ -33,6 +33,7 @@ Return Codes:
 "MISSING_FIELDS"              - Required fields are missing
 "UNAUTHORIZED"                - User is not the organiser of this competition
 "COMPETITION_NOT_FOUND"       - Competition doesn't exist
+"AUTOMATED_COMPETITION"       - Competition uses the fixture service; the push processes results
 "NO_ROUNDS"                   - No rounds exist for this competition
 "NO_RESULTS_TO_PROCESS"       - No unprocessed results to process
 "SERVER_ERROR"                - Database or unexpected error
@@ -77,7 +78,8 @@ router.post('/', verifyToken, async (req, res) => {
         id,
         name,
         organiser_id,
-        status
+        status,
+        fixture_service
       FROM competition
       WHERE id = $1
     `, [competitionIdInt]);
@@ -90,6 +92,7 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    const competition = competitionResult.rows[0];
 
     // Verify user has permission to manage results (organiser or delegated permission)
     const permission = await canManageResults(user_id, competition_id);
@@ -97,6 +100,22 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(200).json({
         return_code: "UNAUTHORIZED",
         message: "You do not have permission to process results for this competition"
+      });
+    }
+
+    // Verify competition is in manual mode (fixture_service = false), matching
+    // organizer-set-result and organizer-add-fixtures.
+    //
+    // This one matters most of the three: it is the route that applies eliminations, no-pick
+    // penalties and the winner check. On an automated competition that work belongs to
+    // push-results-to-competitions, which does it in the same transaction as writing the
+    // results. Leaving this open let a second processor run over the same round from outside
+    // that transaction. The UI already hides the button in automated mode, so this is the
+    // backstop for a direct call rather than a route anyone reaches by accident.
+    if (competition.fixture_service !== false) {
+      return res.status(200).json({
+        return_code: "AUTOMATED_COMPETITION",
+        message: "This competition uses automated fixture service. Results are processed when they are pushed."
       });
     }
 

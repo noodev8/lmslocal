@@ -5,14 +5,18 @@ API Route: push-fixtures-to-competitions
 Method: POST
 Purpose: Pushes fixtures from fixture_load table to competitions using gameweek-based system.
          - Identifies competitions needing fixtures (blank round or completed round)
-         - Finds earliest available gameweek (gameweek > 0, kickoff >= NOW() + 6 days)
+         - Finds the earliest gameweek (gameweek > 0) whose first kickoff is at or after the
+           competition's earliest_start_date, falling back to NOW() when that is not set
          - Pushes that gameweek to eligible competitions
          - Creates new rounds or populates blank rounds as needed
+
+         Authentication: admin token. This route used to accept the shared string
+         BOT_MAGIC_2025 in the request body, which was compiled into the public lmslocal-web
+         JavaScript bundle by the old /admin-fixtures page - so anyone who read the site's
+         source could create rounds across every subscribed competition.
 =======================================================================================================================================
 Request Payload:
-{
-  "bot_manage": "BOT_MAGIC_2025"       // string, required - bot management identifier
-}
+  None. Authentication is by admin token in the Authorization header.
 
 Success Response (ALWAYS HTTP 200):
 {
@@ -31,9 +35,10 @@ Error Response (ALWAYS HTTP 200):
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
-"NO_ACTIVE_FIXTURES"         - No gameweeks available with kickoff >= NOW() + 6 days and gameweek > 0
+"NO_ACTIVE_FIXTURES"         - Nothing staged: fixture_load holds no rows with gameweek > 0
 "NO_SUBSCRIBED_COMPETITIONS" - No competitions have fixture_service = true
-"UNAUTHORIZED"               - Invalid bot management identifier
+"UNAUTHORIZED"               - Missing, invalid, expired, or non-admin token
+"TOKEN_EXPIRED"              - Admin session has expired
 "SERVER_ERROR"               - Database or unexpected errors
 =======================================================================================================================================
 */
@@ -41,26 +46,14 @@ Return Codes:
 const express = require('express');
 const { transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
+const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { pushFixturesToCompetitions } = require('../../services/fixtureService');
 const router = express.Router();
 
-// Bot management identifier for testing endpoints
-const BOT_MANAGE = "BOT_MAGIC_2025";
-
-router.post('/', async (req, res) => {
+router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('push-fixtures-to-competitions');
 
   try {
-    const { bot_manage } = req.body;
-
-    // STEP 1: Validate bot management identifier
-    if (!bot_manage || bot_manage !== BOT_MANAGE) {
-      return res.json({
-        return_code: "UNAUTHORIZED",
-        message: "Invalid bot management identifier"
-      });
-    }
-
     // Execute all operations in a single atomic transaction
     const result = await transaction(async (client) => {
       return await pushFixturesToCompetitions(client);
@@ -82,7 +75,7 @@ router.post('/', async (req, res) => {
     if (error.message === 'NO_ACTIVE_FIXTURES') {
       return res.json({
         return_code: "NO_ACTIVE_FIXTURES",
-        message: "No gameweeks available with kickoff >= NOW() + 6 days and gameweek > 0"
+        message: "No fixtures are staged"
       });
     }
 

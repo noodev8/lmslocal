@@ -8,11 +8,14 @@ Purpose: Pushes results from fixture_load to competition fixtures and automatica
          2. Only updates fixtures in competitions where fixture_service = true
          3. Automatically processes results (eliminations, no-picks, competition completion)
          4. Only updates fixtures where result is NULL (never overrides existing results)
+
+         Authentication: admin token. This route used to accept the shared string
+         BOT_MAGIC_2025 in the request body, which was compiled into the public lmslocal-web
+         JavaScript bundle by the old /admin-results page - so anyone who read the site's source
+         could process eliminations across every subscribed competition.
 =======================================================================================================================================
 Request Payload:
-{
-  "bot_manage": "BOT_MAGIC_2025"       // string, required - bot management identifier
-}
+  None. Authentication is by admin token in the Authorization header.
 
 Success Response (ALWAYS HTTP 200):
 {
@@ -44,7 +47,8 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "NO_RESULTS_TO_PUSH"
-"UNAUTHORIZED"
+"UNAUTHORIZED"                          - Missing, invalid, expired, or non-admin token
+"TOKEN_EXPIRED"                         - Admin session has expired
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -52,26 +56,14 @@ Return Codes:
 const express = require('express');
 const { transaction } = require('../../database');       // Destructured database import from central pooling (using transaction for atomicity)
 const { logApiCall } = require('../../utils/apiLogger');  // API logging utility
+const { verifyAdminToken } = require('../../middleware/admin-auth');
 const router = express.Router();
 
-// Bot management identifier for testing endpoints
-const BOT_MANAGE = "BOT_MAGIC_2025";
-
-router.post('/', async (req, res) => {
+router.post('/', verifyAdminToken, async (req, res) => {
   // Log this API call for monitoring and debugging
   logApiCall('push-results-to-competitions');
 
   try {
-    const { bot_manage } = req.body;
-
-    // STEP 1: Validate bot management identifier
-    if (!bot_manage || bot_manage !== BOT_MANAGE) {
-      return res.json({
-        return_code: "UNAUTHORIZED",
-        message: "Invalid bot management identifier"
-      });
-    }
-
     // Execute all operations in a single atomic transaction
     // This ensures either ALL changes succeed or ALL are rolled back
     const result = await transaction(async (client) => {
@@ -86,7 +78,8 @@ router.post('/', async (req, res) => {
           away_team_short,
           home_score,
           away_score,
-          gameweek
+          gameweek,
+          kickoff_time
         FROM fixture_load
         WHERE gameweek > 0
         AND results_pushed = false
@@ -133,7 +126,17 @@ router.post('/', async (req, res) => {
         // - Competition has fixture_service = true (subscribed to service)
         // - Teams match (home_team_short and away_team_short)
         // - Gameweek matches (prevents applying results to wrong fixtures)
+        // - Kickoff matches (see below)
         // - result IS NULL (NEVER override existing results)
+        //
+        // The kickoff check is what makes the match unambiguous across seasons. Gameweek
+        // numbers are NOT unique over time: fixture_load restarts at 1 whenever it is emptied,
+        // while competition fixtures keep whatever number they were pushed with, so an old
+        // round can share this one's number. Teams plus number alone would then be satisfied by
+        // a repeat fixture from a previous season. push-fixtures copies kickoff_time verbatim
+        // from the staged row, so adding it costs nothing for a legitimate match and excludes
+        // the coincidental ones. (result IS NULL already stops resulted rounds being touched;
+        // this closes the case of an old round left unresolved.)
         // RETURNING clause gives us the competition_ids that were affected
         const fixtureUpdateResult = await client.query(`
           UPDATE fixture f
@@ -144,9 +147,10 @@ router.post('/', async (req, res) => {
           AND f.home_team_short = $2
           AND f.away_team_short = $3
           AND f.gameweek = $4
+          AND f.kickoff_time = $5
           AND f.result IS NULL
           RETURNING f.competition_id
-        `, [resultValue, resultData.home_team_short, resultData.away_team_short, resultData.gameweek]);
+        `, [resultValue, resultData.home_team_short, resultData.away_team_short, resultData.gameweek, resultData.kickoff_time]);
 
         // Track how many fixtures were updated
         totalFixturesUpdated += fixtureUpdateResult.rowCount || 0;

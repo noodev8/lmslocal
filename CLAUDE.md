@@ -231,11 +231,22 @@ lmslocal-web/
 - **Player Management**: Full ability to modify player status, lives, and participation
 - **Fixture/Result Management**: Automated via backend fixture service (manual UI disabled)
 
-### Fixture & Result Management (Backend Only)
-- **Fixture Service**: Automated system using `fixture_load` staging table
+### Fixture & Result Management
+- **Fixture Service**: Automated system using the `fixture_load` staging table
+- **UI**: `lmslocal-admin` → `/dashboard/fixtures`. Staging routes are `/admin/add-staged-fixtures`,
+  `/admin/get-staged-results`, `/admin/set-staged-result`, `/admin/get-fixture-team-lists`
 - **Push APIs**: `/admin/push-fixtures-to-competitions` and `/admin/push-results-to-competitions`
-- **Authentication**: BOT_MAGIC_2025 hardcoded auth for cron/ad-hoc execution
-- **Manual UI**: Disabled - fixtures/results managed via backend APIs only
+- **Authentication**: admin token on all of the above (`middleware/admin-auth.js`). The old
+  `12221` access code and the `BOT_MAGIC_2025` body secret are gone from this path — the latter
+  shipped in the public web bundle. `bot-join` / `bot-pick` still use `BOT_MAGIC_2025`; they are
+  a separate feature.
+- **Opt-in**: `competition.fixture_service`. Only competitions with it set to true receive
+  pushes, toggled per competition from the admin competitions list via `/admin/set-fixture-service`
+- **The model**: one submission = one gameweek = one round per subscribed competition, all
+  sharing a single kickoff time that becomes the round's lock time. A real gameweek spread over
+  Fri–Sun is entered as several batches.
+- **Organiser-managed competitions** (`fixture_service = false`) use the `organizer-*` routes and
+  their pages under `/game/[id]/organizer-fixtures` and `organizer-results`
 - **Disabled Routes**: create-round, add-fixtures-bulk, submit-results, update-round, reset-fixtures, set-fixture-result, get-calculated-fixtures, organiser-mid-round-submit-tip (all preserved with `.delete` extension)
 
 ### Technical Implementation

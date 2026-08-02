@@ -113,12 +113,67 @@ Aug 2026). Counting eliminations from `pick` alone undercounts. Conversely `pick
 NULL — the round is not resulted yet.
 
 **Fixtures and results are pushed, not entered.** They arrive via the `fixture_load` staging
-table and `/admin/push-fixtures-to-competitions` / `/admin/push-results-to-competitions`. The
-manual admin routes for this were disabled and preserved as `.delete` files. Editing `fixture`
-rows by hand puts the DB out of step with what the push APIs will do next.
+table and `/admin/push-fixtures-to-competitions` / `/admin/push-results-to-competitions`, driven
+from `/dashboard/fixtures` in the admin tool. Editing `fixture` rows by hand puts the DB out of
+step with what the push APIs will do next.
+
+**Only competitions with `fixture_service = true` receive pushes,** and nothing has it on by
+default — `create-competition` hardcodes false. If a competition mysteriously never gets a new
+round, check that flag first. It is toggled from the admin competitions list; there is no need
+to write it by hand any more.
+
+**`fixture_load.gameweek` does not reset between seasons.** It is `MAX(gameweek) + 1` per team
+list, so the count only goes back to 1 when the staging table is emptied (last done Aug 2026,
+which cleared 20 stale rows left over from Oct 2025). The number is an ordering key, not a
+position in the season.
 
 **Timestamps are `timestamptz`,** so they come back as JS `Date` objects in local time (BST in
 summer). Cast to text in SQL if you want the stored UTC value verbatim.
+
+## Housekeeping: pruning `audit_log`
+
+**Retention is 12 months, applied by hand.** There is no cron job and no script — this is rare
+enough, and destructive enough, to be worth a person looking at the numbers first.
+
+Check what would go before removing anything:
+
+```bash
+# from lmslocal-server/
+node db/query.js "SELECT count(*) AS total,
+                         count(*) FILTER (WHERE created_at < NOW() - INTERVAL '12 months') AS expiring,
+                         min(created_at) AS oldest
+                    FROM audit_log"
+
+node db/write.js --dry-run "DELETE FROM audit_log WHERE created_at < NOW() - INTERVAL '12 months'"
+node db/write.js           "DELETE FROM audit_log WHERE created_at < NOW() - INTERVAL '12 months'"
+```
+
+Three things make this safe and low-priority:
+
+- **Nothing reads the table.** Around 25 routes write to it; the only reads anywhere are in
+  `delete-account.js`, which counts rows for a deletion summary and deletes a user's own rows
+  for GDPR erasure. No screen in the player app, the admin tool or the Flutter app surfaces
+  audit history, so pruning cannot break a page. It is a forensic record you query by hand.
+- **It is small.** 2,851 rows and 696 kB as of Aug 2026, growing around 240 rows a month.
+- **Nothing has expired yet.** The oldest entry is 22 Sep 2025, so the first rows do not reach
+  12 months until roughly **22 Sep 2026**. Running the delete before then removes zero rows.
+
+### The orphans are a separate question
+
+About 1,264 rows (44% of the table) reference competitions that no longer exist — 86 of them.
+`delete-admin-competition` and `delete-competition` deliberately leave audit history behind, on
+the grounds that a trail which vanishes with the thing it describes is not much of a trail.
+
+Age-based retention will not touch these for a long time, because most are recent. Removing them
+is a different rule and a different decision:
+
+```bash
+node db/write.js --dry-run "DELETE FROM audit_log a
+                             WHERE a.competition_id IS NOT NULL
+                               AND NOT EXISTS (SELECT 1 FROM competition c WHERE c.id = a.competition_id)"
+```
+
+Deliberately not done. Decide it on purpose rather than as a side effect of tidying by date.
 
 ## Why no MCP
 

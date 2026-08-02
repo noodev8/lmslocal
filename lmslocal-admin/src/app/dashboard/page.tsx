@@ -13,12 +13,9 @@ Purpose: Platform-wide snapshot - competition counts by status, player participa
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  ShieldCheckIcon,
-  ArrowPathIcon,
-  ArrowRightStartOnRectangleIcon,
-} from '@heroicons/react/24/outline';
-import { adminApi, clearSession, getToken, getAdmin, AdminStats, AdminUser, apiBaseUrl } from '@/lib/api';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import AdminHeader from '@/components/AdminHeader';
+import { adminApi, getToken, AdminStats, apiBaseUrl } from '@/lib/api';
 
 const TONES = {
   default: 'from-indigo-500 to-cyan-400',
@@ -88,7 +85,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function DashboardPage() {
   const router = useRouter();
 
-  const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -117,47 +113,21 @@ export default function DashboardPage() {
       router.replace('/login');
       return;
     }
-    setAdmin(getAdmin());
     loadStats();
   }, [router, loadStats]);
 
-  const handleSignOut = () => {
-    clearSession();
-    router.replace('/login');
-  };
-
   return (
     <div className="min-h-screen">
-      <header className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-lg shadow-indigo-950/50">
-              <ShieldCheckIcon className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-white">LMSLocal Admin</h1>
-              {admin && <p className="text-xs text-slate-400">{admin.email}</p>}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={loadStats}
-              disabled={loading}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
-            >
-              <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-400 transition hover:text-white"
-            >
-              <ArrowRightStartOnRectangleIcon className="h-4 w-4" />
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
+      <AdminHeader>
+        <button
+          onClick={loadStats}
+          disabled={loading}
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
+        >
+          <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+      </AdminHeader>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         {error && (

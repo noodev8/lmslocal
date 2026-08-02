@@ -133,9 +133,51 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 |---|---|---|
 | `/admin/admin-login` | POST | Exchange email + password for an admin token |
 | `/admin/get-admin-stats` | GET | Platform-wide counts for the dashboard |
+| `/admin/get-admin-competitions` | GET | Every competition, with organiser, players, opt-in state |
+| `/admin/delete-admin-competition` | POST | Delete a competition and everything attached to it |
+| `/admin/impersonate-organiser` | POST | Short-lived player token for "View as organiser" |
+| `/admin/set-fixture-service` | POST | Opt a competition in or out of the fixture service |
+| `/admin/get-fixture-team-lists` | GET | Active team lists and their teams, for fixture entry |
+| `/admin/add-staged-fixtures` | POST | Stage a gameweek of fixtures |
+| `/admin/get-staged-results` | GET | The oldest staged gameweek still missing results |
+| `/admin/set-staged-result` | POST | Record one fixture's outcome |
+| `/admin/push-fixtures-to-competitions` | POST | Distribute staged fixtures as rounds |
+| `/admin/push-results-to-competitions` | POST | Distribute staged results and process eliminations |
 
-Pages: `/login`, `/dashboard`.
+Pages: `/login`, `/dashboard`, `/dashboard/competitions`, `/dashboard/fixtures`.
 
-Not built yet: fixture management, competition drill-down, inactive-competition actions, bulk
-email. The existing `/admin-fixtures` and `/admin-results` pages in `lmslocal-web` (gated by the
-hardcoded access code `12221`) should move here and be deleted from the public app.
+Not built yet: inactive-competition actions, bulk email.
+
+## Fixtures
+
+`/dashboard/fixtures` replaced the `/admin-fixtures` and `/admin-results` pages in
+`lmslocal-web`, which were gated by the hardcoded access code `12221` and, worse, shipped the
+push secret `BOT_MAGIC_2025` inside the public JavaScript bundle — anyone who read the site's
+source could create rounds and process eliminations across every subscribed competition. Both
+pages and all three `12221` routes are deleted; the push routes now require an admin token.
+
+`bot-join` and `bot-pick` still accept `BOT_MAGIC_2025`. They are a separate feature and were
+left alone.
+
+The model the screen is built around, which is worth understanding before changing it:
+
+```
+one submission  ->  one gameweek  ->  one round in each subscribed competition
+```
+
+Every fixture in a batch shares a single kickoff time, and that time becomes the round's lock
+time. So a real football gameweek spread across Friday to Sunday is entered as several batches,
+each becoming its own round with its own deadline. Every round in the database looks like this —
+one distinct kickoff, one gameweek. Do not "fix" this into per-fixture kickoff times without
+deciding what a round's lock time should then be.
+
+Two things that catch people out:
+
+- **Nothing receives a push unless `competition.fixture_service` is true**, and it is false by
+  default (`create-competition` hardcodes it). The fixtures screen names the competitions a push
+  will reach, and says so plainly when that list is empty.
+- **`gameweek` is `MAX(gameweek) + 1` per team list and never resets per season.** Emptying
+  `fixture_load` is what takes it back to 1. That was done in Aug 2026 to clear 20 rows staged in
+  Oct 2025, ten of which had no results and sat permanently at the front of the results queue
+  because the gameweek had never been pushed to a competition. The results screen now flags that
+  state rather than silently jamming.

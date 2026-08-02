@@ -22,7 +22,10 @@ Success Response (ALWAYS HTTP 200):
       "organiser_email": "landlord@pub.com",     // string, may be null if organiser account was removed
       "player_count": 24,                        // integer, rows in competition_user
       "created_at": "2026-01-04T12:00:00.000Z",  // string, ISO datetime
-      "last_activity": "2026-08-01T09:00:00.000Z" // string or null, most recent pick, falls back to created_at
+      "last_activity": "2026-08-01T09:00:00.000Z",// string or null, most recent pick, falls back to created_at
+      "fixture_service": true,                   // boolean, opted into the automated fixture service
+      "team_list_id": 1,                         // integer, which staged fixtures it receives
+      "team_list_name": "English Premier League 2026-27" // string, may be null if the list was removed
     }
   ],
   "generated_at": "2026-08-02T14:00:00.000Z"
@@ -45,6 +48,9 @@ Data Notes:
   'active'). The filter and the returned field both lowercase it.
 - "last_activity" is the most recent pick.created_at across the competition's rounds, or the
   competition's created_at if it has never had a pick.
+- "fixture_service" is the flag every push reads. The fixtures screen filters this list by it to
+  show which competitions a push will actually reach, and the opt-in toggle writes it through
+  /admin/set-fixture-service.
 =======================================================================================================================================
 */
 
@@ -87,9 +93,13 @@ router.get('/', verifyAdminToken, async (req, res) => {
              JOIN round r ON r.id = p.round_id
             WHERE r.competition_id = c.id),
           c.created_at
-        )                                                                     AS last_activity
+        )                                                                     AS last_activity,
+        COALESCE(c.fixture_service, false)                                    AS fixture_service,
+        c.team_list_id,
+        tl.name                                                               AS team_list_name
       FROM competition c
       LEFT JOIN app_user u ON u.id = c.organiser_id
+      LEFT JOIN team_list tl ON tl.id = c.team_list_id
       WHERE ($1::text IS NULL OR LOWER(c.status) = $1)
       ORDER BY last_activity DESC
     `;
@@ -103,7 +113,10 @@ router.get('/', verifyAdminToken, async (req, res) => {
       organiser_email: row.organiser_email,
       player_count: parseInt(row.player_count, 10) || 0,
       created_at: row.created_at,
-      last_activity: row.last_activity
+      last_activity: row.last_activity,
+      fixture_service: row.fixture_service === true,
+      team_list_id: row.team_list_id,
+      team_list_name: row.team_list_name
     }));
 
     return res.json({

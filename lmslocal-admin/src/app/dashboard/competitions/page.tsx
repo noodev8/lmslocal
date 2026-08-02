@@ -12,13 +12,13 @@ Purpose: Drill-down from the dashboard's "Competitions" cards - every competitio
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ArrowLeftIcon,
   ArrowPathIcon,
   ChevronUpIcon,
   ChevronDownIcon,
   TrashIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
+import AdminHeader from '@/components/AdminHeader';
 import { adminApi, getToken, AdminCompetition, apiBaseUrl, webBaseUrl } from '@/lib/api';
 
 type SortKey = 'name' | 'status' | 'player_count' | 'created_at' | 'last_activity';
@@ -123,6 +123,53 @@ function StatusTile({
   );
 }
 
+/*
+Opt-in switch for the automated fixture service.
+
+competition.fixture_service is what every push reads - fixtures and results only reach
+competitions where it is true. Nothing could set it before this: create-competition hardcodes
+false and no route ever changed it, so opting a competition in meant a hand-written UPDATE
+against production.
+*/
+function FixtureServiceToggle({
+  competition,
+  busy,
+  onToggle,
+}: {
+  competition: AdminCompetition;
+  busy: boolean;
+  onToggle: (competition: AdminCompetition, next: boolean) => void;
+}) {
+  const on = competition.fixture_service;
+  // A finished competition would never be pushed to, so the switch would be a lie.
+  const disabled = busy || (!on && competition.status === 'complete');
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={() => onToggle(competition, !on)}
+      title={
+        competition.status === 'complete' && !on
+          ? 'Competition has finished'
+          : on
+            ? `Receiving ${competition.team_list_name || 'staged'} fixtures - click to opt out`
+            : `Click to opt into ${competition.team_list_name || 'staged'} fixtures`
+      }
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${
+        on ? 'bg-emerald-500' : 'bg-slate-300'
+      }`}
+    >
+      <span
+        className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
+        style={{ transform: on ? 'translateX(18px)' : 'translateX(3px)' }}
+      />
+    </button>
+  );
+}
+
 function DeleteModal({
   competition,
   onCancel,
@@ -220,6 +267,7 @@ function CompetitionsList() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [deleteTarget, setDeleteTarget] = useState<AdminCompetition | null>(null);
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
   const [lastViewed, setLastViewed] = useState<{ id: number; at: number } | null>(null);
 
   // Remembers which competition "View as organiser" last opened, purely so the row is easy to
@@ -255,6 +303,36 @@ function CompetitionsList() {
       setError(`Could not reach ${apiBaseUrl}.`);
     } finally {
       setImpersonatingId(null);
+    }
+  };
+
+  const handleToggleFixtureService = async (competition: AdminCompetition, next: boolean) => {
+    setTogglingId(competition.id);
+    setError('');
+
+    // Flip locally first so the switch responds immediately, and put it back if the server
+    // disagrees - this is a row in a table, not a form, so there is nothing else to undo.
+    setCompetitions((prev) =>
+      prev.map((c) => (c.id === competition.id ? { ...c, fixture_service: next } : c))
+    );
+
+    try {
+      const result = await adminApi.setFixtureService(competition.id, next);
+      if (result.return_code !== 'SUCCESS') {
+        setCompetitions((prev) =>
+          prev.map((c) => (c.id === competition.id ? { ...c, fixture_service: !next } : c))
+        );
+        if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+          setError(result.message || 'Could not change the fixture service setting');
+        }
+      }
+    } catch {
+      setCompetitions((prev) =>
+        prev.map((c) => (c.id === competition.id ? { ...c, fixture_service: !next } : c))
+      );
+      setError(`Could not reach ${apiBaseUrl}.`);
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -329,27 +407,16 @@ function CompetitionsList() {
 
   return (
     <div className="min-h-screen">
-      <header className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              <ArrowLeftIcon className="h-4 w-4" />
-            </button>
-            <h1 className="font-semibold text-white">Competitions</h1>
-          </div>
-          <button
-            onClick={() => load()}
-            disabled={loading}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
-          >
-            <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
-      </header>
+      <AdminHeader title="Competitions" backHref="/dashboard">
+        <button
+          onClick={() => load()}
+          disabled={loading}
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
+        >
+          <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+      </AdminHeader>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         {error && (
@@ -417,6 +484,9 @@ function CompetitionsList() {
                   <SortableHeader col={COLUMNS[2]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
                   <SortableHeader col={COLUMNS[3]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
                   <SortableHeader col={COLUMNS[4]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
+                  <th className="px-4 py-3 font-semibold" title="Receives fixtures and results from the fixture service">
+                    Auto
+                  </th>
                   <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
@@ -434,6 +504,13 @@ function CompetitionsList() {
                     <td className="px-4 py-3 tabular-nums text-slate-600">{c.player_count}</td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(c.created_at)}</td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(c.last_activity)}</td>
+                    <td className="px-4 py-3">
+                      <FixtureServiceToggle
+                        competition={c}
+                        busy={togglingId === c.id}
+                        onToggle={handleToggleFixtureService}
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
                         <button
