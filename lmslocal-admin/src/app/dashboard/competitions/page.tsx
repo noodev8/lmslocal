@@ -42,6 +42,9 @@ const STATUS_BADGE: Record<string, string> = {
   complete: 'bg-slate-100 text-slate-600 ring-slate-500/20',
 };
 
+// Squash runs of whitespace to a single space and trim, mirroring how HTML renders text.
+const collapseSpaces = (value: string) => value.replace(/\s+/g, ' ').trim();
+
 function StatusBadge({ status }: { status: string }) {
   const cls = STATUS_BADGE[status] || STATUS_BADGE.complete;
   return (
@@ -183,6 +186,11 @@ function DeleteModal({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
+  // Some stored names carry double or trailing spaces. HTML collapses those when the name is
+  // rendered above, so an exact comparison would ask for a string the user cannot see or type.
+  // Compare the way the browser displays it instead.
+  const nameMatches = collapseSpaces(confirmText) === collapseSpaces(competition.name);
+
   const handleDelete = async () => {
     setDeleting(true);
     setError('');
@@ -243,7 +251,7 @@ function DeleteModal({
           </button>
           <button
             onClick={handleDelete}
-            disabled={deleting || confirmText !== competition.name}
+            disabled={deleting || !nameMatches}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deleting ? 'Deleting...' : 'Delete permanently'}
