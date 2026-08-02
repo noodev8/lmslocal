@@ -117,6 +117,7 @@ const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-c
 // Admin Tool Routes (lmslocal-admin) - gated by app_user.is_admin + JWT_ADMIN_SECRET
 const adminLoginRoute = require('./routes/admin/admin-login');
 const getAdminStatsRoute = require('./routes/admin/get-admin-stats');
+const getAdminCompetitionsRoute = require('./routes/admin/get-admin-competitions');
 const adminAddFixturesRoute = require('./routes/admin-add-fixtures');
 const adminGetFixturesForResultsRoute = require('./routes/admin-get-fixtures-for-results');
 const adminSetResultRoute = require('./routes/admin-set-result');
@@ -347,6 +348,7 @@ app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
 // Admin Tool API Routes (lmslocal-admin)
 app.use('/admin/admin-login', adminLoginRoute);
 app.use('/admin/get-admin-stats', getAdminStatsRoute);
+app.use('/admin/get-admin-competitions', getAdminCompetitionsRoute);
 app.use('/admin-add-fixtures', adminAddFixturesRoute);
 app.use('/admin-get-fixtures-for-results', adminGetFixturesForResultsRoute);
 app.use('/admin-set-result', adminSetResultRoute);
@@ -488,7 +490,6 @@ const getServerAddress = () => {
 // Start server
 app.listen(PORT, async () => {
   const serverIP = getServerAddress();
-  const isProduction = process.env.NODE_ENV === 'production';
   
   console.log(`=======================================================================`);
   console.log(`LMSLocal Server running on port ${PORT}`);

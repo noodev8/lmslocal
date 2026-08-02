@@ -99,6 +99,21 @@ export interface LoginResponse extends ApiResponse {
 
 export type StatsResponse = ApiResponse & Partial<AdminStats>;
 
+export interface AdminCompetition {
+  id: number;
+  name: string;
+  status: string;
+  organiser_email: string | null;
+  player_count: number;
+  created_at: string;
+  last_activity: string;
+}
+
+export type CompetitionsResponse = ApiResponse & {
+  competitions?: AdminCompetition[];
+  generated_at?: string;
+};
+
 // ======================================================================================
 // Session helpers
 // ======================================================================================
@@ -142,6 +157,13 @@ export const adminApi = {
 
   getStats: async (): Promise<StatsResponse> => {
     const response = await api.get<StatsResponse>('/admin/get-admin-stats');
+    return response.data;
+  },
+
+  getCompetitions: async (status?: string): Promise<CompetitionsResponse> => {
+    const response = await api.get<CompetitionsResponse>('/admin/get-admin-competitions', {
+      params: status ? { status } : undefined,
+    });
     return response.data;
   },
 };
