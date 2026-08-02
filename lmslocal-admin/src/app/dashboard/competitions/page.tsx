@@ -262,6 +262,65 @@ function DeleteModal({
   );
 }
 
+/*
+Shown when switching a competition on hits ROUND_IN_PROGRESS. Not an error state - a deliberate
+second step. Overriding here takes over an unfinished round on the admin side: manual result
+entry switches off immediately, and finishing that round becomes the admin's job via the
+fixtures/results push, not the organiser's.
+*/
+function RoundInProgressModal({
+  target,
+  onCancel,
+  onOverride,
+}: {
+  target: {
+    competition: AdminCompetition;
+    round_number?: number;
+    total_fixtures?: number;
+    unresolved_fixtures?: number;
+  };
+  onCancel: () => void;
+  onOverride: () => void;
+}) {
+  const { competition, round_number, total_fixtures, unresolved_fixtures } = target;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+        <h2 className="text-lg font-semibold text-slate-900">Round still in progress</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          <strong>{competition.name}</strong>
+          {round_number != null && <> - Round {round_number}</>} has{' '}
+          {unresolved_fixtures != null && total_fixtures != null
+            ? `${unresolved_fixtures} of ${total_fixtures}`
+            : 'some'}{' '}
+          fixtures still to be resulted.
+        </p>
+
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Switching on now disables manual result entry for this competition immediately. You
+          will need to finish this round yourself, through the admin Fixtures/Results screen.
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onOverride}
+            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700"
+          >
+            Switch on and take over this round
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CompetitionsList() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -277,6 +336,12 @@ function CompetitionsList() {
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [lastViewed, setLastViewed] = useState<{ id: number; at: number } | null>(null);
+  const [roundInProgressTarget, setRoundInProgressTarget] = useState<{
+    competition: AdminCompetition;
+    round_number?: number;
+    total_fixtures?: number;
+    unresolved_fixtures?: number;
+  } | null>(null);
 
   // Remembers which competition "View as organiser" last opened, purely so the row is easy to
   // spot again when tabbing back - not an audit trail, just a local convenience marker.
@@ -314,7 +379,11 @@ function CompetitionsList() {
     }
   };
 
-  const handleToggleFixtureService = async (competition: AdminCompetition, next: boolean) => {
+  const handleToggleFixtureService = async (
+    competition: AdminCompetition,
+    next: boolean,
+    override?: boolean
+  ) => {
     setTogglingId(competition.id);
     setError('');
 
@@ -325,12 +394,23 @@ function CompetitionsList() {
     );
 
     try {
-      const result = await adminApi.setFixtureService(competition.id, next);
-      if (result.return_code !== 'SUCCESS') {
+      const result = await adminApi.setFixtureService(competition.id, next, override);
+      if (result.return_code === 'SUCCESS') {
+        setRoundInProgressTarget(null);
+      } else {
         setCompetitions((prev) =>
           prev.map((c) => (c.id === competition.id ? { ...c, fixture_service: !next } : c))
         );
-        if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        if (result.return_code === 'ROUND_IN_PROGRESS') {
+          // Not an error - a deliberate second step. The admin sees exactly what they'd be
+          // overriding and chooses, right there, whether to take the round over.
+          setRoundInProgressTarget({
+            competition,
+            round_number: result.round_number,
+            total_fixtures: result.total_fixtures,
+            unresolved_fixtures: result.unresolved_fixtures,
+          });
+        } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
           setError(result.message || 'Could not change the fixture service setting');
         }
       }
@@ -558,6 +638,16 @@ function CompetitionsList() {
             setDeleteTarget(null);
             load();
           }}
+        />
+      )}
+
+      {roundInProgressTarget && (
+        <RoundInProgressModal
+          target={roundInProgressTarget}
+          onCancel={() => setRoundInProgressTarget(null)}
+          onOverride={() =>
+            handleToggleFixtureService(roundInProgressTarget.competition, true, true)
+          }
         />
       )}
     </div>

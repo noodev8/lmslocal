@@ -15,12 +15,18 @@ Purpose: The safety check shared by every route that turns competition.fixture_s
 Why the checks exist:
 
   ROUND_IN_PROGRESS - turning the service on mid-round strands the competition with nobody able
-  to move it forward. The push refuses to touch a competition whose latest round still has
-  unresulted fixtures (fixtureService.js checks this before adding anything), and the moment the
-  flag flips the organiser loses result entry - organizer-set-result rejects when
-  fixture_service !== false. So the round can be finished by neither side. An admin cannot rescue
-  it either: manually added fixtures carry gameweek 0, and push-results only ever matches staged
-  rows with gameweek > 0. Switching at a round boundary avoids all of it.
+  to move it forward on the organiser's side: the push refuses to touch a competition whose
+  latest round still has unresulted fixtures (fixtureService.js checks this before adding
+  anything), and the moment the flag flips the organiser loses result entry - organizer-set-result
+  rejects when fixture_service !== false.
+
+  Admin CAN rescue a round in this state - push-results-to-competitions matches purely on
+  home_team_short + away_team_short + kickoff_time (gameweek was removed from fixture_load
+  entirely, see db/migrations/2026-08-02-fixture-load-single-batch.sql), so staging the same
+  fixtures in the admin tool and pushing results resolves an existing manually-run round just
+  fine. That is what allowUnfinishedRound is for below - an explicit, admin-only escape hatch for
+  exactly that rescue. The organiser route never passes it, so organisers still cannot strand
+  themselves this way; only admin can choose to take over a round deliberately.
 
   ROUND_NOT_PROCESSED - "every fixture has a result" is not "the round is finished". Applying
   those results is a separate step, recorded in fixture.processed. Switching in that state loses
@@ -39,10 +45,17 @@ const { query } = require('../database');
  * @param {object} competition - row with at least { id, status }
  * @param {function} exec - optional (sql, params) executor, so this can run inside an open
  *                          transaction. Defaults to the pool.
+ * @param {object} [options]
+ * @param {boolean} [options.allowUnfinishedRound] - admin-only escape hatch. Skips the
+ *   ROUND_IN_PROGRESS refusal so admin can take over an organiser-run round mid-flight and finish
+ *   it via the admin results push. Never set by the organiser's own route - see the header above.
+ *   ROUND_NOT_PROCESSED and COMPETITION_COMPLETE are unaffected by this and still block.
  * @returns {Promise<object|null>} null when safe, otherwise a ready-to-send response body
  *                                 ({ return_code, message, ...context })
  */
-async function checkSafeToEnable(competition, exec = query) {
+async function checkSafeToEnable(competition, exec = query, options = {}) {
+  const { allowUnfinishedRound = false } = options;
+
   // Status casing is inconsistent in production ('SETUP', 'COMPLETE', lowercase 'active'),
   // so compare case-insensitively - see db/README.md.
   if (String(competition.status).toUpperCase() === 'COMPLETE') {
@@ -77,7 +90,7 @@ async function checkSafeToEnable(competition, exec = query) {
   const resulted = parseInt(latestRound.resulted_fixtures, 10);
   const processed = parseInt(latestRound.processed_fixtures, 10);
 
-  if (total > 0 && resulted < total) {
+  if (total > 0 && resulted < total && !allowUnfinishedRound) {
     return {
       return_code: 'ROUND_IN_PROGRESS',
       message:

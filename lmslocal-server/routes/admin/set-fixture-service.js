@@ -14,7 +14,8 @@ Purpose: Opt a competition into or out of the automated fixture service.
 Request Payload:
 {
   "competition_id": 42,                      // integer, required
-  "fixture_service": true                    // boolean, required - true to opt in, false to opt out
+  "fixture_service": true,                   // boolean, required - true to opt in, false to opt out
+  "override_round_in_progress": false        // boolean, optional - admin-only escape hatch, see below
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -44,10 +45,11 @@ Return Codes:
 "SERVER_ERROR"              - Database error or unexpected server failure
 =======================================================================================================================================
 Data Notes:
-- Opting in does not backfill. The next push gives the competition the earliest gameweek whose
-  kickoff clears its earliest_start_date; rounds it missed while opted out stay missed.
-- Opting in a competition that has been run manually is allowed, but only at a round boundary -
-  see ROUND_IN_PROGRESS below.
+- Opting in does not backfill. The next push gives the competition whatever batch is currently
+  staged, once its kickoff clears earliest_start_date; rounds it missed while opted out stay
+  missed.
+- Opting in a competition that has been run manually is allowed at a round boundary without any
+  extra flag - see ROUND_IN_PROGRESS below. Mid-round, it needs override_round_in_progress.
 - Opting out is not retroactive either - rounds already pushed stay, and results already staged
   for them will still be applied while the round exists.
 - Player history survives the switch. The push backfills allowed_teams only for players who have
@@ -65,6 +67,16 @@ Why ROUND_IN_PROGRESS and ROUND_NOT_PROCESSED exist:
   competition settings) so the two routes cannot disagree about what "in progress" means -
   and so neither can disagree with the push's own check in services/fixtureService.js.
 
+  override_round_in_progress is this route's alone - set-fixture-service-organiser.js never
+  passes it, so an organiser can never strand themselves this way. It exists because admin CAN
+  finish an in-progress round after switching (stage the same fixtures and push results - the
+  match no longer needs the round to have originated from the fixture service, see
+  fixtureServiceSwitch.js), so the refusal is only protecting against the organiser losing
+  manual entry with nobody able to finish the round - not admin, who is the one finishing it.
+  ROUND_NOT_PROCESSED has no such override: an unprocessed but fully-resulted round is never
+  picked up by push-results either (it only matches result IS NULL), so there is no rescue path
+  for admin there - it must be processed the normal way first, same as always.
+
   This route is the admin path: no ownership check, and it can opt a competition into a team
   list we do not currently stage. The organiser route is narrower on both counts.
 =======================================================================================================================================
@@ -81,7 +93,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('set-fixture-service');
 
   try {
-    const { competition_id, fixture_service } = req.body;
+    const { competition_id, fixture_service, override_round_in_progress } = req.body;
 
     if (!Number.isInteger(competition_id)) {
       return res.json({
@@ -116,7 +128,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // organiser-facing route applies exactly the same ones - see the header there for why each
     // exists.
     if (fixture_service === true) {
-      const blocked = await checkSafeToEnable(competition);
+      const blocked = await checkSafeToEnable(competition, query, {
+        allowUnfinishedRound: override_round_in_progress === true
+      });
       if (blocked) {
         return res.json(blocked);
       }
@@ -129,13 +143,17 @@ router.post('/', verifyAdminToken, async (req, res) => {
         [fixture_service, competition_id]
       );
 
+      const overrideNote = override_round_in_progress === true
+        ? ' (round was in progress - admin chose to take it over)'
+        : '';
+
       await client.query(`
         INSERT INTO audit_log (competition_id, user_id, action, details)
         VALUES ($1, $2, 'Fixture Service Changed', $3)
       `, [
         competition_id,
         req.admin.id,
-        `Fixture service ${fixture_service ? 'enabled' : 'disabled'} by admin ${req.admin.email}`
+        `Fixture service ${fixture_service ? 'enabled' : 'disabled'} by admin ${req.admin.email}${overrideNote}`
       ]);
     });
 

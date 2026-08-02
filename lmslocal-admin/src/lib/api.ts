@@ -209,6 +209,10 @@ export type SetFixtureServiceResponse = ApiResponse & {
   competition_id?: number;
   competition_name?: string;
   fixture_service?: boolean;
+  /* Present on ROUND_IN_PROGRESS - enough detail to show the admin exactly what they'd be overriding. */
+  round_number?: number;
+  total_fixtures?: number;
+  unresolved_fixtures?: number;
 };
 
 export type CompetitionsResponse = ApiResponse & {
@@ -306,11 +310,13 @@ export const adminApi = {
 
   setFixtureService: async (
     competitionId: number,
-    fixtureService: boolean
+    fixtureService: boolean,
+    overrideRoundInProgress?: boolean
   ): Promise<SetFixtureServiceResponse> => {
     const response = await api.post<SetFixtureServiceResponse>('/admin/set-fixture-service', {
       competition_id: competitionId,
       fixture_service: fixtureService,
+      ...(overrideRoundInProgress ? { override_round_in_progress: true } : {}),
     });
     return response.data;
   },
