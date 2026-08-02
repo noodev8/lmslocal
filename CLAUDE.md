@@ -18,6 +18,12 @@ This is a full-stack application with two main components:
 - **Token Policy**: Keep JWT tokens simple and consistent - only include user identification fields (user_id, email, display_name). Any additional data should be fetched from database when needed.
 - **Email**: Resend service for transactional emails
 - **Security**: Helmet, CORS, rate limiting, input validation
+- **Dependency override**: `package.json` pins `uuid` to `^11.1.1` via `overrides`. It is a
+  transitive dep of `gaxios`/`teeny-request` under `firebase-admin`, which still resolve to
+  `uuid@9`, and that carries GHSA-w5hq-g745-h8pq. The vulnerable path (v3/v5/v6 with a `buf`
+  argument) is unreachable — both callers use `v4()` with no arguments — so this is about
+  keeping `npm audit` at zero, not patching a live hole. Remove the override once
+  firebase-admin ships a tree on `uuid` >= 11.1.1; verify FCM still sends afterwards.
 
 ### Admin Tool (lmslocal-admin/)
 - **Technology**: Next.js 15.5.9 with React 19 and TypeScript 5 (matches lmslocal-web)
