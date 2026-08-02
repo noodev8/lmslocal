@@ -21,7 +21,8 @@ Success Response (ALWAYS HTTP 200):
       "season": "2024/25",            // string, season identifier
       "team_count": 20,               // integer, number of active teams in this list
       "description": "English Premier League", // string, optional description
-      "created_at": "2024-08-01T10:00:00Z" // string, ISO datetime when list was created
+      "created_at": "2024-08-01T10:00:00Z", // string, ISO datetime when list was created
+      "fixture_service_available": true  // boolean, whether the automated fixture service covers this list
     }
   ],
   "summary": {
@@ -69,12 +70,14 @@ router.post('/', verifyToken, async (req, res) => {
         COUNT(t.id) as team_count,
         -- Additional metadata for frontend display
         tl.is_active,
-        tl.updated_at
+        tl.updated_at,
+        -- Whether the automated fixture service covers this list (we stage fixtures for it)
+        tl.fixture_service_available
       FROM team_list tl
       -- LEFT JOIN to include team lists even if they have no teams yet
       LEFT JOIN team t ON t.team_list_id = tl.id AND t.is_active = true
       WHERE tl.is_active = true  -- Only show active team lists
-      GROUP BY tl.id, tl.name, tl.type, tl.season, tl.created_at, tl.is_active, tl.updated_at
+      GROUP BY tl.id, tl.name, tl.type, tl.season, tl.created_at, tl.is_active, tl.updated_at, tl.fixture_service_available
       ORDER BY tl.name ASC  -- Alphabetical order for consistent frontend display
     `;
 
@@ -92,7 +95,8 @@ router.post('/', verifyToken, async (req, res) => {
         type: row.type,
         season: row.season,
         team_count: teamCount,
-        created_at: row.created_at
+        created_at: row.created_at,
+        fixture_service_available: row.fixture_service_available
       };
     });
 

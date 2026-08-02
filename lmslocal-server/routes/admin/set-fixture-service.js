@@ -58,25 +58,15 @@ Data Notes:
 - Every change writes an audit_log row, because from the organiser's side a competition that
   suddenly starts creating its own rounds is otherwise unexplained.
 
-Why ROUND_IN_PROGRESS exists:
+Why ROUND_IN_PROGRESS and ROUND_NOT_PROCESSED exist:
 
-  Turning the service on mid-round strands the competition with nobody able to move it forward.
-  The push refuses to touch a competition whose latest round still has unresulted fixtures
-  (fixtureService.js checks this before adding anything), and the moment the flag flips the
-  organiser loses result entry - organizer-set-result rejects when fixture_service !== false.
-  So the round cannot be finished by the organiser and cannot be advanced by the service.
+  See services/fixtureServiceSwitch.js, which holds both checks and the reasoning. They are
+  shared with set-fixture-service-organiser.js (the organiser doing this themselves from
+  competition settings) so the two routes cannot disagree about what "in progress" means -
+  and so neither can disagree with the push's own check in services/fixtureService.js.
 
-  An admin cannot rescue it either: manually added fixtures carry gameweek 0, and
-  push-results only ever matches staged rows with gameweek > 0.
-
-  Switching at a round boundary avoids all of it, so that is the only time this allows it. Note
-  the check is deliberately the same shape as the push's own, so the two cannot disagree about
-  what "in progress" means.
-
-  ROUND_NOT_PROCESSED is the second half of the same idea. "Every fixture has a result" is not
-  the same as "the round is finished" - applying those results is a separate step, recorded in
-  fixture.processed. A resulted-but-unprocessed round would be silently abandoned by the switch,
-  so it is refused too. See the comment at the check itself for why nothing picks it up.
+  This route is the admin path: no ownership check, and it can opt a competition into a team
+  list we do not currently stage. The organiser route is narrower on both counts.
 =======================================================================================================================================
 */
 
@@ -84,6 +74,7 @@ const express = require('express');
 const { query, transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
+const { checkSafeToEnable } = require('../../services/fixtureServiceSwitch');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
@@ -120,77 +111,14 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
     const competition = existing.rows[0];
 
-    // Status casing is inconsistent in production ('SETUP', 'COMPLETE', lowercase 'active'),
-    // so compare case-insensitively - see db/README.md.
-    if (fixture_service === true && String(competition.status).toUpperCase() === 'COMPLETE') {
-      return res.json({
-        return_code: 'COMPETITION_COMPLETE',
-        message: 'This competition has finished, so the fixture service would never push to it'
-      });
-    }
-
     // Only switching ON can strand a round. Switching off hands control back to the organiser,
-    // which is always safe.
+    // which is always safe. The checks live in services/fixtureServiceSwitch.js because the
+    // organiser-facing route applies exactly the same ones - see the header there for why each
+    // exists.
     if (fixture_service === true) {
-      // Same inspection the push makes: look at the latest round only. A round with no fixtures
-      // is fine (the push fills it), and a fully resulted round is fine (the push adds the next
-      // one). Anything in between is the case that has nobody able to move it forward.
-      const roundResult = await query(`
-        SELECT
-          r.round_number,
-          COUNT(f.id)        AS total_fixtures,
-          COUNT(f.result)    AS resulted_fixtures,
-          COUNT(f.processed) AS processed_fixtures
-        FROM round r
-        LEFT JOIN fixture f ON f.round_id = r.id
-        WHERE r.competition_id = $1
-          AND r.round_number = (SELECT MAX(round_number) FROM round WHERE competition_id = $1)
-        GROUP BY r.round_number
-      `, [competition_id]);
-
-      const latestRound = roundResult.rows[0];
-
-      if (latestRound) {
-        const total = parseInt(latestRound.total_fixtures, 10);
-        const resulted = parseInt(latestRound.resulted_fixtures, 10);
-        const processed = parseInt(latestRound.processed_fixtures, 10);
-
-        if (total > 0 && resulted < total) {
-          return res.json({
-            return_code: 'ROUND_IN_PROGRESS',
-            message:
-              `Round ${latestRound.round_number} has ${total - resulted} of ${total} fixtures ` +
-              `still to be resulted. Switching now would leave it stuck - the fixture service ` +
-              `will not advance a round that is in progress, and the organiser loses result ` +
-              `entry as soon as this is on. Wait until the round is finished.`,
-            round_number: latestRound.round_number,
-            total_fixtures: total,
-            unresolved_fixtures: total - resulted
-          });
-        }
-
-        // Resulted is not the same as finished. A round can hold every result and still not
-        // have had them applied - eliminations, no-pick penalties and the winner check all
-        // happen in a separate processing step, recorded in fixture.processed.
-        //
-        // Switching in that state loses the round permanently: push-results only processes
-        // competitions whose fixtures it just updated, and it matches result IS NULL, so a
-        // fully resulted round is never picked up. push-fixtures meanwhile sees a resulted
-        // round and simply builds the next one on top. The eliminations would never apply and
-        // players who should be out would carry on.
-        if (total > 0 && processed < total) {
-          return res.json({
-            return_code: 'ROUND_NOT_PROCESSED',
-            message:
-              `Round ${latestRound.round_number} has all ${total} results in but ` +
-              `${total - processed} not yet processed, so its eliminations have not been ` +
-              `applied. Nothing would apply them after the switch. Ask the organiser to ` +
-              `process the round first.`,
-            round_number: latestRound.round_number,
-            total_fixtures: total,
-            unprocessed_fixtures: total - processed
-          });
-        }
+      const blocked = await checkSafeToEnable(competition);
+      if (blocked) {
+        return res.json(blocked);
       }
     }
 

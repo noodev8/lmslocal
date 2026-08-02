@@ -9,7 +9,8 @@ import {
   ArrowLeftIcon,
   InformationCircleIcon,
   UserGroupIcon,
-  HeartIcon
+  HeartIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, teamApi, cacheUtils, CreateCompetitionRequest } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -20,6 +21,7 @@ interface TeamList {
   name: string;
   description?: string;
   team_count?: number;
+  fixture_service_available?: boolean;
 }
 
 interface CreateCompetitionForm {
@@ -61,6 +63,18 @@ export default function CreateCompetitionPage() {
 
   const watchedValues = watch();
 
+  // Deliberately plain state rather than a react-hook-form field. Registering two radios under
+  // one name makes RHF manage the group's value as the string from the value attribute, so a
+  // boolean comparison never matches - and since "Do it for me" is selected by default, clicking
+  // it fires no change event at all, leaving the value untouched.
+  const [useFixtureService, setUseFixtureService] = useState(true);
+
+  // The fixture service only pushes to team lists we stage fixtures for, so the offer is hidden
+  // entirely on lists it does not cover rather than shown and then rejected on submit.
+  const selectedTeamList = teamLists.find(tl => tl.id === watchedValues.team_list_id);
+  const fixtureServiceOffered = selectedTeamList?.fixture_service_available === true;
+  const usingFixtureService = fixtureServiceOffered && useFixtureService;
+
   useEffect(() => {
     // Check authentication
     const token = localStorage.getItem('jwt_token');
@@ -95,7 +109,8 @@ export default function CreateCompetitionPage() {
         lives_per_player: data.lives_per_player,
         no_team_twice: data.no_team_twice,
         organiser_joins_as_player: data.organiser_joins_as_player,
-        start_delay_days: data.start_delay_days
+        start_delay_days: data.start_delay_days,
+        fixture_service: usingFixtureService
       };
 
       // Add optional text fields if provided
@@ -135,10 +150,14 @@ export default function CreateCompetitionPage() {
         // Refresh the context data before navigation (bypass cache)
         await refreshCompetitions();
 
-        // Navigate directly to fixtures screen for new competition
+        // With the fixture service on there are no fixtures to enter, so send them to the
+        // competition itself where the next job is inviting players. Only competitions the
+        // organiser runs manually go straight to the fixture screen.
         const competitionId = response.data.competition?.id;
-        if (competitionId) {
+        if (competitionId && !usingFixtureService) {
           router.push(`/game/${competitionId}/organizer-fixtures`);
+        } else if (competitionId) {
+          router.push(`/game/${competitionId}`);
         } else {
           router.push('/dashboard');
         }
@@ -381,6 +400,61 @@ export default function CreateCompetitionPage() {
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Competition Rules</h2>
 
               <div className="space-y-6 sm:space-y-8">
+                {/* Fixture service opt-in - only offered on team lists we stage fixtures for */}
+                {fixtureServiceOffered && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-3">
+                      <CalendarDaysIcon className="h-5 w-5 inline mr-2 text-slate-500" />
+                      Fixtures &amp; Results
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setUseFixtureService(true)}
+                        className={`text-left h-full p-4 border rounded-xl transition-all ${
+                          useFixtureService
+                            ? 'border-slate-800 bg-slate-50 shadow-md'
+                            : 'border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-sm font-semibold text-slate-900">Do it for me</div>
+                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                            Free
+                          </span>
+                        </div>
+                        <div className="text-xs sm:text-sm text-slate-600">
+                          We add each round&apos;s fixtures and enter the results for you. You just invite players.
+                        </div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          Free for this competition &mdash; normally <span className="line-through">£10</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setUseFixtureService(false)}
+                        className={`text-left h-full p-4 border rounded-xl transition-all ${
+                          !useFixtureService
+                            ? 'border-slate-800 bg-slate-50 shadow-md'
+                            : 'border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="text-sm font-semibold text-slate-900 mb-1">I&apos;ll do my own</div>
+                        <div className="text-xs sm:text-sm text-slate-600">
+                          You add the fixtures and enter results each round yourself.
+                        </div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          Full control over kick-off times and lock times
+                        </div>
+                      </button>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Pick either one now &mdash; get in touch if you want to switch after the competition starts.
+                    </p>
+                  </div>
+                )}
+
                 {/* Lives per player */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-3">
@@ -498,6 +572,14 @@ export default function CreateCompetitionPage() {
                       <dt className="text-xs sm:text-sm text-slate-600">Lives per Player:</dt>
                       <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">{watchedValues.lives_per_player}</dd>
                     </div>
+                    {fixtureServiceOffered && (
+                      <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                        <dt className="text-xs sm:text-sm text-slate-600">Fixtures &amp; Results:</dt>
+                        <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">
+                          {usingFixtureService ? 'We do them for you (free, normally £10)' : 'You enter them yourself'}
+                        </dd>
+                      </div>
+                    )}
                     <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
                       <dt className="text-xs sm:text-sm text-slate-600">You&apos;re Playing:</dt>
                       <dd className="text-xs sm:text-sm font-medium text-slate-900 sm:text-right">
@@ -515,7 +597,11 @@ export default function CreateCompetitionPage() {
                       <ul className="list-disc list-inside space-y-1 text-xs sm:text-sm">
                         <li>Your competition will be created with a unique access code</li>
                         <li>You can invite players using the access code or link</li>
-                        <li>Start by creating rounds and adding fixtures</li>
+                        {usingFixtureService ? (
+                          <li>We&apos;ll add the fixtures and results each round &mdash; nothing for you to do</li>
+                        ) : (
+                          <li>Start by creating rounds and adding fixtures</li>
+                        )}
                         <li>Your competition starts locked - unlock it when ready!</li>
                       </ul>
                     </div>

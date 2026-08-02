@@ -320,6 +320,7 @@ export interface CreateCompetitionRequest {
   no_team_twice: boolean;
   organiser_joins_as_player: boolean;
   start_delay_days?: number;
+  fixture_service?: boolean;
 }
 
 export interface UpdateCompetitionRequest {
@@ -421,6 +422,24 @@ const getUserId = (): string => {
 // Competition API calls
 export const competitionApi = {
   create: (data: CreateCompetitionRequest) => api.post<{ return_code: string; message?: string; competition?: Competition; competition_id?: string }>('/create-competition', data),
+  // Switch a competition into or out of the automated fixture service. Saves on its own rather
+  // than through /update-competition: it can be refused for round-state reasons that need their
+  // own explanation, and a refusal must not block unrelated setting changes from saving.
+  // clear_stalled_round confirms discarding an unstarted round that is blocking the switch. The
+  // first call omits it and gets STALLED_ROUND_NEEDS_CLEARING back with the fixture count, so
+  // the organiser can be told what they would lose before anything is deleted.
+  setFixtureService: (competition_id: number, fixture_service: boolean, clear_stalled_round?: boolean) =>
+    api.post<{
+      return_code: string;
+      message?: string;
+      fixture_service?: boolean;
+      round_number?: number;
+      fixture_count?: number;
+      cleared_round?: { round_number: number; fixture_count: number } | null;
+    }>(
+      '/set-fixture-service-organiser',
+      { competition_id, fixture_service, clear_stalled_round }
+    ),
   getStatus: (competition_id: number) => withCache(
     `competition-status-${competition_id}`,
     30 * 60 * 1000, // 30 minutes cache - status rarely changes during admin work

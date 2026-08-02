@@ -23,7 +23,8 @@ Request Payload:
   "lives_per_player": 1,                       // integer, optional - Number of lives per player (default: 1)
   "no_team_twice": true,                       // boolean, optional - Prevent team reuse (default: true)
   "organiser_joins_as_player": true,           // boolean, optional - Add organiser as player (default: false)
-  "start_delay_days": 7                        // integer, optional - Days to delay start (0, 7, 14, 21; default: 7)
+  "start_delay_days": 7,                       // integer, optional - Days to delay start (0, 7, 14, 21; default: 7)
+  "fixture_service": true                      // boolean, optional - Subscribe to the automated fixture service (default: false)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -38,6 +39,7 @@ Success Response (ALWAYS HTTP 200):
     "team_list_id": 1,                         // integer, associated team list ID
     "lives_per_player": 1,                     // integer, lives per player
     "no_team_twice": true,                     // boolean, team reuse prevention
+    "fixture_service": true,                   // boolean, subscribed to the automated fixture service
     "invite_code": "4567",                     // string, 4-digit invite code
     "created_at": "2025-01-01T12:00:00.000Z",  // string, ISO datetime when created
     "organiser_id": 456                        // integer, organiser user ID
@@ -53,6 +55,7 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"
+"FIXTURE_SERVICE_UNAVAILABLE" - Fixture service requested for a team list we do not stage fixtures for
 "UNAUTHORIZED"
 "SERVER_ERROR"
 =======================================================================================================================================
@@ -65,7 +68,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, start_delay_days } = req.body;
+    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, start_delay_days, fixture_service } = req.body;
     const organiser_id = req.user.id;
 
     // Basic validation
@@ -180,14 +183,22 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 1. Validate team_list exists and is accessible (with row lock)
       const teamListResult = await client.query(`
-        SELECT id, name 
-        FROM team_list 
-        WHERE id = $1 AND is_active = true 
+        SELECT id, name, fixture_service_available
+        FROM team_list
+        WHERE id = $1 AND is_active = true
         FOR UPDATE
       `, [team_list_id]);
 
       if (teamListResult.rows.length === 0) {
         throw new Error('VALIDATION_ERROR: Invalid team list selected');
+      }
+
+      // 1b. The fixture service pushes staged fixtures to competitions by matching team_list_id
+      // (services/fixtureService.js). Subscribing a competition on a list we do not stage would
+      // leave it waiting for rounds that never arrive, so refuse rather than accept silently.
+      const wantsFixtureService = fixture_service === true;
+      if (wantsFixtureService && teamListResult.rows[0].fixture_service_available !== true) {
+        throw new Error('FIXTURE_SERVICE_UNAVAILABLE');
       }
 
       // 2. Generate unique invite code atomically (prevents race conditions)
@@ -239,9 +250,11 @@ router.post('/', verifyToken, async (req, res) => {
           invite_code,
           earliest_start_date,
           fixture_service,
+          fixture_service_price_paid,
+          fixture_service_granted_at,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, false, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, $19, $20, $21, CURRENT_TIMESTAMP)
         RETURNING *
       `, [
         name.trim(),
@@ -261,7 +274,13 @@ router.post('/', verifyToken, async (req, res) => {
         no_team_twice !== false, // Default to true
         organiser_id,
         inviteCode,
-        earliestStartDate
+        earliestStartDate,
+        wantsFixtureService,
+        // Launch promotion: the service is offered free, so the recorded price is 0.00 rather
+        // than the £10 list price. This is what tells a grandfathered competition apart from a
+        // paying one once charging begins.
+        wantsFixtureService ? 0.00 : null,
+        wantsFixtureService ? new Date() : null
       ]);
 
       const competition = competitionResult.rows[0];
@@ -339,6 +358,7 @@ router.post('/', verifyToken, async (req, res) => {
         team_list_id: result.competition.team_list_id,
         lives_per_player: result.competition.lives_per_player,
         no_team_twice: result.competition.no_team_twice,
+        fixture_service: result.competition.fixture_service,
         invite_code: result.competition.invite_code,
         created_at: result.competition.created_at,
         organiser_id: result.competition.organiser_id
@@ -349,6 +369,13 @@ router.post('/', verifyToken, async (req, res) => {
     console.error('Create competition error:', error);
     
     // Handle specific business logic errors with appropriate return codes
+    if (error.message === 'FIXTURE_SERVICE_UNAVAILABLE') {
+      return res.json({
+        return_code: "FIXTURE_SERVICE_UNAVAILABLE",
+        message: "The fixture service does not cover this team list yet. Choose another list, or enter your own fixtures."
+      });
+    }
+
     if (error.message.startsWith('VALIDATION_ERROR:')) {
       return res.json({
         return_code: "VALIDATION_ERROR",

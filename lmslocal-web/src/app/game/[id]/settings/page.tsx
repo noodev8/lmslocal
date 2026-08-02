@@ -10,8 +10,9 @@ import {
   HeartIcon,
   TrashIcon,
   ExclamationTriangleIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, DeleteCompetitionRequest } from '@/lib/api';
+import { competitionApi, teamApi, UpdateCompetitionRequest, ResetCompetitionRequest, DeleteCompetitionRequest } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
 
@@ -60,6 +61,68 @@ export default function CompetitionSettings() {
 
   // Track if competition has started (derived from invite_code presence)
   const [hasStarted, setHasStarted] = useState(false);
+
+  // Fixture service switch. Saved on its own, not via Save Changes - the server can refuse it
+  // for round-state reasons that need explaining, and that must not block other edits.
+  const [fixtureServiceOffered, setFixtureServiceOffered] = useState(false);
+  const [switchingFixtureService, setSwitchingFixtureService] = useState(false);
+  const [fixtureServiceError, setFixtureServiceError] = useState<string | null>(null);
+  const [fixtureServiceNotice, setFixtureServiceNotice] = useState<string | null>(null);
+  // Set when the switch is blocked only by an unstarted round the organiser can choose to discard.
+  const [stalledRound, setStalledRound] = useState<{ round_number: number; fixture_count: number } | null>(null);
+
+  // The service only pushes to team lists we stage fixtures for, so the switch is hidden
+  // entirely on lists it does not cover rather than shown and then refused.
+  useEffect(() => {
+    if (!competition?.team_list_id) return;
+
+    let cancelled = false;
+    teamApi.getTeamLists()
+      .then((response) => {
+        if (cancelled || response.data.return_code !== 'SUCCESS') return;
+        const lists = (response.data.team_lists || []) as { id: number; fixture_service_available?: boolean }[];
+        const match = lists.find(tl => tl.id === competition.team_list_id);
+        setFixtureServiceOffered(match?.fixture_service_available === true);
+      })
+      .catch(() => { /* Leave the switch hidden if we cannot confirm coverage */ });
+
+    return () => { cancelled = true; };
+  }, [competition?.team_list_id]);
+
+  const handleFixtureServiceChange = async (enabled: boolean, clearStalledRound = false) => {
+    if (!competition) return;
+    // Allow a repeat call when confirming a clear - the flag has not changed yet at that point.
+    if (!clearStalledRound && enabled === (competition.fixture_service === true)) return;
+
+    setSwitchingFixtureService(true);
+    setFixtureServiceError(null);
+    setFixtureServiceNotice(null);
+
+    try {
+      const response = await competitionApi.setFixtureService(competition.id, enabled, clearStalledRound);
+
+      if (response.data.return_code === 'SUCCESS') {
+        setStalledRound(null);
+        setFixtureServiceNotice(response.data.message || 'Setting saved');
+        await refreshCompetitions();
+      } else if (response.data.return_code === 'STALLED_ROUND_NEEDS_CLEARING') {
+        // Nothing has been deleted yet. Confirm with the organiser, naming what goes.
+        setStalledRound({
+          round_number: response.data.round_number ?? 0,
+          fixture_count: response.data.fixture_count ?? 0
+        });
+      } else {
+        // ROUND_IN_PROGRESS, ROUND_NOT_PROCESSED and ROUND_NO_LONGER_CLEARABLE each explain
+        // exactly what is blocking the switch, so show the server's message.
+        setStalledRound(null);
+        setFixtureServiceError(response.data.message || 'Could not change this setting');
+      }
+    } catch {
+      setFixtureServiceError('Could not change this setting. Please try again.');
+    } finally {
+      setSwitchingFixtureService(false);
+    }
+  };
 
   useEffect(() => {
     const initializeData = async () => {
@@ -714,6 +777,133 @@ export default function CompetitionSettings() {
               </p>
             </div>
           </div>
+
+          {/* Fixture Service Section - only on team lists the service covers */}
+          {fixtureServiceOffered && (
+            <div className="border-t border-slate-200">
+              <div className="p-6 border-b border-slate-200">
+                <h2 className="text-xl font-semibold text-slate-900">Fixtures &amp; Results</h2>
+                <p className="mt-1 text-slate-600">
+                  Choose whether we handle the fixtures and results, or you do them yourself.
+                  This saves as soon as you choose.
+                </p>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={() => handleFixtureServiceChange(true)}
+                    disabled={switchingFixtureService}
+                    className={`text-left h-full p-4 border rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                      competition?.fixture_service === true
+                        ? 'border-slate-800 bg-slate-50 shadow-md'
+                        : 'border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-sm font-semibold text-slate-900">
+                        <CalendarDaysIcon className="h-5 w-5 inline mr-2 text-slate-500" />
+                        Do it for me
+                      </div>
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                        Free
+                      </span>
+                    </div>
+                    <div className="text-xs sm:text-sm text-slate-600">
+                      We add each round&apos;s fixtures and enter the results for you.
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      Free for this competition &mdash; normally <span className="line-through">£10</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleFixtureServiceChange(false)}
+                    disabled={switchingFixtureService}
+                    className={`text-left h-full p-4 border rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                      competition?.fixture_service === false
+                        ? 'border-slate-800 bg-slate-50 shadow-md'
+                        : 'border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold text-slate-900 mb-1">I&apos;ll do my own</div>
+                    <div className="text-xs sm:text-sm text-slate-600">
+                      You add the fixtures and enter results each round yourself.
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      Full control over kick-off times and lock times
+                    </div>
+                  </button>
+                </div>
+
+                {switchingFixtureService && (
+                  <p className="text-sm text-slate-500">Saving...</p>
+                )}
+
+                {fixtureServiceNotice && (
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4">
+                    <div className="flex items-start">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" />
+                      <p className="text-sm text-emerald-800">{fixtureServiceNotice}</p>
+                    </div>
+                  </div>
+                )}
+
+                {fixtureServiceError && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+                    <div className="flex items-start">
+                      <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+                      <p className="text-sm text-amber-800">{fixtureServiceError}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Nothing has been deleted at this point - this is the confirmation step */}
+                {stalledRound && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+                    <div className="flex items-start">
+                      <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-900">
+                          This will remove the {stalledRound.fixture_count} fixtures you added to
+                          round {stalledRound.round_number}
+                        </p>
+                        <p className="mt-1 text-sm text-amber-800">
+                          Nobody has picked yet, so nothing else is lost. We&apos;ll set up round 1
+                          for you and take it from there.
+                        </p>
+                        <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleFixtureServiceChange(true, true)}
+                            disabled={switchingFixtureService}
+                            className="inline-flex items-center justify-center px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            Remove it and take over
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStalledRound(null)}
+                            disabled={switchingFixtureService}
+                            className="inline-flex items-center justify-center px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 disabled:opacity-50 transition-all"
+                          >
+                            Keep my fixtures
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-sm text-slate-600">
+                  Switching does not backfill. Rounds already played stay as they are, and we pick
+                  up from the next round.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Game Rules Section */}
           <div className="border-t border-slate-200">
