@@ -997,34 +997,64 @@ Good luck! ⚽`;
               </button>
             )}
 
-            {/* Fixture Management - Show if user has fixtures permission and fixture_service = false (manual mode) */}
-            {canManageFixtures && competition.fixture_service === false && (
-              <Link
-                href={`/game/${competitionId}/organizer-fixtures`}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
-              >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="p-3 rounded-lg bg-blue-50 group-hover:bg-blue-100">
-                    <CalendarIcon className="h-7 w-7 text-blue-600" />
+            {/* Fixture Management - Show if user has fixtures permission. Manual mode links through; auto mode shows greyed out */}
+            {canManageFixtures && (
+              competition.fixture_service === false ? (
+                <Link
+                  href={`/game/${competitionId}/organizer-fixtures`}
+                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+                >
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="p-3 rounded-lg bg-blue-50 group-hover:bg-blue-100">
+                      <CalendarIcon className="h-7 w-7 text-blue-600" />
+                    </div>
+                    <div className="text-base font-semibold text-gray-900">Fixtures</div>
                   </div>
-                  <div className="text-base font-semibold text-gray-900">Fixtures</div>
+                </Link>
+              ) : (
+                <div
+                  className="bg-gray-50 rounded-lg border border-gray-100 shadow-sm p-6 cursor-not-allowed"
+                  title="Fixtures are loaded automatically for this competition"
+                >
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="p-3 rounded-lg bg-gray-100">
+                      <CalendarIcon className="h-7 w-7 text-gray-400" />
+                    </div>
+                    <div className="text-base font-semibold text-gray-400">Fixtures</div>
+                    <div className="text-xs text-gray-400">Auto</div>
+                  </div>
                 </div>
-              </Link>
+              )
             )}
 
-            {/* Results Management - Show if user has results permission and fixture_service = false (manual mode) */}
-            {canManageResults && competition.fixture_service === false && (
-              <Link
-                href={`/game/${competitionId}/organizer-results`}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
-              >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="p-3 rounded-lg bg-green-50 group-hover:bg-green-100">
-                    <CheckCircleIcon className="h-7 w-7 text-green-600" />
+            {/* Results Management - Show if user has results permission. Manual mode links through; auto mode shows greyed out */}
+            {canManageResults && (
+              competition.fixture_service === false ? (
+                <Link
+                  href={`/game/${competitionId}/organizer-results`}
+                  className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+                >
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="p-3 rounded-lg bg-green-50 group-hover:bg-green-100">
+                      <CheckCircleIcon className="h-7 w-7 text-green-600" />
+                    </div>
+                    <div className="text-base font-semibold text-gray-900">Results</div>
                   </div>
-                  <div className="text-base font-semibold text-gray-900">Results</div>
+                </Link>
+              ) : (
+                <div
+                  className="bg-gray-50 rounded-lg border border-gray-100 shadow-sm p-6 cursor-not-allowed"
+                  title="Results are loaded automatically for this competition"
+                >
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="p-3 rounded-lg bg-gray-100">
+                      <CheckCircleIcon className="h-7 w-7 text-gray-400" />
+                    </div>
+                    <div className="text-base font-semibold text-gray-400">Results</div>
+                    <div className="text-xs text-gray-400">Auto</div>
+                  </div>
                 </div>
-              </Link>
+              )
             )}
 
             <Link

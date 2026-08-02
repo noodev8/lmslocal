@@ -114,7 +114,7 @@ export default function TermsOfService() {
               You retain ownership of any content you submit. By using the Service, you grant us a license to use, display, and distribute your content as necessary to provide the Service.
             </p>
 
-            <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">9. Data Retention and Account Management</h2>
+            <h2 id="data-retention" className="text-xl font-semibold text-slate-900 mt-8 mb-4">9. Data Retention and Account Management</h2>
             <p className="text-slate-700 mb-4">
               To maintain system performance and manage storage efficiently, we implement the following data retention policies:
             </p>
@@ -122,6 +122,7 @@ export default function TermsOfService() {
               <li><strong>Competition Data:</strong> Completed competitions and their associated data will be automatically removed from our systems 60 days after completion. Unused competitions that remain in setup status may also be removed after 60 days of inactivity.</li>
               <li><strong>Inactive User Accounts:</strong> User accounts that remain inactive for 60 consecutive days will be automatically removed from our system. This policy does not apply to paying subscribers, whose accounts will be preserved for the duration of their subscription period.</li>
               <li><strong>Data Export:</strong> If you wish to preserve any competition data before it is removed, please contact us before the deletion date and we will assist you.</li>
+              <li><strong>Discretionary Removal:</strong> We may also remove competitions or accounts at any time, without prior notice, where our staff judge them to be unused, unwanted, or otherwise not needed - or for any other reason at our discretion.</li>
             </ul>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Privacy</h2>

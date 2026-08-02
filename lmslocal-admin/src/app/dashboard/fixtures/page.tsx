@@ -696,19 +696,26 @@ function ResultsTab({
               </div>
 
               <div className="flex gap-2">
-                {buttons.map((b) => (
-                  <button
-                    key={b.key}
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => handleResult(fixture, b.key)}
-                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium text-white transition disabled:opacity-60 ${
-                      outcome === b.key ? 'bg-emerald-600 hover:bg-emerald-700' : b.tone
-                    } ${outcome && outcome !== b.key ? 'bg-slate-200 text-slate-500 hover:bg-slate-300' : ''}`}
-                  >
-                    {b.label}
-                  </button>
-                ))}
+                {buttons.map((b) => {
+                  const resolvedTone =
+                    outcome === b.key
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : outcome
+                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-500'
+                        : `${b.tone} text-white`;
+
+                  return (
+                    <button
+                      key={b.key}
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => handleResult(fixture, b.key)}
+                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition disabled:opacity-60 ${resolvedTone}`}
+                    >
+                      {b.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );
@@ -782,9 +789,10 @@ export default function FixturesPage() {
     [teamLists, selectedListId]
   );
 
-  const handlePushFixtures = async () => {
-    if (!confirm('Push staged fixtures to every opted-in competition? This creates rounds.')) return;
+  const [confirmAction, setConfirmAction] = useState<Tab | null>(null);
 
+  const runPushFixtures = async () => {
+    setConfirmAction(null);
     setPushing('fixtures');
     setNotice(null);
     try {
@@ -812,11 +820,8 @@ export default function FixturesPage() {
     }
   };
 
-  const handlePushResults = async () => {
-    if (!confirm('Push staged results? This eliminates players and can complete competitions.')) {
-      return;
-    }
-
+  const runPushResults = async () => {
+    setConfirmAction(null);
     setPushing('results');
     setNotice(null);
     try {
@@ -895,7 +900,7 @@ export default function FixturesPage() {
 
               <div className="flex gap-2">
                 <button
-                  onClick={handlePushFixtures}
+                  onClick={() => setConfirmAction('fixtures')}
                   disabled={pushing !== null}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50"
                 >
@@ -903,7 +908,7 @@ export default function FixturesPage() {
                   {pushing === 'fixtures' ? 'Pushing...' : 'Push fixtures'}
                 </button>
                 <button
-                  onClick={handlePushResults}
+                  onClick={() => setConfirmAction('results')}
                   disabled={pushing !== null}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50"
                 >
@@ -933,6 +938,82 @@ export default function FixturesPage() {
           </p>
         )}
       </main>
+
+      {confirmAction === 'fixtures' && (
+        <PushConfirmModal
+          title="Push staged fixtures"
+          description="This sends every staged fixture to each opted-in competition and creates a new round for it. Players will see it immediately."
+          confirmLabel="Push fixtures"
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={runPushFixtures}
+        />
+      )}
+
+      {confirmAction === 'results' && (
+        <PushConfirmModal
+          title="Push staged results"
+          description="This settles every staged result against live picks. It eliminates players who picked losing or drawing teams, and can complete competitions outright."
+          confirmLabel="Push results"
+          tone="danger"
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={runPushResults}
+        />
+      )}
+    </div>
+  );
+}
+
+function PushConfirmModal({
+  title,
+  description,
+  confirmLabel,
+  tone = 'default',
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone?: 'default' | 'danger';
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const danger = tone === 'danger';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+              danger ? 'bg-red-50' : 'bg-indigo-50'
+            }`}
+          >
+            <PaperAirplaneIcon className={`h-5 w-5 ${danger ? 'text-red-600' : 'text-indigo-600'}`} />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+            <p className="mt-1 text-sm text-slate-500">{description}</p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition ${
+              danger ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

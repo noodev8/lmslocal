@@ -75,7 +75,7 @@ export default function PrivacyPolicy() {
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">5. Data Retention</h2>
             <p className="text-slate-700 mb-4">
-              We retain your information for as long as your account is active or as needed to provide services. Competition data may be retained for historical purposes even after account deletion, but will be anonymized.
+              We retain your information for as long as your account is active or as needed to provide services. For how long we keep competition and account data, and the circumstances in which it may be removed, see <Link href="/terms#data-retention" className="text-slate-800 underline hover:text-slate-900">Section 9 of our Terms of Service</Link>.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">6. Data Security</h2>
