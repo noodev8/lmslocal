@@ -101,12 +101,27 @@ vercel --prod
 Leave Root Directory at the default in the Vercel dashboard. The repo-root `.vercelignore`
 excludes `lmslocal-admin/` so the admin source is not uploaded on web deploys.
 
+Live at **https://lmslocal-admin.vercel.app**.
+
+Deployment is through Vercel's Git integration, with Root Directory set to `lmslocal-admin`.
+Note that the repo-root `.vercelignore` applies to every project built from this repo — listing
+an app directory there deletes it before the build and the deploy fails. See the comment at the
+top of that file.
+
 After the first deploy:
 
-1. Set `NEXT_PUBLIC_API_URL` in the Vercel project to the production API URL.
-2. Add the admin's Vercel URL to `CLIENT_URL` on the server, or CORS will block every request.
+1. Set `NEXT_PUBLIC_API_URL` to `https://lmslocal.express.noodev8.com` in the Vercel project.
+   It is **not** a secret — `NEXT_PUBLIC_*` values are inlined into the browser bundle, so
+   marking it sensitive hides it from you and from nobody else. It is also read at *build*
+   time, so setting it after a build requires a redeploy to take effect.
+2. Append the admin URL to `CLIENT_URL` in the production server `.env`, or CORS blocks every
+   request:
+   `CLIENT_URL=https://lmslocal.co.uk,https://lmslocal-admin.vercel.app`
+   No trailing slash — the check is an exact match against the browser's `Origin` header. A
+   rejected origin returns HTTP 500 with no CORS headers, which surfaces in the browser as a
+   generic network failure rather than anything mentioning CORS.
 3. Set `JWT_ADMIN_SECRET` in the production server environment — it is not shared with `.env`
-   on your machine.
+   on your machine, and must differ from `JWT_SECRET`.
 
 The app sends `X-Robots-Tag: noindex, nofollow, noarchive` on every route plus a matching
 `robots` meta tag. Treat the URL as public anyway — deployment URLs surface in certificate

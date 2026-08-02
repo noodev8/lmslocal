@@ -13,7 +13,7 @@ Purpose: Sign in to the admin tool using an existing LMSLocal account that has i
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldCheckIcon } from '@heroicons/react/24/solid';
-import { adminApi, saveSession, getToken } from '@/lib/api';
+import { adminApi, saveSession, getToken, apiBaseUrl } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -53,7 +53,7 @@ export default function LoginPage() {
       setError(result.message || 'Sign in failed');
     } catch {
       // Network level failure - the server itself answers 200 for auth failures
-      setError('Could not reach the server. Is it running on port 3015?');
+      setError(`Could not reach ${apiBaseUrl}. The server may be down, or this site's address may not be in the server's CORS allowlist (CLIENT_URL).`);
     } finally {
       setSubmitting(false);
     }

@@ -18,10 +18,18 @@ const ADMIN_KEY = 'admin_user';
 
 const getApiBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+    // Trailing slash would produce paths like //admin/admin-login
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '');
   }
   return 'http://localhost:3015';
 };
+
+/*
+Exported so error messages can name the URL actually being called. NEXT_PUBLIC_* values are
+inlined at build time, so if this reads localhost on a deployed site the variable was missing
+when the build ran and a redeploy is needed - worth being able to see that from the UI.
+*/
+export const apiBaseUrl = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),

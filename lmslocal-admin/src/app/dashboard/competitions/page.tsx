@@ -12,7 +12,7 @@ Purpose: Drill-down from the dashboard's "Competitions" cards - every competitio
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon, ArrowPathIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-import { adminApi, getToken, AdminCompetition } from '@/lib/api';
+import { adminApi, getToken, AdminCompetition, apiBaseUrl } from '@/lib/api';
 
 type SortKey = 'name' | 'status' | 'player_count' | 'created_at' | 'last_activity';
 type SortDirection = 'asc' | 'desc';
@@ -146,7 +146,7 @@ function CompetitionsList() {
         setError(result.message || 'Could not load competitions');
       }
     } catch {
-      setError('Could not reach the server. Is it running on port 3015?');
+      setError(`Could not reach ${apiBaseUrl}. The server may be down, or this site's address may not be in the server's CORS allowlist (CLIENT_URL).`);
     } finally {
       setLoading(false);
     }

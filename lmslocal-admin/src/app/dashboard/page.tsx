@@ -18,7 +18,7 @@ import {
   ArrowPathIcon,
   ArrowRightStartOnRectangleIcon,
 } from '@heroicons/react/24/outline';
-import { adminApi, clearSession, getToken, getAdmin, AdminStats, AdminUser } from '@/lib/api';
+import { adminApi, clearSession, getToken, getAdmin, AdminStats, AdminUser, apiBaseUrl } from '@/lib/api';
 
 const TONES = {
   default: 'from-indigo-500 to-cyan-400',
@@ -106,7 +106,7 @@ export default function DashboardPage() {
         setError(result.message || 'Could not load statistics');
       }
     } catch {
-      setError('Could not reach the server. Is it running on port 3015?');
+      setError(`Could not reach ${apiBaseUrl}. The server may be down, or this site's address may not be in the server's CORS allowlist (CLIENT_URL).`);
     } finally {
       setLoading(false);
     }
