@@ -48,7 +48,7 @@ Security Features:
 
 const express = require('express');
 const crypto = require('crypto');
-const { query, transaction } = require('../database');
+const { transaction } = require('../database');
 const emailService = require('../services/emailService');
 const router = express.Router();
 // Built-in secure token generation utility functions
@@ -199,12 +199,11 @@ router.post('/', async (req, res) => {
         RETURNING id, email, display_name, updated_at
       `;
 
-      const updateResult = await client.query(updateTokenQuery, [
+      await client.query(updateTokenQuery, [
         verificationToken, 
         tokenExpiry, 
         user.id
       ]);
-      const updatedUser = updateResult.rows[0];
 
       // STEP 6: Send verification email (outside transaction for performance)
       // Store email sending status for comprehensive response

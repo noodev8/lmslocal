@@ -100,7 +100,6 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    const competition = organiserResult.rows[0];
 
     // Verify user has permission to manage players (organiser or delegated permission)
     const permission = await canManagePlayers(admin_user_id, competition_id);

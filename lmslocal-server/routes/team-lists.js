@@ -44,7 +44,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database'); // Use central database with transaction support
+const { query } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
@@ -54,7 +54,6 @@ router.post('/', verifyToken, async (req, res) => {
   logApiCall('team-lists');
 
   try {
-    const user_id = req.user.id; // Set by verifyToken middleware
 
     // Single comprehensive query to get all active team lists with detailed information
     // This query provides team counts, descriptions, and metadata in one optimized database call

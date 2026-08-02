@@ -52,7 +52,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database'); // Use central database with transaction support
+const { transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const { checkAndLockRoundIfComplete } = require('../utils/roundLocking');
 const { canManagePlayers } = require('../utils/permissions');
@@ -467,7 +467,7 @@ router.post('/', verifyToken, async (req, res) => {
       ]);
 
       // Check if all picks are in and auto-lock round (round 2+ only)
-      const lockResult = await checkAndLockRoundIfComplete(client, data.current_round_id);
+      await checkAndLockRoundIfComplete(client, data.current_round_id);
 
       // Return comprehensive pick information for frontend display
       return {

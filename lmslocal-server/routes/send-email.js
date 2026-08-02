@@ -34,7 +34,13 @@ Return Codes:
 
 const express = require('express');
 const { query } = require('../database');
-const { verifyToken } = require('../middleware/auth');
+/*
+SECURITY GAP - THIS ROUTE IS UNAUTHENTICATED.
+verifyToken was imported here but never applied to the handler, so anyone who can reach the
+server can trigger a flush of the email queue. It takes no request input, so it cannot be used
+to send arbitrary content - the exposure is forced early sending and Resend quota burn.
+Intended to be called by a scheduler; needs a service token like the fixture push routes use.
+*/
 const { logApiCall } = require('../utils/apiLogger');
 const { sendPickReminderEmail, sendResultsEmail, sendWelcomeCompetitionEmail, sendOrganiserTipEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
 const router = express.Router();

@@ -40,7 +40,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database');
+const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();

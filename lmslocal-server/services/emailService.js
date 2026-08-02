@@ -465,7 +465,6 @@ const sendPickReminderEmail = async (email, templateData) => {
     }).join('');
 
     // Teams used section removed - now shown inline with strikethrough in fixtures list
-    let teamsUsedHtml = '';
 
     // Build the make pick URL using PLAYER_FRONTEND_URL
     // Route is /game/[id]/pick where [id] is the competition_id
@@ -643,7 +642,6 @@ const sendResultsEmail = async (email, templateData) => {
       round_number,
       user_pick,
       pick_result,
-      user_outcome,
       lives_remaining,
       new_status,
       active_player_count,
@@ -829,7 +827,6 @@ const sendWelcomeCompetitionEmail = async (email, templateData) => {
     const {
       user_display_name,
       competition_name,
-      organizer_name,
       lives_per_player,
       no_team_twice,
       next_round_number,
@@ -995,7 +992,6 @@ const sendOrganiserTipEmail = async (templateData) => {
   try {
     const {
       organiser_email,
-      organiser_name,
       competition_name,
       competition_id,
       tip_title,

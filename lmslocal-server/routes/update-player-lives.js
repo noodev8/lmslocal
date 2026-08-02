@@ -42,7 +42,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database');
+const { transaction } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
 const { verifyToken } = require('../middleware/auth');
 const { canManagePlayers } = require('../utils/permissions');

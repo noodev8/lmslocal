@@ -174,13 +174,11 @@ router.post('/', verifyToken, async (req, res) => {
 
         const newBalance = deductResult.rows[0].new_balance;
 
-        // Log the credit deduction (will log player_id after user creation)
-        // This will be inserted after Step 2 below
-        var creditDeducted = true;
-
+        // NOTE: an audit_log entry for this credit deduction was intended here (to be written
+        // after Step 2, once player_id exists) but was never implemented. The deduction
+        // currently leaves no audit trail beyond this console line.
         console.log(`✓ Credit deducted from organiser ${admin_id}. New balance: ${newBalance}`);
       } else {
-        var creditDeducted = false;
         console.log(`✓ Adding offline player within free tier (${currentPlayerCount + 1}/${FREE_PLAYER_LIMIT} players)`);
       }
 

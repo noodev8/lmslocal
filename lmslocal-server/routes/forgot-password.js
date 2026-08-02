@@ -45,7 +45,7 @@ Security Features:
 
 const express = require('express');
 const crypto = require('crypto'); // For secure token generation
-const { query, transaction } = require('../database'); // Use central database with transaction support
+const { transaction } = require('../database'); // Use central database with transaction support
 const emailService = require('../services/emailService');
 const router = express.Router();
 
@@ -178,8 +178,7 @@ router.post('/', async (req, res) => {
         RETURNING auth_token_expires, updated_at
       `;
 
-      const updateResult = await client.query(updateTokenQuery, [resetToken, tokenExpiry, user.id]);
-      const updatedTokenExpiry = updateResult.rows[0].auth_token_expires;
+      await client.query(updateTokenQuery, [resetToken, tokenExpiry, user.id]);
 
       // STEP 5: Create comprehensive audit log entry for password reset request
       await client.query(`

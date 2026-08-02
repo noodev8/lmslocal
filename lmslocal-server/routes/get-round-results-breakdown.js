@@ -114,7 +114,6 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    const competition = competitionResult.rows[0];
 
     // Verify user is the organizer or has delegated manage_results permission
     const permission = await canManageResults(user_id, competition_id);

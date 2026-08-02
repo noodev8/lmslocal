@@ -234,7 +234,7 @@ const sendCompetitionAnnouncement = async () => {
     const email = players[i];
 
     try {
-      const result = await resend.emails.send({
+      await resend.emails.send({
         from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
         to: [email],
         subject: 'Last Man Standing - £200 Prize Competition Starts Saturday 31st January!',

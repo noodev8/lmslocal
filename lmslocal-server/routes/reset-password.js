@@ -49,7 +49,7 @@ Security Features:
 
 const express = require('express');
 const bcrypt = require('bcrypt');
-const { query, transaction } = require('../database'); // Use central database with transaction support
+const { transaction } = require('../database'); // Use central database with transaction support
 const router = express.Router();
 
 // Token expiration checker utility function
@@ -191,8 +191,7 @@ router.post('/', async (req, res) => {
         RETURNING id, email, display_name, updated_at
       `;
 
-      const updateResult = await client.query(updatePasswordQuery, [hashedPassword, user.id]);
-      const updatedUser = updateResult.rows[0];
+      await client.query(updatePasswordQuery, [hashedPassword, user.id]);
 
       // STEP 6: Create comprehensive audit log entry for successful password reset
       await client.query(`

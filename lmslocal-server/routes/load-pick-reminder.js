@@ -56,7 +56,12 @@ Return Codes:
 
 const express = require('express');
 const { query } = require('../database');
-const { verifyToken } = require('../middleware/auth');
+/*
+SECURITY GAP - THIS ROUTE IS UNAUTHENTICATED.
+verifyToken was imported here but never applied to the handler. The handler takes user_id,
+round_id and competition_id straight from the request body, so an unauthenticated caller can
+queue pick-reminder emails to arbitrary users, repeatedly. Needs auth before the next release.
+*/
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 

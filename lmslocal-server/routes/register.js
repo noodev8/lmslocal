@@ -43,8 +43,6 @@ Return Codes:
 const express = require('express');
 const bcrypt = require('bcrypt');
 const { query, transaction } = require('../database');
-const emailService = require('../services/emailService');
-const tokenUtils = require('../utils/tokenUtils');
 const router = express.Router();
 router.post('/', async (req, res) => {
   try {

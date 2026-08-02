@@ -44,7 +44,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database');
+const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
@@ -154,7 +154,7 @@ router.post('/', verifyToken, async (req, res) => {
       // Order is critical: child records must be deleted before parent records
 
       // Delete picks first (references round_id and user_id)
-      const deletedPicksResult = await client.query(`
+      await client.query(`
         DELETE FROM pick 
         WHERE round_id IN (
           SELECT id FROM round WHERE competition_id = $1
@@ -163,14 +163,14 @@ router.post('/', verifyToken, async (req, res) => {
       `, [competition_id]);
 
       // Delete player progress records (references competition_id, round_id, and player_id)
-      const deletedProgressResult = await client.query(`
+      await client.query(`
         DELETE FROM player_progress 
         WHERE competition_id = $1
         RETURNING id
       `, [competition_id]);
 
       // Delete fixtures (references round_id)
-      const deletedFixturesResult = await client.query(`
+      await client.query(`
         DELETE FROM fixture 
         WHERE round_id IN (
           SELECT id FROM round WHERE competition_id = $1
@@ -179,21 +179,21 @@ router.post('/', verifyToken, async (req, res) => {
       `, [competition_id]);
 
       // Delete rounds (references competition_id)
-      const deletedRoundsResult = await client.query(`
+      await client.query(`
         DELETE FROM round 
         WHERE competition_id = $1
         RETURNING id
       `, [competition_id]);
 
       // Delete allowed teams (references competition_id and user_id)
-      const deletedAllowedTeamsResult = await client.query(`
+      await client.query(`
         DELETE FROM allowed_teams
         WHERE competition_id = $1
         RETURNING id
       `, [competition_id]);
 
       // Delete email preferences for this competition
-      const deletedEmailPrefsResult = await client.query(`
+      await client.query(`
         DELETE FROM email_preference
         WHERE competition_id = $1
         RETURNING id
@@ -250,7 +250,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 6. Finally delete the competition record itself
       // This must be last since other tables reference competition_id
-      const deletedCompetitionResult = await client.query(`
+      await client.query(`
         DELETE FROM competition 
         WHERE id = $1
         RETURNING id, name

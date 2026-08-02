@@ -39,7 +39,7 @@ Security Features:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database');
+const { transaction } = require('../database');
 const router = express.Router();
 
 // Built-in token expiration checker utility function
@@ -314,8 +314,7 @@ router.get('/', async (req, res) => {
         RETURNING id, email, display_name, updated_at
       `;
 
-      const verifyResult = await client.query(verifyEmailQuery, [user.id]);
-      const verifiedUser = verifyResult.rows[0];
+      await client.query(verifyEmailQuery, [user.id]);
 
       // STEP 6: Create comprehensive audit log entry for successful email verification
       await client.query(`

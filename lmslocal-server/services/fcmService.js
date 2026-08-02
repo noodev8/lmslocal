@@ -6,7 +6,14 @@ Purpose: Handle push notifications via Firebase Cloud Messaging for the mobile a
 =======================================================================================================================================
 */
 
-const admin = require('firebase-admin');
+/*
+firebase-admin v14 removed the namespaced API (`admin.credential.cert`, `admin.messaging()`).
+Using the modular entry points instead. This matters quietly: the old call failed inside a
+try/catch that returns { success: false }, so notifications would have stopped sending without
+raising an error anywhere.
+*/
+const { initializeApp, cert, getApps } = require('firebase-admin/app');
+const { getMessaging } = require('firebase-admin/messaging');
 const path = require('path');
 
 // ===========================================================================================================
@@ -36,9 +43,12 @@ const initializeFirebase = () => {
     const serviceAccountPath = path.join(serverDir, serviceAccountFile);
     const serviceAccount = require(serviceAccountPath);
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
+    // Guard against a second initializeApp call, which throws in the modular API
+    if (getApps().length === 0) {
+      initializeApp({
+        credential: cert(serviceAccount)
+      });
+    }
 
     firebaseInitialized = true;
     console.log('FCM Service: Firebase initialized successfully');
@@ -109,7 +119,7 @@ const sendNotification = async (fcmToken, notificationType) => {
       }
     };
 
-    const response = await admin.messaging().send(message);
+    const response = await getMessaging().send(message);
     return { success: true, messageId: response };
   } catch (error) {
     console.error('FCM Service: Error sending notification:', error.message);

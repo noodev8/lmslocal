@@ -56,15 +56,13 @@ Security Features:
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { query, transaction } = require('../database'); // Use central database with transaction support
+const { transaction } = require('../database'); // Use central database with transaction support
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety for user login
 router.post('/', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const clientIp = req.ip || 'Unknown';
-    const userAgent = req.get('User-Agent') || 'Unknown';
     const loginTimestamp = new Date();
 
     // STEP 1: Validate required input parameters with comprehensive checking

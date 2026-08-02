@@ -38,7 +38,6 @@ async function pushFixturesToCompetitions(client) {
   // Check each competition to see if it needs fixtures
   for (const competition of allCompetitions) {
     const compId = competition.id;
-    const competitionName = competition.name;
     const competitionStatus = competition.status;
 
     // Skip if competition is already complete

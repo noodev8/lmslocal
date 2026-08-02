@@ -166,7 +166,7 @@ const getCacheStats = () => {
   let activeEntries = 0;
   let expiredEntries = 0;
   
-  for (const [key, value] of userCache.entries()) {
+  for (const [, value] of userCache.entries()) {
     if (now - value.timestamp < CACHE_TTL) {
       activeEntries++;
     } else {

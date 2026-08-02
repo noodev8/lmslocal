@@ -57,7 +57,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database'); // Use central database with transaction support
+const { transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();

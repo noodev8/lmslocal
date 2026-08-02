@@ -38,7 +38,7 @@ Security:
 
 const express = require('express');
 const router = express.Router();
-const { query, transaction } = require('../database'); // Use destructured database import
+const { transaction } = require('../database'); // Use destructured database import
 const { logApiCall } = require('../utils/apiLogger'); // API logging utility
 const { sendPaymentConfirmationEmail } = require('../services/emailService'); // Email service
 const Stripe = require('stripe');
@@ -255,7 +255,8 @@ router.post('/', async (req, res) => {
   try {
     // Handle different webhook event types
     switch (event.type) {
-      case 'checkout.session.completed':
+      // Braced so `session` is scoped to this case rather than the whole switch block
+      case 'checkout.session.completed': {
         const session = event.data.object;
         console.log(`💰 Checkout session completed: ${session.id}`);
 
@@ -266,6 +267,7 @@ router.post('/', async (req, res) => {
           console.log(`ℹ️  Skipping non-credit-pack checkout: ${session.id}`);
         }
         break;
+      }
 
       case 'payment_intent.succeeded':
         console.log(`💳 Payment succeeded: ${event.data.object.id}`);

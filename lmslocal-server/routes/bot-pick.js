@@ -263,7 +263,7 @@ router.post('/', async (req, res) => {
       }
 
       // Check if all picks are in and auto-lock round (round 2+ only)
-      const lockResult = await checkAndLockRoundIfComplete(client, round.round_id);
+      await checkAndLockRoundIfComplete(client, round.round_id);
     });
 
     // STEP 8: Return success response

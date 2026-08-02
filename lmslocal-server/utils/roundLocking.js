@@ -37,6 +37,8 @@ async function checkAndLockRoundIfComplete(client, round_id) {
     reason: 'AUTO_LOCK_DISABLED'
   };
 
+  // The implementation below is intentionally unreachable and kept for re-enabling.
+  // eslint-disable-next-line no-unreachable
   try {
     // === COMPREHENSIVE VALIDATION QUERY ===
     // Single query to get all data needed for lock decision

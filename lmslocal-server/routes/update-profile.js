@@ -41,7 +41,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database');
+const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {

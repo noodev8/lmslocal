@@ -86,7 +86,7 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    const { round_number, competition_id } = roundResult.rows[0];
+    const { round_number } = roundResult.rows[0];
 
     // Get all fixtures for this round
     const fixturesQuery = `

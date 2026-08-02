@@ -47,7 +47,7 @@ Password Requirements:
 
 const express = require('express');
 const bcrypt = require('bcrypt');
-const { query, transaction } = require('../database'); // Use central database with transaction support
+const { transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const router = express.Router();
 

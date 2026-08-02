@@ -251,7 +251,6 @@ router.post('/', verifyToken, async (req, res) => {
           const fixtureStatus = row.fixture_status;
           groupKey = `${row.lives_remaining}_${fixtureStatus}`;
 
-          const livesLabel = `${row.lives_remaining} ${row.lives_remaining === 1 ? 'life' : 'lives'}`;
           const statusLabel = fixtureStatus === 'played' ? 'Game Played' : fixtureStatus === 'pending' ? 'Game Pending' : 'No Pick';
 
           groupName = `❤️ ${row.lives_remaining} • ${statusLabel}`;

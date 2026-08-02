@@ -41,7 +41,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database');
+const { transaction } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
 const { verifyToken } = require('../middleware/auth');
 const { canManagePlayers } = require('../utils/permissions');
@@ -173,7 +173,7 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING status
       `;
 
-      const updateResult = await client.query(updateQuery, [
+      await client.query(updateQuery, [
         status,
         competition_id,
         player_id
