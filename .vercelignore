@@ -1,5 +1,9 @@
 # Exclude non-web directories when deploying from root
+# NOTE: this file applies to the lmslocal-web deploy, which runs from the repo root.
+# The admin tool is deployed from inside lmslocal-admin/ instead, so excluding it here
+# keeps it out of web deploys without affecting its own.
 lmslocal-flutter/
+lmslocal-admin/
 lmslocal-server/
 docs/
 *.mp4

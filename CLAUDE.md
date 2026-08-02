@@ -19,6 +19,15 @@ This is a full-stack application with two main components:
 - **Email**: Resend service for transactional emails
 - **Security**: Helmet, CORS, rate limiting, input validation
 
+### Admin Tool (lmslocal-admin/)
+- **Technology**: Next.js 15.5.9 with React 19 and TypeScript 5 (matches lmslocal-web)
+- **Port**: 3001 (development)
+- **Backend**: none of its own — calls the same Express server under `/admin/*`
+- **Auth**: normal LMSLocal credentials, but a separate login route, a separate signing key
+  (`JWT_ADMIN_SECRET`), a `scope: "admin"` claim, and a live `app_user.is_admin` check
+- **Rule**: never add an admin bypass to an existing player route; admin gets its own routes
+- **Full details**: `docs/admin-tool.md`
+
 ### Frontend (lmslocal-web/)
 - **Technology**: Next.js 15.5 with React 19 and TypeScript 5
 - **Styling**: Tailwind CSS with PostCSS
