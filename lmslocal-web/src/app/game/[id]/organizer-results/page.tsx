@@ -12,6 +12,16 @@ interface FixtureWithClientState extends OrganizerFixtureWithResult {
   processed?: string | null;
 }
 
+/* Derives the outcome already saved on a fixture from its real `result` field - used for the
+   read-only automated view, where there is no client-side selection to fall back on. */
+function actualOutcome(fixture: FixtureWithClientState): 'home_win' | 'away_win' | 'draw' | null {
+  if (!fixture.result) return null;
+  if (fixture.result === 'DRAW') return 'draw';
+  if (fixture.result === fixture.home_team_short) return 'home_win';
+  if (fixture.result === fixture.away_team_short) return 'away_win';
+  return null;
+}
+
 export default function OrganizerResultsPage() {
   const router = useRouter();
   const params = useParams();
@@ -245,6 +255,9 @@ export default function OrganizerResultsPage() {
     }
   }, [roundStartTime, roundHasStarted]);
 
+  // Automated competitions are read-only here - the fixture service owns their results.
+  const readOnly = competition?.fixture_service === true;
+
   // Show loading while competition data loads
   if (!competition) {
     return (
@@ -267,8 +280,13 @@ export default function OrganizerResultsPage() {
             Back
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">
-            Enter Results - {competition.name}
+            {readOnly ? 'Results' : 'Enter Results'} - {competition.name}
           </h1>
+          {readOnly && (
+            <p className="text-sm text-gray-500 mt-1">
+              Fixtures are managed automatically for this competition - view only.
+            </p>
+          )}
           <p className="text-sm text-gray-600 mt-1">
             {roundNumber ? `Round ${roundNumber}` : 'Loading...'}
           </p>
@@ -290,7 +308,7 @@ export default function OrganizerResultsPage() {
           )}
 
           {/* No Rounds State */}
-          {!isLoading && loadError && (
+          {!isLoading && loadError && !readOnly && (
             <div className="text-center py-8">
               <button
                 onClick={() => router.push(`/game/${competitionId}/organizer-fixtures`)}
@@ -305,7 +323,7 @@ export default function OrganizerResultsPage() {
           {!isLoading && !loadError && fixtures.length > 0 && roundNumber && (
             <>
               {/* Round Not Started Warning */}
-              {!roundHasStarted && timeUntilStart && (
+              {!readOnly && !roundHasStarted && timeUntilStart && (
                 <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-md">
                   <div className="flex items-center gap-3">
                     <div className="text-2xl">⏰</div>
@@ -335,8 +353,9 @@ export default function OrganizerResultsPage() {
                 {fixtures.map((fixture) => {
                   const homeTeamName = teamNames[fixture.home_team_short] || fixture.home_team_short;
                   const awayTeamName = teamNames[fixture.away_team_short] || fixture.away_team_short;
-                  const resultEntered = fixture.result_entered;
+                  const resultEntered = readOnly ? actualOutcome(fixture) : fixture.result_entered;
                   const isProcessed = fixture.processed !== null;
+                  const disabled = readOnly || !roundHasStarted || isProcessed;
 
                   return (
                     <div
@@ -364,45 +383,45 @@ export default function OrganizerResultsPage() {
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'home_win')}
-                          disabled={!roundHasStarted || isProcessed}
+                          disabled={disabled}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'home_win'
-                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
-                              : !roundHasStarted || isProcessed
+                              ? isProcessed ? 'bg-purple-600 text-white' : readOnly ? 'bg-green-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
+                              : disabled
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
-                          title={!roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
+                          title={readOnly ? 'View only' : !roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           {fixture.home_team_short}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'draw')}
-                          disabled={!roundHasStarted || isProcessed}
+                          disabled={disabled}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'draw'
-                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
-                              : !roundHasStarted || isProcessed
+                              ? isProcessed ? 'bg-purple-600 text-white' : readOnly ? 'bg-green-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
+                              : disabled
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-gray-600 text-white hover:bg-gray-700'
                           }`}
-                          title={!roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
+                          title={readOnly ? 'View only' : !roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           Draw
                         </button>
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'away_win')}
-                          disabled={!roundHasStarted || isProcessed}
+                          disabled={disabled}
                           className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                             resultEntered === 'away_win'
-                              ? isProcessed ? 'bg-purple-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
-                              : !roundHasStarted || isProcessed
+                              ? isProcessed ? 'bg-purple-600 text-white' : readOnly ? 'bg-green-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
+                              : disabled
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
-                          title={!roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
+                          title={readOnly ? 'View only' : !roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           {fixture.away_team_short}
                         </button>
@@ -412,7 +431,9 @@ export default function OrganizerResultsPage() {
                 })}
               </div>
 
-              {/* Process Results Button */}
+              {/* Process Results Button - hidden entirely for automated competitions, the
+                  fixture service processes results as part of pushing them */}
+              {!readOnly && (
               <div className="border-t border-gray-200 pt-4">
                 <div className="flex justify-end">
                   <button
@@ -425,6 +446,7 @@ export default function OrganizerResultsPage() {
                   </button>
                 </div>
               </div>
+              )}
             </>
           )}
         </div>

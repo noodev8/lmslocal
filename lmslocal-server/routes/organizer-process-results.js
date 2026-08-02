@@ -42,6 +42,7 @@ Return Codes:
 "MISSING_FIELDS"              - Required fields are missing
 "UNAUTHORIZED"                - User is not the organiser of this competition
 "COMPETITION_NOT_FOUND"       - Competition doesn't exist
+"AUTOMATED_COMPETITION"       - Competition uses the fixture service; results are processed when they are pushed
 "NO_ROUNDS"                   - No rounds exist for this competition
 "NO_RESULTS_TO_PROCESS"       - No unprocessed results to process
 "SERVER_ERROR"                - Database or unexpected error
@@ -111,11 +112,14 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Automated competitions are allowed through here too, as a manual backstop for fixing a
-    // round the fixture service got wrong. This is safe against double-processing: the query
-    // below only picks up fixtures with result IS NOT NULL AND processed IS NULL, and
-    // push-results-to-competitions marks processed = NOW() as part of the same transaction that
-    // writes results - so a round it already handled has nothing left for this route to find.
+    // Verify competition is in manual mode (fixture_service = false) - automated competitions
+    // are read-only on the organiser side, push-results-to-competitions owns their processing.
+    if (competition.fixture_service !== false) {
+      return res.status(200).json({
+        return_code: "AUTOMATED_COMPETITION",
+        message: "This competition uses automated fixture service. Results are processed when they are pushed."
+      });
+    }
 
     // ========================================
     // STEP 3: PROCESS RESULTS IN TRANSACTION

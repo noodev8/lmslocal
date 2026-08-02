@@ -79,6 +79,9 @@ export default function TermsOfService() {
             <p className="text-slate-700 mb-4">
               Competition organizers are responsible for setting and enforcing their own rules. LMSLocal provides the platform but does not mediate disputes between participants. All competition results are final as determined by the organizer.
             </p>
+            <p className="text-slate-700 mb-4">
+              Fixture and result data - whether entered manually by an organiser or sourced automatically through our fixture service - is provided on a best-efforts basis and may occasionally be delayed, incomplete, or incorrect. We do not guarantee the accuracy of this data and are not responsible for eliminations, outcomes, or other consequences resulting from inaccurate or mistimed fixture or result data.
+            </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">5. Weekly Challenge (Free Prize Competition)</h2>
             <p className="text-slate-700 mb-4">
@@ -137,7 +140,7 @@ export default function TermsOfService() {
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">12. Limitation of Liability</h2>
             <p className="text-slate-700 mb-4">
-              LMSLocal shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the Service.
+              LMSLocal shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the Service. This includes, without limitation, damages or losses arising from incorrect, delayed, or corrupted fixture or result data, service interruptions, or data loss, regardless of whether caused by manual entry, automated processing, or system error.
             </p>
 
             <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">13. Changes to Terms</h2>

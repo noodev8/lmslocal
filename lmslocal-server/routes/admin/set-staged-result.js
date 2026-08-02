@@ -36,6 +36,7 @@ Return Codes:
 "VALIDATION_ERROR"          - Missing fixture_id, or result not one of the three allowed values
 "FIXTURE_NOT_FOUND"         - No such row in fixture_load - also what a fixture whose result was
                               already pushed looks like, since pushing deletes the row
+"TOO_EARLY"                 - The fixture's kickoff_time has not passed yet
 "UNAUTHORIZED"              - Missing, invalid, expired, or non-admin token
 "TOKEN_EXPIRED"             - Admin session has expired
 "SERVER_ERROR"              - Database error or unexpected server failure
@@ -49,6 +50,7 @@ Data Notes:
 - Once pushed, push-results-to-competitions deletes the fixture_load row (see that route), so a
   further edit attempt here naturally hits FIXTURE_NOT_FOUND rather than a dedicated check.
   Undoing a pushed result is a game-state change that belongs in the competition, not in staging.
+- A result can't be entered before kickoff_time - there is no real result yet to record.
 =======================================================================================================================================
 */
 
@@ -87,7 +89,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
     }
 
     const existing = await query(
-      'SELECT fixture_id FROM fixture_load WHERE fixture_id = $1',
+      'SELECT fixture_id, kickoff_time FROM fixture_load WHERE fixture_id = $1',
       [fixture_id]
     );
 
@@ -95,6 +97,13 @@ router.post('/', verifyAdminToken, async (req, res) => {
       return res.json({
         return_code: 'FIXTURE_NOT_FOUND',
         message: 'That fixture is not in the staging table'
+      });
+    }
+
+    if (new Date(existing.rows[0].kickoff_time) > new Date()) {
+      return res.json({
+        return_code: 'TOO_EARLY',
+        message: 'Kickoff has not happened yet for this fixture'
       });
     }
 

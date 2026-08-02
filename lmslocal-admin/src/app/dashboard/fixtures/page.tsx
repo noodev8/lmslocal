@@ -322,7 +322,7 @@ function FixturesTab({
     setNotice(null);
 
     if (!kickoffDate || !kickoffTime) {
-      setNotice({ tone: 'error', text: 'Choose a kickoff date and time first.' });
+      setNotice({ tone: 'error', text: 'Choose a kick off date and time first.' });
       return;
     }
     if (completePairs.length === 0) {
@@ -383,7 +383,7 @@ function FixturesTab({
       {/* Kickoff - one time for the whole batch, which becomes the round's lock time */}
       <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-slate-900">Kickoff &amp; lock time</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Kick off &amp; lock time</h2>
           <span className="text-xs text-slate-400">
             entered as UK time, stored as UTC
           </span>
@@ -664,13 +664,36 @@ function ResultsTab({
     );
   }
 
+  // All fixtures in a batch share one kickoff time - that's the cut-off, shown once rather
+  // than repeated on every row.
+  const cutoff = fixtures.reduce((earliest, f) => (f.kickoff_time < earliest ? f.kickoff_time : earliest), fixtures[0].kickoff_time);
+  const beforeCutoff = new Date(cutoff) > new Date();
+
   return (
     <>
+      {beforeCutoff && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Kick off is{' '}
+            {new Date(cutoff).toLocaleDateString('en-GB', {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+            . Results can be entered after that.
+          </span>
+        </div>
+      )}
+
       <div className="space-y-2">
         {fixtures.map((fixture) => {
           const locked = savedOutcome(fixture);
           const outcome = locked ?? selected[fixture.fixture_id];
           const isConfirming = confirming === fixture.fixture_id;
+          const entryDisabled = !!locked || isConfirming || beforeCutoff;
 
           const buttons: { key: ResultOutcome; label: string; tone: string }[] = [
             { key: 'home_win', label: fixture.home_team_name, tone: 'bg-indigo-600 hover:bg-indigo-700' },
@@ -685,19 +708,10 @@ function ResultsTab({
                 locked ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-white'
               }`}
             >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-900">
-                  {fixture.home_team_name}
-                  <span className="mx-2 text-slate-400">v</span>
-                  {fixture.away_team_name}
-                </span>
-                <span className="text-xs text-slate-400">
-                  {new Date(fixture.kickoff_time).toLocaleDateString('en-GB', {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                  })}
-                </span>
+              <div className="mb-3 text-sm font-medium text-slate-900">
+                {fixture.home_team_name}
+                <span className="mx-2 text-slate-400">v</span>
+                {fixture.away_team_name}
               </div>
 
               <div className="flex gap-2">
@@ -715,7 +729,8 @@ function ResultsTab({
                     <button
                       key={b.key}
                       type="button"
-                      disabled={!!locked || isConfirming}
+                      disabled={entryDisabled}
+                      title={beforeCutoff && !locked ? 'Kick off hasn\'t happened yet.' : undefined}
                       onClick={() => setSelected((prev) => ({ ...prev, [fixture.fixture_id]: b.key }))}
                       className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed ${resolvedTone}`}
                     >
@@ -728,7 +743,7 @@ function ResultsTab({
               {!locked && (
                 <button
                   type="button"
-                  disabled={!selected[fixture.fixture_id] || isConfirming}
+                  disabled={!selected[fixture.fixture_id] || entryDisabled}
                   onClick={() => handleConfirm(fixture)}
                   className="mt-2 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                 >
@@ -798,6 +813,8 @@ export default function FixturesPage() {
   // Pushing a batch whose deadline has already passed creates a round that's locked before any
   // player can pick it - block it rather than let that happen by accident.
   const cutoffPassed = !!teamList?.pending_cutoff && new Date(teamList.pending_cutoff) <= new Date();
+  // Results can't be real before kickoff - block pushing results until the deadline arrives.
+  const cutoffPending = !!teamList?.pending_cutoff && new Date(teamList.pending_cutoff) > new Date();
 
   const [confirmAction, setConfirmAction] = useState<Tab | null>(null);
 
@@ -923,8 +940,14 @@ export default function FixturesPage() {
                 </button>
                 <button
                   onClick={() => setConfirmAction('results')}
-                  disabled={pushing !== null || !teamList.pending_fixtures}
-                  title={!teamList.pending_fixtures ? 'No fixtures are staged yet.' : undefined}
+                  disabled={pushing !== null || !teamList.pending_fixtures || cutoffPending}
+                  title={
+                    !teamList.pending_fixtures
+                      ? 'No fixtures are staged yet.'
+                      : cutoffPending
+                        ? 'Kick off hasn\'t happened yet.'
+                        : undefined
+                  }
                   className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <PaperAirplaneIcon className="h-4 w-4" />

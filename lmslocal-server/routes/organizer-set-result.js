@@ -32,6 +32,7 @@ Return Codes:
 "INVALID_RESULT"           - Result type is not valid (must be home_win, away_win, or draw)
 "UNAUTHORIZED"             - User is not the organiser of this competition
 "FIXTURE_NOT_FOUND"        - Fixture doesn't exist
+"AUTOMATED_COMPETITION"    - Competition uses fixture_service (automated mode)
 "ALREADY_PROCESSED"        - Fixture has already been processed (cannot change result)
 "SERVER_ERROR"             - Database or unexpected error
 =======================================================================================================================================
@@ -118,6 +119,15 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(200).json({
         return_code: "UNAUTHORIZED",
         message: "You do not have permission to set results for this competition"
+      });
+    }
+
+    // Verify competition is in manual mode (fixture_service = false) - automated competitions
+    // are read-only on the organiser side, the fixture service owns their results.
+    if (fixture.fixture_service !== false) {
+      return res.status(200).json({
+        return_code: "AUTOMATED_COMPETITION",
+        message: "This competition uses automated fixture service"
       });
     }
 

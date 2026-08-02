@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { organizerApi, teamApi, OrganizerFixture, Team } from '@/lib/api';
+import { organizerApi, teamApi, OrganizerFixture, OrganizerFixtureWithResult, Team } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { cacheUtils } from '@/lib/cache';
 
@@ -224,7 +224,7 @@ export default function OrganizerFixturesPage() {
       }
     };
 
-    if (competition && !isBlocked) {
+    if (competition && competition.fixture_service !== true && !isBlocked) {
       checkCanAddFixtures();
     }
   }, [competition, competitionId, isBlocked]);
@@ -232,7 +232,7 @@ export default function OrganizerFixturesPage() {
   // Fetch teams for the competition's team list
   useEffect(() => {
     const fetchTeams = async () => {
-      if (!competition?.team_list_id) {
+      if (!competition || competition.fixture_service === true || !competition.team_list_id) {
         setTeamsLoading(false);
         return;
       }
@@ -256,7 +256,7 @@ export default function OrganizerFixturesPage() {
     };
 
     fetchTeams();
-  }, [competition?.team_list_id]);
+  }, [competition]);
 
   // Remove fixture row
   const handleRemoveFixture = (index: number) => {
@@ -374,6 +374,13 @@ export default function OrganizerFixturesPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-gray-600">Loading...</div>
       </div>
+    );
+  }
+
+  // Automated competitions are read-only here - the fixture service owns their fixtures.
+  if (competition.fixture_service === true) {
+    return (
+      <ReadOnlyFixturesView competitionId={competitionId} competitionName={competition.name} />
     );
   }
 
@@ -747,6 +754,132 @@ export default function OrganizerFixturesPage() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/*
+Read-only view for automated competitions - shows whatever the fixture service has already
+pushed, with no way to add, change, or lock anything. There is no "add fixtures" concept here;
+the current round (if any) is the whole story.
+*/
+function ReadOnlyFixturesView({
+  competitionId,
+  competitionName,
+}: {
+  competitionId: string;
+  competitionName: string;
+}) {
+  const [fixtures, setFixtures] = useState<OrganizerFixtureWithResult[]>([]);
+  const [roundNumber, setRoundNumber] = useState<number | null>(null);
+  const [teamNames, setTeamNames] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoading(true);
+      setLoadError('');
+      try {
+        const response = await organizerApi.getFixturesForResults(parseInt(competitionId));
+        if (response.data.return_code === 'SUCCESS') {
+          setRoundNumber(response.data.round_number);
+          setFixtures(response.data.fixtures || []);
+        } else if (response.data.return_code === 'NO_ROUNDS') {
+          setLoadError('No fixtures have been staged for this competition yet.');
+        } else {
+          setLoadError(response.data.message || 'Failed to load fixtures');
+        }
+      } catch (error) {
+        console.error('Error loading fixtures:', error);
+        setLoadError('Network error - could not connect to server');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [competitionId]);
+
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const response = await teamApi.getTeams();
+        if (response.data.return_code === 'SUCCESS' && response.data.teams) {
+          const mapping: Record<string, string> = {};
+          response.data.teams.forEach(team => {
+            mapping[team.short_name] = team.name;
+          });
+          setTeamNames(mapping);
+        }
+      } catch (error) {
+        console.error('Failed to fetch teams:', error);
+      }
+    };
+    fetchTeams();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="mb-6">
+          <Link
+            href={`/game/${competitionId}`}
+            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
+          >
+            <ArrowLeftIcon className="h-4 w-4" />
+            Back
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Fixtures - {competitionName}</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Fixtures are managed automatically for this competition - view only.
+          </p>
+          <p className="text-sm text-gray-600 mt-1">
+            {roundNumber ? `Round ${roundNumber}` : ' '}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          {isLoading && (
+            <div className="text-center py-8">
+              <p className="text-gray-600">Loading fixtures...</p>
+            </div>
+          )}
+
+          {!isLoading && loadError && (
+            <div className="text-center py-8 text-gray-500">{loadError}</div>
+          )}
+
+          {!isLoading && !loadError && (
+            <div className="space-y-2">
+              {fixtures.map((fixture) => {
+                const homeTeamName = teamNames[fixture.home_team_short] || fixture.home_team_short;
+                const awayTeamName = teamNames[fixture.away_team_short] || fixture.away_team_short;
+                return (
+                  <div
+                    key={fixture.id}
+                    className={`p-4 rounded-md border-2 ${
+                      fixture.result ? 'bg-purple-50 border-purple-300' : 'bg-white border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium text-gray-900">
+                      {homeTeamName} <span className="text-gray-400 mx-2">vs</span> {awayTeamName}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date(fixture.kickoff_time).toLocaleDateString('en-GB', {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
