@@ -24,7 +24,8 @@ Success Response (ALWAYS HTTP 200):
       "name": "English Premier League 2026-27",// string
       "type": "epl",                           // string, e.g. 'epl', 'knockout'
       "season": "2026-27",                     // string, may be null
-      "next_gameweek": 4,                      // integer, the gameweek a new batch would be given
+      "pending_fixtures": false,               // boolean - true blocks staging a new batch
+      "pending_cutoff": null,                  // string or null - earliest kickoff of the pending batch
       "teams": [
         {
           "id": 12,                            // integer, team.id
@@ -51,9 +52,15 @@ Return Codes:
 Data Notes:
 - Only team_list.is_active = true lists are returned, and only team.is_active = true teams
   within them. A retired list should not be loadable with fixtures.
-- next_gameweek is MAX(gameweek) + 1 within that list, which is what add-staged-fixtures will
-  assign. It is shown in the UI so the number is never a surprise. Gameweeks do not reset per
-  season - emptying fixture_load is what takes the count back to 1.
+- pending_fixtures is true when fixture_load has any row for that team list - only one batch is
+  allowed pending at a time, so add-staged-fixtures refuses a new one until this clears (which
+  happens when push-results-to-competitions empties the table). Surfaced here so the fixtures
+  screen can block staging before the admin fills in a whole batch, rather than rejecting on
+  submit.
+- pending_cutoff is the earliest kickoff_time among that pending batch's rows (null when there
+  is no pending batch) - the deadline the round will lock on the moment it's pushed. Surfaced so
+  the fixtures screen can stop the admin pushing a batch whose deadline has already passed,
+  which would create a round that's locked before any player can pick.
 =======================================================================================================================================
 */
 
@@ -67,17 +74,16 @@ router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-fixture-team-lists');
 
   try {
-    // Lists, each with the gameweek a new batch would land on.
+    // Lists, each with whether they already have a pending (unresolved) staged batch, and its
+    // deadline if so.
     const listsResult = await query(`
       SELECT
         tl.id,
         tl.name,
         tl.type,
         tl.season,
-        COALESCE(
-          (SELECT MAX(fl.gameweek) FROM fixture_load fl WHERE fl.team_list_id = tl.id),
-          0
-        ) + 1 AS next_gameweek
+        EXISTS (SELECT 1 FROM fixture_load fl WHERE fl.team_list_id = tl.id) AS pending_fixtures,
+        (SELECT MIN(fl.kickoff_time) FROM fixture_load fl WHERE fl.team_list_id = tl.id) AS pending_cutoff
       FROM team_list tl
       WHERE tl.is_active = true
       ORDER BY tl.id
@@ -113,7 +119,8 @@ router.get('/', verifyAdminToken, async (req, res) => {
         name: row.name,
         type: row.type,
         season: row.season,
-        next_gameweek: parseInt(row.next_gameweek, 10) || 1,
+        pending_fixtures: row.pending_fixtures,
+        pending_cutoff: row.pending_cutoff,
         teams: teamsByList.get(row.id) || []
       }))
     });

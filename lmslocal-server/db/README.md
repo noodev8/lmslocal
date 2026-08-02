@@ -122,10 +122,10 @@ default — `create-competition` hardcodes false. If a competition mysteriously 
 round, check that flag first. It is toggled from the admin competitions list; there is no need
 to write it by hand any more.
 
-**`fixture_load.gameweek` does not reset between seasons.** It is `MAX(gameweek) + 1` per team
-list, so the count only goes back to 1 when the staging table is emptied (last done Aug 2026,
-which cleared 20 stale rows left over from Oct 2025). The number is an ordering key, not a
-position in the season.
+**`fixture_load` only ever holds one pending batch per team list.** Non-empty means something is
+staged and awaiting results/push; `add-staged-fixtures` refuses a new batch until it's empty
+again. It empties itself — `push-results-to-competitions` deletes each row once it's resulted
+and pushed — so don't expect rows to accumulate here across gameweeks.
 
 **Timestamps are `timestamptz`,** so they come back as JS `Date` objects in local time (BST in
 summer). Cast to text in SQL if you want the stored UTC value verbatim.

@@ -12,12 +12,13 @@ access code 12221 and shipped the push secret BOT_MAGIC_2025 in the public brows
 
 The model, which this screen deliberately preserves:
 
-  one submission  ->  one gameweek  ->  one round in each subscribed competition
+  only one staged batch at a time per team list  ->  one round in each subscribed competition
 
-Every fixture in a batch shares one kickoff time, and that time becomes the round's lock time.
-So a real football gameweek spread across Friday to Sunday is entered as several batches, each
-becoming its own round with its own deadline - which is what every round in the database
-currently looks like.
+Staging is blocked while a batch is already sat in fixture_load - it has to be fully resulted
+and pushed (which empties the table) before the next one can go in. Every fixture in a batch
+shares one kickoff time, and that time becomes the round's lock time. So a real football
+gameweek spread across Friday to Sunday is entered as several batches, each becoming its own
+round with its own deadline - which is what every round in the database currently looks like.
 =======================================================================================================================================
 */
 
@@ -36,11 +37,9 @@ import {
   adminApi,
   getToken,
   apiBaseUrl,
-  AdminCompetition,
   FixtureTeamList,
   FixturePair,
   StagedFixture,
-  PendingGameweek,
   ResultOutcome,
 } from '@/lib/api';
 import { ukTimeToUtcIso, describeUkDateTime } from '@/lib/uk-time';
@@ -131,52 +130,92 @@ function NoticeBanner({ notice }: { notice: Notice }) {
 }
 
 /*
-Who a push will actually reach. The whole screen is pointless if nothing is opted in, and that
-was previously invisible - you clicked Push and read the count afterwards.
+Read-only view of the staged batch, shown instead of the entry form while one is pending -
+so the block ("finish this before staging another") is not a dead end, just a look at what's
+already there.
 */
-function SubscriberSummary({
-  competitions,
+function PendingFixturesPanel({
   teamList,
-  loading,
+  setNotice,
 }: {
-  competitions: AdminCompetition[];
-  teamList: FixtureTeamList | null;
-  loading: boolean;
+  teamList: FixtureTeamList;
+  setNotice: (n: Notice) => void;
 }) {
-  const subscribed = useMemo(
-    () =>
-      competitions.filter(
-        (c) => c.fixture_service && c.team_list_id === teamList?.id && c.status !== 'complete'
-      ),
-    [competitions, teamList]
-  );
+  const [fixtures, setFixtures] = useState<StagedFixture[] | null>(null);
 
-  if (loading || !teamList) return null;
+  useEffect(() => {
+    let cancelled = false;
+    setFixtures(null);
 
-  if (subscribed.length === 0) {
-    return (
-      <div className="mb-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>
-          No competition on {teamList.name} is opted into the fixture service, so a push would
-          reach nobody. Turn it on per competition from the{' '}
-          <a href="/dashboard/competitions" className="font-medium underline">
-            competitions list
-          </a>
-          .
-        </span>
-      </div>
-    );
-  }
+    adminApi.getStagedResults(teamList.id).then((result) => {
+      if (cancelled) return;
+      if (result.return_code === 'SUCCESS') {
+        setFixtures(result.fixtures || []);
+      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        setNotice({ tone: 'error', text: result.message || 'Could not load the staged fixtures.' });
+        setFixtures([]);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
+        setFixtures([]);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [teamList.id, setNotice]);
+
+  // All fixtures in a batch share one kickoff time - that's the cut-off, shown once rather
+  // than repeated on every row.
+  const cutoff = fixtures && fixtures.length > 0
+    ? fixtures.reduce((earliest, f) => (f.kickoff_time < earliest ? f.kickoff_time : earliest), fixtures[0].kickoff_time)
+    : null;
 
   return (
-    <div className="mb-5 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
-      <p className="font-medium text-slate-700">
-        {subscribed.length} competition{subscribed.length === 1 ? '' : 's'} will receive this
-      </p>
-      <p className="mt-1 text-slate-500">
-        {subscribed.map((c) => c.name).join(' · ')}
-      </p>
+    <div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center">
+        <ExclamationTriangleIcon className="mx-auto h-8 w-8 text-amber-600" />
+        <h2 className="mt-2 font-semibold text-amber-900">Fixtures are set</h2>
+        <p className="mx-auto mt-1 max-w-md text-sm text-amber-800">
+          Enter the results before creating new fixtures.
+        </p>
+        {cutoff && (
+          <p className="mt-3 text-sm font-medium text-amber-900">
+            Cut-off:{' '}
+            {new Date(cutoff).toLocaleDateString('en-GB', {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        )}
+      </div>
+
+      <div className="mt-6 space-y-2">
+        {fixtures === null ? (
+          <p className="text-sm text-slate-500">Loading...</p>
+        ) : (
+          fixtures.map((fixture) => {
+            const resulted = fixture.home_score !== null && fixture.away_score !== null;
+            return (
+              <div
+                key={fixture.fixture_id}
+                className={`rounded-lg border px-4 py-3 text-sm font-medium text-slate-900 ${
+                  resulted ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-white'
+                }`}
+              >
+                {fixture.home_team_name}
+                <span className="mx-2 text-slate-400">v</span>
+                {fixture.away_team_name}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
@@ -202,7 +241,7 @@ function FixturesTab({
   const [submitting, setSubmitting] = useState(false);
 
   // Batches staged in this session, so it is obvious what has already gone in.
-  const [staged, setStaged] = useState<{ gameweek: number; count: number; at: string }[]>([]);
+  const [staged, setStaged] = useState<{ count: number; at: string }[]>([]);
 
   // Starting a new list clears whatever was half-entered for the previous one - team codes from
   // one list are meaningless in another.
@@ -252,6 +291,10 @@ function FixturesTab({
 
   const completePairs = pairs.filter((p) => p.home_team_short && p.away_team_short);
 
+  if (teamList.pending_fixtures) {
+    return <PendingFixturesPanel teamList={teamList} setNotice={setNotice} />;
+  }
+
   const handleTeamClick = (shortName: string) => {
     const updated = [...pairs];
     if (nextSlot.side === 'home') {
@@ -299,20 +342,17 @@ function FixturesTab({
         setStaged((prev) => [
           ...prev,
           {
-            gameweek: result.gameweek!,
             count: result.fixtures_added!,
             at: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
-        setNotice({
-          tone: 'success',
-          text: `Gameweek ${result.gameweek} staged with ${result.fixtures_added} fixture${
-            result.fixtures_added === 1 ? '' : 's'
-          }. Push fixtures when you are ready to send it out.`,
-        });
+        setNotice({ tone: 'success', text: 'Fixtures staged.' });
         setPairs([{ home_team_short: '', away_team_short: '' }]);
         setKickoffDate('');
         setKickoffTime('15:00');
+        onStaged();
+      } else if (result.return_code === 'PENDING_BATCH') {
+        setNotice({ tone: 'error', text: result.message || 'Finish the pending batch before staging a new one.' });
         onStaged();
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not stage those fixtures.' });
@@ -334,7 +374,7 @@ function FixturesTab({
               key={i}
               className="rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
             >
-              GW{s.gameweek} · {s.count} · {s.at}
+              {s.count} fixture{s.count === 1 ? '' : 's'} · {s.at}
             </span>
           ))}
         </div>
@@ -459,7 +499,7 @@ function FixturesTab({
         <div className="order-1 lg:order-2">
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-slate-900">
-              Gameweek {teamList.next_gameweek}
+              New fixtures
             </h2>
             <span className="text-xs text-slate-500">
               {completePairs.length} fixture{completePairs.length === 1 ? '' : 's'}
@@ -521,10 +561,8 @@ function FixturesTab({
         className="w-full rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
       >
         {submitting
-          ? 'Staging...'
-          : `Stage gameweek ${teamList.next_gameweek} (${completePairs.length} fixture${
-              completePairs.length === 1 ? '' : 's'
-            })`}
+          ? 'Confirming...'
+          : `Confirm fixtures (${completePairs.length})`}
       </button>
     </form>
   );
@@ -534,6 +572,14 @@ function FixturesTab({
 // Results tab
 // ======================================================================================
 
+/* Derives the outcome already saved on a fixture, if any. Both scores null means unresulted. */
+function savedOutcome(fixture: StagedFixture): ResultOutcome | null {
+  if (fixture.home_score === null || fixture.away_score === null) return null;
+  if (fixture.home_score > fixture.away_score) return 'home_win';
+  if (fixture.away_score > fixture.home_score) return 'away_win';
+  return 'draw';
+}
+
 function ResultsTab({
   teamList,
   setNotice,
@@ -541,29 +587,21 @@ function ResultsTab({
   teamList: FixtureTeamList;
   setNotice: (n: Notice) => void;
 }) {
-  const [gameweek, setGameweek] = useState<number | null>(null);
   const [fixtures, setFixtures] = useState<StagedFixture[]>([]);
-  const [totalFixtures, setTotalFixtures] = useState(0);
-  const [pushedTo, setPushedTo] = useState(0);
-  const [pending, setPending] = useState<PendingGameweek[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<number | null>(null);
+  const [confirming, setConfirming] = useState<number | null>(null);
 
-  // Outcomes chosen since the last load, so a resulted fixture stays on screen for review
-  // instead of vanishing the moment it is saved.
-  const [entered, setEntered] = useState<Record<number, ResultOutcome>>({});
+  // A result picked but not yet confirmed - can still be changed. Once confirmed it is saved
+  // to the fixture itself and the row locks, so this only ever holds unconfirmed choices.
+  const [selected, setSelected] = useState<Record<number, ResultOutcome>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const result = await adminApi.getStagedResults(teamList.id);
       if (result.return_code === 'SUCCESS') {
-        setGameweek(result.gameweek ?? null);
         setFixtures(result.fixtures || []);
-        setTotalFixtures(result.total_fixtures || 0);
-        setPushedTo(result.pushed_to_competitions || 0);
-        setPending(result.pending_gameweeks || []);
-        setEntered({});
+        setSelected({});
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not load fixtures.' });
       }
@@ -578,37 +616,35 @@ function ResultsTab({
     load();
   }, [load]);
 
-  const handleResult = async (fixture: StagedFixture, outcome: ResultOutcome) => {
-    setSaving(fixture.fixture_id);
-    setNotice(null);
+  const handleConfirm = async (fixture: StagedFixture) => {
+    const outcome = selected[fixture.fixture_id];
+    if (!outcome) return;
 
-    // Optimistic - the button state is the only thing riding on it, and it is reverted below.
-    const previous = entered[fixture.fixture_id];
-    setEntered((prev) => ({ ...prev, [fixture.fixture_id]: outcome }));
+    setConfirming(fixture.fixture_id);
+    setNotice(null);
 
     try {
       const result = await adminApi.setStagedResult(fixture.fixture_id, outcome);
-      if (result.return_code !== 'SUCCESS') {
-        setEntered((prev) => {
+      if (result.return_code === 'SUCCESS') {
+        setFixtures((prev) =>
+          prev.map((f) =>
+            f.fixture_id === fixture.fixture_id
+              ? { ...f, home_score: result.home_score!, away_score: result.away_score! }
+              : f
+          )
+        );
+        setSelected((prev) => {
           const next = { ...prev };
-          if (previous) next[fixture.fixture_id] = previous;
-          else delete next[fixture.fixture_id];
+          delete next[fixture.fixture_id];
           return next;
         });
-        if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
-          setNotice({ tone: 'error', text: result.message || 'Could not save that result.' });
-        }
+      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        setNotice({ tone: 'error', text: result.message || 'Could not save that result.' });
       }
     } catch {
-      setEntered((prev) => {
-        const next = { ...prev };
-        if (previous) next[fixture.fixture_id] = previous;
-        else delete next[fixture.fixture_id];
-        return next;
-      });
       setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
     } finally {
-      setSaving(null);
+      setConfirming(null);
     }
   };
 
@@ -616,56 +652,25 @@ function ResultsTab({
     return <p className="text-sm text-slate-500">Loading...</p>;
   }
 
-  if (gameweek === null) {
+  if (fixtures.length === 0) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-8 text-center">
-        <CheckCircleIcon className="mx-auto h-8 w-8 text-emerald-600" />
-        <h2 className="mt-2 font-semibold text-emerald-800">Every staged fixture has a result</h2>
-        <p className="mt-1 text-sm text-emerald-700">
-          Nothing on {teamList.name} is waiting. Push results to send them out.
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-8 text-center">
+        <CheckCircleIcon className="mx-auto h-8 w-8 text-slate-400" />
+        <h2 className="mt-2 font-semibold text-slate-700">Nothing waiting for results</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          {teamList.name} has no staged fixtures right now.
         </p>
       </div>
     );
   }
 
-  const remaining = fixtures.filter((f) => !entered[f.fixture_id]).length;
-
   return (
     <>
-      {/*
-      A gameweek that never reached a competition has no round to receive its results, so
-      entering them here changes nothing. The old page gave no hint of this, which is how ten
-      October fixtures sat at the front of the queue indefinitely.
-      */}
-      {pushedTo === 0 && (
-        <div className="mb-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            Gameweek {gameweek} has not been pushed to any competition, so results entered here
-            will not reach anyone until it is.
-          </span>
-        </div>
-      )}
-
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <div>
-          <h2 className="font-semibold text-slate-900">Gameweek {gameweek}</h2>
-          <p className="text-xs text-slate-500">
-            {remaining} of {totalFixtures} still to enter
-            {pushedTo > 0 && ` · in ${pushedTo} competition${pushedTo === 1 ? '' : 's'}`}
-          </p>
-        </div>
-        {pending.length > 1 && (
-          <p className="text-xs text-slate-500">
-            then GW{pending.slice(1).map((p) => p.gameweek).join(', GW')}
-          </p>
-        )}
-      </div>
-
       <div className="space-y-2">
         {fixtures.map((fixture) => {
-          const outcome = entered[fixture.fixture_id];
-          const isSaving = saving === fixture.fixture_id;
+          const locked = savedOutcome(fixture);
+          const outcome = locked ?? selected[fixture.fixture_id];
+          const isConfirming = confirming === fixture.fixture_id;
 
           const buttons: { key: ResultOutcome; label: string; tone: string }[] = [
             { key: 'home_win', label: fixture.home_team_name, tone: 'bg-indigo-600 hover:bg-indigo-700' },
@@ -677,7 +682,7 @@ function ResultsTab({
             <div
               key={fixture.fixture_id}
               className={`rounded-xl border p-4 transition ${
-                outcome ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-white'
+                locked ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-white'
               }`}
             >
               <div className="mb-3 flex items-center justify-between">
@@ -699,7 +704,9 @@ function ResultsTab({
                 {buttons.map((b) => {
                   const resolvedTone =
                     outcome === b.key
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      ? locked
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-700 text-white ring-2 ring-indigo-300'
                       : outcome
                         ? 'bg-slate-200 hover:bg-slate-300 text-slate-500'
                         : `${b.tone} text-white`;
@@ -708,23 +715,30 @@ function ResultsTab({
                     <button
                       key={b.key}
                       type="button"
-                      disabled={isSaving}
-                      onClick={() => handleResult(fixture, b.key)}
-                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition disabled:opacity-60 ${resolvedTone}`}
+                      disabled={!!locked || isConfirming}
+                      onClick={() => setSelected((prev) => ({ ...prev, [fixture.fixture_id]: b.key }))}
+                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed ${resolvedTone}`}
                     >
                       {b.label}
                     </button>
                   );
                 })}
               </div>
+
+              {!locked && (
+                <button
+                  type="button"
+                  disabled={!selected[fixture.fixture_id] || isConfirming}
+                  onClick={() => handleConfirm(fixture)}
+                  className="mt-2 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  {isConfirming ? 'Confirming...' : 'Confirm'}
+                </button>
+              )}
             </div>
           );
         })}
       </div>
-
-      <p className="mt-4 text-xs text-slate-500">
-        Click a different button to correct a result, up until it has been pushed.
-      </p>
     </>
   );
 }
@@ -738,7 +752,6 @@ export default function FixturesPage() {
 
   const [teamLists, setTeamLists] = useState<FixtureTeamList[]>([]);
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
-  const [competitions, setCompetitions] = useState<AdminCompetition[]>([]);
   const [tab, setTab] = useState<Tab>('fixtures');
   const [notice, setNotice] = useState<Notice>(null);
   const [loading, setLoading] = useState(true);
@@ -747,10 +760,7 @@ export default function FixturesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [lists, comps] = await Promise.all([
-        adminApi.getFixtureTeamLists(),
-        adminApi.getCompetitions(),
-      ]);
+      const lists = await adminApi.getFixtureTeamLists();
 
       if (lists.return_code === 'SUCCESS' && lists.team_lists) {
         setTeamLists(lists.team_lists);
@@ -761,10 +771,6 @@ export default function FixturesPage() {
         );
       } else if (lists.return_code !== 'UNAUTHORIZED' && lists.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: lists.message || 'Could not load team lists.' });
-      }
-
-      if (comps.return_code === 'SUCCESS' && comps.competitions) {
-        setCompetitions(comps.competitions);
       }
     } catch {
       setNotice({
@@ -789,6 +795,10 @@ export default function FixturesPage() {
     [teamLists, selectedListId]
   );
 
+  // Pushing a batch whose deadline has already passed creates a round that's locked before any
+  // player can pick it - block it rather than let that happen by accident.
+  const cutoffPassed = !!teamList?.pending_cutoff && new Date(teamList.pending_cutoff) <= new Date();
+
   const [confirmAction, setConfirmAction] = useState<Tab | null>(null);
 
   const runPushFixtures = async () => {
@@ -798,10 +808,7 @@ export default function FixturesPage() {
     try {
       const result = await adminApi.pushFixtures();
       if (result.return_code === 'SUCCESS') {
-        setNotice({
-          tone: 'success',
-          text: `${result.fixtures_pushed} fixture${result.fixtures_pushed === 1 ? '' : 's'} pushed to ${result.competitions_updated} competition${result.competitions_updated === 1 ? '' : 's'}${result.competitions_skipped ? `, ${result.competitions_skipped} skipped` : ''}.`,
-        });
+        setNotice({ tone: 'success', text: 'Fixtures pushed.' });
         load();
       } else if (result.return_code === 'NO_ACTIVE_FIXTURES') {
         setNotice({
@@ -827,7 +834,7 @@ export default function FixturesPage() {
     try {
       const result = await adminApi.pushResults();
       if (result.return_code === 'SUCCESS') {
-        setNotice({ tone: 'success', text: result.message || 'Results pushed.' });
+        setNotice({ tone: 'success', text: 'Results pushed.' });
         load();
       } else if (result.return_code === 'NO_RESULTS_TO_PUSH') {
         setNotice({ tone: 'info', text: 'No staged results are waiting to be pushed.' });
@@ -901,28 +908,30 @@ export default function FixturesPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setConfirmAction('fixtures')}
-                  disabled={pushing !== null}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50"
+                  disabled={pushing !== null || cutoffPassed || !teamList.pending_fixtures}
+                  title={
+                    cutoffPassed
+                      ? 'The staged batch\'s deadline has already passed - stage a new batch instead.'
+                      : !teamList.pending_fixtures
+                        ? 'No fixtures are staged yet.'
+                        : undefined
+                  }
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <PaperAirplaneIcon className="h-4 w-4" />
                   {pushing === 'fixtures' ? 'Pushing...' : 'Push fixtures'}
                 </button>
                 <button
                   onClick={() => setConfirmAction('results')}
-                  disabled={pushing !== null}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50"
+                  disabled={pushing !== null || !teamList.pending_fixtures}
+                  title={!teamList.pending_fixtures ? 'No fixtures are staged yet.' : undefined}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <PaperAirplaneIcon className="h-4 w-4" />
                   {pushing === 'results' ? 'Pushing...' : 'Push results'}
                 </button>
               </div>
             </div>
-
-            <SubscriberSummary
-              competitions={competitions}
-              teamList={teamList}
-              loading={loading}
-            />
 
             {tab === 'fixtures' ? (
               <FixturesTab teamList={teamList} onStaged={load} setNotice={setNotice} />

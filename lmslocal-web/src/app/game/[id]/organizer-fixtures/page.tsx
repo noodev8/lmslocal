@@ -183,12 +183,6 @@ export default function OrganizerFixturesPage() {
       return;
     }
 
-    // Check if competition uses manual fixture mode
-    if (competition && competition.fixture_service === true) {
-      router.push(`/game/${competitionId}`);
-      return;
-    }
-
     // Check if competition is complete
     if (competition && competition.is_complete) {
       setIsBlocked(true);

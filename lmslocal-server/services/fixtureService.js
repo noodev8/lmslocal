@@ -3,21 +3,21 @@
 Fixture Service: Core fixture management business logic
 =======================================================================================================================================
 Purpose: Provides reusable functions for pushing fixtures from fixture_load table to competitions.
-         Uses gameweek-based system where admin loads fixtures with gameweek numbers.
-         System automatically pushes earliest available gameweek to competitions that need fixtures.
+         There is only ever one staged batch at a time (add-staged-fixtures refuses a new one
+         while fixture_load isn't empty), so this pushes whatever is there to every competition
+         that's eligible for it - no gameweek selection or catch-up queue involved.
 =======================================================================================================================================
 */
 
 /**
  * Pushes fixtures from fixture_load table to competitions that need them.
- * Uses gameweek-based system:
  * 1. Find competitions needing fixtures (blank round or completed round)
- * 2. Get the earliest gameweek (gameweek > 0) whose first kickoff is at or after the
- *    competition's earliest_start_date, or NOW() when that is not set. There is no minimum
- *    lead time - a gameweek kicking off tomorrow is eligible, and one whose kickoff has
- *    already passed for a competition with an earlier start date is too, which would create
- *    a round that is locked on arrival.
- * 3. Push that gameweek to eligible competitions
+ * 2. For each, check the staged batch's earliest kickoff is at or after the competition's
+ *    earliest_start_date, or NOW() when that is not set. There is no minimum lead time - a
+ *    batch kicking off tomorrow is eligible, and one whose kickoff has already passed for a
+ *    competition with an earlier start date is too, which would create a round that is locked
+ *    on arrival.
+ * 3. Push the batch to eligible competitions
  *
  * @param {object} client - Database client (transaction or query context)
  * @returns {Promise<object>} Result object with statistics
@@ -110,12 +110,11 @@ async function pushFixturesToCompetitions(client) {
     };
   }
 
-  // Get all available fixtures (gameweek > 0) - we'll filter per competition based on earliest_start_date
+  // The staged batch, whatever team lists it spans - there is only ever one per list.
   const allAvailableFixturesResult = await client.query(`
-    SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time, gameweek
+    SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time
     FROM fixture_load
-    WHERE gameweek > 0
-    ORDER BY gameweek, kickoff_time
+    ORDER BY kickoff_time
   `);
 
   const allAvailableFixtures = allAvailableFixturesResult.rows;
@@ -124,14 +123,13 @@ async function pushFixturesToCompetitions(client) {
     throw new Error('NO_ACTIVE_FIXTURES');
   }
 
-  // Group fixtures by team_list_id and gameweek for processing
-  const fixturesByTeamListAndGameweek = {};
+  // Group fixtures by team_list_id for processing
+  const fixturesByTeamList = {};
   allAvailableFixtures.forEach(fixture => {
-    const key = `${fixture.team_list_id}_${fixture.gameweek}`;
-    if (!fixturesByTeamListAndGameweek[key]) {
-      fixturesByTeamListAndGameweek[key] = [];
+    if (!fixturesByTeamList[fixture.team_list_id]) {
+      fixturesByTeamList[fixture.team_list_id] = [];
     }
-    fixturesByTeamListAndGameweek[key].push(fixture);
+    fixturesByTeamList[fixture.team_list_id].push(fixture);
   });
 
   // Step 3: Push fixtures to each competition that needs them
@@ -148,32 +146,21 @@ async function pushFixturesToCompetitions(client) {
     const currentRoundNumber = competition.round_number;
     const earliestStartDate = competition.earliest_start_date;
 
-    // Find earliest gameweek for this competition where kickoff >= earliest_start_date (or NOW() if null)
+    // The staged batch is only eligible once its earliest kickoff is >= earliest_start_date
+    // (or NOW() if that isn't set).
     const cutoffDate = earliestStartDate ? new Date(earliestStartDate) : new Date();
 
-    let earliestGameweek = null;
+    const candidateFixtures = fixturesByTeamList[teamListId] || [];
     let fixturesToPush = null;
 
-    // Find the earliest gameweek with all fixtures >= cutoff date
-    const gameweeksForTeamList = Object.keys(fixturesByTeamListAndGameweek)
-      .filter(key => key.startsWith(`${teamListId}_`))
-      .map(key => parseInt(key.split('_')[1]))
-      .sort((a, b) => a - b);
-
-    for (const gameweek of gameweeksForTeamList) {
-      const key = `${teamListId}_${gameweek}`;
-      const fixtures = fixturesByTeamListAndGameweek[key];
-
-      // Check if earliest kickoff in this gameweek is >= cutoff date
-      const earliestKickoff = fixtures.reduce((earliest, fixture) => {
+    if (candidateFixtures.length > 0) {
+      const earliestKickoff = candidateFixtures.reduce((earliest, fixture) => {
         const kickoffDate = new Date(fixture.kickoff_time);
         return !earliest || kickoffDate < earliest ? kickoffDate : earliest;
       }, null);
 
       if (earliestKickoff >= cutoffDate) {
-        earliestGameweek = gameweek;
-        fixturesToPush = fixtures;
-        break;
+        fixturesToPush = candidateFixtures;
       }
     }
 
@@ -274,10 +261,9 @@ async function pushFixturesToCompetitions(client) {
           away_team_short,
           kickoff_time,
           round_number,
-          gameweek,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
       `, [
         targetRoundId,
         compId,
@@ -286,8 +272,7 @@ async function pushFixturesToCompetitions(client) {
         fixture.home_team_short,
         fixture.away_team_short,
         fixture.kickoff_time,
-        targetRoundNumber,
-        fixture.gameweek
+        targetRoundNumber
       ]);
 
       totalFixturesPushed++;
@@ -407,7 +392,7 @@ async function pushFixturesToCompetitions(client) {
       VALUES ($1, NULL, 'Fixtures Pushed', $2)
     `, [
       compId,
-      `Fixture service ${roundAction} Round ${targetRoundNumber} with ${fixturesToPush.length} fixtures from gameweek ${earliestGameweek}`
+      `Fixture service ${roundAction} Round ${targetRoundNumber} with ${fixturesToPush.length} fixtures`
     ]);
 
     // Mark this competition as updated

@@ -13,6 +13,15 @@ Purpose: Pushes results from fixture_load to competition fixtures and automatica
          BOT_MAGIC_2025 in the request body, which was compiled into the public lmslocal-web
          JavaScript bundle by the old /admin-results page - so anyone who read the site's source
          could process eliminations across every subscribed competition.
+
+         SHARED LOGIC WARNING: the per-competition processing block below (eliminations,
+         no-pick penalties, competition completion, notification cleanup, audit log) is
+         intentionally kept identical to routes/organizer-process-results.js. That route runs
+         the same steps for manually-run (fixture_service = false) competitions. If you change
+         the rules here - the lives/elimination threshold in particular - change it there too,
+         or the two paths will disagree on when a player is out. They are two copies of one
+         ruleset, not two different rulesets, until they get consolidated into one shared
+         function (not done yet - deliberately deferred).
 =======================================================================================================================================
 Request Payload:
   None. Authentication is by admin token in the Authorization header.
@@ -21,7 +30,7 @@ Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "fixtures_updated": 15,                 // integer, number of competition fixtures updated with results
-  "results_marked_pushed": 15,            // integer, number of fixture_load records marked as pushed
+  "results_cleared": 15,                  // integer, number of fixture_load rows removed from staging
   "competitions_processed": [             // array, details of each competition processed
     {
       "competition_id": 1,                // integer, competition ID
@@ -68,9 +77,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // This ensures either ALL changes succeed or ALL are rolled back
     const result = await transaction(async (client) => {
 
-      // === STEP 1: GET ALL UNPUSHED RESULTS ===
-      // Get all results that haven't been pushed yet
-      // The gameweek field in each result will be used to match fixtures correctly
+      // === STEP 1: GET ALL RESULTED FIXTURES WAITING TO BE PUSHED ===
+      // fixture_load only ever holds the currently staged batch, so any row with both scores
+      // filled in is ready to push.
       const unpushedResults = await client.query(`
         SELECT
           fixture_id,
@@ -78,12 +87,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
           away_team_short,
           home_score,
           away_score,
-          gameweek,
           kickoff_time
         FROM fixture_load
-        WHERE gameweek > 0
-        AND results_pushed = false
-        AND home_score IS NOT NULL
+        WHERE home_score IS NOT NULL
         AND away_score IS NOT NULL
       `);
 
@@ -100,7 +106,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
       // Match criteria:
       // - home_team_short matches
       // - away_team_short matches
-      // - gameweek matches (critical to avoid applying results to wrong round)
+      // - kickoff_time matches (see below)
       // - result IS NULL (NEVER override existing results)
       //
       // Result value logic:
@@ -125,18 +131,14 @@ router.post('/', verifyAdminToken, async (req, res) => {
         // Only updates fixtures where:
         // - Competition has fixture_service = true (subscribed to service)
         // - Teams match (home_team_short and away_team_short)
-        // - Gameweek matches (prevents applying results to wrong fixtures)
         // - Kickoff matches (see below)
         // - result IS NULL (NEVER override existing results)
         //
-        // The kickoff check is what makes the match unambiguous across seasons. Gameweek
-        // numbers are NOT unique over time: fixture_load restarts at 1 whenever it is emptied,
-        // while competition fixtures keep whatever number they were pushed with, so an old
-        // round can share this one's number. Teams plus number alone would then be satisfied by
-        // a repeat fixture from a previous season. push-fixtures copies kickoff_time verbatim
-        // from the staged row, so adding it costs nothing for a legitimate match and excludes
-        // the coincidental ones. (result IS NULL already stops resulted rounds being touched;
-        // this closes the case of an old round left unresolved.)
+        // Teams alone are not unique across time - the same fixture recurs season to season -
+        // so kickoff_time is what makes the match unambiguous. push-fixtures copies kickoff_time
+        // verbatim from the staged row, so this costs nothing for a legitimate match and
+        // excludes coincidental repeats. (result IS NULL already stops resulted rounds being
+        // touched; this closes the case of an old round left unresolved.)
         // RETURNING clause gives us the competition_ids that were affected
         const fixtureUpdateResult = await client.query(`
           UPDATE fixture f
@@ -146,11 +148,10 @@ router.post('/', verifyAdminToken, async (req, res) => {
           AND c.fixture_service = true
           AND f.home_team_short = $2
           AND f.away_team_short = $3
-          AND f.gameweek = $4
-          AND f.kickoff_time = $5
+          AND f.kickoff_time = $4
           AND f.result IS NULL
           RETURNING f.competition_id
-        `, [resultValue, resultData.home_team_short, resultData.away_team_short, resultData.gameweek, resultData.kickoff_time]);
+        `, [resultValue, resultData.home_team_short, resultData.away_team_short, resultData.kickoff_time]);
 
         // Track how many fixtures were updated
         totalFixturesUpdated += fixtureUpdateResult.rowCount || 0;
@@ -161,21 +162,18 @@ router.post('/', verifyAdminToken, async (req, res) => {
         });
       }
 
-      // === STEP 3: MARK RESULTS AS PUSHED IN FIXTURE_LOAD ===
-      // Now that we've successfully updated all competition fixtures,
-      // mark these results as pushed in the fixture_load table
-      // This prevents them from being processed again on the next run
-      const markPushedResult = await client.query(`
-        UPDATE fixture_load
-        SET results_pushed = true, results_pushed_at = NOW()
-        WHERE gameweek > 0
-        AND results_pushed = false
-        AND home_score IS NOT NULL
-        AND away_score IS NOT NULL
+      // === STEP 3: CLEAR THESE ROWS FROM FIXTURE_LOAD ===
+      // Now that we've successfully updated all competition fixtures, remove these rows from
+      // staging. This is what "one pending batch at a time" actually means in practice - once
+      // every fixture is resulted and pushed, the table is empty again and add-staged-fixtures
+      // allows a new batch.
+      const clearedResult = await client.query(`
+        DELETE FROM fixture_load
+        WHERE fixture_id = ANY($1::int[])
         RETURNING fixture_id
-      `);
+      `, [resultsData.map(r => r.fixture_id)]);
 
-      const resultsMarkedPushed = markPushedResult.rows.length;
+      const resultsCleared = clearedResult.rows.length;
 
       // === STEP 4: AUTO-PROCESS RESULTS FOR AFFECTED COMPETITIONS ===
       // For all competitions that had results updated (fixture_service = true),
@@ -232,6 +230,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
             WHERE id = ANY($1::integer[])
           `, [fixtureIds]);
 
+          let playersEliminated = 0;
+          let noPickPenalties = 0;
+
           // === PLAYER OUTCOME PROCESSING ===
           // Update pick outcomes for all processed fixtures
           for (const fixture of unprocessedResults.rows) {
@@ -276,7 +277,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
                   SET
                     lives_remaining = GREATEST(lives_remaining - 1, 0),
                     status = CASE
-                      WHEN lives_remaining - 1 <= 0 THEN 'out'
+                      WHEN lives_remaining - 1 < 0 THEN 'out'
                       ELSE status
                     END
                   WHERE competition_id = $1 AND user_id = $2
@@ -286,6 +287,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
                 // Log warning if no rows were updated (data integrity issue)
                 if (livesUpdateResult.rowCount === 0) {
                   console.warn(`WARNING: Failed to deduct life for user ${pick.user_id} (${pick.display_name}) in competition ${competitionId} - no competition_user record found`);
+                } else if (livesUpdateResult.rows[0].status === 'out') {
+                  playersEliminated++;
                 }
               }
             }
@@ -318,6 +321,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
               )
             `, [competitionId, roundId]);
 
+            noPickPenalties = noPickPlayersResult.rows.length;
+
             // Process each no-pick player
             for (const player of noPickPlayersResult.rows) {
               // Insert player progress record for NO-PICK
@@ -332,7 +337,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
                 SET
                   lives_remaining = GREATEST(lives_remaining - 1, 0),
                   status = CASE
-                    WHEN lives_remaining - 1 <= 0 THEN 'out'
+                    WHEN lives_remaining - 1 < 0 THEN 'out'
                     ELSE status
                   END
                 WHERE competition_id = $1 AND user_id = $2
@@ -342,6 +347,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
               // Log warning if no rows were updated (data integrity issue)
               if (noPickLivesUpdateResult.rowCount === 0) {
                 console.warn(`WARNING: Failed to deduct life for NO-PICK user ${player.user_id} (${player.display_name}) in competition ${competitionId} - no competition_user record found`);
+              } else if (noPickLivesUpdateResult.rows[0].status === 'out') {
+                playersEliminated++;
               }
             }
           }
@@ -389,6 +396,28 @@ router.post('/', verifyAdminToken, async (req, res) => {
           // (sent when fixtures are added) now serves this purpose with message
           // "Results are in - see how you did!"
 
+          // === CLEANUP OLD NOTIFICATIONS FOR THIS ROUND ===
+          // Mark any pending 'new_round' or 'pick_reminder' for this round as skipped - they're
+          // no longer relevant now results are processed.
+          await client.query(`
+            UPDATE mobile_notification_queue
+            SET status = 'skipped', sent_at = NOW()
+            WHERE competition_id = $1
+              AND round_id = $2
+              AND type IN ('new_round', 'pick_reminder')
+              AND status = 'pending'
+          `, [competitionId, roundId]);
+
+          // ADD AUDIT LOG ENTRY - user_id NULL, same convention as fixtureService.js's
+          // "Fixtures Pushed" entry: this was triggered by the fixture service, not a person.
+          await client.query(`
+            INSERT INTO audit_log (competition_id, user_id, action, details)
+            VALUES ($1, NULL, 'Fixture Service Processed Results', $2)
+          `, [
+            competitionId,
+            `Processed ${fixtureIds.length} fixtures in Round ${roundNumber}. ${playersEliminated} players eliminated, ${noPickPenalties} no-pick penalties`
+          ]);
+
           competitionsProcessed.push({
             competition_id: competitionId,
             status: 'processed',
@@ -409,7 +438,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
       // Return all data needed for response
       return {
         fixtures_updated: totalFixturesUpdated,
-        results_marked_pushed: resultsMarkedPushed,
+        results_cleared: resultsCleared,
         competitions_processed: competitionsProcessed
       };
     });
@@ -420,7 +449,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
     res.json({
       return_code: "SUCCESS",
       fixtures_updated: result.fixtures_updated,
-      results_marked_pushed: result.results_marked_pushed,
+      results_cleared: result.results_cleared,
       competitions_processed: result.competitions_processed,
       message: `${result.fixtures_updated} result${result.fixtures_updated === 1 ? '' : 's'} pushed and ${result.competitions_processed.length} competition${result.competitions_processed.length === 1 ? '' : 's'} processed`
     });

@@ -34,8 +34,8 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"          - Missing fixture_id, or result not one of the three allowed values
-"FIXTURE_NOT_FOUND"         - No such row in fixture_load
-"ALREADY_PUSHED"            - Result has already gone out to competitions and cannot be changed here
+"FIXTURE_NOT_FOUND"         - No such row in fixture_load - also what a fixture whose result was
+                              already pushed looks like, since pushing deletes the row
 "UNAUTHORIZED"              - Missing, invalid, expired, or non-admin token
 "TOKEN_EXPIRED"             - Admin session has expired
 "SERVER_ERROR"              - Database error or unexpected server failure
@@ -44,12 +44,11 @@ Data Notes:
 - fixture_load stores scores, not outcomes; push-results-to-competitions turns them into the
   winning team's short code (or 'DRAW') on the competition fixture. The scores written here are
   therefore tokens for an outcome, not real ones - a home win is always 1-0.
-- A result that has NOT been pushed can be corrected by calling this again with a different
-  value. That is deliberate: a misclick used to need a hand-written UPDATE against production.
-- A result that HAS been pushed is refused. push-results only ever reads results_pushed = false
-  rows, so changing one here would leave staging disagreeing with the competitions forever
-  while appearing to have worked. Undoing a pushed result is a game-state change that belongs
-  in the competition, not in staging.
+- A result can be corrected by calling this again with a different value, right up until it is
+  pushed. That is deliberate: a misclick used to need a hand-written UPDATE against production.
+- Once pushed, push-results-to-competitions deletes the fixture_load row (see that route), so a
+  further edit attempt here naturally hits FIXTURE_NOT_FOUND rather than a dedicated check.
+  Undoing a pushed result is a game-state change that belongs in the competition, not in staging.
 =======================================================================================================================================
 */
 
@@ -87,9 +86,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    // Check what we are about to overwrite before overwriting it.
     const existing = await query(
-      'SELECT fixture_id, results_pushed FROM fixture_load WHERE fixture_id = $1',
+      'SELECT fixture_id FROM fixture_load WHERE fixture_id = $1',
       [fixture_id]
     );
 
@@ -97,13 +95,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
       return res.json({
         return_code: 'FIXTURE_NOT_FOUND',
         message: 'That fixture is not in the staging table'
-      });
-    }
-
-    if (existing.rows[0].results_pushed === true) {
-      return res.json({
-        return_code: 'ALREADY_PUSHED',
-        message: 'This result has already been pushed to competitions and cannot be changed here'
       });
     }
 

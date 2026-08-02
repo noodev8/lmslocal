@@ -121,14 +121,6 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Verify competition is in manual mode (fixture_service = false)
-    if (fixture.fixture_service !== false) {
-      return res.status(200).json({
-        return_code: "UNAUTHORIZED",
-        message: "This competition uses automated fixture service"
-      });
-    }
-
     // Prevent changing results for already processed fixtures
     if (fixture.processed !== null) {
       return res.status(200).json({

@@ -138,8 +138,8 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/impersonate-organiser` | POST | Short-lived player token for "View as organiser" |
 | `/admin/set-fixture-service` | POST | Opt a competition in or out of the fixture service |
 | `/admin/get-fixture-team-lists` | GET | Active team lists and their teams, for fixture entry |
-| `/admin/add-staged-fixtures` | POST | Stage a gameweek of fixtures |
-| `/admin/get-staged-results` | GET | The oldest staged gameweek still missing results |
+| `/admin/add-staged-fixtures` | POST | Stage a batch of fixtures (refused if one is already pending) |
+| `/admin/get-staged-results` | GET | The currently staged batch, resulted or not |
 | `/admin/set-staged-result` | POST | Record one fixture's outcome |
 | `/admin/push-fixtures-to-competitions` | POST | Distribute staged fixtures as rounds |
 | `/admin/push-results-to-competitions` | POST | Distribute staged results and process eliminations |
@@ -162,22 +162,19 @@ left alone.
 The model the screen is built around, which is worth understanding before changing it:
 
 ```
-one submission  ->  one gameweek  ->  one round in each subscribed competition
+only one staged batch at a time per team list  ->  one round in each subscribed competition
 ```
 
-Every fixture in a batch shares a single kickoff time, and that time becomes the round's lock
-time. So a real football gameweek spread across Friday to Sunday is entered as several batches,
-each becoming its own round with its own deadline. Every round in the database looks like this —
-one distinct kickoff, one gameweek. Do not "fix" this into per-fixture kickoff times without
-deciding what a round's lock time should then be.
+`fixture_load` itself is the pending batch. `add-staged-fixtures` refuses to stage a new one
+while the table already has rows for that team list; the table only empties again once
+`push-results-to-competitions` has resulted-and-pushed every row in it. Every fixture in a batch
+shares a single kickoff time, and that time becomes the round's lock time. So a real football
+gameweek spread across Friday to Sunday is entered as several batches, each becoming its own
+round with its own deadline. Do not "fix" this into per-fixture kickoff times without deciding
+what a round's lock time should then be.
 
-Two things that catch people out:
+One thing that catches people out:
 
 - **Nothing receives a push unless `competition.fixture_service` is true**, and it is false by
   default (`create-competition` hardcodes it). The fixtures screen names the competitions a push
   will reach, and says so plainly when that list is empty.
-- **`gameweek` is `MAX(gameweek) + 1` per team list and never resets per season.** Emptying
-  `fixture_load` is what takes it back to 1. That was done in Aug 2026 to clear 20 rows staged in
-  Oct 2025, ten of which had no results and sat permanently at the front of the results queue
-  because the gameweek had never been pushed to a competition. The results screen now flags that
-  state rather than silently jamming.

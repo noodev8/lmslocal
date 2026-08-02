@@ -242,9 +242,11 @@ lmslocal-web/
   a separate feature.
 - **Opt-in**: `competition.fixture_service`. Only competitions with it set to true receive
   pushes, toggled per competition from the admin competitions list via `/admin/set-fixture-service`
-- **The model**: one submission = one gameweek = one round per subscribed competition, all
-  sharing a single kickoff time that becomes the round's lock time. A real gameweek spread over
-  Fri–Sun is entered as several batches.
+- **The model**: only one staged batch at a time per team list — `fixture_load` itself is the
+  pending batch. `add-staged-fixtures` refuses a new one while it's non-empty; a batch clears
+  when `push-results-to-competitions` finishes with it (deletes the resulted rows). Every
+  fixture in a batch shares a single kickoff time that becomes the round's lock time, so a real
+  gameweek spread over Fri–Sun is entered as several batches.
 - **Organiser-managed competitions** (`fixture_service = false`) use the `organizer-*` routes and
   their pages under `/game/[id]/organizer-fixtures` and `organizer-results`
 - **Disabled Routes**: create-round, add-fixtures-bulk, submit-results, update-round, reset-fixtures, set-fixture-result, get-calculated-fixtures, organiser-mid-round-submit-tip (all preserved with `.delete` extension)

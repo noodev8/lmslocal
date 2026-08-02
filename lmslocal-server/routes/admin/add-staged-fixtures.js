@@ -9,11 +9,12 @@ Purpose: Add a batch of fixtures to the fixture_load staging table, for later di
          Replaces the old /admin-add-fixtures, which was gated only by the hardcoded string
          '12221' in the request body and hardwired to team_list_id 1 / 'Premier League'.
 
-         One submission is one gameweek. The gameweek number is assigned here rather than by the
-         caller, and every fixture in the batch shares a single kickoff time, which becomes the
-         lock time of the round this batch eventually creates (see services/fixtureService.js).
-         That is why a real football gameweek spread over Friday to Sunday is entered as several
-         batches - each becomes its own round with its own deadline.
+         Only one batch may be pending per team list at a time - fixture_load itself IS the
+         pending batch. If it holds any row for this team_list_id, staging is refused until that
+         batch is fully resulted and pushed (which empties the table - see
+         push-results-to-competitions.js). Every fixture in a batch shares a single kickoff time,
+         which becomes the lock time of the round this batch eventually creates (see
+         services/fixtureService.js).
 =======================================================================================================================================
 Request Payload:
 {
@@ -31,7 +32,6 @@ Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "fixtures_added": 10,                      // integer, rows written to fixture_load
-  "gameweek": 4,                             // integer, gameweek assigned to this batch
   "team_list_name": "English Premier League 2026-27"  // string, for the confirmation message
 }
 
@@ -45,6 +45,8 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"          - Missing fields, unknown team code, repeated team, or team playing itself
 "TEAM_LIST_NOT_FOUND"       - team_list_id does not exist or is not active
+"PENDING_BATCH"             - This list already has a staged batch that has not been fully
+                              resulted and pushed yet - only one pending batch at a time
 "UNAUTHORIZED"              - Missing, invalid, expired, or non-admin token
 "TOKEN_EXPIRED"             - Admin session has expired
 "SERVER_ERROR"              - Database error or unexpected server failure
@@ -113,6 +115,21 @@ router.post('/', verifyAdminToken, async (req, res) => {
     const teamList = listResult.rows[0];
 
     // ========================================
+    // STEP 2b: Only one pending batch at a time - fixture_load itself is the pending batch
+    // ========================================
+    const pendingResult = await query(
+      'SELECT COUNT(*) AS count FROM fixture_load WHERE team_list_id = $1',
+      [team_list_id]
+    );
+
+    if (parseInt(pendingResult.rows[0].count, 10) > 0) {
+      return res.json({
+        return_code: 'PENDING_BATCH',
+        message: `${teamList.name} already has a staged batch that needs results entered and pushed before you can stage another.`
+      });
+    }
+
+    // ========================================
     // STEP 3: Every code must be a real team in this list, used at most once
     // ========================================
     const teamsResult = await query(
@@ -157,39 +174,27 @@ router.post('/', verifyAdminToken, async (req, res) => {
     }
 
     // ========================================
-    // STEP 4: Assign the gameweek and insert, atomically
+    // STEP 4: Insert the batch
     // ========================================
-    // The read and the writes share one transaction so two admins submitting at the same
-    // moment cannot both be handed the same gameweek number.
-    const gameweek = await transaction(async (client) => {
-      const gameweekResult = await client.query(
-        'SELECT COALESCE(MAX(gameweek), 0) + 1 AS next_gameweek FROM fixture_load WHERE team_list_id = $1',
-        [team_list_id]
-      );
-      const nextGameweek = gameweekResult.rows[0].next_gameweek;
-
+    await transaction(async (client) => {
       for (const fixture of fixtures) {
         await client.query(`
           INSERT INTO fixture_load
-            (team_list_id, league, home_team_short, away_team_short, kickoff_time, gameweek, results_pushed)
-          VALUES ($1, $2, $3, $4, $5, $6, false)
+            (team_list_id, league, home_team_short, away_team_short, kickoff_time)
+          VALUES ($1, $2, $3, $4, $5)
         `, [
           team_list_id,
           teamList.name,                // league - the list's own name, not a hardcoded string
           fixture.home_team_short,
           fixture.away_team_short,
-          kickoff_time,
-          nextGameweek
+          kickoff_time
         ]);
       }
-
-      return nextGameweek;
     });
 
     return res.json({
       return_code: 'SUCCESS',
       fixtures_added: fixtures.length,
-      gameweek,
       team_list_name: teamList.name
     });
 

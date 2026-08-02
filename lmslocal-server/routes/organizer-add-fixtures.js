@@ -3,8 +3,9 @@
 API Route: organizer-add-fixtures
 =======================================================================================================================================
 Method: POST
-Purpose: Allows competition organizers to add fixtures for a new round. Only works for manual competitions
-         (fixture_service = false). Fixtures must be added in one transaction per round.
+Purpose: Allows competition organizers to add fixtures for a new round. Also usable on automated
+         (fixture_service = true) competitions as a manual backstop for fixing a round the
+         fixture service got wrong. Fixtures must be added in one transaction per round.
          Requires previous round to be fully processed before adding new round.
 =======================================================================================================================================
 Request Payload:
@@ -39,7 +40,6 @@ Return Codes:
 "MISSING_FIELDS"           - Required fields are missing
 "UNAUTHORIZED"             - User is not the organiser of this competition
 "COMPETITION_NOT_FOUND"    - Competition doesn't exist
-"AUTOMATED_COMPETITION"    - Competition uses fixture_service (automated mode)
 "COMPETITION_COMPLETE"     - Competition has already ended
 "PREVIOUS_ROUND_INCOMPLETE" - Current round has unprocessed fixtures
 "ROUND_HAS_FIXTURES"       - Current round already has fixtures (must add all in one transaction)
@@ -182,14 +182,6 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(200).json({
         return_code: "UNAUTHORIZED",
         message: "You do not have permission to manage fixtures for this competition"
-      });
-    }
-
-    // Check if competition uses automated fixture service
-    if (competition.fixture_service === true) {
-      return res.status(200).json({
-        return_code: "AUTOMATED_COMPETITION",
-        message: "This competition uses automated fixture service. Contact admin to manage fixtures."
       });
     }
 

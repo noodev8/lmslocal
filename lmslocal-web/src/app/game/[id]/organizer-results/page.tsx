@@ -77,11 +77,6 @@ export default function OrganizerResultsPage() {
       return;
     }
 
-    // Check if competition uses manual fixture mode
-    if (competition && competition.fixture_service === true) {
-      router.push(`/game/${competitionId}`);
-      return;
-    }
   }, [router, competitionId, competition]);
 
   // Load fixtures on mount

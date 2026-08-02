@@ -142,8 +142,10 @@ export interface FixtureTeamList {
   name: string;
   type: string;
   season: string | null;
-  /* The gameweek a batch submitted now would be given. Shown so the number is never a surprise. */
-  next_gameweek: number;
+  /* True blocks staging a new batch - this list already has one staged that isn't fully resulted and pushed. */
+  pending_fixtures: boolean;
+  /* Earliest kickoff of the pending batch, or null if none. The round's lock time once pushed. */
+  pending_cutoff: string | null;
   teams: AdminTeam[];
 }
 
@@ -154,12 +156,9 @@ export interface StagedFixture {
   home_team_name: string;
   away_team_name: string;
   kickoff_time: string;
-}
-
-export interface PendingGameweek {
-  gameweek: number;
-  remaining: number;
-  first_kickoff: string;
+  /* Both null means no result entered yet. Once set, the row is locked in the results UI. */
+  home_score: number | null;
+  away_score: number | null;
 }
 
 /* One fixture as entered in the UI, before it is staged. */
@@ -174,18 +173,20 @@ export type TeamListsResponse = ApiResponse & { team_lists?: FixtureTeamList[] }
 
 export type AddFixturesResponse = ApiResponse & {
   fixtures_added?: number;
-  gameweek?: number;
   team_list_name?: string;
 };
 
 export type StagedResultsResponse = ApiResponse & {
-  gameweek?: number | null;
   fixtures?: StagedFixture[];
   total_fixtures?: number;
   remaining_fixtures?: number;
-  /* Zero means this gameweek never reached a competition, so results for it change nothing. */
-  pushed_to_competitions?: number;
-  pending_gameweeks?: PendingGameweek[];
+};
+
+export type SetStagedResultResponse = ApiResponse & {
+  fixture_id?: number;
+  home_score?: number;
+  away_score?: number;
+  result?: ResultOutcome;
 };
 
 export type PushFixturesResponse = ApiResponse & {
@@ -196,7 +197,7 @@ export type PushFixturesResponse = ApiResponse & {
 
 export type PushResultsResponse = ApiResponse & {
   fixtures_updated?: number;
-  results_marked_pushed?: number;
+  results_cleared?: number;
   competitions_processed?: { competition_id: number; status: string; reason?: string }[];
 };
 
@@ -337,8 +338,8 @@ export const adminApi = {
     return response.data;
   },
 
-  setStagedResult: async (fixtureId: number, result: ResultOutcome): Promise<ApiResponse> => {
-    const response = await api.post<ApiResponse>('/admin/set-staged-result', {
+  setStagedResult: async (fixtureId: number, result: ResultOutcome): Promise<SetStagedResultResponse> => {
+    const response = await api.post<SetStagedResultResponse>('/admin/set-staged-result', {
       fixture_id: fixtureId,
       result,
     });

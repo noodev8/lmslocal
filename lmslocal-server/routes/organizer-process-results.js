@@ -5,6 +5,15 @@ API Route: organizer-process-results
 Method: POST
 Purpose: Processes all results for the current round. Handles player eliminations, no-pick penalties, and competition completion.
          Only processes fixtures that have results set but are not yet marked as processed.
+
+         SHARED LOGIC WARNING: the processing block below (eliminations, no-pick penalties,
+         competition completion, notification cleanup, audit log) is intentionally kept
+         identical to routes/admin/push-results-to-competitions.js. That route runs the same
+         steps for automated (fixture_service = true) competitions. If you change the rules
+         here - the lives/elimination threshold in particular - change it there too, or the two
+         paths will disagree on when a player is out. They are two copies of one ruleset, not
+         two different rulesets, until they get consolidated into one shared function (not done
+         yet - deliberately deferred).
 =======================================================================================================================================
 Request Payload:
 {
@@ -33,7 +42,6 @@ Return Codes:
 "MISSING_FIELDS"              - Required fields are missing
 "UNAUTHORIZED"                - User is not the organiser of this competition
 "COMPETITION_NOT_FOUND"       - Competition doesn't exist
-"AUTOMATED_COMPETITION"       - Competition uses the fixture service; the push processes results
 "NO_ROUNDS"                   - No rounds exist for this competition
 "NO_RESULTS_TO_PROCESS"       - No unprocessed results to process
 "SERVER_ERROR"                - Database or unexpected error
@@ -103,21 +111,11 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Verify competition is in manual mode (fixture_service = false), matching
-    // organizer-set-result and organizer-add-fixtures.
-    //
-    // This one matters most of the three: it is the route that applies eliminations, no-pick
-    // penalties and the winner check. On an automated competition that work belongs to
-    // push-results-to-competitions, which does it in the same transaction as writing the
-    // results. Leaving this open let a second processor run over the same round from outside
-    // that transaction. The UI already hides the button in automated mode, so this is the
-    // backstop for a direct call rather than a route anyone reaches by accident.
-    if (competition.fixture_service !== false) {
-      return res.status(200).json({
-        return_code: "AUTOMATED_COMPETITION",
-        message: "This competition uses automated fixture service. Results are processed when they are pushed."
-      });
-    }
+    // Automated competitions are allowed through here too, as a manual backstop for fixing a
+    // round the fixture service got wrong. This is safe against double-processing: the query
+    // below only picks up fixtures with result IS NOT NULL AND processed IS NULL, and
+    // push-results-to-competitions marks processed = NOW() as part of the same transaction that
+    // writes results - so a round it already handled has nothing left for this route to find.
 
     // ========================================
     // STEP 3: PROCESS RESULTS IN TRANSACTION
