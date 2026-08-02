@@ -73,6 +73,14 @@ router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('push-results-to-competitions');
 
   try {
+    // TEST MODE: when FIXTURE_SERVICE_TEST_MODE is set in .env, only the competitions organised
+    // by that email are eligible - every other subscribed competition's fixtures are left
+    // untouched (result stays NULL, picked up again once test mode is turned off). See
+    // fixtureService.js for the matching push-fixtures-side restriction, and
+    // get-fixture-team-lists.js for the admin banner that surfaces this. Leave the var blank for
+    // normal production behaviour.
+    const testModeEmail = process.env.FIXTURE_SERVICE_TEST_MODE || null;
+
     // Execute all operations in a single atomic transaction
     // This ensures either ALL changes succeed or ALL are rolled back
     const result = await transaction(async (client) => {
@@ -133,6 +141,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
         // - Teams match (home_team_short and away_team_short)
         // - Kickoff matches (see below)
         // - result IS NULL (NEVER override existing results)
+        // - test mode, if set, restricts this to one organiser's competitions
         //
         // Teams alone are not unique across time - the same fixture recurs season to season -
         // so kickoff_time is what makes the match unambiguous. push-fixtures copies kickoff_time
@@ -144,14 +153,16 @@ router.post('/', verifyAdminToken, async (req, res) => {
           UPDATE fixture f
           SET result = $1
           FROM competition c
+          JOIN app_user u ON u.id = c.organiser_id
           WHERE f.competition_id = c.id
           AND c.fixture_service = true
           AND f.home_team_short = $2
           AND f.away_team_short = $3
           AND f.kickoff_time = $4
           AND f.result IS NULL
+          AND ($5::text IS NULL OR u.email = $5)
           RETURNING f.competition_id
-        `, [resultValue, resultData.home_team_short, resultData.away_team_short, resultData.kickoff_time]);
+        `, [resultValue, resultData.home_team_short, resultData.away_team_short, resultData.kickoff_time, testModeEmail]);
 
         // Track how many fixtures were updated
         totalFixturesUpdated += fixtureUpdateResult.rowCount || 0;

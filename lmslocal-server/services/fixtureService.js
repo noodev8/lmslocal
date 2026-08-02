@@ -19,18 +19,28 @@ Purpose: Provides reusable functions for pushing fixtures from fixture_load tabl
  *    on arrival.
  * 3. Push the batch to eligible competitions
  *
+ * TEST MODE: when FIXTURE_SERVICE_TEST_MODE is set in .env, only the competitions organised by
+ * that email are eligible - every other subscribed competition is left untouched. This is what
+ * lets us push against a real automated competition without risking anyone else's. The admin
+ * fixtures screen shows a banner whenever this env var is set (see get-fixture-team-lists.js),
+ * so it's never silently left on. Leave the var blank for normal production behaviour.
+ *
  * @param {object} client - Database client (transaction or query context)
  * @returns {Promise<object>} Result object with statistics
  * @throws {Error} With specific error codes: NO_ACTIVE_FIXTURES, NO_SUBSCRIBED_COMPETITIONS
  */
 async function pushFixturesToCompetitions(client) {
+  const testModeEmail = process.env.FIXTURE_SERVICE_TEST_MODE || null;
+
   // Step 1: Find all competitions that need fixtures
   const allCompetitionsResult = await client.query(`
-    SELECT id, name, team_list_id, status, earliest_start_date
-    FROM competition
-    WHERE fixture_service = true
-    AND (earliest_start_date IS NULL OR earliest_start_date <= NOW())
-  `);
+    SELECT c.id, c.name, c.team_list_id, c.status, c.earliest_start_date
+    FROM competition c
+    JOIN app_user u ON u.id = c.organiser_id
+    WHERE c.fixture_service = true
+    AND (c.earliest_start_date IS NULL OR c.earliest_start_date <= NOW())
+    AND ($1::text IS NULL OR u.email = $1)
+  `, [testModeEmail]);
 
   if (allCompetitionsResult.rows.length === 0) {
     throw new Error('NO_SUBSCRIBED_COMPETITIONS');

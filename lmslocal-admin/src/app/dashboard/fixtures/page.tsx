@@ -771,6 +771,7 @@ export default function FixturesPage() {
   const [notice, setNotice] = useState<Notice>(null);
   const [loading, setLoading] = useState(true);
   const [pushing, setPushing] = useState<'fixtures' | 'results' | null>(null);
+  const [testModeEmail, setTestModeEmail] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -784,6 +785,7 @@ export default function FixturesPage() {
             ? current
             : lists.team_lists![0]?.id ?? null
         );
+        setTestModeEmail(lists.test_mode_email ?? null);
       } else if (lists.return_code !== 'UNAUTHORIZED' && lists.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: lists.message || 'Could not load team lists.' });
       }
@@ -877,6 +879,12 @@ export default function FixturesPage() {
           <span className="hidden sm:inline">Refresh</span>
         </button>
       </AdminHeader>
+
+      {testModeEmail && (
+        <div className="bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white">
+          TEST MODE - fixtures and results only reach competitions organised by {testModeEmail}
+        </div>
+      )}
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         <NoticeBanner notice={notice} />

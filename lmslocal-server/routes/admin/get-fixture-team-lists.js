@@ -34,7 +34,8 @@ Success Response (ALWAYS HTTP 200):
         }
       ]
     }
-  ]
+  ],
+  "test_mode_email": null                  // string or null - see Data Notes
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -61,6 +62,10 @@ Data Notes:
   is no pending batch) - the deadline the round will lock on the moment it's pushed. Surfaced so
   the fixtures screen can stop the admin pushing a batch whose deadline has already passed,
   which would create a round that's locked before any player can pick.
+- test_mode_email mirrors FIXTURE_SERVICE_TEST_MODE from .env - when set, push-fixtures and
+  push-results only touch that email's competitions (see fixtureService.js and
+  push-results-to-competitions.js). Surfaced here purely so the fixtures screen can show an
+  unmissable banner while it's on - it is never left to memory alone.
 =======================================================================================================================================
 */
 
@@ -74,6 +79,8 @@ router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-fixture-team-lists');
 
   try {
+    const testModeEmail = process.env.FIXTURE_SERVICE_TEST_MODE || null;
+
     // Lists, each with whether they already have a pending (unresolved) staged batch, and its
     // deadline if so.
     const listsResult = await query(`
@@ -90,7 +97,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
     `);
 
     if (listsResult.rows.length === 0) {
-      return res.json({ return_code: 'SUCCESS', team_lists: [] });
+      return res.json({ return_code: 'SUCCESS', team_lists: [], test_mode_email: testModeEmail });
     }
 
     // Teams for all of those lists in one go, then grouped in JS.
@@ -122,7 +129,8 @@ router.get('/', verifyAdminToken, async (req, res) => {
         pending_fixtures: row.pending_fixtures,
         pending_cutoff: row.pending_cutoff,
         teams: teamsByList.get(row.id) || []
-      }))
+      })),
+      test_mode_email: testModeEmail
     });
 
   } catch (error) {

@@ -169,7 +169,11 @@ export interface FixturePair {
 
 export type ResultOutcome = 'home_win' | 'away_win' | 'draw';
 
-export type TeamListsResponse = ApiResponse & { team_lists?: FixtureTeamList[] };
+export type TeamListsResponse = ApiResponse & {
+  team_lists?: FixtureTeamList[];
+  /* Set when FIXTURE_SERVICE_TEST_MODE is active in the server .env - pushes only reach this organiser's competitions. */
+  test_mode_email?: string | null;
+};
 
 export type AddFixturesResponse = ApiResponse & {
   fixtures_added?: number;
