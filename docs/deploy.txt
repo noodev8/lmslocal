@@ -1,10 +1,23 @@
 -- putty (express)
 cd /apps/lmslocal/
 git pull
-rsync -av --delete --exclude='.env' --exclude='node_modules' --exclude='.git' --exclude='tests' --exclude='docs' --exclude='.github' /apps/lmslocal/lmslocal-server/ /apps/production/lmslocal-server/
+
+rsync -av --delete \
+ --exclude='.env' \
+ --exclude='*firebase-adminsdk*.json' \
+ --exclude='node_modules' \
+ --exclude='.git' \
+ --exclude='tests' \
+ --exclude='docs' \
+ --exclude='.github' \
+ /apps/lmslocal/lmslocal-server/ /apps/production/lmslocal-server/
+
 cd /apps/production/lmslocal-server
-npm install
-pm2 restart server.js --name lmslocal_prod
+npm ci --omit=dev
+pm2 restart lmslocal_prod
+
+
+
 
 == lmslocal
 -- Vercel
@@ -17,3 +30,14 @@ Google - google@test.com - 866
 Apple - apple@test.com - 867
 SELECT * FROM competition_user WHERE competition_id = 117
 UPDATE competition_user SET hidden = False Where competition_id = 117
+
+
+
+
+== Legacy
+cd /apps/lmslocal/
+git pull
+rsync -av --delete --exclude='.env' --exclude='node_modules' --exclude='.git' --exclude='tests' --exclude='docs' --exclude='.github' /apps/lmslocal/lmslocal-server/ /apps/production/lmslocal-server/
+cd /apps/production/lmslocal-server
+npm install
+pm2 restart server.js --name lmslocal_prod
