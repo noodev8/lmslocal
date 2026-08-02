@@ -1,0 +1,141 @@
+# db/ — querying the LMSLocal database
+
+The front door for reading and writing `lmslocal_prod`. **Start here** rather than looking for
+an MCP server; there isn't one, and there is no need for one (see "Why no MCP" below).
+
+- **Read** → `node db/query.js "SELECT ..."`
+- **Write** → `node db/write.js "UPDATE ..."`
+
+Run them from `lmslocal-server/` (they read that directory's `.env` and its `node_modules`, so
+no extra install is needed). Paths below assume that working directory.
+
+> ⚠️ This is the **LIVE production database** — the one the running site uses. Reads are safe;
+> writes touch real competitions that real players are in.
+
+## Ad-hoc queries
+
+```bash
+node db/query.js "SELECT count(*) FROM competition"
+node db/query.js --file some_report.sql
+node db/query.js --csv "SELECT id, name, status FROM competition" > out.csv
+echo "SELECT 1" | node db/query.js
+```
+
+- Runs inside a **READ ONLY transaction**. An UPDATE/DELETE/DROP fails with
+  `cannot execute UPDATE in a read-only transaction` and exits non-zero. This is a guard
+  against accidents, not a security boundary — the credentials in `.env` can still write, so
+  anything that genuinely needs to write must not route through here.
+- Prints the first `--max-rows` rows (default 200) and tells you on stderr when it truncated.
+  `--max-rows 0` for everything.
+- Credentials come from `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` in
+  `lmslocal-server/.env` — the same values `database.js` uses.
+
+**This is for interactive lookups.** Anything scheduled or repeated should be its own script in
+`scripts/`, connecting through `database.js` like the rest of the server.
+
+## Writing
+
+Writes go through `write.js` so every one happens the same way:
+
+```bash
+node db/write.js "UPDATE competition SET status='SETUP' WHERE id=42"
+node db/write.js --dry-run "DELETE FROM pick WHERE round_id=101"
+node db/write.js --file migration.sql
+```
+
+- Everything in one invocation runs in **one transaction** — all statements commit together, or
+  all roll back if any fails. A failed run changes nothing.
+- Reports the row count per statement and a total, so you can see what you touched.
+- `--dry-run` executes for real, prints the counts, then rolls back. Worth doing first when the
+  WHERE clause is doing heavy lifting.
+- **The one guard:** an `UPDATE` or `DELETE` with no `WHERE` is refused (exit 2) unless you pass
+  `--all-rows`. That is the mistake worth catching; nothing else is in the way.
+
+Sensible habit, not a rule: `query.js` the SELECT version of your WHERE clause first, check the
+count is what you expect, then run the write.
+
+Because this is the live DB, prefer a targeted WHERE over a broad one, and think about whether
+an API route already owns the table you are about to change — game state (`pick`,
+`player_progress`, `allowed_teams`, `competition_user.lives_remaining`) is written by route
+logic that also writes `audit_log`. A hand-written UPDATE bypasses that.
+
+## Finding your way around the schema
+
+There is no schema doc — it would rot. There used to be a `pg_dump` at `docs/DB-Schema.sql`; it
+was removed in Aug 2026 once these scripts existed, because a checked-in copy is only ever as
+good as the last person who remembered to refresh it. Ask the database instead — it is never
+out of date:
+
+```bash
+# tables, with rough row counts and no full scan
+node db/query.js "SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC"
+
+# columns of one table
+node db/query.js "SELECT column_name, data_type, is_nullable FROM information_schema.columns
+                  WHERE table_name='competition' ORDER BY ordinal_position"
+```
+
+## Key tables
+
+| table | what it holds |
+|-------|---------------|
+| `app_user` | user accounts — **not `users`** |
+| `competition` | competition definitions and settings |
+| `competition_user` | membership: lives remaining, status, admin permission flags |
+| `round` | rounds within a competition, with `lock_time` |
+| `fixture` | fixtures within a round, with `result` |
+| `pick` | one row per player per round — the team they chose |
+| `player_progress` | per-round outcome per player, **including no-pick eliminations** |
+| `allowed_teams` | teams a player may still use (no-team-twice rule) |
+| `team` / `team_list` | master team list per competition type |
+| `fixture_load` | staging table the fixture service pushes from |
+| `audit_log` | system audit trail — written by route logic, not by hand |
+| `email_queue` / `email_tracking` / `email_preference` | outbound email pipeline |
+
+## Gotchas that will cost you an hour
+
+**`competition.status` casing is inconsistent.** Live data holds `'SETUP'` and `'COMPLETE'`
+(upper) alongside `'active'` (lower). Never write `WHERE status = 'ACTIVE'` — use
+`WHERE UPPER(status) = 'ACTIVE'` or you will silently miss every live competition.
+`competition_user.status` is lowercase (`'active'`, `'out'`) and consistent.
+
+**`fixture.result` holds the winning team's short code, not a home/away marker.** Values are a
+`team.short_name` (e.g. `'ARS'`), or the literal `'DRAW'`, or NULL when the fixture has not been
+resulted yet. NULL means unplayed — it does not mean a draw.
+
+**`pick` and `player_progress` name the same things differently.** `pick.user_id` /
+`pick.team` versus `player_progress.player_id` / `player_progress.chosen_team`. Joining them on
+`user_id = user_id` silently returns nothing.
+
+**`player_progress` has more rows than `pick`, by design.** A player who missed the deadline
+gets a `player_progress` row with `outcome='LOSE'` and no `pick` row at all (119 such rows as of
+Aug 2026). Counting eliminations from `pick` alone undercounts. Conversely `pick.outcome` can be
+NULL — the round is not resulted yet.
+
+**Fixtures and results are pushed, not entered.** They arrive via the `fixture_load` staging
+table and `/admin/push-fixtures-to-competitions` / `/admin/push-results-to-competitions`. The
+manual admin routes for this were disabled and preserved as `.delete` files. Editing `fixture`
+rows by hand puts the DB out of step with what the push APIs will do next.
+
+**Timestamps are `timestamptz`,** so they come back as JS `Date` objects in local time (BST in
+summer). Cast to text in SQL if you want the stored UTC value verbatim.
+
+## Why no MCP
+
+There is no Postgres MCP server configured for this project, and that is the intended state, not
+a fault. These scripts do the same job, work outside an interactive Claude Code session (on the
+VPS, under cron), and need no per-machine config file. The same decision was taken in the
+`bcweb` / `scripts` repos in Jul 2026 — see `C:\bcweb\docs\postgres-mcp-setup.md` for the
+reasoning and the install steps should they ever be wanted.
+
+**Do not set up an MCP server without asking Andreas first.**
+
+If the scripts are unavailable for some reason, `psql` works with the same `.env` credentials.
+Read them from `.env` rather than typing them — **this repo is public, so no host, username or
+password belongs in a tracked file**:
+
+```bash
+# from lmslocal-server/
+set -a; . ./.env; set +a
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$DB_NAME" -c "SELECT 1"
+```

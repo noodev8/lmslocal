@@ -21,7 +21,8 @@ Crypto - verification token generation
 The Flutter Mobile development is kept in /lmslocal-flutter
 
 - Database
-The schema is kept in /docs/DB-Schema.sql if you need it to plan cache
+Query the live schema if you need it to plan cache - see /lmslocal-server/db/README.md
+From lmslocal-server: node db/query.js "SELECT ..."
 
 - APIs
 The API routes are in /lmslocal-server

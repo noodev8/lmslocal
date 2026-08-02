@@ -228,18 +228,40 @@ lmslocal-web/
 - **Access Methods**: Players join via competition slug or access code
 - **Data Flow**: PostgreSQL backend with automated fixture/result distribution
 
-## Database Schema Reference
+## Database Access & Schema Reference
 
-**CRITICAL**: Always check `/docs/DB-Schema.sql` when making SQL database calls to ensure correct table names and column references. This file contains the complete database structure including:
+**Connecting to the database**: `lmslocal-server/db/README.md` is the front door — read it before
+writing SQL. There is **no MCP server** for this project and that is deliberate; use the scripts
+instead, run from `lmslocal-server/`:
 
-- `competitions` - Competition definitions and settings
-- `rounds` - Competition rounds and fixtures
-- `picks` - Player picks for each round
-- `allowed_teams` - Teams available to players per competition
-- `teams` - Master list of teams and fixtures
-- `app_user` - User accounts table (uses `app_user`, not `users`)  
+```bash
+node db/query.js "SELECT ..."     # read-only (enforced by a READ ONLY transaction)
+node db/write.js "UPDATE ..."     # writes: one transaction, --dry-run, no-WHERE guard
+```
+
+This is the **live production database**. The README also lists the data landmines (the
+`competition.status` casing inconsistency, what `fixture.result` actually holds, why
+`player_progress` has more rows than `pick`) — those cost an hour each if you meet them cold.
+
+**Schema**: there is no checked-in schema file — ask the database, which is never out of date:
+
+```bash
+node db/query.js "SELECT column_name, data_type, is_nullable FROM information_schema.columns
+                  WHERE table_name='competition' ORDER BY ordinal_position"
+```
+
+Table names are **singular** except where noted:
+
+- `competition` - Competition definitions and settings
+- `round` - Competition rounds
+- `pick` - Player picks for each round
+- `allowed_teams` - Teams available to players per competition (plural)
+- `team` - Master list of teams
+- `app_user` - User accounts table (uses `app_user`, not `users`)
+- `competition_user` - Membership, lives remaining, admin permission flags
 - `team_list` - Team list definitions by competition type
 - `fixture` - Individual fixtures within rounds
+- `fixture_load` - Staging table the fixture service pushes from
 - `player_progress` - Track player outcomes by round
 - `audit_log` - System audit logging
 

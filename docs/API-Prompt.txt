@@ -18,7 +18,8 @@ Route should use standard router pattern for authentication
 Database uses direct PostgreSQL
 Always use central database pooling with "/lmslocal-server/database.js"
 Single environnment file "/lmslocal-server/.env"
-Use "/docs/DB-Schema.sql" database schema to identify the tables and fields needed.
+Query the live database to identify the tables and fields needed - see "/lmslocal-server/db/README.md".
+From lmslocal-server: node db/query.js "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='competition' ORDER BY ordinal_position"
 Do not use N+1 queries
 Use a transaction wrapper for atomic queries
 Use destructured database import

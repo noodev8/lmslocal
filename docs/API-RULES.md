@@ -213,7 +213,10 @@ if (result.success) {
 - Single environment file `/.env`
 
 ### Schema
-- Reference `/docs/DB-Schema.sql` for table and field definitions
+- Ask the database for table and field definitions — there is no schema file to go stale.
+  From `lmslocal-server/`: `node db/query.js "SELECT column_name, data_type FROM
+  information_schema.columns WHERE table_name='competition' ORDER BY ordinal_position"`
+- See `lmslocal-server/db/README.md` for the full recipes and the data landmines
 
 ### Query Best Practices
 - **Do not use N+1 queries** - use JOINs or batch queries

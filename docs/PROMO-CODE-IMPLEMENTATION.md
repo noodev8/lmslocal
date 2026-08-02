@@ -37,7 +37,8 @@ URL-based promotional discount system for LMSLocal subscription upgrades. No vis
 ---
 
 ## Database Schema
-Check DB-Schema.sql for latest table
+Query the live database for the current `promo_codes` / `promo_code_usage` columns —
+see `lmslocal-server/db/README.md`.
 ---
 
 ## API Requirements Summary
