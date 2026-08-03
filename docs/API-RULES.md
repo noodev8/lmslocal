@@ -105,7 +105,7 @@ Return Codes:
 - Only store the App_user ID in the JWT Token. use the database to find anything else you might need from there
 
 ### Middleware
-- Use `/middleware/auth.js` for authentication middleware
+- Use `/middleware/verifyToken.js` for authentication middleware
 - **Always use a single `verifyToken` function** - no duplicates
 - Use standard router pattern for authentication:
   - `verifyToken` - for routes requiring authentication
@@ -213,10 +213,7 @@ if (result.success) {
 - Single environment file `/.env`
 
 ### Schema
-- Ask the database for table and field definitions — there is no schema file to go stale.
-  From `lmslocal-server/`: `node db/query.js "SELECT column_name, data_type FROM
-  information_schema.columns WHERE table_name='competition' ORDER BY ordinal_position"`
-- See `lmslocal-server/db/README.md` for the full recipes and the data landmines
+- Reference `/docs/DB-Schema.sql` for table and field definitions
 
 ### Query Best Practices
 - **Do not use N+1 queries** - use JOINs or batch queries
