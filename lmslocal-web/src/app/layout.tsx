@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Big_Shoulders,
+  Instrument_Sans,
+  Courier_Prime,
+} from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
@@ -16,10 +22,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Landing page faces: signage display, form body, typewriter data.
+const bigShoulders = Big_Shoulders({
+  variable: "--font-big-shoulders",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const courierPrime = Courier_Prime({
+  variable: "--font-courier-prime",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "LMSLocal - Last Man Standing Competitions Made Simple",
-  description: "The easiest way to run or join Last Man Standing competitions. Perfect for pubs, workplaces, and friend groups.",
-  keywords: "last man standing, football competition, pub games, premier league, competition management, football predictor, elimination game",
+  title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
+  description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Free for your first 20 players.",
+  keywords: "last man standing, run a last man standing competition, pub fundraiser, club fundraising, football competition, sweepstake alternative, competition management, elimination game",
   authors: [{ name: "LMSLocal" }],
   creator: "LMSLocal",
   publisher: "LMSLocal",
@@ -28,8 +54,8 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: "LMSLocal - Last Man Standing Competitions Made Simple",
-    description: "The easiest way to run or join Last Man Standing competitions. Perfect for pubs, workplaces, and friend groups.",
+    title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
+    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Free for your first 20 players.",
     url: "https://lmslocal.co.uk",
     siteName: "LMSLocal",
     locale: "en_GB",
@@ -38,13 +64,13 @@ export const metadata: Metadata = {
       url: "/og-image.png",
       width: 1200,
       height: 630,
-      alt: "LMSLocal - Last Man Standing Competitions Made Simple"
+      alt: "LMSLocal - Run a Last Man Standing Competition That Raises Money"
     }]
   },
   twitter: {
     card: "summary_large_image",
-    title: "LMSLocal - Last Man Standing Competitions Made Simple",
-    description: "The easiest way to run or join Last Man Standing competitions. Perfect for pubs, workplaces, and friend groups.",
+    title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
+    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Free for your first 20 players.",
     images: ["/og-image.png"],
   },
   robots: {
@@ -68,7 +94,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${bigShoulders.variable} ${instrumentSans.variable} ${courierPrime.variable} antialiased`}
       >
         <ErrorBoundary>
           <GlobalErrorHandler />

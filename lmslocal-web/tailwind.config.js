@@ -8,6 +8,22 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // Landing page "pools coupon" system: tinted stock, two inks.
+      colors: {
+        // Three clearly separated grounds: banded section, page, lifted panel.
+        'stock-deep': '#CDD3C4',
+        stock: '#DDE1D6',
+        'stock-lit': '#F2F3EC',
+        ink: '#1C2620',
+        // 6:1 on stock, so secondary text still passes WCAG AA.
+        'ink-fade': '#4A5249',
+        overprint: '#C8341E',
+      },
+      fontFamily: {
+        display: ['var(--font-big-shoulders)', 'ui-sans-serif', 'sans-serif'],
+        body: ['var(--font-instrument-sans)', 'ui-sans-serif', 'sans-serif'],
+        data: ['var(--font-courier-prime)', 'ui-monospace', 'monospace'],
+      },
       keyframes: {
         'slide-in': {
           '0%': { transform: 'translateX(100%)', opacity: '0' },
