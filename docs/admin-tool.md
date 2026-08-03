@@ -134,6 +134,7 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/admin-login` | POST | Exchange email + password for an admin token |
 | `/admin/get-admin-stats` | GET | Platform-wide counts for the dashboard |
 | `/admin/get-admin-competitions` | GET | Every competition, with organiser, players, opt-in state |
+| `/admin/get-admin-organisers` | GET | Every organiser, with contact details, reach and spend |
 | `/admin/delete-admin-competition` | POST | Delete a competition and everything attached to it |
 | `/admin/impersonate-organiser` | POST | Short-lived player token for "View as organiser" |
 | `/admin/set-fixture-service` | POST | Opt a competition in or out of the fixture service |
@@ -144,9 +145,44 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/push-fixtures-to-competitions` | POST | Distribute staged fixtures as rounds |
 | `/admin/push-results-to-competitions` | POST | Distribute staged results and process eliminations |
 
-Pages: `/login`, `/dashboard`, `/dashboard/competitions`, `/dashboard/fixtures`.
+Pages: `/login`, `/dashboard`, `/dashboard/competitions`, `/dashboard/organisers`,
+`/dashboard/fixtures`. `/dashboard` is the landing page and is a read-only snapshot — four
+headline numbers and four breakdown panels. The work happens on the other three, which the
+header's nav row moves between.
 
 Not built yet: inactive-competition actions, bulk email.
+
+## Organisers
+
+`/dashboard/organisers` is the people view of the same data the competitions screen shows: one
+row per organiser, built for one-to-one outreach — a name, an address with copy and `mailto:`
+buttons, and enough context to decide who is worth contacting.
+
+**An organiser owns at least one competition.** Someone who only helps run another person's
+competition (the permission flags on `competition_user`) does not appear. If that ever needs to
+change, it changes in one place: the `EXISTS` clause in `get-admin-organisers.js`.
+
+Two counts are easy to misread, and both are deliberate:
+
+- **Players** counts `competition_user` rows, exactly as the competitions screen does, so an
+  organiser's number is the sum of their competitions' numbers one click away. Keep it that way —
+  the first thing anyone does with two screens showing the same data is check they agree.
+  It includes the organiser, who joins their own competition on creating it, so a competition
+  nobody has joined reads 1 rather than 0. A second line appears under the total with the
+  deduplicated count, but only for organisers where someone plays in two of their competitions
+  and the two figures actually differ.
+- **Spend** is `SUM(credit_purchases.paid_amount)`, never `app_user.paid_credit`. Credit can be
+  granted without money changing hands, so only a purchase makes someone a customer. The balance
+  is carried separately and shown in the badge's tooltip.
+
+The tiles filter the list: Paying, Running, New (signed up within 30 days) and **Gone quiet** —
+an organiser with an active competition that has had no pick for 30 days, which is the one tile
+that means "do something".
+
+The two screens cross-link: an organiser's competition count and the trophy action open
+`/dashboard/competitions?organiser=<id>`, and an organiser's name on the competitions screen
+opens `/dashboard/organisers?q=<email>`. `?q=` seeds the search box rather than locking a filter,
+so it can be typed away.
 
 ## Fixtures
 

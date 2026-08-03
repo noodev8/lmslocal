@@ -120,6 +120,7 @@ const getAdminStatsRoute = require('./routes/admin/get-admin-stats');
 // Shared-secret auth for machine-invoked routes (the email pipeline)
 const { verifyServiceToken } = require('./middleware/service-auth');
 const getAdminCompetitionsRoute = require('./routes/admin/get-admin-competitions');
+const getAdminOrganisersRoute = require('./routes/admin/get-admin-organisers');
 const deleteAdminCompetitionRoute = require('./routes/admin/delete-admin-competition');
 const impersonateOrganiserRoute = require('./routes/admin/impersonate-organiser');
 const getFixtureTeamListsRoute = require('./routes/admin/get-fixture-team-lists');
@@ -371,6 +372,7 @@ gated by BOT_MAGIC_2025, which those same public pages shipped in the browser bu
 app.use('/admin/admin-login', adminLoginRoute);
 app.use('/admin/get-admin-stats', getAdminStatsRoute);
 app.use('/admin/get-admin-competitions', getAdminCompetitionsRoute);
+app.use('/admin/get-admin-organisers', getAdminOrganisersRoute);
 app.use('/admin/delete-admin-competition', deleteAdminCompetitionRoute);
 app.use('/admin/impersonate-organiser', impersonateOrganiserRoute);
 app.use('/admin/get-fixture-team-lists', getFixtureTeamListsRoute);

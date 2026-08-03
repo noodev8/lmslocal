@@ -32,6 +32,11 @@ This is a full-stack application with two main components:
 - **Auth**: normal LMSLocal credentials, but a separate login route, a separate signing key
   (`JWT_ADMIN_SECRET`), a `scope: "admin"` claim, and a live `app_user.is_admin` check
 - **Rule**: never add an admin bypass to an existing player route; admin gets its own routes
+- **Screens**: `/dashboard` (read-only platform snapshot, the landing page),
+  `/dashboard/competitions`, `/dashboard/organisers`, `/dashboard/fixtures`
+- **Organisers**: an organiser owns at least one competition. "Players" counts memberships the
+  same way the competitions screen does, so the two agree; "spend" is `credit_purchases`, never
+  `app_user.paid_credit` — see `docs/admin-tool.md`
 - **Full details**: `docs/admin-tool.md`
 
 ### Frontend (lmslocal-web/)

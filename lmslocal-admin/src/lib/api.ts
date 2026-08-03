@@ -106,6 +106,11 @@ export interface AdminStats {
     complete: number;
     inactive: number;
   };
+  organisers: {
+    total: number;
+    paying: number;
+    with_active_competition: number;
+  };
   players: {
     total_memberships: number;
     unique_players: number;
@@ -157,6 +162,44 @@ export interface AdminCompetition {
   team_list_id: number;
   team_list_name: string | null;
 }
+
+/*
+One account that owns at least one competition. Helping run someone else's does not make
+someone an organiser here - see get-admin-organisers.
+*/
+export interface AdminOrganiser {
+  id: number;
+  name: string | null;
+  email: string | null;
+  email_verified: boolean;
+  competitions_total: number;
+  competitions_active: number;
+  competitions_setup: number;
+  competitions_complete: number;
+  competitions_on_fixture_service: number;
+  /*
+  Memberships across their competitions - counted exactly like player_count on the competitions
+  screen, so an organiser's total is the sum of their competitions' numbers there. Includes the
+  organiser, who joins their own competition on creating it.
+  */
+  players_total: number;
+  /* The same set deduplicated - lower when someone plays in two of their competitions. */
+  players_unique: number;
+  /* Total ever paid across credit_purchases - what makes someone a paying customer. */
+  lifetime_spend: number;
+  /* Current credit balance, which can be granted without a purchase behind it. */
+  credit: number;
+  signed_up_at: string;
+  last_active_at: string | null;
+  first_competition_at: string;
+  /* Newest pick by anyone in their competitions - engagement, as opposed to their own. */
+  last_player_activity: string | null;
+}
+
+export type OrganisersResponse = ApiResponse & {
+  organisers?: AdminOrganiser[];
+  generated_at?: string;
+};
 
 export interface AdminTeam {
   id: number;
@@ -318,6 +361,11 @@ export const adminApi = {
     const response = await api.get<CompetitionsResponse>('/admin/get-admin-competitions', {
       params: status ? { status } : undefined,
     });
+    return response.data;
+  },
+
+  getOrganisers: async (): Promise<OrganisersResponse> => {
+    const response = await api.get<OrganisersResponse>('/admin/get-admin-organisers');
     return response.data;
   },
 

@@ -5,12 +5,14 @@
 Admin Competitions List
 =======================================================================================================================================
 Purpose: Drill-down from the dashboard's "Competitions" cards - every competition on the
-         platform with organiser, player count, and last activity, filterable by status.
+         platform with organiser, player count, and last activity, filterable by status and,
+         via ?organiser=<id> from the Organisers screen, down to one person's competitions.
 =======================================================================================================================================
 */
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   ArrowPathIcon,
   ChevronUpIcon,
@@ -23,14 +25,13 @@ import {
 import AdminHeader from '@/components/AdminHeader';
 import { adminApi, getToken, AdminCompetition, apiBaseUrl, getWebBaseUrl } from '@/lib/api';
 
-type SortKey = 'name' | 'status' | 'player_count' | 'created_at' | 'last_activity';
+type SortKey = 'name' | 'status' | 'player_count' | 'last_activity';
 type SortDirection = 'asc' | 'desc';
 
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'name', label: 'Name' },
   { key: 'status', label: 'Status' },
   { key: 'player_count', label: 'Players' },
-  { key: 'created_at', label: 'Created' },
   { key: 'last_activity', label: 'Last activity' },
 ];
 
@@ -93,11 +94,14 @@ const formatMoney = (amount: number) =>
   `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 /*
-Organiser identity for outreach: who they are, an address that can be copied in one click, and
-enough commercial context to decide whether this is a customer or a prospect.
+Who runs this competition, with an address that can be copied in one click.
 
-"Paid" is lifetime spend across credit_purchases, deliberately not paid_credit - credit can be
-granted without a purchase, so a balance proves nothing about whether money ever changed hands.
+Deliberately thin. This used to also carry the organiser's competition count and lifetime spend,
+which made every row three lines tall to answer a question about a person rather than about the
+competition. That belongs on the Organisers screen, which is what the name links to. The paid
+badge stays because "is this a customer" changes how you read every other cell on the row - and
+it is lifetime spend across credit_purchases, never paid_credit, since credit can be granted
+without a purchase behind it.
 */
 function OrganiserCell({ competition }: { competition: AdminCompetition }) {
   const [copied, setCopied] = useState(false);
@@ -129,9 +133,21 @@ function OrganiserCell({ competition }: { competition: AdminCompetition }) {
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1.5">
-        <span className="truncate font-medium text-slate-900">
+        <Link
+          href={`/dashboard/organisers?q=${encodeURIComponent(email || competition.organiser_name || '')}`}
+          className="truncate font-medium text-slate-900 underline-offset-2 hover:text-indigo-600 hover:underline"
+          title="Show this organiser"
+        >
           {competition.organiser_name || 'Unnamed'}
-        </span>
+        </Link>
+        {hasPaid && (
+          <span
+            className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20"
+            title={`Lifetime spend ${formatMoney(competition.organiser_lifetime_spend)} · ${competition.organiser_credit} credit remaining`}
+          >
+            {formatMoney(competition.organiser_lifetime_spend)}
+          </span>
+        )}
         {email && (
           <button
             onClick={copyEmail}
@@ -151,27 +167,6 @@ function OrganiserCell({ competition }: { competition: AdminCompetition }) {
       <div className="truncate text-xs text-slate-500" title={email || undefined}>
         {email || 'No email on account'}
       </div>
-
-      {/*
-      Only rendered when it has something to say. Most organisers have never paid and run a
-      single competition, and spelling that out on every row turns the column into a wall of
-      "Free · 1 comp" that has to be read past to find the rows that differ.
-      */}
-      {(hasPaid || competition.organiser_competitions > 1) && (
-        <div className="mt-1 flex items-center gap-1.5 text-xs">
-          {hasPaid && (
-            <span
-              className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20"
-              title={`Lifetime spend ${formatMoney(competition.organiser_lifetime_spend)} · ${competition.organiser_credit} credit remaining`}
-            >
-              {formatMoney(competition.organiser_lifetime_spend)}
-            </span>
-          )}
-          {competition.organiser_competitions > 1 && (
-            <span className="text-slate-400">{competition.organiser_competitions} comps</span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -414,6 +409,9 @@ function CompetitionsList() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusParam = searchParams.get('status') || '';
+  // Set when arriving from the Organisers screen - narrows the whole page to one person.
+  const organiserParam = searchParams.get('organiser');
+  const organiserId = organiserParam ? parseInt(organiserParam, 10) : null;
 
   const [competitions, setCompetitions] = useState<AdminCompetition[]>([]);
   const [search, setSearch] = useState('');
@@ -549,14 +547,20 @@ function CompetitionsList() {
     load();
   }, [router, load]);
 
+  // Status and organiser are independent filters, so changing one must not drop the other.
   const setStatus = (status: string) => {
-    router.push(status ? `/dashboard/competitions?status=${status}` : '/dashboard/competitions');
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (organiserParam) params.set('organiser', organiserParam);
+    const qs = params.toString();
+    router.push(qs ? `/dashboard/competitions?${qs}` : '/dashboard/competitions');
   };
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     const matches = competitions.filter((c) =>
       (!statusParam || c.status === statusParam) &&
+      (organiserId === null || c.organiser_id === organiserId) &&
       (c.name.toLowerCase().includes(term) ||
         (c.organiser_email || '').toLowerCase().includes(term) ||
         (c.organiser_name || '').toLowerCase().includes(term))
@@ -572,17 +576,30 @@ function CompetitionsList() {
     });
 
     return sorted;
-  }, [competitions, statusParam, search, sortKey, sortDirection]);
+  }, [competitions, statusParam, organiserId, search, sortKey, sortDirection]);
 
-  // Status breakdown always reflects the full dataset, regardless of the active tab or search,
-  // so the counts stay a stable reference point while filtering.
+  // Name for the "showing one organiser" banner, taken from any of their rows.
+  const organiserName = useMemo(() => {
+    if (organiserId === null) return null;
+    const match = competitions.find((c) => c.organiser_id === organiserId);
+    return match ? match.organiser_name || match.organiser_email || `Organiser ${organiserId}` : null;
+  }, [competitions, organiserId]);
+
+  // Status breakdown ignores the active tab and the search box, so the counts stay a stable
+  // reference point while filtering. It does respect the organiser filter - when the page is
+  // scoped to one person, a platform-wide total next to their four rows would just confuse.
+  const scoped = useMemo(
+    () => (organiserId === null ? competitions : competitions.filter((c) => c.organiser_id === organiserId)),
+    [competitions, organiserId]
+  );
+
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { active: 0, setup: 0, complete: 0 };
-    competitions.forEach((c) => {
+    scoped.forEach((c) => {
       counts[c.status] = (counts[c.status] || 0) + 1;
     });
     return counts;
-  }, [competitions]);
+  }, [scoped]);
 
   return (
     <div className="min-h-screen">
@@ -601,18 +618,32 @@ function CompetitionsList() {
         </button>
       </AdminHeader>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8">
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
-        {!loading && competitions.length > 0 && (
+        {organiserId !== null && (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+            <span>
+              Showing competitions run by <strong>{organiserName || `organiser ${organiserId}`}</strong>
+            </span>
+            <Link
+              href="/dashboard/competitions"
+              className="rounded-lg border border-indigo-300 bg-white px-3 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
+            >
+              Show all competitions
+            </Link>
+          </div>
+        )}
+
+        {!loading && scoped.length > 0 && (
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatusTile
               label="Total"
-              value={competitions.length}
+              value={scoped.length}
               active={statusParam === ''}
               onClick={() => setStatus('')}
             />
@@ -657,7 +688,7 @@ function CompetitionsList() {
         )}
 
         {filtered.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -666,7 +697,6 @@ function CompetitionsList() {
                   <th className="px-4 py-3 font-semibold">Organiser</th>
                   <SortableHeader col={COLUMNS[2]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
                   <SortableHeader col={COLUMNS[3]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
-                  <SortableHeader col={COLUMNS[4]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
                   <th className="px-4 py-3 font-semibold" title="Receives fixtures and results from the fixture service">
                     Auto
                   </th>
@@ -685,8 +715,12 @@ function CompetitionsList() {
                     <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
                     <td className="max-w-[16rem] px-4 py-3"><OrganiserCell competition={c} /></td>
                     <td className="px-4 py-3 tabular-nums text-slate-600">{c.player_count}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatDate(c.created_at)}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatDate(c.last_activity)}</td>
+                    <td
+                      className="px-4 py-3 text-slate-500"
+                      title={`Created ${formatDate(c.created_at)}`}
+                    >
+                      {formatDate(c.last_activity)}
+                    </td>
                     <td className="px-4 py-3">
                       <FixtureServiceToggle
                         competition={c}

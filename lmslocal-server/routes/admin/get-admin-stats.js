@@ -24,6 +24,11 @@ Success Response (ALWAYS HTTP 200):
     "complete": 4,                          // integer, finished
     "inactive": 12                          // integer, no player activity in the last 30 days
   },
+  "organisers": {
+    "total": 10,                            // integer, accounts owning at least one competition
+    "paying": 2,                            // integer, of those, who have ever paid (credit_purchases)
+    "with_active_competition": 4            // integer, of those, running something right now
+  },
   "players": {
     "total_memberships": 180,               // integer, rows in competition_user (a person in 2 comps counts twice)
     "unique_players": 140,                  // integer, distinct people taking part in a competition
@@ -96,6 +101,22 @@ router.get('/', verifyAdminToken, async (req, res) => {
                 ) < NOW() - ($1 || ' days')::interval
         )                                                                         AS comp_inactive,
 
+        -- Organisers. "Organiser" means owning a competition, matching get-admin-organisers -
+        -- helping run someone else's does not count. "Paying" is a real purchase, never
+        -- paid_credit, which can be granted without money changing hands.
+        (SELECT COUNT(DISTINCT organiser_id) FROM competition
+          WHERE organiser_id IS NOT NULL)                                     AS organisers_total,
+        (SELECT COUNT(DISTINCT c.organiser_id)
+           FROM competition c
+          WHERE c.organiser_id IS NOT NULL
+            AND EXISTS (SELECT 1 FROM credit_purchases cp
+                         WHERE cp.user_id = c.organiser_id
+                           AND cp.paid_amount > 0))                           AS organisers_paying,
+        (SELECT COUNT(DISTINCT c.organiser_id)
+           FROM competition c
+          WHERE c.organiser_id IS NOT NULL
+            AND LOWER(c.status) = 'active')                                   AS organisers_with_active,
+
         -- Player participation
         (SELECT COUNT(*) FROM competition_user)                                   AS memberships_total,
         (SELECT COUNT(DISTINCT user_id) FROM competition_user)                    AS players_unique,
@@ -123,6 +144,11 @@ router.get('/', verifyAdminToken, async (req, res) => {
         active: n(row.comp_active),
         complete: n(row.comp_complete),
         inactive: n(row.comp_inactive)
+      },
+      organisers: {
+        total: n(row.organisers_total),
+        paying: n(row.organisers_paying),
+        with_active_competition: n(row.organisers_with_active)
       },
       players: {
         total_memberships: n(row.memberships_total),
