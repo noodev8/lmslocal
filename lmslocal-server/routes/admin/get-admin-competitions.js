@@ -19,7 +19,12 @@ Success Response (ALWAYS HTTP 200):
       "id": 12,                                  // integer
       "name": "Friday Night LMS",                // string
       "status": "active",                        // string, lowercased
+      "organiser_id": 1003,                      // integer, may be null if organiser account was removed
+      "organiser_name": "Paul Lavelle",          // string, may be null
       "organiser_email": "landlord@pub.com",     // string, may be null if organiser account was removed
+      "organiser_competitions": 2,               // integer, competitions this organiser has started
+      "organiser_lifetime_spend": 80,            // number, total paid across all credit purchases (0 if never paid)
+      "organiser_credit": 19,                    // integer, current credit balance
       "player_count": 24,                        // integer, rows in competition_user
       "created_at": "2026-01-04T12:00:00.000Z",  // string, ISO datetime
       "last_activity": "2026-08-01T09:00:00.000Z",// string or null, most recent pick, falls back to created_at
@@ -51,6 +56,11 @@ Data Notes:
 - "fixture_service" is the flag every push reads. The fixtures screen filters this list by it to
   show which competitions a push will actually reach, and the opt-in toggle writes it through
   /admin/set-fixture-service.
+- Paid status comes from "organiser_lifetime_spend" (SUM over credit_purchases), NOT from
+  app_user.paid_credit. paid_credit is a current balance that can be granted without any money
+  changing hands, so a badge driven off it would call non-paying accounts customers. Credit is
+  still returned separately as "organiser_credit" because a paying organiser at zero balance is
+  worth spotting.
 =======================================================================================================================================
 */
 
@@ -79,12 +89,21 @@ router.get('/', verifyAdminToken, async (req, res) => {
 
     // One query - organiser via LEFT JOIN (organiser account may have been removed), player
     // count via a scalar subselect, last activity via a scalar subselect over pick/round.
+    // The organiser subselects repeat per competition, but the whole table is a few dozen rows
+    // and the alternative is a second round trip to assemble the same thing client-side.
     const competitionsQuery = `
       SELECT
         c.id,
         c.name,
         LOWER(c.status)                                                       AS status,
+        u.id                                                                  AS organiser_id,
+        u.display_name                                                        AS organiser_name,
         u.email                                                               AS organiser_email,
+        u.paid_credit                                                         AS organiser_credit,
+        (SELECT COUNT(*) FROM competition oc WHERE oc.organiser_id = u.id)    AS organiser_competitions,
+        (SELECT COALESCE(SUM(cp.paid_amount), 0)
+           FROM credit_purchases cp
+          WHERE cp.user_id = u.id)                                            AS organiser_lifetime_spend,
         (SELECT COUNT(*) FROM competition_user cu WHERE cu.competition_id = c.id) AS player_count,
         c.created_at,
         COALESCE(
@@ -110,7 +129,13 @@ router.get('/', verifyAdminToken, async (req, res) => {
       id: row.id,
       name: row.name,
       status: row.status,
+      organiser_id: row.organiser_id,
+      organiser_name: row.organiser_name,
       organiser_email: row.organiser_email,
+      organiser_competitions: parseInt(row.organiser_competitions, 10) || 0,
+      // NUMERIC comes back as a string from pg; the UI formats it as currency.
+      organiser_lifetime_spend: parseFloat(row.organiser_lifetime_spend) || 0,
+      organiser_credit: parseInt(row.organiser_credit, 10) || 0,
       player_count: parseInt(row.player_count, 10) || 0,
       created_at: row.created_at,
       last_activity: row.last_activity,

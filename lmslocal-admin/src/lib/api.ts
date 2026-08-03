@@ -31,15 +31,31 @@ when the build ran and a redeploy is needed - worth being able to see that from 
 */
 export const apiBaseUrl = getApiBaseUrl();
 
-const getWebBaseUrl = (): string => {
+// Production home of the player-facing app, used when nothing else tells us where to go.
+const PROD_WEB_URL = 'https://www.lmslocal.co.uk';
+
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]', '::1'];
+
+/*
+Where the player-facing app lives, for "View as organiser" to open a new tab against.
+
+Deliberately resolved at call time rather than module load. NEXT_PUBLIC_* values are inlined at
+build time, so a deployed admin build with the variable missing would otherwise bake in
+localhost:3000 and send production users to a dev machine. Falling back on the browser's own
+hostname means the deploy is correct even with no env config: if the admin tool itself is not
+being served from localhost, neither is the player app.
+*/
+export const getWebBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_WEB_URL) {
     return process.env.NEXT_PUBLIC_WEB_URL.replace(/\/+$/, '');
   }
+
+  if (typeof window !== 'undefined' && !LOCAL_HOSTS.includes(window.location.hostname)) {
+    return PROD_WEB_URL;
+  }
+
   return 'http://localhost:3000';
 };
-
-// Where the player-facing app lives, for "View as organiser" to open a new tab against.
-export const webBaseUrl = getWebBaseUrl();
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
@@ -121,7 +137,18 @@ export interface AdminCompetition {
   id: number;
   name: string;
   status: string;
+  organiser_id: number | null;
+  organiser_name: string | null;
   organiser_email: string | null;
+  /* How many competitions this organiser has started in total, not just this one. */
+  organiser_competitions: number;
+  /*
+  Total ever paid across credit_purchases. This - not paid_credit - is what makes someone a
+  paying customer: credit can be granted without a purchase behind it.
+  */
+  organiser_lifetime_spend: number;
+  /* Current credit balance. Zero on a paying organiser means they have spent what they bought. */
+  organiser_credit: number;
   player_count: number;
   created_at: string;
   last_activity: string;

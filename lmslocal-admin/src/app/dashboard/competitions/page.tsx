@@ -17,9 +17,11 @@ import {
   ChevronDownIcon,
   TrashIcon,
   ArrowTopRightOnSquareIcon,
+  ClipboardIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 import AdminHeader from '@/components/AdminHeader';
-import { adminApi, getToken, AdminCompetition, apiBaseUrl, webBaseUrl } from '@/lib/api';
+import { adminApi, getToken, AdminCompetition, apiBaseUrl, getWebBaseUrl } from '@/lib/api';
 
 type SortKey = 'name' | 'status' | 'player_count' | 'created_at' | 'last_activity';
 type SortDirection = 'asc' | 'desc';
@@ -84,6 +86,93 @@ function SortableHeader({
         )}
       </button>
     </th>
+  );
+}
+
+const formatMoney = (amount: number) =>
+  `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
+/*
+Organiser identity for outreach: who they are, an address that can be copied in one click, and
+enough commercial context to decide whether this is a customer or a prospect.
+
+"Paid" is lifetime spend across credit_purchases, deliberately not paid_credit - credit can be
+granted without a purchase, so a balance proves nothing about whether money ever changed hands.
+*/
+function OrganiserCell({ competition }: { competition: AdminCompetition }) {
+  const [copied, setCopied] = useState(false);
+  const email = competition.organiser_email;
+  const hasPaid = competition.organiser_lifetime_spend > 0;
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const copyEmail = async () => {
+    if (!email) return;
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopied(true);
+    } catch {
+      // Clipboard access can be refused (insecure context, denied permission). Selecting the
+      // address by hand still works, so there is nothing to recover from - just don't claim
+      // a copy happened.
+    }
+  };
+
+  if (!email && !competition.organiser_name) {
+    return <span className="text-slate-400">—</span>;
+  }
+
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        <span className="truncate font-medium text-slate-900">
+          {competition.organiser_name || 'Unnamed'}
+        </span>
+        {email && (
+          <button
+            onClick={copyEmail}
+            title={copied ? 'Copied' : `Copy ${email}`}
+            aria-label={`Copy email address for ${competition.organiser_name || email}`}
+            className="shrink-0 rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          >
+            {copied ? (
+              <CheckIcon className="h-3.5 w-3.5 text-emerald-600" />
+            ) : (
+              <ClipboardIcon className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
+      </div>
+
+      <div className="truncate text-xs text-slate-500" title={email || undefined}>
+        {email || 'No email on account'}
+      </div>
+
+      {/*
+      Only rendered when it has something to say. Most organisers have never paid and run a
+      single competition, and spelling that out on every row turns the column into a wall of
+      "Free · 1 comp" that has to be read past to find the rows that differ.
+      */}
+      {(hasPaid || competition.organiser_competitions > 1) && (
+        <div className="mt-1 flex items-center gap-1.5 text-xs">
+          {hasPaid && (
+            <span
+              className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20"
+              title={`Lifetime spend ${formatMoney(competition.organiser_lifetime_spend)} · ${competition.organiser_credit} credit remaining`}
+            >
+              {formatMoney(competition.organiser_lifetime_spend)}
+            </span>
+          )}
+          {competition.organiser_competitions > 1 && (
+            <span className="text-slate-400">{competition.organiser_competitions} comps</span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -363,7 +452,7 @@ function CompetitionsList() {
       const result = await adminApi.impersonateOrganiser(competition.id);
       if (result.return_code === 'SUCCESS' && result.token && result.user) {
         const userParam = encodeURIComponent(JSON.stringify(result.user));
-        const url = `${webBaseUrl}/admin-bridge#token=${result.token}&user=${userParam}&competition_id=${competition.id}`;
+        const url = `${getWebBaseUrl()}/admin-bridge#token=${result.token}&user=${userParam}&competition_id=${competition.id}`;
         window.open(url, '_blank', 'noopener');
 
         const marker = { id: competition.id, at: Date.now() };
@@ -465,10 +554,12 @@ function CompetitionsList() {
   };
 
   const filtered = useMemo(() => {
+    const term = search.toLowerCase();
     const matches = competitions.filter((c) =>
       (!statusParam || c.status === statusParam) &&
-      (c.name.toLowerCase().includes(search.toLowerCase()) ||
-        (c.organiser_email || '').toLowerCase().includes(search.toLowerCase()))
+      (c.name.toLowerCase().includes(term) ||
+        (c.organiser_email || '').toLowerCase().includes(term) ||
+        (c.organiser_name || '').toLowerCase().includes(term))
     );
 
     const sorted = [...matches].sort((a, b) => {
@@ -552,7 +643,7 @@ function CompetitionsList() {
         <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
           <input
             type="text"
-            placeholder="Search name or organiser..."
+            placeholder="Search competition or organiser..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-64 rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
@@ -592,7 +683,7 @@ function CompetitionsList() {
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
                     <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
-                    <td className="px-4 py-3 text-slate-600">{c.organiser_email || '—'}</td>
+                    <td className="max-w-[16rem] px-4 py-3"><OrganiserCell competition={c} /></td>
                     <td className="px-4 py-3 tabular-nums text-slate-600">{c.player_count}</td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(c.created_at)}</td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(c.last_activity)}</td>
