@@ -39,6 +39,26 @@ interface AppDataContextType {
 
 const AppDataContext = createContext<AppDataContextType | null>(null);
 
+/**
+ * Pages that must never be interrupted by an expired-session redirect. These either need no
+ * session at all, or handle expiry themselves — /join/[code] shows its sign-in form in place so
+ * the player keeps the code they arrived with.
+ */
+const PUBLIC_PATH_PREFIXES = [
+  '/login',
+  '/register',
+  '/join',
+  '/forgot-password',
+  '/reset-password',
+  '/terms',
+  '/privacy',
+  '/help',
+  '/pricing'
+];
+
+const isPublicPath = (pathname: string): boolean =>
+  pathname === '/' || PUBLIC_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
+
 interface AppDataProviderProps {
   children: ReactNode;
 }
@@ -118,9 +138,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         setLatestRoundStats(null);
         console.log('Invalid token detected, cleared localStorage');
 
-        // Redirect to home page if on a protected route
-        if (typeof window !== 'undefined' && window.location.pathname !== '/' && window.location.pathname !== '/login') {
-          window.location.href = '/';
+        // Send them somewhere they can act: an expired session needs a sign-in, not
+        // the marketing page. /join/[code] handles its own expiry in place, so leave it be.
+        if (typeof window !== 'undefined' && !isPublicPath(window.location.pathname)) {
+          window.location.href = '/login';
         }
       } else {
         console.error('Failed to load competitions:', competitionsData.data.message);
@@ -142,9 +163,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
           localStorage.removeItem('jwt_token');
           localStorage.removeItem('user');
 
-          // Redirect to home page if on a protected route
-          if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
-            window.location.href = '/';
+          // Send them somewhere they can act: an expired session needs a sign-in, not
+          // the marketing page. /join/[code] handles its own expiry in place, so leave it be.
+          if (!isPublicPath(window.location.pathname)) {
+            window.location.href = '/login';
           }
         }
         setUser(null);

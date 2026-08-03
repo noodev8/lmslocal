@@ -118,9 +118,12 @@ export default function LandingPage() {
 
   const onJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = code.trim();
+    const trimmed = code.trim().toUpperCase();
     if (!trimmed) return;
-    router.push(`/register?code=${encodeURIComponent(trimmed)}`);
+
+    // The join page looks the code up before asking for anything, and handles
+    // signed in, signed out and expired sessions itself.
+    router.push(`/join/${encodeURIComponent(trimmed)}`);
   };
 
   return (

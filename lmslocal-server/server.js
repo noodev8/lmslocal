@@ -78,6 +78,7 @@ const getStandingsGroupRoute = require('./routes/get-standings-group');
 const searchPlayersRoute = require('./routes/search-players');
 const getPlayerHistoryRoute = require('./routes/get-player-history');
 const joinCompetitionByCodeRoute = require('./routes/join-competition-by-code');
+const getCompetitionByCodeRoute = require('./routes/get-competition-by-code');
 const getFixturePickCountRoute = require('./routes/get-fixture-pick-count');
 const getRoundHistoryRoute = require('./routes/get-round-history');
 const addOfflinePlayerRoute = require('./routes/add-offline-player');
@@ -207,6 +208,21 @@ const dbIntensiveLimit = rateLimit({
   }
 });
 
+// Tighter limit for the public join-code lookup. It is unauthenticated and invite codes are only
+// 4 digits, so the general 50-per-10s allowance would let the whole code space be walked in well
+// under a minute. 30 a minute still leaves a player plenty of room to correct a typo, and a shared
+// venue IP room to sign several people up, while making enumeration take hours rather than seconds.
+const joinLookupLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: {
+    return_code: "RATE_LIMIT_EXCEEDED",
+    message: "Too many code lookups. Please wait a minute and try again."
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // CORS configuration - read from environment variable
 const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(',').map(url => url.trim())
@@ -316,6 +332,9 @@ app.use('/get-standings-group', getStandingsGroupRoute);
 app.use('/search-players', searchPlayersRoute);
 app.use('/get-player-history', getPlayerHistoryRoute);
 app.use('/join-competition-by-code', joinCompetitionByCodeRoute);
+// Public, unauthenticated lookup for the /join/[code] page. Rate limited so invite codes
+// cannot be enumerated quickly.
+app.use('/get-competition-by-code', joinLookupLimit, getCompetitionByCodeRoute);
 app.use('/get-fixture-pick-count', getFixturePickCountRoute);
 app.use('/get-round-history', getRoundHistoryRoute);
 app.use('/add-offline-player', addOfflinePlayerRoute);

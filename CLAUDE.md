@@ -197,7 +197,8 @@ lmslocal-web/
 
 ## Security Guidelines
 
-- **Rate limiting**: General limit (300 req/15min), DB-intensive endpoints (5 req/10sec)
+- **Rate limiting**: General limit (1000 req/15min), DB-intensive endpoints (50 req/10sec, keyed by
+  IP + path), and `joinLookupLimit` (30 req/min) on the public `/get-competition-by-code` lookup
 - **CORS**: Configured for localhost:3000-3003 and CLIENT_URL environment variable
 - **Helmet**: CSP, security headers with unsafe-inline allowances for React dev
 - **Authentication**: JWT tokens with bcrypt password hashing

@@ -421,6 +421,22 @@ const getUserId = (): string => {
 
 // Competition API calls
 export const competitionApi = {
+  // Public, unauthenticated lookup used by /join/[code]. Lets a player see what they are joining
+  // before we ask them to sign in or create an account, so a typo costs them nothing.
+  getByCode: (competition_code: string) => api.post<{
+    return_code: string;
+    message?: string;
+    competition?: {
+      id: number;
+      name: string;
+      venue_name: string | null;
+      organiser_name: string | null;
+      player_count: number;
+      status: string;
+      can_join: boolean;
+      closed_reason: string | null;
+    };
+  }>('/get-competition-by-code', { competition_code }),
   create: (data: CreateCompetitionRequest) => api.post<{ return_code: string; message?: string; competition?: Competition; competition_id?: string }>('/create-competition', data),
   // Switch a competition into or out of the automated fixture service. Saves on its own rather
   // than through /update-competition: it can be refused for round-state reasons that need their
