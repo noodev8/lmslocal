@@ -268,32 +268,42 @@ router.post('/', verifyToken, async (req, res) => {
     const mainResult = await query(mainQuery, [user_id]);
 
 
-    // === CHECK AND UPDATE INVITE CODES FOR COMPETITIONS ===
-    // For each competition with invite_code, check if Round 1 lock time has passed
-    for (const comp of mainResult.rows) {
-      if (comp.invite_code) {
-        // Get Round 1 lock time for this competition
-        const round1Result = await query(`
-          SELECT lock_time 
-          FROM round 
-          WHERE competition_id = $1 AND round_number = 1
-        `, [comp.id]);
-        
-        if (round1Result.rows.length > 0) {
-          const round1LockTime = new Date(round1Result.rows[0].lock_time);
-          const currentTime = new Date();
-          
-          if (currentTime >= round1LockTime) {
-            // Round 1 lock time has passed - set invite_code to NULL and status to ACTIVE.
-            // Uppercase to match 'SETUP' and 'COMPLETE'; this line is why production
-            // carried a mix of casings.
-            await query(`
-              UPDATE competition
-              SET invite_code = NULL, status = 'ACTIVE'
-              WHERE id = $1 AND invite_code IS NOT NULL
-            `, [comp.id]);
+    // === EXPIRE INVITE CODES WHOSE ROUND 1 HAS LOCKED ===
+    // A competition stops accepting its join code once Round 1 locks. This used to
+    // run one lock-time lookup per competition, and then one UPDATE per expiry;
+    // both are now a single round trip regardless of how many competitions the
+    // user has.
+    const codedCompetitionIds = mainResult.rows
+      .filter(comp => comp.invite_code)
+      .map(comp => comp.id);
 
-            // Update the data object for the response
+    if (codedCompetitionIds.length > 0) {
+      const round1Result = await query(`
+        SELECT competition_id, lock_time
+        FROM round
+        WHERE competition_id = ANY($1) AND round_number = 1
+      `, [codedCompetitionIds]);
+
+      // Competitions with no Round 1 row simply do not come back, which matches
+      // the old behaviour of skipping them.
+      const now = new Date();
+      const expiredIds = round1Result.rows
+        .filter(row => now >= new Date(row.lock_time))
+        .map(row => row.competition_id);
+
+      if (expiredIds.length > 0) {
+        // Uppercase ACTIVE to match 'SETUP' and 'COMPLETE'; this line is why
+        // production carried a mix of casings.
+        await query(`
+          UPDATE competition
+          SET invite_code = NULL, status = 'ACTIVE'
+          WHERE id = ANY($1) AND invite_code IS NOT NULL
+        `, [expiredIds]);
+
+        // Reflect the change in the rows we are about to serialise
+        const expired = new Set(expiredIds);
+        for (const comp of mainResult.rows) {
+          if (expired.has(comp.id)) {
             comp.invite_code = null;
             comp.status = 'ACTIVE';
           }
@@ -301,43 +311,71 @@ router.post('/', verifyToken, async (req, res) => {
       }
     }
 
-    // === BUILD COMPETITION ARRAY WITH HISTORY ===
-    const competitions = [];
-    
-    for (const comp of mainResult.rows) {
-      // === GET PICK HISTORY (only if user is participating) ===
-      let history = [];
-      if (comp.is_participant && comp.current_round && comp.current_round > 1) {
-        const historyQuery = `
-          SELECT 
-            r.round_number,                     -- Round number
-            r.lock_time,                        -- When round locked
-            p.team as pick_team,                -- Team picked
-            t.name as pick_team_full_name,      -- Full team name
-            CONCAT(f.home_team, ' v ', f.away_team) as fixture, -- Fixture description
-            COALESCE(p.outcome, 'pending') as pick_result       -- Pick result
-          FROM round r
-          LEFT JOIN pick p ON r.id = p.round_id AND p.user_id = $1
-          LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
-          LEFT JOIN fixture f ON p.fixture_id = f.id
-          WHERE r.competition_id = $2
-            AND r.round_number < $3
-            AND r.round_number IS NOT NULL
-          ORDER BY r.round_number DESC
-        `;
-        
-        const historyResult = await query(historyQuery, [user_id, comp.id, comp.current_round]);
-        history = historyResult.rows.map(row => ({
+    // === GET PICK HISTORY FOR EVERY COMPETITION IN ONE QUERY ===
+    // History is every round before the competition's current one, so each
+    // competition carries its own cutoff. The ids and their cutoffs are passed as
+    // two parallel arrays and zipped back together with unnest, which keeps the
+    // per-competition boundary exact while collapsing what used to be one query
+    // per competition into one query in total.
+    const historyTargets = mainResult.rows.filter(
+      comp => comp.is_participant && comp.current_round && comp.current_round > 1
+    );
+
+    const historyByCompetition = new Map();
+
+    if (historyTargets.length > 0) {
+      const historyQuery = `
+        SELECT
+          r.competition_id,                   -- Which competition this round belongs to
+          r.round_number,                     -- Round number
+          r.lock_time,                        -- When round locked
+          p.team as pick_team,                -- Team picked
+          t.name as pick_team_full_name,      -- Full team name
+          CONCAT(f.home_team, ' v ', f.away_team) as fixture, -- Fixture description
+          COALESCE(p.outcome, 'pending') as pick_result       -- Pick result
+        FROM round r
+        -- One (competition_id, cutoff) pair per competition the user is in
+        JOIN unnest($2::int[], $3::int[]) AS target(competition_id, current_round)
+          ON target.competition_id = r.competition_id
+        LEFT JOIN pick p ON r.id = p.round_id AND p.user_id = $1
+        LEFT JOIN team t ON t.short_name = p.team AND t.is_active = true
+        LEFT JOIN fixture f ON p.fixture_id = f.id
+        WHERE r.round_number < target.current_round
+          AND r.round_number IS NOT NULL
+        ORDER BY r.competition_id, r.round_number DESC
+      `;
+
+      const historyResult = await query(historyQuery, [
+        user_id,
+        historyTargets.map(comp => comp.id),
+        historyTargets.map(comp => Number(comp.current_round))
+      ]);
+
+      // Group by competition, preserving the round_number DESC order above
+      for (const row of historyResult.rows) {
+        if (!historyByCompetition.has(row.competition_id)) {
+          historyByCompetition.set(row.competition_id, []);
+        }
+
+        historyByCompetition.get(row.competition_id).push({
           round_number: row.round_number,
           pick_team: row.pick_team,
           pick_team_full_name: row.pick_team_full_name || row.pick_team,
           fixture: row.fixture,
-          pick_result: row.pick_result === 'WIN' ? 'win' : 
-                      row.pick_result === 'LOSE' ? 'loss' : 
+          pick_result: row.pick_result === 'WIN' ? 'win' :
+                      row.pick_result === 'LOSE' ? 'loss' :
                       row.pick_result === 'NO_PICK' ? 'no_pick' : 'pending',
           lock_time: row.lock_time
-        }));
+        });
       }
+    }
+
+    // === BUILD COMPETITION ARRAY ===
+    const competitions = [];
+
+    for (const comp of mainResult.rows) {
+      // Empty array for non-participants and for anyone still in round 1
+      const history = historyByCompetition.get(comp.id) || [];
 
       // === ASSEMBLE FINAL COMPETITION OBJECT ===
 
