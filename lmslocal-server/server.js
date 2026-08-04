@@ -180,10 +180,23 @@ app.use(helmet({
   },
 }));
 
+// Rate limiters answer with HTTP 200 and a return_code, like every other route.
+//
+// express-rate-limit defaults to 429. Axios rejects on any non-2xx, the response
+// interceptor only recognises 401, so a throttled request used to surface as a
+// generic thrown error - and nothing in lmslocal-web has ever checked for 429 or
+// RATE_LIMIT_EXCEEDED, so the messages below were never shown to anyone. Callers
+// already branch on return_code !== 'SUCCESS', so 200 puts a throttled request on
+// the same handled path as any other failure.
+//
+// The RateLimit-* headers still carry the real state for anything monitoring it.
+const RATE_LIMIT_STATUS = 200;
+
 // General rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // Limit each IP to 1000 requests per windowMs
+  statusCode: RATE_LIMIT_STATUS,
   message: {
     return_code: "RATE_LIMIT_EXCEEDED",
     message: "Too many requests, please try again later"
@@ -197,6 +210,7 @@ app.use(limiter);
 const dbIntensiveLimit = rateLimit({
   windowMs: 10 * 1000, // 10 seconds
   max: 50, // Max 50 requests per 10 seconds per IP
+  statusCode: RATE_LIMIT_STATUS,
   message: {
     return_code: "RATE_LIMIT_EXCEEDED",
     message: "Too many database requests. Please wait 10 seconds before trying again."
@@ -216,6 +230,7 @@ const dbIntensiveLimit = rateLimit({
 const joinLookupLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
+  statusCode: RATE_LIMIT_STATUS,
   message: {
     return_code: "RATE_LIMIT_EXCEEDED",
     message: "Too many code lookups. Please wait a minute and try again."
@@ -229,6 +244,7 @@ const joinLookupLimit = rateLimit({
 const contactLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  statusCode: RATE_LIMIT_STATUS,
   message: {
     return_code: "RATE_LIMIT_EXCEEDED",
     message: "That is a few messages in a short time. Please give it a few minutes."
