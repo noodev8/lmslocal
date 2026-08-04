@@ -166,13 +166,23 @@ Atomicity here is correct and worth preserving; the duration is the problem.
 
 ### 6a. Proxy timeout (the real risk)
 
-**Unverified assumption — check this first.** Nginx's default `proxy_read_timeout` is 60
-seconds. The production nginx config has *not* been inspected; the 60s figures above
-assume the default. Confirm before designing around it.
+**Verified 2026-08-04 — the ceiling is 60 seconds.** Three things were checked:
 
-On that assumption, the organiser path only reaches 60s at roughly **1,100 players**,
-which is far away. The admin path reaches it at around **11 competitions × 100 players**,
-which is much closer.
+- `nginx -T` on the VPS — the merged, *effective* config, so this covers `nginx.conf`,
+  the site file and every `conf.d` include — contains no `proxy_read_timeout` or
+  `proxy_send_timeout` at all. Nothing overrides nginx's built-in default of **60s**.
+- Nothing sits in front of nginx. `curl -D -` against the production API returns
+  `Server: nginx/1.24.0 (Ubuntu)` with no CDN headers, matching
+  `app.set('trust proxy', 1)` in `server.js`. There is no second, lower ceiling hiding
+  behind a CDN.
+- Node is not the constraint. `server.js` sets no `server.timeout`, `headersTimeout` or
+  `requestTimeout`, and the Node defaults bound how long the *client* takes to send a
+  request — not how long a handler takes to respond. Node will not kill a slow handler.
+
+So the 60s figures above stand as written.
+
+The organiser path only reaches 60s at roughly **1,100 players**, which is far away. The
+admin path reaches it at around **11 competitions × 100 players**, which is much closer.
 
 ### 6b. Progress feedback (the stated requirement)
 
