@@ -42,7 +42,7 @@ export default function TermsOfService() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
         <div>
           <h1 className="font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">Terms of Service</h1>
-          <p className="mt-4 font-body text-xs font-semibold uppercase tracking-[0.12em] text-ink-fade">Last updated: August 2, 2026</p>
+          <p className="mt-4 font-body text-xs font-semibold uppercase tracking-[0.12em] text-ink-fade">Last updated: August 4, 2026</p>
 
           <div className="mt-10">
             <h2 className="mt-10 border-t border-ink/30 pt-6 font-display text-2xl uppercase tracking-[0.03em] text-ink">1. Acceptance of Terms</h2>

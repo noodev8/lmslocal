@@ -8,11 +8,54 @@ Email communications are a critical engagement tool for LMSLocal. Users have all
 
 ---
 
+## Notification index
+
+Every notification we send or intend to send, in one place. "Notification" covers email and
+mobile push — some of these should be both, and the channel is a separate decision from whether
+the notification is worth sending at all.
+
+**Add new ideas straight to the ideas table below.** A one-line note is enough; the design can
+come later when the idea is picked up. The detail sections further down this document cover only
+the three player emails that have been designed so far.
+
+### Currently sent
+
+| Notification | Audience | Channel | Sender |
+|---|---|---|---|
+| Email verification | Player | Email | `sendVerificationEmail` |
+| Password reset | Player | Email | `sendPasswordResetEmail` |
+| Player magic link | Player | Email | `sendPlayerMagicLink` |
+| Welcome to competition | Player | Email | `sendWelcomeCompetitionEmail` |
+| Pick reminder | Player | Email + push | `sendPickReminderEmail`, `pick_reminder` |
+| Round results | Player | Email | `sendResultsEmail` |
+| New round available | Player | Push | `new_round` |
+| Competition announcement | Player | Email | `sendCompetitionAnnouncementEmail` |
+| Payment confirmation | Organiser | Email | `sendPaymentConfirmationEmail` |
+| Organiser tip (mid-round) | Organiser | Email | `sendOrganiserTipEmail` |
+| Onboarding application received | Us | Email | `sendOnboardingNotification` |
+| Onboarding confirmation | Applicant | Email | `sendOnboardingConfirmation` |
+| Contact form message | Us | Email | `sendContactMessage` |
+
+### Ideas, not yet designed
+
+Notes only. None of these are specified, and nothing here is a commitment to build.
+
+| Idea | Audience | Why | Raised |
+|---|---|---|---|
+| **Running out of player places** | Organiser | An organiser at the free limit with no credits has players silently turned away at the join screen. The first they hear of it is a player complaining. Warn them as they approach 20, not after. At the time of writing one organiser was at 18 of 20 with no credits. | 2026-08-04 |
+| **A player's email is bouncing** | Organiser | Bounces were invisible until the Resend result handling was fixed; five had gone unnoticed, one a plain domain typo. Now that failures are recorded, somebody should be told — the organiser can usually fix the address in a way we cannot. | 2026-08-04 |
+
+**The shape both of these share** is worth noticing: the system knows something the organiser
+needs to know and does not tell them. Everything designed so far is player-facing, so
+organiser-operational notifications are the obvious gap to work through as a group.
+
+---
+
 ## Email Types
 
 ### 1. Welcome Email
 **Priority**: Medium
-**Status**: 🔴 Not Implemented
+**Status**: 🟢 Implemented (see the notification index above)
 
 **Purpose**: Orient new players and set expectations for the competition experience.
 
@@ -39,7 +82,7 @@ Email communications are a critical engagement tool for LMSLocal. Users have all
 
 ### 2. Pick Reminder Emails
 **Priority**: 🔥 CRITICAL - Highest Value
-**Status**: 🔴 Not Implemented
+**Status**: 🟢 Implemented (see the notification index above)
 
 **Purpose**: Prevent missed picks (the #1 user pain point). Directly drives engagement and prevents player elimination due to inaction.
 
@@ -90,7 +133,7 @@ Email communications are a critical engagement tool for LMSLocal. Users have all
 
 ### 3. Results Notification
 **Priority**: High
-**Status**: 🔴 Not Implemented
+**Status**: 🟢 Implemented (see the notification index above)
 
 **Purpose**: Create momentum, drama, and keep eliminated players engaged as spectators.
 
@@ -1147,7 +1190,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // From addresses:
 // - noreply@lmslocal.co.uk (automated emails)
 // - notifications@lmslocal.co.uk (system notifications)
-// - support@lmslocal.co.uk (replies enabled)
+// - noodev8@gmail.com (replies enabled)
 
 // Webhooks: Configure in Resend dashboard
 // - URL: https://api.lmslocal.co.uk/api/resend-webhooks
