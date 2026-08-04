@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAppData } from '@/contexts/AppDataContext';
 import { roundApi, cacheUtils } from '@/lib/api';
+import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 export default function WaitingForFixtures() {
   const params = useParams();
@@ -68,38 +69,24 @@ export default function WaitingForFixtures() {
       checkRoundsStatus();
     }
   }, [competition, competitionId, router]);
-  
+
   if (contextLoading || !competition) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <header className="bg-white border-b border-slate-200 shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-4">
-                <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                  <ArrowLeftIcon className="h-5 w-5" />
-                  <span className="font-medium">Back</span>
-                </Link>
-                <div className="h-6 w-px bg-slate-300" />
-                <div>
-                  <h1 className="text-lg font-semibold text-slate-900">Waiting for Fixtures</h1>
-                </div>
-              </div>
-            </div>
+      <div className="min-h-screen bg-stock font-body text-ink">
+        <header className="border-b border-ink/30">
+          <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+            <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+              <ArrowLeftIcon className="h-4 w-4" />
+              Dashboard
+            </Link>
           </div>
         </header>
-        
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-50 rounded-full mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
-                </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading</h3>
-                <p className="text-slate-500">Please wait while we check the competition status...</p>
-              </div>
-            </div>
+
+        <main className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+          <div className={`${PANEL} p-8 text-center`}>
+            <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+            <p className={EYEBROW}>Loading</p>
+            <p className="mt-2 text-[17px] text-ink-fade">Checking the competition status&hellip;</p>
           </div>
         </main>
       </div>
@@ -107,43 +94,26 @@ export default function WaitingForFixtures() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span className="font-medium">Back</span>
-              </Link>
-              <div className="h-6 w-px bg-slate-300" />
-              <div>
-                <h1 className="text-lg font-semibold text-slate-900">Waiting for Fixtures</h1>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <header className="border-b border-ink/30">
+        <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+          <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Dashboard
+          </Link>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Competition Name */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">{competition.name}</h1>
-        </div>
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <p className={EYEBROW}>{competition.name}</p>
 
-        {/* Main Waiting Card */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-center mb-4">
-              <ClockIcon className="h-6 w-6 text-amber-600 mr-3" />
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Waiting for next round of fixtures</h2>
-              </div>
-            </div>
-          </div>
+        <div className={`${PANEL} mt-4 p-8 text-center`}>
+          <ClockIcon className="mx-auto h-8 w-8 text-ink-fade" />
+          <p className={`${HEADING} mt-4 text-2xl`}>Waiting for the next round</p>
+          <p className="mt-2 text-[15px] text-ink-fade">
+            Fixtures haven&apos;t been set yet. This page will move on as soon as they&apos;re in.
+          </p>
         </div>
-
       </main>
     </div>
   );

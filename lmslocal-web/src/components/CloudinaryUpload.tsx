@@ -166,27 +166,22 @@ export default function CloudinaryUpload({
             accept={acceptedFileTypes.join(',')}
             onChange={handleFileSelect}
             disabled={uploading}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           />
           <div className={`
-            border-2 border-dashed border-gray-300 rounded-lg p-6 text-center
-            hover:border-gray-400 transition-colors duration-200
-            ${uploading ? 'bg-gray-50 cursor-not-allowed' : 'hover:bg-gray-50 cursor-pointer'}
+            border border-dashed border-ink/40 p-6 text-center transition-colors
+            ${uploading ? 'cursor-not-allowed bg-stock' : 'cursor-pointer hover:border-ink'}
           `}>
-            <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <div className="mt-2">
-              <p className="text-sm font-medium text-gray-900">
-                {uploading ? 'Uploading...' : 'Upload logo'}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                PNG, JPG, GIF, WebP up to {maxFileSize}MB
-              </p>
-            </div>
+            <CloudArrowUpIcon className="mx-auto h-9 w-9 text-ink-fade" />
+            <p className="mt-2 text-[15px] text-ink">
+              {uploading ? 'Uploading…' : 'Upload logo'}
+            </p>
+            <p className="mt-1 text-[12px] text-ink-fade">
+              PNG, JPG, GIF, WebP up to {maxFileSize}MB
+            </p>
             {uploading && (
-              <div className="mt-3">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                </div>
+              <div className="mx-auto mt-3 h-[3px] w-full max-w-xs bg-ink/15">
+                <div className="h-[3px] w-3/5 bg-ink" />
               </div>
             )}
           </div>
@@ -201,12 +196,12 @@ export default function CloudinaryUpload({
             alt="Upload preview"
             width={100}
             height={100}
-            className="h-24 w-24 object-cover rounded-lg border border-gray-200 shadow-sm"
+            className="h-24 w-24 border border-ink/30 object-cover"
           />
           <button
             type="button"
             onClick={handleRemove}
-            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+            className="absolute -right-2 -top-2 border border-ink bg-stock-lit p-1 text-ink transition-colors hover:border-overprint hover:text-overprint"
           >
             <XMarkIcon className="h-4 w-4" />
           </button>
@@ -215,14 +210,11 @@ export default function CloudinaryUpload({
 
       {/* Error Message */}
       {error && (
-        <p className="text-sm text-red-600 flex items-center">
-          <span className="mr-1">⚠️</span>
-          {error}
-        </p>
+        <p className="text-[13px] text-overprint">{error}</p>
       )}
 
       {/* Help Text */}
-      <p className="text-xs text-gray-500">
+      <p className="text-[12px] text-ink-fade">
         Images will be automatically resized to 200x200px and optimized for web
       </p>
     </div>

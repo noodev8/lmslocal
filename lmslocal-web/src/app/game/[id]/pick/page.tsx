@@ -10,6 +10,7 @@ import { roundApi, fixtureApi, playerActionApi, userApi } from '@/lib/api';
 import { withCache, apiCache } from '@/lib/cache';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
 
 interface Fixture {
   id: number;
@@ -25,7 +26,7 @@ export default function PickPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
-  
+
   // Use AppDataProvider context for competitions data
   const { competitions, loading: contextLoading, refreshData } = useAppData();
   const { showToast, toasts, removeToast } = useToast();
@@ -49,7 +50,7 @@ export default function PickPage() {
   const [currentPick, setCurrentPick] = useState<string | null>(null);
   const [isRoundLocked, setIsRoundLocked] = useState<boolean>(false);
   const [pickDataLoaded, setPickDataLoaded] = useState<boolean>(false);
-  
+
   const hasInitialized = useRef(false);
 
   const loadFixtures = async (roundId: number) => {
@@ -114,7 +115,7 @@ export default function PickPage() {
     if (hasInitialized.current) {
       return;
     }
-    
+
     // Check authentication
     const token = localStorage.getItem('jwt_token');
     if (!token) {
@@ -136,29 +137,29 @@ export default function PickPage() {
 
         // Get rounds to find current round (use cache for better performance)
         const roundsResponse = await roundApi.getRounds(parseInt(competitionId));
-        
+
         if (roundsResponse.data.return_code !== 'SUCCESS') {
           console.error('Failed to get rounds:', roundsResponse.data.message);
           router.push(`/game/${competitionId}/waiting`);
           return;
         }
-        
+
         const roundsData = roundsResponse.data.rounds || [];
-        
+
         if (roundsData.length === 0) {
           router.push(`/game/${competitionId}/waiting`);
           return;
         }
-        
+
         setRounds(roundsData);
         const latestRound = roundsData[0];
-        
+
         // Check if round has fixtures and is not locked yet
         if (latestRound.fixture_count === 0) {
           router.push(`/game/${competitionId}/waiting`);
           return;
         }
-        
+
         // Check if round is locked - this page is only for unlocked rounds
         const now = new Date();
         const lockTime = new Date(latestRound.lock_time || '');
@@ -175,7 +176,7 @@ export default function PickPage() {
 
         // Load data for the current round - pass fresh rounds data
         await loadRoundData(latestRound.id, roundsData);
-        
+
       } catch (error) {
         console.error('Failed to load pick data:', error);
         router.push(`/game/${competitionId}`);
@@ -190,7 +191,7 @@ export default function PickPage() {
   const loadAllowedTeams = async (competitionId: number) => {
     try {
       const response = await userApi.getAllowedTeams(competitionId);
-      
+
       if (response.data.return_code === 'SUCCESS') {
         const teamShorts = (response.data.allowed_teams || []).map((team: { short_name: string }) => team.short_name);
         setAllowedTeams(teamShorts);
@@ -205,7 +206,7 @@ export default function PickPage() {
 
 
   const getFullTeamName = (shortName: string) => {
-    const fixture = fixtures.find(f => 
+    const fixture = fixtures.find(f =>
       f.home_team_short === shortName || f.away_team_short === shortName
     );
     if (fixture) {
@@ -214,16 +215,22 @@ export default function PickPage() {
     return shortName;
   };
 
+  const getOpponentName = (fixtureId: number, position: 'home' | 'away') => {
+    const fixture = fixtures.find(f => f.id === fixtureId);
+    if (!fixture) return null;
+    return position === 'home' ? fixture.away_team : fixture.home_team;
+  };
+
   const handleTeamSelect = (teamShort: string, fixtureId: number, position: 'home' | 'away') => {
     // Can't select if round is locked
     if (isRoundLocked) return;
-    
+
     // User must remove current pick first
     if (currentPick) {
       return;
     }
-    
-    // No current pick, allow selection if team is in allowed list  
+
+    // No current pick, allow selection if team is in allowed list
     if (allowedTeams.includes(teamShort)) {
       setSelectedTeam({ teamShort, fixtureId, position });
     }
@@ -275,7 +282,7 @@ export default function PickPage() {
     setSubmitting(true);
     try {
       const response = await playerActionApi.setPick(selectedTeam.fixtureId, selectedTeam.position);
-      
+
       if (response.data.return_code === 'SUCCESS') {
         // Check if this pick triggered auto-lock
         const roundLocked = (response.data as { round_locked?: boolean }).round_locked;
@@ -322,38 +329,28 @@ export default function PickPage() {
     }
   };
 
+  const currentRound = rounds.find(r => r.id === currentRoundId);
+  const roundNumber = currentRound?.round_number;
+  const lockTime = currentRound?.lock_time;
+  const lockDate = lockTime ? new Date(lockTime) : null;
+
   if (loading || contextLoading || !pickDataLoaded) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <header className="bg-white border-b border-slate-200 shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-4">
-                <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                  <ArrowLeftIcon className="h-5 w-5" />
-                  <span className="font-medium">Back</span>
-                </Link>
-                <div className="h-6 w-px bg-slate-300" />
-                <div>
-                  <h1 className="text-lg font-semibold text-slate-900">Make Your Pick</h1>
-                  <p className="text-sm text-slate-600">Loading round...</p>
-                </div>
-              </div>
-            </div>
+      <div className="min-h-screen bg-stock font-body text-ink">
+        <header className="border-b border-ink/30">
+          <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+            <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+              <ArrowLeftIcon className="h-4 w-4" />
+              Dashboard
+            </Link>
           </div>
         </header>
-        
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-50 rounded-full mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
-                </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Pick Options</h3>
-                <p className="text-slate-500">Please wait while we load the fixtures...</p>
-              </div>
-            </div>
+
+        <main className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+          <div className={`${PANEL} p-8 text-center`}>
+            <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+            <p className={EYEBROW}>Loading</p>
+            <p className="mt-2 text-[17px] text-ink-fade">Fetching this round&apos;s fixtures&hellip;</p>
           </div>
         </main>
       </div>
@@ -361,289 +358,169 @@ export default function PickPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span className="font-medium">Dashboard</span>
-              </Link>
-              <div className="h-6 w-px bg-slate-300" />
-              <div>
-                <h1 className="text-lg font-semibold text-slate-900">Make Your Pick</h1>
-                {(() => {
-                  const currentRound = rounds.find(r => r.id === currentRoundId);
-                  const roundNumber = currentRound?.round_number;
-                  return roundNumber ? (
-                    <p className="text-sm text-slate-600">
-                      Round {roundNumber}
-                      {isRoundLocked ? ' (Locked)' : ''}
-                    </p>
-                  ) : null;
-                })()}
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <header className="border-b border-ink/30">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
+          <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Dashboard
+          </Link>
+          {roundNumber && (
+            <span className={`${LABEL} text-ink-fade`}>
+              Round {roundNumber}
+              {isRoundLocked ? ' — locked' : ''}
+            </span>
+          )}
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Competition Name */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              {/* Current round info */}
-            </div>
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="mb-5 flex items-baseline justify-between gap-3">
+          <div>
+            <p className={EYEBROW}>Make your pick</p>
+            <h1 className={`${HEADING} mt-1 text-3xl`}>Round {roundNumber}</h1>
           </div>
+          {lockDate && !isRoundLocked && (
+            <div className="text-right">
+              <p className={`${LABEL} text-ink-fade`}>Deadline</p>
+              <p className="font-data text-[15px] text-ink">
+                {lockDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                {' '}
+                {lockDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+          )}
         </div>
 
+        {/* Fixture List */}
+        <div className={`${PANEL} divide-y divide-ink/30`}>
+          {fixtures.map((fixture) => {
+            const homeTeam = {
+              short: fixture.home_team_short,
+              name: fixture.home_team,
+              fixtureId: fixture.id,
+              position: 'home' as const
+            };
 
-        {/* Round Information Card */}
-        {(() => {
-          const currentRound = rounds.find(r => r.id === currentRoundId);
-          const roundNumber = currentRound?.round_number;
-          const lockTime = currentRound?.lock_time;
+            const awayTeam = {
+              short: fixture.away_team_short,
+              name: fixture.away_team,
+              fixtureId: fixture.id,
+              position: 'away' as const
+            };
 
-          if (roundNumber) {
-            // Calculate lock time info for unlocked rounds
-            let lockTimeInfo = null;
-            if (!isRoundLocked && lockTime) {
-              const lockDate = new Date(lockTime);
-              const now = new Date();
-              const timeUntilLock = lockDate.getTime() - now.getTime();
-              const hoursUntilLock = Math.floor(timeUntilLock / (1000 * 60 * 60));
-              const minutesUntilLock = Math.floor((timeUntilLock % (1000 * 60 * 60)) / (1000 * 60));
-
-              lockTimeInfo = {
-                lockDate,
-                timeUntilLock,
-                hoursUntilLock,
-                minutesUntilLock
-              };
-            }
-
-            return (
-              <div className="mb-6">
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold text-lg text-slate-800">
-                    Round {roundNumber}
-                    {isRoundLocked ? ' - Locked' : ''}
-                  </div>
-
-                  {/* Deadline for unlocked rounds */}
-                  {lockTimeInfo && (
-                    <div className="text-right">
-                      <div className="text-sm text-slate-600">
-                        Deadline: {lockTimeInfo.lockDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                      </div>
-                      <div className="font-semibold text-slate-800">
-                        {lockTimeInfo.lockDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
-
-        {/* Team Selection by Fixture */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-
-          <div className="space-y-6">
-            {fixtures.map((fixture) => {
-              // Create team objects for this fixture
-              const homeTeam = {
-                short: fixture.home_team_short,
-                name: fixture.home_team,
-                fixtureId: fixture.id,
-                position: 'home' as const
-              };
-
-              const awayTeam = {
-                short: fixture.away_team_short,
-                name: fixture.away_team,
-                fixtureId: fixture.id,
-                position: 'away' as const
-              };
+            const renderTeam = (team: { short: string; name: string; fixtureId: number; position: 'home' | 'away' }) => {
+              const isAllowed = allowedTeams.includes(team.short);
+              const isSelected = selectedTeam?.teamShort === team.short;
+              const isCurrentPick = currentPick === team.short;
+              const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked;
+              const isPicked = isSelected || isCurrentPick;
 
               return (
-                <div key={fixture.id} className="border-b border-slate-100 last:border-b-0 pb-6 last:pb-0">
-                  {/* Team Cards with VS between them */}
-                  <div className="flex items-center gap-2 sm:gap-4">
-                    {/* Home Team */}
-                    {(() => {
-                      const team = homeTeam;
-                      const isAllowed = allowedTeams.includes(team.short);
-                      const isSelected = selectedTeam?.teamShort === team.short;
-                      const isCurrentPick = currentPick === team.short;
-
-                      // Disable teams if:
-                      // 1. Team not in allowed list
-                      // 2. There's already a current pick (user must remove it first)
-                      // 3. Round is locked
-                      const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked;
-
-                      return (
-                        <button
-                          key={team.short}
-                          onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
-                          disabled={isDisabled}
-                          className={`relative flex-1 min-h-[80px] p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 ${
-                            isSelected
-                              ? 'bg-white border-blue-500 shadow-md'
-                              : isCurrentPick
-                              ? 'bg-white border-blue-500 shadow-md'
-                              : isDisabled
-                              ? 'bg-slate-300 border-slate-400 text-slate-400 cursor-not-allowed opacity-30'
-                              : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
-                          }`}
-                        >
-                          {/* Current pick indicator */}
-                          {isCurrentPick && (
-                            <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
-                              PICK
-                            </div>
-                          )}
-
-                          <div className="text-center flex items-center justify-center h-full">
-                            {/* Full team name with responsive sizing and multi-line support */}
-                            <div className="text-sm sm:text-base lg:text-lg font-bold text-black leading-tight">
-                              {team.name}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })()}
-
-                    {/* VS Separator */}
-                    <div className="flex-shrink-0 px-2">
-                      <div className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-600">
-                        VS
-                      </div>
-                    </div>
-
-                    {/* Away Team */}
-                    {(() => {
-                      const team = awayTeam;
-                      const isAllowed = allowedTeams.includes(team.short);
-                      const isSelected = selectedTeam?.teamShort === team.short;
-                      const isCurrentPick = currentPick === team.short;
-
-                      // Disable teams if:
-                      // 1. Team not in allowed list
-                      // 2. There's already a current pick (user must remove it first)
-                      // 3. Round is locked
-                      const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked;
-
-                      return (
-                        <button
-                          key={team.short}
-                          onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
-                          disabled={isDisabled}
-                          className={`relative flex-1 min-h-[80px] p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 ${
-                            isSelected
-                              ? 'bg-white border-blue-500 shadow-md'
-                              : isCurrentPick
-                              ? 'bg-white border-blue-500 shadow-md'
-                              : isDisabled
-                              ? 'bg-slate-300 border-slate-400 text-slate-400 cursor-not-allowed opacity-30'
-                              : 'bg-white border-slate-300 hover:border-slate-400 cursor-pointer'
-                          }`}
-                        >
-                          {/* Current pick indicator */}
-                          {isCurrentPick && (
-                            <div className="absolute -top-2 -left-2 bg-slate-600 text-white text-xs rounded-full px-2 py-1 font-bold shadow-md">
-                              PICK
-                            </div>
-                          )}
-
-                          <div className="text-center flex items-center justify-center h-full">
-                            {/* Full team name with responsive sizing and multi-line support */}
-                            <div className="text-sm sm:text-base lg:text-lg font-bold text-black leading-tight">
-                              {team.name}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })()}
-                  </div>
-                </div>
+                <button
+                  key={team.short}
+                  onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
+                  disabled={isDisabled}
+                  className={`relative flex min-h-[72px] flex-1 items-center justify-center border p-3 text-center transition-colors sm:p-4 ${
+                    isCurrentPick
+                      ? 'border-2 border-moss bg-moss/10'
+                      : isSelected
+                      ? 'border-2 border-overprint bg-stock-lit'
+                      : isDisabled
+                      ? 'cursor-not-allowed border-ink/15 bg-stock text-ink-fade/60'
+                      : 'cursor-pointer border-ink/30 hover:border-ink'
+                  }`}
+                >
+                  {isCurrentPick && (
+                    <span className={`${LABEL} absolute -top-2.5 left-3 bg-moss px-1.5 text-stock-lit`}>
+                      Your pick
+                    </span>
+                  )}
+                  <span className={`text-sm font-medium leading-tight sm:text-base ${
+                    isCurrentPick ? 'text-ink' : isDisabled ? '' : 'text-ink'
+                  }`}>
+                    {team.name}
+                  </span>
+                </button>
               );
-            })}
-          </div>
+            };
+
+            return (
+              <div key={fixture.id} className="flex items-center gap-2 p-3 sm:gap-4 sm:p-4">
+                {renderTeam(homeTeam)}
+                <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>vs</span>
+                {renderTeam(awayTeam)}
+              </div>
+            );
+          })}
         </div>
-
-
-        {/* Confirmation Banner - shown when team is selected and round not locked */}
-        {selectedTeam && !isRoundLocked && (
-          <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="text-center">
-              <div className="text-green-800 font-medium mb-3">
-                Confirm your pick: <span className="font-bold">{getFullTeamName(selectedTeam.teamShort)}</span>
-              </div>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={submitPick}
-                  disabled={submitting}
-                  className="bg-slate-600 hover:bg-slate-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium transition-colors min-w-[120px]"
-                >
-                  {submitting ? 'Confirming...' : 'Confirm Pick'}
-                </button>
-                <button
-                  onClick={() => setSelectedTeam(null)}
-                  disabled={submitting}
-                  className="bg-slate-200 hover:bg-slate-300 disabled:bg-slate-100 text-slate-700 px-6 py-3 rounded-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Remove Current Pick Card - shown when no team selected but user has current pick and round not locked */}
         {!selectedTeam && currentPick && !isRoundLocked && (
-          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <div className="text-center">
-              <div className="text-slate-800 font-medium mb-2">
-                Current Pick: <span className="font-bold">{getFullTeamName(currentPick)}</span>
-              </div>
-              <div className="text-slate-600 text-base mb-4">
-                Want to change your pick? Remove it first to select a different team.
-              </div>
-              <button
-                onClick={handleUnselectPick}
-                disabled={submitting}
-                className="bg-slate-600 hover:bg-slate-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-medium transition-colors min-w-[140px]"
-              >
-                {submitting ? 'Removing...' : 'Remove Pick'}
-              </button>
-            </div>
+          <div className={`${PANEL} mt-5 p-5 text-center`}>
+            <p className="text-[15px] text-ink">
+              Your pick: <span className="font-data font-semibold">{getFullTeamName(currentPick)}</span>
+            </p>
+            <p className="mt-1 text-[13px] text-ink-fade">
+              Want to change your pick? Remove it first to select a different team.
+            </p>
+            <button
+              onClick={handleUnselectPick}
+              disabled={submitting}
+              className={`${BTN_OUTLINE} mt-4 min-w-[140px] px-6 py-3`}
+            >
+              {submitting ? 'Removing…' : 'Remove pick'}
+            </button>
           </div>
         )}
-
 
         {/* Help Section - only show when round not locked and no current pick */}
         {!isRoundLocked && !currentPick && (
-          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <div className="text-center">
-              <div className="text-slate-800 font-medium mb-2">
-                💡 How to make your pick
-              </div>
-              <div className="text-slate-700 text-sm space-y-1">
-                <p>• Click on any available team to select them</p>
-                <p>• Confirm your selection before the round locks</p>
-                <p>• Your team must WIN to advance - draws and losses eliminate you</p>
-              </div>
-            </div>
+          <div className={`${PANEL} mt-5 p-5`}>
+            <p className={`${EYEBROW} text-center`}>How to make your pick</p>
+            <ul className="mx-auto mt-3 max-w-sm space-y-1.5 text-[15px] text-ink-fade">
+              <li>Tap any available team to select them.</li>
+              <li>Confirm your selection before the round locks.</li>
+              <li>Your team must win to advance — a draw or a loss eliminates you.</li>
+            </ul>
           </div>
         )}
       </main>
+
+      {/* Confirm Pick Modal - opens the instant a team is tapped, so a pick can't be
+          half-made: last season players tapped a team and believed that was the
+          pick, without noticing the round still needed a separate confirm. */}
+      {selectedTeam && !isRoundLocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+          <div className={`${PANEL} w-full max-w-sm p-6 text-center`}>
+            <p className={EYEBROW}>Confirm your pick</p>
+            <p className={`${HEADING} mt-2 text-2xl`}>{getFullTeamName(selectedTeam.teamShort)}</p>
+            <p className={`${LABEL} mt-1 text-ink-fade`}>
+              vs {getOpponentName(selectedTeam.fixtureId, selectedTeam.position)}
+            </p>
+            <p className="mt-3 text-[14px] text-ink-fade">
+              This is saved as soon as you confirm — you won&apos;t be asked again unless you remove it.
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                onClick={() => setSelectedTeam(null)}
+                disabled={submitting}
+                className={`${BTN_OUTLINE} px-6 py-3 disabled:opacity-50`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitPick}
+                disabled={submitting}
+                className={`${BTN_PRIMARY} min-w-[140px] px-6 py-3 text-base disabled:opacity-50`}
+              >
+                {submitting ? 'Confirming…' : 'Confirm pick'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );

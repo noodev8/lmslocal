@@ -12,19 +12,21 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   MagnifyingGlassIcon,
-  EllipsisVerticalIcon
+  EllipsisVerticalIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, roundApi, fixtureApi, teamApi, userApi, organizerApi, Competition, Player, Team, cacheUtils } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useToast, ToastContainer } from '@/components/Toast';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
 
 
 export default function CompetitionPlayersPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = parseInt(params.id as string);
-  
+
   const [competition, setCompetition] = useState<Competition | null>(null);
 
   // Use AppDataProvider context to avoid redundant API calls
@@ -94,7 +96,7 @@ export default function CompetitionPlayersPage() {
     const initializeData = async () => {
       // Check authentication
       const token = localStorage.getItem('jwt_token');
-      
+
       if (!token) {
         if (!controller.signal.aborted) router.push('/login');
         return;
@@ -242,10 +244,10 @@ export default function CompetitionPlayersPage() {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { name: playerName } = playerToRemove;
     setRemoving(prev => new Set(prev).add(playerId));
-    
+
     try {
       const response = await competitionApi.removePlayer(competitionId, playerId);
-      
+
       if (response.data.return_code === 'SUCCESS') {
         // Remove player from local state
         setPlayers(prev => prev.filter(p => p.id !== playerId));
@@ -620,13 +622,11 @@ export default function CompetitionPlayersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-400 border-t-transparent"></div>
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Players</h3>
-          <p className="text-slate-500">Please wait while we fetch player data...</p>
+          <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+          <p className={EYEBROW}>Loading</p>
+          <p className="mt-2 text-[17px] text-ink-fade">Fetching player data&hellip;</p>
         </div>
       </div>
     );
@@ -638,82 +638,58 @@ export default function CompetitionPlayersPage() {
   const paidCount = players.filter(p => p.paid).length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Toast Container */}
+    <div className="min-h-screen bg-stock font-body text-ink">
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span className="font-medium">Back</span>
-              </Link>
-              <div className="h-6 w-px bg-slate-300" />
-              <div>
-                <h1 className="text-lg font-semibold text-slate-900">Players</h1>
-              </div>
-            </div>
-            
-          </div>
+      <header className="border-b border-ink/30">
+        <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+          <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Back
+          </Link>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        
-        {/* Header with Competition Info & Quick Stats */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-slate-900 mb-1">{competition?.name}</h1>
-              <div className="flex items-center space-x-4 text-sm text-slate-600">
-                <span>{totalPlayers || players.length} total</span>
-                <span>•</span>
-                <span>{activePlayers.length} active (on page)</span>
-                <span>•</span>
-                <span>{paidCount}/{players.length} paid (on page)</span>
-              </div>
-            </div>
-          </div>
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+
+        <p className={EYEBROW}>Players</p>
+        <h1 className={`${HEADING} mt-1 text-3xl`}>{competition?.name}</h1>
+        <div className={`${LABEL} mt-2 flex items-center gap-2 text-ink-fade`}>
+          <span>{totalPlayers || players.length} total</span>
+          <span>&middot;</span>
+          <span>{activePlayers.length} active (on page)</span>
+          <span>&middot;</span>
+          <span>{paidCount}/{players.length} paid (on page)</span>
         </div>
 
-
         {/* Search Box */}
-        <div className="mb-6">
+        <div className="mt-6">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" />
-              </div>
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-fade" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={handleSearchChange}
                 onKeyPress={handleSearchKeyPress}
-                placeholder="Search players by name or email..."
-                className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Search players by name or email…"
+                className="w-full rounded-sm border border-ink bg-transparent py-2 pl-9 pr-9 text-[15px] text-ink placeholder-ink-fade/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               />
               {searchTerm && (
                 <button
                   onClick={handleClearSearch}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-fade transition-colors hover:text-ink"
                 >
-                  <XMarkIcon className="h-5 w-5" />
+                  <XMarkIcon className="h-4 w-4" />
                 </button>
               )}
             </div>
-            <button
-              onClick={handleSearch}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
-            >
+            <button onClick={handleSearch} className={`${BTN_PRIMARY} px-6 py-2 text-base`}>
               Search
             </button>
           </div>
           {activeSearchTerm && (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-[13px] text-ink-fade">
               Showing {totalPlayers} result{totalPlayers !== 1 ? 's' : ''} for &quot;{activeSearchTerm}&quot;
             </p>
           )}
@@ -721,104 +697,91 @@ export default function CompetitionPlayersPage() {
 
         {/* Access Code */}
         {competition?.access_code && (
-          <div className="flex items-center space-x-3 mb-6">
-            <span className="text-sm text-slate-600">Join code:</span>
-            <code className="px-2 py-1 bg-slate-100 text-slate-900 rounded font-mono text-sm font-medium">{competition.access_code}</code>
+          <div className="mt-5 flex items-center gap-3">
+            <span className={`${LABEL} text-ink-fade`}>Join code:</span>
+            <code className="font-data text-[15px] text-ink">{competition.access_code}</code>
             <button
               onClick={() => navigator.clipboard.writeText(competition.access_code!)}
-              className="text-xs text-slate-500 hover:text-slate-700 underline"
+              className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-4 transition-colors hover:text-ink`}
             >
               copy
             </button>
           </div>
         )}
 
-        {/* Lives Changes Save/Cancel Bar - Show when there are pending changes */}
+        {/* Lives Changes Save/Cancel Bar - flagged as easy to miss: strengthened to an
+            overprint-bordered panel instead of a quiet indigo strip, since a navigation away
+            here used to lose the change with no warning. */}
         {pendingLivesChanges.size > 0 && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-indigo-900">
-                  {pendingLivesChanges.size} player{pendingLivesChanges.size !== 1 ? 's' : ''} with unsaved lives changes
-                </span>
-                <span className="text-xs text-indigo-600">
-                  (* indicates changed)
-                </span>
-              </div>
-
-              <div className="flex items-center space-x-2">
+          <div className={`${PANEL} mt-6 border-overprint p-4`}>
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+              <p className="text-[15px] font-medium text-ink">
+                {pendingLivesChanges.size} player{pendingLivesChanges.size !== 1 ? 's' : ''} with unsaved lives changes
+              </p>
+              <div className="flex items-center gap-2">
                 <button
                   onClick={handleCancelLivesChanges}
                   disabled={savingLivesChanges}
-                  className="px-3 py-1.5 text-sm font-medium text-indigo-700 bg-white border border-indigo-300 rounded hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                  className={`${BTN_OUTLINE} px-4 py-2 disabled:opacity-50`}
                 >
-                  Cancel Changes
+                  Cancel changes
                 </button>
                 <button
                   onClick={handleSaveLivesChanges}
                   disabled={savingLivesChanges}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+                  className={`${BTN_PRIMARY} px-4 py-2 text-base disabled:opacity-50`}
                 >
-                  {savingLivesChanges ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent mr-1"></div>
-                      Saving...
-                    </div>
-                  ) : (
-                    'Save Changes'
-                  )}
+                  {savingLivesChanges ? 'Saving…' : 'Save changes'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Players List - Action-First Design */}
-        <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+        {/* Players List */}
+        <div className={`${PANEL} mt-6 divide-y divide-ink/30`}>
           {players.map((player) => (
-            <div key={player.id} className={`p-4 hover:bg-slate-50 transition-colors ${
-              player.hidden ? 'bg-red-50 border-l-4 border-red-200' : ''
-            }`}>
+            <div key={player.id} className={`p-4 ${player.hidden ? 'border-l-2 border-overprint' : ''}`}>
               {/* Player Info */}
               <div className="mb-3">
-                <h3 className="font-medium text-slate-900">{player.display_name}</h3>
-                <p className="text-sm text-slate-500">{player.email || 'No email'}</p>
+                <h3 className="font-data text-[15px] text-ink">{player.display_name}</h3>
+                <p className="text-[13px] text-ink-fade">{player.email || 'No email'}</p>
               </div>
 
-              {/* Admin Controls Row - Mobile Optimized */}
+              {/* Admin Controls Row */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                {/* Lives Control - Grouped pill style */}
-                <div className="flex items-center gap-1.5 bg-slate-100 rounded-md px-2.5 py-1.5">
+                {/* Lives Control */}
+                <div className="flex items-center gap-1.5 border border-ink/30 px-2.5 py-1.5">
                   <button
                     onClick={() => handleLivesChange(player.id, 'subtract')}
                     disabled={savingLivesChanges || (player.lives_remaining || 0) <= 0}
-                    title="Remove Life"
-                    className="p-0.5 text-slate-600 hover:text-slate-900 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Remove life"
+                    className="text-ink transition-colors hover:opacity-70 disabled:opacity-30"
                   >
                     <MinusIcon className="h-4 w-4" />
                   </button>
-                  <span className={`text-sm font-medium min-w-[4rem] text-center ${
-                    pendingLivesChanges.has(player.id) ? 'text-indigo-600' : 'text-slate-700'
+                  <span className={`min-w-[4rem] text-center font-data text-[14px] ${
+                    pendingLivesChanges.has(player.id) ? 'text-overprint' : 'text-ink'
                   }`}>
                     {player.lives_remaining || 0} {(player.lives_remaining || 0) === 1 ? 'life' : 'lives'}
-                    {pendingLivesChanges.has(player.id) && <span className="text-indigo-600">*</span>}
+                    {pendingLivesChanges.has(player.id) && '*'}
                   </span>
                   <button
                     onClick={() => handleLivesChange(player.id, 'add')}
                     disabled={savingLivesChanges || (player.lives_remaining || 0) >= 2}
-                    title="Add Life"
-                    className="p-0.5 text-slate-600 hover:text-slate-900 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Add life"
+                    className="text-ink transition-colors hover:opacity-70 disabled:opacity-30"
                   >
                     <PlusIcon className="h-4 w-4" />
                   </button>
                 </div>
 
-                {/* Payment Button - PRIMARY ACTION */}
+                {/* Payment Button */}
                 {player.paid ? (
                   <button
                     onClick={() => handlePaymentToggle(player.id, player.paid)}
                     disabled={updatingPayment.has(player.id)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 shadow-sm"
+                    className={`${BTN_DARK} inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-50`}
                     title="Click to mark as unpaid"
                   >
                     <CheckCircleIcon className="h-4 w-4" />
@@ -828,130 +791,119 @@ export default function CompetitionPlayersPage() {
                   <button
                     onClick={() => handlePaymentToggle(player.id, player.paid)}
                     disabled={updatingPayment.has(player.id)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-50 shadow-sm"
+                    className={`${BTN_OUTLINE} disabled:opacity-50`}
                     title="Click to mark as paid"
                   >
-                    Mark as Paid
+                    Mark as paid
                   </button>
                 )}
 
                 {/* Hidden Badge */}
                 {player.hidden && (
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-700">
-                    Hidden
-                  </span>
+                  <span className={`${LABEL} border border-overprint px-2 py-1 text-overprint`}>Hidden</span>
                 )}
 
                 {/* Spacer to push menu to the right */}
-                <div className="flex-1"></div>
+                <div className="flex-1" />
 
                 {/* More Options Menu */}
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <button
-                      onClick={() => setOpenDropdownId(openDropdownId === player.id ? null : player.id)}
-                      className="p-2 hover:bg-slate-200 rounded-md transition-colors"
-                      title="More actions"
-                    >
-                      <EllipsisVerticalIcon className="h-5 w-5 text-slate-600" />
-                    </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenDropdownId(openDropdownId === player.id ? null : player.id)}
+                    className="p-2 text-ink-fade transition-colors hover:text-ink"
+                    title="More actions"
+                  >
+                    <EllipsisVerticalIcon className="h-5 w-5" />
+                  </button>
 
-                    {/* Dropdown Menu - Rare Actions Only */}
-                    {openDropdownId === player.id && (
-                      <>
-                        {/* Backdrop to close menu */}
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setOpenDropdownId(null)}
-                        />
+                  {/* Dropdown Menu - Rare Actions Only */}
+                  {openDropdownId === player.id && (
+                    <>
+                      {/* Backdrop to close menu */}
+                      <div className="fixed inset-0 z-10" onClick={() => setOpenDropdownId(null)} />
 
-                        {/* Menu */}
-                        <div className="absolute left-0 sm:left-auto sm:right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
-                          {/* Set Pick */}
+                      {/* Menu */}
+                      <div className="absolute left-0 top-full z-20 mt-1 w-52 border border-ink/30 bg-stock-lit sm:left-auto sm:right-0">
+                        {/* Set Pick */}
+                        <button
+                          onClick={() => {
+                            setOpenDropdownId(null);
+                            handleOpenSetPickModal(player);
+                          }}
+                          disabled={!currentRoundId || !hasFixtures || roundIsLocked}
+                          className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock disabled:cursor-not-allowed disabled:text-ink-fade/50 disabled:hover:bg-transparent`}
+                        >
+                          <CheckCircleIcon className="h-4 w-4" />
+                          Set pick
+                        </button>
+
+                        <div className="border-t border-ink/30" />
+
+                        {/* Toggle Status */}
+                        <button
+                          onClick={() => {
+                            setOpenDropdownId(null);
+                            handleStatusToggle(player.id, player.status || 'active');
+                          }}
+                          disabled={updatingStatus.has(player.id)}
+                          className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock disabled:opacity-50`}
+                        >
+                          <span className="flex h-4 w-4 items-center justify-center">
+                            {(player.status || 'active') === 'active' ? '✕' : '✓'}
+                          </span>
+                          {(player.status || 'active') === 'active' ? 'Mark as out' : 'Mark as active'}
+                        </button>
+
+                        {/* Unhide - Only if hidden */}
+                        {player.hidden && (
                           <button
                             onClick={() => {
                               setOpenDropdownId(null);
-                              handleOpenSetPickModal(player);
+                              handleUnhidePlayer(player.id);
                             }}
-                            disabled={!currentRoundId || !hasFixtures || roundIsLocked}
-                            className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50 disabled:text-slate-400"
+                            disabled={unhidingPlayer.has(player.id)}
+                            className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock disabled:opacity-50`}
                           >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>Set Pick</span>
+                            <EyeIcon className="h-4 w-4" />
+                            Unhide player
                           </button>
+                        )}
 
-                          <div className="border-t border-slate-100 my-1" />
-
-                          {/* Toggle Status */}
+                        {/* Manage Permissions - Only for main organiser */}
+                        {competition?.is_organiser && (
                           <button
                             onClick={() => {
                               setOpenDropdownId(null);
-                              handleStatusToggle(player.id, player.status || 'active');
+                              setSelectedPlayerForPermissions(player);
+                              setShowPermissionsModal(true);
                             }}
-                            disabled={updatingStatus.has(player.id)}
-                            className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50"
+                            className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock`}
                           >
-                            <span className="h-4 w-4 flex items-center justify-center">
-                              {(player.status || 'active') === 'active' ? '✗' : '✓'}
-                            </span>
-                            <span>{(player.status || 'active') === 'active' ? 'Mark as OUT' : 'Mark as Active'}</span>
+                            <Cog6ToothIcon className="h-4 w-4" />
+                            Manage permissions
                           </button>
+                        )}
 
-                          {/* Unhide - Only if hidden */}
-                          {player.hidden && (
+                        {/* Remove Player */}
+                        {competition?.invite_code && (
+                          <>
+                            <div className="border-t border-ink/30" />
                             <button
                               onClick={() => {
                                 setOpenDropdownId(null);
-                                handleUnhidePlayer(player.id);
+                                handleRemovePlayerClick(player.id, player.display_name);
                               }}
-                              disabled={unhidingPlayer.has(player.id)}
-                              className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2 disabled:opacity-50"
+                              disabled={removing.has(player.id)}
+                              className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-overprint transition-colors hover:bg-stock disabled:opacity-50`}
                             >
-                              <EyeIcon className="h-4 w-4" />
-                              <span>Unhide Player</span>
+                              <TrashIcon className="h-4 w-4" />
+                              Remove player
                             </button>
-                          )}
-
-                          {/* Manage Permissions - Only for main organiser */}
-                          {competition?.is_organiser && (
-                            <button
-                              onClick={() => {
-                                setOpenDropdownId(null);
-                                setSelectedPlayerForPermissions(player);
-                                setShowPermissionsModal(true);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                              </svg>
-                              <span>Manage Permissions</span>
-                            </button>
-                          )}
-
-                          {/* Remove Player */}
-                          {competition?.invite_code && (
-                            <>
-                              <div className="border-t border-slate-100 my-1" />
-                              <button
-                                onClick={() => {
-                                  setOpenDropdownId(null);
-                                  handleRemovePlayerClick(player.id, player.display_name);
-                                }}
-                                disabled={removing.has(player.id)}
-                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 disabled:opacity-50"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                                <span>Remove Player</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -960,17 +912,15 @@ export default function CompetitionPlayersPage() {
 
         {/* No Players State */}
         {players.length === 0 && (
-          <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No players yet</h3>
-            <p className="text-slate-600 mb-4">
-              Share your join code to get players started.
-            </p>
+          <div className={`${PANEL} mt-6 p-12 text-center`}>
+            <p className={`${HEADING} text-2xl`}>No players yet</p>
+            <p className="mt-2 text-[15px] text-ink-fade">Share your join code to get players started.</p>
             {competition?.access_code && (
-              <div className="inline-flex items-center space-x-2">
-                <code className="px-3 py-1 bg-slate-100 text-slate-900 rounded font-mono font-medium">{competition.access_code}</code>
+              <div className="mt-4 inline-flex items-center gap-2">
+                <code className="font-data text-[15px] text-ink">{competition.access_code}</code>
                 <button
                   onClick={() => navigator.clipboard.writeText(competition.access_code!)}
-                  className="text-slate-500 hover:text-slate-700 underline text-sm"
+                  className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-4 transition-colors hover:text-ink`}
                 >
                   copy
                 </button>
@@ -981,201 +931,149 @@ export default function CompetitionPlayersPage() {
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between border-t border-slate-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
-            <div className="flex flex-1 justify-between sm:hidden">
+          <div className="mt-6 flex flex-col gap-3 border-t border-ink/30 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[13px] text-ink-fade">
+              Showing <span className="font-medium text-ink">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+              <span className="font-medium text-ink">{Math.min(currentPage * pageSize, totalPlayers)}</span> of{' '}
+              <span className="font-medium text-ink">{totalPlayers}</span> players
+            </p>
+            <nav className="flex items-center gap-1.5" aria-label="Pagination">
               <button
                 onClick={() => loadPlayers(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${BTN_OUTLINE} px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40`}
               >
-                Previous
+                <span className="sr-only">Previous</span>
+                &larr;
               </button>
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 7) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 4) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 3) {
+                  pageNum = totalPages - 6 + i;
+                } else {
+                  pageNum = currentPage - 3 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => loadPlayers(pageNum)}
+                    className={`${LABEL} flex h-8 min-w-[2rem] items-center justify-center border px-2 transition-colors ${
+                      currentPage === pageNum
+                        ? 'border-ink bg-ink text-stock-lit'
+                        : 'border-ink/30 text-ink hover:border-ink'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
               <button
                 onClick={() => loadPlayers(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="relative ml-3 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${BTN_OUTLINE} px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40`}
               >
-                Next
+                <span className="sr-only">Next</span>
+                &rarr;
               </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-slate-700">
-                  Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{' '}
-                  <span className="font-medium">{Math.min(currentPage * pageSize, totalPlayers)}</span> of{' '}
-                  <span className="font-medium">{totalPlayers}</span> players
-                </p>
-              </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                  <button
-                    onClick={() => loadPlayers(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="sr-only">Previous</span>
-                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 7) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 4) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 3) {
-                      pageNum = totalPages - 6 + i;
-                    } else {
-                      pageNum = currentPage - 3 + i;
-                    }
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => loadPlayers(pageNum)}
-                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-                          currentPage === pageNum
-                            ? 'z-10 bg-slate-900 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900'
-                            : 'text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => loadPlayers(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="sr-only">Next</span>
-                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </nav>
-              </div>
-            </div>
+            </nav>
           </div>
         )}
 
       </main>
-      
+
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={showConfirmModal}
         onClose={handleCancelRemove}
         onConfirm={handleConfirmRemove}
-        title="Remove Player"
+        title="Remove player"
         message={playerToRemove ? `Are you sure you want to remove ${playerToRemove.name} from the competition? This will delete all their picks and progress data and cannot be undone.` : ''}
-        confirmText="Remove Player"
+        confirmText="Remove player"
         isLoading={playerToRemove ? removing.has(playerToRemove.id) : false}
       />
 
       {/* Set Player Pick Modal */}
       {showSetPickModal && selectedPlayerForPick && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-slate-900">Set Pick for {selectedPlayerForPick.display_name}</h3>
-                <button
-                  onClick={handleClosePickModal}
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+          <div className={`${PANEL} w-full max-w-md p-6`}>
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className={`${HEADING} text-xl`}>Set pick &mdash; {selectedPlayerForPick.display_name}</h3>
+              <button onClick={handleClosePickModal} className="text-ink-fade transition-colors hover:text-ink">
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {loadingPickData ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent" />
               </div>
+            ) : (
+              <div className="space-y-4">
+                <p className={`${LABEL} text-ink-fade`}>Round {currentRoundNumber}</p>
 
-              {loadingPickData ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
+                <div className="border border-ink/30 p-3">
+                  <p className="text-[14px] text-ink">
+                    {currentPlayerPick ? (
+                      <>Current pick: <span className="font-data font-semibold">{currentPlayerPick}</span></>
+                    ) : (
+                      'No pick made yet'
+                    )}
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Round Info */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-sm font-medium text-blue-900">
-                      Round {currentRoundNumber}
-                    </p>
-                  </div>
 
-                  {/* Current Pick Info */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                    <div className="flex items-start space-x-2">
-                      <svg className="w-5 h-5 text-slate-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-900">
-                          {currentPlayerPick ? (
-                            <>Current pick: <span className="font-semibold">{currentPlayerPick}</span></>
-                          ) : (
-                            'No pick made yet'
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Team Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Select Team
-                    </label>
-                    <select
-                      value={selectedTeam}
-                      onChange={(e) => setSelectedTeam(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Choose a team...</option>
-                      {pickTeams.map((team, index) => {
-                        const isAllowed = allowedTeamNames.has(team.name) || allowedTeamNames.has(team.short_name);
-                        return (
-                          <option key={`${team.id}-${team.name}-${index}`} value={team.name}>
-                            {isAllowed ? team.name : `❌ ${team.name}`}
-                          </option>
-                        );
-                      })}
-                      <option value="NO_PICK">Remove Pick</option>
-                    </select>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Teams marked with ❌ have already been used by this player
-                    </p>
-                  </div>
+                <div>
+                  <label className={`${LABEL} mb-2 block text-ink-fade`}>Select team</label>
+                  <select
+                    value={selectedTeam}
+                    onChange={(e) => setSelectedTeam(e.target.value)}
+                    className="w-full rounded-sm border border-ink bg-transparent px-3 py-2 text-[15px] text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    <option value="">Choose a team&hellip;</option>
+                    {pickTeams.map((team, index) => {
+                      const isAllowed = allowedTeamNames.has(team.name) || allowedTeamNames.has(team.short_name);
+                      return (
+                        <option key={`${team.id}-${team.name}-${index}`} value={team.name}>
+                          {isAllowed ? team.name : `${team.name} — already used`}
+                        </option>
+                      );
+                    })}
+                    <option value="NO_PICK">Remove pick</option>
+                  </select>
+                  <p className="mt-1 text-[12px] text-ink-fade">
+                    Teams marked &ldquo;already used&rdquo; have already been picked by this player.
+                  </p>
                 </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex space-x-3 mt-6">
-                <button
-                  onClick={handleClosePickModal}
-                  disabled={settingPick}
-                  className="flex-1 px-4 py-2 text-slate-600 hover:text-slate-800 font-medium transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSetPlayerPick}
-                  disabled={!selectedTeam || settingPick || pickSuccess || loadingPickData}
-                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${
-                    pickSuccess
-                      ? 'bg-green-600 text-white'
-                      : 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed'
-                  }`}
-                >
-                  {pickSuccess ? (
-                    <span className="flex items-center justify-center">
-                      <CheckCircleIcon className="h-5 w-5 mr-2" />
-                      Pick Set ✓
-                    </span>
-                  ) : settingPick ? (
-                    selectedTeam === 'NO_PICK' ? 'Removing Pick...' : 'Setting Pick...'
-                  ) : (
-                    selectedTeam === 'NO_PICK' ? 'Remove Pick' : 'Set Pick'
-                  )}
-                </button>
               </div>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleClosePickModal}
+                disabled={settingPick}
+                className={`${BTN_OUTLINE} flex-1 justify-center py-2 disabled:opacity-50`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSetPlayerPick}
+                disabled={!selectedTeam || settingPick || pickSuccess || loadingPickData}
+                className={`${pickSuccess ? BTN_DARK : BTN_PRIMARY} flex-1 py-2 text-base disabled:opacity-50`}
+              >
+                {pickSuccess ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <CheckCircleIcon className="h-4 w-4" />
+                    Pick set
+                  </span>
+                ) : settingPick ? (
+                  selectedTeam === 'NO_PICK' ? 'Removing pick…' : 'Setting pick…'
+                ) : (
+                  selectedTeam === 'NO_PICK' ? 'Remove pick' : 'Set pick'
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -1183,152 +1081,150 @@ export default function CompetitionPlayersPage() {
 
       {/* Permissions Modal */}
       {showPermissionsModal && selectedPlayerForPermissions && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Manage Permissions - {selectedPlayerForPermissions.display_name}
-                </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+          <div className={`${PANEL} w-full max-w-md p-6`}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className={`${HEADING} text-xl`}>
+                Permissions &mdash; {selectedPlayerForPermissions.display_name}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowPermissionsModal(false);
+                  setSelectedPlayerForPermissions(null);
+                }}
+                className="text-ink-fade transition-colors hover:text-ink"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mb-6 text-[14px] text-ink-fade">
+              Grant {selectedPlayerForPermissions.display_name} access to manage specific aspects of this competition.
+            </p>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setSavingPermissions(true);
+
+                const formData = new FormData(e.currentTarget);
+                const permissions = {
+                  manage_results: formData.get('manage_results') === 'on',
+                  manage_fixtures: formData.get('manage_fixtures') === 'on',
+                  manage_players: formData.get('manage_players') === 'on',
+                  manage_promote: formData.get('manage_promote') === 'on',
+                };
+
+                try {
+                  const response = await organizerApi.updatePlayerPermissions(
+                    competitionId,
+                    selectedPlayerForPermissions.id,
+                    permissions
+                  );
+
+                  if (response.data.return_code === 'SUCCESS') {
+                    // Update the player in the local state
+                    setPlayers(prev =>
+                      prev.map(p =>
+                        p.id === selectedPlayerForPermissions.id
+                          ? { ...p, ...permissions }
+                          : p
+                      )
+                    );
+
+                    showToast('Permissions updated successfully', 'success');
+                    setShowPermissionsModal(false);
+                    setSelectedPlayerForPermissions(null);
+                  } else {
+                    showToast(response.data.message || 'Failed to update permissions', 'error');
+                  }
+                } catch (error) {
+                  console.error('Error updating permissions:', error);
+                  showToast('Network error - could not update permissions', 'error');
+                } finally {
+                  setSavingPermissions(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              {/* Manage Results Permission */}
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  name="manage_results"
+                  defaultChecked={selectedPlayerForPermissions.manage_results || false}
+                  className="mt-1 h-4 w-4 accent-[#1C2620]"
+                />
+                <div className="flex-1">
+                  <div className="text-[15px] font-medium text-ink">Manage results</div>
+                  <div className="text-[13px] text-ink-fade">Enter and process match results</div>
+                </div>
+              </label>
+
+              {/* Manage Fixtures Permission */}
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  name="manage_fixtures"
+                  defaultChecked={selectedPlayerForPermissions.manage_fixtures || false}
+                  className="mt-1 h-4 w-4 accent-[#1C2620]"
+                />
+                <div className="flex-1">
+                  <div className="text-[15px] font-medium text-ink">Manage fixtures</div>
+                  <div className="text-[13px] text-ink-fade">Add and modify fixtures</div>
+                </div>
+              </label>
+
+              {/* Manage Players Permission */}
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  name="manage_players"
+                  defaultChecked={selectedPlayerForPermissions.manage_players || false}
+                  className="mt-1 h-4 w-4 accent-[#1C2620]"
+                />
+                <div className="flex-1">
+                  <div className="text-[15px] font-medium text-ink">Manage players</div>
+                  <div className="text-[13px] text-ink-fade">Add, remove, and manage players</div>
+                </div>
+              </label>
+
+              {/* Manage Promote Permission */}
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  name="manage_promote"
+                  defaultChecked={selectedPlayerForPermissions.manage_promote || false}
+                  className="mt-1 h-4 w-4 accent-[#1C2620]"
+                />
+                <div className="flex-1">
+                  <div className="text-[15px] font-medium text-ink">Manage promote</div>
+                  <div className="text-[13px] text-ink-fade">Access promotion and marketing features</div>
+                </div>
+              </label>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 border-t border-ink/30 pt-4">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowPermissionsModal(false);
                     setSelectedPlayerForPermissions(null);
                   }}
-                  className="text-slate-400 hover:text-slate-600"
+                  disabled={savingPermissions}
+                  className={`${BTN_OUTLINE} flex-1 justify-center py-2 disabled:opacity-50`}
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPermissions}
+                  className={`${BTN_PRIMARY} flex-1 py-2 text-base disabled:opacity-50`}
+                >
+                  {savingPermissions ? 'Saving…' : 'Save'}
                 </button>
               </div>
-
-              <p className="text-sm text-slate-600 mb-6">
-                Grant {selectedPlayerForPermissions.display_name} access to manage specific aspects of this competition.
-              </p>
-
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setSavingPermissions(true);
-
-                  const formData = new FormData(e.currentTarget);
-                  const permissions = {
-                    manage_results: formData.get('manage_results') === 'on',
-                    manage_fixtures: formData.get('manage_fixtures') === 'on',
-                    manage_players: formData.get('manage_players') === 'on',
-                    manage_promote: formData.get('manage_promote') === 'on',
-                  };
-
-                  try {
-                    const response = await organizerApi.updatePlayerPermissions(
-                      competitionId,
-                      selectedPlayerForPermissions.id,
-                      permissions
-                    );
-
-                    if (response.data.return_code === 'SUCCESS') {
-                      // Update the player in the local state
-                      setPlayers(prev =>
-                        prev.map(p =>
-                          p.id === selectedPlayerForPermissions.id
-                            ? { ...p, ...permissions }
-                            : p
-                        )
-                      );
-
-                      showToast('Permissions updated successfully', 'success');
-                      setShowPermissionsModal(false);
-                      setSelectedPlayerForPermissions(null);
-                    } else {
-                      showToast(response.data.message || 'Failed to update permissions', 'error');
-                    }
-                  } catch (error) {
-                    console.error('Error updating permissions:', error);
-                    showToast('Network error - could not update permissions', 'error');
-                  } finally {
-                    setSavingPermissions(false);
-                  }
-                }}
-                className="space-y-4"
-              >
-                {/* Manage Results Permission */}
-                <label className="flex items-start space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="manage_results"
-                    defaultChecked={selectedPlayerForPermissions.manage_results || false}
-                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-900">Manage Results</div>
-                    <div className="text-sm text-slate-600">Enter and process match results</div>
-                  </div>
-                </label>
-
-                {/* Manage Fixtures Permission */}
-                <label className="flex items-start space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="manage_fixtures"
-                    defaultChecked={selectedPlayerForPermissions.manage_fixtures || false}
-                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-900">Manage Fixtures</div>
-                    <div className="text-sm text-slate-600">Add and modify fixtures</div>
-                  </div>
-                </label>
-
-                {/* Manage Players Permission */}
-                <label className="flex items-start space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="manage_players"
-                    defaultChecked={selectedPlayerForPermissions.manage_players || false}
-                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-900">Manage Players</div>
-                    <div className="text-sm text-slate-600">Add, remove, and manage players</div>
-                  </div>
-                </label>
-
-                {/* Manage Promote Permission */}
-                <label className="flex items-start space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="manage_promote"
-                    defaultChecked={selectedPlayerForPermissions.manage_promote || false}
-                    className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-900">Manage Promote</div>
-                    <div className="text-sm text-slate-600">Access promotion and marketing features</div>
-                  </div>
-                </label>
-
-                {/* Action Buttons */}
-                <div className="flex space-x-3 pt-4 border-t border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPermissionsModal(false);
-                      setSelectedPlayerForPermissions(null);
-                    }}
-                    className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors"
-                    disabled={savingPermissions}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingPermissions}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
-                  >
-                    {savingPermissions ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-              </form>
-            </div>
+            </form>
           </div>
         </div>
       )}

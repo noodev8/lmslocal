@@ -7,6 +7,7 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { organizerApi, teamApi, OrganizerFixture, OrganizerFixtureWithResult, Team } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { cacheUtils } from '@/lib/cache';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
 
 export default function OrganizerFixturesPage() {
   const router = useRouter();
@@ -371,8 +372,8 @@ export default function OrganizerFixturesPage() {
   // Show loading while competition data loads
   if (!competition) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
+        <p className={EYEBROW}>Loading&hellip;</p>
       </div>
     );
   }
@@ -384,210 +385,163 @@ export default function OrganizerFixturesPage() {
     );
   }
 
+  const completeFixtureCount = fixtures.filter(f => f.home_team_short && f.away_team_short).length;
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            href={`/game/${competitionId}`}
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700"
-          >
-            <ArrowLeftIcon className="h-4 w-4" />
-            Back to Dashboard
-          </Link>
-        </div>
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+        <Link href={`/game/${competitionId}`} className={`${LABEL} mb-4 inline-flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back to dashboard
+        </Link>
+
+        <p className={EYEBROW}>Fixtures</p>
+        <h1 className={`${HEADING} mt-1 text-3xl`}>{competition.name}</h1>
 
         {/* Loading State */}
         {isCheckingAccess && (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
-            <p className="text-sm text-blue-700">Checking access...</p>
-          </div>
+          <p className="mt-4 text-[15px] text-ink-fade">Checking access&hellip;</p>
         )}
 
         {/* Blocked State */}
         {isBlocked && !isCheckingAccess && (
-          <div className="mb-4 p-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
-            <div className="flex items-start gap-3">
-              <div className="text-yellow-600 text-2xl">⚠️</div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-                  Cannot Add Fixtures
-                </h3>
-                <p className="text-sm text-yellow-800 mb-4">
-                  {blockReason}
-                </p>
-                <Link
-                  href={`/game/${competitionId}`}
-                  className="inline-block px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
-                >
-                  Back to Dashboard
-                </Link>
-              </div>
-            </div>
+          <div className={`${PANEL} mt-5 border-overprint p-6`}>
+            <p className={EYEBROW}>Cannot add fixtures</p>
+            <p className="mt-2 text-[15px] text-ink">{blockReason}</p>
+            <Link href={`/game/${competitionId}`} className={`${BTN_OUTLINE} mt-4 inline-flex`}>
+              Back to dashboard
+            </Link>
           </div>
         )}
 
-        {/* Success Message */}
+        {/* Success / Error Messages */}
         {submitSuccess && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-            ✓ {submitSuccess} - Redirecting...
+          <div className={`${PANEL} mt-5 p-4`}>
+            <p className="text-[15px] text-ink">{submitSuccess} &mdash; redirecting&hellip;</p>
           </div>
         )}
-
-        {/* Error Message */}
         {submitError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-            {submitError}
+          <div className={`${PANEL} mt-5 border-overprint p-4`}>
+            <p className="text-[15px] text-ink">{submitError}</p>
           </div>
         )}
 
         {/* Form */}
         {!isBlocked && !isCheckingAccess && (
           <form onSubmit={handleSubmit}>
-          {/* Kickoff Date/Time Section */}
-          <div className="mb-6 p-6 bg-white rounded-2xl shadow-lg border border-slate-200">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-2xl">🔒</span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-slate-900">Set Round Lock Time</h3>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-slate-700">
-                Players must make picks <strong>before</strong> this time.
-              </p>
-            </div>
+            {/* Kickoff Date/Time Section */}
+            <div className={`${PANEL} mt-5 p-5 sm:p-6`}>
+              <p className={EYEBROW}>Set round lock time</p>
+              <p className="mt-1 text-[15px] text-ink-fade">Players must make picks before this time.</p>
 
-            {/* Date Selection */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">Date:</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                {dateShortcuts.map((shortcut) => (
-                  <button
-                    key={shortcut.value}
-                    type="button"
-                    onClick={() => {
-                      setKickoffDate(shortcut.value);
-                      setShowCustomDate(false);
-                    }}
-                    className={`px-4 py-3 text-sm font-semibold rounded-xl transition-all transform hover:scale-105 ${
-                      kickoffDate === shortcut.value
-                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50'
-                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-blue-300 hover:shadow-md'
-                    }`}
-                  >
-                    {shortcut.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCustomDate(!showCustomDate)}
-                className={`px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-                  showCustomDate
-                    ? 'bg-slate-700 text-white shadow-md'
-                    : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300 hover:shadow-md'
-                }`}
-              >
-                Custom date...
-              </button>
-              {showCustomDate && (
-                <input
-                  type="date"
-                  {...(kickoffDate && { value: kickoffDate })}
-                  onChange={(e) => setKickoffDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="mt-2 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 w-full"
-                />
-              )}
-            </div>
-
-            {/* Time Selection */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">Time:</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-                {timeShortcuts.map((shortcut) => (
-                  <button
-                    key={shortcut.value}
-                    type="button"
-                    onClick={() => {
-                      setKickoffTime(shortcut.value);
-                      setShowCustomTime(false);
-                    }}
-                    className={`px-4 py-4 text-sm font-semibold rounded-xl transition-all transform hover:scale-105 ${
-                      kickoffTime === shortcut.value
-                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50'
-                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-blue-300 hover:shadow-md'
-                    }`}
-                  >
-                    <div className="text-lg">{shortcut.label}</div>
-                    <div className="text-xs opacity-75">{shortcut.subLabel}</div>
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCustomTime(!showCustomTime)}
-                className={`px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-                  showCustomTime
-                    ? 'bg-slate-700 text-white shadow-md'
-                    : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300 hover:shadow-md'
-                }`}
-              >
-                Custom time...
-              </button>
-              {showCustomTime && (
-                <input
-                  type="time"
-                  value={kickoffTime}
-                  onChange={(e) => setKickoffTime(e.target.value)}
-                  className="mt-2 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                />
-              )}
-            </div>
-
-            {/* Selected DateTime Display */}
-            {selectedDateTimeDisplay && (
-              <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 to-blue-50 rounded-xl border-2 border-emerald-200">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">✓</span>
-                  <div>
-                    <div className="text-base font-bold text-slate-900">
-                      {selectedDateTimeDisplay}
-                    </div>
-                    <div className="text-xs text-slate-600 mt-1">
-                      Lock time applied to all fixtures in this round
-                    </div>
-                  </div>
+              {/* Date Selection */}
+              <div className="mt-5">
+                <p className={`${LABEL} mb-3 text-ink-fade`}>Date</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {dateShortcuts.map((shortcut) => (
+                    <button
+                      key={shortcut.value}
+                      type="button"
+                      onClick={() => {
+                        setKickoffDate(shortcut.value);
+                        setShowCustomDate(false);
+                      }}
+                      className={`${LABEL} border px-3 py-2.5 transition-colors ${
+                        kickoffDate === shortcut.value
+                          ? 'border-ink bg-ink text-stock-lit'
+                          : 'border-ink/30 text-ink hover:border-ink'
+                      }`}
+                    >
+                      {shortcut.label}
+                    </button>
+                  ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomDate(!showCustomDate)}
+                  className={`${BTN_OUTLINE} mt-2`}
+                >
+                  Custom date&hellip;
+                </button>
+                {showCustomDate && (
+                  <input
+                    type="date"
+                    {...(kickoffDate && { value: kickoffDate })}
+                    onChange={(e) => setKickoffDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="mt-2 w-full rounded-sm border border-ink bg-transparent px-3 py-2 text-[15px] text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  />
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Fixtures Section - Two Column Layout */}
-          <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* LEFT COLUMN: Team Selection Buttons */}
-            <div className="order-2 lg:order-1">
-              <div className="sticky top-4">
-                <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-                      Select Teams
-                    </h2>
-                    <div className="px-3 py-1 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold text-sm shadow-md">
-                      {nextSlot.side === 'home' ? 'HOME' : 'AWAY'}
-                    </div>
+              {/* Time Selection */}
+              <div className="mt-5">
+                <p className={`${LABEL} mb-3 text-ink-fade`}>Time</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {timeShortcuts.map((shortcut) => (
+                    <button
+                      key={shortcut.value}
+                      type="button"
+                      onClick={() => {
+                        setKickoffTime(shortcut.value);
+                        setShowCustomTime(false);
+                      }}
+                      className={`border px-3 py-3 text-center transition-colors ${
+                        kickoffTime === shortcut.value
+                          ? 'border-ink bg-ink text-stock-lit'
+                          : 'border-ink/30 text-ink hover:border-ink'
+                      }`}
+                    >
+                      <div className="font-data text-base">{shortcut.label}</div>
+                      <div className={`${LABEL} mt-0.5 opacity-75`}>{shortcut.subLabel}</div>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomTime(!showCustomTime)}
+                  className={`${BTN_OUTLINE} mt-2`}
+                >
+                  Custom time&hellip;
+                </button>
+                {showCustomTime && (
+                  <input
+                    type="time"
+                    value={kickoffTime}
+                    onChange={(e) => setKickoffTime(e.target.value)}
+                    className="mt-2 rounded-sm border border-ink bg-transparent px-3 py-2 text-[15px] text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  />
+                )}
+              </div>
+
+              {/* Selected DateTime Display */}
+              {selectedDateTimeDisplay && (
+                <div className="mt-5 border-t border-ink/30 pt-4">
+                  <p className={`${LABEL} text-ink-fade`}>Lock time</p>
+                  <p className="mt-1 font-data text-[15px] text-ink">{selectedDateTimeDisplay}</p>
+                  <p className="mt-1 text-[13px] text-ink-fade">Applied to all fixtures in this round.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Fixtures Section - Two Column Layout */}
+            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {/* LEFT COLUMN: Team Selection Buttons */}
+              <div className="order-2 lg:order-1">
+                <div className={`${PANEL} p-5 sm:p-6`}>
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className={EYEBROW}>Select teams</p>
+                    <span className={`${LABEL} border border-ink px-2 py-1 text-ink`}>
+                      {nextSlot.side === 'home' ? 'Home' : 'Away'}
+                    </span>
                   </div>
-                  <p className="text-sm text-slate-600 mb-4">
-                    Click teams to add (alternates Home → Away)
-                  </p>
+                  <p className="mb-4 text-[13px] text-ink-fade">Tap teams to add &mdash; alternates home, away.</p>
                   {teamsLoading ? (
-                    <div className="text-center py-8 text-slate-600">Loading teams...</div>
+                    <p className="py-8 text-center text-[15px] text-ink-fade">Loading teams&hellip;</p>
                   ) : teams.length === 0 ? (
-                    <div className="text-center py-8 text-red-600">No teams available for this competition</div>
+                    <p className="py-8 text-center text-[15px] text-overprint">No teams available for this competition</p>
                   ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                       {teams.map((team) => {
                         const isUsed = usedTeams.has(team.short_name);
                         return (
@@ -596,10 +550,10 @@ export default function OrganizerFixturesPage() {
                             type="button"
                             onClick={() => !isUsed && handleTeamClick(team.short_name)}
                             disabled={isUsed}
-                            className={`px-3 py-2.5 rounded-lg transition-all font-bold text-sm ${
+                            className={`${LABEL} border px-2 py-2.5 transition-colors ${
                               isUsed
-                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 active:scale-95 shadow-md hover:shadow-lg'
+                                ? 'cursor-not-allowed border-ink/15 text-ink-fade/40'
+                                : 'cursor-pointer border-ink/30 text-ink hover:border-ink'
                             }`}
                           >
                             {team.short_name}
@@ -610,134 +564,114 @@ export default function OrganizerFixturesPage() {
                   )}
                 </div>
               </div>
-            </div>
 
-            {/* RIGHT COLUMN: Fixtures List */}
-            <div className="order-1 lg:order-2">
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-3">
-                Fixtures ({fixtures.filter(f => f.home_team_short && f.away_team_short).length})
-              </h2>
-              <div className="p-4 bg-white rounded-2xl shadow-lg border border-slate-200 max-h-[500px] overflow-y-auto">
-                <div className="space-y-1">
-                  {fixtures.map((fixture, index) => {
-                    const isComplete = fixture.home_team_short && fixture.away_team_short;
-                    const isNextSlot = index === nextSlot.index;
-                    // Get full team names from the teams array
-                    const homeTeam = teams.find(t => t.short_name === fixture.home_team_short);
-                    const awayTeam = teams.find(t => t.short_name === fixture.away_team_short);
-                    const homeTeamName = homeTeam?.name || fixture.home_team_short || '';
-                    const awayTeamName = awayTeam?.name || fixture.away_team_short || '';
+              {/* RIGHT COLUMN: Fixtures List */}
+              <div className="order-1 lg:order-2">
+                <p className={`${EYEBROW} mb-2`}>Fixtures ({completeFixtureCount})</p>
+                <div className={`${PANEL} max-h-[500px] overflow-y-auto`}>
+                  <div className="divide-y divide-ink/30">
+                    {fixtures.map((fixture, index) => {
+                      const isNextSlot = index === nextSlot.index;
+                      const homeTeam = teams.find(t => t.short_name === fixture.home_team_short);
+                      const awayTeam = teams.find(t => t.short_name === fixture.away_team_short);
+                      const homeTeamName = homeTeam?.name || fixture.home_team_short || '';
+                      const awayTeamName = awayTeam?.name || fixture.away_team_short || '';
 
-                    return (
-                      <div
-                        key={index}
-                        className={`flex items-center gap-2 px-2 py-1 rounded transition-all text-xs ${
-                          isComplete
-                            ? 'bg-white border border-green-300'
-                            : 'bg-white border border-gray-200'
-                        }`}
-                      >
-                        <div className="flex-1 flex items-center justify-between">
-                          <span className={`font-medium ${isNextSlot && nextSlot.side === 'home' ? 'text-blue-600' : 'text-gray-800'}`}>
-                            {homeTeamName || '___'}
-                          </span>
-                          <span className="text-gray-500 mx-2">vs</span>
-                          <span className={`font-medium ${isNextSlot && nextSlot.side === 'away' ? 'text-blue-600' : 'text-gray-800'}`}>
-                            {awayTeamName || '___'}
-                          </span>
+                      return (
+                        <div key={index} className="flex items-center gap-2 px-4 py-2.5 text-[14px]">
+                          <div className="flex flex-1 items-center justify-between gap-2">
+                            <span className={isNextSlot && nextSlot.side === 'home' ? 'text-overprint' : 'text-ink'}>
+                              {homeTeamName || '—'}
+                            </span>
+                            <span className="text-ink-fade">vs</span>
+                            <span className={isNextSlot && nextSlot.side === 'away' ? 'text-overprint' : 'text-ink'}>
+                              {awayTeamName || '—'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveFixture(index);
+                            }}
+                            className="text-ink-fade transition-colors hover:text-ink"
+                            title={fixtures.length === 1 ? 'Clear fixture' : 'Remove fixture'}
+                          >
+                            &times;
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveFixture(index);
-                          }}
-                          className="text-red-500 hover:text-red-700 font-bold text-sm"
-                          title={fixtures.length === 1 ? "Clear fixture" : "Remove fixture"}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end gap-4">
-            <button
-              type="button"
-              onClick={() => router.push(`/game/${competitionId}`)}
-              className="px-8 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all font-semibold"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const validFixtures = fixtures.filter(f => f.home_team_short && f.away_team_short);
-                if (validFixtures.length === 0) {
-                  setSubmitError('Please add at least one fixture with both home and away teams');
-                  return;
-                }
-                setShowConfirmModal(true);
-              }}
-              disabled={isSubmitting || fixtures.filter(f => f.home_team_short && f.away_team_short).length === 0}
-              className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed transition-all font-bold shadow-lg shadow-emerald-500/50 hover:shadow-xl disabled:shadow-none"
-            >
-              {isSubmitting ? 'Saving...' : '🔒 Confirm & Lock Fixtures'}
-            </button>
-          </div>
-        </form>
+            {/* Submit Button */}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => router.push(`/game/${competitionId}`)}
+                className={`${BTN_OUTLINE} px-6 py-3`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const validFixtures = fixtures.filter(f => f.home_team_short && f.away_team_short);
+                  if (validFixtures.length === 0) {
+                    setSubmitError('Please add at least one fixture with both home and away teams');
+                    return;
+                  }
+                  setShowConfirmModal(true);
+                }}
+                disabled={isSubmitting || completeFixtureCount === 0}
+                className={`${BTN_PRIMARY} px-6 py-3 text-base disabled:opacity-40`}
+              >
+                {isSubmitting ? 'Saving…' : 'Confirm & lock fixtures'}
+              </button>
+            </div>
+          </form>
         )}
 
         {/* Confirmation Modal */}
         {showConfirmModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-              {/* Modal Header */}
-              <div className="bg-amber-500 text-white px-6 py-4 rounded-t-2xl">
-                <div className="flex items-center gap-3">
-                  <div className="text-3xl">⚠️</div>
-                  <h3 className="text-xl font-bold">Confirm Fixtures</h3>
-                </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+            <div className={`${PANEL} w-full max-w-md`}>
+              <div className="border-b border-ink/30 p-6">
+                <p className={EYEBROW}>Confirm fixtures</p>
               </div>
 
-              {/* Modal Body */}
               <div className="p-6">
-                <div className="mb-4">
-                  <p className="text-gray-800 font-medium mb-3">
-                    You are about to save{' '}
-                    <span className="text-blue-600 font-bold">
-                      {fixtures.filter(f => f.home_team_short && f.away_team_short).length} fixture{fixtures.filter(f => f.home_team_short && f.away_team_short).length !== 1 ? 's' : ''}
-                    </span>
-                  </p>
+                <p className="text-[15px] text-ink">
+                  You are about to save{' '}
+                  <span className="font-data font-semibold">
+                    {completeFixtureCount} fixture{completeFixtureCount !== 1 ? 's' : ''}
+                  </span>
+                </p>
 
-                  <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 mb-4">
-                    <p className="text-amber-900 font-semibold mb-2">⚠️ Important:</p>
-                    <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
-                      <li>Once saved, you <strong>cannot add more fixtures</strong> to this round</li>
-                      <li>Make sure you have entered <strong>all fixtures</strong> for this round</li>
-                      <li>Double-check all teams are correct</li>
-                    </ul>
-                  </div>
-
-                  <p className="text-gray-700 text-sm">
-                    Are you sure all fixtures are ready to lock in?
-                  </p>
+                <div className="mt-4 border border-overprint p-4">
+                  <p className={`${LABEL} mb-2 text-overprint`}>Important</p>
+                  <ul className="list-disc space-y-1 pl-4 text-[14px] text-ink">
+                    <li>Once saved, you cannot add more fixtures to this round.</li>
+                    <li>Make sure you have entered all fixtures for this round.</li>
+                    <li>Double-check all teams are correct.</li>
+                  </ul>
                 </div>
+
+                <p className="mt-4 text-[14px] text-ink-fade">
+                  Are you sure all fixtures are ready to lock in?
+                </p>
               </div>
 
-              {/* Modal Footer */}
-              <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 rounded-b-2xl border-t border-gray-200">
+              <div className="flex justify-end gap-3 border-t border-ink/30 p-4">
                 <button
                   onClick={() => {
                     setShowConfirmModal(false);
                     setSubmitError('');
                   }}
-                  className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className={`${BTN_OUTLINE} px-5 py-2`}
                 >
                   Cancel
                 </button>
@@ -746,15 +680,15 @@ export default function OrganizerFixturesPage() {
                     setShowConfirmModal(false);
                     handleSubmit(e as unknown as React.FormEvent);
                   }}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  className={`${BTN_PRIMARY} px-5 py-2 text-base`}
                 >
-                  Yes, Lock Fixtures
+                  Yes, lock fixtures
                 </button>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
@@ -820,67 +754,63 @@ function ReadOnlyFixturesView({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="mb-6">
-          <Link
-            href={`/game/${competitionId}`}
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
-          >
-            <ArrowLeftIcon className="h-4 w-4" />
-            Back
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Fixtures - {competitionName}</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Fixtures are managed automatically for this competition - view only.
-          </p>
-          <p className="text-sm text-gray-600 mt-1">
-            {roundNumber ? `Round ${roundNumber}` : ' '}
-          </p>
-        </div>
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <Link href={`/game/${competitionId}`} className={`${LABEL} mb-4 inline-flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back
+        </Link>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <p className={EYEBROW}>Fixtures</p>
+        <h1 className={`${HEADING} mt-1 text-3xl`}>{competitionName}</h1>
+        <p className="mt-2 text-[15px] text-ink-fade">
+          Fixtures are managed automatically for this competition — view only.
+        </p>
+        <p className={`${LABEL} mt-2 text-ink-fade`}>
+          {roundNumber ? `Round ${roundNumber}` : ''}
+          {/* Every fixture in a round shares one kickoff/lock time, so it's stated once here
+              rather than repeated on every row. */}
+          {fixtures[0]?.kickoff_time && (
+            <>
+              {' '}&middot;{' '}
+              {new Date(fixtures[0].kickoff_time).toLocaleDateString('en-GB', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </>
+          )}
+        </p>
+
+        <div className={`${PANEL} mt-5`}>
           {isLoading && (
-            <div className="text-center py-8">
-              <p className="text-gray-600">Loading fixtures...</p>
-            </div>
+            <p className="p-8 text-center text-[15px] text-ink-fade">Loading fixtures&hellip;</p>
           )}
 
           {!isLoading && loadError && (
-            <div className="text-center py-8 text-gray-500">{loadError}</div>
+            <p className="p-8 text-center text-[15px] text-ink-fade">{loadError}</p>
           )}
 
           {!isLoading && !loadError && (
-            <div className="space-y-2">
+            <div className="divide-y divide-ink/30">
               {fixtures.map((fixture) => {
                 const homeTeamName = teamNames[fixture.home_team_short] || fixture.home_team_short;
                 const awayTeamName = teamNames[fixture.away_team_short] || fixture.away_team_short;
                 return (
-                  <div
-                    key={fixture.id}
-                    className={`p-4 rounded-md border-2 ${
-                      fixture.result ? 'bg-purple-50 border-purple-300' : 'bg-white border-gray-300'
-                    }`}
-                  >
-                    <div className="font-medium text-gray-900">
-                      {homeTeamName} <span className="text-gray-400 mx-2">vs</span> {awayTeamName}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {new Date(fixture.kickoff_time).toLocaleDateString('en-GB', {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
+                  <div key={fixture.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                    <span className="font-data text-[15px] text-ink">
+                      {homeTeamName} <span className="text-ink-fade">vs</span> {awayTeamName}
+                    </span>
+                    {fixture.result && <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>Result in</span>}
                   </div>
                 );
               })}
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

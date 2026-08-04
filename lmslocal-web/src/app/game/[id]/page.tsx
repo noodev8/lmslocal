@@ -18,6 +18,7 @@ import {
 import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
 
 /**
  * FEATURE FLAG: Round Statistics Progress Bar
@@ -36,10 +37,10 @@ export default function UnifiedGameDashboard() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
-  
+
   // Use AppDataProvider context for competitions data
   const { competitions, loading: contextLoading } = useAppData();
-  
+
   // Memoize the specific competition to prevent unnecessary re-renders
   const competition = useMemo(() => {
     return competitions?.find(c => c.id.toString() === competitionId);
@@ -103,7 +104,7 @@ export default function UnifiedGameDashboard() {
   const pickStatsLoadedRef = useRef(false);
   const roundStatsLoadedRef = useRef(false);
   const currentRoundStatsLoadedRef = useRef(false);
-  
+
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
   const isParticipant = competition?.is_participant || false;
@@ -198,57 +199,13 @@ export default function UnifiedGameDashboard() {
         // Round is not locked - show pick screen (only active players and organizers reach here)
         router.push(`/game/${competitionId}/pick`);
       }
-      
+
     } catch (error) {
       console.error('Error checking rounds:', error);
       // On error, fallback to waiting screen
       router.push(`/game/${competitionId}/waiting`);
     }
   };
-
-  // DISABLED: Manual fixture management - fixtures now managed via backend fixture service
-  /*
-  // Handle fixtures button click - check for rounds and fixtures before routing
-  const handleFixturesClick = async () => {
-    try {
-      const response = await roundApi.getRounds(parseInt(competitionId));
-
-      if (response.data.return_code !== 'SUCCESS') {
-        console.error('Failed to fetch rounds:', response.data.message);
-        // If API fails, go to fixtures screen to handle creation
-        router.push(`/game/${competitionId}/fixtures`);
-        return;
-      }
-
-      const rounds = response.data.rounds || [];
-
-      // Check if no rounds exist OR if the latest round has no fixtures
-      if (rounds.length === 0 || rounds[0].fixture_count === 0) {
-        router.push(`/game/${competitionId}/fixtures`);
-        return;
-      }
-
-      // Round has fixtures - check if it's locked
-      const latestRound = rounds[0];
-      const now = new Date();
-      const lockTime = new Date(latestRound.lock_time || '');
-      const isLocked = latestRound.lock_time && now >= lockTime;
-
-      if (isLocked) {
-        // Round is locked - go to results screen
-        router.push(`/game/${competitionId}/results`);
-      } else {
-        // Round is not locked yet - go to fixtures screen
-        router.push(`/game/${competitionId}/fixtures`);
-      }
-
-    } catch (error) {
-      console.error('Error checking rounds for fixtures:', error);
-      // On error, fallback to fixtures screen
-      router.push(`/game/${competitionId}/fixtures`);
-    }
-  };
-  */
 
   // Handle adding guest players
   const handleAddOfflinePlayer = async () => {
@@ -294,10 +251,10 @@ export default function UnifiedGameDashboard() {
       router.push('/login');
       return;
     }
-    
+
     // Load data only if we have the competition
     if (competition) {
-      
+
       // Load current round info
       if (!roundLoadedRef.current) {
         roundLoadedRef.current = true;
@@ -310,7 +267,7 @@ export default function UnifiedGameDashboard() {
                 const now = new Date();
                 const lockTime = new Date(latestRound.lock_time || '');
                 const isLocked = !!(latestRound.lock_time && now >= lockTime);
-                
+
                 setCurrentRoundInfo({
                   id: latestRound.id,
                   round_number: latestRound.round_number,
@@ -429,34 +386,23 @@ export default function UnifiedGameDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Toast Container */}
+      <div className="min-h-screen bg-stock font-body text-ink">
         <ToastContainer toasts={toasts} onClose={removeToast} />
 
-        <header className="bg-white border-b border-gray-100">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Link href="/dashboard" className="flex items-center space-x-2 text-gray-500 hover:text-gray-700">
-                  <ArrowLeftIcon className="h-4 w-4" />
-                  <span className="text-sm font-medium">Dashboard</span>
-                </Link>
-              </div>
-            </div>
+        <header className="border-b border-ink/30">
+          <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+            <Link href="/dashboard" className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+              <ArrowLeftIcon className="h-4 w-4" />
+              Dashboard
+            </Link>
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto px-4 py-6">
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-8">
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-50 rounded-full mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-600 border-t-transparent"></div>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Game Dashboard</h3>
-                <p className="text-gray-500">Please wait while we fetch your competition data...</p>
-              </div>
-            </div>
+        <main className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+          <div className={`${PANEL} p-8 text-center`}>
+            <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+            <p className={EYEBROW}>Loading</p>
+            <p className="mt-2 text-[17px] text-ink-fade">Fetching your competition&hellip;</p>
           </div>
         </main>
       </div>
@@ -465,173 +411,120 @@ export default function UnifiedGameDashboard() {
 
   if (!competition) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
         <div className="text-center">
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Competition Not Found</h1>
-          <Link href="/dashboard" className="text-gray-600 hover:text-gray-800">
-            Return to Dashboard
+          <h1 className={`${HEADING} text-3xl`}>Competition not found</h1>
+          <Link href="/dashboard" className={`${LABEL} mt-4 inline-block text-ink-fade underline decoration-dotted underline-offset-4 transition-colors hover:text-ink`}>
+            Return to dashboard
           </Link>
         </div>
       </div>
     );
   }
 
+  const contactLine = [
+    competition.address_line_1,
+    competition.address_line_2,
+    competition.city,
+    competition.postcode
+  ].filter(Boolean).join(', ');
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Toast Container */}
+    <div className="min-h-screen bg-stock font-body text-ink">
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/dashboard"
-                className="flex items-center space-x-2 text-gray-500 hover:text-gray-700"
-              >
-                <ArrowLeftIcon className="h-4 w-4" />
-                <span className="text-sm font-medium">Dashboard</span>
-              </Link>
-            </div>
-
-            {/* User role badge */}
-            {isOrganiser && (
-              <div className="text-sm text-gray-500">Organiser</div>
-            )}
-          </div>
+      <header className="border-b border-ink/30">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
+          <Link href="/dashboard" className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Dashboard
+          </Link>
+          {isOrganiser && <span className={`${LABEL} text-ink-fade`}>Organiser</span>}
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
 
-        {/* Competition Header - Horizontal layout with logo if available */}
-        <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
+        {/* Masthead */}
+        <div className={`${PANEL} p-6 sm:p-8`}>
           {competition.logo_url ? (
-            /* With Logo - Horizontal Layout */
-            <div className="space-y-4">
-              <div className="flex items-center justify-center gap-6">
-                <Image
-                  src={competition.logo_url}
-                  alt={`${competition.name} logo`}
-                  width={100}
-                  height={100}
-                  className="rounded-lg flex-shrink-0"
-                  unoptimized
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-                <div>
-                  <h1 className="text-2xl font-black text-gray-900 mb-1 uppercase tracking-tight leading-tight">
-                    {competition.name}
-                  </h1>
-                  <p className="text-base font-bold text-gray-700 uppercase tracking-wide">
-                    Last Man Standing Competition
-                  </p>
-                  {competition.personal_name && (
-                    <p className="text-sm text-gray-600 italic mt-2">{competition.personal_name}</p>
-                  )}
-                </div>
+            <div className="flex items-center gap-5">
+              <Image
+                src={competition.logo_url}
+                alt={`${competition.name} logo`}
+                width={84}
+                height={84}
+                className="flex-shrink-0 border border-ink/30"
+                unoptimized
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              <div>
+                <p className={EYEBROW}>Last man standing</p>
+                <h1 className={`${HEADING} mt-1 text-2xl sm:text-3xl`}>{competition.name}</h1>
+                {competition.personal_name && (
+                  <p className="mt-1 font-data text-[15px] italic text-ink-fade">{competition.personal_name}</p>
+                )}
               </div>
-
-              {/* Contact Info - Only show if address or contact details exist */}
-              {(competition.address_line_1 || competition.city || competition.postcode || competition.phone || competition.email) && (
-                <div className="text-center pt-4 border-t border-gray-100">
-                  {/* Compact Address Display */}
-                  {(competition.address_line_1 || competition.city || competition.postcode) && (
-                    <p className="text-xs text-gray-500 mb-2">
-                      {[
-                        competition.address_line_1,
-                        competition.address_line_2,
-                        competition.city,
-                        competition.postcode
-                      ].filter(Boolean).join(', ')}
-                    </p>
-                  )}
-
-                  {/* Contact Links */}
-                  {(competition.phone || competition.email) && (
-                    <div className="flex items-center justify-center gap-3 text-xs">
-                      {competition.phone && (
-                        <a
-                          href={`tel:${competition.phone}`}
-                          className="text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
-                        >
-                          <span>📞</span>
-                          <span>{competition.phone}</span>
-                        </a>
-                      )}
-                      {competition.email && (
-                        <a
-                          href={`mailto:${competition.email}`}
-                          className="text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
-                        >
-                          <span>✉️</span>
-                          <span>{competition.email}</span>
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           ) : (
-            /* Without Logo - Centered Text Layout */
             <div className="text-center">
-              <h1 className="text-xl font-bold text-gray-900">{competition.name}</h1>
+              <p className={EYEBROW}>Last man standing</p>
+              <h1 className={`${HEADING} mt-1 text-2xl sm:text-3xl`}>{competition.name}</h1>
               {competition.personal_name && (
-                <p className="text-sm text-gray-600 italic mt-1">{competition.personal_name}</p>
+                <p className="mt-1 font-data text-[15px] italic text-ink-fade">{competition.personal_name}</p>
               )}
               {competition.venue_name && (
-                <p className="text-sm text-gray-600 mt-1">{competition.venue_name}</p>
+                <p className="mt-1 text-[15px] text-ink-fade">{competition.venue_name}</p>
+              )}
+            </div>
+          )}
+
+          {(contactLine || competition.phone || competition.email) && (
+            <div className="mt-5 border-t border-ink/30 pt-4 text-center">
+              {contactLine && <p className="text-[13px] text-ink-fade">{contactLine}</p>}
+              {(competition.phone || competition.email) && (
+                <div className="mt-2 flex items-center justify-center gap-4 text-[13px]">
+                  {competition.phone && (
+                    <a href={`tel:${competition.phone}`} className="text-ink-fade transition-colors hover:text-ink">
+                      {competition.phone}
+                    </a>
+                  )}
+                  {competition.email && (
+                    <a href={`mailto:${competition.email}`} className="text-ink-fade transition-colors hover:text-ink">
+                      {competition.email}
+                    </a>
+                  )}
+                </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Prominent Competition Status Card */}
+        {/* Status ledger */}
         {currentRoundInfo && competition?.status !== 'COMPLETE' && (
           <>
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6">
-              <div className="text-center">
-                <div className="text-lg font-semibold text-gray-600 mb-3">Round {currentRoundInfo.round_number}</div>
-                <div className="text-6xl font-black text-green-600 mb-1">{competition.player_count}</div>
-                <div className="text-sm font-medium text-gray-600">Active</div>
-              </div>
+            <div className={`${PANEL} p-6 text-center`}>
+              <p className={EYEBROW}>Round {currentRoundInfo.round_number}</p>
+              <p className="mt-2 font-display text-6xl text-overprint">{competition.player_count}</p>
+              <p className={`${LABEL} mt-1 text-ink-fade`}>Still in</p>
             </div>
 
-            {/* Personal Status Cards */}
             {isParticipant && (
-              <div className="grid grid-cols-2 gap-3">
-                {/* Status Card */}
-                <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-                  <div className="text-center">
-                    <div className="text-xs font-medium text-gray-500 mb-2">Your Status</div>
-                    <div className="flex items-center justify-center gap-2">
-                      {competition.user_status === 'active' ? (
-                        <>
-                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                          <span className="text-lg font-semibold text-gray-900">In</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                          <span className="text-lg font-semibold text-gray-900">Out</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
+              <div className={`${PANEL} grid grid-cols-2 divide-x divide-ink/30`}>
+                <div className="p-4 text-center">
+                  <p className={`${LABEL} text-ink-fade`}>Your status</p>
+                  <p className="mt-2 flex items-center justify-center gap-2 font-display text-lg uppercase text-ink">
+                    <span className={`h-2 w-2 rounded-full ${competition.user_status === 'active' ? 'bg-moss' : 'bg-overprint'}`} />
+                    {competition.user_status === 'active' ? 'In' : 'Out'}
+                  </p>
                 </div>
-
-                {/* Lives Card */}
-                <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-                  <div className="text-center">
-                    <div className="text-xs font-medium text-gray-500 mb-2">Lives Remaining</div>
-                    <div className="text-lg font-semibold text-gray-900">
-                      {competition.lives_remaining !== undefined ? competition.lives_remaining : 0}
-                    </div>
-                  </div>
+                <div className="p-4 text-center">
+                  <p className={`${LABEL} text-ink-fade`}>Lives remaining</p>
+                  <p className="mt-2 font-display text-lg text-ink">
+                    {competition.lives_remaining !== undefined ? competition.lives_remaining : 0}
+                  </p>
                 </div>
               </div>
             )}
@@ -640,106 +533,80 @@ export default function UnifiedGameDashboard() {
 
         {/* Competition Completion Banner */}
         {competitionComplete.isComplete && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-            <div className="text-center">
-              <TrophyIcon className="h-8 w-8 text-gray-600 mx-auto mb-3" />
-
-              {competitionComplete.winner ? (
-                <>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">🎉 Competition Complete!</h3>
-                  <div className="mb-3">
-                    <p className="text-sm text-gray-600">Winner</p>
-                    <p className="text-lg font-bold text-gray-900">{competitionComplete.winner}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">🤝 Competition Complete!</h3>
-                  <div className="mb-3">
-                    <p className="text-sm text-gray-600">Result: Draw</p>
-                    <p className="text-sm text-gray-500">No players remaining</p>
-                  </div>
-                </>
-              )}
-
-              <Link
-                href={`/game/${competitionId}/standings`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors text-sm"
-              >
-                <TrophyIcon className="h-4 w-4" />
-                View Final Standings
-              </Link>
-            </div>
+          <div className={`${PANEL} p-6 text-center`}>
+            <p className={EYEBROW}>Competition complete</p>
+            {competitionComplete.winner ? (
+              <>
+                <p className={`${HEADING} mt-2 text-2xl sm:text-3xl`}>Winner: {competitionComplete.winner}</p>
+              </>
+            ) : (
+              <p className={`${HEADING} mt-2 text-2xl sm:text-3xl`}>Draw &mdash; no players remaining</p>
+            )}
+            <Link
+              href={`/game/${competitionId}/standings`}
+              className={`${BTN_PRIMARY} mt-5 inline-flex items-center gap-2 px-6 py-3 text-base`}
+            >
+              <TrophyIcon className="h-4 w-4" />
+              View final standings
+            </Link>
           </div>
         )}
 
-        {/* Invite Players - Enhanced with Guest Player Option */}
+        {/* Invite Players */}
         {competition.invite_code && (isOrganiser || canManagePlayers) && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-            <div className="space-y-4">
-              {/* Header with subtle outstanding step messaging */}
-              <div className="text-center">
-                <div className="text-sm font-medium text-gray-900 mb-1">Invite Players</div>
-                <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full inline-block">
-                  Complete setup by adding players
-                </div>
-              </div>
+          <div className={`${PANEL} p-6`}>
+            <div className="text-center">
+              <p className={EYEBROW}>Setup</p>
+              <p className={`${HEADING} mt-1 text-2xl`}>Invite players</p>
+            </div>
 
-              {/* Invite Code */}
-              <div className="text-center border-b border-gray-100 pb-4">
-                <div className="text-xs text-gray-600 mb-2">Invite players to</div>
-                <div className="text-sm font-medium text-blue-600 mb-2">https://lmslocal.co.uk</div>
-                <div className="text-xs text-gray-600 mb-2">using competition code:</div>
-                <div className="flex items-center justify-center space-x-2 mb-3">
-                  <code className="text-lg font-mono font-bold text-gray-800 tracking-wider">
-                    {competition.invite_code}
-                  </code>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(competition.invite_code || '');
-                      setCodeCopied(true);
-                      showToast('Competition code copied to clipboard!', 'success');
-                      setTimeout(() => setCodeCopied(false), 2000);
-                    }}
-                    className={`text-xs px-2 py-1 rounded border transition-colors ${
-                      codeCopied
-                        ? 'text-green-600 bg-green-50 border-green-300'
-                        : 'text-gray-500 hover:text-gray-700 border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {codeCopied ? '✓ Copied!' : 'Copy Code'}
-                  </button>
-                </div>
-
-                {/* Copy Message Button */}
+            <div className="mt-5 border-t border-ink/30 pt-5 text-center">
+              <p className="text-[15px] text-ink-fade">
+                Invite players to <span className="text-ink">lmslocal.co.uk</span> using competition code
+              </p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <code className="font-data text-2xl tracking-wider text-ink">{competition.invite_code}</code>
                 <button
                   onClick={() => {
-                    // Format lock time if available
-                    let lockTimeText = '';
-                    if (currentRoundInfo?.lock_time) {
-                      const lockDate = new Date(currentRoundInfo.lock_time);
-                      lockTimeText = `\n⏰ First round locks: ${lockDate.toLocaleString('en-GB', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}`;
-                    }
+                    navigator.clipboard.writeText(competition.invite_code || '');
+                    setCodeCopied(true);
+                    showToast('Competition code copied to clipboard!', 'success');
+                    setTimeout(() => setCodeCopied(false), 2000);
+                  }}
+                  className={`${BTN_OUTLINE} px-3 py-1.5`}
+                >
+                  {codeCopied ? 'Copied' : 'Copy code'}
+                </button>
+              </div>
 
-                    // Format entry details if available
-                    let entryDetails = '';
-                    const entryFee = competition.entry_fee ? Number(competition.entry_fee) : 0;
-                    if (entryFee > 0) {
-                      entryDetails = `\n💷 Entry: £${entryFee.toFixed(2)}`;
-                      if (competition.prize_structure) {
-                        entryDetails += `\n🏆 Prizes: ${competition.prize_structure}`;
-                      }
-                    } else if (competition.prize_structure) {
-                      entryDetails = `\n🏆 Prizes: ${competition.prize_structure}`;
-                    }
+              <button
+                onClick={() => {
+                  // Format lock time if available
+                  let lockTimeText = '';
+                  if (currentRoundInfo?.lock_time) {
+                    const lockDate = new Date(currentRoundInfo.lock_time);
+                    lockTimeText = `\n⏰ First round locks: ${lockDate.toLocaleString('en-GB', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}`;
+                  }
 
-                    const message = `🏆 Last Man Standing Competition 🏆
+                  // Format entry details if available
+                  let entryDetails = '';
+                  const entryFee = competition.entry_fee ? Number(competition.entry_fee) : 0;
+                  if (entryFee > 0) {
+                    entryDetails = `\n💷 Entry: £${entryFee.toFixed(2)}`;
+                    if (competition.prize_structure) {
+                      entryDetails += `\n🏆 Prizes: ${competition.prize_structure}`;
+                    }
+                  } else if (competition.prize_structure) {
+                    entryDetails = `\n🏆 Prizes: ${competition.prize_structure}`;
+                  }
+
+                  const message = `🏆 Last Man Standing Competition 🏆
 
 I'm running a ${competition.name} competition!
 
@@ -751,249 +618,211 @@ Pick a team each round - if they win, you survive!
 🌐 Or join on web: https://lmslocal.co.uk (use same code)
 
 Good luck! ⚽`;
-                    navigator.clipboard.writeText(message);
-                    setMessageCopied(true);
-                    showToast('Message copied! Paste it into WhatsApp, email, or any messaging app', 'success');
-                    setTimeout(() => setMessageCopied(false), 2000);
-                  }}
-                  className={`text-xs px-3 py-1 rounded border transition-colors ${
-                    messageCopied
-                      ? 'text-green-700 bg-green-100 border-green-400 font-medium'
-                      : 'text-green-600 hover:text-green-700 border-green-200 hover:border-green-300 bg-green-50 hover:bg-green-100'
-                  }`}
-                >
-                  {messageCopied ? '✓ Copied - Paste into your chat app!' : '📱 Copy Message (WhatsApp, email, etc.)'}
-                </button>
-              </div>
+                  navigator.clipboard.writeText(message);
+                  setMessageCopied(true);
+                  showToast('Message copied! Paste it into WhatsApp, email, or any messaging app', 'success');
+                  setTimeout(() => setMessageCopied(false), 2000);
+                }}
+                className={`${BTN_OUTLINE} mt-3`}
+              >
+                {messageCopied ? 'Copied — paste into your chat app' : 'Copy message for WhatsApp, email…'}
+              </button>
+            </div>
 
-              {/* Add Guest Player Option */}
-              <div className="text-center">
-                <div className="text-xs text-gray-600 mb-3">Or add players directly</div>
-                <button
-                  onClick={() => {
-                    setShowAddPlayerModal(true);
-                    setAddPlayerError(null);
-                  }}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors"
-                >
-                  <UserIcon className="h-4 w-4 mr-2" />
-                  Add Guest Players
-                </button>
-              </div>
+            <div className="mt-5 border-t border-ink/30 pt-5 text-center">
+              <p className={`${LABEL} mb-3 text-ink-fade`}>Or add players directly</p>
+              <button
+                onClick={() => {
+                  setShowAddPlayerModal(true);
+                  setAddPlayerError(null);
+                }}
+                className={`${BTN_DARK} inline-flex items-center gap-2 px-5 py-2.5 text-base`}
+              >
+                <UserIcon className="h-4 w-4" />
+                Add guest players
+              </button>
             </div>
           </div>
         )}
 
         {/* Round Progress Card - Only show before lock when pick progress is useful */}
-        {currentRoundInfo && competition?.status !== 'COMPLETE' && !currentRoundInfo.is_locked && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
+        {currentRoundInfo && competition?.status !== 'COMPLETE' && (
+          <div className={`${PANEL} p-5`}>
             {!currentRoundInfo.is_locked ? (
               /* Before Lock - Show Pick Progress (Clickable) */
-              <div className="space-y-3">
-                <div
-                    className="cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors -mx-3"
-                    onClick={handleShowUnpickedPlayers}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && handleShowUnpickedPlayers()}
-                  >
-                    <div className="text-sm font-medium text-gray-900 mb-3">
-                      Round {currentRoundInfo.round_number} Pick Status
-                    </div>
+              <div className="space-y-4">
+                <button
+                  onClick={handleShowUnpickedPlayers}
+                  className="group -m-1 block w-full p-1 text-left"
+                >
+                  <p className={`${LABEL} text-ink-fade`}>Round {currentRoundInfo.round_number} picks</p>
 
-                    {pickStats && (
-                      <>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                          <div
-                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(100, (pickStats.players_with_picks / pickStats.total_active_players) * 100)}%` }}
-                          ></div>
-                        </div>
-
-                        <div className="text-xs text-gray-500 mt-2">
+                  {pickStats && (
+                    <>
+                      <div className="mt-3 flex items-baseline justify-between gap-2">
+                        <p className="font-data text-[15px] text-ink">
                           {Math.min(pickStats.players_with_picks, pickStats.total_active_players)} of {pickStats.total_active_players} picked
-                          <span className="ml-2 font-medium">
-                            {Math.min(100, Math.round((pickStats.players_with_picks / pickStats.total_active_players) * 100))}%
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                        </p>
+                        <p className={`${LABEL} text-ink-fade transition-colors group-hover:text-ink`}>
+                          {Math.min(100, Math.round((pickStats.players_with_picks / pickStats.total_active_players) * 100))}%
+                        </p>
+                      </div>
+                      <div className="mt-2 h-[3px] w-full bg-ink/15">
+                        <div
+                          className="h-[3px] bg-overprint transition-all duration-300"
+                          style={{ width: `${Math.min(100, (pickStats.players_with_picks / pickStats.total_active_players) * 100)}%` }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </button>
 
-                  {/* Show previous round statistics if available */}
-                  {SHOW_ROUND_STATISTICS && roundStats && roundStats.round_number < currentRoundInfo.round_number && (
-                    <div className="pt-3 border-t border-gray-200">
-                      <button
-                        onClick={() => router.push(`/game/${competitionId}/standings`)}
-                        className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                      >
-                        <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number} Results</div>
-                        {/* Visual proportional bar */}
-                        <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
-                          {roundStats.won > 0 && (
-                            <div
-                              className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white"
-                              style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
-                            >
-                              <div className="text-2xl font-black">{roundStats.won}</div>
-                              <div className="text-[10px] font-semibold opacity-90">WIN</div>
-                            </div>
-                          )}
-                          {(roundStats.lost - roundStats.eliminated) > 0 && (
-                            <div
-                              className="bg-gradient-to-br from-slate-400 to-slate-500 flex flex-col items-center justify-center text-white"
-                              style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
-                            >
-                              <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
-                              <div className="text-[10px] font-semibold opacity-90">SLIP</div>
-                            </div>
-                          )}
-                          {roundStats.eliminated > 0 && (
-                            <div
-                              className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white"
-                              style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
-                            >
-                              <div className="text-2xl font-black">{roundStats.eliminated}</div>
-                              <div className="text-[10px] font-semibold opacity-90">OUT</div>
-                            </div>
-                          )}
+                {/* Show previous round statistics if available */}
+                {SHOW_ROUND_STATISTICS && roundStats && roundStats.round_number < currentRoundInfo.round_number && (
+                  <button
+                    onClick={() => router.push(`/game/${competitionId}/standings`)}
+                    className="w-full border-t border-ink/30 pt-4 text-left transition-colors hover:bg-stock"
+                  >
+                    <p className={`${LABEL} mb-2 text-ink-fade`}>Round {roundStats.round_number} results</p>
+                    <div className="flex h-12 overflow-hidden border border-ink/30">
+                      {roundStats.won > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-moss text-stock-lit"
+                          style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{roundStats.won}</div>
                         </div>
-
-                      </button>
+                      )}
+                      {(roundStats.lost - roundStats.eliminated) > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-ink/40 text-stock-lit"
+                          style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{roundStats.lost - roundStats.eliminated}</div>
+                        </div>
+                      )}
+                      {roundStats.eliminated > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-overprint text-stock-lit"
+                          style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{roundStats.eliminated}</div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ) : currentRoundInfo.status === 'COMPLETE' ? (
-                /* Round Complete - Waiting for new fixtures */
-                <div className="space-y-3">
-                  {/* Round Statistics - Visual breakdown */}
-                  {SHOW_ROUND_STATISTICS && roundStats && (
-                    <button
-                      onClick={() => router.push(`/game/${competitionId}/standings`)}
-                      className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                    >
-                      <div className="text-sm font-semibold text-gray-600 mb-3">Round {roundStats.round_number} Results</div>
-                      {/* Visual proportional bar */}
-                      <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
-                        {roundStats.won > 0 && (
-                          <div
-                            className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white"
-                            style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
-                          >
-                            <div className="text-2xl font-black">{roundStats.won}</div>
-                            <div className="text-[10px] font-semibold opacity-90">WIN</div>
-                          </div>
-                        )}
-                        {(roundStats.lost - roundStats.eliminated) > 0 && (
-                          <div
-                            className="bg-gradient-to-br from-slate-400 to-slate-500 flex flex-col items-center justify-center text-white"
-                            style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
-                          >
-                            <div className="text-2xl font-black">{roundStats.lost - roundStats.eliminated}</div>
-                            <div className="text-[10px] font-semibold opacity-90">SLIP</div>
-                          </div>
-                        )}
-                        {roundStats.eliminated > 0 && (
-                          <div
-                            className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white"
-                            style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
-                          >
-                            <div className="text-2xl font-black">{roundStats.eliminated}</div>
-                            <div className="text-[10px] font-semibold opacity-90">OUT</div>
-                          </div>
-                        )}
-                      </div>
+                  </button>
+                )}
+              </div>
+            ) : currentRoundInfo.status === 'COMPLETE' ? (
+              /* Round Complete - Waiting for new fixtures */
+              <div className="space-y-3">
+                {SHOW_ROUND_STATISTICS && roundStats && (
+                  <button
+                    onClick={() => router.push(`/game/${competitionId}/standings`)}
+                    className="w-full text-left transition-colors hover:bg-stock"
+                  >
+                    <p className={`${LABEL} mb-2 text-ink-fade`}>Round {roundStats.round_number} results</p>
+                    <div className="flex h-12 overflow-hidden border border-ink/30">
+                      {roundStats.won > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-moss text-stock-lit"
+                          style={{ width: `${(roundStats.won / roundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{roundStats.won}</div>
+                        </div>
+                      )}
+                      {(roundStats.lost - roundStats.eliminated) > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-ink/40 text-stock-lit"
+                          style={{ width: `${((roundStats.lost - roundStats.eliminated) / roundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{roundStats.lost - roundStats.eliminated}</div>
+                        </div>
+                      )}
+                      {roundStats.eliminated > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-overprint text-stock-lit"
+                          style={{ width: `${(roundStats.eliminated / roundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{roundStats.eliminated}</div>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                )}
+              </div>
+            ) : !competition.history?.[0] || (competition.history[0].round_number < currentRoundInfo.round_number) ? (
+              /* After Lock, Before Results - Show Live Status */
+              <div className="space-y-3 text-center">
+                <p className={EYEBROW}>Round {currentRoundInfo.round_number} live</p>
 
-                    </button>
-                  )}
-                </div>
-              ) : !competition.history?.[0] || (competition.history[0].round_number < currentRoundInfo.round_number) ? (
-                /* After Lock, Before Results - Show Live Status */
-                <div className="space-y-3">
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-gray-600">Round {currentRoundInfo.round_number} Live</div>
-                  </div>
-
-                  {/* Show current round statistics if available */}
-                  {SHOW_ROUND_STATISTICS && currentRoundStats && currentRoundStats.round_number === currentRoundInfo.round_number && currentRoundStats.total_players > 0 ? (
-                    <button
-                      onClick={() => router.push(`/game/${competitionId}/standings`)}
-                      className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                    >
-                      {/* Visual proportional bar */}
-                      <div className="flex h-16 rounded-lg overflow-hidden shadow-inner">
-                        {currentRoundStats.won > 0 && (
-                          <div
-                            className="bg-gradient-to-br from-green-500 to-green-600 flex flex-col items-center justify-center text-white"
-                            style={{ width: `${(currentRoundStats.won / currentRoundStats.total_players) * 100}%` }}
-                          >
-                            <div className="text-2xl font-black">{currentRoundStats.won}</div>
-                            <div className="text-[10px] font-semibold opacity-90">WIN</div>
-                          </div>
-                        )}
-                        {(currentRoundStats.lost - currentRoundStats.eliminated) > 0 && (
-                          <div
-                            className="bg-gradient-to-br from-slate-400 to-slate-500 flex flex-col items-center justify-center text-white"
-                            style={{ width: `${((currentRoundStats.lost - currentRoundStats.eliminated) / currentRoundStats.total_players) * 100}%` }}
-                          >
-                            <div className="text-2xl font-black">{currentRoundStats.lost - currentRoundStats.eliminated}</div>
-                            <div className="text-[10px] font-semibold opacity-90">SLIP</div>
-                          </div>
-                        )}
-                        {currentRoundStats.eliminated > 0 && (
-                          <div
-                            className="bg-gradient-to-br from-red-500 to-red-600 flex flex-col items-center justify-center text-white"
-                            style={{ width: `${(currentRoundStats.eliminated / currentRoundStats.total_players) * 100}%` }}
-                          >
-                            <div className="text-2xl font-black">{currentRoundStats.eliminated}</div>
-                            <div className="text-[10px] font-semibold opacity-90">OUT</div>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  ) : (
-                    /* Show placeholder when no player results yet - Clickable to view picks */
-                    <button
-                      onClick={handlePlayClick}
-                      className="w-full bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border-2 border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md transition-all cursor-pointer"
-                    >
-                      <div className="text-center text-sm text-gray-600">
-                        All picks made - Check which teams have been chosen
-                      </div>
-                    </button>
-                  )}
-                </div>
-              ) : null
-              }
-            </div>
-          )}
-
-        {/* Competition Description */}
-        {competition.description && (
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-            <p className="text-sm text-gray-600 text-center">{competition.description}</p>
+                {SHOW_ROUND_STATISTICS && currentRoundStats && currentRoundStats.round_number === currentRoundInfo.round_number && currentRoundStats.total_players > 0 ? (
+                  <button
+                    onClick={() => router.push(`/game/${competitionId}/standings`)}
+                    className="w-full text-left transition-colors hover:bg-stock"
+                  >
+                    <div className="flex h-12 overflow-hidden border border-ink/30">
+                      {currentRoundStats.won > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-moss text-stock-lit"
+                          style={{ width: `${(currentRoundStats.won / currentRoundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{currentRoundStats.won}</div>
+                        </div>
+                      )}
+                      {(currentRoundStats.lost - currentRoundStats.eliminated) > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-ink/40 text-stock-lit"
+                          style={{ width: `${((currentRoundStats.lost - currentRoundStats.eliminated) / currentRoundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{currentRoundStats.lost - currentRoundStats.eliminated}</div>
+                        </div>
+                      )}
+                      {currentRoundStats.eliminated > 0 && (
+                        <div
+                          className="flex flex-col items-center justify-center bg-overprint text-stock-lit"
+                          style={{ width: `${(currentRoundStats.eliminated / currentRoundStats.total_players) * 100}%` }}
+                        >
+                          <div className="font-display text-lg">{currentRoundStats.eliminated}</div>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handlePlayClick}
+                    className={`${BTN_OUTLINE} w-full justify-center px-4 py-3`}
+                  >
+                    All picks made — check which teams have been chosen
+                  </button>
+                )}
+              </div>
+            ) : null
+            }
           </div>
         )}
 
-        {/* Action Buttons - Refined design */}
+        {/* Competition Description */}
+        {competition.description && (
+          <div className={`${PANEL} p-5 text-center`}>
+            <p className="text-[15px] text-ink-fade">{competition.description}</p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
         {(isOrganiser || canManageResults || canManageFixtures || canManagePlayers) ? (
-          <div className={`grid gap-4 ${isParticipant ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
+          <div className={`grid gap-3 ${isParticipant ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
             {/* Play button - only show if user is also a participant */}
             {isParticipant && (
               <button
                 onClick={handlePlayClick}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink ${
+                  competition.needs_pick ? 'border-overprint' : ''
+                }`}
               >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className={`p-3 rounded-lg ${
-                    competition.needs_pick ? 'bg-red-50 group-hover:bg-red-100' : 'bg-gray-50 group-hover:bg-gray-100'
-                  }`}>
-                    <PlayIcon className={`h-7 w-7 ${
-                      competition.needs_pick ? 'text-red-600' : 'text-gray-600'
-                    }`} />
-                  </div>
-                  <div className="text-base font-semibold text-gray-900">Play</div>
-                </div>
+                <PlayIcon className={`h-6 w-6 ${competition.needs_pick ? 'text-overprint' : 'text-ink'}`} />
+                <span className={`${LABEL} text-ink`}>Play</span>
+                {competition.needs_pick && <span className={`${LABEL} text-overprint`}>Pick needed</span>}
               </button>
             )}
 
@@ -1003,14 +832,10 @@ Good luck! ⚽`;
             {canManageFixtures && (
               <Link
                 href={`/game/${competitionId}/organizer-fixtures`}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
               >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="p-3 rounded-lg bg-blue-50 group-hover:bg-blue-100">
-                    <CalendarIcon className="h-7 w-7 text-blue-600" />
-                  </div>
-                  <div className="text-base font-semibold text-gray-900">Fixtures</div>
-                </div>
+                <CalendarIcon className="h-6 w-6 text-ink" />
+                <span className={`${LABEL} text-ink`}>Fixtures</span>
               </Link>
             )}
 
@@ -1020,41 +845,29 @@ Good luck! ⚽`;
             {canManageResults && (
               <Link
                 href={`/game/${competitionId}/organizer-results`}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
               >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="p-3 rounded-lg bg-green-50 group-hover:bg-green-100">
-                    <CheckCircleIcon className="h-7 w-7 text-green-600" />
-                  </div>
-                  <div className="text-base font-semibold text-gray-900">Results</div>
-                </div>
+                <CheckCircleIcon className="h-6 w-6 text-ink" />
+                <span className={`${LABEL} text-ink`}>Results</span>
               </Link>
             )}
 
             <Link
               href={`/game/${competitionId}/standings`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+              className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
             >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <TrophyIcon className="h-7 w-7 text-gray-600" />
-                </div>
-                <div className="text-base font-semibold text-gray-900">Standings</div>
-              </div>
+              <TrophyIcon className="h-6 w-6 text-ink" />
+              <span className={`${LABEL} text-ink`}>Standings</span>
             </Link>
 
             {/* Players Management - Show if user has players permission OR is organiser */}
             {canManagePlayers && (
               <Link
                 href={`/game/${competitionId}/players`}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
               >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                    <UserGroupIcon className="h-7 w-7 text-gray-600" />
-                  </div>
-                  <div className="text-base font-semibold text-gray-900">Players</div>
-                </div>
+                <UserGroupIcon className="h-6 w-6 text-ink" />
+                <span className={`${LABEL} text-ink`}>Players</span>
               </Link>
             )}
 
@@ -1062,14 +875,10 @@ Good luck! ⚽`;
             {canManagePromote && (
               <Link
                 href={`/game/${competitionId}/promote`}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
               >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                    <MegaphoneIcon className="h-7 w-7 text-gray-600" />
-                  </div>
-                  <div className="text-base font-semibold text-gray-900">Promote</div>
-                </div>
+                <MegaphoneIcon className="h-6 w-6 text-ink" />
+                <span className={`${LABEL} text-ink`}>Promote</span>
               </Link>
             )}
 
@@ -1077,45 +886,32 @@ Good luck! ⚽`;
             {isOrganiser && (
               <Link
                 href={`/game/${competitionId}/settings`}
-                className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
               >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                    <Cog6ToothIcon className="h-7 w-7 text-gray-600" />
-                  </div>
-                  <div className="text-base font-semibold text-gray-900">Settings</div>
-                </div>
+                <Cog6ToothIcon className="h-6 w-6 text-ink" />
+                <span className={`${LABEL} text-ink`}>Settings</span>
               </Link>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handlePlayClick}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+              className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink ${
+                competition.needs_pick ? 'border-overprint' : ''
+              }`}
             >
-              <div className="flex flex-col items-center space-y-3">
-                <div className={`p-3 rounded-lg ${
-                  competition.needs_pick ? 'bg-red-50 group-hover:bg-red-100' : 'bg-gray-50 group-hover:bg-gray-100'
-                }`}>
-                  <PlayIcon className={`h-7 w-7 ${
-                    competition.needs_pick ? 'text-red-600' : 'text-gray-600'
-                  }`} />
-                </div>
-                <div className="text-base font-semibold text-gray-900">Play</div>
-              </div>
+              <PlayIcon className={`h-6 w-6 ${competition.needs_pick ? 'text-overprint' : 'text-ink'}`} />
+              <span className={`${LABEL} text-ink`}>Play</span>
+              {competition.needs_pick && <span className={`${LABEL} text-overprint`}>Pick needed</span>}
             </button>
 
             <Link
               href={`/game/${competitionId}/standings`}
-              className="group bg-white rounded-lg border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all"
+              className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
             >
-              <div className="flex flex-col items-center space-y-3">
-                <div className="p-3 bg-gray-50 rounded-lg group-hover:bg-gray-100">
-                  <TrophyIcon className="h-7 w-7 text-gray-600" />
-                </div>
-                <div className="text-base font-semibold text-gray-900">Standings</div>
-              </div>
+              <TrophyIcon className="h-6 w-6 text-ink" />
+              <span className={`${LABEL} text-ink`}>Standings</span>
             </Link>
           </div>
         )}
@@ -1124,73 +920,55 @@ Good luck! ⚽`;
 
       {/* Add Guest Player Modal */}
       {showAddPlayerModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200">
-            <div className="p-8">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mr-4">
-                  <UserIcon className="h-6 w-6 text-slate-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900">Add Player</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+          <div className={`${PANEL} w-full max-w-md p-6`}>
+            <p className={EYEBROW}>Guest player</p>
+            <h3 className={`${HEADING} mt-1 text-2xl`}>Add player</h3>
+
+            <div className="mt-5">
+              <label htmlFor="display_name" className={`${LABEL} mb-2 block text-ink-fade`}>
+                Player name
+              </label>
+              <input
+                id="display_name"
+                type="text"
+                value={addPlayerForm.display_name}
+                onChange={(e) => setAddPlayerForm(prev => ({ ...prev, display_name: e.target.value }))}
+                placeholder="Enter player name"
+                className="w-full rounded-sm border border-ink bg-transparent px-3 py-2 font-data text-[15px] text-ink placeholder-ink-fade/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                disabled={addingPlayer}
+              />
+
+              <p className="mt-4 text-[13px] text-ink-fade">
+                This creates a player that you can manage and set picks for. Perfect for customers who need assistance or don&apos;t have access to join themselves.
+              </p>
+            </div>
+
+            {addPlayerError && (
+              <div className="mt-4 border border-overprint px-3 py-2">
+                <p className="text-[15px] text-ink">{addPlayerError}</p>
               </div>
+            )}
 
-              <div className="space-y-6">
-                <div>
-                  <label htmlFor="display_name" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Player Name *
-                  </label>
-                  <input
-                    id="display_name"
-                    type="text"
-                    value={addPlayerForm.display_name}
-                    onChange={(e) => setAddPlayerForm(prev => ({ ...prev, display_name: e.target.value }))}
-                    placeholder="Enter player name"
-                    className="block w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 text-sm transition-colors"
-                    disabled={addingPlayer}
-                  />
-                </div>
-
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <p className="text-sm text-slate-600">
-                    💡 This creates a player that you can manage and set picks for. Perfect for customers who need assistance or don&apos;t have access to join themselves.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-4 mt-8">
-                <button
-                  onClick={() => {
-                    setShowAddPlayerModal(false);
-                    setAddPlayerForm({ display_name: '' });
-                    setAddPlayerError(null);
-                  }}
-                  disabled={addingPlayer}
-                  className="px-6 py-3 text-sm font-semibold text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddOfflinePlayer}
-                  disabled={addingPlayer || !addPlayerForm.display_name.trim()}
-                  className="px-6 py-3 text-sm font-semibold text-white bg-slate-800 rounded-xl hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 transition-colors shadow-sm"
-                >
-                  {addingPlayer ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                      Adding Player...
-                    </div>
-                  ) : (
-                    'Add Player'
-                  )}
-                </button>
-              </div>
-
-              {/* Error message */}
-              {addPlayerError && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600">{addPlayerError}</p>
-                </div>
-              )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowAddPlayerModal(false);
+                  setAddPlayerForm({ display_name: '' });
+                  setAddPlayerError(null);
+                }}
+                disabled={addingPlayer}
+                className={`${BTN_OUTLINE} px-4 py-2 disabled:opacity-50`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddOfflinePlayer}
+                disabled={addingPlayer || !addPlayerForm.display_name.trim()}
+                className={`${BTN_PRIMARY} px-4 py-2 text-base disabled:opacity-50`}
+              >
+                {addingPlayer ? 'Adding player…' : 'Add player'}
+              </button>
             </div>
           </div>
         </div>
@@ -1198,71 +976,59 @@ Good luck! ⚽`;
 
       {/* Unpicked Players Modal */}
       {showUnpickedModal && pickStats && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-slate-800 text-white px-6 py-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold">
-                  Round {currentRoundInfo?.round_number} Picks
-                </h3>
-                <button
-                  onClick={() => setShowUnpickedModal(false)}
-                  className="text-slate-300 hover:text-white transition-colors"
-                >
-                  <span className="text-2xl">×</span>
-                </button>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+          <div className={`${PANEL} flex max-h-[80vh] w-full max-w-lg flex-col`}>
+            <div className="flex items-center justify-between border-b border-ink/30 px-6 py-4">
+              <h3 className={`${HEADING} text-xl`}>
+                Round {currentRoundInfo?.round_number} picks
+              </h3>
+              <button
+                onClick={() => setShowUnpickedModal(false)}
+                className="text-ink-fade transition-colors hover:text-ink"
+              >
+                <span className="text-2xl leading-none">&times;</span>
+              </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6">
+            <div className="overflow-y-auto p-6">
               {loadingUnpicked ? (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-slate-800"></div>
-                  <p className="mt-4 text-slate-600">Loading...</p>
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-ink border-t-transparent" />
+                  <p className="mt-4 text-ink-fade">Loading&hellip;</p>
                 </div>
               ) : unpickedPlayers.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-5xl mb-4">🎉</div>
-                  <h4 className="text-xl font-bold text-slate-900 mb-2">All players have picked!</h4>
-                  <p className="text-slate-600">Everyone has made their selection for this round.</p>
+                <div className="py-8 text-center">
+                  <p className={`${HEADING} text-xl`}>All players have picked</p>
+                  <p className="mt-2 text-[15px] text-ink-fade">Everyone has made their selection for this round.</p>
                 </div>
               ) : unpickedPlayers.length <= 10 ? (
                 <div>
-                  <p className="text-sm text-slate-600 mb-4">
-                    <span className="font-semibold text-slate-900">{unpickedPlayers.length} {unpickedPlayers.length === 1 ? 'player has' : 'players have'}</span> not made their pick yet:
+                  <p className="mb-4 text-[15px] text-ink-fade">
+                    <span className="font-medium text-ink">{unpickedPlayers.length} {unpickedPlayers.length === 1 ? 'player has' : 'players have'}</span> not made their pick yet:
                   </p>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                  <div className="divide-y divide-ink/30 border-y border-ink/30">
                     {unpickedPlayers.map((player) => (
-                      <div
-                        key={player.user_id}
-                        className="flex items-center py-2 px-3 bg-slate-50 rounded-lg"
-                      >
-                        <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
-                        <span className="text-slate-900">{player.display_name}</span>
+                      <div key={player.user_id} className="flex items-center gap-3 py-2.5">
+                        <span className="h-2 w-2 flex-shrink-0 rounded-full bg-overprint" />
+                        <span className="font-data text-[15px] text-ink">{player.display_name}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-lg font-semibold text-slate-900 mb-2">
+                <div className="py-4 text-center">
+                  <p className="text-[15px] font-medium text-ink">
                     {unpickedPlayers.length} players have not made their pick yet
                   </p>
-                  <p className="text-slate-600">
+                  <p className="mt-1 text-[13px] text-ink-fade">
                     {Math.round((pickStats.players_with_picks / pickStats.total_active_players) * 100)}% complete
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="bg-slate-50 px-6 py-4 flex justify-end border-t border-slate-200">
-              <button
-                onClick={() => setShowUnpickedModal(false)}
-                className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors font-semibold"
-              >
+            <div className="flex justify-end border-t border-ink/30 px-6 py-4">
+              <button onClick={() => setShowUnpickedModal(false)} className={`${BTN_OUTLINE} px-4 py-2`}>
                 Close
               </button>
             </div>

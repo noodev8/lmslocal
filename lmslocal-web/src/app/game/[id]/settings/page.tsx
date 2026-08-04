@@ -7,23 +7,24 @@ import {
   ArrowLeftIcon,
   CheckCircleIcon,
   XMarkIcon,
-  HeartIcon,
-  TrashIcon,
   ExclamationTriangleIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { competitionApi, teamApi, UpdateCompetitionRequest, ResetCompetitionRequest, DeleteCompetitionRequest } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
+
+const INPUT = 'w-full rounded-sm border border-ink bg-transparent px-3 py-2 text-[15px] text-ink placeholder-ink-fade/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
 export default function CompetitionSettings() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
-  
+
   // Use AppDataProvider context for competitions data
   const { competitions, loading: contextLoading, refreshCompetitions } = useAppData();
-  
+
   // Find the specific competition
   const competition = competitions?.find(c => c.id.toString() === competitionId);
 
@@ -31,12 +32,12 @@ export default function CompetitionSettings() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Reset modal state
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resetting, setResetting] = useState(false);
-  
+
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -166,7 +167,7 @@ export default function CompetitionSettings() {
 
           // Check if competition has started (no invite code means started)
           setHasStarted(!competition.invite_code);
-          
+
         } else if (!contextLoading) {
           // Only redirect if context has finished loading and we still don't have access
           console.warn('Competition not found or no access');
@@ -187,7 +188,7 @@ export default function CompetitionSettings() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({
@@ -235,7 +236,7 @@ export default function CompetitionSettings() {
       if (formData.name.trim()) {
         updateData.name = formData.name.trim();
       }
-      
+
       // Always include description (allow clearing it by sending empty string)
       updateData.description = formData.description.trim() || '';
 
@@ -339,7 +340,7 @@ export default function CompetitionSettings() {
         // Clear all relevant caches to ensure fresh data after reset
         const { cacheUtils } = await import('@/lib/api');
         cacheUtils.invalidateCompetitions();
-        
+
         // Clear competition-specific caches
         const competitionId = competition.id;
         cacheUtils.invalidateKey(`competition-standings-${competitionId}`);
@@ -348,13 +349,13 @@ export default function CompetitionSettings() {
         cacheUtils.invalidateKey(`pick-statistics-${competitionId}`);
         cacheUtils.invalidateKey(`rounds-${competitionId}`);
         cacheUtils.invalidateKey(`allowed-teams-${competitionId}-current`);
-        
+
         refreshCompetitions();
-        
+
         // Close modal and reset form
         setShowResetModal(false);
         setResetConfirmText('');
-        
+
         // Small delay to ensure context updates before navigation
         setTimeout(() => {
           router.push(`/game/${competitionId}/dashboard`);
@@ -401,7 +402,7 @@ export default function CompetitionSettings() {
         // Delete successful - clear all caches
         const { cacheUtils } = await import('@/lib/api');
         cacheUtils.invalidateCompetitions();
-        
+
         // Clear user-specific competitions cache
         const userData = localStorage.getItem('user');
         if (userData) {
@@ -415,7 +416,7 @@ export default function CompetitionSettings() {
             console.warn('Failed to get user ID for cache clearing:', error);
           }
         }
-        
+
         // Clear all competition-specific caches
         const competitionId = competition.id;
         cacheUtils.invalidateKey(`competition-standings-${competitionId}`);
@@ -424,10 +425,10 @@ export default function CompetitionSettings() {
         cacheUtils.invalidateKey(`pick-statistics-${competitionId}`);
         cacheUtils.invalidateKey(`rounds-${competitionId}`);
         cacheUtils.invalidateKey(`allowed-teams-${competitionId}-current`);
-        
+
         // Refresh competitions context to remove deleted competition
         refreshCompetitions();
-        
+
         // Small delay to ensure context updates before navigation
         setTimeout(() => {
           router.push('/dashboard');
@@ -453,35 +454,21 @@ export default function CompetitionSettings() {
 
   if (loading || contextLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <header className="bg-white border-b border-slate-200 shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-4">
-                <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                  <ArrowLeftIcon className="h-5 w-5" />
-                  <span className="font-medium">Back</span>
-                </Link>
-                <div className="h-6 w-px bg-slate-300" />
-                <div>
-                  <h1 className="text-lg font-semibold text-slate-900">Settings</h1>
-                </div>
-              </div>
-            </div>
+      <div className="min-h-screen bg-stock font-body text-ink">
+        <header className="border-b border-ink/30">
+          <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+            <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+              <ArrowLeftIcon className="h-4 w-4" />
+              Dashboard
+            </Link>
           </div>
         </header>
-        
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-50 rounded-full mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
-                </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Settings</h3>
-                <p className="text-slate-500">Please wait while we fetch your competition settings...</p>
-              </div>
-            </div>
+
+        <main className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+          <div className={`${PANEL} p-8 text-center`}>
+            <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+            <p className={EYEBROW}>Loading</p>
+            <p className="mt-2 text-[17px] text-ink-fade">Fetching your competition settings&hellip;</p>
           </div>
         </main>
       </div>
@@ -490,11 +477,11 @@ export default function CompetitionSettings() {
 
   if (!contextLoading && !competition) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
         <div className="text-center">
-          <h1 className="text-xl font-semibold text-slate-900 mb-2">Competition Not Found</h1>
-          <Link href={`/game/${competitionId}`} className="text-slate-600 hover:text-slate-800">
-            Return to Dashboard
+          <h1 className={`${HEADING} text-2xl`}>Competition not found</h1>
+          <Link href={`/game/${competitionId}`} className={`${LABEL} mt-4 inline-block text-ink-fade underline decoration-dotted underline-offset-4 transition-colors hover:text-ink`}>
+            Return to dashboard
           </Link>
         </div>
       </div>
@@ -502,69 +489,52 @@ export default function CompetitionSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span className="font-medium">Dashboard</span>
-              </Link>
-              <div className="h-6 w-px bg-slate-300" />
-              <div>
-                <h1 className="text-lg font-semibold text-slate-900">Settings</h1>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <header className="border-b border-ink/30">
+        <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+          <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Dashboard
+          </Link>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+
+        <p className={EYEBROW}>Settings</p>
+        <h1 className={`${HEADING} mt-1 text-3xl`}>{competition?.name}</h1>
+
         {/* Status Messages */}
         {success && (
-          <div className="mb-6 bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4 shadow-md animate-pulse">
-            <div className="flex items-center justify-center">
-              <CheckCircleIcon className="h-6 w-6 text-emerald-600 mr-3" />
-              <p className="text-emerald-900 font-semibold text-lg">Settings saved successfully!</p>
-            </div>
+          <div className={`${PANEL} mt-5 flex items-center justify-center gap-2 p-4`}>
+            <CheckCircleIcon className="h-5 w-5 text-moss" />
+            <p className="text-[15px] font-medium text-ink">Settings saved successfully</p>
           </div>
         )}
 
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <XMarkIcon className="h-5 w-5 text-red-600 mr-2" />
-                <p className="text-red-800 font-medium">{error}</p>
-              </div>
-              <button
-                onClick={() => setError(null)}
-                className="text-red-400 hover:text-red-600"
-              >
+          <div className={`${PANEL} mt-5 border-overprint p-4`}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[15px] text-ink">{error}</p>
+              <button onClick={() => setError(null)} className="flex-shrink-0 text-ink-fade transition-colors hover:text-ink">
                 <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
           </div>
         )}
 
-        {/* Competition Started Info */}
-
-
         {/* Settings Form */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-          <div className="p-6 border-b border-slate-200">
-            <h2 className="text-xl font-semibold text-slate-900">Competition Details</h2>
-            <p className="mt-1 text-slate-600">Update your competition name and description at any time.</p>
+        <div className={`${PANEL} mt-5`}>
+          <div className="border-b border-ink/30 p-5 sm:p-6">
+            <p className={`${HEADING} text-xl`}>Competition details</p>
+            <p className="mt-1 text-[14px] text-ink-fade">Update your competition name and description at any time.</p>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="space-y-5 p-5 sm:p-6">
             {/* Competition Name */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
-                Competition Name *
+              <label htmlFor="name" className={`${LABEL} mb-2 block text-ink-fade`}>
+                Competition name *
               </label>
               <input
                 type="text"
@@ -572,7 +542,7 @@ export default function CompetitionSettings() {
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className={INPUT}
                 placeholder="Enter competition name"
                 required
               />
@@ -580,7 +550,7 @@ export default function CompetitionSettings() {
 
             {/* Competition Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="description" className={`${LABEL} mb-2 block text-ink-fade`}>
                 Description
               </label>
               <textarea
@@ -590,18 +560,18 @@ export default function CompetitionSettings() {
                 onChange={handleInputChange}
                 rows={3}
                 maxLength={250}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className={`${INPUT} resize-none`}
                 placeholder="Enter competition description (optional)"
               />
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-[12px] text-ink-fade">
                 {formData.description.length}/250 characters
               </p>
             </div>
 
             {/* Logo Upload */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Competition Logo <span className="text-slate-400">(optional)</span>
+              <label className={`${LABEL} mb-2 block text-ink-fade`}>
+                Competition logo <span className="normal-case text-ink-fade/70">(optional)</span>
               </label>
               <CloudinaryUpload
                 value={formData.logo_url}
@@ -637,8 +607,8 @@ export default function CompetitionSettings() {
 
             {/* Venue Name */}
             <div>
-              <label htmlFor="venue_name" className="block text-sm font-medium text-slate-700 mb-2">
-                Venue/Organization Name <span className="text-slate-400">(optional)</span>
+              <label htmlFor="venue_name" className={`${LABEL} mb-2 block text-ink-fade`}>
+                Venue/organisation name <span className="normal-case text-ink-fade/70">(optional)</span>
               </label>
               <input
                 type="text"
@@ -646,19 +616,19 @@ export default function CompetitionSettings() {
                 name="venue_name"
                 value={formData.venue_name}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className={INPUT}
                 placeholder="e.g., The Red Barn, Crown & Anchor"
                 maxLength={100}
               />
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-[12px] text-ink-fade">
                 This name will appear in marketing messages instead of your personal name
               </p>
             </div>
 
             {/* Address Section */}
             <div>
-              <label htmlFor="address_line_1" className="block text-sm font-medium text-slate-700 mb-2">
-                Address Line 1 <span className="text-slate-400">(optional)</span>
+              <label htmlFor="address_line_1" className={`${LABEL} mb-2 block text-ink-fade`}>
+                Address line 1 <span className="normal-case text-ink-fade/70">(optional)</span>
               </label>
               <input
                 type="text"
@@ -666,15 +636,15 @@ export default function CompetitionSettings() {
                 name="address_line_1"
                 value={formData.address_line_1}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className={INPUT}
                 placeholder="e.g., 123 High Street"
                 maxLength={100}
               />
             </div>
 
             <div>
-              <label htmlFor="address_line_2" className="block text-sm font-medium text-slate-700 mb-2">
-                Address Line 2 <span className="text-slate-400">(optional)</span>
+              <label htmlFor="address_line_2" className={`${LABEL} mb-2 block text-ink-fade`}>
+                Address line 2 <span className="normal-case text-ink-fade/70">(optional)</span>
               </label>
               <input
                 type="text"
@@ -682,16 +652,16 @@ export default function CompetitionSettings() {
                 name="address_line_2"
                 value={formData.address_line_2}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className={INPUT}
                 placeholder="e.g., City Centre, District"
                 maxLength={100}
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="city" className="block text-sm font-medium text-slate-700 mb-2">
-                  City/Town <span className="text-slate-400">(optional)</span>
+                <label htmlFor="city" className={`${LABEL} mb-2 block text-ink-fade`}>
+                  City/town <span className="normal-case text-ink-fade/70">(optional)</span>
                 </label>
                 <input
                   type="text"
@@ -699,15 +669,15 @@ export default function CompetitionSettings() {
                   name="city"
                   value={formData.city}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="e.g., Manchester"
                   maxLength={50}
                 />
               </div>
 
               <div>
-                <label htmlFor="postcode" className="block text-sm font-medium text-slate-700 mb-2">
-                  Postcode <span className="text-slate-400">(optional)</span>
+                <label htmlFor="postcode" className={`${LABEL} mb-2 block text-ink-fade`}>
+                  Postcode <span className="normal-case text-ink-fade/70">(optional)</span>
                 </label>
                 <input
                   type="text"
@@ -715,7 +685,7 @@ export default function CompetitionSettings() {
                   name="postcode"
                   value={formData.postcode}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="e.g., M1 2AB"
                   maxLength={20}
                 />
@@ -723,10 +693,10 @@ export default function CompetitionSettings() {
             </div>
 
             {/* Contact Section */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2">
-                  Phone Number <span className="text-slate-400">(optional)</span>
+                <label htmlFor="phone" className={`${LABEL} mb-2 block text-ink-fade`}>
+                  Phone number <span className="normal-case text-ink-fade/70">(optional)</span>
                 </label>
                 <input
                   type="tel"
@@ -734,15 +704,15 @@ export default function CompetitionSettings() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="e.g., 01234 567890"
                   maxLength={20}
                 />
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-                  Contact Email <span className="text-slate-400">(optional)</span>
+                <label htmlFor="email" className={`${LABEL} mb-2 block text-ink-fade`}>
+                  Contact email <span className="normal-case text-ink-fade/70">(optional)</span>
                 </label>
                 <input
                   type="email"
@@ -750,7 +720,7 @@ export default function CompetitionSettings() {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                  className={INPUT}
                   placeholder="e.g., contact@venue.com"
                   maxLength={255}
                 />
@@ -759,8 +729,8 @@ export default function CompetitionSettings() {
 
             {/* Prize Structure */}
             <div>
-              <label htmlFor="prize_structure" className="block text-sm font-medium text-slate-700 mb-2">
-                Prize Structure <span className="text-slate-400">(optional)</span>
+              <label htmlFor="prize_structure" className={`${LABEL} mb-2 block text-ink-fade`}>
+                Prize structure <span className="normal-case text-ink-fade/70">(optional)</span>
               </label>
               <input
                 type="text"
@@ -768,11 +738,11 @@ export default function CompetitionSettings() {
                 name="prize_structure"
                 value={formData.prize_structure}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className={INPUT}
                 placeholder="e.g., FREE entry - £20 Prize for Winner!"
                 maxLength={60}
               />
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-[12px] text-ink-fade">
                 {formData.prize_structure.length}/60 characters
               </p>
             </div>
@@ -780,124 +750,115 @@ export default function CompetitionSettings() {
 
           {/* Fixture Service Section - only on team lists the service covers */}
           {fixtureServiceOffered && (
-            <div className="border-t border-slate-200">
-              <div className="p-6 border-b border-slate-200">
-                <h2 className="text-xl font-semibold text-slate-900">Fixtures &amp; Results</h2>
-                <p className="mt-1 text-slate-600">
+            <div className="border-t border-ink/30">
+              <div className="border-b border-ink/30 p-5 sm:p-6">
+                <p className={`${HEADING} text-xl`}>Fixtures &amp; results</p>
+                <p className="mt-1 text-[14px] text-ink-fade">
                   Choose whether we handle the fixtures and results, or you do them yourself.
                   This saves as soon as you choose.
                 </p>
               </div>
 
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-4 p-5 sm:p-6">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={() => handleFixtureServiceChange(true)}
                     disabled={switchingFixtureService}
-                    className={`text-left h-full p-4 border rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                    className={`h-full border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                       competition?.fixture_service === true
-                        ? 'border-slate-800 bg-slate-50 shadow-md'
-                        : 'border-slate-300 hover:bg-slate-50'
+                        ? 'border-ink bg-ink text-stock-lit'
+                        : 'border-ink/30 hover:border-ink'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="text-sm font-semibold text-slate-900">
-                        <CalendarDaysIcon className="h-5 w-5 inline mr-2 text-slate-500" />
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className={`${LABEL} flex items-center gap-1.5`}>
+                        <CalendarDaysIcon className="h-4 w-4" />
                         Do it for me
-                      </div>
-                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                      </span>
+                      <span className={`${LABEL} border px-1.5 py-0.5 ${
+                        competition?.fixture_service === true ? 'border-stock-lit' : 'border-ink/30 text-ink-fade'
+                      }`}>
                         Free
                       </span>
                     </div>
-                    <div className="text-xs sm:text-sm text-slate-600">
+                    <p className={`text-[13px] ${competition?.fixture_service === true ? 'text-stock/85' : 'text-ink-fade'}`}>
                       We add each round&apos;s fixtures and enter the results for you.
-                    </div>
-                    <div className="mt-2 text-xs text-slate-500">
+                    </p>
+                    <p className={`mt-2 text-[12px] ${competition?.fixture_service === true ? 'text-stock/70' : 'text-ink-fade'}`}>
                       Free for this competition &mdash; normally <span className="line-through">£10</span>
-                    </div>
+                    </p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleFixtureServiceChange(false)}
                     disabled={switchingFixtureService}
-                    className={`text-left h-full p-4 border rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                    className={`h-full border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                       competition?.fixture_service === false
-                        ? 'border-slate-800 bg-slate-50 shadow-md'
-                        : 'border-slate-300 hover:bg-slate-50'
+                        ? 'border-ink bg-ink text-stock-lit'
+                        : 'border-ink/30 hover:border-ink'
                     }`}
                   >
-                    <div className="text-sm font-semibold text-slate-900 mb-1">I&apos;ll do my own</div>
-                    <div className="text-xs sm:text-sm text-slate-600">
+                    <p className={`${LABEL} mb-1`}>I&apos;ll do my own</p>
+                    <p className={`text-[13px] ${competition?.fixture_service === false ? 'text-stock/85' : 'text-ink-fade'}`}>
                       You add the fixtures and enter results each round yourself.
-                    </div>
-                    <div className="mt-2 text-xs text-slate-500">
+                    </p>
+                    <p className={`mt-2 text-[12px] ${competition?.fixture_service === false ? 'text-stock/70' : 'text-ink-fade'}`}>
                       Full control over kick-off times and lock times
-                    </div>
+                    </p>
                   </button>
                 </div>
 
                 {switchingFixtureService && (
-                  <p className="text-sm text-slate-500">Saving...</p>
+                  <p className="text-[13px] text-ink-fade">Saving&hellip;</p>
                 )}
 
                 {fixtureServiceNotice && (
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4">
-                    <div className="flex items-start">
-                      <CheckCircleIcon className="h-5 w-5 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" />
-                      <p className="text-sm text-emerald-800">{fixtureServiceNotice}</p>
-                    </div>
+                  <div className="border border-ink/30 p-4">
+                    <p className="text-[14px] text-ink">{fixtureServiceNotice}</p>
                   </div>
                 )}
 
                 {fixtureServiceError && (
-                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-                    <div className="flex items-start">
-                      <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
-                      <p className="text-sm text-amber-800">{fixtureServiceError}</p>
-                    </div>
+                  <div className="border border-overprint p-4">
+                    <p className="text-[14px] text-ink">{fixtureServiceError}</p>
                   </div>
                 )}
 
                 {/* Nothing has been deleted at this point - this is the confirmation step */}
                 {stalledRound && (
-                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-                    <div className="flex items-start">
-                      <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-amber-900">
-                          This will remove the {stalledRound.fixture_count} fixtures you added to
-                          round {stalledRound.round_number}
-                        </p>
-                        <p className="mt-1 text-sm text-amber-800">
-                          Nobody has picked yet, so nothing else is lost. We&apos;ll set up round 1
-                          for you and take it from there.
-                        </p>
-                        <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleFixtureServiceChange(true, true)}
-                            disabled={switchingFixtureService}
-                            className="inline-flex items-center justify-center px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                          >
-                            Remove it and take over
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setStalledRound(null)}
-                            disabled={switchingFixtureService}
-                            className="inline-flex items-center justify-center px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 disabled:opacity-50 transition-all"
-                          >
-                            Keep my fixtures
-                          </button>
-                        </div>
-                      </div>
+                  <div className="border border-overprint p-4">
+                    <p className="text-[14px] font-medium text-ink">
+                      This will remove the {stalledRound.fixture_count} fixtures you added to
+                      round {stalledRound.round_number}
+                    </p>
+                    <p className="mt-1 text-[13px] text-ink-fade">
+                      Nobody has picked yet, so nothing else is lost. We&apos;ll set up round 1
+                      for you and take it from there.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => handleFixtureServiceChange(true, true)}
+                        disabled={switchingFixtureService}
+                        className={`${BTN_DARK} px-4 py-2 disabled:opacity-50`}
+                      >
+                        Remove it and take over
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStalledRound(null)}
+                        disabled={switchingFixtureService}
+                        className={`${BTN_OUTLINE} px-4 py-2 disabled:opacity-50`}
+                      >
+                        Keep my fixtures
+                      </button>
                     </div>
                   </div>
                 )}
 
-                <p className="text-sm text-slate-600">
+                <p className="text-[13px] text-ink-fade">
                   Switching does not backfill. Rounds already played stay as they are, and we pick
                   up from the next round.
                 </p>
@@ -906,25 +867,22 @@ export default function CompetitionSettings() {
           )}
 
           {/* Game Rules Section */}
-          <div className="border-t border-slate-200">
-            <div className="p-6 border-b border-slate-200">
-              <h2 className="text-xl font-semibold text-slate-900">Game Rules</h2>
-              <p className="mt-1 text-slate-600">
-                {hasStarted 
-                  ? "These settings cannot be changed after the competition has started."
-                  : "Configure the rules for your competition before players start making picks."
+          <div className="border-t border-ink/30">
+            <div className="border-b border-ink/30 p-5 sm:p-6">
+              <p className={`${HEADING} text-xl`}>Game rules</p>
+              <p className="mt-1 text-[14px] text-ink-fade">
+                {hasStarted
+                  ? 'These settings cannot be changed after the competition has started.'
+                  : 'Configure the rules for your competition before players start making picks.'
                 }
               </p>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-5 sm:p-6">
               {/* Lives Per Player */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-3">
-                  <HeartIcon className="h-5 w-5 inline mr-2 text-slate-500" />
-                  Lives Per Player
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                <p className={`${LABEL} mb-3 text-ink-fade`}>Lives per player</p>
+                <div className="grid grid-cols-3 gap-3">
                   {[0, 1, 2].map((lives) => (
                     <label key={lives} className="relative">
                       <input
@@ -934,22 +892,20 @@ export default function CompetitionSettings() {
                         checked={formData.lives_per_player === lives}
                         onChange={handleInputChange}
                         disabled={hasStarted}
-                        className="sr-only peer"
+                        className="peer sr-only"
                       />
-                      <div className={`p-3 sm:p-4 border border-slate-300 rounded-xl cursor-pointer peer-checked:border-slate-800 peer-checked:bg-slate-50 peer-checked:shadow-md hover:bg-slate-50 transition-all ${
-                        hasStarted ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
-                      }`}>
-                        <div className="text-center">
-                          <div className="text-xl sm:text-2xl font-bold text-slate-900">{lives}</div>
-                          <div className="text-xs sm:text-sm text-slate-600">
-                            {lives === 0 ? 'Knockout' : lives === 1 ? 'Life' : 'Lives'}
-                          </div>
+                      <div className={`border p-3 text-center transition-colors sm:p-4 ${
+                        formData.lives_per_player === lives ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 hover:border-ink'
+                      } ${hasStarted ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}>
+                        <div className="font-display text-2xl">{lives}</div>
+                        <div className={`${LABEL} mt-0.5`}>
+                          {lives === 0 ? 'Knockout' : lives === 1 ? 'Life' : 'Lives'}
                         </div>
                       </div>
                     </label>
                   ))}
                 </div>
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-[13px] text-ink-fade">
                   How many wrong picks can players make before being eliminated?
                 </p>
               </div>
@@ -959,95 +915,84 @@ export default function CompetitionSettings() {
           </div>
 
           {/* Actions */}
-          <div className="p-6 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+          <div className="border-t border-ink/30 p-5 sm:p-6">
             <div className="flex justify-end">
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={saving || !formData.name.trim() || success}
-                className={`inline-flex items-center justify-center px-6 sm:px-8 py-3 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-md hover:shadow-lg transition-all text-sm sm:text-base disabled:cursor-not-allowed ${
-                  success
-                    ? 'bg-emerald-600 text-white focus:ring-emerald-500'
-                    : 'bg-slate-800 text-white hover:bg-slate-900 focus:ring-slate-500 disabled:opacity-50'
-                }`}
+                className={`${success ? BTN_DARK : BTN_PRIMARY} flex items-center gap-2 px-6 py-3 text-base disabled:cursor-not-allowed disabled:opacity-60 sm:px-8`}
               >
                 {saving && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-stock-lit border-t-transparent" />
                 )}
-                {success && (
-                  <CheckCircleIcon className="h-5 w-5 mr-2" />
-                )}
-                {success ? 'Saved!' : saving ? 'Saving...' : 'Save Changes'}
+                {success && <CheckCircleIcon className="h-5 w-5" />}
+                {success ? 'Saved!' : saving ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Danger Zone - Reset Competition */}
-        <div className="bg-white rounded-xl border border-red-200 shadow-sm mt-8">
-          <div className="p-6 border-b border-red-200">
-            <h2 className="text-xl font-semibold text-red-900">Danger Zone</h2>
-            <p className="mt-1 text-red-600">Irreversible and destructive actions.</p>
+        {/* Danger Zone */}
+        <div className={`${PANEL} mt-6 border-overprint`}>
+          <div className="border-b border-overprint/40 p-5 sm:p-6">
+            <p className={`${EYEBROW} text-overprint`}>Danger zone</p>
+            <p className="mt-1 text-[14px] text-ink-fade">Irreversible and destructive actions.</p>
           </div>
 
-          <div className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex-1 mb-4 sm:mb-0 sm:mr-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-3">
-                  <TrashIcon className="h-5 w-5 inline mr-2 text-red-500" />
-                  Competition Management
-                </h3>
-                
+          <div className="p-5 sm:p-6">
+            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+              <div className="flex-1">
+                <p className={`${HEADING} mb-3 text-lg`}>Competition management</p>
+
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-medium text-amber-700 mb-2">Reset Competition</h4>
-                    <p className="text-slate-600 text-sm mb-1">
+                    <p className="mb-1 text-[14px] font-medium text-ink">Reset competition</p>
+                    <p className="mb-1 text-[13px] text-ink-fade">
                       Clears all game data but keeps the competition and players:
                     </p>
-                    <ul className="text-xs text-slate-600 list-disc list-inside space-y-1">
+                    <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-ink-fade">
                       <li>Deletes rounds, fixtures, picks, and results</li>
                       <li>Resets players to active with full lives</li>
                       <li>Keeps competition and all players</li>
                     </ul>
                   </div>
-                  
+
                   <div>
-                    <h4 className="font-medium text-red-700 mb-2">Delete Competition</h4>
-                    <p className="text-slate-600 text-sm mb-1">
+                    <p className="mb-1 text-[14px] font-medium text-ink">Delete competition</p>
+                    <p className="mb-1 text-[13px] text-ink-fade">
                       Permanently removes the entire competition:
                     </p>
-                    <ul className="text-xs text-slate-600 list-disc list-inside space-y-1">
+                    <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-ink-fade">
                       <li>Deletes the competition completely</li>
                       <li>Deletes all game data and history</li>
                       <li>Cannot be recovered</li>
                     </ul>
                   </div>
                 </div>
-                
-                <div className="flex items-center text-red-600 text-sm mt-3">
-                  <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
-                  <strong>Both actions cannot be undone.</strong>
-                </div>
+
+                <p className={`${LABEL} mt-3 flex items-center gap-1.5 text-overprint`}>
+                  <ExclamationTriangleIcon className="h-4 w-4" />
+                  Both actions cannot be undone.
+                </p>
               </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
+
+              <div className="flex flex-shrink-0 flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
                   onClick={() => setShowResetModal(true)}
                   disabled={saving || resetting || deleting}
-                  className="inline-flex items-center justify-center px-4 sm:px-6 py-3 bg-amber-600 text-white rounded-xl font-medium hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 shadow-md hover:shadow-lg transition-all text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  className={`${LABEL} flex items-center justify-center gap-2 border border-overprint px-4 py-3 text-overprint transition-colors hover:bg-overprint hover:text-stock-lit disabled:cursor-not-allowed disabled:opacity-50 sm:px-6`}
                 >
-                  <TrashIcon className="h-4 w-4 mr-2" />
-                  Reset Competition
+                  Reset competition
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeleteModal(true)}
                   disabled={saving || resetting || deleting}
-                  className="inline-flex items-center justify-center px-4 sm:px-6 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-md hover:shadow-lg transition-all text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  className={`${BTN_PRIMARY} px-4 py-3 text-base disabled:cursor-not-allowed disabled:opacity-50 sm:px-6`}
                 >
-                  <TrashIcon className="h-4 w-4 mr-2" />
-                  Delete Competition
+                  Delete competition
                 </button>
               </div>
             </div>
@@ -1058,67 +1003,58 @@ export default function CompetitionSettings() {
 
       {/* Reset Confirmation Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+          <div className={`${PANEL} w-full max-w-md`}>
             <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-                </div>
-              </div>
-              
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-slate-900 mb-3">
-                  Reset Competition?
-                </h3>
-                
-                <div className="text-sm text-slate-600 space-y-3 mb-6 text-left">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="font-medium text-red-800 mb-2">⚠️ This will permanently delete:</p>
-                    <ul className="text-red-700 text-xs space-y-1 list-disc list-inside">
-                      <li>All rounds and fixtures</li>
-                      <li>All player picks and results</li>
-                      <li>All game progress and statistics</li>
-                      <li>All player states (status, lives, payments)</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                    <p className="font-medium text-slate-800 mb-2">✅ This will preserve:</p>
-                    <ul className="text-slate-700 text-xs space-y-1 list-disc list-inside">
-                      <li>Competition name and description</li>
-                      <li>Players (they remain in competition)</li>
-                      <li>Competition settings and rules</li>
-                    </ul>
-                  </div>
-                  
-                  <p className="text-center text-slate-800 font-medium">
-                    Are you absolutely sure? This cannot be undone.
-                  </p>
+              <p className={EYEBROW}>Confirm</p>
+              <h3 className={`${HEADING} mt-1 text-2xl`}>Reset competition?</h3>
+
+              <div className="mt-4 space-y-3 text-left">
+                <div className="border border-overprint p-3">
+                  <p className={`${LABEL} mb-2 text-overprint`}>This will permanently delete</p>
+                  <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-ink">
+                    <li>All rounds and fixtures</li>
+                    <li>All player picks and results</li>
+                    <li>All game progress and statistics</li>
+                    <li>All player states (status, lives, payments)</li>
+                  </ul>
                 </div>
 
-                <div className="mb-4">
-                  <label htmlFor="confirmReset" className="block text-sm font-medium text-slate-700 mb-2">
-                    Type <strong>RESET</strong> to confirm:
-                  </label>
-                  <input
-                    id="confirmReset"
-                    type="text"
-                    value={resetConfirmText}
-                    onChange={(e) => setResetConfirmText(e.target.value)}
-                    placeholder="RESET"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-center font-mono"
-                  />
+                <div className="border border-ink/30 p-3">
+                  <p className={`${LABEL} mb-2 text-ink-fade`}>This will preserve</p>
+                  <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-ink">
+                    <li>Competition name and description</li>
+                    <li>Players (they remain in competition)</li>
+                    <li>Competition settings and rules</li>
+                  </ul>
                 </div>
+
+                <p className="text-center text-[14px] font-medium text-ink">
+                  Are you absolutely sure? This cannot be undone.
+                </p>
+              </div>
+
+              <div className="mt-4">
+                <label htmlFor="confirmReset" className={`${LABEL} mb-2 block text-ink-fade`}>
+                  Type RESET to confirm
+                </label>
+                <input
+                  id="confirmReset"
+                  type="text"
+                  value={resetConfirmText}
+                  onChange={(e) => setResetConfirmText(e.target.value)}
+                  placeholder="RESET"
+                  className={`${INPUT} text-center font-data`}
+                />
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 bg-slate-50 rounded-b-xl">
+            <div className="flex flex-col gap-3 border-t border-ink/30 p-4 sm:flex-row">
               <button
                 type="button"
                 onClick={handleCloseResetModal}
                 disabled={resetting}
-                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${BTN_OUTLINE} flex-1 justify-center py-2 disabled:opacity-50`}
               >
                 Cancel
               </button>
@@ -1126,12 +1062,9 @@ export default function CompetitionSettings() {
                 type="button"
                 onClick={handleResetCompetition}
                 disabled={resetting || resetConfirmText.toLowerCase() !== 'reset'}
-                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${BTN_PRIMARY} flex-1 py-2 text-base disabled:cursor-not-allowed disabled:opacity-50`}
               >
-                {resetting && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                )}
-                {resetting ? 'Resetting...' : 'Reset Competition'}
+                {resetting ? 'Resetting…' : 'Reset competition'}
               </button>
             </div>
           </div>
@@ -1140,57 +1073,48 @@ export default function CompetitionSettings() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+          <div className={`${PANEL} w-full max-w-md`}>
             <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-                </div>
-              </div>
-              
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-slate-900 mb-3">
-                  Delete Competition?
-                </h3>
-                
-                <div className="text-sm text-slate-600 space-y-3 mb-6 text-left">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="font-medium text-red-800 mb-2">⚠️ This will permanently delete:</p>
-                    <ul className="text-red-700 text-xs space-y-1 list-disc list-inside">
-                      <li>The entire competition</li>
-                      <li>All rounds, fixtures, and results</li>
-                      <li>All picks and game history</li>
-                    </ul>
-                  </div>
-                  
-                  <p className="text-center text-slate-800 font-medium">
-                    Are you absolutely sure? This cannot be undone.
-                  </p>
+              <p className={EYEBROW}>Confirm</p>
+              <h3 className={`${HEADING} mt-1 text-2xl`}>Delete competition?</h3>
+
+              <div className="mt-4 space-y-3 text-left">
+                <div className="border border-overprint p-3">
+                  <p className={`${LABEL} mb-2 text-overprint`}>This will permanently delete</p>
+                  <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-ink">
+                    <li>The entire competition</li>
+                    <li>All rounds, fixtures, and results</li>
+                    <li>All picks and game history</li>
+                  </ul>
                 </div>
 
-                <div className="mb-4">
-                  <label htmlFor="confirmDelete" className="block text-sm font-medium text-slate-700 mb-2">
-                    Type the competition name <strong>{competition?.name}</strong> to confirm:
-                  </label>
-                  <input
-                    id="confirmDelete"
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder={competition?.name}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-center"
-                  />
-                </div>
+                <p className="text-center text-[14px] font-medium text-ink">
+                  Are you absolutely sure? This cannot be undone.
+                </p>
+              </div>
+
+              <div className="mt-4">
+                <label htmlFor="confirmDelete" className={`${LABEL} mb-2 block text-ink-fade`}>
+                  Type the competition name <span className="font-data normal-case text-ink">{competition?.name}</span> to confirm
+                </label>
+                <input
+                  id="confirmDelete"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={competition?.name}
+                  className={`${INPUT} text-center font-data`}
+                />
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 bg-slate-50 rounded-b-xl">
+            <div className="flex flex-col gap-3 border-t border-ink/30 p-4 sm:flex-row">
               <button
                 type="button"
                 onClick={handleCloseDeleteModal}
                 disabled={deleting}
-                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${BTN_OUTLINE} flex-1 justify-center py-2 disabled:opacity-50`}
               >
                 Cancel
               </button>
@@ -1198,12 +1122,9 @@ export default function CompetitionSettings() {
                 type="button"
                 onClick={handleDeleteCompetition}
                 disabled={deleting || deleteConfirmText !== competition?.name}
-                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${BTN_PRIMARY} flex-1 py-2 text-base disabled:cursor-not-allowed disabled:opacity-50`}
               >
-                {deleting && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                )}
-                {deleting ? 'Deleting...' : 'Delete Competition'}
+                {deleting ? 'Deleting…' : 'Delete competition'}
               </button>
             </div>
           </div>

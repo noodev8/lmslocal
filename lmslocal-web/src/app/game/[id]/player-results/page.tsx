@@ -9,6 +9,7 @@ import {
 import { roundApi, fixtureApi, playerActionApi } from '@/lib/api';
 import { withCache } from '@/lib/cache';
 import { useAppData } from '@/contexts/AppDataContext';
+import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 interface Fixture {
   id: number;
@@ -177,38 +178,25 @@ export default function PlayerResultsPage() {
     return shortName;
   };
 
+  const isEliminated = !!(competition?.is_participant && competition?.user_status && competition.user_status !== 'active');
+
   if (loading || contextLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <header className="bg-white border-b border-slate-200 shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-4">
-                <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                  <ArrowLeftIcon className="h-5 w-5" />
-                  <span className="font-medium">Back</span>
-                </Link>
-                <div className="h-6 w-px bg-slate-300" />
-                <div>
-                  <h1 className="text-lg font-semibold text-slate-900">Round Results</h1>
-                  <p className="text-sm text-slate-600">Loading round...</p>
-                </div>
-              </div>
-            </div>
+      <div className="min-h-screen bg-stock font-body text-ink">
+        <header className="border-b border-ink/30">
+          <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+            <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+              <ArrowLeftIcon className="h-4 w-4" />
+              Dashboard
+            </Link>
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-50 rounded-full mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
-                </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Results</h3>
-                <p className="text-slate-500">Please wait while we load the round results...</p>
-              </div>
-            </div>
+        <main className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+          <div className={`${PANEL} p-8 text-center`}>
+            <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+            <p className={EYEBROW}>Loading</p>
+            <p className="mt-2 text-[17px] text-ink-fade">Fetching this round&apos;s results&hellip;</p>
           </div>
         </main>
       </div>
@@ -216,56 +204,86 @@ export default function PlayerResultsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link href={`/game/${competitionId}`} className="flex items-center space-x-2 text-slate-600 hover:text-slate-800 transition-colors">
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span className="font-medium">Dashboard</span>
-              </Link>
-            </div>
-          </div>
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <header className="border-b border-ink/30">
+        <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
+          <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Dashboard
+          </Link>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Eliminated Banner */}
-        {competition?.is_participant && competition?.user_status && competition.user_status !== 'active' && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-            <p className="text-red-700 font-medium">You&apos;ve been eliminated from this competition</p>
+      <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
+
+        {/* Elimination is the single most important fact for this user, so it leads the page */}
+        {isEliminated && (
+          <div className={`${PANEL} border-overprint p-6 text-center`}>
+            <p className={EYEBROW}>Result</p>
+            <p className={`${HEADING} mt-1 text-2xl text-overprint`}>You&apos;ve been eliminated</p>
           </div>
         )}
 
-        {/* Round Information */}
-        {currentRound && (
-          <div className="mb-6">
-            <div className="font-semibold text-lg text-slate-800">
-              Round {currentRound.round_number} - Results
-            </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className={EYEBROW}>Results</p>
+            {currentRound && <h1 className={`${HEADING} mt-1 text-3xl`}>Round {currentRound.round_number}</h1>}
           </div>
-        )}
+          {!currentPick && (
+            <span className={`${LABEL} border border-overprint px-2 py-1 text-overprint`}>No pick made</span>
+          )}
+        </div>
 
-        {/* Enhanced Pick Analysis - Main Focus */}
-        <div className="mb-6 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        {/* Match Ledger */}
+        <div className={`${PANEL} divide-y divide-ink/30`}>
+          {fixtures.map((fixture) => {
+            const homeWon = fixture.result === fixture.home_team_short;
+            const awayWon = fixture.result === fixture.away_team_short;
+            const isPending = !fixture.result;
+            const isDraw = !isPending && !homeWon && !awayWon;
+            const userPickedHome = currentPick === fixture.home_team_short;
+            const userPickedAway = currentPick === fixture.away_team_short;
+            const userWon = (userPickedHome && homeWon) || (userPickedAway && awayWon);
+            const userLost = (userPickedHome && awayWon) || (userPickedAway && homeWon);
 
+            return (
+              <div key={fixture.id} className="p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className={`font-data text-[15px] ${homeWon ? 'font-semibold text-moss' : awayWon ? 'text-ink-fade' : 'text-ink'}`}>
+                    {fixture.home_team}
+                  </span>
+                  <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>vs</span>
+                  <span className={`font-data text-right text-[15px] ${awayWon ? 'font-semibold text-moss' : homeWon ? 'text-ink-fade' : 'text-ink'}`}>
+                    {fixture.away_team}
+                  </span>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-3">
+                  <span className={`${LABEL} text-ink-fade`}>
+                    {isPending ? 'Pending' : isDraw ? 'Draw' : homeWon ? `${fixture.home_team_short} won` : `${fixture.away_team_short} won`}
+                  </span>
+                  {(userPickedHome || userPickedAway) && (
+                    <span className={`${LABEL} ${userWon ? 'text-moss' : userLost ? 'text-overprint' : 'text-ink-fade'}`}>
+                      {userWon ? 'Your pick — won' : userLost ? 'Your pick — out' : 'Your pick'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
-
-          {/* All Teams Pick Distribution */}
-          {Object.keys(teamPickCounts).length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        {/* Who Picked What */}
+        {Object.keys(teamPickCounts).length > 0 && (
+          <div className={`${PANEL} p-5`}>
+            <p className={`${EYEBROW} mb-3`}>Who picked what</p>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {Object.entries(teamPickCounts)
                 .sort(([teamA, countA], [teamB, countB]) => {
-                  // First sort by win/lose status, then by pick count
                   const teamAWon = fixtures.some(f => f.result === teamA);
                   const teamBWon = fixtures.some(f => f.result === teamB);
-
                   if (teamAWon && !teamBWon) return -1;
                   if (!teamAWon && teamBWon) return 1;
-
-                  return countB - countA; // Then by count descending
+                  return countB - countA;
                 })
                 .map(([teamShort, count]) => {
                   const teamName = getFullTeamName(teamShort);
@@ -279,103 +297,29 @@ export default function PlayerResultsPage() {
                   return (
                     <div
                       key={teamShort}
-                      className={`p-4 rounded-lg border-2 text-center transition-all ${
+                      className={`border p-3 text-center ${
                         teamWon
-                          ? 'bg-green-50 border-green-300 text-green-900'
+                          ? 'border-moss bg-moss/10'
                           : teamLost
-                          ? 'bg-red-50 border-red-300 text-red-900'
+                          ? 'border-overprint/40 bg-stock'
                           : isCurrentPick
-                          ? 'bg-blue-50 border-blue-300 text-blue-900'
-                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                          ? 'border-ink'
+                          : 'border-ink/30'
                       }`}
                     >
-                      {/* Win/Lose indicator */}
-                      <div className="flex justify-center mb-2">
-                        {teamWon && <span className="text-green-600 font-bold">✓</span>}
-                        {teamLost && <span className="text-red-600 font-bold">✗</span>}
-                        {!teamWon && !teamLost && <span className="text-slate-400">-</span>}
-                      </div>
-
-                      {/* Team name */}
-                      <div className="font-bold text-sm mb-2">
+                      <p className={`font-data text-[14px] ${teamWon ? 'font-semibold text-moss' : teamLost ? 'text-ink-fade' : 'text-ink'}`}>
                         {teamName}
-                      </div>
-
-                      {/* Pick count */}
-                      <div className="text-xs">
-                        <div className="font-semibold">
-                          {count} player{count !== 1 ? 's' : ''}
-                        </div>
-                        {isCurrentPick && (
-                          <div className="font-medium mt-1">
-                            (Your pick)
-                          </div>
-                        )}
-                      </div>
+                      </p>
+                      <p className={`${LABEL} mt-1.5 text-ink-fade`}>
+                        {count} player{count !== 1 ? 's' : ''}
+                      </p>
+                      {isCurrentPick && <p className={`${LABEL} mt-0.5 text-ink`}>Your pick</p>}
                     </div>
                   );
                 })}
             </div>
-          )}
-        </div>
-
-        {/* Compact Match Results */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-slate-900">Match Results</h3>
-            {!currentPick && (
-              <div className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded">
-                No pick made
-              </div>
-            )}
           </div>
-          <div className="space-y-2">
-            {fixtures.map((fixture) => {
-              const homeWon = fixture.result === fixture.home_team_short;
-              const awayWon = fixture.result === fixture.away_team_short;
-              const isPending = !fixture.result;
-              const userPickedHome = currentPick === fixture.home_team_short;
-              const userPickedAway = currentPick === fixture.away_team_short;
-
-              return (
-                <div key={fixture.id} className="flex items-center justify-between py-2 text-sm">
-                  <div className="flex items-center space-x-2 flex-1 min-w-0">
-                    {/* Your pick indicator */}
-                    {(userPickedHome || userPickedAway) && (
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        (userPickedHome && homeWon) || (userPickedAway && awayWon)
-                          ? 'bg-green-500'
-                          : (userPickedHome && awayWon) || (userPickedAway && homeWon)
-                          ? 'bg-red-500'
-                          : 'bg-blue-500'
-                      }`}></div>
-                    )}
-
-                    {/* Match text */}
-                    <span className={`truncate ${
-                      homeWon ? 'font-semibold text-green-700' : awayWon ? 'text-slate-600' : 'text-slate-700'
-                    }`}>
-                      {fixture.home_team}
-                    </span>
-                    <span className="text-slate-500 flex-shrink-0">vs</span>
-                    <span className={`truncate ${
-                      awayWon ? 'font-semibold text-green-700' : homeWon ? 'text-slate-600' : 'text-slate-700'
-                    }`}>
-                      {fixture.away_team}
-                    </span>
-                  </div>
-
-                  {/* Result indicator */}
-                  <div className="text-xs text-slate-500 flex-shrink-0 ml-2">
-                    {isPending ? 'Pending' :
-                     homeWon ? `${fixture.home_team_short} won` :
-                     awayWon ? `${fixture.away_team_short} won` : 'Draw'}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );

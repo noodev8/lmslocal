@@ -3,17 +3,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { organizerApi, teamApi, OrganizerFixtureWithResult } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY } from '@/lib/design';
 
 interface FixtureWithClientState extends OrganizerFixtureWithResult {
   result_entered?: 'home_win' | 'away_win' | 'draw';
   processed?: string | null;
 }
 
-/* Derives the outcome already saved on a fixture from its real `result` field - used for the
-   read-only automated view, where there is no client-side selection to fall back on. */
+/* Derives the outcome already saved on a fixture from its real `result` field - used to seed
+   result_entered on load (so a reload doesn't blank out results that were already set) and for
+   the read-only automated view, where there is no client-side selection to fall back on. */
 function actualOutcome(fixture: FixtureWithClientState): 'home_win' | 'away_win' | 'draw' | null {
   if (!fixture.result) return null;
   if (fixture.result === 'DRAW') return 'draw';
@@ -43,9 +45,6 @@ export default function OrganizerResultsPage() {
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
   const [processError, setProcessError] = useState('');
-
-  // Track fixtures modified in this session
-  const [modifiedFixtures, setModifiedFixtures] = useState<Set<number>>(new Set());
 
   // Team names mapping (fetched from API with cache)
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
@@ -107,9 +106,15 @@ export default function OrganizerResultsPage() {
       if (response.data.return_code === 'SUCCESS') {
         setRoundNumber(response.data.round_number);
         setRoundStartTime(response.data.round_start_time);
-        setFixtures(response.data.fixtures || []);
-        // Clear modified fixtures when loading fresh data
-        setModifiedFixtures(new Set());
+        // Seed result_entered from whatever was already saved, so a reload mid-round shows the
+        // same selections instead of resetting them - previously this only happened in read-only
+        // mode, so an organiser who navigated away and back saw a blank sheet and a disabled
+        // Process button with no explanation.
+        const loadedFixtures = (response.data.fixtures || []).map((f: FixtureWithClientState) => ({
+          ...f,
+          result_entered: actualOutcome(f) ?? undefined
+        }));
+        setFixtures(loadedFixtures);
       } else if (response.data.return_code === 'NO_ROUNDS') {
         setLoadError('No rounds exist for this competition yet. Please add fixtures first.');
       } else if (response.data.return_code === 'UNAUTHORIZED') {
@@ -134,12 +139,6 @@ export default function OrganizerResultsPage() {
           f.id === fixture.id ? { ...f, result_entered: undefined } : f
         )
       );
-      // Remove from modified fixtures since it no longer has a result
-      setModifiedFixtures(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(fixture.id);
-        return newSet;
-      });
       return; // No API call when unselecting
     }
 
@@ -154,10 +153,7 @@ export default function OrganizerResultsPage() {
     try {
       const response = await organizerApi.setResult(fixture.id, result);
 
-      if (response.data.return_code === 'SUCCESS') {
-        // Mark this fixture as modified in this session
-        setModifiedFixtures(prev => new Set(prev).add(fixture.id));
-      } else {
+      if (response.data.return_code !== 'SUCCESS') {
         // Revert on error
         setFixtures(prevFixtures =>
           prevFixtures.map(f =>
@@ -202,9 +198,6 @@ export default function OrganizerResultsPage() {
           await refreshCompetitions(true); // Pass true to bypass cache
         }
 
-        // Clear modified fixtures tracking
-        setModifiedFixtures(new Set());
-
         // Wait for all cache operations to complete before redirecting
         await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -224,8 +217,9 @@ export default function OrganizerResultsPage() {
     }
   };
 
-  // Only enable process button if there are newly modified fixtures in this session
-  const hasResultsToProcess = modifiedFixtures.size > 0;
+  // Enable Process Results whenever a saved, unprocessed result exists - not just ones touched
+  // this browser session, so the button's state survives a reload.
+  const hasResultsToProcess = fixtures.some(f => !!f.result_entered && f.processed === null);
 
   // Check if round has started (current time >= round start time)
   const roundHasStarted = useMemo(() => {
@@ -261,60 +255,50 @@ export default function OrganizerResultsPage() {
   // Show loading while competition data loads
   if (!competition) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
+        <p className={EYEBROW}>Loading&hellip;</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            href={`/game/${competitionId}`}
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
-          >
-            <ArrowLeftIcon className="h-4 w-4" />
-            Back
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {readOnly ? 'Results' : 'Enter Results'} - {competition.name}
-          </h1>
-          {readOnly && (
-            <p className="text-sm text-gray-500 mt-1">
-              Fixtures are managed automatically for this competition - view only.
-            </p>
-          )}
-          <p className="text-sm text-gray-600 mt-1">
-            {roundNumber ? `Round ${roundNumber}` : 'Loading...'}
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <Link href={`/game/${competitionId}`} className={`${LABEL} mb-4 inline-flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back
+        </Link>
+
+        <p className={EYEBROW}>{readOnly ? 'Results' : 'Enter results'}</p>
+        <h1 className={`${HEADING} mt-1 text-3xl`}>{competition.name}</h1>
+        {readOnly && (
+          <p className="mt-2 text-[15px] text-ink-fade">
+            Fixtures are managed automatically for this competition — view only.
           </p>
-        </div>
+        )}
+        <p className={`${LABEL} mt-2 text-ink-fade`}>
+          {roundNumber ? `Round ${roundNumber}` : 'Loading…'}
+        </p>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          {/* Error Message */}
+        <div className={`${PANEL} mt-5`}>
           {(loadError || processError) && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-              {loadError || processError}
+            <div className="border-b border-overprint p-4">
+              <p className="text-[15px] text-ink">{loadError || processError}</p>
             </div>
           )}
 
-          {/* Loading State */}
           {isLoading && (
-            <div className="text-center py-8">
-              <p className="text-gray-600">Loading fixtures...</p>
-            </div>
+            <p className="p-8 text-center text-[15px] text-ink-fade">Loading fixtures&hellip;</p>
           )}
 
           {/* No Rounds State */}
           {!isLoading && loadError && !readOnly && (
-            <div className="text-center py-8">
+            <div className="p-8 text-center">
               <button
                 onClick={() => router.push(`/game/${competitionId}/organizer-fixtures`)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+                className={`${BTN_PRIMARY} px-6 py-3 text-base`}
               >
-                Add Fixtures
+                Add fixtures
               </button>
             </div>
           )}
@@ -324,32 +308,26 @@ export default function OrganizerResultsPage() {
             <>
               {/* Round Not Started Warning */}
               {!readOnly && !roundHasStarted && timeUntilStart && (
-                <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-md">
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl">⏰</div>
-                    <div>
-                      <h3 className="font-semibold text-amber-900">Round hasn&apos;t started yet</h3>
-                      <p className="text-sm text-amber-800 mt-1">
-                        Results can be entered after the round starts in <span className="font-medium">{timeUntilStart}</span>
-                        {roundStartTime && (
-                          <span className="ml-2">
-                            ({new Date(roundStartTime).toLocaleString('en-GB', {
-                              weekday: 'short',
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })})
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                <div className="border-b border-ink/30 p-4">
+                  <p className="text-[15px] text-ink">
+                    Round hasn&apos;t started yet — results can be entered in <span className="font-medium">{timeUntilStart}</span>
+                    {roundStartTime && (
+                      <span className="text-ink-fade">
+                        {' '}({new Date(roundStartTime).toLocaleString('en-GB', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })})
+                      </span>
+                    )}
+                  </p>
                 </div>
               )}
 
               {/* Fixtures */}
-              <div className="space-y-2 mb-6">
+              <div className="divide-y divide-ink/30">
                 {fixtures.map((fixture) => {
                   const homeTeamName = teamNames[fixture.home_team_short] || fixture.home_team_short;
                   const awayTeamName = teamNames[fixture.away_team_short] || fixture.away_team_short;
@@ -357,40 +335,28 @@ export default function OrganizerResultsPage() {
                   const isProcessed = fixture.processed !== null;
                   const disabled = readOnly || !roundHasStarted || isProcessed;
 
-                  return (
-                    <div
-                      key={fixture.id}
-                      className={`p-4 rounded-md border-2 transition-colors ${
-                        isProcessed
-                          ? 'bg-purple-50 border-purple-300'
-                          : resultEntered
-                          ? 'bg-green-50 border-green-300'
-                          : 'bg-white border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="font-medium text-gray-900">
-                          {homeTeamName} <span className="text-gray-400 mx-2">vs</span> {awayTeamName}
-                        </div>
-                        <div className="text-xs text-gray-500 flex items-center gap-2">
-                          {resultEntered && !isProcessed && (
-                            <CheckCircleIcon className="h-4 w-4 text-green-600" />
-                          )}
-                        </div>
-                      </div>
+                  const buttonClass = (isSelected: boolean) => `${LABEL} border py-2.5 text-center transition-colors ${
+                    isSelected
+                      ? isProcessed
+                        ? 'border-ink/40 bg-stock text-ink-fade'
+                        : 'border-ink bg-ink text-stock-lit'
+                      : disabled
+                      ? 'cursor-not-allowed border-ink/15 text-ink-fade/50'
+                      : 'cursor-pointer border-ink/30 text-ink hover:border-ink'
+                  }`;
 
-                      <div className="flex gap-2">
+                  return (
+                    <div key={fixture.id} className="p-4 sm:p-5">
+                      <span className="font-data text-[15px] text-ink">
+                        {homeTeamName} <span className="text-ink-fade">vs</span> {awayTeamName}
+                      </span>
+
+                      <div className="mt-3 grid grid-cols-3 gap-2">
                         <button
                           type="button"
                           onClick={() => handleResultClick(fixture, 'home_win')}
                           disabled={disabled}
-                          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                            resultEntered === 'home_win'
-                              ? isProcessed ? 'bg-purple-600 text-white' : readOnly ? 'bg-green-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
-                              : disabled
-                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
+                          className={buttonClass(resultEntered === 'home_win')}
                           title={readOnly ? 'View only' : !roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           {fixture.home_team_short}
@@ -399,13 +365,7 @@ export default function OrganizerResultsPage() {
                           type="button"
                           onClick={() => handleResultClick(fixture, 'draw')}
                           disabled={disabled}
-                          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                            resultEntered === 'draw'
-                              ? isProcessed ? 'bg-purple-600 text-white' : readOnly ? 'bg-green-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
-                              : disabled
-                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                              : 'bg-gray-600 text-white hover:bg-gray-700'
-                          }`}
+                          className={buttonClass(resultEntered === 'draw')}
                           title={readOnly ? 'View only' : !roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           Draw
@@ -414,18 +374,13 @@ export default function OrganizerResultsPage() {
                           type="button"
                           onClick={() => handleResultClick(fixture, 'away_win')}
                           disabled={disabled}
-                          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                            resultEntered === 'away_win'
-                              ? isProcessed ? 'bg-purple-600 text-white' : readOnly ? 'bg-green-600 text-white' : 'bg-green-600 text-white hover:bg-green-700'
-                              : disabled
-                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
+                          className={buttonClass(resultEntered === 'away_win')}
                           title={readOnly ? 'View only' : !roundHasStarted ? 'Round has not started yet' : isProcessed ? 'Results already processed' : ''}
                         >
                           {fixture.away_team_short}
                         </button>
                       </div>
+                      {isProcessed && <p className={`${LABEL} mt-2 text-ink-fade`}>Processed</p>}
                     </div>
                   );
                 })}
@@ -434,23 +389,23 @@ export default function OrganizerResultsPage() {
               {/* Process Results Button - hidden entirely for automated competitions, the
                   fixture service processes results as part of pushing them */}
               {!readOnly && (
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleProcessResults}
-                    disabled={!hasResultsToProcess || isProcessing}
-                    className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
-                  >
-                    {isProcessing ? 'Processing...' : 'Process Results'}
-                  </button>
+                <div className="border-t border-ink/30 p-4">
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleProcessResults}
+                      disabled={!hasResultsToProcess || isProcessing}
+                      className={`${BTN_PRIMARY} px-6 py-3 text-base disabled:opacity-40`}
+                    >
+                      {isProcessing ? 'Processing…' : 'Process results'}
+                    </button>
+                  </div>
                 </div>
-              </div>
               )}
             </>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

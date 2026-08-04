@@ -6,16 +6,14 @@ import Link from 'next/link';
 import {
   ArrowLeftIcon,
   TrophyIcon,
-  HeartIcon,
   ClockIcon,
-  XCircleIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  CheckCircleIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { userApi } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
 
 interface StandingsGroup {
   key: string;
@@ -244,13 +242,11 @@ export default function StandingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-lg mb-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-400 border-t-transparent"></div>
-          </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Loading Standings</h3>
-          <p className="text-slate-600">Getting the latest results...</p>
+          <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+          <p className={EYEBROW}>Loading</p>
+          <p className="mt-2 text-[17px] text-ink-fade">Getting the latest results&hellip;</p>
         </div>
       </div>
     );
@@ -258,51 +254,40 @@ export default function StandingsPage() {
 
   if (!competition) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <h3 className="text-lg font-medium text-slate-900 mb-2">Competition Not Found</h3>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
+        <h3 className={`${HEADING} text-2xl`}>Competition not found</h3>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-slate-700 to-slate-800 shadow-lg sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link
-                href={`/game/${competitionId}`}
-                className="flex items-center space-x-2 text-slate-200 hover:text-white transition-colors"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span className="font-medium">Back</span>
-              </Link>
-              <div className="h-6 w-px bg-slate-500" />
-              <div>
-                <h1 className="text-lg font-bold text-white">Standings</h1>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowSearchModal(true)}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-slate-200 hover:text-white hover:bg-slate-600 rounded-lg transition-colors"
-            >
-              <MagnifyingGlassIcon className="h-4 w-4" />
-              <span>Search</span>
-            </button>
-          </div>
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <header className="border-b border-ink/30">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
+          <Link href={`/game/${competitionId}`} className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+            <ArrowLeftIcon className="h-4 w-4" />
+            Dashboard
+          </Link>
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}
+          >
+            <MagnifyingGlassIcon className="h-4 w-4" />
+            Search
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-        {/* My History Button - Prominent one-click access */}
+      <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6 sm:py-10">
+        <div>
+          <p className={EYEBROW}>Standings</p>
+          <h1 className={`${HEADING} mt-1 text-3xl`}>{competition.name}</h1>
+        </div>
+
+        {/* My History Button */}
         {currentUser && (
           <button
             onClick={() => {
-              // Find current user in the groups to get their player data
               let currentUserPlayer = null;
               for (const groupKey in groupPlayers) {
                 const found = groupPlayers[groupKey]?.find(p => p.id === currentUser.id);
@@ -312,7 +297,6 @@ export default function StandingsPage() {
                 }
               }
 
-              // If not found in loaded groups, create minimal player object
               if (!currentUserPlayer) {
                 currentUserPlayer = {
                   id: currentUser.id,
@@ -328,12 +312,10 @@ export default function StandingsPage() {
               setShowHistoryModal(true);
               loadPlayerHistory(currentUser.id);
             }}
-            className="w-full bg-white hover:bg-slate-50 rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 transition-all p-5"
+            className={`${PANEL} flex w-full items-center justify-center gap-2 p-4 transition-colors hover:border-ink`}
           >
-            <div className="flex items-center justify-center space-x-3">
-              <ClockIcon className="h-6 w-6 text-slate-600" />
-              <span className="text-lg font-semibold text-slate-900">View My Pick History</span>
-            </div>
+            <ClockIcon className="h-5 w-5 text-ink" />
+            <span className={`${LABEL} text-ink`}>View my pick history</span>
           </button>
         )}
 
@@ -347,74 +329,51 @@ export default function StandingsPage() {
             const isTopGroup = index === 0 && group.key !== 'eliminated';
             const isBottomGroup = group.key === 'eliminated';
 
-            // Winner: Exactly 1 active player remaining AND their game has been decided
-            // (either round is complete, or their specific fixture has been played)
             const totalActivePlayers = groups
               .filter(g => g.key !== 'eliminated')
               .reduce((sum, g) => sum + g.count, 0);
             const isWinner = isTopGroup && totalActivePlayers === 1 &&
                              (roundState === 'COMPLETE' || group.fixture_status === 'played');
 
-            // Danger zone: 0 lives, game not played, during active round, and groups exist above
             const isDangerZone = !isWinner && roundState === 'ACTIVE' &&
                                  group.lives === 0 &&
                                  group.fixture_status !== 'played' &&
                                  index > 0;
 
             return (
-              <div key={group.key} className={`rounded-xl shadow-sm overflow-hidden ${
-                isWinner
-                  ? 'border-2 border-amber-400 shadow-lg'
-                  : isTopGroup
-                  ? 'border-2 border-green-300 shadow-md'
-                  : 'bg-white border border-slate-200'
-              }`}>
+              <div
+                key={group.key}
+                className={`${PANEL} ${isWinner || isTopGroup ? 'border-moss' : isDangerZone ? 'border-overprint' : ''}`}
+              >
                 {/* Group Header - Clickable */}
                 <button
                   onClick={() => toggleGroup(group.key)}
-                  className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${
-                    isWinner
-                      ? 'bg-gradient-to-r from-amber-100 to-yellow-50 hover:from-amber-200 hover:to-yellow-100'
-                      : isTopGroup
-                      ? 'bg-gradient-to-r from-green-100 to-green-50 hover:from-green-200 hover:to-green-100'
-                      : isDangerZone
-                      ? 'hover:bg-slate-50'
-                      : isBottomGroup
-                      ? 'bg-slate-100 hover:bg-slate-200'
-                      : 'hover:bg-slate-50'
-                  }`}
+                  className="flex w-full items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-stock"
                 >
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center gap-3">
                     {/* Player Count Badge */}
-                    <div className={`flex items-center justify-center min-w-[3rem] h-12 px-2 rounded-lg font-bold text-lg ${
-                      isWinner
-                        ? 'bg-amber-500 text-white'
-                        : isTopGroup
-                        ? 'bg-green-600 text-white'
+                    <div className={`flex h-11 min-w-[2.75rem] items-center justify-center border px-2 font-display text-lg ${
+                      isWinner || isTopGroup
+                        ? 'border-moss text-moss'
                         : isDangerZone
-                        ? 'bg-red-600 text-white'
+                        ? 'border-overprint text-overprint'
                         : isBottomGroup
-                        ? 'bg-slate-400 text-white'
-                        : 'bg-slate-600 text-white'
+                        ? 'border-ink/20 text-ink-fade'
+                        : 'border-ink/30 text-ink'
                     }`}>
-                      {isWinner ? <TrophyIcon className="h-6 w-6" /> : group.count}
+                      {isWinner ? <TrophyIcon className="h-5 w-5" /> : group.count}
                     </div>
                     <div className="text-left">
-                      <div className={`flex items-center space-x-2 ${
-                        isWinner
-                          ? 'font-bold text-amber-900'
-                          : isTopGroup
-                          ? 'font-bold text-green-900'
-                          : 'font-semibold text-slate-900'
+                      <div className={`${LABEL} flex items-center gap-2 ${
+                        isWinner || isTopGroup ? 'text-moss' : isDangerZone ? 'text-overprint' : 'text-ink'
                       }`}>
                         {isWinner ? (
-                          // Winner: Show "Champion • [Name]"
                           <>
                             <span>Champion</span>
                             {group.winner_name && (
                               <>
-                                <span className="text-amber-600">•</span>
-                                <span className="text-amber-800">{group.winner_name}</span>
+                                <span>&middot;</span>
+                                <span>{group.winner_name}</span>
                               </>
                             )}
                           </>
@@ -422,17 +381,14 @@ export default function StandingsPage() {
                           <>
                             {group.lives !== null ? (
                               <>
-                                <div className="flex items-center space-x-1">
-                                  <HeartIcon className="h-5 w-5 text-red-500 fill-current" />
-                                  <span>{group.lives} {group.lives === 1 ? 'Life' : 'Lives'}</span>
-                                </div>
+                                <span>{group.lives} {group.lives === 1 ? 'life' : 'lives'}</span>
                                 {group.fixture_status !== null && (
                                   <>
-                                    <span className="text-slate-400">•</span>
+                                    <span>&middot;</span>
                                     <span>
-                                      {group.fixture_status === 'played' ? 'Game Played'
-                                       : group.fixture_status === 'pending' ? 'Game Pending'
-                                       : 'No Pick'}
+                                      {group.fixture_status === 'played' ? 'Game played'
+                                       : group.fixture_status === 'pending' ? 'Game pending'
+                                       : 'No pick'}
                                     </span>
                                   </>
                                 )}
@@ -443,50 +399,49 @@ export default function StandingsPage() {
                           </>
                         )}
                       </div>
-                      {/* Show name on second line for any single-player group (but not champions yet) */}
                       {!isWinner && group.count === 1 && group.winner_name && (
-                        <div className={`text-sm mt-0.5 ${
-                          isTopGroup ? 'text-green-700' : 'text-slate-600'
-                        }`}>
+                        <div className="mt-0.5 font-data text-[14px] text-ink-fade">
                           {group.winner_name}
                         </div>
                       )}
                     </div>
                   </div>
                   {isExpanded ? (
-                    <ChevronUpIcon className="h-5 w-5 text-slate-400" />
+                    <ChevronUpIcon className="h-4 w-4 flex-shrink-0 text-ink-fade" />
                   ) : (
-                    <ChevronDownIcon className="h-5 w-5 text-slate-400" />
+                    <ChevronDownIcon className="h-4 w-4 flex-shrink-0 text-ink-fade" />
                   )}
                 </button>
 
                 {/* Expanded Player List */}
                 {isExpanded && (
-                  <div className="border-t border-slate-200">
+                  <div className="border-t border-ink/30">
                     {isLoading && players.length === 0 ? (
                       <div className="p-8 text-center">
-                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-slate-300 border-t-transparent"></div>
+                        <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent" />
                       </div>
                     ) : players.length > 0 ? (
                       <>
-                        <div className="divide-y divide-slate-100">
+                        <div className="divide-y divide-ink/30">
                           {players.map((player) => {
                             const isYou = currentUser?.id === player.id;
-                            const isEliminated = group.key === 'eliminated';
+                            const isEliminatedRow = group.key === 'eliminated';
 
                             // Minimal display for eliminated players
-                            if (isEliminated) {
+                            if (isEliminatedRow) {
                               return (
-                                <div
-                                  key={player.id}
-                                  className="px-4 py-2 hover:bg-slate-50 transition-colors flex items-center justify-between"
-                                >
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-sm text-slate-700">{player.display_name}</span>
+                                <div key={player.id} className="flex items-center justify-between px-4 py-2.5">
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="relative font-data text-[14px] text-ink-fade">
+                                      {player.display_name}
+                                      <span
+                                        aria-hidden="true"
+                                        className="absolute left-0 right-0 top-1/2 h-[1.5px] -translate-y-1/2 bg-overprint"
+                                      />
+                                    </span>
+                                    <span className="sr-only"> &mdash; out</span>
                                     {player.elimination_pick && (
-                                      <span className="text-xs text-slate-500">
-                                        (Round {player.elimination_pick.round_number})
-                                      </span>
+                                      <span className={`${LABEL} text-ink-fade`}>Round {player.elimination_pick.round_number}</span>
                                     )}
                                   </div>
                                   <button
@@ -495,7 +450,7 @@ export default function StandingsPage() {
                                       setShowHistoryModal(true);
                                       loadPlayerHistory(player.id);
                                     }}
-                                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                    className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-4 transition-colors hover:text-ink`}
                                   >
                                     History
                                   </button>
@@ -505,36 +460,32 @@ export default function StandingsPage() {
 
                             // Full display for active players
                             return (
-                              <div
-                                key={player.id}
-                                className={`p-4 ${isYou ? 'bg-blue-50' : 'hover:bg-slate-50'} transition-colors`}
-                              >
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <span className="font-medium text-slate-900">{player.display_name}</span>
-                                  {isYou && (
-                                    <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full font-medium">
-                                      You
-                                    </span>
-                                  )}
+                              <div key={player.id} className="p-4">
+                                <div className="mb-2 flex items-center gap-2">
+                                  <span className="font-data text-[15px] text-ink">{player.display_name}</span>
+                                  {isYou && <span className={`${LABEL} border border-ink px-1.5 py-0.5 text-ink`}>You</span>}
                                 </div>
 
-                                {/* Current Pick */}
                                 {player.current_pick && (
-                                  <div className={`text-sm rounded-lg p-2 border mb-2 ${
-                                    player.current_pick.outcome === 'WIN'
-                                      ? 'bg-green-50 border-green-200 text-green-900'
-                                      : player.current_pick.outcome === 'LOSE'
-                                      ? 'bg-red-50 border-red-200 text-red-900'
-                                      : 'bg-blue-50 border-blue-200 text-blue-900'
-                                  }`}>
-                                    <div className="font-medium">{player.current_pick.team_full_name}</div>
-                                    {player.current_pick.fixture && (
-                                      <div className="text-xs opacity-75">{player.current_pick.fixture}</div>
-                                    )}
+                                  <div className="mb-2 flex items-baseline justify-between gap-2 border-t border-ink/30 pt-2">
+                                    <div>
+                                      <p className="font-data text-[14px] text-ink">{player.current_pick.team_full_name}</p>
+                                      {player.current_pick.fixture && (
+                                        <p className="text-[12px] text-ink-fade">{player.current_pick.fixture}</p>
+                                      )}
+                                    </div>
+                                    <span className={`${LABEL} flex-shrink-0 ${
+                                      player.current_pick.outcome === 'WIN'
+                                        ? 'text-moss'
+                                        : player.current_pick.outcome === 'LOSE'
+                                        ? 'text-overprint'
+                                        : 'text-ink-fade'
+                                    }`}>
+                                      {player.current_pick.outcome === 'WIN' ? 'Won' : player.current_pick.outcome === 'LOSE' ? 'Out' : 'Pending'}
+                                    </span>
                                   </div>
                                 )}
 
-                                {/* History Button */}
                                 {competition.current_round > 1 && (
                                   <button
                                     onClick={() => {
@@ -542,9 +493,9 @@ export default function StandingsPage() {
                                       setShowHistoryModal(true);
                                       loadPlayerHistory(player.id);
                                     }}
-                                    className="w-full py-2 px-3 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                    className={`${BTN_OUTLINE} w-full justify-center py-2`}
                                   >
-                                    View History
+                                    View history
                                   </button>
                                 )}
                               </div>
@@ -554,23 +505,20 @@ export default function StandingsPage() {
 
                         {/* Load More Button */}
                         {groupPagination[group.key] && groupPagination[group.key].current < groupPagination[group.key].total && (
-                          <div className="border-t border-slate-200 p-4">
+                          <div className="border-t border-ink/30 p-4">
                             <button
                               onClick={() => loadMorePlayers(group.key)}
                               disabled={isLoading}
-                              className="w-full py-2.5 px-4 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                              className={`${BTN_OUTLINE} flex w-full items-center justify-center gap-2 py-2.5 disabled:opacity-50`}
                             >
                               {isLoading ? (
                                 <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent"></div>
-                                  <span>Loading...</span>
+                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />
+                                  Loading&hellip;
                                 </>
                               ) : (
                                 <>
-                                  <ChevronDownIcon className="h-4 w-4" />
-                                  <span>
-                                    Load More ({groupPagination[group.key].current} of {groupPagination[group.key].total} pages)
-                                  </span>
+                                  Load more ({groupPagination[group.key].current} of {groupPagination[group.key].total} pages)
                                 </>
                               )}
                             </button>
@@ -578,9 +526,7 @@ export default function StandingsPage() {
                         )}
                       </>
                     ) : (
-                      <div className="p-8 text-center text-slate-500 text-sm">
-                        No players in this group
-                      </div>
+                      <p className="p-8 text-center text-[15px] text-ink-fade">No players in this group</p>
                     )}
                   </div>
                 )}
@@ -593,7 +539,7 @@ export default function StandingsPage() {
       {/* Search Modal */}
       {showSearchModal && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
           onClick={() => {
             setShowSearchModal(false);
             setSearchTerm('');
@@ -601,24 +547,21 @@ export default function StandingsPage() {
           }}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            className={`${PANEL} flex max-h-[90vh] w-full max-w-lg flex-col`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4">
-              <h3 className="text-xl font-bold">Search Players</h3>
-              <p className="text-blue-100 text-sm">Search by name or email</p>
+            <div className="border-b border-ink/30 px-6 py-4">
+              <p className={EYEBROW}>Standings</p>
+              <h3 className={`${HEADING} mt-1 text-2xl`}>Search players</h3>
             </div>
 
-            {/* Search Input */}
-            <div className="p-6 border-b border-slate-200">
+            <div className="border-b border-ink/30 p-6">
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
-                    // Reset search state when user starts typing a new search
                     if (hasSearched) {
                       setHasSearched(false);
                       setSearchResults([]);
@@ -630,8 +573,8 @@ export default function StandingsPage() {
                       handleSearch();
                     }
                   }}
-                  placeholder="Enter name or email..."
-                  className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="Enter name or email…"
+                  className="min-w-0 flex-1 rounded-sm border border-ink bg-transparent px-3 py-2 text-[15px] text-ink placeholder-ink-fade/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   autoFocus
                   spellCheck={false}
                   autoComplete="off"
@@ -639,39 +582,22 @@ export default function StandingsPage() {
                 <button
                   onClick={handleSearch}
                   disabled={searchLoading || searchTerm.trim().length < 2}
-                  className="px-3 sm:px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 flex-shrink-0"
+                  className={`${BTN_PRIMARY} flex flex-shrink-0 items-center justify-center gap-2 px-4 py-2 text-base disabled:opacity-50`}
                 >
-                  {searchLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      <span className="hidden sm:inline text-sm">Searching...</span>
-                    </>
-                  ) : (
-                    <>
-                      <MagnifyingGlassIcon className="h-5 w-5" />
-                      <span className="hidden sm:inline text-sm">Search</span>
-                    </>
-                  )}
+                  {searchLoading ? 'Searching…' : 'Search'}
                 </button>
               </div>
             </div>
 
-            {/* Search Results */}
-            <div className="overflow-y-auto max-h-[calc(90vh-240px)] p-6">
+            <div className="overflow-y-auto p-6">
               {totalSearchResults > 5 ? (
-                <div className="text-center py-12">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                    <span className="text-2xl font-bold text-blue-600">{totalSearchResults}</span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    {totalSearchResults} players found
-                  </h3>
-                  <p className="text-slate-600">
-                    Please refine your search to see details
-                  </p>
+                <div className="py-8 text-center">
+                  <p className="font-display text-4xl text-overprint">{totalSearchResults}</p>
+                  <p className={`${HEADING} mt-2 text-xl`}>Players found</p>
+                  <p className="mt-2 text-[15px] text-ink-fade">Please refine your search to see details.</p>
                 </div>
               ) : searchResults.length > 0 ? (
-                <div className="divide-y divide-slate-200">
+                <div className="divide-y divide-ink/30 border-y border-ink/30">
                   {searchResults.map((player) => {
                     const isYou = currentUser?.id === player.id;
 
@@ -679,58 +605,46 @@ export default function StandingsPage() {
                       <button
                         key={player.id}
                         onClick={() => {
-                          // Close search modal first, then open history modal
                           setShowSearchModal(false);
                           setSelectedPlayer(player);
-                          // Small delay to allow search modal to close first
                           setTimeout(() => {
                             setShowHistoryModal(true);
                             loadPlayerHistory(player.id);
                           }, 100);
                         }}
-                        className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors ${
-                          isYou ? 'bg-blue-50' : ''
-                        }`}
+                        className="flex w-full items-center justify-between gap-3 px-1 py-3 text-left transition-colors hover:bg-stock"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <span className="font-medium text-slate-900 truncate">{player.display_name}</span>
-                              {isYou && (
-                                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full font-medium flex-shrink-0">
-                                  You
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-slate-600">{player.group_name}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate font-data text-[15px] text-ink">{player.display_name}</span>
+                            {isYou && <span className={`${LABEL} border border-ink px-1.5 py-0.5 text-ink`}>You</span>}
                           </div>
-                          <ChevronUpIcon className="h-5 w-5 text-slate-400 flex-shrink-0 ml-2 rotate-90" />
+                          <p className={`${LABEL} mt-1 text-ink-fade`}>{player.group_name}</p>
                         </div>
                       </button>
                     );
                   })}
                 </div>
               ) : hasSearched && !searchLoading ? (
-                <div className="text-center py-12 text-slate-500">
+                <p className="py-8 text-center text-[15px] text-ink-fade">
                   No players found matching &ldquo;{searchTerm}&rdquo;
-                </div>
+                </p>
               ) : (
-                <div className="text-center py-12 text-slate-400">
-                  <MagnifyingGlassIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">Enter a name or email and click Search</p>
+                <div className="py-8 text-center text-ink-fade">
+                  <MagnifyingGlassIcon className="mx-auto mb-3 h-10 w-10 opacity-40" />
+                  <p className="text-[15px]">Enter a name or email and press search.</p>
                 </div>
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200">
+            <div className="border-t border-ink/30 p-4">
               <button
                 onClick={() => {
                   setShowSearchModal(false);
                   setSearchTerm('');
                   setSearchResults([]);
                 }}
-                className="w-full px-6 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors"
+                className={`${BTN_OUTLINE} w-full justify-center py-2.5`}
               >
                 Close
               </button>
@@ -742,118 +656,85 @@ export default function StandingsPage() {
       {/* History Modal */}
       {showHistoryModal && selectedPlayer && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
           onClick={() => {
             setShowHistoryModal(false);
             setSelectedPlayer(null);
             setPlayerHistory([]);
-            // Re-open search modal if there were previous search results
             if (searchResults.length > 0) {
               setShowSearchModal(true);
             }
           }}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            className={`${PANEL} flex max-h-[90vh] w-full max-w-lg flex-col`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4">
-              <h3 className="text-xl font-bold">{selectedPlayer.display_name}</h3>
-              <p className="text-blue-100 text-sm">Complete Pick History</p>
+            <div className="border-b border-ink/30 px-6 py-4">
+              <p className={EYEBROW}>Pick history</p>
+              <h3 className={`${HEADING} mt-1 text-2xl`}>{selectedPlayer.display_name}</h3>
             </div>
 
-            {/* Modal Content */}
-            <div className="overflow-y-auto max-h-[calc(90vh-180px)] p-6">
+            <div className="overflow-y-auto p-6">
               {loadingHistory ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-600 border-t-transparent"></div>
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-ink border-t-transparent" />
                 </div>
               ) : playerHistory.length > 0 ? (
-                <div className="space-y-2">
+                <div className="divide-y divide-ink/30 border-y border-ink/30">
                   {playerHistory
                     .filter((round) => {
-                      // If viewing own history, show everything
                       const isViewingOwnHistory = currentUser?.id === selectedPlayer?.id;
                       if (isViewingOwnHistory) return true;
 
-                      // For past rounds, always show
                       if (round.round_number < (competition?.current_round || 0)) return true;
 
-                      // For current round, only show if lock_time has passed
                       if (round.lock_time) {
                         const lockTime = new Date(round.lock_time);
                         const now = new Date();
-                        return now >= lockTime; // Show only if lock time has arrived
+                        return now >= lockTime;
                       }
 
-                      // Hide if no lock_time available
                       return false;
                     })
                     .sort((a, b) => b.round_number - a.round_number)
                     .map((round) => (
-                    <div
-                      key={round.round_id}
-                      className={`flex items-center justify-between py-2 px-3 rounded border-l-4 ${
-                        round.pick_result === 'win'
-                          ? 'bg-green-50 border-green-500'
-                          : round.pick_result === 'loss'
-                          ? 'bg-red-50 border-red-500'
-                          : 'bg-slate-50 border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <span className="text-sm font-semibold text-slate-600 w-8">R{round.round_number}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-slate-900 truncate">
-                            {round.pick_team_full_name || round.pick_team || 'No Pick'}
-                          </div>
+                    <div key={round.round_id} className="flex items-center justify-between gap-3 py-3">
+                      <div className="flex min-w-0 flex-1 items-baseline gap-3">
+                        <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>R{round.round_number}</span>
+                        <div className="min-w-0">
+                          <p className="truncate font-data text-[15px] text-ink">
+                            {round.pick_team_full_name || round.pick_team || 'No pick'}
+                          </p>
                           {round.fixture && (
-                            <div className="text-xs text-slate-600 truncate">{round.fixture}</div>
+                            <p className="truncate text-[12px] text-ink-fade">{round.fixture}</p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        {round.pick_result === 'win' && (
-                          <>
-                            <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                            <span className="font-bold text-green-700 text-sm">WIN</span>
-                          </>
-                        )}
-                        {round.pick_result === 'loss' && (
-                          <>
-                            <XCircleIcon className="h-5 w-5 text-red-600" />
-                            <span className="font-bold text-red-700 text-sm">LOSE</span>
-                          </>
-                        )}
-                        {round.pick_result === 'pending' && (
-                          <>
-                            <ClockIcon className="h-5 w-5 text-slate-400" />
-                            <span className="font-medium text-slate-600 text-sm">PENDING</span>
-                          </>
-                        )}
-                      </div>
+                      <span className={`${LABEL} flex-shrink-0 ${
+                        round.pick_result === 'win' ? 'text-moss' : round.pick_result === 'loss' ? 'text-overprint' : 'text-ink-fade'
+                      }`}>
+                        {round.pick_result === 'win' ? 'Win' : round.pick_result === 'loss' ? 'Lose' : 'Pending'}
+                      </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-500">No history available</div>
+                <p className="py-8 text-center text-[15px] text-ink-fade">No history available</p>
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200">
+            <div className="border-t border-ink/30 p-4">
               <button
                 onClick={() => {
                   setShowHistoryModal(false);
                   setSelectedPlayer(null);
                   setPlayerHistory([]);
-                  // Re-open search modal if there were previous search results
                   if (searchResults.length > 0) {
                     setShowSearchModal(true);
                   }
                 }}
-                className="w-full px-6 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors"
+                className={`${BTN_OUTLINE} w-full justify-center py-2.5`}
               >
                 Close
               </button>
