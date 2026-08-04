@@ -150,6 +150,37 @@ if (error) {
 
 **Migration**: Most APIs have been migrated to this pattern. The unified `/get-user-dashboard` API exemplifies the current standard.
 
+### Return Code Vocabulary
+Return codes are machine-readable and checked by the frontend, so reuse the existing
+vocabulary rather than inventing a synonym:
+- `SUCCESS` - operation completed
+- `MISSING_FIELDS` - a required field was absent
+- `INVALID_*` - validation failed (`INVALID_EMAIL`, `INVALID_PASSWORD`)
+- `*_NOT_FOUND` / `NOT_FOUND` - resource does not exist (`USER_NOT_FOUND`)
+- `UNAUTHORIZED` - authentication missing or failed
+- `FORBIDDEN` - authenticated but not permitted
+- `SERVER_ERROR` - unexpected failure
+
+Every code a route can return must be listed in its header block.
+
+### Route Logging
+Routes log through `utils/apiLogger.js` (requests, responses, timing). Most routes already
+do; match the surrounding pattern when adding a new one.
+
+### Query Conventions
+- **No N+1 queries** - use a JOIN or a batch query rather than a loop of single lookups
+- Use the shared helpers: `const { query, transaction } = require('../database');`
+  (there is no `utils/transaction.js` — `transaction` comes from `database.js`)
+- Always parameterized, never string-interpolated SQL
+
+### Comments
+Explain **why**, not what — the non-obvious constraint, the reason for an ordering, the edge
+case being guarded. Do not narrate code that already reads clearly.
+
+### Secrets
+Never hardcode passwords, keys, or tokens. Read them from `.env` via `process.env`, and say
+so if a new variable is needed.
+
 ## Database Configuration
 
 - **Connection**: PostgreSQL with connection pooling via pg module
