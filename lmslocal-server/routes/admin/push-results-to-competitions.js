@@ -9,6 +9,21 @@ Purpose: Pushes results from fixture_load to competition fixtures and automatica
          3. Automatically processes results (eliminations, no-picks, competition completion)
          4. Only updates fixtures where result is NULL (never overrides existing results)
 
+         SHARED LOGIC WARNING: step 3 - the per-player processing block (outcome, player_progress,
+         lives/elimination threshold, no-pick penalties, competition completion, notification
+         cleanup, audit log) - is intentionally kept identical to
+         routes/organizer-process-results.js. That route runs the same steps for
+         organiser-managed (fixture_service = false) competitions. If you change the rules here,
+         change them there too, or the two halves of the customer base end up playing different
+         games. They are two copies of one ruleset, not two rulesets, until they get consolidated
+         into one shared function (not done yet - deliberately deferred).
+
+         The two differ in SCOPE, and that part is not duplication:
+           - organizer-process-results runs for ONE competition, in its own transaction. An
+             organiser with several competitions processes each separately.
+           - this route loops over EVERY affected competition inside a SINGLE transaction, so its
+             cost is the sum across the batch and a failure anywhere rolls all of them back.
+
          Authentication: admin token. This route used to accept the shared string
          BOT_MAGIC_2025 in the request body, which was compiled into the public lmslocal-web
          JavaScript bundle by the old /admin-results page - so anyone who read the site's source

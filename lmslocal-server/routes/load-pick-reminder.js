@@ -208,10 +208,13 @@ router.post('/', async (req, res) => {
 
         FROM competition c
 
-        -- CHECK 1: Competition status is NOT 'complete'
+        -- CHECK 1: Competition status is NOT complete.
+        -- Compared case-insensitively: competition.status holds 'COMPLETE' in upper case, so the
+        -- old lower-case literal never matched and this guard passed every finished competition
+        -- straight through.
         INNER JOIN round r
           ON r.competition_id = c.id
-          AND c.status != 'complete'
+          AND UPPER(c.status) != 'COMPLETE'
 
         -- CHECK 2-5: Round timing and fixtures
         INNER JOIN competition_user cu
@@ -397,8 +400,10 @@ router.post('/', async (req, res) => {
 
       const data = validationResult.rows[0];
 
-      // CHECK: Competition is not complete
-      if (data.competition_status === 'complete') {
+      // CHECK: Competition is not complete.
+      // Normalised before comparing, matching emailService.js - competition.status is upper case,
+      // so the previous lower-case comparison never fired.
+      if ((data.competition_status || '').toUpperCase() === 'COMPLETE') {
         return res.json({
           return_code: "COMPETITION_COMPLETE",
           message: "Competition is already complete"
