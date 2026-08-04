@@ -269,10 +269,42 @@ export type PushFixturesResponse = ApiResponse & {
   fixtures_pushed?: number;
 };
 
-export type PushResultsResponse = ApiResponse & {
+/* One competition a staged batch is waiting on. The three fixture counts are what the screen
+   turns into a row state - see get-push-targets.js for the mapping. */
+export interface PushTarget {
+  competition_id: number;
+  name: string;
+  organiser_email: string;
+  organiser_name: string;
+  players: number;
+  active_players: number;
+  fixtures_pending: number;
+  fixtures_unprocessed: number;
+  fixtures_done: number;
+}
+
+export type PushTargetsResponse = ApiResponse & {
+  staged_total?: number;
+  staged_resulted?: number;
+  cutoff?: string | null;
+  competitions?: PushTarget[];
+};
+
+export type PushOneResponse = ApiResponse & {
+  competition_id?: number;
+  competition_name?: string;
   fixtures_updated?: number;
-  results_cleared?: number;
-  competitions_processed?: { competition_id: number; status: string; reason?: string }[];
+  fixtures_processed?: number;
+  players_eliminated?: number;
+  no_pick_penalties?: number;
+  competition_status?: string;
+  active_players_remaining?: number;
+};
+
+export type ClearBatchResponse = ApiResponse & {
+  rows_cleared?: number;
+  forced?: boolean;
+  competitions?: { competition_id: number; name: string; fixtures_pending: number; fixtures_unprocessed: number }[];
 };
 
 export type SetFixtureServiceResponse = ApiResponse & {
@@ -438,8 +470,27 @@ export const adminApi = {
     return response.data;
   },
 
-  pushResults: async (): Promise<PushResultsResponse> => {
-    const response = await api.post<PushResultsResponse>('/admin/push-results-to-competitions');
+  // Results go out one competition at a time. The all-competitions route is gone: it ran the
+  // whole batch in one transaction, so a timeout rolled every competition back.
+  getPushTargets: async (teamListId: number): Promise<PushTargetsResponse> => {
+    const response = await api.get<PushTargetsResponse>('/admin/get-push-targets', {
+      params: { team_list_id: teamListId },
+    });
+    return response.data;
+  },
+
+  pushResultsToCompetition: async (competitionId: number): Promise<PushOneResponse> => {
+    const response = await api.post<PushOneResponse>('/admin/push-results-to-competition', {
+      competition_id: competitionId,
+    });
+    return response.data;
+  },
+
+  clearStagedBatch: async (teamListId: number, force = false): Promise<ClearBatchResponse> => {
+    const response = await api.post<ClearBatchResponse>('/admin/clear-staged-batch', {
+      team_list_id: teamListId,
+      force,
+    });
     return response.data;
   },
 };

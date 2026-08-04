@@ -41,6 +41,9 @@ import {
   FixturePair,
   StagedFixture,
   ResultOutcome,
+  PushTarget,
+  PushOneResponse,
+  ClearBatchResponse,
 } from '@/lib/api';
 import { ukTimeToUtcIso, describeUkDateTime } from '@/lib/uk-time';
 
@@ -583,9 +586,11 @@ function savedOutcome(fixture: StagedFixture): ResultOutcome | null {
 function ResultsTab({
   teamList,
   setNotice,
+  onBatchCleared,
 }: {
   teamList: FixtureTeamList;
   setNotice: (n: Notice) => void;
+  onBatchCleared: () => void;
 }) {
   const [fixtures, setFixtures] = useState<StagedFixture[]>([]);
   const [loading, setLoading] = useState(true);
@@ -754,7 +759,313 @@ function ResultsTab({
           );
         })}
       </div>
+
+      <PushResultsPanel
+        teamList={teamList}
+        resultedCount={fixtures.filter((f) => savedOutcome(f) !== null).length}
+        setNotice={setNotice}
+        onBatchCleared={onBatchCleared}
+      />
     </>
+  );
+}
+
+// ======================================================================================
+// Push results - one competition at a time
+// ======================================================================================
+
+/*
+Results go out per competition rather than in one sweep, and the admin drives it by hand: press
+a row, wait, read what came back, press the next.
+
+Two reasons it is not one button. Processing time scales with player count, so a batch of large
+competitions could exceed the 60s proxy timeout in total while no single competition comes near
+it - and the old all-competitions route ran the whole batch in ONE transaction, so a timeout
+anywhere rolled every competition back and nobody got their results. Splitting it means nothing
+compounds and a failure is confined to one competition.
+
+Clearing the staged batch is its own button because the fixture_load rows have to survive until
+the last competition has taken them - see clear-staged-batch.js.
+*/
+
+type PushOutcome =
+  | { ok: true; data: PushOneResponse }
+  | { ok: false; message: string };
+
+function PushResultsPanel({
+  teamList,
+  resultedCount,
+  setNotice,
+  onBatchCleared,
+}: {
+  teamList: FixtureTeamList;
+  resultedCount: number;
+  setNotice: (n: Notice) => void;
+  onBatchCleared: () => void;
+}) {
+  const [targets, setTargets] = useState<PushTarget[] | null>(null);
+  const [stagedTotal, setStagedTotal] = useState(0);
+  const [stagedResulted, setStagedResulted] = useState(0);
+  const [pushingId, setPushingId] = useState<number | null>(null);
+  const [outcomes, setOutcomes] = useState<Record<number, PushOutcome>>({});
+  const [clearing, setClearing] = useState(false);
+  const [outstanding, setOutstanding] = useState<ClearBatchResponse['competitions'] | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const result = await adminApi.getPushTargets(teamList.id);
+      if (result.return_code === 'SUCCESS') {
+        setTargets(result.competitions || []);
+        setStagedTotal(result.staged_total || 0);
+        setStagedResulted(result.staged_resulted || 0);
+      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        setNotice({ tone: 'error', text: result.message || 'Could not load the competitions waiting for this batch.' });
+        setTargets([]);
+      }
+    } catch {
+      setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
+      setTargets([]);
+    }
+  }, [teamList.id, setNotice]);
+
+  // Reloads when a result is confirmed, so the "x of y results in" line stays truthful.
+  useEffect(() => {
+    load();
+  }, [load, resultedCount]);
+
+  const handlePush = async (target: PushTarget) => {
+    setPushingId(target.competition_id);
+    setNotice(null);
+    try {
+      const result = await adminApi.pushResultsToCompetition(target.competition_id);
+      if (result.return_code === 'SUCCESS') {
+        setOutcomes((prev) => ({ ...prev, [target.competition_id]: { ok: true, data: result } }));
+      } else if (result.return_code === 'ALREADY_PUSHED') {
+        setOutcomes((prev) => ({
+          ...prev,
+          [target.competition_id]: { ok: true, data: { return_code: result.return_code } },
+        }));
+      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        setOutcomes((prev) => ({
+          ...prev,
+          [target.competition_id]: { ok: false, message: result.message || 'Push failed.' },
+        }));
+      }
+      await load();
+    } catch {
+      // A dropped connection usually means the server finished anyway - it commits whether or
+      // not anyone is still listening. Say so rather than calling it a failure.
+      setOutcomes((prev) => ({
+        ...prev,
+        [target.competition_id]: {
+          ok: false,
+          message: 'Lost contact while pushing. Refresh to check - it may already be done.',
+        },
+      }));
+      await load();
+    } finally {
+      setPushingId(null);
+    }
+  };
+
+  const handleClear = async (force: boolean) => {
+    setClearing(true);
+    setNotice(null);
+    try {
+      const result = await adminApi.clearStagedBatch(teamList.id, force);
+      if (result.return_code === 'SUCCESS') {
+        setOutstanding(null);
+        setNotice({ tone: 'success', text: `Staged batch cleared (${result.rows_cleared} fixtures). You can stage the next one.` });
+        onBatchCleared();
+      } else if (result.return_code === 'OUTSTANDING_COMPETITIONS') {
+        setOutstanding(result.competitions || []);
+      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        setNotice({ tone: 'error', text: result.message || 'Could not clear the staged batch.' });
+      }
+    } catch {
+      setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  if (targets === null) {
+    return <p className="mt-6 text-sm text-slate-500">Loading competitions...</p>;
+  }
+
+  if (targets.length === 0) {
+    return (
+      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-6 py-6 text-center text-sm text-slate-500">
+        No competition on the fixture service is waiting for this batch.
+      </div>
+    );
+  }
+
+  const remaining = targets.filter((t) => t.fixtures_pending > 0 || t.fixtures_unprocessed > 0);
+  const totalPlayers = targets.reduce((sum, t) => sum + t.players, 0);
+  const anyResults = stagedResulted > 0;
+  const allResults = stagedTotal > 0 && stagedResulted === stagedTotal;
+
+  return (
+    <div className="mt-8">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        {/* The counts that make it safe to press: who is affected, and how big they are */}
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
+          <h2 className="text-sm font-semibold text-slate-900">Push results</h2>
+          <p className="text-xs text-slate-500">
+            {remaining.length} of {targets.length} competition{targets.length === 1 ? '' : 's'} still to push
+            <span className="mx-1.5 text-slate-300">·</span>
+            {totalPlayers} player{totalPlayers === 1 ? '' : 's'}
+            <span className="mx-1.5 text-slate-300">·</span>
+            {stagedResulted} of {stagedTotal} results in
+          </p>
+        </div>
+
+        {!allResults && (
+          <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {anyResults
+                ? `Only ${stagedResulted} of ${stagedTotal} results are entered. Pushing now sends just those, and eliminations for missed picks wait until the round is complete.`
+                : 'No results are entered yet. Enter them above before pushing.'}
+            </span>
+          </div>
+        )}
+
+        <ul className="divide-y divide-slate-100">
+          {targets.map((target) => {
+            const isPushing = pushingId === target.competition_id;
+            const outcome = outcomes[target.competition_id];
+            const finished = target.fixtures_pending === 0 && target.fixtures_unprocessed === 0;
+            const disabled = pushingId !== null || !anyResults || finished;
+
+            return (
+              <li key={target.competition_id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    {finished && <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-600" />}
+                    <span className="truncate text-sm font-medium text-slate-900">{target.name}</span>
+                    {outcome?.ok && outcome.data.competition_status === 'COMPLETE' && (
+                      <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                        complete
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">{target.organiser_email}</p>
+                </div>
+
+                <div className="text-right text-xs text-slate-500">
+                  {isPushing ? (
+                    <span className="flex items-center gap-1.5 text-indigo-600">
+                      <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                      Processing - don&apos;t refresh
+                    </span>
+                  ) : outcome && !outcome.ok ? (
+                    <span className="text-red-600">{outcome.message}</span>
+                  ) : outcome?.ok && outcome.data.fixtures_processed !== undefined ? (
+                    <span className="text-emerald-700">
+                      {outcome.data.players_eliminated} eliminated
+                      <span className="mx-1 text-slate-300">·</span>
+                      {outcome.data.active_players_remaining} left
+                    </span>
+                  ) : finished ? (
+                    <span className="text-slate-400">done</span>
+                  ) : (
+                    <span>
+                      {target.players} player{target.players === 1 ? '' : 's'}
+                      <span className="mx-1 text-slate-300">·</span>
+                      {target.fixtures_pending + target.fixtures_unprocessed} fixture
+                      {target.fixtures_pending + target.fixtures_unprocessed === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handlePush(target)}
+                  disabled={disabled}
+                  title={
+                    finished
+                      ? 'Already pushed and processed.'
+                      : !anyResults
+                        ? 'Enter at least one result first.'
+                        : pushingId !== null
+                          ? 'Another competition is being pushed.'
+                          : undefined
+                  }
+                  className="w-24 shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  {isPushing ? 'Pushing...' : outcome && !outcome.ok ? 'Retry' : 'Push'}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-xs text-slate-500">
+            The batch stays staged until you clear it. Nothing new can be staged before then.
+          </p>
+          <button
+            type="button"
+            onClick={() => handleClear(false)}
+            disabled={clearing || pushingId !== null}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {clearing ? 'Clearing...' : 'Clear staged batch'}
+          </button>
+        </div>
+      </div>
+
+      {/* Refusing to clear is not the end of it - the admin may know a competition was taken off
+          the service mid-batch, so name what is outstanding and let them decide. */}
+      {outstanding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50">
+                <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Some competitions are unfinished</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Clearing now leaves these without their results. Push them first unless you know they no longer need this batch.
+                </p>
+              </div>
+            </div>
+
+            <ul className="mt-4 space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              {outstanding.map((c) => (
+                <li key={c.competition_id} className="flex justify-between gap-3">
+                  <span className="truncate">{c.name}</span>
+                  <span className="shrink-0 text-xs text-slate-500">
+                    {c.fixtures_pending > 0
+                      ? `${c.fixtures_pending} not pushed`
+                      : `${c.fixtures_unprocessed} not processed`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setOutstanding(null)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleClear(true)}
+                disabled={clearing}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+              >
+                Clear anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -815,8 +1126,8 @@ export default function FixturesPage() {
   // Pushing a batch whose deadline has already passed creates a round that's locked before any
   // player can pick it - block it rather than let that happen by accident.
   const cutoffPassed = !!teamList?.pending_cutoff && new Date(teamList.pending_cutoff) <= new Date();
-  // Results can't be real before kickoff - block pushing results until the deadline arrives.
-  const cutoffPending = !!teamList?.pending_cutoff && new Date(teamList.pending_cutoff) > new Date();
+  // No equivalent guard is needed for results any more: the push panel needs at least one result
+  // entered before it will push, and result entry is itself blocked until kickoff (see ResultsTab).
 
   const [confirmAction, setConfirmAction] = useState<Tab | null>(null);
 
@@ -838,27 +1149,6 @@ export default function FixturesPage() {
         setNotice({ tone: 'info', text: 'No competition is opted into the fixture service.' });
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not push fixtures.' });
-      }
-    } catch {
-      setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
-    } finally {
-      setPushing(null);
-    }
-  };
-
-  const runPushResults = async () => {
-    setConfirmAction(null);
-    setPushing('results');
-    setNotice(null);
-    try {
-      const result = await adminApi.pushResults();
-      if (result.return_code === 'SUCCESS') {
-        setNotice({ tone: 'success', text: 'Results pushed.' });
-        load();
-      } else if (result.return_code === 'NO_RESULTS_TO_PUSH') {
-        setNotice({ tone: 'info', text: 'No staged results are waiting to be pushed.' });
-      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
-        setNotice({ tone: 'error', text: result.message || 'Could not push results.' });
       }
     } catch {
       setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
@@ -946,28 +1236,15 @@ export default function FixturesPage() {
                   <PaperAirplaneIcon className="h-4 w-4" />
                   {pushing === 'fixtures' ? 'Pushing...' : 'Push fixtures'}
                 </button>
-                <button
-                  onClick={() => setConfirmAction('results')}
-                  disabled={pushing !== null || !teamList.pending_fixtures || cutoffPending}
-                  title={
-                    !teamList.pending_fixtures
-                      ? 'No fixtures are staged yet.'
-                      : cutoffPending
-                        ? 'Kick off hasn\'t happened yet.'
-                        : undefined
-                  }
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <PaperAirplaneIcon className="h-4 w-4" />
-                  {pushing === 'results' ? 'Pushing...' : 'Push results'}
-                </button>
+                {/* Results are no longer pushed from here - they go out one competition at a
+                    time from the panel on the results tab. */}
               </div>
             </div>
 
             {tab === 'fixtures' ? (
               <FixturesTab teamList={teamList} onStaged={load} setNotice={setNotice} />
             ) : (
-              <ResultsTab teamList={teamList} setNotice={setNotice} />
+              <ResultsTab teamList={teamList} setNotice={setNotice} onBatchCleared={load} />
             )}
           </>
         )}
@@ -989,16 +1266,6 @@ export default function FixturesPage() {
         />
       )}
 
-      {confirmAction === 'results' && (
-        <PushConfirmModal
-          title="Push staged results"
-          description="This settles every staged result against live picks. It eliminates players who picked losing or drawing teams, and can complete competitions outright."
-          confirmLabel="Push results"
-          tone="danger"
-          onCancel={() => setConfirmAction(null)}
-          onConfirm={runPushResults}
-        />
-      )}
     </div>
   );
 }
