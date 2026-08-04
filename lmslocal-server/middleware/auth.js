@@ -60,8 +60,11 @@ const verifyToken = async (req, res, next) => {
     }
     
     // Database lookup - only when not cached
+    // password_hash is deliberately not selected. Routes that need it read it
+    // fresh (see change-password) - caching it would both hold every recently
+    // active user's hash in memory and serve a stale one for up to CACHE_TTL.
     const result = await query(
-      'SELECT id, email, display_name, email_verified, password_hash FROM app_user WHERE id = $1', 
+      'SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1',
       [userId]
     );
     

@@ -47,7 +47,7 @@ Password Requirements:
 
 const express = require('express');
 const bcrypt = require('bcrypt');
-const { transaction } = require('../database'); // Use central database with transaction support
+const { query, transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const router = express.Router();
 
@@ -93,8 +93,21 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Read the current hash straight from the database rather than from req.user.
+    // The auth middleware caches the user for five minutes, so a second password
+    // change inside that window used to be compared against the previous hash and
+    // rejected with "current password is incorrect" even when it was correct.
+    // Keeping the hash out of that cache also keeps it out of process memory for
+    // every recently active user.
+    const passwordResult = await query(
+      'SELECT password_hash FROM app_user WHERE id = $1',
+      [req.user.id]
+    );
+
+    const currentPasswordHash = passwordResult.rows[0]?.password_hash;
+
     // Verify account has a password set (some legacy accounts might not)
-    if (!req.user.password_hash) {
+    if (!currentPasswordHash) {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "No password is currently set for this account. Please contact support."
@@ -103,7 +116,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // STEP 2: Security validation - verify current password before allowing change
     // This is critical security measure to prevent unauthorized password changes
-    const isCurrentPasswordValid = await bcrypt.compare(current_password, req.user.password_hash);
+    const isCurrentPasswordValid = await bcrypt.compare(current_password, currentPasswordHash);
     if (!isCurrentPasswordValid) {
       return res.json({
         return_code: "CURRENT_PASSWORD_INCORRECT",
