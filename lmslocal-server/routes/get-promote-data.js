@@ -91,7 +91,7 @@ Return Codes:
 const express = require('express');
 const router = express.Router();
 const { query } = require('../database');
-const verifyToken = require('../middleware/verifyToken');
+const { verifyToken } = require('../middleware/auth');
 const { canManagePromote } = require('../utils/permissions'); // Permission helper
 const { logApiCall } = require('../utils/apiLogger');
 
