@@ -73,15 +73,17 @@ const verifyToken = async (req, res, next) => {
     }
 
     const user = result.rows[0];
-    
-    // Cache the result with timestamp
+
+    // Delete before set so the key moves to the end of the Map's insertion
+    // order. That keeps "first key" meaning "oldest entry" for the eviction below.
+    userCache.delete(cacheKey);
     userCache.set(cacheKey, {
       user,
       timestamp: Date.now()
     });
-    
-    // Prevent memory leaks by cleaning expired cache entries
-    cleanExpiredCache();
+
+    // Hard cap the cache so it cannot grow without bound under load
+    evictOldestEntries();
 
     req.user = user;
     req.authExecutionTime = Date.now() - startTime;
@@ -117,26 +119,22 @@ const verifyToken = async (req, res, next) => {
 };
 
 /**
- * Clean expired cache entries to prevent memory leaks
- * Called periodically when cache size grows
+ * Hold the cache at MAX_CACHE_SIZE by discarding the oldest entries.
+ *
+ * This used to delete only entries past CACHE_TTL, which meant the size limit
+ * was a threshold for *attempting* a clean rather than a cap: if more than
+ * MAX_CACHE_SIZE users authenticated inside one TTL window there was nothing
+ * expired to remove, so the Map grew without bound and every subsequent request
+ * paid a full scan that freed nothing.
+ *
+ * A Map iterates in insertion order, so the first key is always the oldest
+ * entry. Evicting from the front is O(1) and the size is now a real ceiling.
+ * Entries still expire on read via CACHE_TTL - this only bounds memory.
  */
-const cleanExpiredCache = () => {
-  if (userCache.size <= MAX_CACHE_SIZE) return;
-  
-  const now = Date.now();
-  const keysToDelete = [];
-  
-  for (const [key, value] of userCache.entries()) {
-    if (now - value.timestamp > CACHE_TTL) {
-      keysToDelete.push(key);
-    }
-  }
-  
-  keysToDelete.forEach(key => userCache.delete(key));
-  
-  // Log cache cleanup for monitoring
-  if (keysToDelete.length > 0) {
-    console.log(`Auth cache cleaned: ${keysToDelete.length} expired entries removed, ${userCache.size} entries remain`);
+const evictOldestEntries = () => {
+  while (userCache.size > MAX_CACHE_SIZE) {
+    const oldestKey = userCache.keys().next().value;
+    userCache.delete(oldestKey);
   }
 };
 
