@@ -48,7 +48,7 @@ const WEEKEND = [
       'Either they arrive with the fixtures, or you enter the scores yourself. Either way the eliminations follow on their own — nobody works out who is still in by hand.',
   },
   {
-    when: 'Sunday',
+    when: 'Sunday / Monday',
     what: 'You share the standings',
     detail:
       'A round update is written for you — who went out, who is left, who had the lucky escape. Copy it into WhatsApp, paste it into an email, or just send the link. That is the whole job.',

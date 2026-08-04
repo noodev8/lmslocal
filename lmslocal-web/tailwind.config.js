@@ -18,6 +18,11 @@ module.exports = {
         // 6:1 on stock, so secondary text still passes WCAG AA.
         'ink-fade': '#4A5249',
         overprint: '#C8341E',
+        // Third ink, added for the game screens (docs/design-system.md §8): a
+        // player is in, out, or has not picked yet, and two inks cannot carry
+        // three states plus emphasis. Deep bottle green, same printed register.
+        // 7.3:1 on `stock` — clears AA with room to spare.
+        moss: '#2F4B32',
       },
       fontFamily: {
         display: ['var(--font-big-shoulders)', 'ui-sans-serif', 'sans-serif'],

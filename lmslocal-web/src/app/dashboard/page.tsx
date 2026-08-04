@@ -4,15 +4,11 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  TrophyIcon,
   PlusIcon,
   UserGroupIcon,
-  ClockIcon,
   ExclamationTriangleIcon,
   ChartBarIcon,
   ClipboardDocumentIcon,
-  PlayCircleIcon,
-  PauseCircleIcon,
   UserIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
@@ -25,13 +21,13 @@ import { userApi, competitionApi, Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
 import { useAppData } from '@/contexts/AppDataContext';
 import JoinCompetitionModal from '@/components/JoinCompetitionModal';
-
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK, TICK } from '@/lib/design';
 
 export default function DashboardPage() {
   const router = useRouter();
   // Use app-level data from context instead of local API calls
   const { competitions, loading, updateCompetition, refreshCompetitions } = useAppData();
-  
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -89,7 +85,7 @@ export default function DashboardPage() {
       if (response.data.return_code === 'SUCCESS') {
         const { user_type } = response.data;
         setUserType(user_type as string);
-        
+
         // Smart routing logic removed - all users stay on unified dashboard
         // Competitions are now loaded via AppDataProvider
       } else {
@@ -105,7 +101,7 @@ export default function DashboardPage() {
     // Check authentication
     const token = localStorage.getItem('jwt_token');
     const userData = localStorage.getItem('user');
-    
+
     if (!token || !userData || userData === 'undefined' || userData === 'null') {
       router.push('/login');
       return;
@@ -121,7 +117,7 @@ export default function DashboardPage() {
       router.push('/login');
       return;
     }
-    
+
     // No smart routing - all users stay on unified dashboard
     checkUserTypeAndRoute();
   }, [router, checkUserTypeAndRoute]);
@@ -139,28 +135,6 @@ export default function DashboardPage() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showProfileMenu]);
-
-  // No complex useEffect needed - winner detection is now simple and inline
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'UNLOCKED': return 'text-emerald-700 bg-emerald-50 border-emerald-200';
-      case 'LOCKED': return 'text-amber-700 bg-amber-50 border-amber-200';
-      case 'SETUP': return 'text-slate-600 bg-slate-50 border-slate-200';
-      default: return 'text-slate-600 bg-slate-50 border-slate-200';
-    }
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'UNLOCKED': return <PlayCircleIcon className="h-4 w-4" />;
-      case 'LOCKED': return <PauseCircleIcon className="h-4 w-4" />;
-      case 'SETUP': return <ExclamationTriangleIcon className="h-4 w-4" />;
-      default: return <ClockIcon className="h-4 w-4" />;
-    }
-  };
 
   const handleLogout = () => {
     logout(router);
@@ -265,37 +239,23 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <header className="bg-white border-b border-slate-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-3">
-                <TrophyIcon className="h-7 w-7 text-slate-700" />
-                <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Link
-                  href="/help"
-                  className="flex items-center space-x-1 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
-                >
-                  <BookOpenIcon className="h-5 w-5" />
-                  <span className="text-sm font-medium hidden sm:block">Help</span>
-                </Link>
-              </div>
-            </div>
+      <div className="min-h-screen bg-stock font-body text-ink">
+        <header className="border-b border-ink/30">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+            <Link href="/" className="font-display text-2xl font-semibold uppercase tracking-[0.1em] text-ink sm:text-[1.75rem]">
+              LMSLocal
+            </Link>
+            <Link href="/help" className={`${LABEL} flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
+              <BookOpenIcon className="h-4 w-4" />
+              Help
+            </Link>
           </div>
         </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
-            <div className="flex items-center justify-center">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-700 border-t-transparent"></div>
-                </div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Loading Dashboard</h3>
-                <p className="text-slate-500">Please wait while we fetch your competitions...</p>
-              </div>
-            </div>
+        <main className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+          <div className={`${PANEL} p-8 text-center`}>
+            <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+            <p className={EYEBROW}>Loading dashboard</p>
+            <p className="mt-2 text-[17px] text-ink-fade">Fetching your competitions&hellip;</p>
           </div>
         </main>
       </div>
@@ -303,146 +263,123 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Material 3 Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <Link href="/" className="flex items-center space-x-3">
-                <TrophyIcon className="h-7 w-7 text-slate-700" />
-                <h1 className="text-xl font-bold text-slate-900">LMSLocal</h1>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Billing Link - Only show if user has organized competitions */}
-              {playerStats.hasOrganizedCompetitions && (
-                <Link
-                  href="/billing"
-                  className="flex items-center space-x-1 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
-                  title="View credits and billing"
-                >
-                  <CreditCardIcon className="h-5 w-5" />
-                  <span className="text-sm font-medium hidden sm:block">Credits</span>
-                </Link>
-              )}
+    <div className="min-h-screen bg-stock font-body text-ink">
+      <header className="border-b border-ink/30">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <Link href="/" className="font-display text-2xl font-semibold uppercase tracking-[0.1em] text-ink sm:text-[1.75rem]">
+            LMSLocal
+          </Link>
+          <nav className="flex items-center gap-5 sm:gap-7">
+            {playerStats.hasOrganizedCompetitions && (
               <Link
-                href="/help"
-                className="flex items-center space-x-1 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
+                href="/billing"
+                className={`${LABEL} hidden items-center gap-1.5 text-ink-fade transition-colors hover:text-ink sm:flex`}
+                title="View credits and billing"
               >
-                <BookOpenIcon className="h-5 w-5" />
-                <span className="text-sm font-medium hidden sm:block">Help</span>
+                <CreditCardIcon className="h-4 w-4" />
+                Credits
               </Link>
-              <div className="flex items-center relative" ref={profileMenuRef}>
-                <button
-                  onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center space-x-2 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
-                >
-                <UserIcon className="h-5 w-5" />
-                <span className="text-sm font-medium">Profile</span>
-                <ChevronDownIcon className="h-4 w-4" />
+            )}
+            <Link href="/help" className={`${LABEL} hidden items-center gap-1.5 text-ink-fade transition-colors hover:text-ink sm:flex`}>
+              <BookOpenIcon className="h-4 w-4" />
+              Help
+            </Link>
+            <div className="relative flex items-center" ref={profileMenuRef}>
+              <button
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className={`${LABEL} flex items-center gap-1.5 rounded-sm border border-ink px-3.5 py-2 text-ink transition-colors hover:bg-ink hover:text-stock-lit`}
+              >
+                <UserIcon className="h-4 w-4" />
+                Profile
+                <ChevronDownIcon className="h-3.5 w-3.5" />
               </button>
-              
-              {/* Dropdown Menu */}
+
               {showProfileMenu && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50">
-                  <div className="py-1">
-                    <Link
-                      href="/profile"
-                      className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-                      onClick={() => setShowProfileMenu(false)}
-                    >
-                      <Cog6ToothIcon className="h-4 w-4 mr-3" />
-                      Settings
-                    </Link>
-                    <Link
-                      href="/help"
-                      className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-                      onClick={() => setShowProfileMenu(false)}
-                    >
-                      <BookOpenIcon className="h-4 w-4 mr-3" />
-                      Help Center
-                    </Link>
-                    <Link
-                      href="/billing"
-                      className="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-                      onClick={() => setShowProfileMenu(false)}
-                    >
-                      <CreditCardIcon className="h-4 w-4 mr-3" />
-                      Billing
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        handleLogout();
-                      }}
-                      className="w-full flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 transition-colors"
-                    >
-                      <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
-                      Sign Out
-                    </button>
-                  </div>
+                <div className="absolute right-0 top-full z-50 mt-2 w-52 border border-ink/30 bg-stock-lit">
+                  <Link
+                    href="/profile"
+                    className={`${LABEL} flex items-center gap-3 px-4 py-3 text-ink transition-colors hover:bg-stock`}
+                    onClick={() => setShowProfileMenu(false)}
+                  >
+                    <Cog6ToothIcon className="h-4 w-4" />
+                    Settings
+                  </Link>
+                  <Link
+                    href="/help"
+                    className={`${LABEL} flex items-center gap-3 border-t border-ink/30 px-4 py-3 text-ink transition-colors hover:bg-stock`}
+                    onClick={() => setShowProfileMenu(false)}
+                  >
+                    <BookOpenIcon className="h-4 w-4" />
+                    Help centre
+                  </Link>
+                  <Link
+                    href="/billing"
+                    className={`${LABEL} flex items-center gap-3 border-t border-ink/30 px-4 py-3 text-ink transition-colors hover:bg-stock`}
+                    onClick={() => setShowProfileMenu(false)}
+                  >
+                    <CreditCardIcon className="h-4 w-4" />
+                    Billing
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      handleLogout();
+                    }}
+                    className={`${LABEL} flex w-full items-center gap-3 border-t border-ink/30 px-4 py-3 text-left text-ink transition-colors hover:bg-stock`}
+                  >
+                    <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                    Sign out
+                  </button>
                 </div>
               )}
-              </div>
             </div>
-          </div>
+          </nav>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         {/* Empty State - Show when no competitions */}
         {userCompetitions.length === 0 ? (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-8 sm:p-12 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 rounded-full mb-6">
-                <TrophyIcon className="h-10 w-10 text-emerald-600" />
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">
-                Ready to Organize?
-              </h2>
-              <p className="text-slate-600 mb-8 text-lg">
-                Create your first Last Man Standing competition in minutes. It&apos;s free for up to 20 players!
+          <div className="mx-auto max-w-2xl">
+            <div className={`${PANEL} p-8 text-center sm:p-12`}>
+              <p className={EYEBROW}>For organisers</p>
+              <h2 className={`${HEADING} mt-2 text-4xl sm:text-5xl`}>Ready to organise?</h2>
+              <p className="mx-auto mt-4 max-w-md text-[17px] text-ink-fade">
+                Create your first Last Man Standing competition in minutes. It&apos;s free for up to 20 players.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <Link
                   href="/competition/create"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  className={`${BTN_PRIMARY} inline-flex items-center justify-center gap-2 px-7 py-3.5 text-xl`}
                 >
-                  <PlusIcon className="h-6 w-6 mr-2" />
-                  Create Your First Competition
+                  <PlusIcon className="h-5 w-5" />
+                  Create your first competition
                 </Link>
                 <button
                   onClick={() => {
                     setShowJoinModal(true);
                     setJoinError(null);
                   }}
-                  className="inline-flex items-center justify-center px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-lg rounded-xl border-2 border-slate-300 hover:border-slate-400 transition-all duration-200"
+                  className={`${BTN_OUTLINE} inline-flex items-center justify-center gap-2 px-7 py-3.5 text-base`}
                 >
-                  <UserGroupIcon className="h-6 w-6 mr-2" />
-                  Join a Competition
+                  <UserGroupIcon className="h-5 w-5" />
+                  Join a competition
                 </button>
               </div>
-              <div className="mt-8 pt-8 border-t border-slate-200">
-                <p className="text-sm text-slate-500 mb-4">Why create with LMSLocal?</p>
-                <div className="grid sm:grid-cols-3 gap-4 text-left">
-                  <div className="flex items-start space-x-2">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                    </div>
-                    <p className="text-sm text-slate-600">5-minute setup</p>
+              <div className="mt-10 border-t border-ink/30 pt-8 text-left">
+                <p className={`${LABEL} mb-4 text-center text-ink-fade`}>Why create with LMSLocal?</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="flex items-start gap-2">
+                    <span className={TICK}>&#10003;</span>
+                    <p className="text-[15px] text-ink-fade">5-minute setup</p>
                   </div>
-                  <div className="flex items-start space-x-2">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                    </div>
-                    <p className="text-sm text-slate-600">Free up to 20 players</p>
+                  <div className="flex items-start gap-2">
+                    <span className={TICK}>&#10003;</span>
+                    <p className="text-[15px] text-ink-fade">Free up to 20 players</p>
                   </div>
-                  <div className="flex items-start space-x-2">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                    </div>
-                    <p className="text-sm text-slate-600">Automated results</p>
+                  <div className="flex items-start gap-2">
+                    <span className={TICK}>&#10003;</span>
+                    <p className="text-[15px] text-ink-fade">Automated results</p>
                   </div>
                 </div>
               </div>
@@ -450,327 +387,258 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Create Competition Button - Show when user has competitions */}
-            <div className="mb-6">
+            {/* Create / Join - Show when user has competitions */}
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/competition/create"
-                className="inline-flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                className={`${BTN_PRIMARY} inline-flex items-center justify-center gap-2 px-6 py-3 text-lg`}
               >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Create New Competition
+                <PlusIcon className="h-5 w-5" />
+                Create new competition
               </Link>
+              <button
+                onClick={() => {
+                  setShowJoinModal(true);
+                  setJoinError(null);
+                }}
+                className={`${BTN_OUTLINE} inline-flex items-center justify-center gap-2 px-6 py-3 text-base`}
+              >
+                <UserGroupIcon className="h-5 w-5" />
+                Join a competition
+              </button>
             </div>
 
             {/* Credits Info Banner - Only show for organizers */}
             {playerStats.hasOrganizedCompetitions && (
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-start space-x-3">
-                    <CreditCardIcon className="h-5 w-5 text-slate-500 flex-shrink-0 mt-0.5" />
+              <div className={`${PANEL} mb-6 p-4`}>
+                <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                  <div className="flex items-start gap-3">
+                    <CreditCardIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-ink-fade" />
                     <div>
-                      <p className="text-sm font-medium text-slate-700">
-                        Growing your competitions?
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Check your player credits and purchase more capacity as needed
-                      </p>
+                      <p className="text-[15px] font-medium text-ink">Growing your competitions?</p>
+                      <p className="text-[13px] text-ink-fade">Check your player credits and purchase more capacity as needed</p>
                     </div>
                   </div>
-                  <Link
-                    href="/billing"
-                    className="flex-shrink-0 inline-flex items-center px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium text-sm rounded-lg transition-all duration-200"
-                  >
-                    View Credits
+                  <Link href="/billing" className={`${BTN_OUTLINE} flex-shrink-0`}>
+                    View credits
                   </Link>
                 </div>
               </div>
             )}
 
             {/* Competitions Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 items-start">
-          {/* Competition Cards */}
-          {userCompetitions.map((competition) => {
-            const competitionStatus = getWinnerStatus(competition);
-            return (
-              <div
-                key={competition.id}
-                className="flex flex-col space-y-3 h-full"
-              >
-                <div className="bg-white rounded-xl border-2 border-slate-300 shadow-lg hover:shadow-xl hover:border-blue-400 transition-all duration-200 overflow-hidden flex-1 flex flex-col">
-                {/* Card Header */}
-                <div className="p-4 sm:p-6 border-b border-slate-200">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          {editingNameId === competition.id ? (
-                            <div className="flex-1 flex items-center space-x-2">
-                              <input
-                                type="text"
-                                value={editingNameValue}
-                                onChange={(e) => setEditingNameValue(e.target.value)}
-                                className="flex-1 text-lg font-semibold bg-transparent border-b-2 border-blue-500 focus:outline-none text-slate-900"
-                                placeholder="Add personal note..."
-                                disabled={savingName}
-                                autoFocus
-                              />
-                              <button
-                                onClick={handleSaveName}
-                                disabled={savingName}
-                                className="text-green-600 hover:text-green-700 disabled:opacity-50"
-                              >
-                                ✓
-                              </button>
-                              <button
-                                onClick={handleCancelEdit}
-                                disabled={savingName}
-                                className="text-red-600 hover:text-red-700 disabled:opacity-50"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <h4 className="text-lg font-semibold text-slate-900 truncate">
-                                {competition.name}
-                              </h4>
-                              {competition.is_organiser && (
-                                <span className="text-xs text-slate-500 font-medium">
-                                  (Organiser)
-                                </span>
-                              )}
-                            </>
+            <div className="grid grid-cols-1 items-start gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {userCompetitions.map((competition) => {
+                const competitionStatus = getWinnerStatus(competition);
+                return (
+                  <div key={competition.id} className="flex h-full flex-col">
+                    <div className={`${PANEL} flex flex-1 flex-col transition-colors hover:border-ink`}>
+                      {/* Card Header */}
+                      <div className="border-b border-ink/30 p-4 sm:p-6">
+                        <div className="mb-3 flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            {editingNameId === competition.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editingNameValue}
+                                  onChange={(e) => setEditingNameValue(e.target.value)}
+                                  className="flex-1 border-b-2 border-ink bg-transparent font-data text-lg text-ink focus:outline-none"
+                                  placeholder="Add personal note..."
+                                  disabled={savingName}
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={handleSaveName}
+                                  disabled={savingName}
+                                  className="text-moss hover:opacity-75 disabled:opacity-50"
+                                >
+                                  &#10003;
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  disabled={savingName}
+                                  className="text-overprint hover:opacity-75 disabled:opacity-50"
+                                >
+                                  &#10005;
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-baseline gap-2">
+                                <h4 className="truncate font-display text-2xl uppercase tracking-[0.03em] text-ink">
+                                  {competition.name}
+                                </h4>
+                                {competition.is_organiser && (
+                                  <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>Organiser</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {editingNameId !== competition.id && (
+                            <button
+                              onClick={() => handleEditName(competition)}
+                              className="p-1 text-ink-fade transition-colors hover:text-ink"
+                              title="Edit personal note"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
                           )}
                         </div>
 
-                        {/* Edit button - for all users */}
-                        {editingNameId !== competition.id && (
-                          <button
-                            onClick={() => handleEditName(competition)}
-                            className="text-slate-400 hover:text-slate-600 p-1"
-                            title="Edit personal note"
-                          >
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Personal Note Display - Fixed height for consistent alignment */}
-                      <div className="mb-3 min-h-[20px]">
+                        {/* Personal Note Display */}
                         {competition.personal_name && editingNameId !== competition.id && (
-                          <div className="text-sm text-slate-600 italic">
-                            {competition.personal_name}
+                          <p className="mb-3 font-data text-[15px] italic text-ink-fade">{competition.personal_name}</p>
+                        )}
+
+                        {/* Your Status Display - Only for participants */}
+                        {competition.is_participant && (
+                          <div className="mb-3 flex items-center gap-2">
+                            {competition.user_status === 'active' ? (
+                              <>
+                                <span className="h-2 w-2 flex-shrink-0 rounded-full bg-moss" />
+                                <span className={`${LABEL} text-moss`}>Active</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="h-2 w-2 flex-shrink-0 rounded-full bg-overprint" />
+                                <span className={`${LABEL} text-overprint`}>
+                                  Eliminated
+                                  <span className="sr-only"> &mdash; out</span>
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Pick Status Display */}
+                        {competition.needs_pick ? (
+                          <div className="mb-3 flex items-center gap-2 border border-overprint px-3 py-2">
+                            <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-overprint" />
+                            <span className={`${LABEL} text-ink`}>Pick needed</span>
+                          </div>
+                        ) : (
+                          <p className={`${LABEL} mb-3 text-moss`}>&#10003; Up to date</p>
+                        )}
+
+                        <div className="flex items-center gap-4 text-[15px] text-ink-fade">
+                          <span className="flex items-center gap-1.5">
+                            <UserGroupIcon className="h-4 w-4" />
+                            {competition.player_count || 0} active
+                          </span>
+                          {competition.current_round && (
+                            <span className="flex items-center gap-1.5">
+                              <ChartBarIcon className="h-4 w-4" />
+                              Round {competition.current_round}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Status Messages */}
+                        {competition.player_count === 0 && (competition.status as string) !== 'COMPLETE' && (competition.current_round || 0) < 2 && (
+                          <div className="mt-4 border border-ink/30 p-4">
+                            <p className="text-[15px] font-medium text-ink">Waiting for players</p>
+                            <p className="mt-1 text-[13px] text-ink-fade">Share your access code to get players joining</p>
+                          </div>
+                        )}
+
+                        {/* Competition Completion Status - Winner/Draw Display */}
+                        {competitionStatus.isComplete && (
+                          <div className="mt-4 border border-ink/30 p-4">
+                            {competitionStatus.winner ? (
+                              <>
+                                <p className="text-[15px] font-medium text-ink">Winner: {competitionStatus.winner}</p>
+                                <p className="mt-1 text-[13px] text-ink-fade">Competition complete &mdash; view final standings for details</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-[15px] font-medium text-ink">Competition draw</p>
+                                <p className="mt-1 text-[13px] text-ink-fade">No players remaining &mdash; competition ended in a draw</p>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
 
-                      {/* Your Status Display - Only for participants */}
-                      {competition.is_participant && (
-                        <div className="flex items-center space-x-2 mb-3">
-                          {competition.user_status === 'active' ? (
-                            <>
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span className="text-sm font-medium text-green-700">Active</span>
-                            </>
-                          ) : (
-                            <>
-                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                              <span className="text-sm font-medium text-red-700">Eliminated</span>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Pick Status Display */}
-                      {competition.needs_pick ? (
-                        <div className="mb-3 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 flex items-center space-x-2">
-                          <ExclamationTriangleIcon className="h-5 w-5 text-green-600 flex-shrink-0" />
-                          <span className="text-sm font-bold text-green-800">Pick Needed</span>
-                        </div>
-                      ) : (
-                        <div className="mb-3">
-                          <span className="text-sm font-medium text-green-700">✓ Up to date</span>
-                        </div>
-                      )}
-                      <div className="flex items-center space-x-4 text-sm text-slate-600">
-                        <div className="flex items-center space-x-2">
-                          <UserGroupIcon className="h-4 w-4" />
-                          <span>{competition.player_count || 0} active</span>
-                        </div>
-                        {competition.current_round && (
-                          <div className="flex items-center space-x-2">
-                            <ChartBarIcon className="h-4 w-4" />
-                            <span>Round {competition.current_round}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {/* Removed status badge as requested */}
-                  </div>
-
-                  {/* Status Messages */}
-                  
-                  {competition.player_count === 0 && (competition.status as string) !== 'COMPLETE' && (competition.current_round || 0) < 2 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-amber-900">Waiting for Players</p>
-                          <p className="text-xs text-amber-700 mt-1">Share your access code to get players joining</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Competition Completion Status - Winner/Draw Display */}
-                  {competitionStatus.isComplete ? (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          <TrophyIcon className="h-5 w-5 text-slate-600" />
-                        </div>
-                        <div className="flex-1">
-                          {competitionStatus.winner ? (
-                            <>
-                              <p className="text-sm font-medium text-slate-900">🏆 Winner: {competitionStatus.winner}</p>
-                              <p className="text-xs text-slate-600 mt-1">Competition complete - view final standings for details</p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-sm font-medium text-slate-900">🤝 Competition Draw</p>
-                              <p className="text-xs text-slate-600 mt-1">No players remaining - competition ended in a draw</p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                  
-                </div>
-
-                {/* Card Body - Only show if there's content to display */}
-                {competition.invite_code && (
-                  <div className="p-4 sm:p-6 flex-1">
-                    <div className="space-y-4 h-full flex flex-col">
-                      {/* Invite Code - Show for all users */}
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-slate-700 mb-1">Player Invite Code</p>
-                            <div className="flex items-center space-x-2">
-                              <code className="text-lg font-mono font-bold text-slate-800 tracking-wider">
-                                {competition.invite_code}
-                              </code>
+                      {/* Card Body */}
+                      {competition.invite_code && (
+                        <div className="flex-1 p-4 sm:p-6">
+                          <div className="border border-ink/30 p-3">
+                            <p className={`${LABEL} mb-1 text-ink-fade`}>Player invite code</p>
+                            <div className="flex items-center gap-2">
+                              <code className="font-data text-xl tracking-wider text-ink">{competition.invite_code}</code>
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
                                   navigator.clipboard.writeText(competition.invite_code || '');
                                 }}
-                                className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                                className="p-1 text-ink-fade transition-colors hover:text-ink"
                               >
                                 <ClipboardDocumentIcon className="h-4 w-4" />
                               </button>
                             </div>
                           </div>
                         </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="mt-auto border-t border-ink/30 px-4 py-4 sm:px-6">
+                        <div className="flex items-center gap-3">
+                          <Link
+                            href={`/game/${competition.id}`}
+                            className={`${BTN_DARK} flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 text-base`}
+                          >
+                            <ChartBarIcon className="h-4 w-4" />
+                            {competition.is_organiser ? 'Manage competition' : 'View competition'}
+                          </Link>
+                          {competition.is_participant && !competition.is_organiser && (
+                            <button
+                              onClick={() => handleDeleteClick(competition)}
+                              disabled={hidingCompetition === competition.id}
+                              className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-[4px] transition-colors hover:text-ink disabled:opacity-50`}
+                              title="Remove this competition from your dashboard"
+                            >
+                              {hidingCompetition === competition.id ? 'Removing...' : 'Delete for me'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                )}
-
-                {/* Action Buttons - Back inside the card */}
-                <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-200 mt-auto">
-                  <div className="flex gap-3">
-                    <Link
-                      href={`/game/${competition.id}`}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-lg font-medium transition-colors text-base bg-slate-800 text-white hover:bg-slate-900"
-                    >
-                      <ChartBarIcon className="h-5 w-5 mr-2" />
-                      {competition.is_organiser ? 'Manage Competition' : 'View Competition'}
-                    </Link>
-                    {/* Only show hide button if user is participant (not organiser) */}
-                    {competition.is_participant && !competition.is_organiser && (
-                      <button
-                        onClick={() => handleDeleteClick(competition)}
-                        disabled={hidingCompetition === competition.id}
-                        className="px-2 py-1 rounded text-xs text-red-600 hover:text-red-800 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Remove this competition from your dashboard"
-                      >
-                        {hidingCompetition === competition.id ? (
-                          <span className="flex items-center">
-                            <div className="animate-spin h-3 w-3 border border-red-300 border-t-red-600 rounded-full mr-1"></div>
-                            Removing...
-                          </span>
-                        ) : (
-                          'Delete for me'
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                </div>
-              </div>
-            );
-          })}
-
+                );
+              })}
             </div>
 
             {/* Mobile App Promotion Banner */}
-            <div className="mt-8 pt-6 border-t border-slate-200">
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-center sm:text-left">
-                    <p className="text-sm font-semibold text-blue-900 mb-1">
-                      📱 Players: Get our mobile app
-                    </p>
-                    <p className="text-xs text-blue-700">
-                      Make picks easier with instant notifications on iOS & Android
-                    </p>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <a
-                      href="https://apps.apple.com/gb/app/lms-local/id6755344736"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-black hover:bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all"
-                    >
-                      <span className="text-base"></span>
-                      <span>iOS</span>
-                    </a>
-                    <a
-                      href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-black hover:bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1"
-                    >
-                      <span className="text-base">▶</span>
-                      <span>Android</span>
-                    </a>
-                  </div>
+            <div className="mt-10 border-t border-ink/30 pt-8">
+              <div className="mx-auto flex max-w-2xl flex-col items-center justify-between gap-4 border border-ink/30 bg-stock-deep p-4 sm:flex-row">
+                <div className="text-center sm:text-left">
+                  <p className="text-[15px] font-medium text-ink">Players: get our mobile app</p>
+                  <p className="text-[13px] text-ink-fade">Make picks easier with instant notifications on iOS &amp; Android</p>
+                </div>
+                <div className="flex flex-shrink-0 gap-2">
+                  <a
+                    href="https://apps.apple.com/gb/app/lms-local/id6755344736"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${LABEL} flex items-center gap-1 rounded-sm bg-ink px-3 py-2 text-stock-lit transition-opacity hover:opacity-90`}
+                  >
+                    iOS
+                  </a>
+                  <a
+                    href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${LABEL} flex items-center gap-1 rounded-sm bg-ink px-3 py-2 text-stock-lit transition-opacity hover:opacity-90`}
+                  >
+                    Android
+                  </a>
                 </div>
               </div>
             </div>
 
-            {/* Action Links - Join Competition */}
-            <div className="text-center mt-6">
-              <div className="flex items-center justify-center">
-                <button
-                  onClick={() => {
-                    setShowJoinModal(true);
-                    setJoinError(null);
-                  }}
-                  className="inline-flex items-center space-x-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  <UserGroupIcon className="h-4 w-4" />
-                  <span>Join a Competition</span>
-                </button>
-              </div>
-            </div>
           </>
         )}
-
       </main>
 
       {/* Join Competition Modal */}
@@ -787,33 +655,24 @@ export default function DashboardPage() {
 
       {/* Delete Competition Confirmation Modal */}
       {showDeleteModal && competitionToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
-            <div className="flex items-center mb-4">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-              </div>
-              <div className="ml-3">
-                <h3 className="text-lg font-semibold text-slate-900">Hide Competition</h3>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+          <div className={`${PANEL} w-full max-w-md p-6`}>
+            <div className="mb-4 flex items-center gap-3">
+              <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-overprint" />
+              <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink">Hide competition</h3>
             </div>
 
-            <div className="mb-6">
-              <p className="text-sm text-slate-600">
-                Hide &quot;{competitionToDelete.name}&quot; from your dashboard? This will remove it from your view.
-              </p>
-            </div>
+            <p className="mb-6 text-[15px] text-ink-fade">
+              Hide &quot;{competitionToDelete.name}&quot; from your dashboard? This will remove it from your view.
+            </p>
 
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={handleCancelDelete}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-              >
+            <div className="flex justify-end gap-3">
+              <button onClick={handleCancelDelete} className={`${BTN_OUTLINE} px-4 py-2`}>
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                className={`${BTN_PRIMARY} px-4 py-2 text-base`}
               >
                 Hide
               </button>
@@ -821,7 +680,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

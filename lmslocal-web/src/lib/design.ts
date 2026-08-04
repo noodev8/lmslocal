@@ -29,6 +29,10 @@ export const BTN_PRIMARY =
 /** Secondary action on a light ground. */
 export const BTN_OUTLINE = `${LABEL} rounded-sm border border-ink px-3.5 py-2 text-ink transition-colors hover:bg-ink hover:text-stock-lit`;
 
+/** Ink-filled action, for a solid button that isn't the screen's one `overprint` primary — e.g. a "Manage" action repeated once per card. */
+export const BTN_DARK =
+  'rounded-sm bg-ink font-display uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
+
 /** Tick box glyph wrapper for checklist items. Pair with &#10003;. */
 export const TICK =
   'inline-flex h-[18px] w-[18px] flex-none translate-y-[3px] items-center justify-center border border-ink/60 text-[12px] font-bold leading-none text-overprint';

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { UserGroupIcon } from '@heroicons/react/24/outline';
+import { LABEL, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
 
 interface JoinCompetitionModalProps {
   isOpen: boolean;
@@ -35,86 +36,62 @@ export default function JoinCompetitionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        {/* Background overlay */}
-        <div 
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={handleClose}
-        ></div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+      <div className={`${PANEL} w-full max-w-md p-6`}>
+        <form onSubmit={handleSubmit}>
+          <h3 className={`${HEADING} text-2xl`}>Join competition</h3>
+          <p className="mt-2 text-[15px] text-ink-fade">
+            Enter the invite code shared by the competition organiser
+          </p>
 
-        {/* Center modal on larger screens */}
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+          <label htmlFor="invite-code" className={`${LABEL} mb-2 mt-5 block text-ink-fade`}>
+            Invite code
+          </label>
+          <input
+            type="text"
+            id="invite-code"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+            className="w-full rounded-sm border border-ink bg-transparent px-3 py-2 font-data text-lg tracking-widest text-ink placeholder-ink-fade/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            placeholder="ABC123"
+            disabled={isLoading}
+            autoFocus
+          />
 
-        {/* Modal */}
-        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-          <form onSubmit={handleSubmit}>
-            <div className="sm:flex sm:items-start">
-              <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                <UserGroupIcon className="h-6 w-6 text-blue-600" aria-hidden="true" />
-              </div>
-              
-              <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Join Competition
-                </h3>
-                <div className="mt-2">
-                  <p className="text-sm text-gray-500 mb-4">
-                    Enter the invite code shared by the competition organizer
-                  </p>
-                  <div>
-                    <label htmlFor="invite-code" className="block text-sm font-medium text-gray-700 mb-2">
-                      Invite Code
-                    </label>
-                    <input
-                      type="text"
-                      id="invite-code"
-                      value={inviteCode}
-                      onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-lg tracking-widest"
-                      placeholder="ABC123"
-                      disabled={isLoading}
-                      autoFocus
-                    />
-                  </div>
-                </div>
-              </div>
+          {error && (
+            <div className="mt-4 border border-overprint px-3 py-2">
+              <p className="text-[15px] text-ink">{error}</p>
             </div>
+          )}
 
-            {/* Error message */}
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-              <button
-                type="submit"
-                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-                disabled={isLoading || !inviteCode.trim()}
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Joining...
-                  </>
-                ) : (
-                  'Join Competition'
-                )}
-              </button>
-              
-              <button
-                type="button"
-                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm disabled:opacity-50"
-                onClick={handleClose}
-                disabled={isLoading}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isLoading}
+              className={`${BTN_OUTLINE} px-4 py-2 disabled:opacity-50`}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || !inviteCode.trim()}
+              className={`${BTN_PRIMARY} inline-flex items-center justify-center gap-2 px-4 py-2 text-base disabled:opacity-50`}
+            >
+              {isLoading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-stock-lit border-t-transparent" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <UserGroupIcon className="h-5 w-5" />
+                  Join competition
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
