@@ -144,7 +144,7 @@ export default function TermsOfService() {
 
             <h2 className="mt-10 border-t border-ink/30 pt-6 font-display text-2xl uppercase tracking-[0.03em] text-ink">14. Contact Information</h2>
             <p className="mt-4 text-[17px] leading-relaxed text-ink">
-              If you have any questions about these Terms of Service, please contact us at noodev8@gmail.com.
+              If you have any questions about these Terms of Service, please contact us at lmslocal8@gmail.com.
             </p>
             <p className="mt-4 text-[17px] leading-relaxed text-ink">
               <strong>Noodev8 Ltd</strong><br />

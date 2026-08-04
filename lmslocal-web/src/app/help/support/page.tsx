@@ -52,10 +52,10 @@ export default function SupportPage() {
         <div className="border border-ink/30 bg-stock-lit p-5">
           <h2 className={`${LABEL} text-ink-fade`}>Email us</h2>
           <a
-            href="mailto:noodev8@gmail.com"
+            href="mailto:lmslocal8@gmail.com"
             className="mt-2 block break-all font-data text-xl text-ink underline decoration-dotted underline-offset-4 transition-colors hover:text-overprint"
           >
-            noodev8@gmail.com
+            lmslocal8@gmail.com
           </a>
           <p className="mt-2 text-[15px] text-ink-fade">Any time. We reply within a day.</p>
         </div>

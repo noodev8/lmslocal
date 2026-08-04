@@ -560,7 +560,7 @@ export default function OnboardingPage() {
             Apply Now - It&apos;s Free
           </a>
           <p className="mt-4 text-[17px] text-stock/85">
-            Questions? Email us at <a href="mailto:noodev8@gmail.com" className="font-data underline decoration-dotted underline-offset-4 hover:text-stock">noodev8@gmail.com</a>
+            Questions? Email us at <a href="mailto:lmslocal8@gmail.com" className="font-data underline decoration-dotted underline-offset-4 hover:text-stock">lmslocal8@gmail.com</a>
           </p>
         </div>
       </section>

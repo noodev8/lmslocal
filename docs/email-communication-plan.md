@@ -1190,7 +1190,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // From addresses:
 // - noreply@lmslocal.co.uk (automated emails)
 // - notifications@lmslocal.co.uk (system notifications)
-// - noodev8@gmail.com (replies enabled)
+// - lmslocal8@gmail.com (replies enabled)
 
 // Webhooks: Configure in Resend dashboard
 // - URL: https://api.lmslocal.co.uk/api/resend-webhooks

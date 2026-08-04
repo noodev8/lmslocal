@@ -116,7 +116,7 @@ router.post('/', async (req, res) => {
       console.error('Contact message failed to send:', sendResult.error);
       return res.status(200).json({
         return_code: "SEND_FAILED",
-        message: "We could not send that just now. Please email noodev8@gmail.com instead."
+        message: "We could not send that just now. Please email lmslocal8@gmail.com instead."
       });
     }
 
@@ -129,7 +129,7 @@ router.post('/', async (req, res) => {
     console.error('Error in submit-contact-message:', error);
     return res.status(200).json({
       return_code: "SEND_FAILED",
-      message: "We could not send that just now. Please email noodev8@gmail.com instead."
+      message: "We could not send that just now. Please email lmslocal8@gmail.com instead."
     });
   }
 });

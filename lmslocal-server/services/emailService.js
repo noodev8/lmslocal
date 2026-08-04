@@ -1504,7 +1504,7 @@ const sendContactMessage = async (message) => {
 
   const result = await sendEmail({
     from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
-    to: ['noodev8@gmail.com'],
+    to: ['lmslocal8@gmail.com'],
     reply_to: email,
     subject: `Contact: ${subject} - ${name}`,
     html: htmlContent

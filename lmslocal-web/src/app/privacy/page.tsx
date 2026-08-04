@@ -85,7 +85,7 @@ export default function PrivacyPolicy() {
               <li><strong>Restriction:</strong> Request limitation of processing</li>
             </ul>
             <p className="mt-4 text-[17px] leading-relaxed text-ink">
-              To exercise these rights, contact us at noodev8@gmail.com.
+              To exercise these rights, contact us at lmslocal8@gmail.com.
             </p>
 
             <h2 className="mt-10 border-t border-ink/30 pt-6 font-display text-2xl uppercase tracking-[0.03em] text-ink">8. Cookies</h2>
@@ -134,8 +134,8 @@ export default function PrivacyPolicy() {
               If you have any questions about this Privacy Policy, please contact us:
             </p>
             <ul className="mt-4 space-y-1 font-data text-[15px] text-ink">
-              <li>Email: noodev8@gmail.com</li>
-              <li>Support: noodev8@gmail.com</li>
+              <li>Email: lmslocal8@gmail.com</li>
+              <li>Support: lmslocal8@gmail.com</li>
             </ul>
             <p className="mt-4 text-[17px] leading-relaxed text-ink">
               <strong>Noodev8 Ltd</strong><br />

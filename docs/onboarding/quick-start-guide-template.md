@@ -76,7 +76,7 @@ You're welcome to:
 
 **Questions? Need help?**
 Contact: Andreas
-📧 Email: noodev8@gmail.com
+📧 Email: lmslocal8@gmail.com
 ☎️ Phone: 07818 443886
 
 Just message me anytime - I'm here to help!

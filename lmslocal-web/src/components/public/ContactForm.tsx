@@ -46,7 +46,7 @@ export default function ContactForm() {
         setError(res.data.message || 'We could not send that. Please try again.');
       }
     } catch {
-      setError('We could not send that just now. Please email noodev8@gmail.com instead.');
+      setError('We could not send that just now. Please email lmslocal8@gmail.com instead.');
     } finally {
       setBusy(false);
     }

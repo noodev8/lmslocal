@@ -157,10 +157,10 @@ export default function HelpHomePage() {
           Can&apos;t find what you&apos;re looking for? Our support team is here to help you get the most out of LMSLocal.
         </p>
         <a
-          href="mailto:noodev8@gmail.com"
+          href="mailto:lmslocal8@gmail.com"
           className="inline-flex items-center px-6 py-3 rounded-sm bg-overprint font-display uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90"
         >
-          📧 noodev8@gmail.com
+          📧 lmslocal8@gmail.com
         </a>
       </div>
     </div>

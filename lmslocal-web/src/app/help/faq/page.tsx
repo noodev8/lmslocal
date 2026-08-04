@@ -240,7 +240,7 @@ export default function FAQPage() {
         </p>
         <div className="flex justify-center gap-4">
           <a
-            href="mailto:noodev8@gmail.com"
+            href="mailto:lmslocal8@gmail.com"
             className="px-6 py-3 rounded-sm bg-overprint font-display uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90"
           >
             📧 Contact Support
