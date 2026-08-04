@@ -209,11 +209,13 @@ router.post('/', async (req, res) => {
       const token = jwt.sign(
         tokenPayload,
         process.env.JWT_SECRET,
-        { expiresIn: '1825d' }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '270d' }
       );
 
-      // Calculate token expiration time for response
-      const expiresAt = new Date(loginTimestamp.getTime() + (5 * 365 * 24 * 60 * 60 * 1000)); // 5 years
+      // Read the expiry back off the signed token rather than recalculating it.
+      // The two used to be set independently, so changing one silently left the
+      // other reporting a different lifetime than the token actually had.
+      const expiresAt = new Date(jwt.decode(token).exp * 1000);
 
       // STEP 6: Update user activity tracking atomically
       const updateActivityQuery = `
