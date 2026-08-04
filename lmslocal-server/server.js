@@ -115,7 +115,11 @@ const unsubscribeRoute = require('./routes/unsubscribe');
 
 // Admin Tool Routes (lmslocal-admin) - gated by app_user.is_admin + JWT_ADMIN_SECRET
 const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
-const pushResultsToCompetitionsRoute = require('./routes/admin/push-results-to-competitions');
+// Results are pushed one competition at a time - the old all-competitions route ran the whole
+// batch in one transaction, so a timeout rolled every competition back. See its header.
+const pushResultsToCompetitionRoute = require('./routes/admin/push-results-to-competition');
+const getPushTargetsRoute = require('./routes/admin/get-push-targets');
+const clearStagedBatchRoute = require('./routes/admin/clear-staged-batch');
 const adminLoginRoute = require('./routes/admin/admin-login');
 const getAdminStatsRoute = require('./routes/admin/get-admin-stats');
 
@@ -431,7 +435,9 @@ app.use('/admin/get-staged-results', getStagedResultsRoute);
 app.use('/admin/set-staged-result', setStagedResultRoute);
 app.use('/admin/set-fixture-service', setFixtureServiceRoute);
 app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
-app.use('/admin/push-results-to-competitions', pushResultsToCompetitionsRoute);
+app.use('/admin/get-push-targets', getPushTargetsRoute);
+app.use('/admin/push-results-to-competition', pushResultsToCompetitionRoute);
+app.use('/admin/clear-staged-batch', clearStagedBatchRoute);
 
 // Organizer Fixture Management API Routes (manual competitions only - fixture_service = false)
 app.use('/organizer-add-fixtures', organizerAddFixturesRoute);

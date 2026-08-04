@@ -1,6 +1,26 @@
 /*
 =======================================================================================================================================
-API Route: push-results-to-competitions
+API Route: push-results-to-competitions   ** DEPRECATED - NOT REGISTERED - DO NOT EDIT **
+=======================================================================================================================================
+        THIS ROUTE IS NOT WIRED UP. It is not in server.js and nothing can call it. It is kept
+        on disk only as a reference for the migration, and should be deleted once nobody wants
+        to look at it any more.
+
+        Replaced by:
+          /admin/push-results-to-competition   (singular) - one competition, its own transaction
+          /admin/clear-staged-batch            - the fixture_load delete that used to be step 3
+
+        Why it was replaced: it processed every affected competition inside ONE transaction, so
+        its duration was the sum across the batch and a timeout anywhere rolled back every
+        competition in it - nobody got their results and the whole push had to be retried. The
+        admin now pushes one competition at a time and sees each result before moving on, so
+        nothing compounds and a failure is confined to a single competition.
+
+        DO NOT change the rules in this file. It is a frozen copy. The live copies of the
+        processing block are routes/admin/push-results-to-competition.js and
+        routes/organizer-process-results.js - change those two, and leave this alone.
+
+        Everything below this banner is the original header, left as it was.
 =======================================================================================================================================
 Method: POST
 Purpose: Pushes results from fixture_load to competition fixtures and automatically processes them (cron/ad-hoc execution).
