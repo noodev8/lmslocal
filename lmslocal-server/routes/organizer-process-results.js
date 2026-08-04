@@ -157,13 +157,29 @@ router.post('/', verifyToken, async (req, res) => {
         throw new Error('NO_RESULTS_TO_PROCESS');
       }
 
-      // Mark all unprocessed results as processed
-      const fixtureIds = unprocessedResults.rows.map(row => row.id);
-      await client.query(`
+      // Claim the fixtures before any player state is touched. The `processed IS NULL` here is
+      // what makes a second concurrent run safe: under READ COMMITTED the loser of the race
+      // re-evaluates this predicate once the winner commits, matches nothing, and drops out
+      // below. Matching on the id list alone would still be true after the winner commits, so
+      // both runs would carry on and deduct a life twice for the same pick.
+      const claimResult = await client.query(`
         UPDATE fixture
         SET processed = NOW()
         WHERE id = ANY($1::integer[])
-      `, [fixtureIds]);
+        AND processed IS NULL
+        RETURNING id
+      `, [unprocessedResults.rows.map(row => row.id)]);
+
+      // Work from what was actually claimed rather than what was selected - a concurrent run may
+      // have taken some of them. Claiming nothing means it took all of them and there is no work
+      // left, which is the same outcome as having found no unprocessed results in the first place.
+      const claimedIds = new Set(claimResult.rows.map(row => row.id));
+      if (claimedIds.size === 0) {
+        throw new Error('NO_RESULTS_TO_PROCESS');
+      }
+
+      const fixturesToProcess = unprocessedResults.rows.filter(fixture => claimedIds.has(fixture.id));
+      const fixtureIds = fixturesToProcess.map(fixture => fixture.id);
 
       // ========================================
       // PROCESS PLAYER PICKS AND ELIMINATIONS
@@ -171,7 +187,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       let playersEliminated = 0;
 
-      for (const fixture of unprocessedResults.rows) {
+      for (const fixture of fixturesToProcess) {
         // Get all picks for this fixture
         const picksResult = await client.query(`
           SELECT p.id, p.user_id, p.team, au.display_name

@@ -248,20 +248,42 @@ router.post('/', verifyAdminToken, async (req, res) => {
             continue;
           }
 
-          // Mark all unprocessed results as processed
-          const fixtureIds = unprocessedResults.rows.map(row => row.id);
-          await client.query(`
+          // Claim the fixtures before any player state is touched. Same claim as the one in
+          // routes/organizer-process-results.js, and the `processed IS NULL` carries the same
+          // weight: under READ COMMITTED the loser of a race against a concurrent run
+          // re-evaluates this predicate once the winner commits, matches nothing, and skips this
+          // competition instead of deducting a second life for the same pick.
+          const claimResult = await client.query(`
             UPDATE fixture
             SET processed = NOW()
             WHERE id = ANY($1::integer[])
-          `, [fixtureIds]);
+            AND processed IS NULL
+            RETURNING id
+          `, [unprocessedResults.rows.map(row => row.id)]);
+
+          // Work from what was actually claimed rather than what was selected - a concurrent run
+          // may have taken some of them. Claiming nothing leaves nothing to do, so this is the
+          // same skip as finding no unprocessed results above. It is reported rather than thrown
+          // because a throw would be caught below and mislabelled as an error.
+          const claimedIds = new Set(claimResult.rows.map(row => row.id));
+          if (claimedIds.size === 0) {
+            competitionsProcessed.push({
+              competition_id: competitionId,
+              status: 'skipped',
+              reason: 'No unprocessed results'
+            });
+            continue;
+          }
+
+          const fixturesToProcess = unprocessedResults.rows.filter(fixture => claimedIds.has(fixture.id));
+          const fixtureIds = fixturesToProcess.map(fixture => fixture.id);
 
           let playersEliminated = 0;
           let noPickPenalties = 0;
 
           // === PLAYER OUTCOME PROCESSING ===
           // Update pick outcomes for all processed fixtures
-          for (const fixture of unprocessedResults.rows) {
+          for (const fixture of fixturesToProcess) {
             // Get all picks for this fixture
             const picksResult = await client.query(`
               SELECT p.id, p.user_id, p.team, au.display_name
