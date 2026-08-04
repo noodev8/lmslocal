@@ -211,7 +211,11 @@ export default function OrganizerResultsPage() {
       }
     } catch (error) {
       console.error('Error processing results:', error);
-      setProcessError('Network error - could not process results');
+      // Deliberately not "failed". The likeliest way to land here is the connection dropping
+      // while the server was still working - and the server finishes and commits regardless of
+      // whether anyone is still listening, so the results are usually already saved. Telling
+      // them to check first stops a pointless retry and stops them thinking the round is stuck.
+      setProcessError('We lost contact while results were processing. Reload the page to check - they may already be done.');
     } finally {
       setIsProcessing(false);
     }
@@ -390,6 +394,30 @@ export default function OrganizerResultsPage() {
                   fixture service processes results as part of pushing them */}
               {!readOnly && (
                 <div className="border-t border-ink/30 p-4">
+                  {/* The server sends nothing back until every pick has been settled, so there is
+                      no real progress to report and no honest way to estimate a duration - a big
+                      round takes many times longer than a small one. This says what is happening
+                      and asks them not to reload, which is the part that matters: a reload loses
+                      their view of the outcome, and a second run started mid-flight is work the
+                      server then has to throw away. */}
+                  {isProcessing && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className={`${PANEL} mb-4 flex items-start gap-3 p-4`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="mt-[5px] h-2 w-2 flex-none animate-pulse rounded-full bg-overprint"
+                      />
+                      <div>
+                        <p className={`${LABEL} text-ink`}>Processing results</p>
+                        <p className="mt-1 text-[15px] text-ink-fade">
+                          Please don&rsquo;t refresh or close this page.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex justify-end">
                     <button
                       type="button"
