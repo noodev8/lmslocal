@@ -41,7 +41,7 @@ That is the requirement. Everything below is about how slowly it currently does 
 | | route | scope |
 |---|---|---|
 | Organiser-managed | `lmslocal-server/routes/organizer-process-results.js` | **one** competition per call |
-| Fixture service | `lmslocal-server/routes/admin/push-results-to-competitions.js` | **every** affected competition, one call |
+| Fixture service | `lmslocal-server/routes/admin/push-results-to-competition.js` | **one** competition per call (was every competition in one call — see §5) |
 
 `competition.fixture_service` decides which path a competition uses. Today: **12 false,
 2 true.**
@@ -139,6 +139,15 @@ So raw speed is **not** the primary driver here.
 ---
 
 ## 5. Scenario B — the admin push (context, not the focus)
+
+> **Resolved 2026-08-04 — this section describes the old shape.** The admin now pushes **one
+> competition per call** (`push-results-to-competition`, singular), each in its own transaction,
+> driven from a list on the fixtures screen. The compounding below no longer happens: the
+> ceiling is per competition, the same as the organiser path, and a failure is confined to one
+> competition instead of rolling back the batch. Clearing `fixture_load` became its own step
+> (`clear-staged-batch`) because the staged rows must outlive each individual push. The old
+> route is kept unregistered as a frozen reference. The analysis is left below because it is
+> the reason the change was made.
 
 Kept separate deliberately. This is the platform operator pushing one staged fixture batch
 out to every opted-in competition, in **one transaction**.

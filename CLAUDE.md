@@ -281,7 +281,14 @@ lmslocal-web/
 - **Fixture Service**: Automated system using the `fixture_load` staging table
 - **UI**: `lmslocal-admin` → `/dashboard/fixtures`. Staging routes are `/admin/add-staged-fixtures`,
   `/admin/get-staged-results`, `/admin/set-staged-result`, `/admin/get-fixture-team-lists`
-- **Push APIs**: `/admin/push-fixtures-to-competitions` and `/admin/push-results-to-competitions`
+- **Push APIs**: `/admin/push-fixtures-to-competitions` (all competitions at once — cheap, it
+  only creates rounds) and, for results, `/admin/get-push-targets` +
+  `/admin/push-results-to-competition` (**singular — one competition per call**) +
+  `/admin/clear-staged-batch`. Results are pushed one competition at a time because processing
+  scales with player count: the old all-competitions route did the whole batch in one
+  transaction, so a timeout anywhere rolled every competition back. That route
+  (`push-results-to-competitions.js`, plural) is deprecated, **unregistered**, and kept on disk
+  as a frozen reference only — do not edit it or wire it back up.
 - **Authentication**: admin token on all of the above (`middleware/admin-auth.js`). The old
   `12221` access code and the `BOT_MAGIC_2025` body secret are gone from this path — the latter
   shipped in the public web bundle. `bot-join` / `bot-pick` still use `BOT_MAGIC_2025`; they are
@@ -290,7 +297,9 @@ lmslocal-web/
   pushes, toggled per competition from the admin competitions list via `/admin/set-fixture-service`
 - **The model**: only one staged batch at a time per team list — `fixture_load` itself is the
   pending batch. `add-staged-fixtures` refuses a new one while it's non-empty; a batch clears
-  when `push-results-to-competitions` finishes with it (deletes the resulted rows). Every
+  when the admin presses **Clear staged batch** (`/admin/clear-staged-batch`), which is a
+  deliberate step because the staged rows must survive until every competition has been pushed
+  to individually. It refuses while any competition is still unfinished, unless forced. Every
   fixture in a batch shares a single kickoff time that becomes the round's lock time, so a real
   gameweek spread over Fri–Sun is entered as several batches.
 - **Organiser-managed competitions** (`fixture_service = false`) use the `organizer-*` routes and

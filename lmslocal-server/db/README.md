@@ -117,9 +117,9 @@ Aug 2026). Counting eliminations from `pick` alone undercounts. Conversely `pick
 NULL — the round is not resulted yet.
 
 **Fixtures and results are pushed, not entered.** They arrive via the `fixture_load` staging
-table and `/admin/push-fixtures-to-competitions` / `/admin/push-results-to-competitions`, driven
-from `/dashboard/fixtures` in the admin tool. Editing `fixture` rows by hand puts the DB out of
-step with what the push APIs will do next.
+table and `/admin/push-fixtures-to-competitions` / `/admin/push-results-to-competition`
+(**singular — one competition per call**), driven from `/dashboard/fixtures` in the admin tool.
+Editing `fixture` rows by hand puts the DB out of step with what the push APIs will do next.
 
 **Only competitions with `fixture_service = true` receive pushes,** and nothing has it on by
 default — `create-competition` hardcodes false. If a competition mysteriously never gets a new
@@ -128,8 +128,11 @@ to write it by hand any more.
 
 **`fixture_load` only ever holds one pending batch per team list.** Non-empty means something is
 staged and awaiting results/push; `add-staged-fixtures` refuses a new batch until it's empty
-again. It empties itself — `push-results-to-competitions` deletes each row once it's resulted
-and pushed — so don't expect rows to accumulate here across gameweeks.
+again. **It no longer empties itself.** Results are pushed one competition at a time, so the
+staged rows have to survive until the last competition has taken them — the admin clears the
+batch explicitly via `/admin/clear-staged-batch`. A non-empty table therefore means either
+"still being pushed" or "finished but not yet cleared"; `/admin/get-push-targets` tells you
+which.
 
 **Timestamps are `timestamptz`,** so they come back as JS `Date` objects in local time (BST in
 summer). Cast to text in SQL if you want the stored UTC value verbatim.

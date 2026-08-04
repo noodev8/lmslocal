@@ -143,7 +143,9 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/get-staged-results` | GET | The currently staged batch, resulted or not |
 | `/admin/set-staged-result` | POST | Record one fixture's outcome |
 | `/admin/push-fixtures-to-competitions` | POST | Distribute staged fixtures as rounds |
-| `/admin/push-results-to-competitions` | POST | Distribute staged results and process eliminations |
+| `/admin/get-push-targets` | GET | Competitions waiting on the staged batch, with player and fixture counts |
+| `/admin/push-results-to-competition` | POST | Distribute staged results and process eliminations, **one competition per call** |
+| `/admin/clear-staged-batch` | POST | Empty `fixture_load` once every competition has been pushed |
 
 Pages: `/login`, `/dashboard`, `/dashboard/competitions`, `/dashboard/organisers`,
 `/dashboard/fixtures`. `/dashboard` is the landing page and is a read-only snapshot — four
@@ -202,8 +204,10 @@ only one staged batch at a time per team list  ->  one round in each subscribed 
 ```
 
 `fixture_load` itself is the pending batch. `add-staged-fixtures` refuses to stage a new one
-while the table already has rows for that team list; the table only empties again once
-`push-results-to-competitions` has resulted-and-pushed every row in it. Every fixture in a batch
+while the table already has rows for that team list; the table only empties again when the admin
+presses **Clear staged batch** on the results tab. That is a deliberate step rather than a side
+effect of the push, because results now go out one competition at a time and the staged rows
+must survive until the last competition has taken them. Every fixture in a batch
 shares a single kickoff time, and that time becomes the round's lock time. So a real football
 gameweek spread across Friday to Sunday is entered as several batches, each becoming its own
 round with its own deadline. Do not "fix" this into per-fixture kickoff times without deciding
