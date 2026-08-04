@@ -24,6 +24,7 @@ const resetPasswordRoute = require('./routes/reset-password');
 const verifyEmailRoute = require('./routes/verify-email');
 const resendVerificationRoute = require('./routes/resend-verification');
 const submitOnboardingApplicationRoute = require('./routes/submit-onboarding-application');
+const submitContactMessageRoute = require('./routes/submit-contact-message');
 const createCompetitionRoute = require('./routes/create-competition');
 const teamListsRoute = require('./routes/team-lists');
 const getTeamsRoute = require('./routes/get-teams');
@@ -223,6 +224,19 @@ const joinLookupLimit = rateLimit({
   legacyHeaders: false
 });
 
+// A public form that sends email is a spam target. Generous enough that a person writing in
+// twice, or correcting a typo and resending, is never blocked.
+const contactLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    return_code: "RATE_LIMIT_EXCEEDED",
+    message: "That is a few messages in a short time. Please give it a few minutes."
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // CORS configuration - read from environment variable
 const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(',').map(url => url.trim())
@@ -278,6 +292,7 @@ app.use('/reset-password', resetPasswordRoute);
 app.use('/verify-email', verifyEmailRoute);
 app.use('/resend-verification', resendVerificationRoute);
 app.use('/submit-onboarding-application', submitOnboardingApplicationRoute);
+app.use('/submit-contact-message', contactLimit, submitContactMessageRoute);
 app.use('/create-competition', createCompetitionRoute);
 app.use('/team-lists', teamListsRoute);
 app.use('/get-teams', getTeamsRoute);

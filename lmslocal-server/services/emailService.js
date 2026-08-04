@@ -22,6 +22,25 @@ const sendEmail = async (emailData) => {
 // ===========================================================================================================
 
 /**
+ * Normalise a Resend response into a result the callers can trust.
+ *
+ * Resend RESOLVES with { data: { id }, error } rather than throwing, so a rejected send looks
+ * identical to a successful one unless `error` is checked explicitly. Every caller here used to
+ * hardcode `success: true` on any resolved promise and read `result.id`, which does not exist —
+ * the id lives at `result.data.id`. The effect was that bounced and rejected sends were recorded
+ * as sent, with a null message id, and nobody could tell the difference afterwards.
+ */
+const readSendResult = (result) => {
+  if (result?.error) {
+    const message = result.error.message || result.error.name || String(result.error);
+    return { success: false, error: message };
+  }
+
+  const messageId = result?.data?.id || result?.id || null;
+  return { success: true, messageId, resend_message_id: messageId };
+};
+
+/**
  * Send email verification link
  * @param {string} email - User's email address
  * @param {string} token - Verification token
@@ -100,7 +119,7 @@ const sendVerificationEmail = async (email, token, displayName) => {
       text: textContent,
     });
 
-    return { success: true, messageId: result.id };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send verification email:', error);
@@ -200,7 +219,7 @@ const sendPasswordResetEmail = async (email, token, displayName) => {
       });
     }
 
-    return { success: true, messageId };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send password reset email:', error);
@@ -298,7 +317,7 @@ const sendPlayerMagicLink = async (email, token, displayName, competitionName, s
       text: textContent,
     });
 
-    return { success: true, messageId: result.id };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send player magic link email:', error);
@@ -409,7 +428,7 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
     });
 
     console.log('Payment confirmation email sent successfully:', result.id);
-    return { success: true, messageId: result.id };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send payment confirmation email:', error);
@@ -611,11 +630,7 @@ ${email}
     // Resend returns { data: { id: '...' }, error: null } format
     const resendMessageId = result?.data?.id || result?.id || 'unknown';
 
-    return {
-      success: true,
-      messageId: resendMessageId,
-      resend_message_id: resendMessageId
-    };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send pick reminder email:', error);
@@ -802,10 +817,7 @@ const sendResultsEmail = async (email, templateData) => {
       text: textContent,
     });
 
-    return {
-      success: true,
-      resend_message_id: result.id
-    };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send results email:', error);
@@ -970,10 +982,7 @@ const sendWelcomeCompetitionEmail = async (email, templateData) => {
       text: textContent,
     });
 
-    return {
-      success: true,
-      resend_message_id: result.id
-    };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send welcome email:', error);
@@ -1077,10 +1086,7 @@ const sendOrganiserTipEmail = async (templateData) => {
       text: textContent,
     });
 
-    return {
-      success: true,
-      resend_message_id: result.id
-    };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send organiser tip email:', error);
@@ -1204,10 +1210,7 @@ const sendOnboardingNotification = async (applicationData) => {
       text: textContent
     });
 
-    return {
-      success: true,
-      messageId: result.id
-    };
+    return readSendResult(result);
   } catch (error) {
     console.error('Failed to send onboarding notification:', error);
     return {
@@ -1299,10 +1302,7 @@ const sendOnboardingConfirmation = async (email, contactName) => {
       text: textContent
     });
 
-    return {
-      success: true,
-      messageId: result.id
-    };
+    return readSendResult(result);
   } catch (error) {
     console.error('Failed to send onboarding confirmation:', error);
     return {
@@ -1463,11 +1463,7 @@ Unsubscribe from competition announcements: ${unsubscribeUrl}
     // Resend returns { data: { id: '...' }, error: null } format
     const resendMessageId = result?.data?.id || result?.id || 'unknown';
 
-    return {
-      success: true,
-      messageId: resendMessageId,
-      resend_message_id: resendMessageId
-    };
+    return readSendResult(result);
 
   } catch (error) {
     console.error('Failed to send competition announcement email:', error);
@@ -1476,6 +1472,45 @@ Unsubscribe from competition announcements: ${unsubscribeUrl}
       error: error.message
     };
   }
+};
+
+/**
+ * Send a message from the public contact form to the LMSLocal inbox.
+ * reply_to is set to the sender so a reply goes straight back to them.
+ * @param {object} message - { name, email, subject, body }
+ */
+const sendContactMessage = async (message) => {
+  const { name, email, subject, body } = message;
+  const escape = (v) => String(v || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head><meta charset="utf-8"><title>Contact message - LMSLocal</title></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 24px;">
+          <h1 style="margin: 0 0 4px 0; font-size: 20px; color: #1C2620;">Contact message</h1>
+          <p style="margin: 0 0 20px 0; color: #6b7280; font-size: 14px;">Sent from the help centre</p>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr><td style="padding: 6px 0; color: #6b7280; width: 90px;">From</td><td style="padding: 6px 0;">${escape(name)}</td></tr>
+            <tr><td style="padding: 6px 0; color: #6b7280;">Email</td><td style="padding: 6px 0;"><a href="mailto:${escape(email)}">${escape(email)}</a></td></tr>
+            <tr><td style="padding: 6px 0; color: #6b7280;">About</td><td style="padding: 6px 0;">${escape(subject)}</td></tr>
+          </table>
+          <div style="margin-top: 20px; padding: 16px; background: #f9fafb; border-left: 3px solid #C8341E; white-space: pre-wrap;">${escape(body)}</div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const result = await sendEmail({
+    from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
+    to: ['noodev8@gmail.com'],
+    reply_to: email,
+    subject: `Contact: ${subject} - ${name}`,
+    html: htmlContent
+  });
+
+  return readSendResult(result);
 };
 
 module.exports = {
@@ -1489,5 +1524,6 @@ module.exports = {
   sendOrganiserTipEmail,
   sendOnboardingNotification,
   sendOnboardingConfirmation,
-  sendCompetitionAnnouncementEmail
+  sendCompetitionAnnouncementEmail,
+  sendContactMessage
 };

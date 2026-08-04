@@ -3,9 +3,22 @@
 The visual language established on the marketing landing page (`lmslocal-web/src/app/page.tsx`),
 written up so it can be extended to pricing, contact, help and eventually the game screens.
 
-**Status:** the landing page is the only screen built to this system. Everything else in
-`lmslocal-web` and all of `lmslocal-admin` is still on the older slate/emerald Tailwind defaults.
-That is a known, temporary inconsistency — see [Migrating a screen](#migrating-a-screen).
+**Status:** every page a signed-out visitor can reach is built to this system — the landing page,
+`/join/[code]`, pricing, terms, privacy, the six help pages, and sign in / create account / forgot
+password. The boundary sits at the sign-in door.
+
+Everything behind it — the dashboard, the game screens, competition setup, billing — and all of
+`lmslocal-admin` is still on the older slate/emerald defaults. That is a known, deliberate
+inconsistency rather than an oversight; see [Migrating a screen](#migrating-a-screen) and
+[§8](#8-extending-to-the-game-screens) before crossing it.
+
+**Shared chrome** lives in `lmslocal-web/src/components/public/`:
+
+| Component | Use |
+|---|---|
+| `PublicHeader` | Wordmark, nav, auth-aware Sign in / Dashboard. `current` hides the current page's own link; `width` matches the page measure |
+| `PublicFooter` | Links and the company details a UK company must show |
+| `AuthShell` | Frame for sign in / create account / forgot password, plus `authInput`, `authButton`, `Notice` and `AuthLink` |
 
 ---
 

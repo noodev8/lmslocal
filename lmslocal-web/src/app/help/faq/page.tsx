@@ -13,60 +13,60 @@ export default function FAQPage() {
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
-      <div className="bg-slate-50 rounded-lg p-8 mb-8 border">
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">
+      <div className="border border-ink/30 bg-stock-lit p-8 mb-8">
+        <h1 className="text-4xl font-bold text-ink mb-4">
           Frequently Asked Questions
         </h1>
-        <p className="text-lg text-slate-700">
+        <p className="text-lg text-ink">
           Find quick answers to common questions about Last Man Standing competitions,
           organizing events, and using the LMSLocal platform.
         </p>
       </div>
 
       {/* General Questions */}
-      <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
+        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
           <span className="text-2xl mr-3">❓</span>
           General Questions
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What is Last Man Standing?</h3>
-            <p className="text-slate-700">A: Last Man Standing (LMS) is an elimination-style competition where players pick one winning team each round. Wrong picks may lead to elimination, and the last player(s) remaining win.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What is Last Man Standing?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Last Man Standing (LMS) is an elimination-style competition where players pick one winning team each round. Wrong picks may lead to elimination, and the last player(s) remaining win.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How much does it cost?</h3>
-            <div className="text-slate-700">
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How much does it cost?</h3>
+            <div className="text-[17px] leading-relaxed text-ink">
               <p>A: For players: Free to join competitions. Your organiser may charge their own entry fees.</p>
               <p className="mt-2">For organisers: First 10 player slots are free. Additional slots require credits, which can be purchased in packs.</p>
             </div>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can I play on mobile?</h3>
-            <p className="text-slate-700">A: Yes! LMSLocal works on all devices - phones, tablets, and computers.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I play on mobile?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Yes! LMSLocal works on all devices - phones, tablets, and computers.</p>
           </div>
         </div>
       </div>
 
       {/* For Organisers */}
-      <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
+        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
           <span className="text-2xl mr-3">👥</span>
           For Organisers
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How many competitions can I run?</h3>
-            <p className="text-slate-700">A: Unlimited! You can manage multiple competitions from a single account.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How many competitions can I run?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Unlimited! You can manage multiple competitions from a single account.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can I change rules after starting?</h3>
-            <div className="text-slate-700">
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I change rules after starting?</h3>
+            <div className="text-[17px] leading-relaxed text-ink">
               <p>A: It depends on what you want to change:</p>
               <ul className="mt-2 space-y-1 ml-4">
                 <li>• Competition name and description: Yes, anytime</li>
@@ -76,8 +76,8 @@ export default function FAQPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How do I handle disputes?</h3>
-            <div className="text-slate-700">
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How do I handle disputes?</h3>
+            <div className="text-[17px] leading-relaxed text-ink">
               <p>A: You have full control to:</p>
               <ul className="mt-2 space-y-1 ml-4">
                 <li>• Override any player&apos;s pick</li>
@@ -89,58 +89,58 @@ export default function FAQPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What if I enter wrong results?</h3>
-            <p className="text-slate-700">A: You can edit match results at any time. The system will automatically recalculate eliminations.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What if I enter wrong results?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: You can edit match results at any time. The system will automatically recalculate eliminations.</p>
           </div>
         </div>
       </div>
 
       {/* For Players */}
-      <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
+        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
           <span className="text-2xl mr-3">⚽</span>
           For Players
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can I change my pick?</h3>
-            <p className="text-slate-700">A: No, picks are final once submitted. Double-check before confirming!</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I change my pick?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: No, picks are final once submitted. Double-check before confirming!</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What if I forget to pick?</h3>
-            <p className="text-slate-700">A: Missing a pick counts as a wrong pick. You&apos;ll lose a life (or be eliminated in knockout format).</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What if I forget to pick?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Missing a pick counts as a wrong pick. You&apos;ll lose a life (or be eliminated in knockout format).</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can I join multiple competitions?</h3>
-            <p className="text-slate-700">A: Yes! You can join as many competitions as you want with the same account.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I join multiple competitions?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Yes! You can join as many competitions as you want with the same account.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How do I know if I&apos;m eliminated?</h3>
-            <p className="text-slate-700">A: Check your competition dashboard - your status will show as &quot;Eliminated&quot; and you&apos;ll see which round you went out.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How do I know if I&apos;m eliminated?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Check your competition dashboard - your status will show as &quot;Eliminated&quot; and you&apos;ll see which round you went out.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What happens if my team&apos;s match is postponed?</h3>
-            <p className="text-slate-700">A: Usually, postponed matches are void (no win or loss), but check with your organiser for their specific rules.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What happens if my team&apos;s match is postponed?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Usually, postponed matches are void (no win or loss), but check with your organiser for their specific rules.</p>
           </div>
         </div>
       </div>
 
       {/* Technical Questions */}
-      <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
+        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
           <span className="text-2xl mr-3">🔧</span>
           Technical Questions
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: I can&apos;t log in - help!</h3>
-            <div className="text-slate-700">
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: I can&apos;t log in - help!</h3>
+            <div className="text-[17px] leading-relaxed text-ink">
               <p>A: Try these steps:</p>
               <ol className="mt-2 space-y-1 ml-4 list-decimal">
                 <li>Check you&apos;re using the correct email</li>
@@ -152,70 +152,70 @@ export default function FAQPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How do I join a competition?</h3>
-            <div className="text-slate-700">
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How do I join a competition?</h3>
+            <div className="text-[17px] leading-relaxed text-ink">
               <p>A: Enter the invite code from your organiser</p>
             </div>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can I use the same team twice?</h3>
-            <p className="text-slate-700">A: In most competitions, no. The &quot;No Team Twice&quot; rule prevents reusing teams. Check your competition settings.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I use the same team twice?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: In most competitions, no. The &quot;No Team Twice&quot; rule prevents reusing teams. Check your competition settings.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: What timezone are deadlines in?</h3>
-            <p className="text-slate-700">A: All times are shown in your local timezone automatically.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What timezone are deadlines in?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: All times are shown in your local timezone automatically.</p>
           </div>
         </div>
       </div>
 
       {/* Competition Management */}
-      <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
+        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
           <span className="text-2xl mr-3">⚙️</span>
           Competition Management
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: When do picks lock?</h3>
-            <p className="text-slate-700">A: Default: 1 hour before the first match of the round. Organisers can set custom deadlines.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: When do picks lock?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Default: 1 hour before the first match of the round. Organisers can set custom deadlines.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How are ties handled?</h3>
-            <p className="text-slate-700">A: If multiple players are eliminated in the same round with no one left, they all share the victory.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How are ties handled?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: If multiple players are eliminated in the same round with no one left, they all share the victory.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can eliminated players rejoin?</h3>
-            <p className="text-slate-700">A: No, once eliminated you&apos;re out for that competition. You can join other competitions or wait for the next season.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can eliminated players rejoin?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: No, once eliminated you&apos;re out for that competition. You can join other competitions or wait for the next season.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: How long do competitions last?</h3>
-            <p className="text-slate-700">A: Varies by competition - could be a full season (38+ weeks) or shorter custom competitions.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How long do competitions last?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Varies by competition - could be a full season (38+ weeks) or shorter custom competitions.</p>
           </div>
         </div>
       </div>
 
       {/* Privacy & Security */}
-      <div className="bg-white rounded-lg p-8 mb-8 border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
+        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
           <span className="text-2xl mr-3">🔒</span>
           Privacy & Security
         </h2>
 
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Is my data safe?</h3>
-            <p className="text-slate-700">A: Yes, we use industry-standard encryption and never share personal data without consent.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Is my data safe?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Yes, we use industry-standard encryption and never share personal data without consent.</p>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can other players see my picks?</h3>
-            <div className="text-slate-700">
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can other players see my picks?</h3>
+            <div className="text-[17px] leading-relaxed text-ink">
               <p>A: It depends on timing:</p>
               <ul className="mt-2 space-y-1 ml-4">
                 <li>• Before deadline: No, picks are hidden</li>
@@ -225,29 +225,29 @@ export default function FAQPage() {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Q: Can I delete my account?</h3>
-            <p className="text-slate-700">A: Yes, you can delete your account from the profile settings. This removes you from all active competitions.</p>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I delete my account?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Yes, you can delete your account from the profile settings. This removes you from all active competitions.</p>
           </div>
         </div>
       </div>
 
       {/* Support CTA */}
-      <div className="bg-slate-50 rounded-lg p-8 text-center border">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Still Have Questions?</h2>
-        <p className="text-slate-700 mb-6">
+      <div className="border border-ink/30 bg-stock-lit p-8 text-center">
+        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-4">Still Have Questions?</h2>
+        <p className="text-[17px] leading-relaxed text-ink mb-6">
           Can&apos;t find what you&apos;re looking for? Our support team is here to help,
           or you can ask your competition organiser directly.
         </p>
         <div className="flex justify-center gap-4">
           <a
             href="mailto:noodev8@gmail.com"
-            className="px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            className="px-6 py-3 rounded-sm bg-overprint font-display uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90"
           >
             📧 Contact Support
           </a>
           <a
             href="/help"
-            className="px-6 py-3 bg-white text-slate-800 border rounded-lg hover:bg-slate-100 transition-colors"
+            className="px-6 py-3 bg-stock-lit text-ink border rounded-none hover:bg-stock-lit transition-colors"
           >
             Browse Help Center
           </a>

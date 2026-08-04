@@ -2,15 +2,15 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { TrophyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authApi, RegisterRequest } from '@/lib/api';
+import AuthShell, { authInput, authButton, Notice, AuthLink } from '@/components/public/AuthShell';
+import { LABEL } from '@/lib/design';
 
 export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,250 +28,138 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const response = await authApi.register({
-        ...data,
-        display_name: data.name
-      });
-      
+      const response = await authApi.register({ ...data, display_name: data.name });
+
       if (response.data.return_code === 'SUCCESS') {
-        // Redirect to login page with success message - no email verification needed
-        router.push('/login?message=Account created successfully! You can now sign in with your credentials.');
+        router.push('/login?message=Account created. Sign in to get going.');
         return;
-      } else {
-        switch (response.data.return_code) {
-          case 'EMAIL_EXISTS':
-            setError('An account with this email already exists.');
-            break;
-          case 'WEAK_PASSWORD':
-            setError('Password is too weak. Please choose a stronger password.');
-            break;
-          default:
-            setError('Registration failed. Please try again.');
-        }
+      }
+
+      switch (response.data.return_code) {
+        case 'EMAIL_EXISTS':
+          setError('There is already an account with that email. Sign in instead.');
+          break;
+        case 'WEAK_PASSWORD':
+          setError('That password is too easy to guess. Try a longer one.');
+          break;
+        default:
+          setError('Could not create your account. Please try again.');
       }
     } catch (err: unknown) {
-      setError((err as {response?: {data?: {message?: string}}}).response?.data?.message || 'An error occurred. Please try again.');
+      setError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          'Something went wrong. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
-      {/* Header Section - Material 3 Style */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center mb-6 sm:mb-8">
-          <Link href="/" className="flex items-center space-x-2 sm:space-x-3 group">
-            <div className="p-3 bg-slate-100 rounded-2xl group-hover:bg-slate-200 transition-colors">
-              <TrophyIcon className="h-8 w-8 text-slate-700" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">LMSLocal</h1>
-              <p className="text-sm text-slate-500">Last Man Standing</p>
-            </div>
-          </Link>
-        </div>
-        
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-3">
-            Create your account
-          </h2>
-          <p className="text-slate-600">
-            Already have an account?{' '}
-            <Link
-              href="/login"
-              className="font-semibold text-slate-700 hover:text-slate-900 transition-colors"
-            >
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </div>
+    <AuthShell
+      eyebrow="Get started"
+      title="Create your account"
+      intro="Twenty player places, free, for as long as you run it. No card needed to start."
+      footer={
+        <>
+          Already have an account? <AuthLink href="/login">Sign in</AuthLink>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {error && <Notice tone="error">{error}</Notice>}
 
-      {/* Register Form - Material 3 Card */}
-      <div className="mt-6 sm:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            {error && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-                <div className="text-sm text-red-700 font-medium">{error}</div>
-              </div>
-            )}
+        <label className="block">
+          <span className={`${LABEL} text-ink-fade`}>Your name</span>
+          <input
+            {...register('name', {
+              required: 'Enter your name',
+              minLength: { value: 2, message: 'That is a little short' }
+            })}
+            type="text"
+            autoComplete="name"
+            placeholder="How you appear to your players"
+            className={authInput}
+          />
+          {errors.name && <span className="mt-2 block text-[15px] text-overprint">{errors.name.message}</span>}
+        </label>
 
+        <label className="mt-5 block">
+          <span className={`${LABEL} text-ink-fade`}>Email</span>
+          <input
+            {...register('email', {
+              required: 'Enter your email address',
+              pattern: { value: /^\S+@\S+$/i, message: 'That does not look like an email address' }
+            })}
+            type="email"
+            autoComplete="email"
+            className={authInput}
+          />
+          {errors.email && <span className="mt-2 block text-[15px] text-overprint">{errors.email.message}</span>}
+        </label>
 
-            <div className="space-y-2">
-              <label htmlFor="name" className="block text-sm font-semibold text-slate-900">
-                Full name
-              </label>
-              <input
-                id="name"
-                {...register('name', {
-                  required: 'Full name is required',
-                  minLength: {
-                    value: 2,
-                    message: 'Name must be at least 2 characters'
-                  }
-                })}
-                type="text"
-                autoComplete="name"
-                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
-                placeholder="Enter your full name"
-              />
-              {errors.name && (
-                <p className="text-sm text-red-600 font-medium">{errors.name.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-semibold text-slate-900">
-                Email address
-              </label>
-              <input
-                id="email"
-                {...register('email', {
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^\S+@\S+$/i,
-                    message: 'Please enter a valid email address'
-                  }
-                })}
-                type="email"
-                autoComplete="email"
-                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
-                placeholder="Enter your email"
-              />
-              {errors.email && (
-                <p className="text-sm text-red-600 font-medium">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-semibold text-slate-900">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters'
-                    }
-                  })}
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
-                  placeholder="Create a password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-sm text-red-600 font-medium">{errors.password.message}</p>
-              )}
-              <p className="text-xs text-slate-500">
-                Must be at least 6 characters long
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-slate-900">
-                Confirm password
-              </label>
-              <div className="relative">
-                <input
-                  id="confirmPassword"
-                  {...register('confirmPassword', {
-                    required: 'Please confirm your password',
-                    validate: (value) =>
-                      value === password || 'The passwords do not match'
-                  })}
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
-                  placeholder="Confirm your password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition-colors"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="text-sm text-red-600 font-medium">{errors.confirmPassword.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-start">
-                <input
-                  id="acceptTerms"
-                  {...register('acceptTerms', {
-                    required: 'You must accept the Terms of Service and Privacy Policy to create an account'
-                  })}
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500 focus:ring-2"
-                />
-                <label htmlFor="acceptTerms" className="ml-3 text-sm text-slate-700 leading-relaxed">
-                  I agree to the{' '}
-                  <Link
-                    href="/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-slate-600 hover:text-slate-800 font-medium underline"
-                  >
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link
-                    href="/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-slate-600 hover:text-slate-800 font-medium underline"
-                  >
-                    Privacy Policy
-                  </Link>
-                </label>
-              </div>
-              {errors.acceptTerms && (
-                <p className="text-sm text-red-600 font-medium">{errors.acceptTerms.message}</p>
-              )}
-            </div>
-
+        <label className="mt-5 block">
+          <span className={`${LABEL} text-ink-fade`}>Password</span>
+          <span className="relative block">
+            <input
+              {...register('password', {
+                required: 'Choose a password',
+                minLength: { value: 6, message: 'Use at least 6 characters' }
+              })}
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              className={`${authInput} pr-12`}
+            />
             <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center items-center rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute inset-y-0 right-0 mt-2 flex items-center pr-3 text-ink-fade transition-colors hover:text-ink"
             >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                  Creating account...
-                </>
-              ) : (
-                'Create account'
-              )}
+              {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
             </button>
-          </form>
+          </span>
+          {errors.password && (
+            <span className="mt-2 block text-[15px] text-overprint">{errors.password.message}</span>
+          )}
+          <span className="mt-2 block text-[15px] text-ink-fade">At least 6 characters.</span>
+        </label>
 
-        </div>
-      </div>
-    </div>
+        <label className="mt-5 block">
+          <span className={`${LABEL} text-ink-fade`}>Confirm password</span>
+          <input
+            {...register('confirmPassword', {
+              required: 'Type your password again',
+              validate: (value) => value === password || 'Those two passwords do not match'
+            })}
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            className={authInput}
+          />
+          {errors.confirmPassword && (
+            <span className="mt-2 block text-[15px] text-overprint">{errors.confirmPassword.message}</span>
+          )}
+        </label>
+
+        <label className="mt-6 flex items-start gap-3">
+          <input
+            {...register('acceptTerms', { required: 'Accept the terms to create an account' })}
+            type="checkbox"
+            className="mt-1 h-4 w-4 accent-overprint"
+          />
+          <span className="text-[16px] leading-relaxed text-ink">
+            I agree to the <AuthLink href="/terms">terms</AuthLink> and{' '}
+            <AuthLink href="/privacy">privacy policy</AuthLink>.
+          </span>
+        </label>
+        {errors.acceptTerms && (
+          <span className="mt-2 block text-[15px] text-overprint">{errors.acceptTerms.message}</span>
+        )}
+
+        <button type="submit" disabled={isLoading} aria-busy={isLoading} className={`${authButton} mt-7`}>
+          {isLoading ? 'Creating your account…' : 'Create account'}
+        </button>
+      </form>
+    </AuthShell>
   );
 }

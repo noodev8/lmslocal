@@ -2,11 +2,12 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { TrophyIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authApi, LoginRequest } from '@/lib/api';
 import { setAuthData } from '@/lib/auth';
+import AuthShell, { authInput, authButton, Notice, AuthLink } from '@/components/public/AuthShell';
+import { LABEL } from '@/lib/design';
 
 function LoginForm() {
   const router = useRouter();
@@ -36,184 +37,104 @@ function LoginForm() {
 
     try {
       const response = await authApi.login(data);
-      
+
       if (response.data.return_code === 'SUCCESS') {
-        // Clear any cached data from previous sessions
         if (typeof window !== 'undefined') {
           const { cacheUtils } = await import('@/lib/api');
           cacheUtils.clearAll();
         }
-        
-        // Store token and user data consistently
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setAuthData(response.data.token as string, response.data.user as any);
-        
-        // Trigger AppDataProvider to reload data
         window.dispatchEvent(new CustomEvent('auth-success'));
-        
-        // All users now go to unified dashboard
         router.push('/dashboard');
       } else {
-        setError(response.data.return_code === 'INVALID_CREDENTIALS' 
-          ? 'Invalid email or password' 
-          : 'Login failed. Please try again.');
+        setError(
+          response.data.return_code === 'INVALID_CREDENTIALS'
+            ? 'That email and password do not match an account.'
+            : 'Could not sign you in. Please try again.'
+        );
       }
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'An error occurred. Please try again.');
+      setError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          'Something went wrong. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
-      {/* Header Section - Material 3 Style */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center mb-6 sm:mb-8">
-          <Link href="/" className="flex items-center space-x-2 sm:space-x-3 group">
-            <div className="p-3 bg-slate-100 rounded-2xl group-hover:bg-slate-200 transition-colors">
-              <TrophyIcon className="h-8 w-8 text-slate-700" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">LMSLocal</h1>
-              <p className="text-sm text-slate-500">Last Man Standing</p>
-            </div>
-          </Link>
-        </div>
-        
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-3">
-            Welcome back
-          </h2>
-          <p className="text-slate-600">
-            Sign in to manage competitions or join games
-          </p>
-        </div>
-      </div>
+    <AuthShell
+      eyebrow="Welcome back"
+      title="Sign in"
+      intro="Manage your competitions, or make this week's pick."
+      footer={
+        <>
+          Not got an account yet? <AuthLink href="/register">Create one</AuthLink>
+        </>
+      }
+    >
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit)(e); }}>
+        {successMessage && <Notice tone="success">{successMessage}</Notice>}
+        {error && <Notice tone="error">{error}</Notice>}
 
-      {/* Login Form - Material 3 Card */}
-      <div className="mt-6 sm:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
-          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit)(e); }}>
-            {successMessage && (
-              <div className="rounded-xl bg-green-50 border border-green-200 p-4">
-                <div className="text-sm text-green-700 font-medium">{successMessage}</div>
-              </div>
-            )}
+        <label className="block">
+          <span className={`${LABEL} text-ink-fade`}>Email</span>
+          <input
+            {...register('email', {
+              required: 'Enter your email address',
+              pattern: { value: /^\S+@\S+$/i, message: 'That does not look like an email address' }
+            })}
+            type="email"
+            autoComplete="email"
+            className={authInput}
+          />
+          {errors.email && <span className="mt-2 block text-[15px] text-overprint">{errors.email.message}</span>}
+        </label>
 
-            {error && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-                <div className="text-sm text-red-700 font-medium">{error}</div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-semibold text-slate-900">
-                Email address
-              </label>
-              <input
-                {...register('email', {
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^\S+@\S+$/i,
-                    message: 'Please enter a valid email address'
-                  }
-                })}
-                id="email"
-                type="email"
-                autoComplete="email"
-                className="block w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
-                placeholder="Enter your email"
-              />
-              {errors.email && (
-                <p className="text-sm text-red-600 font-medium">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-semibold text-slate-900">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters'
-                    }
-                  })}
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  className="block w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 transition-all"
-                  placeholder="Enter your password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-sm text-red-600 font-medium">{errors.password.message}</p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end">
-              <Link
-                href="/forgot-password"
-                className="text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
-              >
-                Forgot password?
-              </Link>
-            </div>
-
+        <label className="mt-5 block">
+          <span className={`${LABEL} text-ink-fade`}>Password</span>
+          <span className="relative block">
+            <input
+              {...register('password', {
+                required: 'Enter your password',
+                minLength: { value: 6, message: 'Passwords are at least 6 characters' }
+              })}
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              className={`${authInput} pr-12`}
+            />
             <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center items-center rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute inset-y-0 right-0 mt-2 flex items-center pr-3 text-ink-fade transition-colors hover:text-ink"
             >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                  Signing in...
-                </>
-              ) : (
-                'Sign in'
-              )}
+              {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
             </button>
-          </form>
+          </span>
+          {errors.password && (
+            <span className="mt-2 block text-[15px] text-overprint">{errors.password.message}</span>
+          )}
+        </label>
 
-          {/* Register Link */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <div className="text-center">
-              <p className="text-slate-600">
-                Don&apos;t have an account?{' '}
-                <Link
-                  href="/register"
-                  className="font-semibold text-slate-700 hover:text-slate-900 transition-colors"
-                >
-                  Create account
-                </Link>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+        <p className="mt-3 text-[16px] text-ink-fade">
+          <AuthLink href="/forgot-password">Forgotten your password?</AuthLink>
+        </p>
+
+        <button type="submit" disabled={isLoading} aria-busy={isLoading} className={`${authButton} mt-7`}>
+          {isLoading ? 'Signing you in…' : 'Sign in'}
+        </button>
+      </form>
+    </AuthShell>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={null}>
       <LoginForm />
     </Suspense>
   );

@@ -49,10 +49,12 @@ This is a full-stack application with two main components:
 - **Design system**: `docs/design-system.md` — the "pools coupon" visual language (tinted stock,
   two inks, signage caps, typewriter reserved for filled-in data). **Read it before building or
   restyling any screen.** Shared class constants live in `src/lib/design.ts`; colour and font
-  tokens are Tailwind theme extensions in `tailwind.config.js`. Currently only the landing page
-  (`src/app/page.tsx`) is built to it — every other screen is still on the older slate/emerald
-  defaults, and the doc's §10 covers migrating one. It also carries the copy rules: "you" always
-  means the organiser, no invented testimonials, never state opt-in features as universal.
+  tokens are Tailwind theme extensions in `tailwind.config.js`, shared chrome in
+  `src/components/public/`. Every signed-out page is built to it (landing, join, pricing, terms,
+  privacy, help, and the three auth pages); everything behind the sign-in door, plus
+  `lmslocal-admin`, is still on the older slate/emerald defaults. The doc's §10 covers migrating a
+  screen. It also carries the copy rules: "you" always means the organiser, no invented
+  testimonials, never state opt-in features as universal.
 
 ## Development Commands
 

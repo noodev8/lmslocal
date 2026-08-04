@@ -420,6 +420,18 @@ const getUserId = (): string => {
 };
 
 // Competition API calls
+// Public contact form in the help centre. Unauthenticated on purpose — someone who cannot sign
+// in is the person most likely to need to reach us.
+export const supportApi = {
+  sendMessage: (data: {
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+    website?: string;
+  }) => api.post<{ return_code: string; message?: string }>('/submit-contact-message', data),
+};
+
 export const competitionApi = {
   // Public, unauthenticated lookup used by /join/[code]. Lets a player see what they are joining
   // before we ask them to sign in or create an account, so a typo costs them nothing.

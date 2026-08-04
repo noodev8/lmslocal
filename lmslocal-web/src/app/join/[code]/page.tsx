@@ -289,17 +289,32 @@ export default function JoinPage() {
   }
 
   if (stage === 'closed' && competition) {
+    const isFull = competition.closed_reason === 'FULL';
+    const organiser = competition.organiser_name ?? 'your organiser';
     return shell(
       <div>
-        <p className={`${EYEBROW} text-overprint`}>Closed</p>
+        <p className={`${EYEBROW} text-overprint`}>{isFull ? 'No room' : 'Closed'}</p>
         <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
-          {competition.name} has started
+          {isFull ? `${competition.name} is full` : `${competition.name} has started`}
         </h1>
         <p className="mt-6 max-w-lg text-xl leading-relaxed text-ink">
-          Round one has locked, so nobody else can join this one. Ask{' '}
-          {competition.organiser_name ?? 'your organiser'} to let you know when the next competition
-          opens.
+          {isFull ? (
+            <>
+              {organiser} has taken on as many players as their competitions can hold at the moment.
+              Let them know you are trying to join — they can make room from their end.
+            </>
+          ) : (
+            <>
+              Round one has locked, so nobody else can join this one. Ask {organiser} to let you
+              know when the next competition opens.
+            </>
+          )}
         </p>
+        {isFull && (
+          <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-fade">
+            Nothing has gone wrong at your end, and no account has been created.
+          </p>
+        )}
         <div className="mt-8">
           <Link href="/" className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px]`}>
             Back to LMSLocal

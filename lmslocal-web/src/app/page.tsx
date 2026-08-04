@@ -88,7 +88,7 @@ const PLAYER_RULES = [
 ];
 
 const INCLUDED = [
-  'Free for your first 20 players',
+  '20 player places, free, however long you run',
   'Your own join code or link to hand out',
   'A printable A4 poster for the venue',
   'Eliminations worked out for you, either way',
@@ -218,7 +218,7 @@ export default function LandingPage() {
               >
                 {isLoggedIn ? 'Go to your dashboard' : 'Start one — free'}
               </Link>
-              <span className={`${LABEL} text-ink-fade`}>20 players free · no card</span>
+              <span className={`${LABEL} text-ink-fade`}>20 places free · no card</span>
             </div>
           </div>
 
@@ -445,8 +445,8 @@ export default function LandingPage() {
             behind the bar
           </h2>
           <p className="mt-6 max-w-lg text-xl leading-relaxed text-stock/85">
-            Free for your first 20 players, so you can see whether it takes before you spend
-            anything.
+            Twenty player places, free, for as long as you like. You only pay once you go past
+            twenty.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
             <Link

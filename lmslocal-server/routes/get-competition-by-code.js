@@ -39,7 +39,7 @@ Success Response (ALWAYS HTTP 200):
     "player_count": 24,                // integer, players who have joined so far
     "status": "SETUP",                 // string, competition status as stored
     "can_join": true,                  // boolean, whether a new player may join right now
-    "closed_reason": null              // string|null, "STARTED" when can_join is false
+    "closed_reason": null              // string|null, "STARTED" or "FULL" when can_join is false
   }
 }
 
@@ -86,15 +86,22 @@ router.post('/', async (req, res) => {
         c.venue_name,
         c.status                    AS competition_status,
         u.display_name              AS organiser_name,
+        u.paid_credit               AS organiser_credits,
         MAX(r.round_number)         AS current_round_number,
         MAX(r.lock_time)            AS latest_lock_time,
         NOW()                       AS current_time,
-        (SELECT COUNT(*) FROM competition_user cu WHERE cu.competition_id = c.id) AS player_count
+        (SELECT COUNT(*) FROM competition_user cu WHERE cu.competition_id = c.id) AS player_count,
+        -- Organiser capacity is counted across ALL their competitions, exactly as
+        -- join-competition-by-code does it, so the two routes agree on whether there is room.
+        (SELECT COUNT(cu2.id)
+           FROM competition c2
+           LEFT JOIN competition_user cu2 ON cu2.competition_id = c2.id
+          WHERE c2.organiser_id = c.organiser_id) AS organiser_player_count
       FROM competition c
       LEFT JOIN round r ON c.id = r.competition_id
       LEFT JOIN app_user u ON c.organiser_id = u.id
       WHERE UPPER(c.invite_code) = $1 OR UPPER(c.slug) = $1
-      GROUP BY c.id, c.name, c.venue_name, c.status, u.display_name
+      GROUP BY c.id, c.name, c.venue_name, c.status, u.display_name, u.paid_credit
       LIMIT 1
     `;
 
@@ -120,6 +127,18 @@ router.post('/', async (req, res) => {
     } else if (data.latest_lock_time && new Date(data.current_time) >= new Date(data.latest_lock_time)) {
       can_join = false;
       closed_reason = "STARTED";
+    } else {
+      // The organiser pays for player places past the free allowance. If they are at the limit
+      // with no credits left, the join would be refused with ORGANISER_INSUFFICIENT_CREDITS —
+      // so say so here rather than letting someone fill in a whole registration form first.
+      const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
+      const organiserPlayers = Number(data.organiser_player_count) || 0;
+      const organiserCredits = Number(data.organiser_credits) || 0;
+
+      if (organiserPlayers >= FREE_PLAYER_LIMIT && organiserCredits < 1) {
+        can_join = false;
+        closed_reason = "FULL";
+      }
     }
 
     return res.status(200).json({

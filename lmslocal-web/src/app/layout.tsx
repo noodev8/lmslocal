@@ -44,7 +44,7 @@ const courierPrime = Courier_Prime({
 
 export const metadata: Metadata = {
   title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
-  description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Free for your first 20 players.",
+  description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, for as long as you run it.",
   keywords: "last man standing, run a last man standing competition, pub fundraiser, club fundraising, football competition, sweepstake alternative, competition management, elimination game",
   authors: [{ name: "LMSLocal" }],
   creator: "LMSLocal",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
-    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Free for your first 20 players.",
+    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, for as long as you run it.",
     url: "https://lmslocal.co.uk",
     siteName: "LMSLocal",
     locale: "en_GB",
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
-    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Free for your first 20 players.",
+    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, for as long as you run it.",
     images: ["/og-image.png"],
   },
   robots: {

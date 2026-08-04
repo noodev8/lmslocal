@@ -1,331 +1,124 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { isAuthenticated as checkAuth } from '@/lib/auth';
-import {
-  Bars3Icon,
-  XMarkIcon,
-  ChevronRightIcon,
-  HomeIcon,
-  BookOpenIcon,
-  PlayIcon,
-  QuestionMarkCircleIcon,
-  PhoneIcon
-} from '@heroicons/react/24/outline';
+import PublicHeader from '@/components/public/PublicHeader';
+import PublicFooter from '@/components/public/PublicFooter';
+import { LABEL } from '@/lib/design';
 
-type NavigationChild = {
-  name: string;
-  href: string;
-};
+/**
+ * Help section frame. Built to the coupon design system — see docs/design-system.md.
+ *
+ * The sidebar is a flat list rather than collapsible sections: there are six
+ * destinations in total, so a disclosure control was hiding two links behind a
+ * click for no benefit. On narrow screens the same list becomes a horizontal
+ * strip, which avoids a full-screen modal menu for six items.
+ */
 
-type NavigationItem = {
-  name: string;
-  href?: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  children?: NavigationChild[];
-};
+type NavItem = { name: string; href: string; group?: string };
 
-const navigation: NavigationItem[] = [
-  { name: 'Help Home', href: '/help', icon: HomeIcon },
-  { name: 'How to Play', href: '/help/how-to-play', icon: PlayIcon },
-  {
-    name: 'Getting Started',
-    icon: BookOpenIcon,
-    children: [
-      { name: 'For Organisers', href: '/help/getting-started/organizers' },
-      { name: 'For Players', href: '/help/getting-started/players' },
-    ]
-  },
-  { name: 'FAQ', href: '/help/faq', icon: QuestionMarkCircleIcon },
-  { name: 'Support', href: '/help/support', icon: PhoneIcon },
+const NAVIGATION: NavItem[] = [
+  { name: 'Help home', href: '/help' },
+  { name: 'How to play', href: '/help/how-to-play' },
+  { name: 'For organisers', href: '/help/getting-started/organizers', group: 'Getting started' },
+  { name: 'For players', href: '/help/getting-started/players', group: 'Getting started' },
+  { name: 'FAQ', href: '/help/faq' },
+  { name: 'Support', href: '/help/support' }
 ];
 
-export default function HelpLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function HelpLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['Getting Started', 'Guides']);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
-  // Check authentication status and validate token
-  useEffect(() => {
-    setMounted(true);
-
-    const validateAuth = async () => {
-      if (typeof window !== 'undefined') {
-        // First check if tokens exist
-        const hasAuth = checkAuth();
-
-        if (hasAuth) {
-          // If tokens exist, validate them by making a simple API call
-          try {
-            // Import the API dynamically to avoid server-side issues
-            const { userApi } = await import('@/lib/api');
-            // This will trigger 401 interceptor if token is invalid
-            await userApi.checkUserType();
-            setIsAuthenticated(true);
-          } catch {
-            // Token is invalid or expired
-            setIsAuthenticated(false);
-            // The interceptor will have already cleared localStorage
-          }
-        } else {
-          // No tokens found
-          setIsAuthenticated(false);
-        }
-      }
-    };
-
-    // Validate auth on mount
-    validateAuth();
-
-    // Listen for storage changes (when auth state changes in other tabs/pages)
-    const handleStorageChange = () => {
-      validateAuth();
-    };
-
-    // Listen for auth-expired events from API interceptor
-    const handleAuthExpired = () => {
-      setIsAuthenticated(false);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('auth-expired', handleAuthExpired);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('auth-expired', handleAuthExpired);
-    };
-  }, []);
-
-  // Also re-check auth when the pathname changes (navigating to help from dashboard)
-  useEffect(() => {
-    if (mounted && typeof window !== 'undefined') {
-      const hasAuth = checkAuth();
-      if (hasAuth !== isAuthenticated) {
-        setIsAuthenticated(hasAuth);
-      }
-    }
-  }, [pathname, mounted, isAuthenticated]);
-
-  const toggleSection = (sectionName: string) => {
-    setExpandedSections(prev =>
-      prev.includes(sectionName)
-        ? prev.filter(name => name !== sectionName)
-        : [...prev, sectionName]
-    );
-  };
-
-  const isActive = (href: string) => pathname === href;
-  const isParentActive = (item: NavigationItem) => {
-    if (item.children) {
-      return item.children.some((child: NavigationChild) => pathname === child.href);
-    }
-    return false;
+  const linkClass = (href: string) => {
+    const active = pathname === href;
+    return `block border-l-2 py-2 pl-3 text-[16px] transition-colors ${
+      active
+        ? 'border-overprint font-semibold text-ink'
+        : 'border-transparent text-ink-fade hover:border-ink/40 hover:text-ink'
+    }`;
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <Link
-                href={mounted && isAuthenticated ? "/dashboard" : "/"}
-                className="text-lg font-bold text-slate-900"
-              >
-                LMS Local
-              </Link>
-              <span className="mx-3 text-slate-300">/</span>
-              <span className="text-lg font-medium text-slate-700">Help Center</span>
-            </div>
+    <div className="flex min-h-screen flex-col bg-stock font-body text-ink">
+      <PublicHeader current="help" />
 
-            {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-6">
-              {mounted && isAuthenticated ? (
-                <Link href="/dashboard" className="text-sm text-slate-600 hover:text-slate-900">
-                  Dashboard
-                </Link>
-              ) : (
-                <>
-                  <Link href="/" className="text-sm text-slate-600 hover:text-slate-900">
-                    Home
-                  </Link>
-                  <Link href="/login" className="text-sm text-slate-600 hover:text-slate-900">
-                    Login
-                  </Link>
-                </>
-              )}
-            </nav>
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 sm:py-14">
+        <p className={`${LABEL} text-overprint`}>Help centre</p>
 
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <XMarkIcon className="h-6 w-6" />
-              ) : (
-                <Bars3Icon className="h-6 w-6" />
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row gap-8 py-8">
-          {/* Sidebar - Desktop */}
-          <aside className="hidden md:block w-64 flex-shrink-0">
-            <nav className="sticky top-24 space-y-1">
-              {navigation.map((item) => (
-                <div key={item.name}>
-                  {item.children ? (
-                    <>
-                      <button
-                        onClick={() => toggleSection(item.name)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          isParentActive(item)
-                            ? 'bg-slate-100 text-slate-900'
-                            : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          {item.icon && <item.icon className="h-5 w-5 mr-2" />}
-                          {item.name}
-                        </div>
-                        <ChevronRightIcon
-                          className={`h-4 w-4 transition-transform ${
-                            expandedSections.includes(item.name) ? 'rotate-90' : ''
-                          }`}
-                        />
-                      </button>
-                      {expandedSections.includes(item.name) && (
-                        <div className="ml-7 mt-1 space-y-1">
-                          {item.children.map((child) => (
-                            <Link
-                              key={child.href}
-                              href={child.href}
-                              className={`block px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                                isActive(child.href)
-                                  ? 'bg-slate-100 text-slate-900 font-medium'
-                                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                              }`}
-                            >
-                              {child.name}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  ) : item.href ? (
-                    <Link
-                      href={item.href}
-                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                        isActive(item.href)
-                          ? 'bg-slate-100 text-slate-900'
-                          : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                      }`}
-                    >
-                      {item.icon && <item.icon className="h-5 w-5 mr-2" />}
+        <div className="mt-6 flex flex-col gap-10 md:flex-row md:gap-14">
+          {/* Navigation: a column on desktop, a scrolling strip on mobile */}
+          <nav className="md:w-56 md:flex-shrink-0" aria-label="Help sections">
+            <div className="hidden md:sticky md:top-8 md:block">
+              {NAVIGATION.map((item, i) => {
+                const newGroup = item.group && item.group !== NAVIGATION[i - 1]?.group;
+                return (
+                  <div key={item.href}>
+                    {newGroup && (
+                      <p className={`${LABEL} mt-5 pb-1 pl-3 text-ink-fade`}>{item.group}</p>
+                    )}
+                    <Link href={item.href} className={linkClass(item.href)}>
                       {item.name}
                     </Link>
-                  ) : null}
-                </div>
-              ))}
-            </nav>
-          </aside>
-
-          {/* Mobile Navigation Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden fixed inset-0 z-50 bg-white">
-              <div className="flex items-center justify-between p-4 border-b border-slate-200">
-                <span className="text-lg font-medium text-slate-900">Help Menu</span>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                >
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
-              </div>
-              <nav className="p-4 space-y-1">
-                {navigation.map((item) => (
-                  <div key={item.name}>
-                    {item.children ? (
-                      <>
-                        <button
-                          onClick={() => toggleSection(item.name)}
-                          className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg ${
-                            isParentActive(item)
-                              ? 'bg-slate-100 text-slate-900'
-                              : 'text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className="flex items-center">
-                            {item.icon && <item.icon className="h-5 w-5 mr-2" />}
-                            {item.name}
-                          </div>
-                          <ChevronRightIcon
-                            className={`h-4 w-4 transition-transform ${
-                              expandedSections.includes(item.name) ? 'rotate-90' : ''
-                            }`}
-                          />
-                        </button>
-                        {expandedSections.includes(item.name) && (
-                          <div className="ml-7 mt-1 space-y-1">
-                            {item.children.map((child) => (
-                              <Link
-                                key={child.href}
-                                href={child.href}
-                                onClick={() => setMobileMenuOpen(false)}
-                                className={`block px-3 py-1.5 text-sm rounded-lg ${
-                                  isActive(child.href)
-                                    ? 'bg-slate-100 text-slate-900 font-medium'
-                                    : 'text-slate-600 hover:bg-slate-50'
-                                }`}
-                              >
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ) : item.href ? (
-                      <Link
-                        href={item.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${
-                          isActive(item.href)
-                            ? 'bg-slate-100 text-slate-900'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        {item.icon && <item.icon className="h-5 w-5 mr-2" />}
-                        {item.name}
-                      </Link>
-                    ) : null}
                   </div>
-                ))}
-              </nav>
+                );
+              })}
             </div>
-          )}
 
-          {/* Main Content */}
-          <main className="flex-1 min-w-0">
-            <article className="prose prose-slate max-w-none">
-              {children}
-            </article>
-          </main>
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 md:hidden">
+              {NAVIGATION.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${LABEL} whitespace-nowrap rounded-sm border px-3 py-2 transition-colors ${
+                    pathname === item.href
+                      ? 'border-overprint bg-overprint text-stock-lit'
+                      : 'border-ink/30 text-ink-fade hover:text-ink'
+                  }`}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </nav>
+
+          <div className="min-w-0 flex-1">
+            <main>{children}</main>
+
+            {/*
+              Every help page ends with a way to reach us. Someone who has read a page and still
+              has a question should not have to go looking for the contact link — that is the
+              moment they are most likely to give up instead.
+            */}
+            {pathname !== '/help/support' && (
+              <aside className="mt-16 border border-ink/30 bg-stock-lit p-6 sm:p-7">
+                <p className={`${LABEL} text-overprint`}>Still stuck?</p>
+                <h2 className="mt-3 font-display text-3xl uppercase tracking-[0.03em] text-ink">
+                  Ask us directly
+                </h2>
+                <p className="mt-3 max-w-lg text-[17px] leading-relaxed text-ink">
+                  A real person reads these and replies, usually the same day. No account needed.
+                </p>
+                <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+                  <Link
+                    href="/help/support"
+                    className="rounded-sm bg-overprint px-6 py-3 font-display text-xl uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    Send a message
+                  </Link>
+                  <a
+                    href="tel:+447818443886"
+                    className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint`}
+                  >
+                    Or call 07818 443886
+                  </a>
+                </div>
+              </aside>
+            )}
+          </div>
         </div>
       </div>
+
+      <PublicFooter />
     </div>
   );
 }

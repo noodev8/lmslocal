@@ -213,7 +213,6 @@ if (result.success) {
 - Single environment file `/.env`
 
 ### Schema
-- Reference `/docs/DB-Schema.sql` for table and field definitions
 
 ### Query Best Practices
 - **Do not use N+1 queries** - use JOINs or batch queries

@@ -10,7 +10,9 @@ import { LABEL } from '@/lib/design';
  * theirs to set, and only the player-slot cost comes from us.
  */
 
-// Credit packs, matching /pricing. First 20 player slots are always free.
+// Credit packs, matching /pricing. The free twenty are counted live, so a departing player
+// frees one. Bought places are spent as players join and are only refunded if the player is
+// removed while the competition is still in SETUP (see routes/remove-player.js).
 const FREE_SLOTS = 20;
 const PACKS = [
   { credits: 20, price: 10 },
@@ -18,7 +20,7 @@ const PACKS = [
   { credits: 120, price: 40 },
 ];
 
-/** Cheapest combination of packs that covers the slots needed beyond the free 20. */
+/** Cheapest combination of packs that covers the places needed beyond the free 20. */
 function slotCost(extraSlots: number): number {
   if (extraSlots <= 0) return 0;
   let best = Infinity;
@@ -128,8 +130,8 @@ export default function Docket() {
         </div>
         <div className="flex items-baseline justify-between gap-3 py-1.5">
           <dt className="text-ink-fade">
-            Player slots from us{' '}
-            {slots === 0 && <span className="text-ink">(free — under {FREE_SLOTS})</span>}
+            Player places from us{' '}
+            {slots === 0 && <span className="text-ink">(free — within your {FREE_SLOTS})</span>}
           </dt>
           <dd className="text-ink">{slots === 0 ? money(0) : `−${money(slots)}`}</dd>
         </div>
@@ -150,7 +152,7 @@ export default function Docket() {
       <p className="mt-6 max-w-xl text-[16px] leading-relaxed text-ink-fade">
         Every number above is yours to set, and you can change them whenever you like. We never
         handle the entry money — that stays between you and your players. The only thing you pay
-        us for is player slots past the first {FREE_SLOTS}, and only if you go past them.
+        us for is player places beyond your free {FREE_SLOTS}.
       </p>
     </div>
   );
