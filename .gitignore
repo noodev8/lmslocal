@@ -112,3 +112,6 @@ screenshot*.*
 nul
 
 .vercel
+
+# Local capture output from lmslocal-server/tests/capture-dashboard.js
+lmslocal-server/tests/captures/
