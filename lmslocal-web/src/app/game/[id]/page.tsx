@@ -523,7 +523,9 @@ export default function UnifiedGameDashboard() {
                 <div className="p-4 text-center">
                   <p className={`${LABEL} text-ink-fade`}>Lives remaining</p>
                   <p className="mt-2 font-display text-lg text-ink">
-                    {competition.lives_remaining !== undefined ? competition.lives_remaining : 0}
+                    {competition.user_status !== 'active'
+                      ? '—'
+                      : (competition.lives_remaining || 0) === 0 ? 'Knockout' : competition.lives_remaining}
                   </p>
                 </div>
               </div>
