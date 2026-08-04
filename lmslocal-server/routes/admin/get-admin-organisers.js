@@ -55,8 +55,9 @@ Return Codes:
 "SERVER_ERROR"              - Database error or unexpected server failure
 =======================================================================================================================================
 Data Notes:
-- competition.status casing is inconsistent in production ('SETUP', 'COMPLETE', but lowercase
-  'active'). Every comparison here lowercases the column first - do not remove that.
+- competition.status is uppercase ('SETUP', 'ACTIVE', 'COMPLETE'). It used to be mixed; the data
+  was normalised on 2026-08-04. Every comparison here still lowercases the column first, which is
+  now belt-and-braces rather than load-bearing.
 - "players_total" counts competition_user rows, exactly like "player_count" in
   get-admin-competitions, so an organiser's total is the sum of the numbers shown against their
   competitions on the other screen. That matters more than it sounds: the two screens sit one

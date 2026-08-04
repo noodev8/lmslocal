@@ -49,8 +49,9 @@ Return Codes:
 "SERVER_ERROR"              - Database error or unexpected server failure
 =======================================================================================================================================
 Data Notes:
-- competition.status casing is inconsistent in production ('SETUP', 'COMPLETE', but lowercase
-  'active'). The filter and the returned field both lowercase it.
+- competition.status is uppercase ('SETUP', 'ACTIVE', 'COMPLETE'). It used to be mixed; the data
+  was normalised on 2026-08-04. The filter and the returned field still lowercase it, which is
+  harmless and keeps this screen's API contract unchanged.
 - "last_activity" is the most recent pick.created_at across the competition's rounds, or the
   competition's created_at if it has never had a pick.
 - "fixture_service" is the flag every push reads. The fixtures screen filters this list by it to

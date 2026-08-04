@@ -408,14 +408,14 @@ router.post('/', verifyToken, async (req, res) => {
                        (current_round.round_number === 1 && !current_round.is_locked),
 
       // Round update: Show if competition is active and ANY round has completed fixtures
-      show_round_update: competition.status === 'active' && hasAnyCompletedRound,
+      show_round_update: competition.status === 'ACTIVE' && hasAnyCompletedRound,
 
       // Pick reminder: Show if round is NOT locked and has fixtures
-      // Allow for both 'active' and 'SETUP' status to support Round 1 fixture sharing
+      // Allow for both 'ACTIVE' and 'SETUP' status to support Round 1 fixture sharing
       show_pick_reminder: current_round &&
                          !current_round.is_locked &&
                          current_round.fixture_count > 0 &&
-                         (competition.status === 'active' || competition.status === 'SETUP'),
+                         (competition.status === 'ACTIVE' || competition.status === 'SETUP'),
 
       // Winner: Show if competition is complete WITH a winner
       show_winner: competition.status === 'COMPLETE' && !!competition.winner_name,

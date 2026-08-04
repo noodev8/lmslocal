@@ -94,10 +94,14 @@ node db/query.js "SELECT column_name, data_type, is_nullable FROM information_sc
 
 ## Gotchas that will cost you an hour
 
-**`competition.status` casing is inconsistent.** Live data holds `'SETUP'` and `'COMPLETE'`
-(upper) alongside `'active'` (lower). Never write `WHERE status = 'ACTIVE'` — use
-`WHERE UPPER(status) = 'ACTIVE'` or you will silently miss every live competition.
-`competition_user.status` is lowercase (`'active'`, `'out'`) and consistent.
+**`competition.status` is uppercase — `'SETUP'`, `'ACTIVE'`, `'COMPLETE'`.** It was not always:
+production carried a mix, because `get-user-dashboard` wrote `'active'` in lower case while
+everything else wrote upper. The code and the data were normalised on 2026-08-04. Some admin
+routes still wrap the column in `LOWER()`; that is harmless and left in place deliberately, so
+do not read it as evidence the inconsistency is back.
+
+`competition_user.status` is a **different column** and is lowercase (`'active'`, `'out'`).
+That one is correct as it is — do not "fix" it to match.
 
 **`fixture.result` holds the winning team's short code, not a home/away marker.** Values are a
 `team.short_name` (e.g. `'ARS'`), or the literal `'DRAW'`, or NULL when the fixture has not been

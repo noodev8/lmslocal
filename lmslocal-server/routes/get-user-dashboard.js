@@ -284,16 +284,18 @@ router.post('/', verifyToken, async (req, res) => {
           const currentTime = new Date();
           
           if (currentTime >= round1LockTime) {
-            // Round 1 lock time has passed - set invite_code to NULL and status to active
+            // Round 1 lock time has passed - set invite_code to NULL and status to ACTIVE.
+            // Uppercase to match 'SETUP' and 'COMPLETE'; this line is why production
+            // carried a mix of casings.
             await query(`
-              UPDATE competition 
-              SET invite_code = NULL, status = 'active'
+              UPDATE competition
+              SET invite_code = NULL, status = 'ACTIVE'
               WHERE id = $1 AND invite_code IS NOT NULL
             `, [comp.id]);
-            
+
             // Update the data object for the response
             comp.invite_code = null;
-            comp.status = 'active';
+            comp.status = 'ACTIVE';
           }
         }
       }
