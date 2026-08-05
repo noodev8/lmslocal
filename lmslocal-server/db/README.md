@@ -12,6 +12,9 @@ no extra install is needed). Paths below assume that working directory.
 > ⚠️ This is the **LIVE production database** — the one the running site uses. Reads are safe;
 > writes touch real competitions that real players are in.
 
+This file covers *how* to query and write safely. For *what you are allowed to touch* — the
+sandbox competition, and the rule for everything else — see `docs/testing-rules.md`.
+
 ## Ad-hoc queries
 
 ```bash

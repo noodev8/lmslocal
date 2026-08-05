@@ -317,6 +317,13 @@ lmslocal-web/
 
 ## Database Access & Schema Reference
 
+**Before writing anything to the database, read `docs/testing-rules.md`.** This is the live
+production database and there is no staging copy. The short version: **competition 199**
+(organiser 50, `aandreou25@gmail.com`) is the sandbox and can be changed freely; every other
+competition belongs to a customer and is read-only unless the user names it in that session.
+Check `organiser_id` before any targeted write — 199 and 170 are one keystroke apart and 170 is
+a customer's.
+
 **Connecting to the database**: `lmslocal-server/db/README.md` is the front door — read it before
 writing SQL. There is **no MCP server** for this project and that is deliberate; use the scripts
 instead, run from `lmslocal-server/`:
