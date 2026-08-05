@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — free game, 1080×1350 portrait</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <link rel="stylesheet" href="../_shared/social.css" />
+    <style>
+      .tile {
+        width: 1080px;
+        height: 1350px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!--
+      1080x1350 portrait feed tile for the free national game.
+
+      This is the placement that reaches furthest, so it works hardest: the
+      offer AND the rules, where the square carries the offer alone. Same
+      audience and same voice as free-game-square.html — audience A, "you" is
+      the player, nothing about pricing.
+
+      The four rules are the same four, in the same order and wording, as
+      a5-player.html. Someone who sees the post and later picks up the leaflet
+      in a pub should not have to learn the game twice.
+    -->
+
+    <p class="max-w-[1080px] font-body text-sm text-white">
+      Screenshot the <strong>.tile</strong> node at <strong>DPR 1</strong> — DevTools → device
+      toolbar → DPR 1, then right-click the node → <strong>Capture node screenshot</strong>.
+      Save into <strong>out/</strong>.
+    </p>
+
+    <div class="tile bg-stock font-body text-ink">
+      <div class="flex h-full flex-col p-[88px]">
+        <!-- Masthead ------------------------------------------------------- -->
+        <p class="text-[26px] font-medium uppercase tracking-[0.22em] text-overprint">
+          Free to enter · new game most weeks
+        </p>
+
+        <!-- 0.84, where the rest of the system sits at 0.82 (web h1, both
+             leaflets). The extra 0.02 is not a style choice: at 172px the Y of
+             EVERY reaches into the bowl of the 5 above it, which it does not at
+             the leaflets' 58pt. Do not loosen further — the tight stack is the
+             look. -->
+        <h1 class="mt-[34px] font-display text-[152px] font-extrabold uppercase leading-[0.84]">
+          Win £50<br />every game
+        </h1>
+
+        <p class="mt-[32px] max-w-[840px] text-[34px] leading-[1.4] text-ink-fade">
+          Last man standing. Pick one team a week and see how long you last.
+        </p>
+
+        <!-- 2px, not 1px: a hairline rule on a 1080px canvas is invisible once
+             the platform recompresses the upload. shrink-0 is not optional —
+             this is a flex column, so without it the rule is the first thing
+             flexbox crushes to nothing when the content runs full, and it
+             vanishes with no other symptom. -->
+        <div class="mt-[34px] h-[2px] w-full shrink-0 bg-ink/25"></div>
+
+        <!-- The rules, worded exactly as a5-player.html words them. -->
+        <div class="mt-[34px]">
+          <p class="text-[24px] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            How it works
+          </p>
+          <ul class="mt-[24px] space-y-[18px] text-[32px] leading-[1.3]">
+            <li class="flex gap-[28px]">
+              <span class="w-[54px] shrink-0 font-display text-[44px] font-extrabold text-overprint"
+                >1</span
+              >
+              <span class="text-ink-fade">One team a round. Win and you go through.</span>
+            </li>
+            <li class="flex gap-[28px]">
+              <span class="w-[54px] shrink-0 font-display text-[44px] font-extrabold text-overprint"
+                >2</span
+              >
+              <span class="text-ink-fade">Draw or lose and you are out.</span>
+            </li>
+            <li class="flex gap-[28px]">
+              <span class="w-[54px] shrink-0 font-display text-[44px] font-extrabold text-overprint"
+                >3</span
+              >
+              <span class="text-ink-fade"
+                >Same team twice is not allowed — once it is gone, it is gone.</span
+              >
+            </li>
+            <li class="flex gap-[28px]">
+              <span class="w-[54px] shrink-0 font-display text-[44px] font-extrabold text-overprint"
+                >4</span
+              >
+              <span class="text-ink-fade">No pick by kick-off and you are out. Simple as that.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Join block. pt on the wrapper as well as mt-auto: mt-auto only
+             separates it from the rules when there is free space left, and on a
+             full tile that collapses to zero and the block jams against rule 4. -->
+        <div class="mt-auto shrink-0 pt-[40px]">
+          <div class="bg-stock-lit px-[52px] py-[36px]">
+            <!-- Wording tracks the app's actual flow: the button says "Join
+                 Competition" and the code prompt comes after it. Anything else
+                 sends people hunting for a field that is not on the first
+                 screen. If the app renames that button, these tiles change. -->
+            <p class="text-[24px] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              Get the app · tap Join Competition
+            </p>
+            <div class="mt-[16px] flex items-end justify-between gap-[32px]">
+              <p class="font-data text-[92px] font-bold leading-none tracking-[0.08em]">1992</p>
+              <p class="pb-[8px] text-right font-display text-[36px] font-extrabold uppercase leading-none">
+                lmslocal<span class="block text-[21px] font-medium tracking-wide text-ink-fade"
+                  >lmslocal.co.uk</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <!-- Small print — see the note on free-game-square.html. -->
+          <p class="mt-[20px] text-[20px] leading-[1.35] text-ink-fade">
+            18+ · UK residents · one entry per person · prize not awarded if the game ends in a
+            draw · full terms at lmslocal.co.uk/terms
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

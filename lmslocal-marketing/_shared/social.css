@@ -1,0 +1,46 @@
+/*
+ * Screen rules shared by the social tiles.
+ *
+ * The output route here is the OPPOSITE of the leaflets': a 1:1 screenshot, not
+ * print-to-PDF. Facebook and Instagram canvases are fixed pixel sizes, so a
+ * screenshot at device pixel ratio 1 is already native resolution and loses
+ * nothing, whereas a PDF would have to be rasterised back down anyway.
+ *
+ * DPR is the trap. On a HiDPI screen Chrome captures at 2x and you get a 2160px
+ * file that the platform re-compresses on upload. Open DevTools' device toolbar
+ * and set DPR to 1 before capturing.
+ *
+ * Capture the .tile node itself (DevTools -> right-click the node -> Capture
+ * node screenshot) so the grey desk and the on-screen note never land in the
+ * file. There is deliberately no box-shadow on .tile for the same reason: a
+ * shadow bleeds into a node capture and puts a grey smear down the edge of the
+ * upload. The tinted stock has enough contrast against the desk without one.
+ *
+ * Each tile sets its own .tile width/height, because the canvas differs per
+ * placement. Everything below is size-agnostic.
+ */
+
+@media screen {
+  body {
+    margin: 0;
+    padding: 2rem;
+    background: #8b8f86;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+}
+
+.tile {
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Story and reel placements put UI chrome over roughly the top 250px and bottom
+   320px of a 1080x1920 canvas — profile row, caption, the send bar. Content
+   inside those bands is not lost, but it is covered. Screen-only, like the
+   leaflets' trim guides. */
+.guides .guide-story-safe {
+  outline: 1px dashed rgba(200, 52, 30, 0.7);
+}

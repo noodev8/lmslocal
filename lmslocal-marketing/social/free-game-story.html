@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — free game, 1080×1920 story</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <link rel="stylesheet" href="../_shared/social.css" />
+    <style>
+      .tile {
+        width: 1080px;
+        height: 1920px;
+      }
+      /* Platform UI covers roughly these bands. The tile is still a full
+         1080x1920 image — the padding keeps content clear of the chrome rather
+         than shrinking the canvas. */
+      .story-pad {
+        padding: 250px 88px 320px;
+      }
+      .band-top {
+        top: 0;
+        height: 250px;
+      }
+      .band-bottom {
+        bottom: 0;
+        height: 320px;
+      }
+    </style>
+  </head>
+
+  <body class="guides">
+    <!--
+      1080x1920 story tile for the free national game.
+
+      Audience A, same voice and same honesty rules as the other two tiles.
+
+      This is the one that carries the survival sheet, because 1920px is the
+      only canvas with room for it. The mock uses the same names and picks as
+      a5-landlord.html on purpose: it is the fastest way to explain the game to
+      someone who has never played, and repeating it across the artwork makes it
+      read as one system rather than three unrelated posts.
+
+      The dashed bands are screen-only guides for the platform UI — profile row
+      at the top, caption and send bar at the bottom. Content under them is not
+      cropped, just covered, so nothing load-bearing goes there.
+    -->
+
+    <p class="max-w-[1080px] font-body text-sm text-white">
+      Screenshot the <strong>.tile</strong> node at <strong>DPR 1</strong> — DevTools → device
+      toolbar → DPR 1, then right-click the node → <strong>Capture node screenshot</strong>.
+      Save into <strong>out/</strong>. Dashed bands are screen-only.
+    </p>
+
+    <div class="tile relative bg-stock font-body text-ink">
+      <div class="guide-story-safe band-top pointer-events-none absolute inset-x-0"></div>
+      <div class="guide-story-safe band-bottom pointer-events-none absolute inset-x-0"></div>
+
+      <div class="story-pad flex h-full flex-col">
+        <!-- Masthead ------------------------------------------------------- -->
+        <p class="text-[28px] font-medium uppercase tracking-[0.22em] text-overprint">
+          Free to enter · new game most weeks
+        </p>
+
+        <!-- 0.84 — see the note on free-game-portrait.html. Slightly larger
+             than the feed tiles because a story is viewed at arm's length and
+             full-bleed, but not so large that the small print drops into the
+             bottom UI band. -->
+        <h1 class="mt-[36px] font-display text-[148px] font-extrabold uppercase leading-[0.84]">
+          Win £50<br />every game
+        </h1>
+
+        <p class="mt-[38px] max-w-[860px] text-[34px] leading-[1.4] text-ink-fade">
+          Pick one team a week. Get it wrong and you are out. Be the last one standing.
+        </p>
+
+        <!-- The survival sheet: the thing the app replaces, and the quickest
+             explanation of the game there is. font-data throughout because
+             these read as filled in by hand. -->
+        <div class="mt-[40px] shrink-0 bg-stock-lit px-[48px] py-[30px]">
+          <div class="flex items-baseline justify-between">
+            <p class="text-[24px] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              Round 4
+            </p>
+            <p class="font-display text-[40px] font-extrabold uppercase text-overprint">
+              9 left in
+            </p>
+          </div>
+
+          <div class="mt-[24px] space-y-[16px]">
+            <div class="flex items-baseline justify-between gap-[24px] border-b border-ink/15 pb-[16px]">
+              <span class="font-data text-[38px]">Dave M.</span>
+              <span class="font-data text-[38px] text-ink-fade">Arsenal</span>
+            </div>
+            <div class="flex items-baseline justify-between gap-[24px] border-b border-ink/15 pb-[16px]">
+              <span class="font-data text-[38px]">Sarah K.</span>
+              <span class="font-data text-[38px] text-ink-fade">Brighton</span>
+            </div>
+            <div class="flex items-baseline justify-between gap-[24px] border-b border-ink/15 pb-[16px]">
+              <span class="font-data text-[38px]">Tom B.</span>
+              <span class="font-data text-[38px] text-ink-fade">Leeds</span>
+            </div>
+            <div class="flex items-baseline justify-between gap-[24px]">
+              <span class="font-data text-[38px]">Priya N.</span>
+              <span class="font-data text-[38px] text-ink-fade">Newcastle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Join block ----------------------------------------------------- -->
+        <div class="mt-auto shrink-0 pt-[28px]">
+          <div class="bg-stock-lit px-[52px] py-[40px]">
+            <!-- Wording tracks the app's actual flow — see the note on
+                 free-game-portrait.html. -->
+            <p class="text-[26px] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              Get the app · tap Join Competition
+            </p>
+            <div class="mt-[18px] flex items-end justify-between gap-[32px]">
+              <p class="font-data text-[96px] font-bold leading-none tracking-[0.08em]">1992</p>
+              <p class="pb-[10px] text-right font-display text-[38px] font-extrabold uppercase leading-none">
+                lmslocal<span class="block text-[22px] font-medium tracking-wide text-ink-fade"
+                  >lmslocal.co.uk</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <!-- Small print — see the note on free-game-square.html. Sits above
+               the bottom guide band so the platform's caption bar does not
+               cover the eligibility line. -->
+          <p class="mt-[22px] text-[21px] leading-[1.35] text-ink-fade">
+            18+ · UK residents · one entry per person · prize not awarded if the game ends in a
+            draw · full terms at lmslocal.co.uk/terms
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -155,7 +155,7 @@ Beyond the honesty rules in the design system:
 | A5 leaflet, landlord | C | Built |
 | A5 leaflet, player | A/C | Built — generic, code filled in by hand |
 | Per-competition leaflet | players of a live comp | Built, in-app (`/leaflet/[competitionId]`) |
-| Social tiles | A | `lmslocal-marketing/social/` is empty |
+| Social tiles | A | Built — square, portrait and story for the free game |
 | Search / content | D | Nothing |
 
 ---
@@ -172,11 +172,15 @@ These are marketing problems even though they are engineering tickets.
    is not.
 2. **No player → organiser bridge.** Nothing in the product ever asks a player to start their
    own. Audience B is a plan with no mechanism.
-3. **No social artwork.** `lmslocal-marketing/social/` has a README and nothing else.
+3. ~~No social artwork.~~ Done 5 Aug 2026 — three tiles for the free game in
+   `lmslocal-marketing/social/`. Audience D still has none.
 4. **Internal billing on our own game** — see §3.
+5. **Competition 1992 does not exist yet.** The code is reserved but nothing is created against
+   it. The tiles say "draw or lose and you are out", which is only true if it is set up with
+   `lives_per_player = 0`. They also carry 18+ / UK-only from terms §5, so the ad targeting has
+   to match.
 
-Order matters: spend on 3 should track progress on 1, or we pay to fill a bucket with a hole
-in it.
+Order matters: ad spend should track progress on 1, or we pay to fill a bucket with a hole in it.
 
 ---
 
@@ -195,3 +199,4 @@ in it.
 | Date | What |
 |---|---|
 | 5 Aug 2026 | Doc created. Deleted `pricing-strategy.md` (described a £29/£79 subscription model that was never shipped; live pricing is credit packs). Settled: fresh £50 weekly, no rollover until budget allows. |
+| 5 Aug 2026 | Three social tiles built for the free game (square, portrait, story), join code 1992. Headline is "win £50 every game", not "every week" — terms §5 lets us cancel or suspend, so the cadence is not printable as a promise. Open question raised and not yet resolved: the homepage sells "the competition that pays for itself" while §5 of this doc says never to pitch organisers on money. |

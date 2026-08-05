@@ -15,9 +15,10 @@ and is reachable by URL, so a half-finished leaflet would be live on the interne
 
 ```
 _shared/brand.js    Tailwind token config + Google Fonts. Load on every page.
-_shared/print.css   Print rules, screen preview desk, trim/safe guides.
+_shared/print.css   Print rules, screen preview desk, trim/safe guides. Leaflets only.
+_shared/social.css  Fixed-size canvas + screenshot desk. Social tiles only.
 leaflet/            Print artwork. a5-test.html is the pipeline reference.
-social/             Fixed-size tiles for Facebook etc.
+social/             Fixed-size tiles for Facebook etc. See social/README.md.
 out/                Exported PDFs and PNGs. Git-ignored.
 ```
 
