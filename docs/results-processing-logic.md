@@ -6,8 +6,9 @@ particular route implements it. Two routes implement it today (`organizer-proces
 manual competitions, the admin results push for `fixture_service` ones) and they are deliberate
 copies of one ruleset. This doc is that ruleset.
 
-Companion docs: `results-processing-performance.md` (why results push one competition at a time),
-`admin-tool.md` (the staging and push screens).
+Companion docs: `results-processing-performance.md` (why results push one competition at a time,
+and how to make this scale), `results-processing-correction.md` (how to change a result
+that was already processed), `admin-tool.md` (the staging and push screens).
 
 ---
 
@@ -128,8 +129,11 @@ Picked the loser → LOSE. A **draw eliminates everyone in that fixture**, whoev
 there is no such thing as surviving a draw.
 
 **Recording it.** The outcome is stamped on the pick, and a permanent history row is written for
-that player, round and fixture. The history is append-only and is never revised; it is the record
-of what happened, kept separately from the player's current standing.
+that player, round and fixture. The history is append-only and is never revised **during
+processing**; it is the record of what happened, kept separately from the player's current
+standing. (Correcting a result that was already processed is a separate, deliberate, audited
+action that may revise it, and is the only thing that may — see
+`results-processing-correction.md`.)
 
 **Charging the losers.** Winners are recorded but never charged. Losers lose a life, and are
 eliminated if that takes them below zero.
