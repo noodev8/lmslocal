@@ -4,7 +4,16 @@ How to correct a result that was entered wrongly and has already been processed.
 three: `results-processing-logic.md` says what the process does,
 `results-processing-performance.md` says how to make it scale, this says how to change your mind.
 
-**Status:** design and reasoning, written 2026-08-05. No tooling built yet.
+**Status:** written 2026-08-05. Implemented as `lmslocal-server/scripts/correct-result.js` the
+same day and exercised end to end against competition 199 (organiser 50).
+
+```bash
+# from lmslocal-server/
+node scripts/correct-result.js --fixture 1909 --result DRAW            # assess, writes nothing
+node scripts/correct-result.js --fixture 1909 --result DRAW --apply    # re-assess, then write
+node scripts/correct-result.js --teams ARS-COV --kickoff "2026-08-21 19:00" --result DRAW
+node scripts/correct-result.js --verify [--competition 199]            # section 7 health check
+```
 
 Today this is a support path: an organiser reports a mistake, the platform operator runs it. The
 two-phase shape in §4 is deliberately the same shape a future organiser-facing button would
@@ -215,6 +224,24 @@ WHERE lives_remaining <> GREATEST(lives_per_player - losses, 0)
    OR status <> CASE WHEN losses > lives_per_player THEN 'out' ELSE 'active' END;
 ```
 
+Two things the implementation learned about this query. A platform-wide sweep stays limited to
+`SETUP`/`ACTIVE`, but **a named competition is checked whatever its status** — after a correction
+the competition is frequently `COMPLETE`, which is exactly when you want the check. And it is worth
+running as part of the assessment, not only afterwards: if a player is already out of step with
+history, the rebuild repairs that too, and the operator will otherwise read the repair as an effect
+of the correction they asked for. The script warns when it sees this.
+
+The check ran clean across the whole platform on 2026-08-05 — zero mismatches — so §2's invariant
+holds everywhere, not only in the one competition originally sampled.
+
+### One precondition the design missed
+
+**A processed pick with no `player_progress` row is refused.** The rebuild derives lives from
+history alone, so revising a pick whose history row is absent would leave the correction half
+landed — the pick says one thing, the player's lives say another. It should never happen, since
+processing writes a history row for every pick it resolves. If it does, it is a data fault to fix
+by hand before correcting anything.
+
 ---
 
 ## 8. What is not recoverable
@@ -258,9 +285,10 @@ Two cautions:
 
 ## 10. Open questions
 
-- **Script or route?** A script cannot be reached by accident and needs someone deliberate at a
-  keyboard, which suits a support path. A route is faster under pressure and is the path toward an
-  organiser-facing button. Leaning script first, route later — phase one is the same work either way.
+- ~~**Script or route?**~~ **Settled: script first.** A script cannot be reached by accident and
+  needs someone deliberate at a keyboard, which suits a support path. A route remains the path
+  toward an organiser-facing button, and phase one is the same work either way — `assess()` in the
+  script is the function a route would call.
 - **Should phase one be exposed to organisers before phase two is?** An organiser seeing "this
   would change these two players" is useful even if the operator still applies it.
 - **Normalising the manual-adjustment audit action** (§6) is small, independent, and worth doing
