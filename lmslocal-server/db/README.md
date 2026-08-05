@@ -62,6 +62,26 @@ an API route already owns the table you are about to change — game state (`pic
 `player_progress`, `allowed_teams`, `competition_user.lives_remaining`) is written by route
 logic that also writes `audit_log`. A hand-written UPDATE bypasses that.
 
+### Two accounts to spare when tidying `app_user`
+
+Ad-hoc cleanup is the main thing that threatens these, because both look disposable:
+
+| id | | Why it looks deletable |
+|---|---|---|
+| 50 | `aandreou25@gmail.com` | — the owner account, obviously keep |
+| 1088 | `claude@lmslocal.invalid`, "Claude (test)" | **belongs to no competition at all**, so any "delete users with no memberships" sweep takes it |
+
+1088 is the identity admin tokens are signed as during testing, so that `audit_log` can tell test
+writes from real ones (`docs/testing-rules.md`). It is cheap to recreate but the audit trail
+stops making sense without it. Both carry `is_admin = true` and nothing else does, so the
+simplest guard on any account cleanup is:
+
+```sql
+AND is_admin = false
+```
+
+Searching for `claude` in either `email` or `display_name` finds 1088.
+
 ## Finding your way around the schema
 
 There is no schema doc — it would rot. There used to be a `pg_dump` at `docs/DB-Schema.sql`; it

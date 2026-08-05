@@ -83,18 +83,28 @@ Bot Removed |   50 | Andreas       | Bot Paula removed by admin
 | | |
 |---|---|
 | id | 1088 |
-| email | `claude@lms-guest.com` |
+| email | `claude@lmslocal.invalid` |
 | display name | Claude (test) |
 | `is_admin` | true |
 
-Two deliberate properties of that address:
+The address is deliberately its own thing rather than a `@lms-guest.com` one. Both delete routes
+run `DELETE FROM app_user WHERE email LIKE '%@lms-guest.com' AND email NOT LIKE 'bot_%'` when a
+competition is removed, which is exactly the set a `claude@lms-guest.com` would have fallen into
+— the only reason it survived was having no membership row for the delete to join through.
 
-- `@lms-guest.com` means **no email can ever reach it** — every send route skips that domain.
-- It does **not** match `bot_%@lms-guest.com`, so it never appears in the bot pool.
+`.invalid` is reserved by RFC 2606 and can never resolve, so an accidental send fails at DNS
+rather than reaching anyone. It is not covered by the `@lms-guest.com` suppression that keeps
+email away from guests and bots, so **do not add this account to a competition as a player** —
+it is an admin identity, nothing more.
 
 **It has no usable password.** `password_hash` is a bcrypt hash of 32 random bytes that was
 never recorded, so nobody can sign in as it — including whoever is reading this. It exists only
 as an identity for tokens minted from `JWT_ADMIN_SECRET`.
+
+**Ad-hoc cleanup is the main thing that threatens it.** It belongs to no competition, so any
+"delete users with no memberships" sweep takes it. `is_admin = true` is the reliable guard —
+only account 50 and this one have it. `db/README.md` carries the same warning next to where that
+SQL gets written. Searching for `claude` in `email` or `display_name` finds it.
 
 Revoke it any time with:
 
@@ -112,7 +122,7 @@ No password needs to be written down anywhere for testing.
   ```bash
   node -e "require('dotenv').config();
     const { signAdminToken } = require('./middleware/admin-auth');
-    console.log(signAdminToken({ id: 1088, email: 'claude@lms-guest.com', display_name: 'Claude (test)' }));"
+    console.log(signAdminToken({ id: 1088, email: 'claude@lmslocal.invalid', display_name: 'Claude (test)' }));"
   ```
 
   `admin-login` deliberately ignores `MASTER_PASSWORD` (see `docs/admin-tool.md`), so this is the
