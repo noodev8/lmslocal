@@ -202,6 +202,8 @@ router.post('/', verifyToken, async (req, res) => {
       }
 
       // 2. Generate unique invite code atomically (prevents race conditions)
+      // Codes the organiser keeps for their own recurring use - never auto-assigned to a customer
+      const RESERVED_INVITE_CODES = ['1992'];
       let inviteCode = '';
       let attempts = 0;
       const maxAttempts = 100;
@@ -209,6 +211,11 @@ router.post('/', verifyToken, async (req, res) => {
       while (attempts < maxAttempts) {
         // Generate 4-digit random number
         inviteCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+        if (RESERVED_INVITE_CODES.includes(inviteCode)) {
+          attempts++;
+          continue;
+        }
 
         // Check if this code already exists within the same transaction
         const existingCodeResult = await client.query(
@@ -219,7 +226,7 @@ router.post('/', verifyToken, async (req, res) => {
         if (existingCodeResult.rows.length === 0) {
           break; // Found unique code
         }
-        
+
         attempts++;
       }
 
