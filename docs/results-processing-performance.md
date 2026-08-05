@@ -3,8 +3,11 @@
 **Status:** problem documented, not solved. Written 2026-08-04 to hand to a focused session.
 
 This is a briefing document. It assumes no prior context. Read it end to end before
-touching code — the last two sections are constraints that will cost you a day if you
-meet them cold.
+touching code — §8 is constraints that will cost you a day if you meet them cold, and §9
+carries the correctness arguments that make the recommended fix safe.
+
+Companion: `docs/results-processing-logic.md` describes the same process as rules rather than
+statements. §9 is what that document contributes here.
 
 ---
 
@@ -226,6 +229,9 @@ Roughly increasing order of risk:
 
 Option 1 plus a version of option 4 may well be enough for a long time.
 
+**Read §9 before picking between 1 and 2** — the ruleset was written up after this section, and
+it changes the risk assessment for part of option 2.
+
 ---
 
 ## 8. Constraints — read before writing code
@@ -272,3 +278,94 @@ node db/query.js "SELECT c.id, c.name, count(cu.user_id) AS players
 # the admin-path multiplier
 node db/query.js "SELECT fixture_service, count(*) FROM competition GROUP BY fixture_service"
 ```
+
+---
+
+## 9. What the ruleset adds — added 2026-08-05
+
+`docs/results-processing-logic.md` was written after this brief. It describes the same process a
+level above the code, as rules rather than statements. Read alongside this document it does two
+things: it supplies the **correctness arguments** that make batching safe, and it changes one of
+the risk judgements in §7.
+
+### The goal is scalability, not speed
+
+Worth stating plainly, because §4 can be read as "this is about seconds". It is not.
+
+The real problem is the **60s ceiling in §6a**. Beyond roughly 1,100 players the operation does
+not complete at all — it times out mid-round, on the path that decides who is eliminated. That is
+the failure worth engineering against. Organisers waiting three seconds is not.
+
+Batching changes the cost model from *"grows with players"* to *"a fixed cost, plus a small term
+that grows with players"*. Round trips — where essentially all the time goes, at 24ms each — go
+flat at roughly a dozen statements regardless of player count. The database still does more work
+for 500 players than for 50, but that work is milliseconds inside one statement rather than
+another wire crossing per player.
+
+| players | today | batched |
+|---|---|---|
+| 50 *(largest today)* | ~2.9s | well under 1s |
+| 500 | ~27s | still under 1s |
+| ~1,100 | **60s — times out** | no ceiling in sight |
+
+So the ceiling does not move further away so much as stop being a practical concern, and the
+background job in §7.3 becomes a "probably never" rather than a "not yet".
+
+It does **not** address §6b. Batching gives no progress feedback. But at sub-second processing a
+spinner is an honest indicator — the wait it was meant to explain stops existing.
+
+### Three rules that license the batching
+
+These are the reasons option 1 is safe. Without them you would have to re-derive each one
+nervously while writing the SQL.
+
+- **One pick per player per round.** This is what makes a single set-based life deduction
+  provably equivalent to the loop: no player can appear twice in the set, so every loser loses
+  exactly one life. Without this rule you would have to count losses per player and subtract N.
+- **Winners are recorded but never charged.** Part 2 splits into *recording* (everyone) and
+  *consequence* (losers only) — two sets, two statements, no per-row branching. The branching is
+  what forces the current loop.
+- **History is append-only and never revised.** No conflict handling, no ordering constraints,
+  no read-back. A single insert-select, and nothing downstream depends on the order rows land in.
+
+### The claim is three steps that should be one
+
+The ruleset says processing works on the fixtures the claim **actually won**. The code implements
+that as select candidates → conditional update → filter the original list in JavaScript against
+what came back.
+
+Those are one operation. A conditional update returning the rows it claimed *is* the select. That
+saves a round trip, but the better reason is structural: the current shape reconstructs the rule
+after the fact and can drift — the select and the filter could disagree. The merged shape cannot.
+
+### Ordering the batched statements
+
+The ruleset gives the dependency order, which is not obvious from the loop: outcomes first, then
+history derived from the now-stamped picks, then lives from the losers.
+
+Roughly: round lookup → claim-with-return → outcomes → history → lives → gate check; then only if
+the round closed: no-pick history → no-pick lives → active count → completion → notification
+cleanup → audit. A dozen statements, flat.
+
+Note this also removes the "last click is disproportionately expensive" problem in §4. The no-pick
+tail stops scaling with players too.
+
+### This revises the §7 risk ranking
+
+§7.2 warns that pushing decisions into SQL moves the elimination rules somewhere harder to reason
+about. That is fair for parts 3 and 4, where the gating and completion logic is genuinely fiddly.
+
+It is **overstated for part 2**. The rule there is equality plus a draw special case — three lines.
+Expressing it as set-based SQL is not "moving the rules into SQL" in the sense §7.2 warns about.
+Whoever picks this up should reconsider that ordering rather than inheriting it.
+
+### Two things to settle before writing the SQL
+
+Neither is urgent and neither is a new bug; both are in the blast radius.
+
+- **The elimination count.** Both loops count a player as eliminated when their status reads `out`
+  after the update, so a player already `out` who somehow has a pick would be counted again.
+  Set-based inherits this exactly. Decide whether it is intended before enshrining it in a
+  statement that is harder to eyeball.
+- **The gate arithmetic.** It compares total to processed fixtures with loose equality on values
+  the driver returns as strings. It works. Worth tightening while someone is in there.
