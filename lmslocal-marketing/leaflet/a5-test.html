@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — A5 pipeline test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <link rel="stylesheet" href="../_shared/print.css" />
+    <style>
+      /* A5 portrait. No margin: the tinted stock runs to the sheet edge. */
+      @page {
+        size: 148mm 210mm;
+        margin: 0;
+      }
+      .sheet {
+        width: 148mm;
+        height: 210mm;
+        overflow: hidden;
+      }
+      /* 5mm in from trim — nothing that matters sits outside this. */
+      .safe {
+        padding: 5mm;
+      }
+    </style>
+  </head>
+
+  <body class="guides">
+    <!-- SCAFFOLDING TEST SHEET. Not the real leaflet — this exists to prove the
+         pipeline: A5 geometry, the three brand faces, the two inks, and that
+         Chrome's Save-as-PDF keeps the tinted ground. Copy this file to start a
+         real leaflet; do not edit it in place. -->
+
+    <p class="screen-only max-w-[148mm] font-body text-sm text-white">
+      Pipeline test sheet. Print with <strong>Ctrl+P → Save as PDF</strong>, paper size A5,
+      margins <strong>None</strong>, <strong>Background graphics ticked</strong>. Dashed guides are
+      screen-only.
+    </p>
+
+    <div class="sheet guide-trim bg-stock text-ink">
+      <div class="safe guide-safe flex h-full flex-col">
+        <p class="font-body text-[9pt] uppercase tracking-[0.2em] text-overprint">Pipeline test</p>
+
+        <h1 class="mt-4 font-display text-[54pt] font-extrabold uppercase leading-[0.85]">
+          Last man<br />standing
+        </h1>
+
+        <div class="mt-4 h-px w-full bg-ink/30"></div>
+
+        <p class="mt-4 max-w-[95mm] font-body text-[10.5pt] leading-relaxed text-ink-fade">
+          Body copy in Instrument Sans, set on <code>stock</code>. If this reads crisply in the PDF
+          at 100%, the vector text path is working.
+        </p>
+
+        <!-- font-data marks things a person filled in — here, a mock ledger.
+             Interface chrome must never use it (design-system.md §3). -->
+        <div class="mt-6 bg-stock-lit p-4">
+          <p class="font-body text-[8.5pt] uppercase tracking-[0.15em] text-ink-fade">Round 3</p>
+          <dl class="mt-2 font-data text-[10pt]">
+            <div class="flex justify-between border-b border-ink/20 py-1">
+              <dt>Dave M.</dt>
+              <dd>Arsenal</dd>
+            </div>
+            <div class="flex justify-between border-b border-ink/20 py-1">
+              <dt>Sarah K.</dt>
+              <dd>Everton</dd>
+            </div>
+            <div class="flex justify-between py-1 text-overprint line-through">
+              <dt>Tom B.</dt>
+              <dd>Leeds</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="mt-auto">
+          <div class="h-px w-full bg-ink/30"></div>
+          <p class="mt-3 font-display text-[16pt] font-bold uppercase tracking-wide">lmslocal</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

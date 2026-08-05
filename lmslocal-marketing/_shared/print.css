@@ -1,0 +1,65 @@
+/*
+ * Print rules shared by the leaflets.
+ *
+ * The output route is Chrome -> Ctrl+P -> Save as PDF, NOT a screenshot: a
+ * screenshot is ~96dpi and prints visibly soft, whereas print-to-PDF keeps the
+ * text as vectors so it stays sharp at any size a printer runs it at.
+ *
+ * Each page sets its own `@page { size: ... }` because the sheet size differs
+ * per leaflet. Everything below is size-agnostic.
+ */
+
+/* Screen preview: show the sheet on a neutral desk so bleed/trim are visible. */
+@media screen {
+  body {
+    background: #8b8f86;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .sheet {
+    box-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Trim and safe-area guides, screen only — never printed. */
+  .guides .guide-trim {
+    outline: 1px dashed rgba(200, 52, 30, 0.7);
+  }
+  .guides .guide-safe {
+    outline: 1px dashed rgba(28, 38, 32, 0.4);
+  }
+}
+
+@media print {
+  body {
+    background: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Backgrounds are the design here, not decoration — the tinted stock IS the
+     brand. Without this Chrome drops every fill and prints white paper. The
+     user must also leave "Background graphics" ticked in the print dialog. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sheet {
+    box-shadow: none;
+    break-after: page;
+  }
+  .sheet:last-child {
+    break-after: auto;
+  }
+
+  .screen-only,
+  .guide-trim,
+  .guide-safe {
+    display: none !important;
+    outline: none !important;
+  }
+}
