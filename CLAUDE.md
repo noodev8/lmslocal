@@ -33,7 +33,11 @@ This is a full-stack application with two main components:
   (`JWT_ADMIN_SECRET`), a `scope: "admin"` claim, and a live `app_user.is_admin` check
 - **Rule**: never add an admin bypass to an existing player route; admin gets its own routes
 - **Screens**: `/dashboard` (read-only platform snapshot, the landing page),
-  `/dashboard/competitions`, `/dashboard/organisers`, `/dashboard/fixtures`
+  `/dashboard/competitions`, `/dashboard/organisers`, `/dashboard/fixtures`, `/dashboard/bots`
+- **Bots**: placeholder players for seeding a competition. Confined to organisers listed in
+  `services/botPool.js` because `competition_user` rows are billed with no bot exclusion —
+  seeding a customer's competition would spend their credits and could turn real players away.
+  See `docs/BOTS-Management.md`
 - **Organisers**: an organiser owns at least one competition. "Players" counts memberships the
   same way the competitions screen does, so the two agree; "spend" is `credit_purchases`, never
   `app_user.paid_credit` — see `docs/admin-tool.md`
@@ -291,8 +295,8 @@ lmslocal-web/
   as a frozen reference only — do not edit it or wire it back up.
 - **Authentication**: admin token on all of the above (`middleware/admin-auth.js`). The old
   `12221` access code and the `BOT_MAGIC_2025` body secret are gone from this path — the latter
-  shipped in the public web bundle. `bot-join` / `bot-pick` still use `BOT_MAGIC_2025`; they are
-  a separate feature.
+  shipped in the public web bundle. `BOT_MAGIC_2025` is now gone from the codebase entirely:
+  `bot-join` / `bot-pick` were deleted when the admin Bots screen replaced them.
 - **Opt-in**: `competition.fixture_service`. Only competitions with it set to true receive
   pushes, toggled per competition from the admin competitions list via `/admin/set-fixture-service`
 - **The model**: only one staged batch at a time per team list — `fixture_load` itself is the

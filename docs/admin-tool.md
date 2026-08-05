@@ -146,11 +146,17 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/get-push-targets` | GET | Competitions waiting on the staged batch, with player and fixture counts |
 | `/admin/push-results-to-competition` | POST | Distribute staged results and process eliminations, **one competition per call** |
 | `/admin/clear-staged-batch` | POST | Empty `fixture_load` once every competition has been pushed |
+| `/admin/get-bots` | GET | Bot pool, eligible competitions, and one competition's bots and picks |
+| `/admin/create-bots` | POST | Add new bots to the shared pool |
+| `/admin/add-bots-to-competition` | POST | Put bots into a competition |
+| `/admin/remove-bot-from-competition` | POST | Take one bot out and delete its history there |
+| `/admin/set-bot-picks` | POST | Random picks for bots that have not picked this round |
+| `/admin/set-bot-pick` | POST | Set or clear one bot's pick |
 
 Pages: `/login`, `/dashboard`, `/dashboard/competitions`, `/dashboard/organisers`,
-`/dashboard/fixtures`. `/dashboard` is the landing page and is a read-only snapshot — four
-headline numbers and four breakdown panels. The work happens on the other three, which the
-header's nav row moves between.
+`/dashboard/fixtures`, `/dashboard/bots`. `/dashboard` is the landing page and is a read-only
+snapshot — four headline numbers and four breakdown panels. The work happens on the other four,
+which the header's nav row moves between.
 
 Not built yet: inactive-competition actions, bulk email.
 
@@ -194,8 +200,9 @@ push secret `BOT_MAGIC_2025` inside the public JavaScript bundle — anyone who 
 source could create rounds and process eliminations across every subscribed competition. Both
 pages and all three `12221` routes are deleted; the push routes now require an admin token.
 
-`bot-join` and `bot-pick` still accept `BOT_MAGIC_2025`. They are a separate feature and were
-left alone.
+`bot-join` and `bot-pick` were the last two routes carrying `BOT_MAGIC_2025`. They have since
+been deleted too, replaced by the Bots screen below, so the string no longer appears anywhere in
+the codebase.
 
 The model the screen is built around, which is worth understanding before changing it:
 
@@ -218,3 +225,41 @@ One thing that catches people out:
 - **Nothing receives a push unless `competition.fixture_service` is true**, and it is false by
   default (`create-competition` hardcodes it). The fixtures screen names the competitions a push
   will reach, and says so plainly when that list is empty.
+
+## Bots
+
+`/dashboard/bots` puts placeholder players into a competition so it is not empty when a real
+player joins, and keeps them picking each round. It replaces driving the old `/bot-join` and
+`/bot-pick` routes by hand with curl.
+
+Bots are only offered for competitions run by an organiser in `BOT_ORGANISER_IDS`
+(`lmslocal-server/services/botPool.js`) — currently just organiser 50. Every bot route enforces
+it, returning `COMPETITION_NOT_ELIGIBLE` for anything else.
+
+That restriction is about money, and it is the reason the feature is shaped this way:
+
+- `competition_user` rows are counted against the organiser's free player allowance in six
+  places, with no exclusion for bots. A bot uses up one of the 20 free places exactly like a
+  person, and past that it costs the organiser a credit.
+- `get-competition-by-code` answers `FULL` and turns real players away once an organiser is at
+  the limit with no credit left.
+
+So seeding a customer's competition would spend their money and could lock their own players
+out. Confining bots to our accounts is what makes the feature safe without putting a bot
+exclusion into live billing code. Adding an id to that list is a decision about someone's credit
+balance, not a config tweak.
+
+Two smaller decisions worth keeping:
+
+- **Removal is not `remove-player`.** That route refunds a credit on the assumption one was
+  spent getting the player in (`remove-player.js:189`). Nothing charges on the way in for a bot,
+  so reusing it would mint credit out of nothing, once per removal.
+- **A bot is not a special case of a player.** Picking runs the same two checks `set-pick.js`
+  runs on a human — `TEAM_NOT_ALLOWED` against `allowed_teams`, then `TEAM_ALREADY_USED` against
+  previous picks — and writes `allowed_teams` back the same way. The auto-reset that
+  `get-allowed-teams.js` performs when a player's set is empty now lives in
+  `services/allowedTeams.js` and is shared by both, because bots never open the pick screen and
+  so never got it. That gap was visible in the data: competition 199's two oldest bots sat on
+  zero `allowed_teams` rows while the humans beside them were correct.
+
+Full walkthrough: `docs/BOTS-Management.md`.

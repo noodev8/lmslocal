@@ -700,6 +700,9 @@ function CompetitionsList() {
                   <th className="px-4 py-3 font-semibold" title="Receives fixtures and results from the fixture service">
                     Auto
                   </th>
+                  <th className="px-4 py-3 font-semibold" title="Bots seeded into this competition">
+                    Bots
+                  </th>
                   <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
@@ -727,6 +730,21 @@ function CompetitionsList() {
                         busy={togglingId === c.id}
                         onToggle={handleToggleFixtureService}
                       />
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {c.bots_allowed ? (
+                        <Link
+                          href={`/dashboard/bots?competition=${c.id}`}
+                          className="text-slate-600 underline-offset-2 hover:text-indigo-600 hover:underline"
+                          title="Manage bots in this competition"
+                        >
+                          {c.bot_count}
+                        </Link>
+                      ) : (
+                        <span className="text-slate-300" title="Bots are not available for this organiser">
+                          —
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">

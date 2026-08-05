@@ -26,6 +26,8 @@ Success Response (ALWAYS HTTP 200):
       "organiser_lifetime_spend": 80,            // number, total paid across all credit purchases (0 if never paid)
       "organiser_credit": 19,                    // integer, current credit balance
       "player_count": 24,                        // integer, rows in competition_user
+      "bot_count": 4,                            // integer, of which are bots
+      "bots_allowed": true,                      // boolean, organiser may use bots - see services/botPool.js
       "created_at": "2026-01-04T12:00:00.000Z",  // string, ISO datetime
       "last_activity": "2026-08-01T09:00:00.000Z",// string or null, most recent pick, falls back to created_at
       "fixture_service": true,                   // boolean, opted into the automated fixture service
@@ -69,6 +71,7 @@ const express = require('express');
 const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
+const { BOT_EMAIL_LIKE, BOT_ORGANISER_IDS } = require('../../services/botPool');
 const router = express.Router();
 
 const VALID_STATUSES = ['setup', 'active', 'complete'];
@@ -106,6 +109,11 @@ router.get('/', verifyAdminToken, async (req, res) => {
            FROM credit_purchases cp
           WHERE cp.user_id = u.id)                                            AS organiser_lifetime_spend,
         (SELECT COUNT(*) FROM competition_user cu WHERE cu.competition_id = c.id) AS player_count,
+        (SELECT COUNT(*)
+           FROM competition_user cu
+           JOIN app_user bu ON bu.id = cu.user_id
+          WHERE cu.competition_id = c.id
+            AND bu.email LIKE $2)                                             AS bot_count,
         c.created_at,
         COALESCE(
           (SELECT MAX(p.created_at)
@@ -124,7 +132,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
       ORDER BY last_activity DESC
     `;
 
-    const result = await query(competitionsQuery, [statusFilter]);
+    const result = await query(competitionsQuery, [statusFilter, BOT_EMAIL_LIKE]);
 
     const competitions = result.rows.map((row) => ({
       id: row.id,
@@ -138,6 +146,10 @@ router.get('/', verifyAdminToken, async (req, res) => {
       organiser_lifetime_spend: parseFloat(row.organiser_lifetime_spend) || 0,
       organiser_credit: parseInt(row.organiser_credit, 10) || 0,
       player_count: parseInt(row.player_count, 10) || 0,
+      bot_count: parseInt(row.bot_count, 10) || 0,
+      // Whether the Bots screen would accept this competition at all, so the list can link
+      // to it rather than offering a page that will refuse.
+      bots_allowed: BOT_ORGANISER_IDS.includes(row.organiser_id),
       created_at: row.created_at,
       last_activity: row.last_activity,
       fixture_service: row.fixture_service === true,

@@ -134,6 +134,12 @@ const addStagedFixturesRoute = require('./routes/admin/add-staged-fixtures');
 const getStagedResultsRoute = require('./routes/admin/get-staged-results');
 const setStagedResultRoute = require('./routes/admin/set-staged-result');
 const setFixtureServiceRoute = require('./routes/admin/set-fixture-service');
+const getBotsRoute = require('./routes/admin/get-bots');
+const createBotsRoute = require('./routes/admin/create-bots');
+const addBotsToCompetitionRoute = require('./routes/admin/add-bots-to-competition');
+const removeBotFromCompetitionRoute = require('./routes/admin/remove-bot-from-competition');
+const setBotPicksRoute = require('./routes/admin/set-bot-picks');
+const setBotPickRoute = require('./routes/admin/set-bot-pick');
 
 // Organizer Fixture Management Routes (for manual competitions - fixture_service = false)
 const organizerAddFixturesRoute = require('./routes/organizer-add-fixtures');
@@ -141,10 +147,6 @@ const organizerGetFixturesForResultsRoute = require('./routes/organizer-get-fixt
 const organizerSetResultRoute = require('./routes/organizer-set-result');
 const organizerProcessResultsRoute = require('./routes/organizer-process-results');
 const organizerUpdatePlayerPermissionsRoute = require('./routes/organizer-update-player-permissions');
-
-// Bot Routes
-const botJoinRoute = require('./routes/bot-join');
-const botPickRoute = require('./routes/bot-pick');
 
 // Mobile App Routes
 const checkAppVersionRoute = require('./routes/check-app-version');
@@ -438,6 +440,12 @@ app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute)
 app.use('/admin/get-push-targets', getPushTargetsRoute);
 app.use('/admin/push-results-to-competition', pushResultsToCompetitionRoute);
 app.use('/admin/clear-staged-batch', clearStagedBatchRoute);
+app.use('/admin/get-bots', getBotsRoute);
+app.use('/admin/create-bots', createBotsRoute);
+app.use('/admin/add-bots-to-competition', addBotsToCompetitionRoute);
+app.use('/admin/remove-bot-from-competition', removeBotFromCompetitionRoute);
+app.use('/admin/set-bot-picks', setBotPicksRoute);
+app.use('/admin/set-bot-pick', setBotPickRoute);
 
 // Organizer Fixture Management API Routes (manual competitions only - fixture_service = false)
 app.use('/organizer-add-fixtures', organizerAddFixturesRoute);
@@ -445,10 +453,6 @@ app.use('/organizer-get-fixtures-for-results', organizerGetFixturesForResultsRou
 app.use('/organizer-set-result', organizerSetResultRoute);
 app.use('/organizer-process-results', organizerProcessResultsRoute);
 app.use('/organizer-update-player-permissions', organizerUpdatePlayerPermissionsRoute);
-
-// Bot API Routes (no rate limiting for testing)
-app.use('/bot-join', botJoinRoute);
-app.use('/bot-pick', botPickRoute);
 
 // Mobile App API Routes
 app.use('/check-app-version', checkAppVersionRoute);

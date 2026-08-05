@@ -155,6 +155,10 @@ export interface AdminCompetition {
   /* Current credit balance. Zero on a paying organiser means they have spent what they bought. */
   organiser_credit: number;
   player_count: number;
+  /* Of which are bots. Included in player_count, not additional to it. */
+  bot_count: number;
+  /* Whether this organiser may use bots at all - see services/botPool.js on the server. */
+  bots_allowed: boolean;
   created_at: string;
   last_activity: string;
   /* Opted into the automated fixture service - the flag every push reads. */
@@ -315,6 +319,114 @@ export type SetFixtureServiceResponse = ApiResponse & {
   round_number?: number;
   total_fixtures?: number;
   unresolved_fixtures?: number;
+};
+
+/* One member of the shared bot pool. The same bot can be in any number of competitions. */
+export interface Bot {
+  id: number;
+  display_name: string;
+  email: string;
+  /* How many competitions it is currently in - which bots are already busy. */
+  competitions: number;
+}
+
+/* A competition bots are allowed in, i.e. one run by an organiser in BOT_ORGANISER_IDS. */
+export interface BotCompetition {
+  id: number;
+  name: string;
+  /* As stored. Casing is inconsistent platform-wide - 'ACTIVE' here, 'active' on the
+     competitions screen, which normalises it. */
+  status: string;
+  player_count: number;
+  bot_count: number;
+  round_number: number | null;
+  lock_time: string | null;
+  is_locked: boolean;
+  /* False once round 2 exists or round 1 has locked - the same window real players get. */
+  can_add_bots: boolean;
+  closed_reason: string | null;
+}
+
+export interface BotFixture {
+  fixture_id: number;
+  /* What a pick stores, and what set-bot-pick expects. */
+  home_team_short: string;
+  away_team_short: string;
+  home_team_name: string;
+  away_team_name: string;
+  kickoff_time: string;
+}
+
+export interface BotMembership {
+  user_id: number;
+  display_name: string;
+  status: string;
+  lives_remaining: number | null;
+  pick_team: string | null;
+  pick_fixture_id: number | null;
+  /* What this bot may still pick, from allowed_teams - the same table the player pick screen
+     reads and set-pick.js validates against. */
+  available_teams: string[];
+  /* Teams used in earlier rounds. Excludes this round, so the current pick can be changed to
+     anything else without the team it is on counting as spent. */
+  used_teams: string[];
+}
+
+export interface BotCompetitionDetail {
+  competition_id: number;
+  no_team_twice: boolean;
+  round_id: number | null;
+  round_number: number | null;
+  lock_time: string | null;
+  is_locked: boolean;
+  fixtures: BotFixture[];
+  members: BotMembership[];
+}
+
+export type BotsResponse = ApiResponse & {
+  bots?: Bot[];
+  competitions?: BotCompetition[];
+  detail?: BotCompetitionDetail | null;
+};
+
+export type CreateBotsResponse = ApiResponse & {
+  bots_created?: number;
+  pool_size?: number;
+  bots?: { id: number; display_name: string; email: string }[];
+};
+
+export type AddBotsResponse = ApiResponse & {
+  bots_added?: number;
+  bots_requested?: number;
+  bots_available?: number;
+  bots?: { id: number; display_name: string }[];
+};
+
+export type RemoveBotResponse = ApiResponse & {
+  removed?: {
+    user_id: number;
+    display_name: string;
+    picks_deleted: number;
+    allowed_teams_deleted: number;
+    progress_deleted: number;
+  };
+  bots_remaining?: number;
+};
+
+export type SetBotPicksResponse = ApiResponse & {
+  picks_made?: number;
+  bots_without_pick?: number;
+  round_number?: number;
+  /* Bots with no legal team left. Normal on a long competition with no-team-twice on. */
+  skipped_no_teams?: number;
+};
+
+export type SetBotPickResponse = ApiResponse & {
+  user_id?: number;
+  display_name?: string;
+  team?: string | null;
+  fixture_id?: number | null;
+  round_number?: number;
 };
 
 export type CompetitionsResponse = ApiResponse & {
@@ -490,6 +602,61 @@ export const adminApi = {
     const response = await api.post<ClearBatchResponse>('/admin/clear-staged-batch', {
       team_list_id: teamListId,
       force,
+    });
+    return response.data;
+  },
+
+  // ---- Bots ------------------------------------------------------------------------------
+  // Bots are only allowed in competitions run by an approved organiser - see
+  // services/botPool.js on the server for why. Every route below enforces that, so a
+  // competition missing from getBots().competitions is not a bug.
+
+  getBots: async (competitionId?: number): Promise<BotsResponse> => {
+    const response = await api.get<BotsResponse>('/admin/get-bots', {
+      params: competitionId ? { competition_id: competitionId } : undefined,
+    });
+    return response.data;
+  },
+
+  createBots: async (count: number): Promise<CreateBotsResponse> => {
+    const response = await api.post<CreateBotsResponse>('/admin/create-bots', { count });
+    return response.data;
+  },
+
+  addBotsToCompetition: async (competitionId: number, count: number): Promise<AddBotsResponse> => {
+    const response = await api.post<AddBotsResponse>('/admin/add-bots-to-competition', {
+      competition_id: competitionId,
+      count,
+    });
+    return response.data;
+  },
+
+  removeBotFromCompetition: async (competitionId: number, userId: number): Promise<RemoveBotResponse> => {
+    const response = await api.post<RemoveBotResponse>('/admin/remove-bot-from-competition', {
+      competition_id: competitionId,
+      user_id: userId,
+    });
+    return response.data;
+  },
+
+  setBotPicks: async (competitionId: number, count: number): Promise<SetBotPicksResponse> => {
+    const response = await api.post<SetBotPicksResponse>('/admin/set-bot-picks', {
+      competition_id: competitionId,
+      count,
+    });
+    return response.data;
+  },
+
+  // team is a short name ("ARS"), or null to clear the pick.
+  setBotPick: async (
+    competitionId: number,
+    userId: number,
+    team: string | null
+  ): Promise<SetBotPickResponse> => {
+    const response = await api.post<SetBotPickResponse>('/admin/set-bot-pick', {
+      competition_id: competitionId,
+      user_id: userId,
+      team,
     });
     return response.data;
   },

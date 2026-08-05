@@ -1,257 +1,144 @@
 # Bot Management Guide
 
-This guide shows you how to use the permanent bot system for testing competitions.
-
-## Overview
-
-The system has **20 permanent bot players** that can be assigned to competitions for testing:
-
-| Bot Name | Email |
-|----------|-------|
-| Bot Alice | bot_alice@lms-guest.com |
-| Bot Bob | bot_bob@lms-guest.com |
-| Bot Charlie | bot_charlie@lms-guest.com |
-| Bot Diana | bot_diana@lms-guest.com |
-| Bot Eddie | bot_eddie@lms-guest.com |
-| Bot Fiona | bot_fiona@lms-guest.com |
-| Bot George | bot_george@lms-guest.com |
-| Bot Hannah | bot_hannah@lms-guest.com |
-| Bot Ivan | bot_ivan@lms-guest.com |
-| Bot Julia | bot_julia@lms-guest.com |
-| Bot Kevin | bot_kevin@lms-guest.com |
-| Bot Laura | bot_laura@lms-guest.com |
-| Bot Mike | bot_mike@lms-guest.com |
-| Bot Nina | bot_nina@lms-guest.com |
-| Bot Oscar | bot_oscar@lms-guest.com |
-| Bot Paula | bot_paula@lms-guest.com |
-| Bot Quinn | bot_quinn@lms-guest.com |
-| Bot Ryan | bot_ryan@lms-guest.com |
-| Bot Sophie | bot_sophie@lms-guest.com |
-| Bot Tyler | bot_tyler@lms-guest.com |
-
-**Key Points:**
-- Bots are **reusable** - the same bot can be in multiple competitions
-- Bots are **obviously bots** - names start with "Bot " so players know they're not real
-- Bots **cannot be removed** from a competition once assigned
-- Maximum **20 bots per competition**
+Bots are placeholder players you can put into a competition so it is not empty when a real
+player joins, and keep picking each round. They are driven entirely from **lmslocal-admin →
+Bots**.
 
 ---
 
-## Prerequisites
+## The two rules that shape everything else
 
-- Competition must exist and have an invite code
-- Competition must NOT have started (Round 1 not locked)
-- Server running on `http://localhost:3015`
+**1. Bots are obviously bots.** Every one is called `Bot <Name>` and every player sees that
+name in standings, pick statistics and player lists. Nothing hides it or dresses it up.
 
----
+**2. Bots can only go in our own competitions.** The Bots screen only offers competitions run by
+an organiser in `BOT_ORGANISER_IDS` (`lmslocal-server/services/botPool.js`), currently just
+organiser 50. Every bot route refuses anything else with `COMPETITION_NOT_ELIGIBLE`.
 
-## Step 1: Assign Bots to Competition
+The second rule is about money. `competition_user` rows are counted against the organiser's
+free player allowance in six places, with no exclusion for bots — so a bot uses up one of the 20
+free places exactly like a person, and past that it costs the organiser a credit. Worse,
+`get-competition-by-code` answers `FULL` and turns real players away once an organiser is at the
+limit with no credit left. Seeding a customer's competition would spend their money and could
+lock their players out. Confining bots to our own accounts is what makes that survivable without
+putting a bot exclusion into live billing code.
 
-**Method:** POST
-**URL:** `http://localhost:3015/bot-join`
-**Headers:** `Content-Type: application/json`
-
-**Body (JSON):**
-```json
-{
-  "invite_code": "YOUR_INVITE_CODE",
-  "count": 10,
-  "bot_manage": "BOT_MAGIC_2025"
-}
-```
-
-### Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `invite_code` | string | The competition's invite/access code or slug |
-| `count` | integer | Number of bots to assign (1-20) |
-| `bot_manage` | string | Always use `"BOT_MAGIC_2025"` |
-
-### Success Response
-
-```json
-{
-  "return_code": "SUCCESS",
-  "message": "10 bots assigned successfully",
-  "bots_assigned": 10,
-  "bots_requested": 10,
-  "bots_available": 10
-}
-```
-
-### Response Fields
-
-| Field | Description |
-|-------|-------------|
-| `bots_assigned` | How many bots were actually assigned |
-| `bots_requested` | How many you requested |
-| `bots_available` | Remaining bots available for this competition |
-
-### What Happens
-
-- Randomly selects bots from the pool of 20
-- Assigns them to the competition as active players
-- If you request more than available, assigns as many as possible
-- Bots appear in player lists with names like "Bot Alice", "Bot Bob"
+Adding an id to `BOT_ORGANISER_IDS` is therefore a decision about someone's credit balance, not
+a config tweak.
 
 ---
 
-## Step 2: Make Bot Picks
+## The Bots screen
 
-Once the round has started and fixtures are loaded, you can make bots pick teams.
+`lmslocal-admin` → **Bots**. Also reachable from the Competitions list — the **Bots** column
+links straight through to the right competition.
 
-**Method:** POST
-**URL:** `http://localhost:3015/bot-pick`
-**Headers:** `Content-Type: application/json`
+Pick a competition from the selector at the top. Everything below it then applies to that
+competition.
 
-**Body (JSON):**
-```json
-{
-  "competition_id": 123,
-  "count": 10,
-  "bot_manage": "BOT_MAGIC_2025"
-}
-```
+### Adding bots
 
-### Parameters
+Set a count and press **Add bots**. Bots are drawn at random from the pool, and a bot already in
+the competition is never drawn twice.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `competition_id` | integer | The competition's database ID |
-| `count` | integer | Number of bots to make picks |
-| `bot_manage` | string | Always use `"BOT_MAGIC_2025"` |
+Bots can only join in the same window a real player can: before round 1 exists, or during
+round 1 until it locks. After that the button disables and says why. A bot arriving mid
+competition with a full set of lives would be a different kind of entrant to everyone around it.
 
-### Success Response
+### Making picks
 
-```json
-{
-  "return_code": "SUCCESS",
-  "message": "10 of 15 bots made picks",
-  "picks_made": 10,
-  "total_bots": 15,
-  "round_number": 2
-}
-```
+**Make picks** gives that many bots a random team from the current round's fixtures, choosing
+only from bots that have not picked yet.
 
-### What Happens
+The count is the point of the control: leaving some bots without a pick is how you produce a
+round where not everyone has answered.
 
-- Selects `count` bots that haven't picked yet this round
-- Each bot picks a random team from available fixtures
-- Picks respect the same rules as regular players:
-  - Cannot pick if round is locked
-  - Cannot reuse previously picked teams (if no_team_twice enabled)
-  - Must have fixtures available
+A bot with no legal team left — normal deep into a competition with no-team-twice on — is
+skipped and reported separately rather than failing the whole call.
 
----
+### Setting one bot's pick
 
-## Common Scenarios
+Each row has a dropdown of the round's teams. Pick one to set it, or choose **No pick** to clear
+it. Teams the bot has already used stay in the list but are disabled and marked `(used)`.
 
-### Add All 20 Bots to a Competition
+Clearing a pick hands the team back, so the bot can use it again later.
 
-```json
-{
-  "invite_code": "ABC123",
-  "count": 20,
-  "bot_manage": "BOT_MAGIC_2025"
-}
-```
+### Removing a bot
 
-### Add 10 Bots (Random Selection)
+The ✕ on a row takes that bot out of the competition and deletes its picks and round history
+there. The account itself stays in the pool and is untouched in every other competition.
 
-```json
-{
-  "invite_code": "ABC123",
-  "count": 10,
-  "bot_manage": "BOT_MAGIC_2025"
-}
-```
+This is not `remove-player`. That route refunds a credit on the assumption one was spent getting
+the player in — nothing charges on the way in here, so using it would mint credit out of
+nothing.
 
-### Make All Bots Pick
+### Growing the pool
 
-```json
-{
-  "competition_id": 123,
-  "count": 20,
-  "bot_manage": "BOT_MAGIC_2025"
-}
-```
+**Create bots** in the Bot pool panel adds more, continuing the name series (`Bot Uma`,
+`Bot Victor`, …). Up to 20 per press.
 
-### Test Partial Pick Scenario (Only 5 bots pick)
-
-```json
-{
-  "competition_id": 123,
-  "count": 5,
-  "bot_manage": "BOT_MAGIC_2025"
-}
-```
+The pool is shared: the same bot can be in any number of competitions at once. So it only has to
+be as big as the largest single competition, not the total across all of them.
 
 ---
 
-## Finding Your Competition ID
+## API reference
 
-### Method 1: From URL
-When viewing the competition dashboard:
-`http://localhost:3000/competition/123/dashboard`
+All under `/admin/*`, all requiring an admin token (`middleware/admin-auth.js`).
 
-The `123` is your competition_id.
+| Route | Method | Purpose |
+|---|---|---|
+| `/admin/get-bots` | GET | Pool, eligible competitions, and one competition's bots and picks |
+| `/admin/create-bots` | POST | Add new bots to the pool |
+| `/admin/add-bots-to-competition` | POST | Put bots into a competition |
+| `/admin/remove-bot-from-competition` | POST | Take one bot out and delete its history there |
+| `/admin/set-bot-picks` | POST | Random picks for bots that have not picked |
+| `/admin/set-bot-pick` | POST | Set or clear one bot's pick |
 
-### Method 2: From Database
-```sql
-SELECT id, name, invite_code FROM competition;
-```
+Each route's header block carries its full payload, response and return codes.
 
----
+### Return codes worth knowing
 
-## Error Messages
-
-| Error | Meaning | Solution |
-|-------|---------|----------|
-| `UNAUTHORIZED` | Wrong bot_manage code | Use `"BOT_MAGIC_2025"` exactly |
-| `COMPETITION_NOT_FOUND` | Invalid invite code | Check your invite code is correct |
-| `COMPETITION_STARTED` | Round 1 already locked | Can only add bots before first round locks |
-| `NO_BOTS_AVAILABLE` | All 20 bots already in competition | Competition already has all bots |
-| `ROUND_LOCKED` | Round is locked | Cannot make picks after lock time |
-| `NO_FIXTURES` | No fixtures in round | Load fixtures before making picks |
-| `VALIDATION_ERROR` | Invalid parameters | Check count is 1-20, all fields present |
-
----
-
-## Important Notes
-
-1. **Bot Names Are Obvious**: All bots are named "Bot [Name]" so players know they're bots
-2. **Bots Are Visible**: Bots appear in standings, leaderboards, and pick statistics
-3. **No Email Notifications**: Bots won't receive emails (they use `@lms-guest.com` addresses)
-4. **Random Picks**: Bot picks are completely random - no strategy or logic
-5. **Before Round 1**: Must add bots before competition starts
-6. **Cannot Remove**: Once assigned, bots stay in the competition
-7. **Shared Pool**: The same 20 bots can be in multiple competitions simultaneously
+| Code | Meaning |
+|---|---|
+| `COMPETITION_NOT_ELIGIBLE` | That competition's organiser may not use bots |
+| `COMPETITION_STARTED` | Round 2 exists, or round 1 has locked — too late to add bots |
+| `NO_BOTS_AVAILABLE` | Every bot in the pool is already in this competition |
+| `NOT_A_BOT` | The user_id is a real account — the guard on the delete path |
+| `NO_ROUNDS` / `NO_FIXTURES` | Nothing to pick from yet |
+| `ROUND_LOCKED` | Picking has closed for this round |
+| `TEAM_NOT_IN_ROUND` | That team is not playing this round |
+| `TEAM_ALREADY_USED` | no-team-twice is on and this bot has used that team |
 
 ---
 
-## Quick Reference
+## Notes
 
-| Setting | Value |
-|---------|-------|
-| Auth Code | `BOT_MAGIC_2025` |
-| Max Bots | 20 per competition |
-| Bot Email Pattern | `bot_[name]@lms-guest.com` |
-| Bot Name Pattern | `Bot [Name]` |
+- **No email ever reaches a bot.** Bot addresses end `@lms-guest.com`, which every send route
+  already skips. This is why new bots must keep the `bot_<name>@lms-guest.com` shape — a bot
+  created outside it would start receiving player email.
+- **Picking never locks a round.** `checkAndLockRoundIfComplete` returns `AUTO_LOCK_DISABLED`
+  before doing anything (`utils/roundLocking.js`); waiting for the first kickoff was judged more
+  interesting than locking the moment the last pick lands.
+- **Bots count as players everywhere else.** They appear in the platform stats on the admin
+  Overview screen and in the organiser's own player counts. At current numbers that is noise,
+  but it is worth remembering when reading those figures.
+- **A bot picks under exactly the same rules as a person.** `set-bot-pick` runs the two checks
+  `set-pick.js` runs on a human, in the same order: `TEAM_NOT_ALLOWED` against the
+  `allowed_teams` table, then `TEAM_ALREADY_USED` against previous picks. The bulk route filters
+  candidates the same way, and both write `allowed_teams` back exactly as a real pick does.
+- **Bots get the same auto-reset players get.** `get-allowed-teams.js` has always rebuilt a
+  player's `allowed_teams` from scratch when it is empty — that is the "you ran out of teams!"
+  path. Bots never open that screen, so they never healed: competition 199's two oldest bots sat
+  on zero rows while the humans beside them were correct. The bot routes now run the same
+  rebuild (`services/allowedTeams.js`), so a bot heals the first time the Bots screen loads it.
 
-### API Endpoints
+## History
 
-| API | URL | Purpose |
-|-----|-----|---------|
-| Assign Bots | `POST /bot-join` | Assign bots to competition |
-| Make Picks | `POST /bot-pick` | Make picks for bots |
+`/bot-join` and `/bot-pick` were deleted when this screen was built. They were public routes
+guarded only by the string `BOT_MAGIC_2025`, which was committed in the repo and printed in this
+document, so anyone with the repo could add bots to any competition by invite code. The same
+reasoning retired that secret from the fixture-service routes earlier.
 
----
-
-## Legacy Bots
-
-Some older competitions may have legacy bots with:
-- Email pattern: `bot_123@lms-guest.com` (numeric ID)
-- Realistic names like "Emma Johnson", "Alex Smith"
-
-The `bot-pick` API still works with these legacy bots. New competitions should use the permanent bot system.
+There is no legacy bot format. Older competitions were once said to hold bots with numeric
+emails and realistic names; no such account exists in the database.

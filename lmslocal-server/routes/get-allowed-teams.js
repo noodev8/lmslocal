@@ -46,6 +46,7 @@ const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { canManagePlayers } = require('../utils/permissions');
+const { resetAllowedTeams } = require('../services/allowedTeams');
 const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   logApiCall('get-allowed-teams');
@@ -189,40 +190,17 @@ router.post('/', verifyToken, async (req, res) => {
       let resetMessage = null;
 
       if (validation.team_list_id && validation.round_id) {
+        // The rebuild itself lives in services/allowedTeams.js so the admin bot routes can run
+        // exactly the same one - a bot never opens this screen, so it would otherwise never get
+        // the healing every real player gets here.
         await transaction(async (client) => {
-          // Step 1: Delete current allowed_teams for this user and competition (cleanup)
-          await client.query(`
-            DELETE FROM allowed_teams 
-            WHERE competition_id = $1 AND user_id = $2
-          `, [competition_id, target_user_id]);
-
-
-          // Step 2: Insert teams not already picked by this user (smart reset)
-          
-          await client.query(`
-            INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
-            SELECT $1, $2, t.id, NOW()
-            FROM team t
-            WHERE t.team_list_id = $3 AND t.is_active = true
-              AND t.short_name NOT IN (
-                SELECT DISTINCT p.team 
-                FROM pick p
-                JOIN round r ON p.round_id = r.id
-                WHERE r.competition_id = $1 AND p.user_id = $2
-                  AND p.team IS NOT NULL
-              )
-            ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-          `, [competition_id, target_user_id, validation.team_list_id]);
-
-          // Step 3: Add audit log for auto-reset event (compliance and debugging)
-          await client.query(`
-            INSERT INTO audit_log (competition_id, user_id, action, details, created_at)
-            VALUES ($1, $2, 'Teams Auto-Reset', $3, NOW())
-          `, [
-            competition_id, 
-            target_user_id, 
+          await resetAllowedTeams(
+            client,
+            competition_id,
+            target_user_id,
+            validation.team_list_id,
             `Player ran out of available teams - automatically reset to all teams in round ${validation.round_number}`
-          ]);
+          );
         });
 
         teamsReset = true;
