@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — A5 leaflet for players</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <link rel="stylesheet" href="../_shared/print.css" />
+    <style>
+      @page {
+        size: 148mm 210mm;
+        margin: 0;
+      }
+      .sheet {
+        width: 148mm;
+        height: 210mm;
+        overflow: hidden;
+      }
+      .safe {
+        padding: 7mm;
+      }
+    </style>
+  </head>
+
+  <body class="guides">
+    <!--
+      A5 leaflet, single sided, for the organiser to pin up or leave on tables
+      once their competition is running.
+
+      Audience: the player, not the landlord — the opposite of a5-landlord.html.
+      "You" is the player here on purpose; that pairing (a5-landlord.html says
+      "you" for the organiser and "they" for players) is the design-system voice
+      rule applied per-audience, not violated. See docs/design-system.md §9.
+
+      Generic on purpose: this has no competition name, invite code or QR baked
+      in, because those vary per pub and this file is print-once stock artwork,
+      not the per-competition leaflet the app already generates at
+      lmslocal-web/src/app/leaflet/[competitionId]. The code line is left blank
+      in font-data for the organiser to fill in by hand, matching the
+      filled-in-by-hand voice the survival sheet mock uses elsewhere.
+
+      Single sided for the same reason as the landlord leaflet: pinned to a
+      corkboard or left on a table, nobody turns it over.
+    -->
+
+    <p class="screen-only max-w-[148mm] font-body text-sm text-white">
+      <strong>Ctrl+P → Save as PDF</strong> · paper A5 · margins <strong>None</strong> ·
+      <strong>Background graphics ticked</strong>. Dashed guides are screen-only.
+    </p>
+
+    <div class="sheet guide-trim bg-stock text-ink">
+      <div class="safe guide-safe flex h-full flex-col">
+        <!-- Masthead ------------------------------------------------------ -->
+        <p class="font-body text-[8pt] font-medium uppercase tracking-[0.22em] text-overprint">
+          On here now
+        </p>
+
+        <h1 class="mt-4 font-display text-[58pt] font-extrabold uppercase leading-[0.82]">
+          Last man<br />standing
+        </h1>
+
+        <p class="mt-5 max-w-[105mm] font-body text-[11.5pt] leading-[1.5] text-ink-fade">
+          Pick one team a week to win. Get it wrong and you are out. Whoever is left standing
+          takes it.
+        </p>
+
+        <div class="mt-5 h-px w-full bg-ink/25"></div>
+
+        <!-- The rules, as plainly as the game itself. -->
+        <div class="mt-6">
+          <p class="font-body text-[8pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            How it works
+          </p>
+          <ul class="mt-3 space-y-[10px] font-body text-[11pt] leading-[1.4]">
+            <li class="flex gap-3">
+              <span class="w-[9mm] shrink-0 font-display text-[15pt] font-extrabold text-overprint"
+                >1</span
+              >
+              <span class="text-ink-fade">One team a round. Win and you go through.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[9mm] shrink-0 font-display text-[15pt] font-extrabold text-overprint"
+                >2</span
+              >
+              <span class="text-ink-fade">Draw or lose and you are out.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[9mm] shrink-0 font-display text-[15pt] font-extrabold text-overprint"
+                >3</span
+              >
+              <span class="text-ink-fade">Same team twice is not allowed — once it is gone, it is gone.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[9mm] shrink-0 font-display text-[15pt] font-extrabold text-overprint"
+                >4</span
+              >
+              <span class="text-ink-fade">No pick by kick-off, no life. Simple as that.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Join box: the one thing that changes leaflet to leaflet, filled in
+             by hand behind this bar. -->
+        <div class="mt-7 flex flex-1 flex-col justify-center bg-stock-lit px-5 py-6">
+          <p class="font-body text-[8pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            Join this one
+          </p>
+          <p class="mt-3 font-body text-[11pt] leading-[1.4] text-ink-fade">
+            Get the LMSLocal app, then enter this bar's code —
+          </p>
+          <p class="mt-4 font-data text-[30pt] font-bold leading-none tracking-[0.1em]">
+            ________________
+          </p>
+          <p class="mt-4 font-body text-[9.5pt] text-ink-fade">
+            No phone? Ask behind the bar — they can put your pick in for you.
+          </p>
+        </div>
+
+        <!-- Sign-off ------------------------------------------------------- -->
+        <div class="mt-auto pt-5">
+          <div class="flex items-end justify-between gap-4">
+            <p class="font-body text-[9pt] leading-snug text-ink-fade">
+              Free to download.<br />Get it on the App Store or Google Play.
+            </p>
+
+            <div class="text-right">
+              <p class="font-display text-[20pt] font-extrabold uppercase leading-none">lmslocal</p>
+              <p class="mt-1 font-body text-[9pt] tracking-wide text-ink-fade">lmslocal.co.uk</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
