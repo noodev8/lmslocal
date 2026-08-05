@@ -76,6 +76,7 @@ Return Codes:
 "NO_RESULTS_TO_PUSH"        - Nothing staged in fixture_load with both scores filled in
 "ALREADY_PUSHED"            - Nothing left to do: no fixture matched, and none awaits processing
 "NO_ROUNDS"                 - Competition has no rounds yet
+"ROUND_NOT_STARTED"         - Round has not locked yet; picks are still open
 "UNAUTHORIZED"              - Missing, invalid, expired, or non-admin token
 "TOKEN_EXPIRED"             - Admin session has expired
 "SERVER_ERROR"              - Database or unexpected error
@@ -198,7 +199,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
       // === STEP 3: PROCESS THIS COMPETITION'S RESULTS ===
       const roundResult = await client.query(`
-        SELECT r.id AS round_id, r.round_number
+        SELECT r.id AS round_id, r.round_number, r.lock_time
         FROM round r
         WHERE r.competition_id = $1
         ORDER BY r.round_number DESC
@@ -211,6 +212,18 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
       const roundId = roundResult.rows[0].round_id;
       const roundNumber = roundResult.rows[0].round_number;
+      const lockTime = roundResult.rows[0].lock_time;
+
+      // Refuse until the round has locked, same rule as organizer-process-results. Staging
+      // already blocks a result before its own kickoff (set-staged-result, TOO_EARLY), which
+      // covers the normal path - but the processing below is not limited to fixtures this batch
+      // wrote. It settles every unprocessed result in the round, and runs even when the batch is
+      // empty, so a leftover result from elsewhere could otherwise be processed while picks were
+      // still open. That would charge a no-pick penalty to players still entitled to pick, and a
+      // life cannot be given back. A null lock_time means no lock was ever set.
+      if (lockTime !== null && new Date(lockTime) > new Date()) {
+        throw new Error('ROUND_NOT_STARTED');
+      }
 
       // Find fixtures with results that are NOT yet processed. Deliberately not gated on
       // fixturesUpdated > 0: a previous attempt may have written the results and then failed
@@ -467,7 +480,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
       NOT_SUBSCRIBED: 'This competition is not on the fixture service, so its organiser owns its results',
       NO_RESULTS_TO_PUSH: 'No staged results are waiting to be pushed',
       ALREADY_PUSHED: 'Nothing left to push - this competition already has these results processed',
-      NO_ROUNDS: 'This competition has no rounds yet'
+      NO_ROUNDS: 'This competition has no rounds yet',
+      ROUND_NOT_STARTED: 'This round has not started yet - results cannot be processed until picks close'
     };
 
     if (known[error.message]) {

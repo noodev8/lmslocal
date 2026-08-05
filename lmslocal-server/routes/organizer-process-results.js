@@ -44,6 +44,7 @@ Return Codes:
 "COMPETITION_NOT_FOUND"       - Competition doesn't exist
 "AUTOMATED_COMPETITION"       - Competition uses the fixture service; results are processed when they are pushed
 "NO_ROUNDS"                   - No rounds exist for this competition
+"ROUND_NOT_STARTED"           - Round has not locked yet; picks are still open
 "NO_RESULTS_TO_PROCESS"       - No unprocessed results to process
 "SERVER_ERROR"                - Database or unexpected error
 =======================================================================================================================================
@@ -128,7 +129,7 @@ router.post('/', verifyToken, async (req, res) => {
     const result = await transaction(async (client) => {
       // Get the current round for this competition
       const roundResult = await client.query(`
-        SELECT id as round_id, round_number
+        SELECT id as round_id, round_number, lock_time
         FROM round
         WHERE competition_id = $1
         ORDER BY round_number DESC
@@ -142,6 +143,15 @@ router.post('/', verifyToken, async (req, res) => {
 
       const roundId = roundResult.rows[0].round_id;
       const roundNumber = roundResult.rows[0].round_number;
+      const lockTime = roundResult.rows[0].lock_time;
+
+      // Refuse until the round has locked. Processing before picks close would charge a no-pick
+      // penalty to every player who had not picked yet - a penalty for a round they were still
+      // entitled to play - and lives cannot be given back. A null lock_time means no lock was
+      // ever set, so there is nothing to wait for.
+      if (lockTime !== null && new Date(lockTime) > new Date()) {
+        throw new Error('ROUND_NOT_STARTED');
+      }
 
       // Find fixtures with results that are NOT yet processed
       const unprocessedResults = await client.query(`
@@ -414,6 +424,13 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(200).json({
         return_code: "NO_ROUNDS",
         message: "No rounds exist for this competition yet"
+      });
+    }
+
+    if (error.message === 'ROUND_NOT_STARTED') {
+      return res.status(200).json({
+        return_code: "ROUND_NOT_STARTED",
+        message: "This round has not started yet - results cannot be processed until picks close"
       });
     }
 

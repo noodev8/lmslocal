@@ -33,6 +33,7 @@ Return Codes:
 "UNAUTHORIZED"             - User is not the organiser of this competition
 "FIXTURE_NOT_FOUND"        - Fixture doesn't exist
 "AUTOMATED_COMPETITION"    - Competition uses fixture_service (automated mode)
+"ROUND_NOT_STARTED"        - Round has not locked yet; picks are still open
 "ALREADY_PROCESSED"        - Fixture has already been processed (cannot change result)
 "SERVER_ERROR"             - Database or unexpected error
 =======================================================================================================================================
@@ -97,9 +98,11 @@ router.post('/', verifyToken, async (req, res) => {
         f.processed,
         c.organiser_id,
         c.name as competition_name,
-        c.fixture_service
+        c.fixture_service,
+        r.lock_time
       FROM fixture f
       JOIN competition c ON f.competition_id = c.id
+      JOIN round r ON f.round_id = r.id
       WHERE f.id = $1
     `, [fixtureIdInt]);
 
@@ -128,6 +131,18 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(200).json({
         return_code: "AUTOMATED_COMPETITION",
         message: "This competition uses automated fixture service"
+      });
+    }
+
+    // Refuse until the round has locked. Picks are still open before lock_time, so a result
+    // entered now could be processed against a half-complete set of picks - every player who
+    // had not picked yet would take a no-pick penalty for a round they were still entitled to
+    // play. The UI already hides the buttons until lock time; this makes it a rule rather than
+    // a presentational courtesy. A null lock_time means no lock was ever set, so nothing to wait for.
+    if (fixture.lock_time !== null && new Date(fixture.lock_time) > new Date()) {
+      return res.status(200).json({
+        return_code: "ROUND_NOT_STARTED",
+        message: "This round has not started yet - results cannot be entered until picks close"
       });
     }
 
