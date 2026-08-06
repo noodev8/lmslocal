@@ -20,6 +20,8 @@ Request Payload:
 {
   "team_list_id": 1,                         // integer, required - which team list these belong to
   "kickoff_time": "2026-08-21T18:30:00.000Z",// string, required - ISO 8601 UTC, shared by the whole batch
+  "opens_gameweek": true,                    // boolean, optional - default true; false when this
+                                             //   batch continues a gameweek already being pushed
   "fixtures": [                              // array, required - at least one fixture
     {
       "home_team_short": "ARS",              // string, required - must be a team in this list
@@ -58,6 +60,12 @@ Data Notes:
   a player an unresolvable pick.
 - kickoff_time is stored as sent. The client converts UK wall-clock time to UTC, because the
   server may not be running in Europe/London.
+- opens_gameweek says whether this batch is the START of a gameweek or a later slice of one
+  already going out. A real Fri-Sun gameweek is staged as several batches, one round each, so a
+  competition that first became eligible on the Saturday would otherwise get a round 1 made of
+  Sunday's two matches while everyone else played a full slate. A competition with no rounds yet
+  can only start on a batch with this true. Nothing in the data can work this out - kickoff times
+  look identical either way - so whoever stages the batch says.
 =======================================================================================================================================
 */
 
@@ -72,6 +80,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
   try {
     const { team_list_id, kickoff_time, fixtures } = req.body;
+    // Defaults true: a lone batch IS its own gameweek, which is the ordinary case.
+    const opensGameweek = req.body.opens_gameweek !== false;
 
     // ========================================
     // STEP 1: Shape of the request
@@ -180,14 +190,15 @@ router.post('/', verifyAdminToken, async (req, res) => {
       for (const fixture of fixtures) {
         await client.query(`
           INSERT INTO fixture_load
-            (team_list_id, league, home_team_short, away_team_short, kickoff_time)
-          VALUES ($1, $2, $3, $4, $5)
+            (team_list_id, league, home_team_short, away_team_short, kickoff_time, opens_gameweek)
+          VALUES ($1, $2, $3, $4, $5, $6)
         `, [
           team_list_id,
           teamList.name,                // league - the list's own name, not a hardcoded string
           fixture.home_team_short,
           fixture.away_team_short,
-          kickoff_time
+          kickoff_time,
+          opensGameweek
         ]);
       }
     });

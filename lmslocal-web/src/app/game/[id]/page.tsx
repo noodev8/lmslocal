@@ -21,6 +21,8 @@ import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } fr
 import {
   deriveDashboardRoundState,
   pickDeadlineText,
+  isStartGateVisible,
+  formatRoundStart,
   roundTileLabel,
   roundTileNeedsAction,
   roundTileSummary,
@@ -65,7 +67,7 @@ export default function UnifiedGameDashboard() {
   const competitionId = params.id as string;
 
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading } = useAppData();
+  const { competitions, loading: contextLoading, refreshCompetitions } = useAppData();
 
   // Memoize the specific competition to prevent unnecessary re-renders
   const competition = useMemo(() => {
@@ -115,6 +117,12 @@ export default function UnifiedGameDashboard() {
 
   // Copy button states
   const [codeCopied, setCodeCopied] = useState(false);
+
+  // The start gate. `startsAt` is the kickoff their first round would actually get, answered by
+  // the same rules the push uses - so it is fetched rather than guessed here.
+  const [startsAt, setStartsAt] = useState<string | null>(null);
+  const [isSettingReady, setIsSettingReady] = useState(false);
+  const [readyError, setReadyError] = useState<string | null>(null);
   const [messageCopied, setMessageCopied] = useState(false);
 
   // Unpicked players modal state
@@ -149,6 +157,7 @@ export default function UnifiedGameDashboard() {
         currentRound: competition?.current_round,
         currentRoundLockTime: competition?.current_round_lock_time,
         automated: competition?.fixture_service === true,
+        readyToStart: competition?.ready_at != null,
         competitionComplete: competition?.is_complete === true,
         now: new Date(),
         totalFixtures: competition?.total_fixtures,
@@ -159,6 +168,7 @@ export default function UnifiedGameDashboard() {
       competition?.current_round,
       competition?.current_round_lock_time,
       competition?.fixture_service,
+      competition?.ready_at,
       competition?.is_complete,
       competition?.total_fixtures,
       competition?.fixtures_with_results,
@@ -181,6 +191,54 @@ export default function UnifiedGameDashboard() {
   /* False on an automated competition - the fixture service enters and processes its results, so
      there is nothing here for the organiser to do and the tile stays neutral. */
   const roundNeedsAction = roundTileNeedsAction(dashboardRoundState, { canManageResults, canManageFixtures });
+
+  /* The start gate: an automated competition gets no fixtures at all until its organiser presses
+     Ready, so the button is here, on the page they are already looking at, rather than one
+     navigation away on a round screen that would otherwise be empty. Once pressed, the same card
+     answers "when does it start?" - see docs/round-state-machine.md §5. */
+  const showStartGate = isStartGateVisible(dashboardRoundState, { canManageResults, canManageFixtures });
+  const isReadyToStart = dashboardRoundState.readyToStart;
+
+  // Fetched in both faces of the gate. The date is the answer to "what happens if I press this?",
+  // so it has to be on screen before the button, not only after it.
+  useEffect(() => {
+    if (!showStartGate || isReadyToStart) {
+      setStartsAt(null);
+      return;
+    }
+
+    let cancelled = false;
+    competitionApi.getStartOutlook(parseInt(competitionId))
+      .then((response) => {
+        if (cancelled || response.data.return_code !== 'SUCCESS') return;
+        setStartsAt(response.data.starts_at);
+      })
+      .catch(() => { /* Card falls back to "as soon as the next matches are in", still true */ });
+
+    return () => { cancelled = true; };
+  }, [showStartGate, isReadyToStart, competitionId]);
+
+
+  const handleStartCompetition = async () => {
+    if (!competition) return;
+    setIsSettingReady(true);
+    setReadyError(null);
+
+    try {
+      const response = await competitionApi.setReady(competition.id, true);
+
+      if (response.data.return_code === 'SUCCESS') {
+        cacheUtils.invalidateCompetitions();
+        await refreshCompetitions();
+      } else {
+        setReadyError(response.data.message || 'Could not update your competition.');
+      }
+    } catch {
+      setReadyError('Network error — could not reach the server.');
+    } finally {
+      setIsSettingReady(false);
+    }
+  };
 
   /* "Add matches" goes to the entry form, not to the round screen it would otherwise sit on -
      see roundTileTarget. Every other phase still lands on the round. */
@@ -747,6 +805,37 @@ Good luck! ⚽`;
                 Add guest players
               </button>
             </div>
+          </div>
+        )}
+
+        {/* The start gate, deliberately sitting under Invite players: the two are one job in
+            order — get your people in, then say go.
+
+            It exists only while the competition is waiting to be started. Once the organiser has
+            said yes, the card has no job left: it was reporting a date nobody could act on, under
+            a heading that read as news, on the one screen they check most. The Round tile carries
+            the state from then on, and the round screen carries the date for anyone who asks. */}
+        {showStartGate && !isReadyToStart && (
+          <div className={`${PANEL} border-overprint p-6`}>
+            <p className={EYEBROW}>Next step</p>
+            <p className={`${HEADING} mt-1 text-2xl`}>
+              {startsAt ? `Start with the matches on ${formatRoundStart(startsAt)}?` : 'Start with the next set of matches?'}
+            </p>
+            <p className="mt-2 text-[15px] text-ink-fade">
+              {startsAt
+                ? 'That would be your Round 1, and your players can pick as soon as it appears. Nothing happens until you press this.'
+                : "We don't have the next set of matches yet. Say the word now and your Round 1 will be the first ones that arrive."}
+            </p>
+            <button
+              type="button"
+              onClick={() => handleStartCompetition()}
+              disabled={isSettingReady}
+              className={`${BTN_PRIMARY} mt-4 inline-flex px-6 py-3 text-base disabled:opacity-50`}
+            >
+              {isSettingReady ? 'Starting…' : 'Yes, start my competition'}
+            </button>
+
+            {readyError && <p className="mt-3 text-[14px] text-overprint">{readyError}</p>}
           </div>
         )}
 

@@ -253,6 +253,11 @@ function FixturesTab({
 }) {
   const [kickoffDate, setKickoffDate] = useState('');
   const [kickoffTime, setKickoffTime] = useState('15:00');
+  // Whether this batch STARTS a gameweek or continues one already being pushed. A competition
+  // with no rounds yet can only take a batch that starts one - otherwise its round 1 would be the
+  // Sunday leftovers of a gameweek everyone else played in full. Nothing in the fixture data can
+  // tell these apart, so it is asked here.
+  const [opensGameweek, setOpensGameweek] = useState(true);
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [showCustomTime, setShowCustomTime] = useState(false);
   const [pairs, setPairs] = useState<FixturePair[]>([{ home_team_short: '', away_team_short: '' }]);
@@ -353,7 +358,8 @@ function FixturesTab({
       const result = await adminApi.addStagedFixtures(
         teamList.id,
         ukTimeToUtcIso(kickoffDate, kickoffTime),
-        completePairs
+        completePairs,
+        opensGameweek
       );
 
       if (result.return_code === 'SUCCESS') {
@@ -368,6 +374,7 @@ function FixturesTab({
         setPairs([{ home_team_short: '', away_team_short: '' }]);
         setKickoffDate('');
         setKickoffTime('15:00');
+        setOpensGameweek(true);
         onStaged();
       } else if (result.return_code === 'PENDING_BATCH') {
         setNotice({ tone: 'error', text: result.message || 'Finish the pending batch before staging a new one.' });
@@ -473,6 +480,23 @@ function FixturesTab({
             {describeUkDateTime(kickoffDate, kickoffTime)}
           </p>
         )}
+
+        <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-slate-100 pt-3">
+          <input
+            type="checkbox"
+            checked={opensGameweek}
+            onChange={(e) => setOpensGameweek(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-indigo-600"
+          />
+          <span className="text-sm text-slate-700">
+            This batch starts a new gameweek
+            <span className="mt-0.5 block text-xs text-slate-500">
+              Untick for the Saturday and Sunday slices of a gameweek you have already started
+              pushing. Competitions that have not started yet will sit out those, and begin on the
+              next gameweek instead of joining halfway through.
+            </span>
+          </span>
+        </label>
       </div>
 
       {/* Team picker and the batch being built */}

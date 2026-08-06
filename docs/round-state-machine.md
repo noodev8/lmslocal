@@ -30,6 +30,7 @@ Everything the machine needs, and nowhere it gets it from beyond this list:
 | `lockTime` | same route, `round_start_time` (which is `round.lock_time`) | may be null |
 | `fixtures[]` | same route, each with `result` and `processed` | |
 | `automated` | `competition.fixture_service === true` | from `AppDataContext` |
+| `readyToStart` | `competition.ready_at !== null` | organiser has pressed Ready; only ever read in `NO_ROUND`, and only when `automated` |
 | `competitionComplete` | `competition.is_complete` | |
 | `now` | injected, not read from the global clock | so phases are testable |
 | `canManageFixtures` | `is_organiser || manage_fixtures` | permission, **not** a phase input |
@@ -100,7 +101,8 @@ three-way result row under each fixture.
 
 | Phase | Page shows |
 |---|---|
-| `NO_ROUND` | "Fixtures for the next round haven't been published yet." Nothing else. |
+| `NO_ROUND`, not ready | The start gate: **"Start with the matches on Saturday 15 March?"** + the button. Also on the competition dashboard, which is where it is normally pressed. |
+| `NO_ROUND`, ready | The start date if we have one, otherwise "starts when the next fixtures are in" |
 | `OPEN` | Sheet + the lock time. **This is the "I just want to see upcoming fixtures" case.** |
 | `LOCKED` | Sheet + "Picks are locked. Results come in automatically." |
 | `RESULTS_PARTIAL` | Sheet with slots, read-only, filled ones marked |
@@ -199,7 +201,8 @@ disagrees with the screen it links to.
 
 | Phase | Tile subtitle | Page status line |
 |---|---|---|
-| `NO_ROUND` (automated) | "Waiting for fixtures" | "Fixtures for the next round haven't been published yet." |
+| `NO_ROUND` (automated, not ready) | "Not started yet" | "Press Ready when you've invited your players." |
+| `NO_ROUND` (automated, ready) | "Waiting for fixtures" | "Your first round starts with the next set of matches." |
 | `NO_ROUND` (manual) | "No fixtures yet" | "Add this round's fixtures to get started." |
 | `OPEN` | "Open for picks" | "Picks close {full date}." |
 | `LOCKED` | "In play" | "Picks are locked." |
@@ -210,9 +213,60 @@ disagrees with the screen it links to.
 
 ### When the organiser owes the round something
 
-The table above states the round's condition. That is the whole story on an automated
+The table above states the round's condition. That is *almost* the whole story on an automated
 competition, where the fixture service enters and processes results and the organiser is a
 spectator — the tile stays on the neutral wording above.
+
+**The one exception is the start, and it is not a tile.** An automated competition sitting at
+`NO_ROUND` is waiting on the organiser and nobody else: no fixtures are pushed to it, ever, until
+they press Ready. That gets its own card — `isStartGateVisible` — carrying the prompt, the button
+and afterwards the date. `roundTileNeedsAction` stays false on automated competitions, because a
+red tile beneath a red card is two alarms for one job; the tile states the condition ("Not started
+yet" / "Waiting for matches") and stays out of the card's way.
+
+**The card is drawn on the competition dashboard, where the button is pressed**, and on the round
+screen, which would otherwise be an empty page. Pressing Ready is one act on a competition that
+cannot move without it, so it is answered where the organiser already is rather than a navigation
+away — the round screen version exists for the organiser who went looking there, not as the route
+to it.
+
+**On the dashboard it exists only until it is answered.** Once the organiser has said yes the card
+has no job left: it was announcing a date nobody could act on, under a heading that read as news,
+on the screen they check most often. The Round tile carries the state from then on ("Waiting for
+matches"), and the round screen still carries the date for anyone who goes looking. `isStartGateVisible`
+covers both faces because the round screen uses both; the dashboard adds `&& !readyToStart`.
+
+Everything about that choice follows from a rule we could not otherwise keep: **we never claim to
+know when the next fixtures are.** Asking at creation how many weeks to wait made the organiser
+guess, could not be corrected afterwards, and implied a fixture list we hadn't seen. Pressing
+Ready is an act, not a prediction, and it cannot be wrong.
+
+`NO_ROUND` is only ever reachable before a competition's first round — once round 1 exists the
+between-rounds phase is `COMPLETE` — so the Ready gate has exactly one moment to apply. A reset
+clears `ready_at` and puts the competition back in it, deliberately: an emptied competition that
+stayed ready would take the very next batch with nobody told.
+
+**The date is shown before the button, not after it.** `/get-competition-start-outlook` evaluates
+the competition *as though it were already ready*, so the card can name the actual kickoff the
+organiser would get and the button becomes a plain yes to a stated question — "Start with the
+matches on Saturday 15 March?" / **Start my competition**. Two unexplained steps before finding out
+the date was the original sin of the wait-in-weeks question in a new costume: a button whose
+consequence you learn by pressing it. Every other rule still applies to the hypothetical, so a
+mid-gameweek batch or one inside the 48-hour lead time yields no date here either — because it
+would yield no round.
+
+When there is no batch they could start on, the card says so and promises nothing: *"We don't have
+the next set of matches yet."* Never a guess at when the next fixtures land.
+
+**There is no un-press.** The card offered a "Hold on, not yet" alongside the confirmation, which
+invented a decision nobody has to make: an organiser who isn't ready simply doesn't press the
+button, and offering to undo an act they haven't taken only suggests the act is riskier than it is.
+Once started, the card states the date and owes nothing — no button, and no overprint accent, which
+is reserved for what is actually waiting on someone. `/set-competition-ready` still accepts
+`ready: false` for support, and refuses once a round exists.
+
+It is the same `evaluateCompetition()` the admin push uses, so the date the organiser is shown is
+the one the push would actually produce.
 
 On a **manual** competition those same phases are a job the organiser hasn't done yet, and the
 tile has to say so — it is the one screen they look at, and the only route to the round. The
@@ -220,7 +274,7 @@ condition wording states the round's condition; the action wording states theirs
 
 | Phase | Neutral | Organiser's own | Needs | Tile goes to |
 |---|---|---|---|---|
-| `NO_ROUND` | "No matches yet" | **"Add matches"** | `canManageFixtures` | entry form |
+| `NO_ROUND` (manual) | "No matches yet" | **"Add matches"** | `canManageFixtures` | entry form |
 | `LOCKED` | "In play" | **"Enter results"** | `canManageResults` | round |
 | `RESULTS_PARTIAL` | "{n} of {total} results in" | **"{n} of {total} — enter the rest"** | `canManageResults` | round |
 | `RESULTS_READY` | "All results in" | **"Process the round"** | `canManageResults` | round |

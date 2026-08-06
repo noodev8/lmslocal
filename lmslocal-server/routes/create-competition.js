@@ -23,7 +23,6 @@ Request Payload:
   "lives_per_player": 1,                       // integer, optional - Number of lives per player (default: 1)
   "no_team_twice": true,                       // boolean, optional - Prevent team reuse (default: true)
   "organiser_joins_as_player": true,           // boolean, optional - Add organiser as player (default: false)
-  "start_delay_days": 7,                       // integer, optional - Days to delay start (0, 7, 14, 21; default: 7)
   "fixture_service": true                      // boolean, optional - Subscribe to the automated fixture service (default: false)
 }
 
@@ -68,7 +67,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, start_delay_days, fixture_service } = req.body;
+    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, fixture_service } = req.body;
     const organiser_id = req.user.id;
 
     // Basic validation
@@ -164,19 +163,6 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Validate start_delay_days if provided
-    const validDelays = [0, 7, 14, 21];
-    const delayDays = start_delay_days !== undefined ? Number(start_delay_days) : 7;
-    if (!validDelays.includes(delayDays)) {
-      return res.json({
-        return_code: "VALIDATION_ERROR",
-        message: "Start delay must be 0, 7, 14, or 21 days"
-      });
-    }
-
-    // Calculate earliest_start_date based on delay
-    const earliestStartDate = new Date();
-    earliestStartDate.setDate(earliestStartDate.getDate() + delayDays);
 
     // Execute all operations in a single atomic transaction
     const result = await transaction(async (client) => {
@@ -255,13 +241,12 @@ router.post('/', verifyToken, async (req, res) => {
           no_team_twice,
           organiser_id,
           invite_code,
-          earliest_start_date,
           fixture_service,
           fixture_service_price_paid,
           fixture_service_granted_at,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, $19, $20, $21, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP)
         RETURNING *
       `, [
         name.trim(),
@@ -281,7 +266,6 @@ router.post('/', verifyToken, async (req, res) => {
         no_team_twice !== false, // Default to true
         organiser_id,
         inviteCode,
-        earliestStartDate,
         wantsFixtureService,
         // Launch promotion: the service is offered free, so the recorded price is 0.00 rather
         // than the £10 list price. This is what tells a grandfathered competition apart from a

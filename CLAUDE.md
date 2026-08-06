@@ -308,26 +308,43 @@ lmslocal-web/
   `bot-join` / `bot-pick` were deleted when the admin Bots screen replaced them.
 - **Opt-in**: `competition.fixture_service`. Only competitions with it set to true receive
   pushes, toggled per competition from the admin competitions list via `/admin/set-fixture-service`
-- **When a competition is ready for a round** (`services/fixtureService.js`). A staged batch is
-  pushed to a competition only if its earliest kickoff clears all three of:
-  1. `competition.earliest_start_date` — set at creation from `start_delay_days`, which the
-     create form asks as "First round: this week / next week / in 2 weeks", defaulting to next
-     week. Only asked when the fixture service is supplying the matches.
-  2. **now** — a kickoff already in the past would create a round locked on arrival, which no
-     player could ever pick in.
-  3. **now + 48 hours**, for a competition's *first* round only (`FIRST_ROUND_LEAD_TIME_HOURS`).
-     An organiser who signs up on Friday must not be handed Saturday's matches before they have
-     invited anyone; they get the following gameweek. Later rounds are exempt — those players
-     are already there and the organiser chose when to push.
+- **When a competition is ready for a round** (`services/fixtureService.js`, `evaluateCompetition`).
+  The one implementation, used by both the admin candidate list and the push, so the screen can
+  never offer a button the push then refuses. A skipped competition says which rule stopped it in
+  the push result's `reason`.
 
-  A skipped competition says which floor stopped it in the push result's `reason`.
+  Every push needs the batch's earliest kickoff to be **in the future** — a passed kickoff would
+  create a round locked on arrival that no player could pick in. A competition's **first** round
+  needs three more things, and only the first:
+  1. `competition.ready_at` — **the organiser has pressed Ready** on `/game/[id]/round`. We never
+     ask them to predict a start date, because we cannot say when the next fixtures are. Nothing
+     is pushed until they say so, however long that takes. Reversible until the first round
+     exists (`/set-competition-ready`); a **reset clears it** so an emptied competition goes back
+     to waiting instead of taking the next batch with nobody told.
+  2. `fixture_load.opens_gameweek` — the batch must **start** a gameweek, not continue one. A real
+     Fri–Sun gameweek is staged as several batches, one round each, so a competition that first
+     became eligible on the Saturday would get a round 1 of Sunday's two matches while everyone
+     else played a full slate. Nothing in the data can tell these apart, so `add-staged-fixtures`
+     asks whoever stages the batch (checkbox on the admin fixtures screen, default true).
+  3. **now + 48 hours** (`FIRST_ROUND_LEAD_TIME_HOURS`) — someone who presses Ready on Friday
+     afternoon must not be handed Saturday's matches before they have told anyone.
+
+  `/get-competition-start-outlook` runs the same evaluation for the organiser's own card, so the
+  date they are shown is the one the push would actually produce. `competition.earliest_start_date`
+  is the **dead column** left by the old "wait N weeks" question — nothing reads or writes it.
+
+  Who supplies fixtures (`fixture_service`) is **fixed at creation**. `update-competition` ignores
+  it, the settings screen does not offer it, and `set-fixture-service-organiser` is unregistered in
+  `server.js` — change it in the database on request. A reset preserves it.
 - **The model**: only one staged batch at a time per team list — `fixture_load` itself is the
   pending batch. `add-staged-fixtures` refuses a new one while it's non-empty; a batch clears
   when the admin presses **Clear staged batch** (`/admin/clear-staged-batch`), which is a
   deliberate step because the staged rows must survive until every competition has been pushed
   to individually. It refuses while any competition is still unfinished, unless forced. Every
   fixture in a batch shares a single kickoff time that becomes the round's lock time, so a real
-  gameweek spread over Fri–Sun is entered as several batches.
+  gameweek spread over Fri–Sun is entered as several batches — **one round each**, since a round
+  holding fixtures with no results is `round_in_progress` and takes no further push. Untick
+  "starts a new gameweek" on the second and third of those.
 - **Organiser-managed competitions** (`fixture_service = false`) use the `organizer-*` routes.
   Their fixtures and results are **one screen**, `/game/[id]/round`, driven by the state machine
   in `src/lib/roundState.ts` — read `docs/round-state-machine.md` before changing what that

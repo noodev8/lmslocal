@@ -34,7 +34,9 @@ const removePlayerRoute = require('./routes/remove-player');
 // const createRoundRoute = require('./routes/create-round');
 // const updateRoundRoute = require('./routes/update-round');
 const updateCompetitionRoute = require('./routes/update-competition');
-const setFixtureServiceOrganiserRoute = require('./routes/set-fixture-service-organiser');
+const setCompetitionReadyRoute = require('./routes/set-competition-ready');
+const getCompetitionStartOutlookRoute = require('./routes/get-competition-start-outlook');
+// const setFixtureServiceOrganiserRoute = require('./routes/set-fixture-service-organiser'); // unregistered, see below
 const resetCompetitionRoute = require('./routes/reset-competition');
 const deleteCompetitionRoute = require('./routes/delete-competition');
 const getRoundsRoute = require('./routes/get-rounds');
@@ -325,7 +327,12 @@ app.use('/remove-player', removePlayerRoute);
 // app.use('/create-round', createRoundRoute);
 // app.use('/update-round', updateRoundRoute);
 app.use('/update-competition', updateCompetitionRoute);
-app.use('/set-fixture-service-organiser', setFixtureServiceOrganiserRoute);
+app.use('/set-competition-ready', setCompetitionReadyRoute);
+app.use('/get-competition-start-outlook', getCompetitionStartOutlookRoute);
+// UNREGISTERED: organisers cannot switch the fixture service themselves for now - the settings
+// screen no longer offers it, so this would be a live endpoint with nothing driving it. The file
+// is kept as the reference implementation for when the switch is worked through properly.
+// app.use('/set-fixture-service-organiser', setFixtureServiceOrganiserRoute);
 app.use('/reset-competition', resetCompetitionRoute);
 app.use('/delete-competition', deleteCompetitionRoute);
 app.use('/get-rounds', getRoundsRoute);

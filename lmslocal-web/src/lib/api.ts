@@ -175,6 +175,8 @@ export interface Competition {
   fixtures_with_results?: number;
   fixtures_processed?: number;
   fixture_service?: boolean;
+  /** Organiser has pressed Ready. Null on a fixture service competition means it is waiting. */
+  ready_at?: string | null;
   total_rounds?: number;
   picks_made?: number;
   picks_required?: number;
@@ -324,7 +326,6 @@ export interface CreateCompetitionRequest {
   lives_per_player: number;
   no_team_twice: boolean;
   organiser_joins_as_player: boolean;
-  start_delay_days?: number;
   fixture_service?: boolean;
 }
 
@@ -344,7 +345,8 @@ export interface UpdateCompetitionRequest {
   prize_structure?: string;
   lives_per_player?: number;
   no_team_twice?: boolean;
-  fixture_service?: boolean;
+  // fixture_service is set once at creation and ignored by update-competition - changed in the
+  // database on request until the mid-competition switch is worked through.
 }
 
 export interface UpdateCompetitionResponse {
@@ -498,6 +500,21 @@ export const competitionApi = {
   }>('/get-unpicked-players', { competition_id, round_id }),
   update: (data: UpdateCompetitionRequest) => api.post<UpdateCompetitionResponse & { return_code: string; message?: string }>('/update-competition', data),
   reset: (data: ResetCompetitionRequest) => api.post<ResetCompetitionResponse & { return_code: string; message?: string }>('/reset-competition', data),
+
+  // The organiser's start gate. `ready` false puts it back on hold, which the backend allows
+  // right up until the first round exists.
+  setReady: (competition_id: number, ready: boolean) =>
+    api.post<{ return_code: string; ready_at: string | null; message?: string }>('/set-competition-ready', { competition_id, ready }),
+
+  // When their first round would actually start. Three answers - not ready, a date, or ready with
+  // nothing staged - computed by the same rules the push uses.
+  getStartOutlook: (competition_id: number) =>
+    api.get<{
+      return_code: string;
+      ready_at: string | null;
+      starts_at: string | null;
+      waiting_for_fixtures: boolean;
+    }>(`/get-competition-start-outlook?competition_id=${competition_id}`),
   delete: (data: DeleteCompetitionRequest) => api.post<DeleteCompetitionResponse & { return_code: string; message?: string }>('/delete-competition', data),
   hide: (competition_id: number) => api.post<{ return_code: string; message: string }>('/hide-competition', { competition_id }),
   unhidePlayer: (competition_id: number, player_id: number) => api.post<{ return_code: string; message: string }>('/unhide-player', { competition_id, player_id }),

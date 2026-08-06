@@ -57,6 +57,14 @@ export interface RoundSnapshot {
   fixtures: RoundFixtureInput[];
   /** `competition.fixture_service === true`. */
   automated: boolean;
+  /**
+   * `competition.ready_at !== null` — the organiser has said they're ready to start.
+   *
+   * Only read in NO_ROUND, and only when automated. NO_ROUND is unreachable once round 1 exists
+   * (between rounds the phase is COMPLETE), so this has exactly one moment to matter: before the
+   * competition's first round. Defaults true so nothing that doesn't know about it changes.
+   */
+  readyToStart?: boolean;
   /** `competition.is_complete`. */
   competitionComplete: boolean;
   now: Date;
@@ -81,10 +89,12 @@ export interface RoundState {
   resultsIn: number;
   processedCount: number;
   automated: boolean;
+  readyToStart: boolean;
 }
 
 export function deriveRoundState(snapshot: RoundSnapshot): RoundState {
   const { hasRound, roundNumber, fixtures, automated, competitionComplete, now } = snapshot;
+  const readyToStart = snapshot.readyToStart !== false;
 
   // An unparseable timestamp is treated as no lock time at all. Date rejects some real-world
   // shapes — notably Postgres's own '...+00' text rendering — and the failure mode without this
@@ -107,6 +117,7 @@ export function deriveRoundState(snapshot: RoundSnapshot): RoundState {
     resultsIn,
     processedCount,
     automated,
+    readyToStart,
   };
 
   return { ...base, phase: derivePhase({ hasRound, competitionComplete, isLocked, totalFixtures, resultsIn, processedCount }) };
@@ -129,6 +140,7 @@ export function deriveDashboardRoundState(input: {
   currentRound: number | null | undefined;
   currentRoundLockTime: string | null | undefined;
   automated: boolean;
+  readyToStart?: boolean;
   competitionComplete: boolean;
   now: Date;
   totalFixtures?: number | null;
@@ -152,6 +164,7 @@ export function deriveDashboardRoundState(input: {
     lockTime: input.currentRoundLockTime ?? null,
     fixtures,
     automated: input.automated,
+    readyToStart: input.readyToStart,
     competitionComplete: input.competitionComplete,
     now: input.now,
   });
@@ -272,6 +285,10 @@ export interface RoundTileViewer {
  * Only ever true on a manual competition: the fixture service publishes fixtures and processes
  * results itself, so an automated round is never owed anything by a person. Drives both the
  * wording below and the tile's accent, so the two can't disagree.
+ *
+ * The start gate is the one thing an automated competition does owe its organiser, and it is
+ * deliberately NOT here - it has its own card with its own button (see isStartGateVisible), and a
+ * red tile underneath a red card is two alarms for one job.
  */
 export function roundTileNeedsAction(state: RoundState, viewer: RoundTileViewer = {}): boolean {
   if (state.automated) return false;
@@ -305,6 +322,22 @@ export function roundTileTarget(state: RoundState, viewer: RoundTileViewer = {})
   return state.phase === 'NO_ROUND' || state.phase === 'COMPLETE' ? 'fixtures' : 'round';
 }
 
+/**
+ * Whether to draw the start gate — the card that asks an automated competition's organiser to
+ * press Ready, and afterwards tells them when their first round lands.
+ *
+ * One rule read by two screens: the competition dashboard, where the button actually lives, and
+ * the round screen, which would otherwise be an empty page saying nothing is happening. Pressing
+ * Ready is a single act on a competition that cannot move without it, so it is answered where the
+ * organiser already is rather than one navigation away.
+ *
+ * True in both faces of the gate — before Ready (the button) and after (the date) — because the
+ * question "when does this start?" is worth answering either way. `readyToStart` picks the face.
+ */
+export function isStartGateVisible(state: RoundState, viewer: RoundTileViewer = {}): boolean {
+  return state.automated && state.phase === 'NO_ROUND' && !!viewer.canManageFixtures;
+}
+
 /** Short form for the dashboard tile, under the round number. */
 export function roundTileSummary(state: RoundState, viewer: RoundTileViewer = {}): string {
   // The organiser of a manual competition is told the job, not the condition. "In play" is a
@@ -316,7 +349,9 @@ export function roundTileSummary(state: RoundState, viewer: RoundTileViewer = {}
     case 'COMPETITION_COMPLETE':
       return 'Finished';
     case 'NO_ROUND':
-      if (state.automated) return 'Waiting for matches';
+      // The start gate card above carries the prompt and the button, so the tile states the
+      // condition plainly and stays out of its way.
+      if (state.automated) return state.readyToStart ? 'Waiting for matches' : 'Not started yet';
       return needsAction ? 'Add matches' : 'No matches yet';
     case 'OPEN':
       // No lock time here even though we have one. An organiser who plays sees this tile beside
@@ -350,9 +385,13 @@ export function roundStatusLine(state: RoundState): string {
     case 'COMPETITION_COMPLETE':
       return 'This competition has finished.';
     case 'NO_ROUND':
-      return state.automated
-        ? "The next round's matches haven't been published yet."
-        : "Add this round's matches to get started.";
+      if (!state.automated) return "Add this round's matches to get started.";
+      // No date here even when we have one. The date comes from the server (see
+      // /get-competition-start-outlook) and belongs to the card that can show all three answers -
+      // this line is the machine's own, and the machine doesn't know what's staged.
+      return state.readyToStart
+        ? 'Your first round starts with the next set of matches.'
+        : "Start your competition when you've invited your players.";
     case 'OPEN':
       return state.lockTime ? `Picks close ${formatLong(state.lockTime)}.` : 'Picks are open.';
     case 'LOCKED':
@@ -431,6 +470,17 @@ function formatShort(date: Date): string {
       ...TIME_PARTS,
     })
   );
+}
+
+/**
+ * A kickoff time as an organiser would say it out loud — "Saturday 15 March, 3pm".
+ *
+ * Exported for the start card, which gets its date from the server rather than from the machine.
+ * It goes through here so every kickoff on the screen obeys the same UK-time rule.
+ */
+export function formatRoundStart(timestamp: string): string | null {
+  const parsed = parseTimestamp(timestamp);
+  return parsed ? formatLong(parsed) : null;
 }
 
 function formatLong(date: Date): string {

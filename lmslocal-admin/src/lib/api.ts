@@ -572,12 +572,14 @@ export const adminApi = {
   addStagedFixtures: async (
     teamListId: number,
     kickoffTimeIso: string,
-    fixtures: FixturePair[]
+    fixtures: FixturePair[],
+    opensGameweek: boolean
   ): Promise<AddFixturesResponse> => {
     const response = await api.post<AddFixturesResponse>('/admin/add-staged-fixtures', {
       team_list_id: teamListId,
       kickoff_time: kickoffTimeIso,
       fixtures,
+      opens_gameweek: opensGameweek,
     });
     return response.data;
   },

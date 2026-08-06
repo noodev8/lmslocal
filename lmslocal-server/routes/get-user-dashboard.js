@@ -131,6 +131,7 @@ router.post('/', verifyToken, async (req, res) => {
         c.created_at,                          -- Competition creation time
         c.organiser_id,                        -- Organizer user ID
         c.fixture_service,                     -- Fixture service mode (true=automated, false=manual)
+        c.ready_at,                            -- Organiser pressed Ready; null = fixture service waiting on them
         tl.name as team_list_name,             -- Team list name
         
         -- === USER RELATIONSHIP STATUS ===
@@ -437,6 +438,7 @@ router.post('/', verifyToken, async (req, res) => {
         team_list_name: comp.team_list_name,
         created_at: comp.created_at,
         fixture_service: comp.fixture_service,
+        ready_at: comp.ready_at,
 
         // Competition statistics
         player_count: parseInt(comp.active_players || 0),

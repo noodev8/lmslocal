@@ -40,7 +40,8 @@ const BLOCKED = {
   COMPETITION_COMPLETE: 'Competition has finished',
   ROUND_IN_PROGRESS: 'Current round is still being played',
   NO_STAGED_BATCH: 'Nothing staged for this team list',
-  START_DATE: 'Not due to start yet',
+  NOT_READY: 'Organiser has not pressed Ready',
+  MID_GAMEWEEK: 'Batch continues a gameweek - cannot start a competition here',
   KICKOFF_PASSED: 'Batch has already kicked off',
   LEAD_TIME: `First round needs ${FIRST_ROUND_LEAD_TIME_HOURS} hours' notice`,
 };
@@ -99,29 +100,40 @@ function evaluateCompetition(competition, roundState, stagedFixtures, now = new 
     return { ...base, eligible: false, reason: BLOCKED.NO_STAGED_BATCH };
   }
 
+  // Everything below this point is about a competition's FIRST round. Once it has one, the
+  // organiser is already in the rhythm and the only floor left is "not already kicked off".
+  const isFirstRound = !roundState.roundNumber;
+
+  if (isFirstRound) {
+    // The organiser says when they are ready, rather than guessing a date at creation. Until
+    // they press it nothing is pushed, however long the competition has sat there.
+    if (!competition.ready_at) {
+      return { ...base, eligible: false, reason: BLOCKED.NOT_READY };
+    }
+
+    // A real gameweek spread over Fri-Sun is staged as several batches, one round each. Joining
+    // at the Sunday batch would make round 1 the two matches nobody else's round 1 was, so a
+    // competition can only start on a batch that opens a gameweek. Whoever stages it says which
+    // those are - no kickoff pattern can tell them apart.
+    if (stagedFixtures.some((fixture) => fixture.opens_gameweek === false)) {
+      return { ...base, eligible: false, reason: BLOCKED.MID_GAMEWEEK };
+    }
+  }
+
   const earliestKickoff = stagedFixtures.reduce((earliest, fixture) => {
     const kickoff = new Date(fixture.kickoff_time);
     return !earliest || kickoff < earliest ? kickoff : earliest;
   }, null);
 
-  // Three floors, and the batch's earliest kickoff must clear all of them. Reported separately
-  // because "not due to start yet" and "kicks off too soon" have different answers: wait, versus
-  // stage a later batch.
-  const startDateCutoff = competition.earliest_start_date ? new Date(competition.earliest_start_date) : now;
-  const isFirstRound = !roundState.roundNumber;
-  const leadTimeCutoff = isFirstRound ? new Date(now.getTime() + FIRST_ROUND_LEAD_TIME_MS) : now;
-  const cutoff = startDateCutoff > leadTimeCutoff ? startDateCutoff : leadTimeCutoff;
+  // Two floors on the batch's earliest kickoff. A first round also needs enough notice for the
+  // organiser to tell everyone; a later one only has to be a round players can still pick in.
+  const cutoff = isFirstRound ? new Date(now.getTime() + FIRST_ROUND_LEAD_TIME_MS) : now;
 
   if (earliestKickoff < cutoff) {
-    let reason;
-    if (earliestKickoff < now) {
-      // A round created from this would be locked the moment it arrived - nobody could pick.
-      reason = BLOCKED.KICKOFF_PASSED;
-    } else if (cutoff === leadTimeCutoff && isFirstRound) {
-      reason = BLOCKED.LEAD_TIME;
-    } else {
-      reason = BLOCKED.START_DATE;
-    }
+    // A round created from a passed kickoff would be locked the moment it arrived - nobody
+    // could pick in it. Reported apart from the lead time because the answers differ: stage a
+    // later batch, versus wait for the next gameweek.
+    const reason = earliestKickoff < now ? BLOCKED.KICKOFF_PASSED : BLOCKED.LEAD_TIME;
     return { ...base, eligible: false, reason, cutoff };
   }
 
@@ -131,7 +143,8 @@ function evaluateCompetition(competition, roundState, stagedFixtures, now = new 
 /** The staged batch for one team list, earliest kickoff first. */
 async function loadStagedBatch(client, teamListId) {
   const result = await client.query(
-    `SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time
+    `SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time,
+            opens_gameweek
      FROM fixture_load
      WHERE team_list_id = $1
      ORDER BY kickoff_time`,
@@ -151,7 +164,7 @@ async function loadStagedBatch(client, teamListId) {
  */
 async function getFixturePushCandidates(client, teamListId) {
   const competitionsResult = await client.query(
-    `SELECT c.id, c.name, c.status, c.team_list_id, c.earliest_start_date,
+    `SELECT c.id, c.name, c.status, c.team_list_id, c.ready_at,
             u.email AS organiser_email, u.display_name AS organiser_name,
             COUNT(cu.user_id) AS players,
             COUNT(cu.user_id) FILTER (WHERE cu.status = 'active') AS active_players
@@ -181,6 +194,7 @@ async function getFixturePushCandidates(client, teamListId) {
       active_players: parseInt(competition.active_players) || 0,
       round_number: roundState.roundNumber,
       round_state: roundState.roundState,
+      ready_at: competition.ready_at,
       eligible: verdict.eligible,
       reason: verdict.reason,
     });
@@ -206,7 +220,7 @@ async function getFixturePushCandidates(client, teamListId) {
  */
 async function pushFixturesToCompetition(client, competitionId) {
   const competitionResult = await client.query(
-    `SELECT id, name, status, team_list_id, earliest_start_date, fixture_service
+    `SELECT id, name, status, team_list_id, ready_at, fixture_service
      FROM competition WHERE id = $1`,
     [competitionId]
   );
@@ -387,9 +401,52 @@ async function pushFixturesToCompetition(client, competitionId) {
   };
 }
 
+/**
+ * What one organiser should be told about their next round.
+ *
+ * Deliberately the same evaluateCompetition() the admin screen and the push use, rather than a
+ * second reading of the rules written for the player-facing side. If the organiser is shown a
+ * date, it is the date the push would actually produce.
+ *
+ * **Evaluated as though they were already ready**, which is the whole point: an organiser about to
+ * press Ready needs to know what pressing it does, and asking them to commit first and find out
+ * afterwards is the one thing this feature exists to avoid. Every other rule still applies to the
+ * hypothetical - a mid-gameweek batch or one kicking off inside the lead time gives no date here
+ * either, because it would give them no round.
+ *
+ * @returns {Promise<{ready_at: string|null, starts_at: string|null, waiting_for_fixtures: boolean}>}
+ *   starts_at is the kickoff their first round would have, ready or not; null when there is no
+ *   batch they could start on, which is exactly when waiting_for_fixtures is true.
+ */
+async function getCompetitionStartOutlook(client, competitionId) {
+  const competitionResult = await client.query(
+    `SELECT id, name, status, team_list_id, ready_at, fixture_service
+     FROM competition WHERE id = $1`,
+    [competitionId]
+  );
+
+  if (competitionResult.rows.length === 0) return null;
+  const competition = competitionResult.rows[0];
+
+  const stagedFixtures = await loadStagedBatch(client, competition.team_list_id);
+  const roundState = await loadCompetitionRoundState(client, competitionId);
+  const verdict = evaluateCompetition(
+    { ...competition, ready_at: competition.ready_at || new Date() },
+    roundState,
+    stagedFixtures
+  );
+
+  return {
+    ready_at: competition.ready_at,
+    starts_at: verdict.eligible ? stagedFixtures[0].kickoff_time : null,
+    waiting_for_fixtures: !verdict.eligible,
+  };
+}
+
 module.exports = {
   getFixturePushCandidates,
   pushFixturesToCompetition,
+  getCompetitionStartOutlook,
   FIRST_ROUND_LEAD_TIME_HOURS,
   BLOCKED,
 };

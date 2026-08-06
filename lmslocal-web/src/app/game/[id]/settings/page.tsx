@@ -8,9 +8,8 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   ExclamationTriangleIcon,
-  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { competitionApi, teamApi, UpdateCompetitionRequest, ResetCompetitionRequest, DeleteCompetitionRequest } from '@/lib/api';
+import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, DeleteCompetitionRequest } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -58,40 +57,14 @@ export default function CompetitionSettings() {
     lives_per_player: 0,
     no_team_twice: true,
     prize_structure: '',
-    fixture_service: false,
   });
 
   // Track if competition has started (derived from invite_code presence)
   const [hasStarted, setHasStarted] = useState(false);
 
-  // Fixture service choice. An ordinary form field saved with Save Changes like everything else:
-  // it only says who supplies fixtures and results from here on, so switching it changes nothing
-  // that already exists in the competition.
-  const [fixtureServiceOffered, setFixtureServiceOffered] = useState(false);
-
-  // The service only pushes to team lists we stage fixtures for, so the switch is hidden
-  // entirely on lists it does not cover rather than shown and then refused.
-  useEffect(() => {
-    if (!competition?.team_list_id) return;
-
-    let cancelled = false;
-    teamApi.getTeamLists()
-      .then((response) => {
-        if (cancelled || response.data.return_code !== 'SUCCESS') return;
-        const lists = (response.data.team_lists || []) as { id: number; fixture_service_available?: boolean }[];
-        const match = lists.find(tl => tl.id === competition.team_list_id);
-        setFixtureServiceOffered(match?.fixture_service_available === true);
-      })
-      .catch(() => { /* Leave the switch hidden if we cannot confirm coverage */ });
-
-    return () => { cancelled = true; };
-  }, [competition?.team_list_id]);
-
-  const handleFixtureServiceChange = (enabled: boolean) => {
-    setFormData(prev => ({ ...prev, fixture_service: enabled }));
-    if (success) setSuccess(false);
-    if (error) setError(null);
-  };
+  // Who supplies fixtures and results is fixed at creation. Switching mid-competition has
+  // knock-on effects on rounds, lock times and the staged batch that are not settled yet, so
+  // it is changed in the database on request rather than offered here.
 
   useEffect(() => {
     const initializeData = async () => {
@@ -131,7 +104,6 @@ export default function CompetitionSettings() {
             lives_per_player: competition.lives_per_player || 0,
             no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
             prize_structure: competition.prize_structure || '',
-            fixture_service: competition.fixture_service === true,
           });
 
           // Check if competition has started (no invite code means started)
@@ -245,13 +217,6 @@ export default function CompetitionSettings() {
 
       // Always include logo_url to allow clearing it (send empty string to clear)
       updateData.logo_url = formData.logo_url.trim();
-
-
-      // Only send the fixture service choice on team lists it is offered for - elsewhere the
-      // buttons are not rendered and formData holds a default the organiser never chose.
-      if (fixtureServiceOffered) {
-        updateData.fixture_service = formData.fixture_service;
-      }
 
       // Only include restricted fields if competition hasn't started
       if (!hasStarted) {
@@ -701,73 +666,6 @@ export default function CompetitionSettings() {
             </div>
           </div>
 
-          {/* Fixture Service Section - only on team lists the service covers */}
-          {fixtureServiceOffered && (
-            <div className="border-t border-ink/30">
-              <div className="border-b border-ink/30 p-5 sm:p-6">
-                <p className={`${HEADING} text-xl`}>Fixtures &amp; results</p>
-                <p className="mt-1 text-[14px] text-ink-fade">
-                  Choose whether we handle the fixtures and results, or you do them yourself.
-                </p>
-              </div>
-
-              <div className="space-y-4 p-5 sm:p-6">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => handleFixtureServiceChange(true)}
-                    className={`h-full border p-4 text-left transition-colors ${
-                      formData.fixture_service
-                        ? 'border-ink bg-ink text-stock-lit'
-                        : 'border-ink/30 hover:border-ink'
-                    }`}
-                  >
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className={`${LABEL} flex items-center gap-1.5`}>
-                        <CalendarDaysIcon className="h-4 w-4" />
-                        Do it for me
-                      </span>
-                      <span className={`${LABEL} border px-1.5 py-0.5 ${
-                        formData.fixture_service ? 'border-stock-lit' : 'border-ink/30 text-ink-fade'
-                      }`}>
-                        Free
-                      </span>
-                    </div>
-                    <p className={`text-[13px] ${formData.fixture_service ? 'text-stock/85' : 'text-ink-fade'}`}>
-                      We add each round&apos;s fixtures and enter the results for you.
-                    </p>
-                    <p className={`mt-2 text-[12px] ${formData.fixture_service ? 'text-stock/70' : 'text-ink-fade'}`}>
-                      Free for this competition &mdash; normally <span className="line-through">£10</span>
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleFixtureServiceChange(false)}
-                    className={`h-full border p-4 text-left transition-colors ${
-                      !formData.fixture_service
-                        ? 'border-ink bg-ink text-stock-lit'
-                        : 'border-ink/30 hover:border-ink'
-                    }`}
-                  >
-                    <p className={`${LABEL} mb-1`}>I&apos;ll do my own</p>
-                    <p className={`text-[13px] ${!formData.fixture_service ? 'text-stock/85' : 'text-ink-fade'}`}>
-                      You add the fixtures and enter results each round yourself.
-                    </p>
-                    <p className={`mt-2 text-[12px] ${!formData.fixture_service ? 'text-stock/70' : 'text-ink-fade'}`}>
-                      Full control over kick-off times and lock times
-                    </p>
-                  </button>
-                </div>
-
-                <p className="text-[13px] text-ink-fade">
-                  Switching does not backfill. Rounds already in the competition stay exactly as
-                  they are, and whoever you choose picks up from the next round.
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Game Rules Section */}
           <div className="border-t border-ink/30">
             <div className="border-b border-ink/30 p-5 sm:p-6">
@@ -935,6 +833,16 @@ export default function CompetitionSettings() {
                   Are you absolutely sure? This cannot be undone.
                 </p>
               </div>
+
+              {/* A reset empties the competition back to nothing, so it goes back to waiting on
+                  the organiser - otherwise it would be open to the very next batch of fixtures
+                  with no warning to anyone. */}
+              {competition?.fixture_service === true && (
+                <p className="mt-4 border border-ink/30 p-3 text-[13px] text-ink-fade">
+                  Your competition will go back to waiting. Press Ready again when you want the
+                  next set of matches.
+                </p>
+              )}
 
               <div className="mt-4">
                 <label htmlFor="confirmReset" className={`${LABEL} mb-2 block text-ink-fade`}>

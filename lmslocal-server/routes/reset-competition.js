@@ -37,6 +37,15 @@ Return Codes:
 "UNAUTHORIZED"
 "SERVER_ERROR"
 =======================================================================================================================================
+Starting again:
+
+A reset empties the competition back to nothing, so it goes back to waiting on the organiser:
+ready_at is cleared and they press Ready again when they want the next set of matches. Without
+that, an emptied competition would be open to the very next staged batch with nobody told.
+
+fixture_service itself is deliberately untouched - who supplies the fixtures does not change
+because the competition was emptied.
+=======================================================================================================================================
 */
 
 const express = require('express');
@@ -63,6 +72,7 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+
     // === ATOMIC RESET TRANSACTION ===
     // Execute the entire reset operation within a single atomic transaction
     // This ensures data integrity - either everything resets successfully or nothing changes
@@ -70,8 +80,8 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 1. Get current competition details and verify organiser access with row lock
       const competitionResult = await client.query(`
-        SELECT id, name, organiser_id, team_list_id, status, created_at, lives_per_player
-        FROM competition 
+        SELECT id, name, organiser_id, team_list_id, status, created_at, lives_per_player, fixture_service
+        FROM competition
         WHERE id = $1
         FOR UPDATE
       `, [competition_id]);
@@ -163,12 +173,14 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING id
       `, [competition_id]);
 
-      // 6. Update competition status and generate new invite code  
+      // 6. Update competition status and generate new invite code. ready_at goes back to null so
+      //    the fixture service waits to be told again - see the header.
       const updatedCompetitionResult = await client.query(`
-        UPDATE competition 
-        SET status = 'SETUP', 
+        UPDATE competition
+        SET status = 'SETUP',
             created_at = CURRENT_TIMESTAMP,
-            invite_code = $1
+            invite_code = $1,
+            ready_at = NULL
         WHERE id = $2
         RETURNING id, name, status, invite_code, created_at
       `, [newInviteCode, competition_id]);
@@ -219,7 +231,8 @@ router.post('/', verifyToken, async (req, res) => {
         `Reset player states (payment status, lives, join date) for ${resetPlayerResult.rows.length} players`,
         `Generated new invite code: ${newInviteCode}`,
         `Affected ${playersAffected} players`,
-        `Repopulated allowed teams for all players`
+        `Repopulated allowed teams for all players`,
+        ...(competition.fixture_service === true ? ['Start put back on hold until the organiser presses Ready'] : [])
       ].join(', ');
 
       await client.query(`

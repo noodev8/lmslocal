@@ -46,7 +46,7 @@ Return Codes:
 =======================================================================================================================================
 Data Notes:
 - Opting in does not backfill. The next push gives the competition whatever batch is currently
-  staged, once its kickoff clears earliest_start_date; rounds it missed while opted out stay
+  staged, once it clears the eligibility rules in services/fixtureService.js; rounds it missed while opted out stay
   missed.
 - Opting in a competition that has been run manually is allowed at a round boundary without any
   extra flag - see ROUND_IN_PROGRESS below. Mid-round, it needs override_round_in_progress.

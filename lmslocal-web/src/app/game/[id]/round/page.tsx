@@ -11,7 +11,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { organizerApi, teamApi, OrganizerFixtureWithResult } from '@/lib/api';
+import { organizerApi, teamApi, competitionApi, OrganizerFixtureWithResult } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { cacheUtils } from '@/lib/cache';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
@@ -19,6 +19,8 @@ import {
   deriveRoundState,
   deriveRoundCapabilities,
   roundStatusLine,
+  formatRoundStart,
+  isStartGateVisible,
   outcomeFromResult,
   ResultOutcome,
 } from '@/lib/roundState';
@@ -44,6 +46,12 @@ export default function RoundPage() {
   const [actionError, setActionError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // When their first round would actually start. Only fetched in the one phase that shows it, and
+  // deliberately from the server rather than derived here: the answer depends on what is staged
+  // for their team list, which this screen has no other way of knowing.
+  const [startsAt, setStartsAt] = useState<string | null>(null);
+  const [isSettingReady, setIsSettingReady] = useState(false);
+
   // Re-derived on every render so the phase follows the clock without a timer: any refetch or
   // interaction re-reads `now`, which is enough to move OPEN -> LOCKED on the next paint.
   const now = new Date();
@@ -59,12 +67,13 @@ export default function RoundPage() {
         lockTime,
         fixtures,
         automated: competition?.fixture_service === true,
+        readyToStart: competition?.ready_at != null,
         competitionComplete: competition?.is_complete === true,
         now,
       }),
     // `now` is deliberately excluded - including it would rebuild the state every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hasRound, roundNumber, lockTime, fixtures, competition?.fixture_service, competition?.is_complete]
+    [hasRound, roundNumber, lockTime, fixtures, competition?.fixture_service, competition?.ready_at, competition?.is_complete]
   );
 
   const capabilities = useMemo(
@@ -107,6 +116,52 @@ export default function RoundPage() {
   useEffect(() => {
     if (competition) loadRound();
   }, [competition, loadRound]);
+
+  // Only the automated first-round phase has anywhere to show this, and only once they are ready
+  // is there a date to show.
+  const showStartGate = isStartGateVisible(state, { canManageResults, canManageFixtures });
+  // Fetched in both faces of the gate: the date is the answer to "what happens if I press this?",
+  // so it belongs on screen before the button as well as after.
+  const shouldLoadOutlook = showStartGate;
+
+  useEffect(() => {
+    if (!shouldLoadOutlook) {
+      setStartsAt(null);
+      return;
+    }
+
+    let cancelled = false;
+    competitionApi.getStartOutlook(parseInt(competitionId))
+      .then((response) => {
+        if (cancelled || response.data.return_code !== 'SUCCESS') return;
+        setStartsAt(response.data.starts_at);
+      })
+      .catch(() => { /* The card falls back to "when the next matches are in", which is still true */ });
+
+    return () => { cancelled = true; };
+  }, [shouldLoadOutlook, competitionId]);
+
+  const handleStartCompetition = async () => {
+    if (!competition) return;
+    setIsSettingReady(true);
+    setActionError('');
+
+    try {
+      const response = await competitionApi.setReady(competition.id, true);
+
+      if (response.data.return_code === 'SUCCESS') {
+        cacheUtils.invalidateCompetitions();
+        await refreshCompetitions();
+      } else {
+        setActionError(response.data.message || 'Could not update your competition.');
+      }
+    } catch (error) {
+      console.error('Error setting ready:', error);
+      setActionError('Network error — could not reach the server.');
+    } finally {
+      setIsSettingReady(false);
+    }
+  };
 
   // The organiser's real pattern is to leave this open, go and do something else, and come back
   // expecting it to be current. Cheaper and more accurate than any TTL.
@@ -254,7 +309,47 @@ export default function RoundPage() {
           </div>
         )}
 
-        {!isLoading && !loadError && state.phase === 'NO_ROUND' && (
+        {/* The start gate. An automated competition gets no fixtures at all until the organiser
+            presses Ready — see docs/round-state-machine.md §5. We never name a date we haven't
+            got: once ready, the card shows the real kickoff if a batch is staged for them, and
+            says so plainly if not. */}
+        {!isLoading && !loadError && state.phase === 'NO_ROUND' && showStartGate && (
+          <div className={`${PANEL} mt-5 p-6 ${!state.readyToStart ? 'border-overprint' : ''}`}>
+            {!state.readyToStart ? (
+              <>
+                <p className={`${HEADING} text-xl`}>
+                  {startsAt ? `Start with the matches on ${formatRoundStart(startsAt)}?` : 'Start with the next set of matches?'}
+                </p>
+                <p className="mt-2 text-[15px] text-ink-fade">
+                  {startsAt
+                    ? 'That would be your Round 1, and your players can pick as soon as it appears. Nothing happens until you press this.'
+                    : "We don't have the next set of matches yet. Say the word now and your Round 1 will be the first ones that arrive."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleStartCompetition()}
+                  disabled={isSettingReady}
+                  className={`${BTN_PRIMARY} mt-4 inline-flex px-6 py-3 text-base disabled:opacity-50`}
+                >
+                  {isSettingReady ? 'Starting…' : 'Yes, start my competition'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className={`${HEADING} text-xl`}>
+                  {startsAt ? `Round 1 starts ${formatRoundStart(startsAt)}` : 'Waiting for the next matches'}
+                </p>
+                <p className="mt-2 text-[15px] text-ink-fade">
+                  {startsAt
+                    ? 'Your players can pick as soon as it appears here.'
+                    : "You're ready. Your first round will start as soon as the next set of matches is in."}
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {!isLoading && !loadError && state.phase === 'NO_ROUND' && !showStartGate && (
           <div className={`${PANEL} mt-5 p-6`}>
             <p className="text-[15px] text-ink-fade">
               {state.automated
