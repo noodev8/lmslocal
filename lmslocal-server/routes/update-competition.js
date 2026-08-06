@@ -15,7 +15,8 @@ Request Payload:
   "entry_fee": 10.00,                      // decimal, optional - Entry fee in GBP (can be updated anytime)
   "prize_structure": "Winner takes all",    // string, optional - Prize distribution (max 500 chars, can be updated anytime)
   "lives_per_player": 3,                   // integer, optional - New lives per player (only if not started)
-  "no_team_twice": false                   // boolean, optional - Allow team reuse setting (only if not started)
+  "no_team_twice": false,                  // boolean, optional - Allow team reuse setting (only if not started)
+  "fixture_service": true                  // boolean, optional - true = we push fixtures/results, false = organiser enters them
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -45,7 +46,25 @@ Return Codes:
 "COMPETITION_NOT_FOUND"
 "UNAUTHORIZED"
 "COMPETITION_STARTED"
+"FIXTURE_SERVICE_UNAVAILABLE"
 "SERVER_ERROR"
+=======================================================================================================================================
+Fixture service:
+
+- fixture_service is a plain setting here, saved with everything else on Save Changes. It is
+  only a flag saying who supplies fixtures and results from the next push onwards; it does not
+  create, delete or reset anything, and rounds already in the competition are left exactly as
+  they are.
+
+- The one thing still checked is team_list.fixture_service_available. We match staged fixtures
+  to competitions on team_list_id, so opting in on a list we do not stage would leave the
+  organiser waiting for rounds that never arrive. The settings page hides the choice entirely on
+  those lists, so this refusal should never be seen in normal use.
+
+- Pricing: during the launch promotion the service is free, so enabling records 0.00 in
+  fixture_service_price_paid and stamps granted_at, and only the first grant does - a later
+  toggle off and on again keeps the original stamp. Disabling deliberately leaves both alone;
+  holding 0.00 is what identifies a grandfathered competition when charging starts.
 =======================================================================================================================================
 */
 
@@ -55,13 +74,18 @@ const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
+// Launch promotion. The service lists at £10 but is being given away while we build up
+// organisers, so this is what a first opt-in records. Raise it when charging starts -
+// competitions already holding 0.00 are the grandfathered ones.
+const PROMO_PRICE = 0.00;
+
 router.post('/', verifyToken, async (req, res) => {
   // Log API call if enabled
   logApiCall('update-competition');
   
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice } = req.body;
+    const { competition_id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice, fixture_service } = req.body;
     const user_id = req.user.id;
 
 
@@ -75,7 +99,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Validate at least one field is being updated
-    if (name === undefined && description === undefined && logo_url === undefined && venue_name === undefined && address_line_1 === undefined && address_line_2 === undefined && city === undefined && postcode === undefined && phone === undefined && email === undefined && entry_fee === undefined && prize_structure === undefined && lives_per_player === undefined && no_team_twice === undefined) {
+    if (name === undefined && description === undefined && logo_url === undefined && venue_name === undefined && address_line_1 === undefined && address_line_2 === undefined && city === undefined && postcode === undefined && phone === undefined && email === undefined && entry_fee === undefined && prize_structure === undefined && lives_per_player === undefined && no_team_twice === undefined && fixture_service === undefined) {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "At least one field must be provided for update"
@@ -210,6 +234,14 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    // Validate fixture_service if provided (can be changed anytime)
+    if (fixture_service !== undefined && typeof fixture_service !== 'boolean') {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Fixture service setting must be a boolean value"
+      });
+    }
+
     // === ATOMIC UPDATE TRANSACTION ===
     // Execute all validations and updates within a single atomic transaction
     const result = await transaction(async (client) => {
@@ -217,6 +249,7 @@ router.post('/', verifyToken, async (req, res) => {
       // 1. Get current competition details with row lock to prevent concurrent modifications
       const competitionResult = await client.query(`
         SELECT id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice,
+               fixture_service, fixture_service_granted_at, team_list_id,
                organiser_id, invite_code, created_at
         FROM competition
         WHERE id = $1
@@ -242,7 +275,21 @@ router.post('/', verifyToken, async (req, res) => {
         throw new Error('COMPETITION_STARTED: Lives per player and team reuse settings cannot be changed after competition has started');
       }
 
-      // 5. Prepare update fields with current values as defaults
+      // 5. Turning the fixture service on only makes sense on a team list we stage fixtures for -
+      //    the push matches on team_list_id, so anywhere else the competition would sit waiting
+      //    for rounds that never come. Turning it off is always allowed.
+      if (fixture_service === true && currentCompetition.fixture_service !== true) {
+        const listResult = await client.query(
+          'SELECT fixture_service_available FROM team_list WHERE id = $1',
+          [currentCompetition.team_list_id]
+        );
+
+        if (listResult.rows[0]?.fixture_service_available !== true) {
+          throw new Error('FIXTURE_SERVICE_UNAVAILABLE: The fixture service does not cover this competition\'s team list yet');
+        }
+      }
+
+      // 6. Prepare update fields with current values as defaults
       const updateData = {
         name: name !== undefined ? name.trim() : currentCompetition.name,
         description: description !== undefined ? (description || null) : currentCompetition.description,
@@ -257,15 +304,23 @@ router.post('/', verifyToken, async (req, res) => {
         entry_fee: entry_fee !== undefined ? (entry_fee !== null ? Number(entry_fee) : null) : currentCompetition.entry_fee,
         prize_structure: prize_structure !== undefined ? (prize_structure ? prize_structure.trim() : null) : currentCompetition.prize_structure,
         lives_per_player: lives_per_player !== undefined ? lives_per_player : currentCompetition.lives_per_player,
-        no_team_twice: no_team_twice !== undefined ? no_team_twice : currentCompetition.no_team_twice
+        no_team_twice: no_team_twice !== undefined ? no_team_twice : currentCompetition.no_team_twice,
+        fixture_service: fixture_service !== undefined ? fixture_service : currentCompetition.fixture_service
       };
 
-      // 6. Update the competition record with new values
+      // 7. Update the competition record with new values.
+      //    The promo price and grant stamp are written only on the first time the service is
+      //    turned on - COALESCE keeps the original stamp through any later off/on toggling, and
+      //    turning it off leaves both columns alone (see the header).
+      const grantingFixtureService = fixture_service === true && currentCompetition.fixture_service !== true;
+
       const updatedCompetitionResult = await client.query(`
         UPDATE competition
-        SET name = $1, description = $2, logo_url = $3, venue_name = $4, address_line_1 = $5, address_line_2 = $6, city = $7, postcode = $8, phone = $9, email = $10, entry_fee = $11, prize_structure = $12, lives_per_player = $13, no_team_twice = $14
-        WHERE id = $15
-        RETURNING id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice,
+        SET name = $1, description = $2, logo_url = $3, venue_name = $4, address_line_1 = $5, address_line_2 = $6, city = $7, postcode = $8, phone = $9, email = $10, entry_fee = $11, prize_structure = $12, lives_per_player = $13, no_team_twice = $14, fixture_service = $15,
+            fixture_service_price_paid = CASE WHEN $16 THEN COALESCE(fixture_service_price_paid, $17) ELSE fixture_service_price_paid END,
+            fixture_service_granted_at = CASE WHEN $16 THEN COALESCE(fixture_service_granted_at, CURRENT_TIMESTAMP) ELSE fixture_service_granted_at END
+        WHERE id = $18
+        RETURNING id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice, fixture_service,
                   invite_code, created_at, organiser_id
       `, [
         updateData.name,
@@ -282,12 +337,15 @@ router.post('/', verifyToken, async (req, res) => {
         updateData.prize_structure,
         updateData.lives_per_player,
         updateData.no_team_twice,
+        updateData.fixture_service,
+        grantingFixtureService,
+        PROMO_PRICE,
         competition_id
       ]);
 
       const updatedCompetition = updatedCompetitionResult.rows[0];
 
-      // 7. If lives_per_player changed and competition hasn't started, update all existing players
+      // 8. If lives_per_player changed and competition hasn't started, update all existing players
       if (lives_per_player !== undefined && 
           lives_per_player !== currentCompetition.lives_per_player && 
           !hasStarted) {
@@ -299,7 +357,7 @@ router.post('/', verifyToken, async (req, res) => {
         `, [lives_per_player, competition_id]);
       }
 
-      // 8. Create audit log entry for the update action
+      // 9. Create audit log entry for the update action
       const auditDetails = [];
       if (name !== undefined && name.trim() !== currentCompetition.name) {
         auditDetails.push(`name changed from "${currentCompetition.name}" to "${name.trim()}"`);
@@ -324,6 +382,9 @@ router.post('/', verifyToken, async (req, res) => {
       }
       if (no_team_twice !== undefined && no_team_twice !== currentCompetition.no_team_twice) {
         auditDetails.push(`team reuse setting changed to ${no_team_twice ? 'not allowed' : 'allowed'}`);
+      }
+      if (fixture_service !== undefined && fixture_service !== currentCompetition.fixture_service) {
+        auditDetails.push(`fixture service ${fixture_service ? 'enabled' : 'disabled'}`);
       }
 
       if (auditDetails.length > 0) {
@@ -355,6 +416,7 @@ router.post('/', verifyToken, async (req, res) => {
         description: result.competition.description,                 // Updated competition description
         lives_per_player: result.competition.lives_per_player,      // Current lives per player setting
         no_team_twice: result.competition.no_team_twice,           // Current team reuse prevention setting
+        fixture_service: result.competition.fixture_service,       // Current fixture service setting
         has_started: result.hasStarted,                            // Boolean indicating if competition has started
         updated_at: new Date().toISOString()                      // Current timestamp in ISO format
       }
@@ -383,6 +445,13 @@ router.post('/', verifyToken, async (req, res) => {
     if (error.message.startsWith('UNAUTHORIZED:')) {
       return res.json({
         return_code: "UNAUTHORIZED",
+        message: error.message.split(': ')[1]
+      });
+    }
+
+    if (error.message.startsWith('FIXTURE_SERVICE_UNAVAILABLE:')) {
+      return res.json({
+        return_code: "FIXTURE_SERVICE_UNAVAILABLE",
         message: error.message.split(': ')[1]
       });
     }

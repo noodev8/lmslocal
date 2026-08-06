@@ -58,19 +58,16 @@ export default function CompetitionSettings() {
     lives_per_player: 0,
     no_team_twice: true,
     prize_structure: '',
+    fixture_service: false,
   });
 
   // Track if competition has started (derived from invite_code presence)
   const [hasStarted, setHasStarted] = useState(false);
 
-  // Fixture service switch. Saved on its own, not via Save Changes - the server can refuse it
-  // for round-state reasons that need explaining, and that must not block other edits.
+  // Fixture service choice. An ordinary form field saved with Save Changes like everything else:
+  // it only says who supplies fixtures and results from here on, so switching it changes nothing
+  // that already exists in the competition.
   const [fixtureServiceOffered, setFixtureServiceOffered] = useState(false);
-  const [switchingFixtureService, setSwitchingFixtureService] = useState(false);
-  const [fixtureServiceError, setFixtureServiceError] = useState<string | null>(null);
-  const [fixtureServiceNotice, setFixtureServiceNotice] = useState<string | null>(null);
-  // Set when the switch is blocked only by an unstarted round the organiser can choose to discard.
-  const [stalledRound, setStalledRound] = useState<{ round_number: number; fixture_count: number } | null>(null);
 
   // The service only pushes to team lists we stage fixtures for, so the switch is hidden
   // entirely on lists it does not cover rather than shown and then refused.
@@ -90,39 +87,10 @@ export default function CompetitionSettings() {
     return () => { cancelled = true; };
   }, [competition?.team_list_id]);
 
-  const handleFixtureServiceChange = async (enabled: boolean, clearStalledRound = false) => {
-    if (!competition) return;
-    // Allow a repeat call when confirming a clear - the flag has not changed yet at that point.
-    if (!clearStalledRound && enabled === (competition.fixture_service === true)) return;
-
-    setSwitchingFixtureService(true);
-    setFixtureServiceError(null);
-    setFixtureServiceNotice(null);
-
-    try {
-      const response = await competitionApi.setFixtureService(competition.id, enabled, clearStalledRound);
-
-      if (response.data.return_code === 'SUCCESS') {
-        setStalledRound(null);
-        setFixtureServiceNotice(response.data.message || 'Setting saved');
-        await refreshCompetitions();
-      } else if (response.data.return_code === 'STALLED_ROUND_NEEDS_CLEARING') {
-        // Nothing has been deleted yet. Confirm with the organiser, naming what goes.
-        setStalledRound({
-          round_number: response.data.round_number ?? 0,
-          fixture_count: response.data.fixture_count ?? 0
-        });
-      } else {
-        // ROUND_IN_PROGRESS, ROUND_NOT_PROCESSED and ROUND_NO_LONGER_CLEARABLE each explain
-        // exactly what is blocking the switch, so show the server's message.
-        setStalledRound(null);
-        setFixtureServiceError(response.data.message || 'Could not change this setting');
-      }
-    } catch {
-      setFixtureServiceError('Could not change this setting. Please try again.');
-    } finally {
-      setSwitchingFixtureService(false);
-    }
+  const handleFixtureServiceChange = (enabled: boolean) => {
+    setFormData(prev => ({ ...prev, fixture_service: enabled }));
+    if (success) setSuccess(false);
+    if (error) setError(null);
   };
 
   useEffect(() => {
@@ -163,6 +131,7 @@ export default function CompetitionSettings() {
             lives_per_player: competition.lives_per_player || 0,
             no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
             prize_structure: competition.prize_structure || '',
+            fixture_service: competition.fixture_service === true,
           });
 
           // Check if competition has started (no invite code means started)
@@ -277,6 +246,12 @@ export default function CompetitionSettings() {
       // Always include logo_url to allow clearing it (send empty string to clear)
       updateData.logo_url = formData.logo_url.trim();
 
+
+      // Only send the fixture service choice on team lists it is offered for - elsewhere the
+      // buttons are not rendered and formData holds a default the organiser never chose.
+      if (fixtureServiceOffered) {
+        updateData.fixture_service = formData.fixture_service;
+      }
 
       // Only include restricted fields if competition hasn't started
       if (!hasStarted) {
@@ -755,7 +730,6 @@ export default function CompetitionSettings() {
                 <p className={`${HEADING} text-xl`}>Fixtures &amp; results</p>
                 <p className="mt-1 text-[14px] text-ink-fade">
                   Choose whether we handle the fixtures and results, or you do them yourself.
-                  This saves as soon as you choose.
                 </p>
               </div>
 
@@ -764,9 +738,8 @@ export default function CompetitionSettings() {
                   <button
                     type="button"
                     onClick={() => handleFixtureServiceChange(true)}
-                    disabled={switchingFixtureService}
-                    className={`h-full border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                      competition?.fixture_service === true
+                    className={`h-full border p-4 text-left transition-colors ${
+                      formData.fixture_service
                         ? 'border-ink bg-ink text-stock-lit'
                         : 'border-ink/30 hover:border-ink'
                     }`}
@@ -777,15 +750,15 @@ export default function CompetitionSettings() {
                         Do it for me
                       </span>
                       <span className={`${LABEL} border px-1.5 py-0.5 ${
-                        competition?.fixture_service === true ? 'border-stock-lit' : 'border-ink/30 text-ink-fade'
+                        formData.fixture_service ? 'border-stock-lit' : 'border-ink/30 text-ink-fade'
                       }`}>
                         Free
                       </span>
                     </div>
-                    <p className={`text-[13px] ${competition?.fixture_service === true ? 'text-stock/85' : 'text-ink-fade'}`}>
+                    <p className={`text-[13px] ${formData.fixture_service ? 'text-stock/85' : 'text-ink-fade'}`}>
                       We add each round&apos;s fixtures and enter the results for you.
                     </p>
-                    <p className={`mt-2 text-[12px] ${competition?.fixture_service === true ? 'text-stock/70' : 'text-ink-fade'}`}>
+                    <p className={`mt-2 text-[12px] ${formData.fixture_service ? 'text-stock/70' : 'text-ink-fade'}`}>
                       Free for this competition &mdash; normally <span className="line-through">£10</span>
                     </p>
                   </button>
@@ -793,74 +766,25 @@ export default function CompetitionSettings() {
                   <button
                     type="button"
                     onClick={() => handleFixtureServiceChange(false)}
-                    disabled={switchingFixtureService}
-                    className={`h-full border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                      competition?.fixture_service === false
+                    className={`h-full border p-4 text-left transition-colors ${
+                      !formData.fixture_service
                         ? 'border-ink bg-ink text-stock-lit'
                         : 'border-ink/30 hover:border-ink'
                     }`}
                   >
                     <p className={`${LABEL} mb-1`}>I&apos;ll do my own</p>
-                    <p className={`text-[13px] ${competition?.fixture_service === false ? 'text-stock/85' : 'text-ink-fade'}`}>
+                    <p className={`text-[13px] ${!formData.fixture_service ? 'text-stock/85' : 'text-ink-fade'}`}>
                       You add the fixtures and enter results each round yourself.
                     </p>
-                    <p className={`mt-2 text-[12px] ${competition?.fixture_service === false ? 'text-stock/70' : 'text-ink-fade'}`}>
+                    <p className={`mt-2 text-[12px] ${!formData.fixture_service ? 'text-stock/70' : 'text-ink-fade'}`}>
                       Full control over kick-off times and lock times
                     </p>
                   </button>
                 </div>
 
-                {switchingFixtureService && (
-                  <p className="text-[13px] text-ink-fade">Saving&hellip;</p>
-                )}
-
-                {fixtureServiceNotice && (
-                  <div className="border border-ink/30 p-4">
-                    <p className="text-[14px] text-ink">{fixtureServiceNotice}</p>
-                  </div>
-                )}
-
-                {fixtureServiceError && (
-                  <div className="border border-overprint p-4">
-                    <p className="text-[14px] text-ink">{fixtureServiceError}</p>
-                  </div>
-                )}
-
-                {/* Nothing has been deleted at this point - this is the confirmation step */}
-                {stalledRound && (
-                  <div className="border border-overprint p-4">
-                    <p className="text-[14px] font-medium text-ink">
-                      This will remove the {stalledRound.fixture_count} fixtures you added to
-                      round {stalledRound.round_number}
-                    </p>
-                    <p className="mt-1 text-[13px] text-ink-fade">
-                      Nobody has picked yet, so nothing else is lost. We&apos;ll set up round 1
-                      for you and take it from there.
-                    </p>
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => handleFixtureServiceChange(true, true)}
-                        disabled={switchingFixtureService}
-                        className={`${BTN_DARK} px-4 py-2 disabled:opacity-50`}
-                      >
-                        Remove it and take over
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStalledRound(null)}
-                        disabled={switchingFixtureService}
-                        className={`${BTN_OUTLINE} px-4 py-2 disabled:opacity-50`}
-                      >
-                        Keep my fixtures
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 <p className="text-[13px] text-ink-fade">
-                  Switching does not backfill. Rounds already played stay as they are, and we pick
-                  up from the next round.
+                  Switching does not backfill. Rounds already in the competition stay exactly as
+                  they are, and whoever you choose picks up from the next round.
                 </p>
               </div>
             </div>

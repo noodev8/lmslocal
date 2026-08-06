@@ -6,6 +6,14 @@ Method: POST
 Purpose: Lets an organiser switch their own competition into or out of the automated fixture
          service, from competition settings.
 
+         NO LONGER CALLED. Competition settings now saves fixture_service as an ordinary field
+         through /update-competition, with the round-state refusals and the stalled-round
+         clearing dropped: the flag only says who supplies fixtures from the next push onwards,
+         and organisers found a switch that silently bounced back - and then offered to delete a
+         round - far more alarming than useful. Nothing in lmslocal-web or lmslocal-flutter
+         reaches this route any more. It is still registered and still correct; delete it if it
+         is still unused next time this area is touched.
+
          This is the organiser-facing twin of admin/set-fixture-service.js. Both flip
          competition.fixture_service, and both apply the identical round-boundary safety checks
          from services/fixtureServiceSwitch.js. Per CLAUDE.md this is a separate route rather
