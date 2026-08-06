@@ -281,11 +281,25 @@ export default function RoundPage() {
                   fixture.away_team_short
                 );
 
+                /* The winner is named twice on this row - in the fixture line and in the slots -
+                   and both use the same green. A losing side only fades. Red is not used here
+                   even though a loss eliminates: every decided fixture has a loser, so half the
+                   screen would be overprint and the colour would stop meaning "needs you". */
+                const homeWon = outcome === 'home_win';
+                const awayWon = outcome === 'away_win';
+                const beaten = outcome !== null && outcome !== 'draw';
+
                 return (
                   <div key={fixture.id} className="px-4 py-3 sm:px-5 sm:py-4">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-data text-[15px] text-ink">
-                        {homeName} <span className="text-ink-fade">vs</span> {awayName}
+                      <span className="font-data text-[15px]">
+                        <span className={homeWon ? 'font-semibold text-moss' : beaten ? 'text-ink-fade' : 'text-ink'}>
+                          {homeName}
+                        </span>
+                        <span className="text-ink-fade"> vs </span>
+                        <span className={awayWon ? 'font-semibold text-moss' : beaten ? 'text-ink-fade' : 'text-ink'}>
+                          {awayName}
+                        </span>
                       </span>
                       {/* Only meaningful once results are expected; before kickoff every row
                           would carry the same empty marker. */}
@@ -300,19 +314,25 @@ export default function RoundPage() {
                       <div className="mt-3 grid grid-cols-3 gap-2">
                         <ResultSlot
                           label={fixture.home_team_short}
-                          selected={outcome === 'home_win'}
+                          selected={homeWon}
+                          decided={outcome !== null}
+                          tone="win"
                           interactive={capabilities.canEnterResults}
                           onClick={() => handleResultClick(fixture, 'home_win')}
                         />
                         <ResultSlot
                           label="Draw"
                           selected={outcome === 'draw'}
+                          decided={outcome !== null}
+                          tone="draw"
                           interactive={capabilities.canEnterResults}
                           onClick={() => handleResultClick(fixture, 'draw')}
                         />
                         <ResultSlot
                           label={fixture.away_team_short}
-                          selected={outcome === 'away_win'}
+                          selected={awayWon}
+                          decided={outcome !== null}
+                          tone="win"
                           interactive={capabilities.canEnterResults}
                           onClick={() => handleResultClick(fixture, 'away_win')}
                         />
@@ -379,30 +399,41 @@ export default function RoundPage() {
 /*
 One result slot. Renders as a button only when it can actually be pressed - otherwise it is a
 read-out, so a view-only organiser never sees a control that does nothing.
+
+Three states, and the colour carries which one:
+
+  undecided  outlined, full-strength ink   nothing has happened here yet
+  winner     filled moss (green)           a team won - the only green on the row
+  draw       filled ink (near-black)       settled, but nobody won, so not green
+  beaten     faded, hairline border        recedes; it is context, not news
+
+The old version filled the selected slot with ink whatever it meant, so "Hull won" and "Draw"
+looked identical and neither read as a result - just as the pressed one of three buttons.
 */
 function ResultSlot({
   label,
   selected,
+  decided,
+  tone,
   interactive,
   onClick,
 }: {
   label: string;
   selected: boolean;
+  decided: boolean;
+  tone: 'win' | 'draw';
   interactive: boolean;
   onClick: () => void;
 }) {
   const base = `${LABEL} border py-2.5 text-center transition-colors`;
 
+  // Both colours are AA on their fill: moss is 7.3:1 on stock and carries stock-lit text, per
+  // the palette notes in tailwind.config.js.
+  const filled = tone === 'win' ? 'border-moss bg-moss text-stock-lit' : 'border-ink bg-ink text-stock-lit';
+  const beaten = 'border-ink/15 text-ink-fade/50';
+
   if (!interactive) {
-    return (
-      <span
-        className={`${base} ${
-          selected ? 'border-ink bg-ink text-stock-lit' : 'border-ink/15 text-ink-fade/50'
-        }`}
-      >
-        {label}
-      </span>
-    );
+    return <span className={`${base} ${selected ? filled : beaten}`}>{label}</span>;
   }
 
   // aria-pressed, not a plain button: these three are a toggle group, and tapping the selected
@@ -414,10 +445,8 @@ function ResultSlot({
       onClick={onClick}
       aria-pressed={selected}
       title={selected ? 'Tap again to clear this result' : undefined}
-      className={`${base} ${
-        selected
-          ? 'cursor-pointer border-ink bg-ink text-stock-lit'
-          : 'cursor-pointer border-ink/30 text-ink hover:border-ink'
+      className={`${base} cursor-pointer ${
+        selected ? filled : decided ? `${beaten} hover:border-ink/40` : 'border-ink/30 text-ink hover:border-ink'
       }`}
     >
       {label}

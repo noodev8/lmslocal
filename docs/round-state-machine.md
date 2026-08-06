@@ -163,6 +163,23 @@ false once nothing is left unprocessed.
 processed fixture, clear included, and `canEnterResults` is false in `COMPLETE`. Undo exists for
 the part before the round is settled, not after.
 
+**A slot's colour says what happened, not which button is pressed:**
+
+| Slot | Fill | Meaning |
+|---|---|---|
+| Undecided | outlined, full-strength ink | nothing has happened here yet |
+| Winner | **moss** (green) | a team won — the only green on the row |
+| Draw | ink (near-black) | settled, but nobody won, so not green |
+| Beaten side | faded, hairline border | recedes; context, not news |
+
+The winning team is also named in moss in the fixture line above the slots, and the beaten one
+fades there too, so the row can be read at a glance without decoding the slots. The same green
+means the same thing on the player's results screen.
+
+**A loss is never red**, even though losing eliminates you. Every decided fixture has a loser, so
+red would cover half the screen and stop meaning "this needs you" — which is the job it does on
+the dashboard tile and the Play tile. Losing fades; it doesn't shout.
+
 ---
 
 ## 5. Copy
