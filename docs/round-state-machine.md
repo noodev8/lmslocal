@@ -162,7 +162,7 @@ disagrees with the screen it links to.
 |---|---|---|
 | `NO_ROUND` (automated) | "Waiting for fixtures" | "Fixtures for the next round haven't been published yet." |
 | `NO_ROUND` (manual) | "No fixtures yet" | "Add this round's fixtures to get started." |
-| `OPEN` | "Locks {day} {time}" | "Picks close {full date}." |
+| `OPEN` | "Open for picks" | "Picks close {full date}." |
 | `LOCKED` | "In play" | "Picks are locked." |
 | `RESULTS_PARTIAL` | "{n} of {total} results in" | "{n} of {total} results in." |
 | `RESULTS_READY` | "All results in" | "Every result is in — process the round to settle it." |
@@ -192,6 +192,14 @@ failure mode is a literal "Locks Invalid Date" on the organiser's dashboard.
 **Word choice.** The tile is labelled **Round** — as in "Round 1" — not "Fixtures". "Fixtures" is
 fixture-*service* vocabulary; it's obvious to us and to anyone who's run a sweepstake before, and
 opaque to a first-time organiser in a pub. "Round" is the thing they already talk about.
+
+**The deadline belongs to the Play tile, not the Round tile.** An organiser who also plays sees
+both tiles side by side on `/game/[id]`, and `OPEN` used to render as "Round 1 / Locks Fri 7:30pm"
+next to "Play / Pick needed" — two tiles quoting one round, with the timestamp on the wrong one.
+The lock time is a *player's* concern: it's what costs a life. The organiser's concern in `OPEN`
+is that there's nothing owed yet, which is what "Open for picks" says. So the Round tile states
+the phase and the Play tile carries "Pick needed by {day} {time}" (`pickDeadlineText`). The full
+deadline is still one click away on the page status line.
 
 ---
 
@@ -269,8 +277,9 @@ looking at stale figures. The round screen refreshes unconditionally.
 Decide these here as they come up, don't decide them in a component.
 
 1. **Dashboard tile subtitle costs a fetch.** `/get-user-dashboard` returns `current_round` and
-   `current_round_lock_time` but no result counts, so the tile can say "Locks Fri 20:00" from
-   data it already has, but can't say "3 of 10 results in" without either a second request on the
+   `current_round_lock_time` but no result counts, so the tile can name the phase and the Play
+   tile its deadline from data they already have, but neither can say "3 of 10 results in"
+   without either a second request on the
    dashboard or new fields in the dashboard payload. **Current decision: the tile degrades** —
    it shows phase-level copy from what the dashboard already knows, and the counts live on the
    round page. Revisit by adding `fixtures_with_results` / `total_fixtures` to the dashboard

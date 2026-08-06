@@ -18,7 +18,7 @@ import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayer
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
-import { deriveDashboardRoundState, roundTileLabel, roundTileSummary } from '@/lib/roundState';
+import { deriveDashboardRoundState, pickDeadlineText, roundTileLabel, roundTileSummary } from '@/lib/roundState';
 import { cacheUtils } from '@/lib/cache';
 import { cachePrefixes } from '@/lib/cacheKeys';
 
@@ -891,7 +891,11 @@ Good luck! ⚽`;
               >
                 <PlayIcon className={`h-6 w-6 ${competition.needs_pick ? 'text-overprint' : 'text-ink'}`} />
                 <span className={`${LABEL} text-ink`}>Play</span>
-                {competition.needs_pick && <span className={`${LABEL} text-overprint`}>Pick needed</span>}
+                {competition.needs_pick && (
+                  <span className={`${LABEL} text-center text-overprint`}>
+                    {pickDeadlineText(dashboardRoundState)}
+                  </span>
+                )}
               </button>
             )}
 
@@ -960,7 +964,11 @@ Good luck! ⚽`;
             >
               <PlayIcon className={`h-6 w-6 ${competition.needs_pick ? 'text-overprint' : 'text-ink'}`} />
               <span className={`${LABEL} text-ink`}>Play</span>
-              {competition.needs_pick && <span className={`${LABEL} text-overprint`}>Pick needed</span>}
+              {competition.needs_pick && (
+                <span className={`${LABEL} text-center text-overprint`}>
+                  {pickDeadlineText(dashboardRoundState)}
+                </span>
+              )}
             </button>
 
             <Link

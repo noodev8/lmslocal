@@ -246,7 +246,11 @@ export function roundTileSummary(state: RoundState): string {
     case 'NO_ROUND':
       return state.automated ? 'Waiting for fixtures' : 'No fixtures yet';
     case 'OPEN':
-      return state.lockTime ? `Locks ${formatShort(state.lockTime)}` : 'Open for picks';
+      // No lock time here even though we have one. An organiser who plays sees this tile beside
+      // the Play tile, and the deadline is the player's concern - it lives there, via
+      // pickDeadlineText. This tile answers "what do I owe this round?", and in OPEN that's
+      // nothing. See docs/round-state-machine.md §5.
+      return 'Open for picks';
     case 'LOCKED':
       return 'In play';
     case 'RESULTS_PARTIAL':
@@ -292,6 +296,18 @@ export function roundTileLabel(state: RoundState): string {
 }
 
 /**
+ * The Play tile's second line, for a player who still owes a pick. Carries the deadline because
+ * this is the tile where it's actionable — the Round tile beside it states the phase instead.
+ *
+ * Falls back to the bare warning when there's no lock time to quote, which is the same thing the
+ * tile said before and still true.
+ */
+export function pickDeadlineText(state: RoundState): string {
+  if (state.phase !== 'OPEN' || !state.lockTime) return 'Pick needed';
+  return `Pick needed by ${formatShort(state.lockTime)}`;
+}
+
+/**
  * Kickoff times are UK kickoff times, so they are always shown in UK time — never the viewer's
  * local zone. An organiser checking the app from Spain still needs to read the time Arsenal
  * actually kick off, and a player who sees "9pm" when the pub says "8pm" has been given wrong
@@ -303,24 +319,38 @@ export function roundTileLabel(state: RoundState): string {
  */
 const DISPLAY_TIME_ZONE = 'Europe/London';
 
+/**
+ * 12-hour throughout: kickoffs are spoken as "half seven", not "19:30", and the fixture entry
+ * form offers its shortcuts the same way. `hour12` gives "7:30 pm" — the space is closed up so
+ * this matches the `7:30pm` form used on the pick and fixture screens. The class covers the
+ * narrow no-break space some engines emit in place of a plain one.
+ */
+const TIME_PARTS = { hour: 'numeric', minute: '2-digit', hour12: true } as const;
+
+function closeUpMeridiem(text: string): string {
+  return text.replace(/\s(?=[ap]m\b)/gi, '');
+}
+
 function formatShort(date: Date): string {
-  return date.toLocaleString('en-GB', {
-    timeZone: DISPLAY_TIME_ZONE,
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return closeUpMeridiem(
+    date.toLocaleString('en-GB', {
+      timeZone: DISPLAY_TIME_ZONE,
+      weekday: 'short',
+      ...TIME_PARTS,
+    })
+  );
 }
 
 function formatLong(date: Date): string {
-  return date.toLocaleString('en-GB', {
-    timeZone: DISPLAY_TIME_ZONE,
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return closeUpMeridiem(
+    date.toLocaleString('en-GB', {
+      timeZone: DISPLAY_TIME_ZONE,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      ...TIME_PARTS,
+    })
+  );
 }
 
 /* ---------------------------------------------------------------------------------------------
