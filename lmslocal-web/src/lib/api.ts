@@ -1117,7 +1117,9 @@ export const organizerApi = {
     api.post('/organizer-get-fixtures-for-results', { competition_id }),
 
   // Set single fixture result
-  setResult: (fixture_id: number, result: 'home_win' | 'away_win' | 'draw') =>
+  // 'clear' un-sets a result entered by mistake. Refused once the fixture is processed, same as
+  // any other change.
+  setResult: (fixture_id: number, result: 'home_win' | 'away_win' | 'draw' | 'clear') =>
     api.post('/organizer-set-result', { fixture_id, result }),
 
   // Process all results for round (eliminations, no-picks, completion)

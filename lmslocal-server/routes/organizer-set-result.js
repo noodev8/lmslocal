@@ -3,33 +3,34 @@
 API Route: organizer-set-result
 =======================================================================================================================================
 Method: POST
-Purpose: Sets the result for a single fixture. Converts win/draw choice to the appropriate team short code or "DRAW".
+Purpose: Sets or clears the result for a single fixture. Converts win/draw choice to the appropriate team short code or "DRAW";
+         "clear" sets the result back to NULL so a mis-tap can be undone.
          Does NOT process eliminations - that happens separately via organizer-process-results.
 =======================================================================================================================================
 Request Payload:
 {
   "fixture_id": 456,                          // integer, required - Fixture ID
-  "result": "home_win"                        // string, required - "home_win", "away_win", or "draw"
+  "result": "home_win"                        // string, required - "home_win", "away_win", "draw", or "clear"
 }
 
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "fixture_id": 456,                          // integer, Fixture that was updated
-  "result": "ARS",                            // string, Result value saved ("ARS", "CHE", or "DRAW")
+  "result": "ARS",                            // string|null, Value saved ("ARS", "CHE", "DRAW", or null when cleared)
   "message": "Result saved"                   // string, Confirmation message
 }
 
 Error Response (ALWAYS HTTP 200):
 {
   "return_code": "INVALID_RESULT",
-  "message": "Result must be: home_win, away_win, or draw"
+  "message": "Result must be: home_win, away_win, draw, or clear"
 }
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
 "MISSING_FIELDS"           - Required fields are missing
-"INVALID_RESULT"           - Result type is not valid (must be home_win, away_win, or draw)
+"INVALID_RESULT"           - Result type is not valid (must be home_win, away_win, draw, or clear)
 "UNAUTHORIZED"             - User is not the organiser of this competition
 "FIXTURE_NOT_FOUND"        - Fixture doesn't exist
 "AUTOMATED_COMPETITION"    - Competition uses fixture_service (automated mode)
@@ -73,12 +74,14 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Validate result type
-    const validResults = ['home_win', 'away_win', 'draw'];
+    // Validate result type. "clear" un-sets a result the organiser entered by mistake; it takes
+    // the identical path to a set, so every guard below - permission, automated, round locked,
+    // already processed - applies to it too. A processed fixture stays immutable either way.
+    const validResults = ['home_win', 'away_win', 'draw', 'clear'];
     if (!validResults.includes(result)) {
       return res.status(200).json({
         return_code: "INVALID_RESULT",
-        message: "Result must be: home_win, away_win, or draw"
+        message: "Result must be: home_win, away_win, draw, or clear"
       });
     }
 
@@ -170,6 +173,11 @@ router.post('/', verifyToken, async (req, res) => {
       case 'draw':
         resultValue = 'DRAW';
         break;
+      case 'clear':
+        // NULL is the same "no result yet" the fixture was created with, so the round drops back
+        // a phase on its own - see docs/round-state-machine.md.
+        resultValue = null;
+        break;
     }
 
     // ========================================
@@ -190,7 +198,7 @@ router.post('/', verifyToken, async (req, res) => {
       return_code: "SUCCESS",
       fixture_id: fixtureIdInt,
       result: resultValue,
-      message: "Result saved"
+      message: resultValue === null ? "Result cleared" : "Result saved"
     });
 
   } catch (error) {

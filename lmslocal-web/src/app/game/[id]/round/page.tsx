@@ -142,20 +142,30 @@ export default function RoundPage() {
     if (!capabilities.canEnterResults) return;
 
     const current = outcomeFromResult(fixture.result, fixture.home_team_short, fixture.away_team_short);
-    if (current === outcome) return; // Already set to this; nothing to save.
+
+    // Tapping the result that's already set clears it. Entering results is a long sitting where
+    // a mis-tap is ordinary, and without this the only way back was to pick a result you knew to
+    // be wrong and leave it there. A processed fixture is still immutable - the buttons stop
+    // being interactive, and the server refuses with ALREADY_PROCESSED regardless.
+    const isUndo = current === outcome;
 
     setActionError('');
     const previous = fixture.result;
 
     // The server stores a team code or 'DRAW', so the optimistic value has to be in that
     // vocabulary too - otherwise the row disagrees with itself until the next refetch.
-    const optimistic =
-      outcome === 'draw' ? 'DRAW' : outcome === 'home_win' ? fixture.home_team_short : fixture.away_team_short;
+    const optimistic = isUndo
+      ? null
+      : outcome === 'draw'
+      ? 'DRAW'
+      : outcome === 'home_win'
+      ? fixture.home_team_short
+      : fixture.away_team_short;
 
     setFixtures((prev) => prev.map((f) => (f.id === fixture.id ? { ...f, result: optimistic } : f)));
 
     try {
-      const response = await organizerApi.setResult(fixture.id, outcome);
+      const response = await organizerApi.setResult(fixture.id, isUndo ? 'clear' : outcome);
       if (response.data.return_code !== 'SUCCESS') {
         setFixtures((prev) => prev.map((f) => (f.id === fixture.id ? { ...f, result: previous } : f)));
         setActionError(response.data.message || 'Could not save that result.');
@@ -395,13 +405,18 @@ function ResultSlot({
     );
   }
 
+  // aria-pressed, not a plain button: these three are a toggle group, and tapping the selected
+  // one clears it. Screen readers announce the pressed state, and the title says so for everyone
+  // else - nothing about a filled-in slot otherwise suggests it can be undone.
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={selected}
+      title={selected ? 'Tap again to clear this result' : undefined}
       className={`${base} ${
         selected
-          ? 'border-ink bg-ink text-stock-lit'
+          ? 'cursor-pointer border-ink bg-ink text-stock-lit'
           : 'cursor-pointer border-ink/30 text-ink hover:border-ink'
       }`}
     >

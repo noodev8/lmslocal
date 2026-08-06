@@ -151,6 +151,18 @@ Two consequences worth stating out loud:
   to a round that has them (`ROUND_HAS_FIXTURES`), so offering the button would only produce an
   error. Fixing a bad round is a separate, deliberate path — see §7.
 
+**The three result slots are a toggle group.** Tapping the slot that's already selected clears
+that fixture's result — `organizer-set-result` takes `"clear"` and writes NULL, through the same
+guards as a set. Entering a round's results is a sitting of ten or twenty taps and a mis-tap is
+ordinary; without an undo the only way out was to leave a result you knew to be wrong. Clearing
+moves the round back down the phase list on its own, because the phase is derived from how many
+fixtures carry a result — `RESULTS_PARTIAL` back to `LOCKED`, and `canProcessResults` back to
+false once nothing is left unprocessed.
+
+**Processing is still the point of no return.** `ALREADY_PROCESSED` refuses any change to a
+processed fixture, clear included, and `canEnterResults` is false in `COMPLETE`. Undo exists for
+the part before the round is settled, not after.
+
 ---
 
 ## 5. Copy
