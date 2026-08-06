@@ -164,6 +164,11 @@ router.post('/', verifyToken, async (req, res) => {
         COALESCE(round_info.current_round, 0) as current_round,   -- Current round number
         COALESCE(round_info.total_rounds, 0) as total_rounds,     -- Total rounds created
         round_info.current_round_lock_time,    -- When current round locks (null before any round)
+        -- COALESCE to 0: a round with no fixture rows yet joins to nothing, and the tile treats
+        -- zero fixtures as a round still waiting for them rather than as one with nothing left to do.
+        COALESCE(fixture_counts.total_fixtures, 0) as total_fixtures,
+        COALESCE(fixture_counts.fixtures_with_results, 0) as fixtures_with_results,
+        COALESCE(fixture_counts.fixtures_processed, 0) as fixtures_processed,
         round_info.current_round_id,           -- Current round ID for pick stats
         
         -- === PICK STATISTICS FOR CURRENT ROUND ===
@@ -228,7 +233,22 @@ router.post('/', verifyToken, async (req, res) => {
         FROM round
         ORDER BY competition_id, round_number DESC
       ) round_info ON c.id = round_info.competition_id
-      
+
+      -- === JOIN FIXTURE COUNTS FOR THE CURRENT ROUND ===
+      -- Without these the dashboard tile cannot tell a round still being played from one whose
+      -- results are all in and processed: both look like "locked" when the only inputs are the
+      -- round number and its lock time. That was tolerable while the tile said "In play", which
+      -- is true throughout, but not once it prompts the organiser to enter results - it went on
+      -- saying "Enter results" after every result was entered. See docs/round-state-machine.md §8.
+      LEFT JOIN (
+        SELECT f.round_id,
+               COUNT(*) as total_fixtures,
+               COUNT(f.result) as fixtures_with_results,
+               COUNT(f.processed) as fixtures_processed
+        FROM fixture f
+        GROUP BY f.round_id
+      ) fixture_counts ON round_info.current_round_id = fixture_counts.round_id
+
       -- === JOIN PICK STATISTICS FOR CURRENT ROUND ===
       LEFT JOIN (
         SELECT r.competition_id,
@@ -423,6 +443,9 @@ router.post('/', verifyToken, async (req, res) => {
         total_players: parseInt(comp.total_players || 0),
         current_round: comp.current_round,
         current_round_lock_time: comp.current_round_lock_time,
+        total_fixtures: parseInt(comp.total_fixtures) || 0,
+        fixtures_with_results: parseInt(comp.fixtures_with_results) || 0,
+        fixtures_processed: parseInt(comp.fixtures_processed) || 0,
         total_rounds: parseInt(comp.total_rounds || 0),
         is_complete: comp.is_complete,
 

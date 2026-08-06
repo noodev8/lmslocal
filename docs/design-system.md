@@ -309,6 +309,10 @@ The design rules and the copy rules are one system. These are enforced on the la
   clock, no "limited time!", no urgency theatre.
 - **Sentence case in prose, active voice, plain verbs.** An action keeps its name through the whole
   flow: a button that says "Start one" leads to a screen about starting one.
+- **"Matches", not "fixtures".** A pub landlord says "have you put this week's matches in".
+  "Fixtures" is fixture-*service* vocabulary — obvious to us, opaque to a first-time organiser.
+  The word stays `fixture` in the database, routes and code; only what a person reads changes.
+  See `docs/round-state-machine.md` §5.
 - **Errors explain what happened and what to do.** They do not apologise and they are never vague.
   Empty states are an invitation to act.
 

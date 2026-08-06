@@ -195,7 +195,7 @@ export default function OrganizerFixturesPage() {
     // Check if competition is complete
     if (competition && competition.is_complete) {
       setIsBlocked(true);
-      setBlockReason('Cannot add fixtures - competition has ended');
+      setBlockReason('Cannot add matches - competition has ended');
       setIsCheckingAccess(false);
       return;
     }
@@ -221,7 +221,7 @@ export default function OrganizerFixturesPage() {
           if (unprocessedFixtures.length > 0) {
             setIsBlocked(true);
             setBlockReason(
-              `Cannot add new fixtures. Round ${response.data.round_number} has ${unprocessedFixtures.length} unprocessed fixture(s). Complete current round first.`
+              `Cannot add new matches. Round ${response.data.round_number} has ${unprocessedFixtures.length} unfinished match(es). Complete the current round first.`
             );
           }
         }
@@ -325,7 +325,7 @@ export default function OrganizerFixturesPage() {
     );
 
     if (validFixtures.length === 0) {
-      setSubmitError('Please add at least one fixture with both home and away teams');
+      setSubmitError('Please add at least one match with both home and away teams');
       return;
     }
 
@@ -354,19 +354,19 @@ export default function OrganizerFixturesPage() {
         router.push(`/game/${competitionId}`);
 
       } else if (response.data.return_code === 'UNAUTHORIZED') {
-        setSubmitError('You are not authorized to manage fixtures for this competition');
+        setSubmitError('You are not authorized to manage matches for this competition');
 
       } else if (response.data.return_code === 'AUTOMATED_COMPETITION') {
         setSubmitError('This competition uses automated fixture service. Please contact admin.');
 
       } else if (response.data.return_code === 'PREVIOUS_ROUND_INCOMPLETE') {
-        setSubmitError(response.data.message || 'Complete the current round before adding new fixtures');
+        setSubmitError(response.data.message || 'Complete the current round before adding new matches');
 
       } else if (response.data.return_code === 'ROUND_HAS_FIXTURES') {
         setSubmitError(response.data.message || 'Fixtures already exist for this round. All fixtures must be added in one transaction.');
 
       } else {
-        setSubmitError(response.data.message || 'Failed to add fixtures');
+        setSubmitError(response.data.message || 'Failed to add matches');
       }
 
     } catch (error) {
@@ -401,7 +401,7 @@ export default function OrganizerFixturesPage() {
           Back to dashboard
         </Link>
 
-        <p className={EYEBROW}>Fixtures</p>
+        <p className={EYEBROW}>Matches</p>
         <h1 className={`${HEADING} mt-1 text-3xl`}>{competition.name}</h1>
 
         {/* Loading State */}
@@ -412,7 +412,7 @@ export default function OrganizerFixturesPage() {
         {/* Blocked State */}
         {isBlocked && !isCheckingAccess && (
           <div className={`${PANEL} mt-5 border-overprint p-6`}>
-            <p className={EYEBROW}>Cannot add fixtures</p>
+            <p className={EYEBROW}>Cannot add matches</p>
             <p className="mt-2 text-[15px] text-ink">{blockReason}</p>
             <Link href={`/game/${competitionId}`} className={`${BTN_OUTLINE} mt-4 inline-flex`}>
               Back to dashboard
@@ -524,7 +524,7 @@ export default function OrganizerFixturesPage() {
                 <div className="mt-5 border-t border-ink/30 pt-4">
                   <p className={`${LABEL} text-ink-fade`}>Lock time</p>
                   <p className="mt-1 font-data text-[15px] text-ink">{selectedDateTimeDisplay}</p>
-                  <p className="mt-1 text-[13px] text-ink-fade">Applied to all fixtures in this round.</p>
+                  <p className="mt-1 text-[13px] text-ink-fade">Applied to all matches in this round.</p>
                 </div>
               )}
             </div>
@@ -572,7 +572,7 @@ export default function OrganizerFixturesPage() {
 
               {/* RIGHT COLUMN: Fixtures List */}
               <div className="order-1 lg:order-2">
-                <p className={`${EYEBROW} mb-2`}>Fixtures ({completeFixtureCount})</p>
+                <p className={`${EYEBROW} mb-2`}>Matches ({completeFixtureCount})</p>
                 <div className={`${PANEL} max-h-[500px] overflow-y-auto`}>
                   <div className="divide-y divide-ink/30">
                     {fixtures.map((fixture, index) => {
@@ -645,7 +645,7 @@ export default function OrganizerFixturesPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
             <div className={`${PANEL} w-full max-w-md`}>
               <div className="border-b border-ink/30 p-6">
-                <p className={EYEBROW}>Confirm fixtures</p>
+                <p className={EYEBROW}>Confirm matches</p>
               </div>
 
               <div className="p-6">
@@ -659,8 +659,8 @@ export default function OrganizerFixturesPage() {
                 <div className="mt-4 border border-overprint p-4">
                   <p className={`${LABEL} mb-2 text-overprint`}>Important</p>
                   <ul className="list-disc space-y-1 pl-4 text-[14px] text-ink">
-                    <li>Once saved, you cannot add more fixtures to this round.</li>
-                    <li>Make sure you have entered all fixtures for this round.</li>
+                    <li>Once saved, you cannot add more matches to this round.</li>
+                    <li>Make sure you have entered all matches for this round.</li>
                     <li>Double-check all teams are correct.</li>
                   </ul>
                 </div>

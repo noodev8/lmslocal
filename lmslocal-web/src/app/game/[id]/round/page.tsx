@@ -258,12 +258,12 @@ export default function RoundPage() {
           <div className={`${PANEL} mt-5 p-6`}>
             <p className="text-[15px] text-ink-fade">
               {state.automated
-                ? 'Nothing to do — the next round will appear here once its fixtures are published.'
-                : 'Nothing to show until this round has fixtures.'}
+                ? 'Nothing to do — the next round will appear here once its matches are published.'
+                : 'Nothing to show until this round has matches.'}
             </p>
             {capabilities.canEditFixtures && (
               <Link href={`/game/${competitionId}/organizer-fixtures`} className={`${BTN_PRIMARY} mt-4 inline-flex px-6 py-3 text-base`}>
-                Add fixtures
+                Add matches
               </Link>
             )}
           </div>
@@ -343,6 +343,23 @@ export default function RoundPage() {
               })}
             </div>
 
+            {/* The round is settled and the next one doesn't exist yet. This is the only route
+                onward for a manual competition - without it the organiser's week ends on a
+                read-only page with nothing to press. */}
+            {capabilities.canEditFixtures && (
+              <div className="flex flex-col items-start gap-3 border-t border-ink/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[15px] text-ink-fade">
+                  This round is settled. Add next week&rsquo;s matches when you have them.
+                </p>
+                <Link
+                  href={`/game/${competitionId}/organizer-fixtures`}
+                  className={`${BTN_PRIMARY} inline-flex flex-none px-6 py-3 text-base`}
+                >
+                  Add next matches
+                </Link>
+              </div>
+            )}
+
             {capabilities.canProcessResults && (
               <div className="border-t border-ink/30 p-4">
                 {isProcessing && (
@@ -378,7 +395,7 @@ export default function RoundPage() {
             panel with no explanation. */}
         {!isLoading && !loadError && state.phase !== 'NO_ROUND' && fixtures.length === 0 && (
           <div className={`${PANEL} mt-5 p-6`}>
-            <p className="text-[15px] text-ink-fade">This round has no fixtures yet.</p>
+            <p className="text-[15px] text-ink-fade">This round has no matches yet.</p>
           </div>
         )}
 

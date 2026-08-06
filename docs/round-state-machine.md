@@ -118,7 +118,10 @@ kickoff there are no slots at all.
 | `LOCKED` | Sheet with **live slots** — this is the job |
 | `RESULTS_PARTIAL` | Same, with progress ("4 of 10 in") |
 | `RESULTS_READY` | Same + **Process results** as the screen's primary action |
-| `COMPLETE` | Final results, everything read-only |
+| `COMPLETE` | Final results, read-only, + **Add next round's fixtures** as the primary action |
+
+The `COMPLETE` action is what carries a manual competition from one week to the next. Without it
+the organiser finishes a round and the screen offers nothing at all — see §4.
 
 ### C. Organiser who is also playing
 
@@ -138,7 +141,7 @@ Derived from phase **and** permission, never from permission alone:
 
 | Capability | True when |
 |---|---|
-| `canEditFixtures` | `canManageFixtures && !automated && phase === NO_ROUND && !competitionComplete` |
+| `canEditFixtures` | `canManageFixtures && !automated && (phase === NO_ROUND \|\| phase === COMPLETE) && !competitionComplete` |
 | `showResultSlots` | phase is `LOCKED`, `RESULTS_PARTIAL`, `RESULTS_READY`, or `COMPLETE` |
 | `canEnterResults` | `showResultSlots && canManageResults && !automated && phase !== COMPLETE` |
 | `canProcessResults` | `canManageResults && !automated && at least one fixture has a result and null processed` |
@@ -147,9 +150,16 @@ Two consequences worth stating out loud:
 
 - **Result slots don't exist before kickoff.** Not disabled — absent. A control that can't be
   used shouldn't be drawn; that was the single worst thing about the old Results screen.
-- **`canEditFixtures` is false once a round exists.** The backend already refuses to add fixtures
-  to a round that has them (`ROUND_HAS_FIXTURES`), so offering the button would only produce an
-  error. Fixing a bad round is a separate, deliberate path — see §7.
+- **`canEditFixtures` covers `COMPLETE` as well as `NO_ROUND`, and this is the only way to start
+  the next round.** It was `NO_ROUND` alone, on the reasoning that the backend refuses fixtures
+  for a round that already has them (`ROUND_HAS_FIXTURES`). True, but it conflated two different
+  things: adding fixtures *to this round* and starting *the next one*. `organizer-add-fixtures`
+  distinguishes them — it refuses only while the latest round has unprocessed fixtures
+  (`PREVIOUS_ROUND_INCOMPLETE`) and otherwise creates round N+1 itself. So a manual competition
+  whose round was fully settled had a willing backend and no button anywhere in the UI: the
+  organiser's week ended in a dead end, with nothing on the screen to run the competition
+  forward. Adding fixtures *to* an existing unsettled round is still refused, which is what the
+  original rule was actually protecting.
 
 **The three result slots are a toggle group.** Tapping the slot that's already selected clears
 that fixture's result — `organizer-set-result` takes `"clear"` and writes NULL, through the same
@@ -204,24 +214,62 @@ The table above states the round's condition. That is the whole story on an auto
 competition, where the fixture service enters and processes results and the organiser is a
 spectator — the tile stays on the neutral wording above.
 
-On a **manual** competition the same phases are also a job the organiser hasn't done yet, and the
-tile has to say so, because "In play" reads as "nothing to do here" on the one screen that is the
-only route to the result buttons. When `canManageResults` is true and the competition is not
-automated, the subtitle changes and the tile is marked:
+On a **manual** competition those same phases are a job the organiser hasn't done yet, and the
+tile has to say so — it is the one screen they look at, and the only route to the round. The
+condition wording states the round's condition; the action wording states theirs:
 
-| Phase | Subtitle becomes | |
-|---|---|---|
-| `LOCKED` | "Enter results" | |
-| `RESULTS_PARTIAL` | "{n} of {total} — enter the rest" | |
-| `RESULTS_READY` | "Process the round" | |
+| Phase | Neutral | Organiser's own | Needs | Tile goes to |
+|---|---|---|---|---|
+| `NO_ROUND` | "No matches yet" | **"Add matches"** | `canManageFixtures` | entry form |
+| `LOCKED` | "In play" | **"Enter results"** | `canManageResults` | round |
+| `RESULTS_PARTIAL` | "{n} of {total} results in" | **"{n} of {total} — enter the rest"** | `canManageResults` | round |
+| `RESULTS_READY` | "All results in" | **"Process the round"** | `canManageResults` | round |
+| `COMPLETE` | "Complete" | **"Add next matches"** | `canManageFixtures` | entry form |
 
-`roundTileNeedsAction` drives the marking, and it uses the same condition, so the accent and the
-wording can never disagree. The accent is `border-overprint` — the same red overprint the Play
-tile uses for "Pick needed", because it means the same thing: this one is waiting on you. Nothing
-else on the screen may use it, or it stops meaning anything.
+**A tile that names a job goes where the job is done.** "Add next matches" used to land on the
+round screen — a read-only page of last week's results, with the actual button somewhere below the
+fold on a screen that looks like it's about something else. `roundTileTarget` sends the two
+fixture-entry phases straight to `/game/[id]/organizer-fixtures` and everything else to
+`/game/[id]/round`. It returns a role, not a URL, so the routing table stays in the app and the
+rule stays in `roundState.ts`. It can only return `'fixtures'` where `canEditFixtures` is also
+true, so the form is never reached at a point where it would refuse the submission — the form's
+own guard (unprocessed fixtures remain) mirrors the backend's `PREVIOUS_ROUND_INCOMPLETE`.
 
-Delegated permission counts. A helper with `manage_results` sees the action wording; an organiser
-who has delegated it away still sees the tile, because the round is still theirs to look at.
+**The two ends of that list are the ones that keep the competition alive.** A competition with no
+round yet, and one whose round has just settled, are both stopped dead until fixtures are entered
+— nothing happens on its own, no clock is running, no player can act. "No fixtures yet" and
+"Complete" describe those states accurately and read as *nothing to do here*, which is the
+opposite of the truth for the person who can fix them. The two action phases mirror
+`canEditFixtures` exactly, so the tile prompts precisely when the button on the round page will
+be there.
+
+### Between rounds, name the round you mean
+
+A settled round and an unstarted one are both "now", and the screen has to say which it is talking
+about. Three places got this wrong at once by naming the round that just finished:
+
+- **The tile label** paired "Round 1" with "Add next fixtures" — a settled round beside a job
+  belonging to the next one, which reads as an invitation to add fixtures to round 1. When the
+  tile asks for fixtures it names the round being *created*: `roundNumber + 1`, or "Round 1" when
+  no round exists. The pair reads "Round 2 / Add next fixtures".
+- **The still-in count** was headed "Round 1". The figure is current and the round is over, so a
+  settled round's number over a live figure reads as a snapshot from back then. Between rounds it
+  reads "After round 1".
+- **The Play tile** said "Round progress", which gives no clue whether pressing it shows the round
+  just finished or one not yet started. It shows the finished one, so once a round settles it says
+  "Round 1 results".
+
+The general rule: **while a round is running, "Round N" is unambiguous; between rounds it is not,
+and every use has to say whether it means the one that ended or the one about to start.**
+
+`roundTileNeedsAction` drives both the marking and the wording, so the accent and the words can
+never disagree. The accent is `border-overprint` — the same red the Play tile uses for "Pick
+needed", because it means the same thing: this one is waiting on you. Nothing else on the screen
+may use it, or it stops meaning anything.
+
+Delegated permission counts, and the two jobs are separate: a helper with `manage_results` is
+prompted to enter results but not to add fixtures, and vice versa. Either way both still *see*
+the tile, because the round is theirs to look at.
 
 Copy rules from `docs/design-system.md` apply: "you" means the organiser, never state an opt-in
 feature as universal. "Results come in automatically" is only ever shown when
@@ -246,6 +294,13 @@ failure mode is a literal "Locks Invalid Date" on the organiser's dashboard.
 **Word choice.** The tile is labelled **Round** — as in "Round 1" — not "Fixtures". "Fixtures" is
 fixture-*service* vocabulary; it's obvious to us and to anyone who's run a sweepstake before, and
 opaque to a first-time organiser in a pub. "Round" is the thing they already talk about.
+
+The same reasoning retired "fixtures" from the copy entirely: **the user-facing word is
+"matches"**. A pub landlord says "have you put this week's matches in", never "have you loaded the
+fixtures". `fixture` remains the name in the database, the routes, the API payloads and the code —
+`canEditFixtures`, `organizer-add-fixtures`, `fixture_load` — so only strings a person reads
+change. `fixture_service` keeps its name in copy too on the rare occasion it is named, because it
+is a product feature with that name.
 
 **The deadline belongs to the Play tile, not the Round tile.** An organiser who also plays sees
 both tiles side by side on `/game/[id]`, and `OPEN` used to render as "Round 1 / Locks Fri 7:30pm"
@@ -342,22 +397,27 @@ looking at stale figures. The round screen refreshes unconditionally.
 
 Decide these here as they come up, don't decide them in a component.
 
-1. **Dashboard tile subtitle costs a fetch.** `/get-user-dashboard` returns `current_round` and
-   `current_round_lock_time` but no result counts, so the tile can name the phase and the Play
-   tile its deadline from data they already have, but neither can say "3 of 10 results in"
-   without either a second request on the
-   dashboard or new fields in the dashboard payload. **Current decision: the tile degrades** —
-   it shows phase-level copy from what the dashboard already knows, and the counts live on the
-   round page. Revisit by adding `fixtures_with_results` / `total_fixtures` to the dashboard
-   payload if the count turns out to matter on the tile.
-
-2. **Round history.** No way to look back at round 1 once round 2 exists. Wanted eventually;
+1. **Round history.** No way to look back at round 1 once round 2 exists. Wanted eventually;
    needs a route that takes a `round_id`.
 
-3. **The Play tile overlaps.** An organiser who plays sees the same fixtures a third time as pick
+2. **The Play tile overlaps.** An organiser who plays sees the same fixtures a third time as pick
    options. Possibly Play absorbs the round view for them, possibly not.
 
 ### Closed
+
+- **The dashboard tile couldn't see result counts.** *Resolved: the counts were added.* The tile
+  used to be built from the round number and lock time alone, so it stopped at `LOCKED` and could
+  not tell a round being played from one whose results were all in and processed. That was
+  survivable while the copy read "In play" — true at every point past the lock — and became a lie
+  the moment the tile began prompting "Enter results", which it then kept saying after every
+  result was entered *and* processed. `/get-user-dashboard` now returns `total_fixtures`,
+  `fixtures_with_results` and `fixtures_processed` for the current round; `deriveDashboardRoundState`
+  expands them into placeholder rows so the phase rules have exactly one implementation. Counts,
+  not rows, so the payload stays small.
+
+  The lesson generalises: **a tile may degrade to a vaguer true statement, never to a confident
+  wrong one.** Copy that tells someone to act is a claim about outstanding work, and it needs the
+  data to back it.
 
 - **`manage_fixtures`-only helpers couldn't load the round.** *Resolved.*
   `organizer-get-fixtures-for-results` now guards on `canViewRound` (organiser, `manage_results`

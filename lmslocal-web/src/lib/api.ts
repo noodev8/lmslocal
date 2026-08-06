@@ -169,6 +169,11 @@ export interface Competition {
   total_players?: number;
   current_round: number;
   current_round_lock_time?: string;
+  // Counts, not rows: enough for the dashboard tile to reach every phase without shipping the
+  // fixture list to a screen that only needs a subtitle.
+  total_fixtures?: number;
+  fixtures_with_results?: number;
+  fixtures_processed?: number;
   fixture_service?: boolean;
   total_rounds?: number;
   picks_made?: number;

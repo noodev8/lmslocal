@@ -524,6 +524,9 @@ export default function DashboardPage() {
                                   automated: competition.fixture_service === true,
                                   competitionComplete: competitionStatus.isComplete === true,
                                   now: new Date(),
+                                  totalFixtures: competition.total_fixtures,
+                                  fixturesWithResults: competition.fixtures_with_results,
+                                  fixturesProcessed: competition.fixtures_processed,
                                 })
                               )}
                             </span>

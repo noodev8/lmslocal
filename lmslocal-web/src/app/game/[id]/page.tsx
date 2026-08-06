@@ -24,6 +24,7 @@ import {
   roundTileLabel,
   roundTileNeedsAction,
   roundTileSummary,
+  roundTileTarget,
 } from '@/lib/roundState';
 import { cacheUtils } from '@/lib/cache';
 import { cachePrefixes } from '@/lib/cacheKeys';
@@ -140,8 +141,8 @@ export default function UnifiedGameDashboard() {
   const canManagePlayers = isOrganiser || competition?.manage_players || false;
   const canManagePromote = isOrganiser || competition?.manage_promote || false;
 
-  // Phase-level only - the dashboard payload carries no fixture rows, so this reaches "In play"
-  // but never "3 of 10 results in". See deriveDashboardRoundState.
+  // Built from the dashboard payload's fixture counts, which reach every phase - see
+  // deriveDashboardRoundState.
   const dashboardRoundState = useMemo(
     () =>
       deriveDashboardRoundState({
@@ -150,22 +151,55 @@ export default function UnifiedGameDashboard() {
         automated: competition?.fixture_service === true,
         competitionComplete: competition?.is_complete === true,
         now: new Date(),
+        totalFixtures: competition?.total_fixtures,
+        fixturesWithResults: competition?.fixtures_with_results,
+        fixturesProcessed: competition?.fixtures_processed,
       }),
     [
       competition?.current_round,
       competition?.current_round_lock_time,
       competition?.fixture_service,
       competition?.is_complete,
+      competition?.total_fixtures,
+      competition?.fixtures_with_results,
+      competition?.fixtures_processed,
     ]
   );
 
   /* "Play" is only honest while there's something to play. Once the round locks the same tile
-     goes to the read-only round view (handlePlayClick), so it says what it now does. */
-  const playTileLabel = dashboardRoundState.phase === 'OPEN' ? 'Play' : 'Round progress';
+     goes to the read-only round view (handlePlayClick), so it says what it now does - and once a
+     round is settled it names which round that is, because between rounds "Round progress" gives
+     no clue whether pressing it shows the round just finished or one not yet started. It shows
+     the finished one. */
+  const playTileLabel =
+    dashboardRoundState.phase === 'OPEN'
+      ? 'Play'
+      : dashboardRoundState.phase === 'COMPLETE' && dashboardRoundState.roundNumber
+      ? `Round ${dashboardRoundState.roundNumber} results`
+      : 'Round progress';
 
   /* False on an automated competition - the fixture service enters and processes its results, so
      there is nothing here for the organiser to do and the tile stays neutral. */
-  const roundNeedsAction = roundTileNeedsAction(dashboardRoundState, { canManageResults });
+  const roundNeedsAction = roundTileNeedsAction(dashboardRoundState, { canManageResults, canManageFixtures });
+
+  /* "Add matches" goes to the entry form, not to the round screen it would otherwise sit on -
+     see roundTileTarget. Every other phase still lands on the round. */
+  const roundTileHref =
+    roundTileTarget(dashboardRoundState, { canManageResults, canManageFixtures }) === 'fixtures'
+      ? `/game/${competitionId}/organizer-fixtures`
+      : `/game/${competitionId}/round`;
+
+  /* The round panel's branches don't all produce output: the round-complete one is gated on
+     SHOW_ROUND_STATISTICS, which is off, and the last falls through to null. Both left an empty
+     bordered box sitting on the page between the round is settled and the next one arriving.
+     Deciding here rather than in the JSX keeps the panel and its contents from disagreeing. */
+  const roundPanelHasContent = useMemo(() => {
+    if (!currentRoundInfo || competition?.status === 'COMPLETE') return false;
+    if (!currentRoundInfo.is_locked) return true;
+    if (currentRoundInfo.status === 'COMPLETE') return SHOW_ROUND_STATISTICS && !!roundStats;
+    const latestSettled = competition?.history?.[0];
+    return !latestSettled || latestSettled.round_number < currentRoundInfo.round_number;
+  }, [currentRoundInfo, competition?.status, competition?.history, roundStats]);
 
   // Standings is unconditional; the rest are earned. Counted here so the grid can pick a column
   // count that divides evenly - see TILE_GRID_COLS.
@@ -567,8 +601,15 @@ export default function UnifiedGameDashboard() {
         {/* Status ledger */}
         {currentRoundInfo && competition?.status !== 'COMPLETE' && (
           <>
+            {/* "After round 1" between rounds, not "Round 1". The count is current, the round is
+                finished, and heading a live figure with a settled round's number reads as a
+                snapshot taken back then. */}
             <div className={`${PANEL} p-6 text-center`}>
-              <p className={EYEBROW}>Round {currentRoundInfo.round_number}</p>
+              <p className={EYEBROW}>
+                {dashboardRoundState.phase === 'COMPLETE'
+                  ? `After round ${currentRoundInfo.round_number}`
+                  : `Round ${currentRoundInfo.round_number}`}
+              </p>
               <p className="mt-2 font-display text-6xl text-overprint">{competition.player_count}</p>
               <p className={`${LABEL} mt-1 text-ink-fade`}>Still in</p>
             </div>
@@ -710,7 +751,7 @@ Good luck! ⚽`;
         )}
 
         {/* Round Progress Card - Only show before lock when pick progress is useful */}
-        {currentRoundInfo && competition?.status !== 'COMPLETE' && (
+        {roundPanelHasContent && currentRoundInfo && (
           <div className={`${PANEL} p-5`}>
             {!currentRoundInfo.is_locked ? (
               /* Before Lock - Show Pick Progress (Clickable) */
@@ -900,15 +941,17 @@ Good luck! ⚽`;
                 "Pick needed" - both mean "this one is on you". */}
             {(canManageFixtures || canManageResults) && (
               <Link
-                href={`/game/${competitionId}/round`}
+                href={roundTileHref}
                 className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 text-center transition-colors hover:border-ink ${
                   roundNeedsAction ? 'border-overprint' : ''
                 }`}
               >
                 <CalendarIcon className={`h-6 w-6 ${roundNeedsAction ? 'text-overprint' : 'text-ink'}`} />
-                <span className={`${LABEL} text-ink`}>{roundTileLabel(dashboardRoundState)}</span>
+                <span className={`${LABEL} text-ink`}>
+                  {roundTileLabel(dashboardRoundState, { canManageResults, canManageFixtures })}
+                </span>
                 <span className={`${LABEL} ${roundNeedsAction ? 'text-overprint' : 'text-ink-fade'}`}>
-                  {roundTileSummary(dashboardRoundState, { canManageResults })}
+                  {roundTileSummary(dashboardRoundState, { canManageResults, canManageFixtures })}
                 </span>
               </Link>
             )}

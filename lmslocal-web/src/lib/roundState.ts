@@ -113,17 +113,17 @@ export function deriveRoundState(snapshot: RoundSnapshot): RoundState {
 }
 
 /**
- * The dashboard's cut-down view of the same machine.
+ * The dashboard's view of the same machine, built from counts instead of rows.
  *
- * `/get-user-dashboard` carries the round number and its lock time but no fixture rows, so the
- * tile can reach OPEN / LOCKED / COMPETITION_COMPLETE but can never distinguish "in play" from
- * "3 of 10 results in" — it has nothing to count. That's the deliberate trade in
- * docs/round-state-machine.md §8: the tile states the phase, the round page states the detail,
- * and the dashboard costs no extra request. It degrades to "In play", which is true at every
- * point it's shown, rather than guessing.
+ * `/get-user-dashboard` carries no fixture rows — it would be a large payload for a screen that
+ * only needs a subtitle — but it does carry `total_fixtures`, `fixtures_with_results` and
+ * `fixtures_processed` for the current round. Those three are enough to reach every phase, so the
+ * tile no longer degrades. It used to stop at LOCKED, which was survivable while the copy said
+ * "In play" (true at every point past the lock) and became a lie the moment the tile started
+ * prompting "Enter results" — it went on saying it after every result was in and processed.
  *
- * Add `fixtures_with_results` / `total_fixtures` to the dashboard payload if the counts ever need
- * to appear on the tile.
+ * The counts are expanded into placeholder rows so there is exactly one implementation of the
+ * phase rules. A row's identity is never used, only whether its result and processed are set.
  */
 export function deriveDashboardRoundState(input: {
   currentRound: number | null | undefined;
@@ -131,12 +131,26 @@ export function deriveDashboardRoundState(input: {
   automated: boolean;
   competitionComplete: boolean;
   now: Date;
+  totalFixtures?: number | null;
+  fixturesWithResults?: number | null;
+  fixturesProcessed?: number | null;
 }): RoundState {
+  const total = Math.max(0, input.totalFixtures ?? 0);
+  // Clamped so a payload that disagrees with itself can't produce a phase the machine never
+  // intended - more results than fixtures would read as RESULTS_READY on an empty round.
+  const withResults = Math.min(Math.max(0, input.fixturesWithResults ?? 0), total);
+  const processed = Math.min(Math.max(0, input.fixturesProcessed ?? 0), withResults);
+
+  const fixtures: RoundFixtureInput[] = Array.from({ length: total }, (_, i) => ({
+    result: i < withResults ? 'PLACEHOLDER' : null,
+    processed: i < processed ? 'PLACEHOLDER' : null,
+  }));
+
   return deriveRoundState({
     hasRound: !!input.currentRound && input.currentRound > 0,
     roundNumber: input.currentRound ?? null,
     lockTime: input.currentRoundLockTime ?? null,
-    fixtures: [],
+    fixtures,
     automated: input.automated,
     competitionComplete: input.competitionComplete,
     now: input.now,
@@ -207,10 +221,13 @@ export function deriveRoundCapabilities(
 
   const finished = phase === 'COMPETITION_COMPLETE';
 
-  // Only offered when there is no round at all. The backend refuses to add fixtures to a round
-  // that already has them (ROUND_HAS_FIXTURES), so showing the button later would buy nothing but
-  // an error message.
-  const canEditFixtures = canManageFixtures && !automated && phase === 'NO_ROUND' && !finished;
+  // NO_ROUND starts the competition's first round; COMPLETE starts the next one, and is the only
+  // route from one week to the next on a manual competition. organizer-add-fixtures refuses only
+  // while the latest round still has unprocessed fixtures (PREVIOUS_ROUND_INCOMPLETE) and creates
+  // round N+1 itself otherwise - so the phases where it succeeds are exactly these two. Every
+  // other phase is still excluded, which is what the ROUND_HAS_FIXTURES guard is about.
+  const canEditFixtures =
+    canManageFixtures && !automated && (phase === 'NO_ROUND' || phase === 'COMPLETE') && !finished;
 
   // Absent before kickoff, not disabled. A wall of greyed-out result buttons on a round that
   // hasn't started reads as broken software — it was the single worst thing about the screen this
@@ -241,18 +258,51 @@ export function deriveRoundCapabilities(
 /** Who is looking at the tile. Absent on surfaces that have no permissions to hand. */
 export interface RoundTileViewer {
   canManageResults?: boolean;
+  canManageFixtures?: boolean;
 }
 
 /**
- * Whether this round is waiting on the viewer rather than on the players or the clock.
+ * Whether the competition is waiting on the viewer rather than on the players or the clock.
  *
- * Only ever true on a manual competition: the fixture service enters and processes results
- * itself, so an automated round is never owed anything by a person. Drives both the wording
- * below and the tile's accent, so the two can't disagree.
+ * Two jobs, two permissions. Results phases need `canManageResults`; the phases where a round can
+ * be created - no round yet, or the last one settled - need `canManageFixtures`, and mirror
+ * `canEditFixtures` exactly. Between rounds nothing moves until the organiser acts, which is the
+ * definition of waiting on them.
+ *
+ * Only ever true on a manual competition: the fixture service publishes fixtures and processes
+ * results itself, so an automated round is never owed anything by a person. Drives both the
+ * wording below and the tile's accent, so the two can't disagree.
  */
 export function roundTileNeedsAction(state: RoundState, viewer: RoundTileViewer = {}): boolean {
-  if (state.automated || !viewer.canManageResults) return false;
-  return state.phase === 'LOCKED' || state.phase === 'RESULTS_PARTIAL' || state.phase === 'RESULTS_READY';
+  if (state.automated) return false;
+
+  switch (state.phase) {
+    case 'NO_ROUND':
+    case 'COMPLETE':
+      return !!viewer.canManageFixtures;
+    case 'LOCKED':
+    case 'RESULTS_PARTIAL':
+    case 'RESULTS_READY':
+      return !!viewer.canManageResults;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Where the tile should go: the round screen, or straight to the fixture entry form.
+ *
+ * A tile that says "Add next matches" and lands on a read-only page of last week's results makes
+ * the organiser find the button themselves, on a screen that looks like it's about something
+ * else. When the tile names a job, it goes where the job is done.
+ *
+ * Returns a role rather than a URL so the routing table stays in the app and the rule stays here.
+ * `'fixtures'` is only ever returned in the two phases where `canEditFixtures` is also true, so
+ * the form can never be reached at a point where it would refuse the submission.
+ */
+export function roundTileTarget(state: RoundState, viewer: RoundTileViewer = {}): 'round' | 'fixtures' {
+  if (!roundTileNeedsAction(state, viewer)) return 'round';
+  return state.phase === 'NO_ROUND' || state.phase === 'COMPLETE' ? 'fixtures' : 'round';
 }
 
 /** Short form for the dashboard tile, under the round number. */
@@ -266,7 +316,8 @@ export function roundTileSummary(state: RoundState, viewer: RoundTileViewer = {}
     case 'COMPETITION_COMPLETE':
       return 'Finished';
     case 'NO_ROUND':
-      return state.automated ? 'Waiting for fixtures' : 'No fixtures yet';
+      if (state.automated) return 'Waiting for matches';
+      return needsAction ? 'Add matches' : 'No matches yet';
     case 'OPEN':
       // No lock time here even though we have one. An organiser who plays sees this tile beside
       // the Play tile, and the deadline is the player's concern - it lives there, via
@@ -282,6 +333,11 @@ export function roundTileSummary(state: RoundState, viewer: RoundTileViewer = {}
     case 'RESULTS_READY':
       return needsAction ? 'Process the round' : 'All results in';
     case 'COMPLETE':
+      // "Add next fixtures" rather than "Complete" for the one person who can act on it. A
+      // settled round is a finished fact for everyone else, but for the organiser it is the
+      // moment the competition stalls: nothing moves again until next week's fixtures exist, and
+      // the tile is where they look. The label beside it still says which round settled.
+      if (needsAction) return 'Add next matches';
       // Not "Round 3 complete" — the tile's own label already says which round, and the pair
       // renders as "Round 3 / Round 3 complete".
       return 'Complete';
@@ -295,8 +351,8 @@ export function roundStatusLine(state: RoundState): string {
       return 'This competition has finished.';
     case 'NO_ROUND':
       return state.automated
-        ? "Fixtures for the next round haven't been published yet."
-        : "Add this round's fixtures to get started.";
+        ? "The next round's matches haven't been published yet."
+        : "Add this round's matches to get started.";
     case 'OPEN':
       return state.lockTime ? `Picks close ${formatLong(state.lockTime)}.` : 'Picks are open.';
     case 'LOCKED':
@@ -314,8 +370,19 @@ export function roundStatusLine(state: RoundState): string {
   }
 }
 
-/** The tile's own label — "Round 3", or a plain fallback before any round exists. */
-export function roundTileLabel(state: RoundState): string {
+/**
+ * The tile's own label — "Round 3", or a plain fallback before any round exists.
+ *
+ * When the tile is asking for fixtures it names the round being *created*, not the one that just
+ * finished: "Round 1 / Add next fixtures" pairs a settled round with a job belonging to the next
+ * one, and reads as an invitation to add fixtures to round 1. The round about to exist is
+ * `roundNumber + 1`, or round 1 when there is no round at all.
+ */
+export function roundTileLabel(state: RoundState, viewer: RoundTileViewer = {}): string {
+  if (roundTileNeedsAction(state, viewer)) {
+    if (state.phase === 'NO_ROUND') return 'Round 1';
+    if (state.phase === 'COMPLETE') return `Round ${(state.roundNumber ?? 0) + 1}`;
+  }
   return state.roundNumber ? `Round ${state.roundNumber}` : 'Round';
 }
 
