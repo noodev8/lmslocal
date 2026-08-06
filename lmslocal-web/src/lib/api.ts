@@ -1138,7 +1138,10 @@ export interface OrganizerFixtureWithResult {
   home_team: string;
   away_team: string;
   kickoff_time: string;
+  /** Winning team's short code, or the literal 'DRAW'. Not 'home_win'/'away_win'. */
   result: string | null;
+  /** Timestamp the eliminations for this fixture were applied, or null. Not a boolean. */
+  processed: string | null;
 }
 
 export const organizerApi = {

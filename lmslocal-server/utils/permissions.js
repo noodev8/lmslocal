@@ -130,6 +130,42 @@ async function canManagePromote(user_id, competition_id) {
 }
 
 /**
+ * Check if user can view a round's fixtures and results (read-only).
+ *
+ * Deliberately wider than canManageResults: the organiser's fixtures and results are one merged
+ * screen (docs/round-state-machine.md), so a delegate holding only manage_fixtures still needs to
+ * load it - they just can't set anything. Writing results stays behind canManageResults.
+ *
+ * @param {number} user_id - User attempting the action
+ * @param {number} competition_id - Competition ID
+ * @returns {Promise<{authorized: boolean, is_organiser: boolean}>}
+ */
+async function canViewRound(user_id, competition_id) {
+  const result = await query(`
+    SELECT
+      c.organiser_id,
+      cu.manage_results,
+      cu.manage_fixtures
+    FROM competition c
+    LEFT JOIN competition_user cu ON cu.competition_id = c.id AND cu.user_id = $1
+    WHERE c.id = $2
+  `, [user_id, competition_id]);
+
+  if (result.rows.length === 0) {
+    return { authorized: false, is_organiser: false };
+  }
+
+  const row = result.rows[0];
+  const is_organiser = row.organiser_id === user_id;
+  const has_permission = row.manage_results === true || row.manage_fixtures === true;
+
+  return {
+    authorized: is_organiser || has_permission,
+    is_organiser: is_organiser
+  };
+}
+
+/**
  * Check if user is the main organiser (not just a delegate)
  * Used for actions only the main organiser can perform (e.g., granting permissions)
  * @param {number} user_id - User attempting the action
@@ -152,6 +188,7 @@ async function isMainOrganiser(user_id, competition_id) {
 module.exports = {
   canManageResults,
   canManageFixtures,
+  canViewRound,
   canManagePlayers,
   canManagePromote,
   isMainOrganiser

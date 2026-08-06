@@ -43,7 +43,7 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "MISSING_FIELDS"           - Required fields are missing
-"UNAUTHORIZED"             - User is not the organiser of this competition
+"UNAUTHORIZED"             - User cannot view this competition's rounds (needs organiser, manage_results or manage_fixtures)
 "COMPETITION_NOT_FOUND"    - Competition doesn't exist
 "NO_ROUNDS"                - No rounds exist for this competition
 "SERVER_ERROR"             - Database or unexpected error
@@ -54,7 +54,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const { canManageResults } = require('../utils/permissions');
+const { canViewRound } = require('../utils/permissions');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -102,8 +102,9 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
 
-    // Verify user has permission to manage results (organiser or delegated permission)
-    const permission = await canManageResults(user_id, competition_id);
+    // Read-only route, so the guard is the wider "can view this round" - a delegate with only
+    // manage_fixtures needs to load the merged round screen too. Writes stay on canManageResults.
+    const permission = await canViewRound(user_id, competition_id);
     if (!permission.authorized) {
       return res.status(200).json({
         return_code: "UNAUTHORIZED",

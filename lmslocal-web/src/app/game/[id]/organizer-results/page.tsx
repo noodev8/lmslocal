@@ -10,7 +10,6 @@ import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY } from '@/lib/design';
 
 interface FixtureWithClientState extends OrganizerFixtureWithResult {
   result_entered?: 'home_win' | 'away_win' | 'draw';
-  processed?: string | null;
 }
 
 /* Derives the outcome already saved on a fixture from its real `result` field - used to seed
