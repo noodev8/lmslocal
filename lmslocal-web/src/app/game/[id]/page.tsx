@@ -18,7 +18,13 @@ import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayer
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
-import { deriveDashboardRoundState, pickDeadlineText, roundTileLabel, roundTileSummary } from '@/lib/roundState';
+import {
+  deriveDashboardRoundState,
+  pickDeadlineText,
+  roundTileLabel,
+  roundTileNeedsAction,
+  roundTileSummary,
+} from '@/lib/roundState';
 import { cacheUtils } from '@/lib/cache';
 import { cachePrefixes } from '@/lib/cacheKeys';
 
@@ -156,6 +162,10 @@ export default function UnifiedGameDashboard() {
   /* "Play" is only honest while there's something to play. Once the round locks the same tile
      goes to the read-only round view (handlePlayClick), so it says what it now does. */
   const playTileLabel = dashboardRoundState.phase === 'OPEN' ? 'Play' : 'Round progress';
+
+  /* False on an automated competition - the fixture service enters and processes its results, so
+     there is nothing here for the organiser to do and the tile stays neutral. */
+  const roundNeedsAction = roundTileNeedsAction(dashboardRoundState, { canManageResults });
 
   // Standings is unconditional; the rest are earned. Counted here so the grid can pick a column
   // count that divides evenly - see TILE_GRID_COLS.
@@ -885,15 +895,21 @@ Good luck! ⚽`;
 
             {/* The round: fixtures and results are one destination, because they are one thing
                 seen at two points in the week. The subtitle says which point, so the common
-                question - "what's on this week?" - is answered without a click. */}
+                question - "what's on this week?" - is answered without a click. When the round is
+                waiting on this organiser it takes the same overprint accent the Play tile uses for
+                "Pick needed" - both mean "this one is on you". */}
             {(canManageFixtures || canManageResults) && (
               <Link
                 href={`/game/${competitionId}/round`}
-                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 text-center transition-colors hover:border-ink`}
+                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 text-center transition-colors hover:border-ink ${
+                  roundNeedsAction ? 'border-overprint' : ''
+                }`}
               >
-                <CalendarIcon className="h-6 w-6 text-ink" />
+                <CalendarIcon className={`h-6 w-6 ${roundNeedsAction ? 'text-overprint' : 'text-ink'}`} />
                 <span className={`${LABEL} text-ink`}>{roundTileLabel(dashboardRoundState)}</span>
-                <span className={`${LABEL} text-ink-fade`}>{roundTileSummary(dashboardRoundState)}</span>
+                <span className={`${LABEL} ${roundNeedsAction ? 'text-overprint' : 'text-ink-fade'}`}>
+                  {roundTileSummary(dashboardRoundState, { canManageResults })}
+                </span>
               </Link>
             )}
 

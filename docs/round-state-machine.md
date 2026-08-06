@@ -169,6 +169,31 @@ disagrees with the screen it links to.
 | `COMPLETE` | "Complete" | "Round {n} is settled." |
 | `COMPETITION_COMPLETE` | "Finished" | "This competition has finished." |
 
+### When the organiser owes the round something
+
+The table above states the round's condition. That is the whole story on an automated
+competition, where the fixture service enters and processes results and the organiser is a
+spectator — the tile stays on the neutral wording above.
+
+On a **manual** competition the same phases are also a job the organiser hasn't done yet, and the
+tile has to say so, because "In play" reads as "nothing to do here" on the one screen that is the
+only route to the result buttons. When `canManageResults` is true and the competition is not
+automated, the subtitle changes and the tile is marked:
+
+| Phase | Subtitle becomes | |
+|---|---|---|
+| `LOCKED` | "Enter results" | |
+| `RESULTS_PARTIAL` | "{n} of {total} — enter the rest" | |
+| `RESULTS_READY` | "Process the round" | |
+
+`roundTileNeedsAction` drives the marking, and it uses the same condition, so the accent and the
+wording can never disagree. The accent is `border-overprint` — the same red overprint the Play
+tile uses for "Pick needed", because it means the same thing: this one is waiting on you. Nothing
+else on the screen may use it, or it stops meaning anything.
+
+Delegated permission counts. A helper with `manage_results` sees the action wording; an organiser
+who has delegated it away still sees the tile, because the round is still theirs to look at.
+
 Copy rules from `docs/design-system.md` apply: "you" means the organiser, never state an opt-in
 feature as universal. "Results come in automatically" is only ever shown when
 `fixture_service` is actually on.

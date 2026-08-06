@@ -238,8 +238,30 @@ export function deriveRoundCapabilities(
  * reachable when `automated` is true.
  * ------------------------------------------------------------------------------------------- */
 
+/** Who is looking at the tile. Absent on surfaces that have no permissions to hand. */
+export interface RoundTileViewer {
+  canManageResults?: boolean;
+}
+
+/**
+ * Whether this round is waiting on the viewer rather than on the players or the clock.
+ *
+ * Only ever true on a manual competition: the fixture service enters and processes results
+ * itself, so an automated round is never owed anything by a person. Drives both the wording
+ * below and the tile's accent, so the two can't disagree.
+ */
+export function roundTileNeedsAction(state: RoundState, viewer: RoundTileViewer = {}): boolean {
+  if (state.automated || !viewer.canManageResults) return false;
+  return state.phase === 'LOCKED' || state.phase === 'RESULTS_PARTIAL' || state.phase === 'RESULTS_READY';
+}
+
 /** Short form for the dashboard tile, under the round number. */
-export function roundTileSummary(state: RoundState): string {
+export function roundTileSummary(state: RoundState, viewer: RoundTileViewer = {}): string {
+  // The organiser of a manual competition is told the job, not the condition. "In play" is a
+  // true description of a locked round and useless to the one person who has to act on it - and
+  // this tile is the only route to the result buttons. See docs/round-state-machine.md §5.
+  const needsAction = roundTileNeedsAction(state, viewer);
+
   switch (state.phase) {
     case 'COMPETITION_COMPLETE':
       return 'Finished';
@@ -252,11 +274,13 @@ export function roundTileSummary(state: RoundState): string {
       // nothing. See docs/round-state-machine.md §5.
       return 'Open for picks';
     case 'LOCKED':
-      return 'In play';
+      return needsAction ? 'Enter results' : 'In play';
     case 'RESULTS_PARTIAL':
-      return `${state.resultsIn} of ${state.totalFixtures} results in`;
+      return needsAction
+        ? `${state.resultsIn} of ${state.totalFixtures} — enter the rest`
+        : `${state.resultsIn} of ${state.totalFixtures} results in`;
     case 'RESULTS_READY':
-      return 'All results in';
+      return needsAction ? 'Process the round' : 'All results in';
     case 'COMPLETE':
       // Not "Round 3 complete" — the tile's own label already says which round, and the pair
       // renders as "Round 3 / Round 3 complete".
