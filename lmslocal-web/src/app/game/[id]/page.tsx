@@ -153,20 +153,9 @@ export default function UnifiedGameDashboard() {
     ]
   );
 
-  /* What the locked-round banner says. Reports the real count rather than assuming everyone
-     picked - a round can lock with picks missing, and saying otherwise contradicts the results
-     screen this button links to. Falls back to neutral wording if the stats haven't loaded. */
-  const lockedRoundPickSummary = useMemo(() => {
-    if (!pickStats) return 'Check which teams have been chosen';
-
-    const made = Math.min(pickStats.players_with_picks, pickStats.total_active_players);
-    const required = pickStats.total_active_players;
-
-    if (required === 0) return 'Check which teams have been chosen';
-    if (made === 0) return 'No picks were made this round';
-    if (made < required) return `${made} of ${required} picked — check which teams have been chosen`;
-    return 'All picks made — check which teams have been chosen';
-  }, [pickStats]);
+  /* "Play" is only honest while there's something to play. Once the round locks the same tile
+     goes to the read-only round view (handlePlayClick), so it says what it now does. */
+  const playTileLabel = dashboardRoundState.phase === 'OPEN' ? 'Play' : 'Round progress';
 
   // Standings is unconditional; the rest are earned. Counted here so the grid can pick a column
   // count that divides evenly - see TILE_GRID_COLS.
@@ -854,16 +843,11 @@ Good luck! ⚽`;
                     </div>
                   </button>
                 ) : (
-                  /* Was a hardcoded "All picks made". It sat in the else of a branch gated on
-                     SHOW_ROUND_STATISTICS, which is off, so it rendered for every locked round and
-                     asserted something it never checked - including rounds where nobody picked at
-                     all, while the results screen it linked to correctly said "No pick made". */
-                  <button
-                    onClick={handlePlayClick}
-                    className={`${BTN_OUTLINE} w-full justify-center px-4 py-3`}
-                  >
-                    {lockedRoundPickSummary}
-                  </button>
+                  /* States what happened to the window, not how many picked. Counting invited a
+                     claim the numbers couldn't back - the old "All picks made" asserted something
+                     it never checked, and contradicted the results screen when a round locked
+                     with picks missing. This is true either way. */
+                  <p className="text-[15px] text-ink-fade">Picks are in &mdash; the window is closed.</p>
                 )}
               </div>
             ) : null
@@ -890,7 +874,7 @@ Good luck! ⚽`;
                 }`}
               >
                 <PlayIcon className={`h-6 w-6 ${competition.needs_pick ? 'text-overprint' : 'text-ink'}`} />
-                <span className={`${LABEL} text-ink`}>Play</span>
+                <span className={`${LABEL} text-ink`}>{playTileLabel}</span>
                 {competition.needs_pick && (
                   <span className={`${LABEL} text-center text-overprint`}>
                     {pickDeadlineText(dashboardRoundState)}
@@ -963,7 +947,7 @@ Good luck! ⚽`;
               }`}
             >
               <PlayIcon className={`h-6 w-6 ${competition.needs_pick ? 'text-overprint' : 'text-ink'}`} />
-              <span className={`${LABEL} text-ink`}>Play</span>
+              <span className={`${LABEL} text-ink`}>{playTileLabel}</span>
               {competition.needs_pick && (
                 <span className={`${LABEL} text-center text-overprint`}>
                   {pickDeadlineText(dashboardRoundState)}

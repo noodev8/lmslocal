@@ -201,6 +201,14 @@ is that there's nothing owed yet, which is what "Open for picks" says. So the Ro
 the phase and the Play tile carries "Pick needed by {day} {time}" (`pickDeadlineText`). The full
 deadline is still one click away on the page status line.
 
+**The Play tile is only called "Play" while the round is `OPEN`.** `handlePlayClick` sends a
+locked round to the read-only `/player-results` view, so past that point the tile reads **"Round
+progress"** — "Play" promised something to do and delivered a read-out. The locked-round panel
+above it reads "Picks are in — the window is closed." as plain text, rather than being a second
+button to the same place. It deliberately states what happened to the window instead of counting
+picks: a count is a claim, and "All picks made" was asserting something it hadn't checked on a
+round that locked with picks missing.
+
 The same `pickDeadlineText` fills the pick row on the `/dashboard` competition card, so the two
 places that warn a player never quote different deadlines. `/get-user-dashboard` already carries
 `current_round_lock_time`, so this costs no extra request on either screen.
