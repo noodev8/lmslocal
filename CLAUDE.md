@@ -285,20 +285,42 @@ lmslocal-web/
 - **Fixture Service**: Automated system using the `fixture_load` staging table
 - **UI**: `lmslocal-admin` → `/dashboard/fixtures`. Staging routes are `/admin/add-staged-fixtures`,
   `/admin/get-staged-results`, `/admin/set-staged-result`, `/admin/get-fixture-team-lists`
-- **Push APIs**: `/admin/push-fixtures-to-competitions` (all competitions at once — cheap, it
-  only creates rounds) and, for results, `/admin/get-push-targets` +
-  `/admin/push-results-to-competition` (**singular — one competition per call**) +
-  `/admin/clear-staged-batch`. Results are pushed one competition at a time because processing
-  scales with player count: the old all-competitions route did the whole batch in one
-  transaction, so a timeout anywhere rolled every competition back. That route
-  (`push-results-to-competitions.js`, plural) is deprecated, **unregistered**, and kept on disk
-  as a frozen reference only — do not edit it or wire it back up.
+- **Push APIs — everything goes out one competition at a time.** Fixtures:
+  `/admin/get-fixture-push-targets` + `/admin/push-fixtures-to-competition`. Results:
+  `/admin/get-push-targets` + `/admin/push-results-to-competition`, then
+  `/admin/clear-staged-batch` once every competition has been pushed. All **singular — one
+  competition per call**.
+
+  The two halves became per-competition for different reasons. *Results*: processing scales with
+  player count, and the old route did the whole batch in one transaction, so a timeout anywhere
+  rolled every competition back. *Fixtures*: the only thing keeping a mis-staged batch away from
+  every customer was `FIXTURE_SERVICE_TEST_MODE`, an env var naming one organiser's email that
+  had to be set before testing and unset after — and which silently starved real customers of
+  fixtures while it was on. **That variable is now gone from the codebase**; delete it from
+  `.env` if it is still there.
+
+  Both plural routes (`push-fixtures-to-competitions.js`, `push-results-to-competitions.js`) are
+  deprecated, **unregistered**, and kept on disk as frozen references only — do not edit them or
+  wire them back up.
 - **Authentication**: admin token on all of the above (`middleware/admin-auth.js`). The old
   `12221` access code and the `BOT_MAGIC_2025` body secret are gone from this path — the latter
   shipped in the public web bundle. `BOT_MAGIC_2025` is now gone from the codebase entirely:
   `bot-join` / `bot-pick` were deleted when the admin Bots screen replaced them.
 - **Opt-in**: `competition.fixture_service`. Only competitions with it set to true receive
   pushes, toggled per competition from the admin competitions list via `/admin/set-fixture-service`
+- **When a competition is ready for a round** (`services/fixtureService.js`). A staged batch is
+  pushed to a competition only if its earliest kickoff clears all three of:
+  1. `competition.earliest_start_date` — set at creation from `start_delay_days`, which the
+     create form asks as "First round: this week / next week / in 2 weeks", defaulting to next
+     week. Only asked when the fixture service is supplying the matches.
+  2. **now** — a kickoff already in the past would create a round locked on arrival, which no
+     player could ever pick in.
+  3. **now + 48 hours**, for a competition's *first* round only (`FIRST_ROUND_LEAD_TIME_HOURS`).
+     An organiser who signs up on Friday must not be handed Saturday's matches before they have
+     invited anyone; they get the following gameweek. Later rounds are exempt — those players
+     are already there and the organiser chose when to push.
+
+  A skipped competition says which floor stopped it in the push result's `reason`.
 - **The model**: only one staged batch at a time per team list — `fixture_load` itself is the
   pending batch. `add-staged-fixtures` refuses a new one while it's non-empty; a batch clears
   when the admin presses **Clear staged batch** (`/admin/clear-staged-batch`), which is a

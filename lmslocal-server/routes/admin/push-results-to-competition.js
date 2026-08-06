@@ -104,12 +104,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
     const competitionId = parseInt(competition_id);
 
-    // TEST MODE: when FIXTURE_SERVICE_TEST_MODE is set in .env, only competitions organised by
-    // that email are eligible - every other subscribed competition is left untouched (result
-    // stays NULL, picked up again once test mode is turned off). See fixtureService.js for the
-    // matching push-fixtures-side restriction, and get-fixture-team-lists.js for the admin
-    // banner that surfaces this. Leave the var blank for normal production behaviour.
-    const testModeEmail = process.env.FIXTURE_SERVICE_TEST_MODE || null;
 
     const result = await transaction(async (client) => {
 
@@ -130,12 +124,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
       // fixture_service = false means the organiser drives results from their own screen
       // (organizer-process-results). Pushing into one would fight them for the same rounds.
       if (competition.fixture_service !== true) {
-        throw new Error('NOT_SUBSCRIBED');
-      }
-
-      // Test mode is a hard filter, not a warning - honour it here as well as in the matching
-      // UPDATE, so a competition outside the test organiser cannot be pushed to by id either.
-      if (testModeEmail && competition.organiser_email !== testModeEmail) {
         throw new Error('NOT_SUBSCRIBED');
       }
 

@@ -2,428 +2,394 @@
 =======================================================================================================================================
 Fixture Service: Core fixture management business logic
 =======================================================================================================================================
-Purpose: Provides reusable functions for pushing fixtures from fixture_load table to competitions.
-         There is only ever one staged batch at a time (add-staged-fixtures refuses a new one
-         while fixture_load isn't empty), so this pushes whatever is there to every competition
-         that's eligible for it - no gameweek selection or catch-up queue involved.
+Purpose: Decides which competitions may receive the staged batch, and pushes it to ONE of them.
+
+         There is only ever one staged batch at a time per team list - add-staged-fixtures
+         refuses a new one while fixture_load isn't empty - so there is no gameweek selection or
+         catch-up queue here. The only questions are "who is allowed this batch" and "give it to
+         this competition".
+
+         PER COMPETITION, DELIBERATELY. This used to be one function that swept every subscribed
+         competition in a single press, guarded only by FIXTURE_SERVICE_TEST_MODE - an env var
+         naming one organiser's email, which had to be set before touching anything and unset
+         afterwards, and which silently starved real customers of fixtures while it was on. The
+         admin now pushes one competition at a time and reads each result, the same way results
+         already worked (push-results-to-competition). A mis-staged batch can no longer reach
+         every customer through one click, so the env var is gone.
+
+         Eligibility lives in evaluateCompetition() and is used by BOTH the candidate list and
+         the push, so the admin screen can never offer a button the push then refuses.
 =======================================================================================================================================
 */
 
 /**
- * Pushes fixtures from fixture_load table to competitions that need them.
- * 1. Find competitions needing fixtures (blank round or completed round)
- * 2. For each, check the staged batch's earliest kickoff is at or after the competition's
- *    earliest_start_date, or NOW() when that is not set. There is no minimum lead time - a
- *    batch kicking off tomorrow is eligible, and one whose kickoff has already passed for a
- *    competition with an earlier start date is too, which would create a round that is locked
- *    on arrival.
- * 3. Push the batch to eligible competitions
- *
- * TEST MODE: when FIXTURE_SERVICE_TEST_MODE is set in .env, only the competitions organised by
- * that email are eligible - every other subscribed competition is left untouched. This is what
- * lets us push against a real automated competition without risking anyone else's. The admin
- * fixtures screen shows a banner whenever this env var is set (see get-fixture-team-lists.js),
- * so it's never silently left on. Leave the var blank for normal production behaviour.
- *
- * @param {object} client - Database client (transaction or query context)
- * @returns {Promise<object>} Result object with statistics
- * @throws {Error} With specific error codes: NO_ACTIVE_FIXTURES, NO_SUBSCRIBED_COMPETITIONS
+ * How much notice a competition's *first* round must have. An organiser who creates a
+ * competition has to be able to invite players before picks close, and until this existed a
+ * competition created on Friday could be handed Saturday's matches - or matches that had
+ * already kicked off - with no players in it yet. Later rounds are exempt: the players are
+ * already there and the organiser chose the moment to push.
  */
-async function pushFixturesToCompetitions(client) {
-  const testModeEmail = process.env.FIXTURE_SERVICE_TEST_MODE || null;
+const FIRST_ROUND_LEAD_TIME_HOURS = 48;
+const FIRST_ROUND_LEAD_TIME_MS = FIRST_ROUND_LEAD_TIME_HOURS * 60 * 60 * 1000;
 
-  // Step 1: Find all competitions that need fixtures
-  const allCompetitionsResult = await client.query(`
-    SELECT c.id, c.name, c.team_list_id, c.status, c.earliest_start_date
-    FROM competition c
-    JOIN app_user u ON u.id = c.organiser_id
-    WHERE c.fixture_service = true
-    AND (c.earliest_start_date IS NULL OR c.earliest_start_date <= NOW())
-    AND ($1::text IS NULL OR u.email = $1)
-  `, [testModeEmail]);
+/**
+ * Why a competition can't take the batch right now. These reach the admin screen as-is, so they
+ * are written to be read by a person deciding what to do next, not parsed.
+ */
+const BLOCKED = {
+  COMPETITION_COMPLETE: 'Competition has finished',
+  ROUND_IN_PROGRESS: 'Current round is still being played',
+  NO_STAGED_BATCH: 'Nothing staged for this team list',
+  START_DATE: 'Not due to start yet',
+  KICKOFF_PASSED: 'Batch has already kicked off',
+  LEAD_TIME: `First round needs ${FIRST_ROUND_LEAD_TIME_HOURS} hours' notice`,
+};
 
-  if (allCompetitionsResult.rows.length === 0) {
-    throw new Error('NO_SUBSCRIBED_COMPETITIONS');
+/**
+ * Everything the eligibility rules need about one competition, and what the push needs after.
+ * Loaded for a single competition or for a whole team list by the two callers below.
+ */
+async function loadCompetitionRoundState(client, competitionId) {
+  const latestRoundResult = await client.query(
+    `SELECT MAX(round_number) AS latest_round FROM round WHERE competition_id = $1`,
+    [competitionId]
+  );
+  const latestRound = latestRoundResult.rows[0].latest_round;
+
+  if (!latestRound) {
+    // No rounds at all - the competition's first round.
+    return { needsNewRound: true, roundNumber: null, roundState: 'no_round' };
   }
 
-  const allCompetitions = allCompetitionsResult.rows;
-  const competitionsNeedingFixtures = [];
+  const fixtureCheckResult = await client.query(
+    `SELECT COUNT(*) AS total, COUNT(result) AS with_results
+     FROM fixture f
+     JOIN round r ON f.round_id = r.id
+     WHERE r.competition_id = $1 AND r.round_number = $2`,
+    [competitionId, latestRound]
+  );
 
-  // Check each competition to see if it needs fixtures
-  for (const competition of allCompetitions) {
-    const compId = competition.id;
-    const competitionStatus = competition.status;
+  const total = parseInt(fixtureCheckResult.rows[0].total);
+  const withResults = parseInt(fixtureCheckResult.rows[0].with_results);
 
-    // Skip if competition is already complete
-    if (competitionStatus === 'COMPLETE') {
-      continue;
-    }
+  // A round that exists but holds no fixtures is one waiting to be filled, not a new round.
+  if (total === 0) return { needsNewRound: false, roundNumber: latestRound, roundState: 'blank_round' };
+  if (withResults === total) return { needsNewRound: true, roundNumber: latestRound, roundState: 'round_complete' };
+  return { needsNewRound: null, roundNumber: latestRound, roundState: 'round_in_progress' };
+}
 
-    // Get latest round for this competition
-    const latestRoundResult = await client.query(`
-      SELECT MAX(round_number) as latest_round
-      FROM round
-      WHERE competition_id = $1
-    `, [compId]);
+/**
+ * The single implementation of "may this competition have this batch, and why not".
+ *
+ * @returns {{eligible: boolean, reason: string|null, needsNewRound: boolean|null,
+ *            roundNumber: number|null, roundState: string, fixtures: Array, cutoff: Date}}
+ */
+function evaluateCompetition(competition, roundState, stagedFixtures, now = new Date()) {
+  const base = { ...roundState, fixtures: [], cutoff: null };
 
-    const latestRound = latestRoundResult.rows[0].latest_round;
-
-    // NEW COMPETITION: No rounds exist at all - needs fixtures
-    if (!latestRound) {
-      competitionsNeedingFixtures.push({
-        ...competition,
-        needs_new_round: true,
-        round_number: null
-      });
-      continue;
-    }
-
-    // Check if latest round has fixtures and if all fixtures have results
-    const fixtureCheckResult = await client.query(`
-      SELECT
-        COUNT(*) as total,
-        COUNT(result) as with_results
-      FROM fixture f
-      JOIN round r ON f.round_id = r.id
-      WHERE r.competition_id = $1 AND r.round_number = $2
-    `, [compId, latestRound]);
-
-    const fixtureCheck = fixtureCheckResult.rows[0];
-    const totalFixtures = parseInt(fixtureCheck.total);
-    const fixturesWithResults = parseInt(fixtureCheck.with_results);
-
-    if (totalFixtures === 0) {
-      // BLANK ROUND: Round exists but has no fixtures - needs fixtures
-      competitionsNeedingFixtures.push({
-        ...competition,
-        needs_new_round: false,
-        round_number: latestRound
-      });
-    } else if (fixturesWithResults === totalFixtures) {
-      // COMPLETED ROUND: All fixtures have results - needs new round
-      competitionsNeedingFixtures.push({
-        ...competition,
-        needs_new_round: true,
-        round_number: latestRound
-      });
-    }
-    // else: Round in progress (some fixtures without results) - skip
+  if (competition.status === 'COMPLETE') {
+    return { ...base, eligible: false, reason: BLOCKED.COMPETITION_COMPLETE };
   }
 
-  // If no competitions need fixtures, exit early
-  if (competitionsNeedingFixtures.length === 0) {
-    return {
-      competitions_updated: 0,
-      competitions_skipped: allCompetitions.length,
-      fixtures_pushed: 0,
-      details: []
-    };
+  if (roundState.roundState === 'round_in_progress') {
+    return { ...base, eligible: false, reason: BLOCKED.ROUND_IN_PROGRESS };
   }
 
-  // The staged batch, whatever team lists it spans - there is only ever one per list.
-  const allAvailableFixturesResult = await client.query(`
-    SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time
-    FROM fixture_load
-    ORDER BY kickoff_time
-  `);
-
-  const allAvailableFixtures = allAvailableFixturesResult.rows;
-
-  if (allAvailableFixtures.length === 0) {
-    throw new Error('NO_ACTIVE_FIXTURES');
+  if (!stagedFixtures || stagedFixtures.length === 0) {
+    return { ...base, eligible: false, reason: BLOCKED.NO_STAGED_BATCH };
   }
 
-  // Group fixtures by team_list_id for processing
-  const fixturesByTeamList = {};
-  allAvailableFixtures.forEach(fixture => {
-    if (!fixturesByTeamList[fixture.team_list_id]) {
-      fixturesByTeamList[fixture.team_list_id] = [];
+  const earliestKickoff = stagedFixtures.reduce((earliest, fixture) => {
+    const kickoff = new Date(fixture.kickoff_time);
+    return !earliest || kickoff < earliest ? kickoff : earliest;
+  }, null);
+
+  // Three floors, and the batch's earliest kickoff must clear all of them. Reported separately
+  // because "not due to start yet" and "kicks off too soon" have different answers: wait, versus
+  // stage a later batch.
+  const startDateCutoff = competition.earliest_start_date ? new Date(competition.earliest_start_date) : now;
+  const isFirstRound = !roundState.roundNumber;
+  const leadTimeCutoff = isFirstRound ? new Date(now.getTime() + FIRST_ROUND_LEAD_TIME_MS) : now;
+  const cutoff = startDateCutoff > leadTimeCutoff ? startDateCutoff : leadTimeCutoff;
+
+  if (earliestKickoff < cutoff) {
+    let reason;
+    if (earliestKickoff < now) {
+      // A round created from this would be locked the moment it arrived - nobody could pick.
+      reason = BLOCKED.KICKOFF_PASSED;
+    } else if (cutoff === leadTimeCutoff && isFirstRound) {
+      reason = BLOCKED.LEAD_TIME;
+    } else {
+      reason = BLOCKED.START_DATE;
     }
-    fixturesByTeamList[fixture.team_list_id].push(fixture);
+    return { ...base, eligible: false, reason, cutoff };
+  }
+
+  return { ...base, eligible: true, reason: null, fixtures: stagedFixtures, cutoff };
+}
+
+/** The staged batch for one team list, earliest kickoff first. */
+async function loadStagedBatch(client, teamListId) {
+  const result = await client.query(
+    `SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time
+     FROM fixture_load
+     WHERE team_list_id = $1
+     ORDER BY kickoff_time`,
+    [teamListId]
+  );
+  return result.rows;
+}
+
+/**
+ * Every competition subscribed to a team list, with a verdict on each.
+ *
+ * Blocked competitions are returned rather than filtered out. A competition that simply vanishes
+ * from the admin screen looks like a bug, and "why didn't that one get its fixtures?" is the
+ * question this list exists to answer without anyone opening a database.
+ *
+ * @returns {Promise<Array>} one row per competition, eligible or not
+ */
+async function getFixturePushCandidates(client, teamListId) {
+  const competitionsResult = await client.query(
+    `SELECT c.id, c.name, c.status, c.team_list_id, c.earliest_start_date,
+            u.email AS organiser_email, u.display_name AS organiser_name,
+            COUNT(cu.user_id) AS players,
+            COUNT(cu.user_id) FILTER (WHERE cu.status = 'active') AS active_players
+     FROM competition c
+     JOIN app_user u ON u.id = c.organiser_id
+     LEFT JOIN competition_user cu ON cu.competition_id = c.id
+     WHERE c.fixture_service = true AND c.team_list_id = $1
+     GROUP BY c.id, u.email, u.display_name
+     ORDER BY c.id`,
+    [teamListId]
+  );
+
+  const stagedFixtures = await loadStagedBatch(client, teamListId);
+  const now = new Date();
+  const candidates = [];
+
+  for (const competition of competitionsResult.rows) {
+    const roundState = await loadCompetitionRoundState(client, competition.id);
+    const verdict = evaluateCompetition(competition, roundState, stagedFixtures, now);
+
+    candidates.push({
+      competition_id: competition.id,
+      name: competition.name,
+      organiser_email: competition.organiser_email,
+      organiser_name: competition.organiser_name,
+      players: parseInt(competition.players) || 0,
+      active_players: parseInt(competition.active_players) || 0,
+      round_number: roundState.roundNumber,
+      round_state: roundState.roundState,
+      eligible: verdict.eligible,
+      reason: verdict.reason,
+    });
+  }
+
+  return {
+    staged_total: stagedFixtures.length,
+    earliest_kickoff: stagedFixtures.length > 0 ? stagedFixtures[0].kickoff_time : null,
+    competitions: candidates,
+  };
+}
+
+/**
+ * Pushes the staged batch to ONE competition: creates or fills its round, inserts the fixtures,
+ * backfills allowed_teams for players who have none, queues notifications, writes the audit row.
+ *
+ * Does not touch fixture_load. The other subscribed competitions still need those rows, so
+ * clearing the batch is its own deliberate step (/admin/clear-staged-batch) - the same shape as
+ * push-results-to-competition.
+ *
+ * @throws {Error} COMPETITION_NOT_FOUND, NOT_SUBSCRIBED, or a NOT_ELIGIBLE:<reason> error
+ * @returns {Promise<object>} what was created, for the admin screen to report
+ */
+async function pushFixturesToCompetition(client, competitionId) {
+  const competitionResult = await client.query(
+    `SELECT id, name, status, team_list_id, earliest_start_date, fixture_service
+     FROM competition WHERE id = $1`,
+    [competitionId]
+  );
+
+  if (competitionResult.rows.length === 0) throw new Error('COMPETITION_NOT_FOUND');
+  const competition = competitionResult.rows[0];
+
+  if (competition.fixture_service !== true) throw new Error('NOT_SUBSCRIBED');
+
+  const stagedFixtures = await loadStagedBatch(client, competition.team_list_id);
+  const roundState = await loadCompetitionRoundState(client, competitionId);
+  const verdict = evaluateCompetition(competition, roundState, stagedFixtures);
+
+  // Re-checked here rather than trusted from the screen: the list may have been loaded minutes
+  // ago, and a round can start or a kickoff pass in between.
+  if (!verdict.eligible) {
+    const error = new Error(`NOT_ELIGIBLE`);
+    error.reason = verdict.reason;
+    throw error;
+  }
+
+  const fixturesToPush = verdict.fixtures;
+  const teamListId = competition.team_list_id;
+
+  // The round's lock time is the batch's earliest kickoff - every fixture in a batch shares one
+  // deadline, which is why a Fri-Sun gameweek is staged as several batches.
+  const earliestKickoff = fixturesToPush.reduce((earliest, fixture) => {
+    if (!earliest || new Date(fixture.kickoff_time) < new Date(earliest)) return fixture.kickoff_time;
+    return earliest;
+  }, null);
+
+  let targetRoundId;
+  let targetRoundNumber;
+  let roundAction;
+
+  if (roundState.needsNewRound) {
+    const newRoundResult = await client.query(
+      `INSERT INTO round (competition_id, round_number, lock_time, created_at)
+       SELECT $1, COALESCE(MAX(r.round_number), 0) + 1, $2, CURRENT_TIMESTAMP
+       FROM competition c
+       LEFT JOIN round r ON r.competition_id = c.id
+       WHERE c.id = $1
+       GROUP BY c.id
+       RETURNING id, round_number`,
+      [competitionId, earliestKickoff]
+    );
+    targetRoundId = newRoundResult.rows[0].id;
+    targetRoundNumber = newRoundResult.rows[0].round_number;
+    roundAction = 'created';
+  } else {
+    const existingRoundResult = await client.query(
+      `SELECT id, round_number FROM round WHERE competition_id = $1 AND round_number = $2`,
+      [competitionId, roundState.roundNumber]
+    );
+    targetRoundId = existingRoundResult.rows[0].id;
+    targetRoundNumber = existingRoundResult.rows[0].round_number;
+    roundAction = 'populated';
+
+    await client.query(`UPDATE round SET lock_time = $1 WHERE id = $2`, [earliestKickoff, targetRoundId]);
+  }
+
+  const teamLookupResult = await client.query(
+    `SELECT short_name, name FROM team WHERE team_list_id = $1 AND is_active = true`,
+    [teamListId]
+  );
+  const teamMap = {};
+  teamLookupResult.rows.forEach((team) => {
+    teamMap[team.short_name] = team.name;
   });
 
-  // Step 3: Push fixtures to each competition that needs them
-  const competitionDetails = [];
-  let totalCompetitionsUpdated = 0;
-  let totalCompetitionsSkipped = 0;
-  let totalFixturesPushed = 0;
+  for (const fixture of fixturesToPush) {
+    const homeTeamFull = teamMap[fixture.home_team_short] || fixture.home_team_short;
+    const awayTeamFull = teamMap[fixture.away_team_short] || fixture.away_team_short;
 
-  for (const competition of competitionsNeedingFixtures) {
-    const compId = competition.id;
-    const competitionName = competition.name;
-    const teamListId = competition.team_list_id;
-    const needsNewRound = competition.needs_new_round;
-    const currentRoundNumber = competition.round_number;
-    const earliestStartDate = competition.earliest_start_date;
-
-    // The staged batch is only eligible once its earliest kickoff is >= earliest_start_date
-    // (or NOW() if that isn't set).
-    const cutoffDate = earliestStartDate ? new Date(earliestStartDate) : new Date();
-
-    const candidateFixtures = fixturesByTeamList[teamListId] || [];
-    let fixturesToPush = null;
-
-    if (candidateFixtures.length > 0) {
-      const earliestKickoff = candidateFixtures.reduce((earliest, fixture) => {
-        const kickoffDate = new Date(fixture.kickoff_time);
-        return !earliest || kickoffDate < earliest ? kickoffDate : earliest;
-      }, null);
-
-      if (earliestKickoff >= cutoffDate) {
-        fixturesToPush = candidateFixtures;
-      }
-    }
-
-    if (!fixturesToPush || fixturesToPush.length === 0) {
-      competitionDetails.push({
-        competition_id: compId,
-        competition_name: competitionName,
-        status: 'skipped',
-        reason: `No fixtures available for team list ${teamListId} with kickoff >= ${cutoffDate.toISOString()}`
-      });
-      totalCompetitionsSkipped++;
-      continue;
-    }
-
-    // Calculate lock_time: use earliest kickoff time from fixtures
-    const earliestKickoff = fixturesToPush.reduce((earliest, fixture) => {
-      if (!earliest || new Date(fixture.kickoff_time) < new Date(earliest)) {
-        return fixture.kickoff_time;
-      }
-      return earliest;
-    }, null);
-
-    // Determine target round
-    let targetRoundId;
-    let targetRoundNumber;
-    let roundAction; // 'created' or 'populated'
-
-    if (needsNewRound) {
-      // Create new round
-      const newRoundResult = await client.query(`
-        INSERT INTO round (
-          competition_id,
-          round_number,
-          lock_time,
-          created_at
-        )
-        SELECT
-          $1,
-          COALESCE(MAX(r.round_number), 0) + 1,
-          $2,
-          CURRENT_TIMESTAMP
-        FROM competition c
-        LEFT JOIN round r ON r.competition_id = c.id
-        WHERE c.id = $1
-        GROUP BY c.id
-        RETURNING id, round_number
-      `, [compId, earliestKickoff]);
-
-      const newRound = newRoundResult.rows[0];
-      targetRoundId = newRound.id;
-      targetRoundNumber = newRound.round_number;
-      roundAction = 'created';
-    } else {
-      // Use existing blank round
-      const existingRoundResult = await client.query(`
-        SELECT id, round_number
-        FROM round
-        WHERE competition_id = $1 AND round_number = $2
-      `, [compId, currentRoundNumber]);
-
-      targetRoundId = existingRoundResult.rows[0].id;
-      targetRoundNumber = existingRoundResult.rows[0].round_number;
-      roundAction = 'populated';
-
-      // Update lock_time for the existing round
-      await client.query(`
-        UPDATE round
-        SET lock_time = $1
-        WHERE id = $2
-      `, [earliestKickoff, targetRoundId]);
-    }
-
-    // Lookup full team names from team table based on short names
-    const teamLookupResult = await client.query(`
-      SELECT short_name, name
-      FROM team
-      WHERE team_list_id = $1 AND is_active = true
-    `, [teamListId]);
-
-    const teamMap = {};
-    teamLookupResult.rows.forEach(team => {
-      teamMap[team.short_name] = team.name;
-    });
-
-    // Insert all fixtures into the target round
-    for (const fixture of fixturesToPush) {
-      // Lookup full team names from map (fallback to short name if not found)
-      const homeTeamFull = teamMap[fixture.home_team_short] || fixture.home_team_short;
-      const awayTeamFull = teamMap[fixture.away_team_short] || fixture.away_team_short;
-
-      await client.query(`
-        INSERT INTO fixture (
-          round_id,
-          competition_id,
-          home_team,
-          away_team,
-          home_team_short,
-          away_team_short,
-          kickoff_time,
-          round_number,
-          created_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-      `, [
+    await client.query(
+      `INSERT INTO fixture (
+         round_id, competition_id, home_team, away_team,
+         home_team_short, away_team_short, kickoff_time, round_number, created_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)`,
+      [
         targetRoundId,
-        compId,
+        competitionId,
         homeTeamFull,
         awayTeamFull,
         fixture.home_team_short,
         fixture.away_team_short,
         fixture.kickoff_time,
-        targetRoundNumber
-      ]);
-
-      totalFixturesPushed++;
-    }
-
-    // Auto-reset teams ONLY if allowed_teams is empty for active players
-    const teamResetResult = await client.query(`
-      INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
-      SELECT $1, cu.user_id, t.id, NOW()
-      FROM competition_user cu
-      CROSS JOIN team t
-      WHERE cu.competition_id = $1
-      AND cu.status = 'active'
-      AND t.team_list_id = $2
-      AND t.is_active = true
-      AND NOT EXISTS (
-        SELECT 1 FROM allowed_teams at
-        WHERE at.competition_id = $1 AND at.user_id = cu.user_id
-      )
-      RETURNING user_id
-    `, [compId, teamListId]);
-
-    // Log team resets for affected players
-    if (teamResetResult.rows.length > 0) {
-      const uniqueUserIds = [...new Set(teamResetResult.rows.map(row => row.user_id))];
-
-      for (const userId of uniqueUserIds) {
-        // Get user display name for audit log
-        const userResult = await client.query(
-          'SELECT display_name FROM app_user WHERE id = $1',
-          [userId]
-        );
-
-        const displayName = userResult.rows[0]?.display_name || `User ${userId}`;
-
-        await client.query(`
-          INSERT INTO audit_log (competition_id, user_id, action, details)
-          VALUES ($1, $2, 'Teams Auto-Reset', $3)
-        `, [
-          compId,
-          userId,
-          `Teams automatically reset for ${displayName} at start of Round ${targetRoundNumber}`
-        ]);
-      }
-    }
-
-    // === QUEUE MOBILE NOTIFICATIONS ===
-    // Queue 'new_round' and 'pick_reminder' notifications for all active players
-    // new_round: sends immediately on next cron run - message is "Results are in - see how you did!"
-    // pick_reminder: sends when within 24hrs of lock_time
-    // Excludes guest users (email starts with 'lms-guest')
-
-    // NEW_ROUND: Only insert if user has no pending new_round notification (any competition)
-    // This avoids spamming users in multiple competitions with separate notifications
-    // Also requires user has a device token registered (no point queueing if they can't receive)
-    await client.query(`
-      INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-      SELECT cu.user_id, 'new_round', $1, $2, $3, 'pending', NOW()
-      FROM competition_user cu
-      JOIN app_user au ON au.id = cu.user_id
-      WHERE cu.competition_id = $1
-        AND cu.status = 'active'
-        AND cu.hidden IS NOT TRUE
-        AND au.email NOT LIKE '%@lms-guest.%'
-        AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = cu.user_id)
-        AND NOT EXISTS (
-          SELECT 1 FROM mobile_notification_queue mnq
-          WHERE mnq.user_id = cu.user_id
-            AND mnq.type = 'new_round'
-            AND mnq.status = 'pending'
-        )
-    `, [compId, targetRoundId, targetRoundNumber]);
-
-    /* FUTURE: Per-competition new_round notifications (commented out for now)
-    await client.query(`
-      INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-      SELECT cu.user_id, 'new_round', $1, $2, $3, 'pending', NOW()
-      FROM competition_user cu
-      JOIN app_user au ON au.id = cu.user_id
-      WHERE cu.competition_id = $1
-        AND cu.status = 'active'
-        AND cu.hidden IS NOT TRUE
-        AND au.email NOT LIKE '%@lms-guest.%'
-        AND NOT EXISTS (
-          SELECT 1 FROM mobile_notification_queue mnq
-          WHERE mnq.user_id = cu.user_id
-            AND mnq.type = 'new_round'
-            AND mnq.competition_id = $1
-            AND mnq.round_id = $2
-        )
-    `, [compId, targetRoundId, targetRoundNumber]);
-    */
-
-    // PICK_REMINDER: Per-competition, requires device token
-    await client.query(`
-      INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-      SELECT cu.user_id, 'pick_reminder', $1, $2, $3, 'pending', NOW()
-      FROM competition_user cu
-      JOIN app_user au ON au.id = cu.user_id
-      WHERE cu.competition_id = $1
-        AND cu.status = 'active'
-        AND cu.hidden IS NOT TRUE
-        AND au.email NOT LIKE '%@lms-guest.%'
-        AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = cu.user_id)
-        AND NOT EXISTS (
-          SELECT 1 FROM mobile_notification_queue mnq
-          WHERE mnq.user_id = cu.user_id
-            AND mnq.type = 'pick_reminder'
-            AND mnq.competition_id = $1
-            AND mnq.round_id = $2
-        )
-    `, [compId, targetRoundId, targetRoundNumber]);
-
-    // Create audit log entry for fixture push
-    await client.query(`
-      INSERT INTO audit_log (competition_id, user_id, action, details)
-      VALUES ($1, NULL, 'Fixtures Pushed', $2)
-    `, [
-      compId,
-      `Fixture service ${roundAction} Round ${targetRoundNumber} with ${fixturesToPush.length} fixtures`
-    ]);
-
-    // Mark this competition as updated
-    competitionDetails.push({
-      competition_id: compId,
-      competition_name: competitionName,
-      status: 'updated',
-      reason: null
-    });
-    totalCompetitionsUpdated++;
+        targetRoundNumber,
+      ]
+    );
   }
 
-  // Return all data needed for response
+  // Only for active players with no allowed_teams rows at all - a competition switched over from
+  // manual keeps its no-team-twice history rather than having it wiped.
+  const teamResetResult = await client.query(
+    `INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
+     SELECT $1, cu.user_id, t.id, NOW()
+     FROM competition_user cu
+     CROSS JOIN team t
+     WHERE cu.competition_id = $1
+       AND cu.status = 'active'
+       AND t.team_list_id = $2
+       AND t.is_active = true
+       AND NOT EXISTS (
+         SELECT 1 FROM allowed_teams at WHERE at.competition_id = $1 AND at.user_id = cu.user_id
+       )
+     RETURNING user_id`,
+    [competitionId, teamListId]
+  );
+
+  if (teamResetResult.rows.length > 0) {
+    const uniqueUserIds = [...new Set(teamResetResult.rows.map((row) => row.user_id))];
+    for (const userId of uniqueUserIds) {
+      const userResult = await client.query('SELECT display_name FROM app_user WHERE id = $1', [userId]);
+      const displayName = userResult.rows[0]?.display_name || `User ${userId}`;
+      await client.query(
+        `INSERT INTO audit_log (competition_id, user_id, action, details)
+         VALUES ($1, $2, 'Teams Auto-Reset', $3)`,
+        [competitionId, userId, `Teams automatically reset for ${displayName} at start of Round ${targetRoundNumber}`]
+      );
+    }
+  }
+
+  // NEW_ROUND: one pending notification per user across all competitions, so someone in four
+  // competitions gets one nudge rather than four. Needs a device token to be worth queueing.
+  await client.query(
+    `INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
+     SELECT cu.user_id, 'new_round', $1, $2, $3, 'pending', NOW()
+     FROM competition_user cu
+     JOIN app_user au ON au.id = cu.user_id
+     WHERE cu.competition_id = $1
+       AND cu.status = 'active'
+       AND cu.hidden IS NOT TRUE
+       AND au.email NOT LIKE '%@lms-guest.%'
+       AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = cu.user_id)
+       AND NOT EXISTS (
+         SELECT 1 FROM mobile_notification_queue mnq
+         WHERE mnq.user_id = cu.user_id AND mnq.type = 'new_round' AND mnq.status = 'pending'
+       )`,
+    [competitionId, targetRoundId, targetRoundNumber]
+  );
+
+  // PICK_REMINDER: per competition, sent when within 24h of lock_time.
+  await client.query(
+    `INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
+     SELECT cu.user_id, 'pick_reminder', $1, $2, $3, 'pending', NOW()
+     FROM competition_user cu
+     JOIN app_user au ON au.id = cu.user_id
+     WHERE cu.competition_id = $1
+       AND cu.status = 'active'
+       AND cu.hidden IS NOT TRUE
+       AND au.email NOT LIKE '%@lms-guest.%'
+       AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = cu.user_id)
+       AND NOT EXISTS (
+         SELECT 1 FROM mobile_notification_queue mnq
+         WHERE mnq.user_id = cu.user_id AND mnq.type = 'pick_reminder'
+           AND mnq.competition_id = $1 AND mnq.round_id = $2
+       )`,
+    [competitionId, targetRoundId, targetRoundNumber]
+  );
+
+  await client.query(
+    `INSERT INTO audit_log (competition_id, user_id, action, details)
+     VALUES ($1, NULL, 'Fixtures Pushed', $2)`,
+    [
+      competitionId,
+      `Fixture service ${roundAction} Round ${targetRoundNumber} with ${fixturesToPush.length} fixtures`,
+    ]
+  );
+
   return {
-    competitions_updated: totalCompetitionsUpdated,
-    competitions_skipped: totalCompetitionsSkipped,
-    fixtures_pushed: totalFixturesPushed,
-    details: competitionDetails
+    competition_id: competitionId,
+    competition_name: competition.name,
+    round_number: targetRoundNumber,
+    round_action: roundAction,
+    fixtures_pushed: fixturesToPush.length,
   };
 }
 
 module.exports = {
-  pushFixturesToCompetitions
+  getFixturePushCandidates,
+  pushFixturesToCompetition,
+  FIRST_ROUND_LEAD_TIME_HOURS,
+  BLOCKED,
 };

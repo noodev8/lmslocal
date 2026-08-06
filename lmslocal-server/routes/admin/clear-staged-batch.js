@@ -79,7 +79,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    const testModeEmail = process.env.FIXTURE_SERVICE_TEST_MODE || null;
     const forced = force === true;
 
     const result = await transaction(async (client) => {
@@ -99,12 +98,11 @@ router.post('/', verifyAdminToken, async (req, res) => {
         JOIN competition c ON c.id = f.competition_id AND c.fixture_service = true
         JOIN app_user u ON u.id = c.organiser_id
         WHERE fl.team_list_id = $1
-          AND ($2::text IS NULL OR u.email = $2)
         GROUP BY c.id, c.name
         HAVING COUNT(*) FILTER (WHERE f.result IS NULL) > 0
             OR COUNT(*) FILTER (WHERE f.result IS NOT NULL AND f.processed IS NULL) > 0
         ORDER BY c.name
-      `, [teamListId, testModeEmail]);
+      `, [teamListId]);
 
       if (outstandingResult.rows.length > 0 && !forced) {
         const error = new Error('OUTSTANDING_COMPETITIONS');

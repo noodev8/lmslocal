@@ -334,16 +334,22 @@ router.post('/', verifyToken, async (req, res) => {
         `Created competition "${competition.name}" with ${competition.lives_per_player} lives per player, joined ${participationStatus}`
       ]);
 
-      // 7. Push fixtures immediately using fixture service
-      const { pushFixturesToCompetitions } = require('../services/fixtureService');
-      try {
-        await pushFixturesToCompetitions(client);
-      } catch (error) {
-        // If no fixtures available, that's fine - cron will handle later
-        if (error.message !== 'NO_ACTIVE_FIXTURES' && error.message !== 'NO_SUBSCRIBED_COMPETITIONS') {
-          throw error; // Re-throw unexpected errors
+      // 7. Give this competition its first round straight away, if a staged batch is eligible.
+      //    Named competition, not a sweep: this used to call the all-competitions push, so
+      //    creating one competition could create rounds in every other subscriber as a side
+      //    effect. Nothing here should touch anyone else's competition.
+      if (fixture_service === true) {
+        const { pushFixturesToCompetition } = require('../services/fixtureService');
+        try {
+          await pushFixturesToCompetition(client, competition.id);
+        } catch (error) {
+          // Not eligible yet is the normal case, not a failure - a competition told to start next
+          // week has nothing to take until then, and the 48h lead time deliberately holds back a
+          // batch kicking off too soon. The organiser gets their round on the admin's next push.
+          if (error.message !== 'NOT_ELIGIBLE') {
+            throw error;
+          }
         }
-        // Otherwise silently continue - competition created without fixtures
       }
 
       // Return competition data for response

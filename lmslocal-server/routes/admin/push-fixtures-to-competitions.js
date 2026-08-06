@@ -1,6 +1,22 @@
 /*
 =======================================================================================================================================
-API Route: push-fixtures-to-competitions
+API Route: push-fixtures-to-competitions  ***DEPRECATED - UNREGISTERED - DO NOT REVIVE***
+=======================================================================================================================================
+This route is no longer wired up in server.js and the service function it called no longer
+exists. It is kept on disk as a record of the behaviour it had, nothing more.
+
+Replaced by /admin/get-fixture-push-targets + /admin/push-fixtures-to-competition (singular),
+which push one competition at a time. The difference that matters:
+
+  this one   - one press, every subscribed competition. The only thing keeping a mis-staged
+               batch away from real customers was FIXTURE_SERVICE_TEST_MODE, an env var naming
+               one organiser's email which had to be set before testing and unset afterwards -
+               and which silently starved every real customer of fixtures while it was on.
+  singular   - the competition is named on every call, so the blast radius is one competition
+               and no env var is involved. The admin pushes each in turn and reads each result.
+
+Results made the same move earlier, for a different reason (transaction size) - see
+push-results-to-competitions.js, also frozen. Read both before proposing a return to sweeps.
 =======================================================================================================================================
 Method: POST
 Purpose: Pushes fixtures from fixture_load table to competitions using gameweek-based system.

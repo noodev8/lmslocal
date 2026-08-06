@@ -29,7 +29,6 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  PaperAirplaneIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import AdminHeader from '@/components/AdminHeader';
@@ -43,6 +42,8 @@ import {
   ResultOutcome,
   PushTarget,
   PushOneResponse,
+  FixturePushTarget,
+  PushFixturesOneResponse,
   ClearBatchResponse,
 } from '@/lib/api';
 import { ukTimeToUtcIso, describeUkDateTime } from '@/lib/uk-time';
@@ -73,6 +74,20 @@ function nextDayOfWeek(dayOfWeek: number, weeksAhead = 0): Date {
 function toDateInputValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/* An already-stored timestamp, shown in UK time. describeUkDateTime is for the entry form, which
+   holds a date and a time separately; this takes the ISO string the server sends back. */
+function formatKickoff(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 const TIME_SHORTCUTS = [
@@ -568,6 +583,207 @@ function FixturesTab({
           : `Confirm fixtures (${completePairs.length})`}
       </button>
     </form>
+  );
+}
+
+// ======================================================================================
+// Push fixtures - one competition at a time
+// ======================================================================================
+
+/*
+Fixtures go out per competition, driven by hand: press a row, read what came back, press the
+next. It used to be one button that swept every subscribed competition, and the only thing
+keeping a mis-staged batch away from real customers was FIXTURE_SERVICE_TEST_MODE - an env var
+naming one organiser's email, which had to be set before testing, unset afterwards, and which
+silently starved every real customer of fixtures while it was on. Naming the competition on each
+push makes the blast radius one competition, so the env var is gone.
+
+Competitions that can't take the batch are listed too, greyed, with the reason. One that simply
+vanished from the list would look like a bug, and "why hasn't that one got its fixtures?" is the
+question this screen exists to answer.
+*/
+
+type FixturePushOutcome =
+  | { ok: true; data: PushFixturesOneResponse }
+  | { ok: false; message: string };
+
+function PushFixturesPanel({
+  teamList,
+  stagedCount,
+  setNotice,
+}: {
+  teamList: FixtureTeamList;
+  stagedCount: number;
+  setNotice: (n: Notice) => void;
+}) {
+  const [targets, setTargets] = useState<FixturePushTarget[] | null>(null);
+  const [stagedTotal, setStagedTotal] = useState(0);
+  const [earliestKickoff, setEarliestKickoff] = useState<string | null>(null);
+  const [pushingId, setPushingId] = useState<number | null>(null);
+  const [outcomes, setOutcomes] = useState<Record<number, FixturePushOutcome>>({});
+
+  const load = useCallback(async () => {
+    try {
+      const result = await adminApi.getFixturePushTargets(teamList.id);
+      if (result.return_code === 'SUCCESS') {
+        setTargets(result.competitions || []);
+        setStagedTotal(result.staged_total || 0);
+        setEarliestKickoff(result.earliest_kickoff || null);
+      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        setNotice({ tone: 'error', text: result.message || 'Could not load the competitions for this batch.' });
+        setTargets([]);
+      }
+    } catch {
+      setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
+      setTargets([]);
+    }
+  }, [teamList.id, setNotice]);
+
+  // Reloads when the staged batch changes, so eligibility reflects what is actually staged.
+  useEffect(() => {
+    load();
+  }, [load, stagedCount]);
+
+  const handlePush = async (target: FixturePushTarget) => {
+    setPushingId(target.competition_id);
+    setNotice(null);
+    try {
+      const result = await adminApi.pushFixturesToCompetition(target.competition_id);
+      if (result.return_code === 'SUCCESS') {
+        setOutcomes((prev) => ({ ...prev, [target.competition_id]: { ok: true, data: result } }));
+      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        setOutcomes((prev) => ({
+          ...prev,
+          [target.competition_id]: { ok: false, message: result.message || 'Push failed.' },
+        }));
+      }
+      await load();
+    } catch {
+      // The server commits whether or not anyone is still listening, so a dropped connection is
+      // more likely to mean "done" than "failed". Say that rather than inviting a blind retry.
+      setOutcomes((prev) => ({
+        ...prev,
+        [target.competition_id]: {
+          ok: false,
+          message: 'Lost contact while pushing. Refresh to check - it may already be done.',
+        },
+      }));
+      await load();
+    } finally {
+      setPushingId(null);
+    }
+  };
+
+  if (targets === null) {
+    return <p className="mt-6 text-sm text-slate-500">Loading competitions...</p>;
+  }
+
+  if (targets.length === 0) {
+    return (
+      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-6 py-6 text-center text-sm text-slate-500">
+        No competition on this team list is subscribed to the fixture service.
+      </div>
+    );
+  }
+
+  const eligible = targets.filter((t) => t.eligible);
+
+  return (
+    <div className="mt-8">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
+          <h2 className="text-sm font-semibold text-slate-900">Push fixtures</h2>
+          <p className="text-xs text-slate-500">
+            {eligible.length} of {targets.length} competition{targets.length === 1 ? '' : 's'} can take this batch
+            <span className="mx-1.5 text-slate-300">·</span>
+            {stagedTotal} fixture{stagedTotal === 1 ? '' : 's'} staged
+            {earliestKickoff && (
+              <>
+                <span className="mx-1.5 text-slate-300">·</span>
+                locks {formatKickoff(earliestKickoff)}
+              </>
+            )}
+          </p>
+        </div>
+
+        {stagedTotal === 0 && (
+          <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Nothing is staged for this team list. Add fixtures above first.</span>
+          </div>
+        )}
+
+        <ul className="divide-y divide-slate-100">
+          {targets.map((target) => {
+            const isPushing = pushingId === target.competition_id;
+            const outcome = outcomes[target.competition_id];
+            const pushed = outcome?.ok === true;
+            const disabled = pushingId !== null || !target.eligible || pushed;
+
+            return (
+              <li key={target.competition_id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    {pushed && <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-600" />}
+                    <span
+                      className={`truncate text-sm font-medium ${target.eligible || pushed ? 'text-slate-900' : 'text-slate-400'}`}
+                    >
+                      {target.name}
+                    </span>
+                    {target.round_number !== null && (
+                      <span className="shrink-0 text-xs text-slate-400">round {target.round_number}</span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">{target.organiser_email}</p>
+                </div>
+
+                <div className="text-right text-xs text-slate-500">
+                  {isPushing ? (
+                    <span className="flex items-center gap-1.5 text-indigo-600">
+                      <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                      Pushing - don&apos;t refresh
+                    </span>
+                  ) : outcome && !outcome.ok ? (
+                    <span className="text-red-600">{outcome.message}</span>
+                  ) : outcome?.ok ? (
+                    <span className="text-emerald-700">
+                      round {outcome.data.round_number} {outcome.data.round_action}
+                      <span className="mx-1 text-slate-300">·</span>
+                      {outcome.data.fixtures_pushed} fixtures
+                    </span>
+                  ) : !target.eligible ? (
+                    // The reason comes from the same rules the push enforces, so it can't be
+                    // reassuring about something the push would then refuse.
+                    <span className="text-slate-400">{target.reason}</span>
+                  ) : (
+                    <span>
+                      {target.active_players} active player{target.active_players === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handlePush(target)}
+                  disabled={disabled}
+                  title={!target.eligible ? target.reason || undefined : pushed ? 'Already pushed.' : undefined}
+                  className="w-24 shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  {isPushing ? 'Pushing...' : outcome && !outcome.ok ? 'Retry' : 'Push'}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-xs text-slate-500">
+            Each push creates that competition&apos;s round and its players see it immediately. The batch
+            stays staged for the others until you clear it on the results tab.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1081,8 +1297,6 @@ export default function FixturesPage() {
   const [tab, setTab] = useState<Tab>('fixtures');
   const [notice, setNotice] = useState<Notice>(null);
   const [loading, setLoading] = useState(true);
-  const [pushing, setPushing] = useState<'fixtures' | 'results' | null>(null);
-  const [testModeEmail, setTestModeEmail] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1096,7 +1310,6 @@ export default function FixturesPage() {
             ? current
             : lists.team_lists![0]?.id ?? null
         );
-        setTestModeEmail(lists.test_mode_email ?? null);
       } else if (lists.return_code !== 'UNAUTHORIZED' && lists.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: lists.message || 'Could not load team lists.' });
       }
@@ -1123,39 +1336,9 @@ export default function FixturesPage() {
     [teamLists, selectedListId]
   );
 
-  // Pushing a batch whose deadline has already passed creates a round that's locked before any
-  // player can pick it - block it rather than let that happen by accident.
-  const cutoffPassed = !!teamList?.pending_cutoff && new Date(teamList.pending_cutoff) <= new Date();
-  // No equivalent guard is needed for results any more: the push panel needs at least one result
-  // entered before it will push, and result entry is itself blocked until kickoff (see ResultsTab).
-
-  const [confirmAction, setConfirmAction] = useState<Tab | null>(null);
-
-  const runPushFixtures = async () => {
-    setConfirmAction(null);
-    setPushing('fixtures');
-    setNotice(null);
-    try {
-      const result = await adminApi.pushFixtures();
-      if (result.return_code === 'SUCCESS') {
-        setNotice({ tone: 'success', text: 'Fixtures pushed.' });
-        load();
-      } else if (result.return_code === 'NO_ACTIVE_FIXTURES') {
-        setNotice({
-          tone: 'info',
-          text: 'Nothing to push - no fixtures are staged. Add some on the fixtures tab first.',
-        });
-      } else if (result.return_code === 'NO_SUBSCRIBED_COMPETITIONS') {
-        setNotice({ tone: 'info', text: 'No competition is opted into the fixture service.' });
-      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
-        setNotice({ tone: 'error', text: result.message || 'Could not push fixtures.' });
-      }
-    } catch {
-      setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
-    } finally {
-      setPushing(null);
-    }
-  };
+  /* No screen-wide push button any more. Both fixtures and results go out one competition at a
+     time, from the panel on their own tab, so the deadline guard that used to sit here moved
+     into the eligibility rules the panels share with the server. */
 
   return (
     <div className="min-h-screen">
@@ -1169,12 +1352,6 @@ export default function FixturesPage() {
           <span className="hidden sm:inline">Refresh</span>
         </button>
       </AdminHeader>
-
-      {testModeEmail && (
-        <div className="bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white">
-          TEST MODE - fixtures and results only reach competitions organised by {testModeEmail}
-        </div>
-      )}
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         <NoticeBanner notice={notice} />
@@ -1220,29 +1397,21 @@ export default function FixturesPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setConfirmAction('fixtures')}
-                  disabled={pushing !== null || cutoffPassed || !teamList.pending_fixtures}
-                  title={
-                    cutoffPassed
-                      ? 'The staged batch\'s deadline has already passed - stage a new batch instead.'
-                      : !teamList.pending_fixtures
-                        ? 'No fixtures are staged yet.'
-                        : undefined
-                  }
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <PaperAirplaneIcon className="h-4 w-4" />
-                  {pushing === 'fixtures' ? 'Pushing...' : 'Push fixtures'}
-                </button>
-                {/* Results are no longer pushed from here - they go out one competition at a
-                    time from the panel on the results tab. */}
-              </div>
+              {/* Nothing pushes from up here any more. Both fixtures and results go out one
+                  competition at a time from the panel on their own tab. */}
             </div>
 
             {tab === 'fixtures' ? (
-              <FixturesTab teamList={teamList} onStaged={load} setNotice={setNotice} />
+              <>
+                <FixturesTab teamList={teamList} onStaged={load} setNotice={setNotice} />
+                {/* Below the entry form, not beside it: stage the batch, then push it to each
+                    competition in turn. */}
+                <PushFixturesPanel
+                  teamList={teamList}
+                  stagedCount={teamList.pending_fixtures ? 1 : 0}
+                  setNotice={setNotice}
+                />
+              </>
             ) : (
               <ResultsTab teamList={teamList} setNotice={setNotice} onBatchCleared={load} />
             )}
@@ -1255,72 +1424,7 @@ export default function FixturesPage() {
           </p>
         )}
       </main>
-
-      {confirmAction === 'fixtures' && (
-        <PushConfirmModal
-          title="Push staged fixtures"
-          description="This sends every staged fixture to each opted-in competition and creates a new round for it. Players will see it immediately."
-          confirmLabel="Push fixtures"
-          onCancel={() => setConfirmAction(null)}
-          onConfirm={runPushFixtures}
-        />
-      )}
-
     </div>
   );
 }
 
-function PushConfirmModal({
-  title,
-  description,
-  confirmLabel,
-  tone = 'default',
-  onCancel,
-  onConfirm,
-}: {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  tone?: 'default' | 'danger';
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const danger = tone === 'danger';
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
-        <div className="flex items-start gap-3">
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-              danger ? 'bg-red-50' : 'bg-indigo-50'
-            }`}
-          >
-            <PaperAirplaneIcon className={`h-5 w-5 ${danger ? 'text-red-600' : 'text-indigo-600'}`} />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            <p className="mt-1 text-sm text-slate-500">{description}</p>
-          </div>
-        </div>
-
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition ${
-              danger ? 'bg-red-600 hover:bg-red-700' : 'bg-indigo-600 hover:bg-indigo-700'
-            }`}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

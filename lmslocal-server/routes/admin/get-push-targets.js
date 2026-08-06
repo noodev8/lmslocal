@@ -61,7 +61,8 @@ Data Notes:
 - Player counts come from a separate query rather than a FILTER on the same join, because
   joining competition_user here would multiply every fixture row by every member and inflate the
   fixture counts.
-- FIXTURE_SERVICE_TEST_MODE is honoured, so this list matches what the push would actually do
+- Every subscribed competition is listed. There is no organiser filter: pushes name their
+  competition, so nothing needs fencing off by environment variable.
   rather than showing competitions it would silently skip.
 =======================================================================================================================================
 */
@@ -84,8 +85,6 @@ router.get('/', verifyAdminToken, async (req, res) => {
         message: 'team_list_id is required and must be an integer'
       });
     }
-
-    const testModeEmail = process.env.FIXTURE_SERVICE_TEST_MODE || null;
 
     // The batch itself: how much is staged, how much of it is resulted, and the deadline.
     const batchResult = await query(`
@@ -118,10 +117,9 @@ router.get('/', verifyAdminToken, async (req, res) => {
       JOIN competition c ON c.id = f.competition_id AND c.fixture_service = true
       JOIN app_user u ON u.id = c.organiser_id
       WHERE fl.team_list_id = $1
-        AND ($2::text IS NULL OR u.email = $2)
       GROUP BY c.id, c.name, u.email, u.display_name
       ORDER BY c.name
-    `, [teamListId, testModeEmail]);
+    `, [teamListId]);
 
     // Player counts separately - see Data Notes on why this cannot be one query.
     const competitionIds = competitionsResult.rows.map((row) => row.competition_id);

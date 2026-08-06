@@ -245,8 +245,6 @@ export type ResultOutcome = 'home_win' | 'away_win' | 'draw';
 
 export type TeamListsResponse = ApiResponse & {
   team_lists?: FixtureTeamList[];
-  /* Set when FIXTURE_SERVICE_TEST_MODE is active in the server .env - pushes only reach this organiser's competitions. */
-  test_mode_email?: string | null;
 };
 
 export type AddFixturesResponse = ApiResponse & {
@@ -267,9 +265,33 @@ export type SetStagedResultResponse = ApiResponse & {
   result?: ResultOutcome;
 };
 
-export type PushFixturesResponse = ApiResponse & {
-  competitions_updated?: number;
-  competitions_skipped?: number;
+/* One competition the staged batch may or may not be pushed to. Blocked ones are listed too,
+   with the reason, so a competition missing its fixtures never has to be explained by opening a
+   database - see get-fixture-push-targets.js. */
+export interface FixturePushTarget {
+  competition_id: number;
+  name: string;
+  organiser_email: string;
+  organiser_name: string;
+  players: number;
+  active_players: number;
+  round_number: number | null;
+  round_state: 'no_round' | 'blank_round' | 'round_complete' | 'round_in_progress';
+  eligible: boolean;
+  reason: string | null;
+}
+
+export type FixturePushTargetsResponse = ApiResponse & {
+  staged_total?: number;
+  earliest_kickoff?: string | null;
+  competitions?: FixturePushTarget[];
+};
+
+export type PushFixturesOneResponse = ApiResponse & {
+  competition_id?: number;
+  competition_name?: string;
+  round_number?: number;
+  round_action?: 'created' | 'populated';
   fixtures_pushed?: number;
 };
 
@@ -577,8 +599,20 @@ export const adminApi = {
 
   // ---- Distribution ----------------------------------------------------------------------
 
-  pushFixtures: async (): Promise<PushFixturesResponse> => {
-    const response = await api.post<PushFixturesResponse>('/admin/push-fixtures-to-competitions');
+  // Fixtures go out one competition at a time, like results. The all-competitions route is
+  // gone: its only guard was an env var naming one organiser, which had to be set before testing
+  // and unset after, and which starved real customers of fixtures while it was on.
+  getFixturePushTargets: async (teamListId: number): Promise<FixturePushTargetsResponse> => {
+    const response = await api.get<FixturePushTargetsResponse>('/admin/get-fixture-push-targets', {
+      params: { team_list_id: teamListId },
+    });
+    return response.data;
+  },
+
+  pushFixturesToCompetition: async (competitionId: number): Promise<PushFixturesOneResponse> => {
+    const response = await api.post<PushFixturesOneResponse>('/admin/push-fixtures-to-competition', {
+      competition_id: competitionId,
+    });
     return response.data;
   },
 

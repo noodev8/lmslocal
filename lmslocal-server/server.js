@@ -114,7 +114,8 @@ const unsubscribeRoute = require('./routes/unsubscribe');
 // const organiserMidRoundSubmitTipRoute = require('./routes/organiser-mid-round-submit-tip');
 
 // Admin Tool Routes (lmslocal-admin) - gated by app_user.is_admin + JWT_ADMIN_SECRET
-const pushFixturesToCompetitionsRoute = require('./routes/admin/push-fixtures-to-competitions');
+const pushFixturesToCompetitionRoute = require('./routes/admin/push-fixtures-to-competition');
+const getFixturePushTargetsRoute = require('./routes/admin/get-fixture-push-targets');
 // Results are pushed one competition at a time - the old all-competitions route ran the whole
 // batch in one transaction, so a timeout rolled every competition back. See its header.
 const pushResultsToCompetitionRoute = require('./routes/admin/push-results-to-competition');
@@ -436,7 +437,8 @@ app.use('/admin/add-staged-fixtures', addStagedFixturesRoute);
 app.use('/admin/get-staged-results', getStagedResultsRoute);
 app.use('/admin/set-staged-result', setStagedResultRoute);
 app.use('/admin/set-fixture-service', setFixtureServiceRoute);
-app.use('/admin/push-fixtures-to-competitions', pushFixturesToCompetitionsRoute);
+app.use('/admin/get-fixture-push-targets', getFixturePushTargetsRoute);
+app.use('/admin/push-fixtures-to-competition', pushFixturesToCompetitionRoute);
 app.use('/admin/get-push-targets', getPushTargetsRoute);
 app.use('/admin/push-results-to-competition', pushResultsToCompetitionRoute);
 app.use('/admin/clear-staged-batch', clearStagedBatchRoute);

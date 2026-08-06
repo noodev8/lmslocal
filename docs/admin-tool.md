@@ -142,8 +142,9 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/add-staged-fixtures` | POST | Stage a batch of fixtures (refused if one is already pending) |
 | `/admin/get-staged-results` | GET | The currently staged batch, resulted or not |
 | `/admin/set-staged-result` | POST | Record one fixture's outcome |
-| `/admin/push-fixtures-to-competitions` | POST | Distribute staged fixtures as rounds |
-| `/admin/get-push-targets` | GET | Competitions waiting on the staged batch, with player and fixture counts |
+| `/admin/get-fixture-push-targets` | GET | Competitions that may receive the staged batch, each with a verdict and, if blocked, the reason |
+| `/admin/push-fixtures-to-competition` | POST | Create a round from the staged batch, **one competition per call** |
+| `/admin/get-push-targets` | GET | Competitions waiting on the staged batch's results, with player and fixture counts |
 | `/admin/push-results-to-competition` | POST | Distribute staged results and process eliminations, **one competition per call** |
 | `/admin/clear-staged-batch` | POST | Empty `fixture_load` once every competition has been pushed |
 | `/admin/get-bots` | GET | Bot pool, eligible competitions, and one competition's bots and picks |
@@ -220,11 +221,22 @@ gameweek spread across Friday to Sunday is entered as several batches, each beco
 round with its own deadline. Do not "fix" this into per-fixture kickoff times without deciding
 what a round's lock time should then be.
 
-One thing that catches people out:
+Two things that catch people out:
 
 - **Nothing receives a push unless `competition.fixture_service` is true**, and it is false by
   default (`create-competition` hardcodes it). The fixtures screen names the competitions a push
   will reach, and says so plainly when that list is empty.
+- **A push names its competition. There is no push-all.** Both tabs list the competitions one per
+  row with their own button, so a mis-staged batch can reach at most the one you pressed. This
+  replaced a single "Push fixtures" button whose only guard was `FIXTURE_SERVICE_TEST_MODE`, an
+  env var naming one organiser — which had to be remembered on and off, and starved real
+  customers of fixtures whenever it was left on. The variable is gone; do not reintroduce either
+  it or a push-all button without deciding what protects customers instead.
+
+  Rows that cannot take the batch are listed greyed with the reason rather than hidden — a
+  competition silently missing from the list looks like a bug, and the eligibility rules
+  (`services/fixtureService.js`, and the readiness floors in CLAUDE.md) are shared with the push
+  itself, so the screen can never offer a button the server then refuses.
 
 ## Bots
 
