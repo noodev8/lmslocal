@@ -68,6 +68,10 @@ Clearing a pick hands the team back, so the bot can use it again later.
 The ✕ on a row takes that bot out of the competition and deletes its picks and round history
 there. The account itself stays in the pool and is untouched in every other competition.
 
+It only appears while the competition has not started — before round 1 exists, or during round 1
+until it locks, the same window adding gets. Past that, removing would delete picks a locked
+round is about to be scored on. The route enforces it too, with `COMPETITION_STARTED`.
+
 This is not `remove-player`. That route refunds a credit on the assumption one was spent getting
 the player in — nothing charges on the way in here, so using it would mint credit out of
 nothing.

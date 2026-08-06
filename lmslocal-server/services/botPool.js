@@ -97,6 +97,45 @@ async function loadBotCompetition(competitionId) {
 }
 
 /**
+ * Refuse anything that changes who is in a competition once it has started.
+ *
+ * The window is the one real players get in join-competition-by-code: before round 1 exists,
+ * and during round 1 until it locks. Adding a bot after that drops a full-lives entrant into a
+ * field that has already lost people; removing one deletes picks that a locked round is about
+ * to be scored on.
+ *
+ * Throws COMPETITION_STARTED in the shape the admin routes already catch.
+ *
+ * @param {number} competitionId
+ */
+async function assertCompetitionNotStarted(competitionId) {
+  const result = await query(`
+    SELECT
+      MAX(round_number) AS latest_round,
+      MAX(lock_time) AS latest_lock_time
+    FROM round
+    WHERE competition_id = $1
+  `, [competitionId]);
+
+  const latestRound = result.rows[0].latest_round;
+  const latestLockTime = result.rows[0].latest_lock_time;
+
+  if (latestRound !== null && Number(latestRound) > 1) {
+    throw {
+      return_code: 'COMPETITION_STARTED',
+      message: 'Competition has progressed beyond round 1'
+    };
+  }
+
+  if (latestLockTime && new Date() >= new Date(latestLockTime)) {
+    throw {
+      return_code: 'COMPETITION_STARTED',
+      message: 'Round 1 has locked'
+    };
+  }
+}
+
+/**
  * Pick display names for new bots, skipping any already taken.
  *
  * @param {number} count - how many names are needed
@@ -323,6 +362,7 @@ module.exports = {
   BOT_EMAIL_LIKE,
   BOT_NAME_PREFIX,
   loadBotCompetition,
+  assertCompetitionNotStarted,
   nextBotNames,
   loadAllowedTeams,
   loadCurrentRound,

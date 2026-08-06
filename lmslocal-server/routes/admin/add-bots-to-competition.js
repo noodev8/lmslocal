@@ -59,7 +59,11 @@ const express = require('express');
 const { query, transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { BOT_EMAIL_LIKE, loadBotCompetition } = require('../../services/botPool');
+const {
+  BOT_EMAIL_LIKE,
+  loadBotCompetition,
+  assertCompetitionNotStarted
+} = require('../../services/botPool');
 const router = express.Router();
 
 const MAX_PER_CALL = 50;
@@ -87,31 +91,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // Throws COMPETITION_NOT_FOUND / COMPETITION_NOT_ELIGIBLE.
     const competition = await loadBotCompetition(competition_id);
 
-    // Same joining window real players get - see the note in the header.
-    const roundResult = await query(`
-      SELECT
-        MAX(round_number) AS latest_round,
-        MAX(lock_time) AS latest_lock_time
-      FROM round
-      WHERE competition_id = $1
-    `, [competition_id]);
-
-    const latestRound = roundResult.rows[0].latest_round;
-    const latestLockTime = roundResult.rows[0].latest_lock_time;
-
-    if (latestRound !== null && Number(latestRound) > 1) {
-      return res.json({
-        return_code: 'COMPETITION_STARTED',
-        message: 'Competition has progressed beyond round 1'
-      });
-    }
-
-    if (latestLockTime && new Date() >= new Date(latestLockTime)) {
-      return res.json({
-        return_code: 'COMPETITION_STARTED',
-        message: 'Round 1 has locked'
-      });
-    }
+    // Same joining window real players get - see the note in the header. Throws
+    // COMPETITION_STARTED.
+    await assertCompetitionNotStarted(competition_id);
 
     // Bots not already in this competition, shuffled so repeated adds do not always draw the
     // same names in the same order.

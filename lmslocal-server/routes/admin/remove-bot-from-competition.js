@@ -39,6 +39,7 @@ Return Codes:
 "VALIDATION_ERROR"          - competition_id or user_id missing
 "COMPETITION_NOT_FOUND"     - No competition with that id
 "COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots
+"COMPETITION_STARTED"       - Round 2 exists, or round 1 has locked
 "NOT_A_BOT"                 - user_id is a real account, not a bot
 "BOT_NOT_IN_COMPETITION"    - That bot is not in this competition
 "SERVER_ERROR"              - Database error or unexpected server failure
@@ -46,6 +47,9 @@ Return Codes:
 "TOKEN_EXPIRED"             - Admin session has expired
 =======================================================================================================================================
 Data Notes:
+- COMPETITION_STARTED holds this to the same window as add-bots-to-competition: before round 1
+  exists, and during round 1 until it locks. Past that this route would be deleting picks that
+  a locked round is about to be scored on, silently changing the field.
 - Deliberately not remove-player.js. That route refunds a credit when the organiser is over the
   free player limit (remove-player.js:189) on the assumption a credit was spent getting the
   player in. Nothing charges on the way in here, so pointing it at a bot would mint credit out
@@ -60,7 +64,11 @@ const express = require('express');
 const { query, transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { BOT_EMAIL_LIKE, loadBotCompetition } = require('../../services/botPool');
+const {
+  BOT_EMAIL_LIKE,
+  loadBotCompetition,
+  assertCompetitionNotStarted
+} = require('../../services/botPool');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
@@ -78,6 +86,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
     // Throws COMPETITION_NOT_FOUND / COMPETITION_NOT_ELIGIBLE.
     await loadBotCompetition(competition_id);
+
+    // Same window as adding - see the note in the header. Throws COMPETITION_STARTED.
+    await assertCompetitionNotStarted(competition_id);
 
     const botResult = await query(`
       SELECT

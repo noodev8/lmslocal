@@ -76,8 +76,9 @@ function StatusBadge({ status }: { status: string }) {
 /*
 Number input plus a button, used for "add N bots" and "make N picks".
 
-Both actions are a count against a known maximum, and both want the maximum to be the default -
-the common case is "fill it up". Sharing one control keeps them from drifting apart.
+Every action is a count against a known maximum. Only "make picks" wants that maximum as its
+default (fillByDefault) - a round is usually picked for every bot at once. Adding and creating
+bots default to 1, because twenty is a lot to undo by hand if it was not what you meant.
 */
 function CountAction({
   label,
@@ -86,6 +87,7 @@ function CountAction({
   busy,
   disabled,
   disabledReason,
+  fillByDefault = false,
   onRun,
 }: {
   label: string;
@@ -94,15 +96,16 @@ function CountAction({
   busy: boolean;
   disabled: boolean;
   disabledReason?: string;
+  fillByDefault?: boolean;
   onRun: (count: number) => void;
 }) {
-  const [count, setCount] = useState(max);
+  const [count, setCount] = useState(fillByDefault ? max : 1);
 
-  // Follow the maximum as it moves - adding five bots should leave the box offering the rest,
-  // not a number that is now too big.
+  // Follow the maximum as it moves. Filling controls re-offer whatever is left; the rest only
+  // need clamping, so a typed number survives unless it has become too big.
   useEffect(() => {
-    setCount(max);
-  }, [max]);
+    setCount((c) => (fillByDefault ? max : Math.min(c, Math.max(max, 1))));
+  }, [max, fillByDefault]);
 
   const clamped = Math.max(1, Math.min(count || 1, max));
   const off = disabled || busy || max < 1;
@@ -471,6 +474,14 @@ function BotsScreen() {
         ? 'Every bot in the pool is already in this competition'
         : undefined;
 
+  /*
+  Removing is held to the same window as adding, and for the same reason on the way out:
+  remove-bot-from-competition deletes the bot's picks and progress, so once round 1 has locked
+  it would be changing a field that is about to be scored. Hidden rather than disabled - there
+  is no action to take about it, the window has simply closed.
+  */
+  const canRemove = !!selected?.can_add_bots;
+
   const pickDisabledReason = !detail
     ? 'Choose a competition first'
     : detail.round_id === null
@@ -518,10 +529,10 @@ function BotsScreen() {
           >
             <option value="">Choose a competition...</option>
             {competitions.map((c) => (
+              // Name only. Competition names carry their own meaning here, and status and
+              // counts are both on the card below once one is chosen.
               <option key={c.id} value={c.id}>
-                {c.name} — {c.status.toLowerCase()} · {c.bot_count} bot
-                {c.bot_count === 1 ? '' : 's'} of {c.player_count} player
-                {c.player_count === 1 ? '' : 's'}
+                {c.name}
               </option>
             ))}
           </select>
@@ -551,9 +562,10 @@ function BotsScreen() {
                     </>
                   )}
                   {' · '}
-                  {detail.members.length} bot{detail.members.length === 1 ? '' : 's'} of{' '}
-                  {selected.player_count} player{selected.player_count === 1 ? '' : 's'}
-                  {detail.no_team_twice && ' · no team twice'}
+                  {/* Bots are added in several goes towards a total, so both numbers sit
+                      together - the bracket is what says how much of the field is real. */}
+                  {selected.player_count} player{selected.player_count === 1 ? '' : 's'} (
+                  {detail.members.length} bot{detail.members.length === 1 ? '' : 's'})
                 </p>
               </div>
 
@@ -571,6 +583,7 @@ function BotsScreen() {
                   label="Make picks"
                   icon={<SparklesIcon className="h-4 w-4" />}
                   max={withoutPick}
+                  fillByDefault
                   busy={picking}
                   disabled={!!pickDisabledReason}
                   disabledReason={pickDisabledReason}
@@ -626,13 +639,15 @@ function BotsScreen() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end">
-                          <button
-                            onClick={() => setRemoveTarget(member)}
-                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                            title={`Remove ${member.display_name} from this competition`}
-                          >
-                            <XMarkIcon className="h-4 w-4" />
-                          </button>
+                          {canRemove && (
+                            <button
+                              onClick={() => setRemoveTarget(member)}
+                              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                              title={`Remove ${member.display_name} from this competition`}
+                            >
+                              <XMarkIcon className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
