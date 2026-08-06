@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — A5 leaflet for workplaces</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <link rel="stylesheet" href="../_shared/print.css" />
+    <style>
+      @page {
+        size: 148mm 210mm;
+        margin: 0;
+      }
+      .sheet {
+        width: 148mm;
+        height: 210mm;
+        overflow: hidden;
+      }
+      .safe {
+        padding: 7mm;
+      }
+    </style>
+  </head>
+
+  <body class="guides">
+    <!--
+      A5 leaflet, single sided, for the office or mates' group organiser to
+      pin on a noticeboard or drop in a group chat as a screenshot — audience
+      E in docs/marketing-strategy.md.
+
+      Audience: whoever at work floats the idea, not a committee and not a
+      landlord — E has no gatekeeper at all, which is what makes it different
+      from C and D. Every "you" is that person; colleagues are third person
+      ("they pick"), the same voice rule a5-club.html and a5-landlord.html
+      follow.
+
+      This is NOT a reworded club or landlord leaflet. Per §4/§5 of the
+      strategy doc, E's message is neither fundraising (D) nor footfall (C) —
+      nobody here is raising money or selling pints. It is something to talk
+      about at work, and it runs itself. No entry-fee/prize framing appears
+      here on purpose; that language belongs to a5-club.html.
+
+      Figures are from the pricing page: 20 free places, packs from £10. An
+      office of 40 crosses the free tier on day one, so — like the club
+      leaflet, unlike the landlord one — the pack price stays on the sheet.
+    -->
+
+    <p class="screen-only max-w-[148mm] font-body text-sm text-white">
+      <strong>Ctrl+P → Save as PDF</strong> · paper A5 · margins <strong>None</strong> ·
+      <strong>Background graphics ticked</strong>. Dashed guides are screen-only.
+    </p>
+
+    <div class="sheet guide-trim bg-stock text-ink">
+      <div class="safe guide-safe flex h-full flex-col">
+        <!-- Masthead ------------------------------------------------------ -->
+        <p class="font-body text-[8pt] font-medium uppercase tracking-[0.22em] text-overprint">
+          For offices and mates' groups
+        </p>
+
+        <h1 class="mt-3 font-display text-[47pt] font-extrabold uppercase leading-[0.82]">
+          Something to<br />argue about
+        </h1>
+
+        <p class="mt-4 max-w-[108mm] font-body text-[10.5pt] leading-[1.45] text-ink-fade">
+          Your colleagues pick one team to win, every week. Get it wrong and they are out — and
+          everyone will have an opinion about the pick. No fundraiser, no rota, just bragging
+          rights until one person is left.
+        </p>
+
+        <div class="mt-4 h-px w-full shrink-0 bg-ink/25"></div>
+
+        <!-- The survival sheet. Same names and picks as a5-club.html and
+             a5-landlord.html on purpose — one mock across the artwork reads
+             as one system. font-data because these read as filled in by
+             hand. -->
+        <div class="mt-4 shrink-0 bg-stock-lit px-4 py-3.5">
+          <div class="flex items-baseline justify-between">
+            <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              Round 4
+            </p>
+            <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              9 left in
+            </p>
+          </div>
+          <dl class="mt-2.5 font-data text-[10pt] leading-tight">
+            <div class="flex justify-between border-b border-ink/15 py-[4px]">
+              <dt>Dave M.</dt>
+              <dd>Arsenal</dd>
+            </div>
+            <div class="flex justify-between border-b border-ink/15 py-[4px]">
+              <dt>Sarah K.</dt>
+              <dd>Brighton</dd>
+            </div>
+            <div class="flex justify-between border-b border-ink/15 py-[4px] text-overprint">
+              <dt class="line-through">Tom B.</dt>
+              <dd class="line-through">Leeds</dd>
+            </div>
+            <div class="flex justify-between py-[4px]">
+              <dt>Priya N.</dt>
+              <dd>Newcastle</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- How it runs. Deliberately not "Your season" (club) or "Your week"
+             (landlord) — E has no committee cadence and no bar shifts, just a
+             thing that ticks along in the background. -->
+        <div class="mt-5">
+          <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            How it runs
+          </p>
+          <ul class="mt-2.5 space-y-[6px] font-body text-[10pt] leading-[1.4]">
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">Setting up</span>
+              <span class="text-ink-fade"
+                >About five minutes. Pick a start week and how many lives everyone gets.</span
+              >
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">Each week</span>
+              <span class="text-ink-fade"
+                >A round goes up and they pick on their phones before kick-off. Nothing for you to
+                chase.</span
+              >
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">After</span>
+              <span class="text-ink-fade"
+                >Eliminations sort themselves out and a round-up is written for you to paste into
+                the group chat.</span
+              >
+            </li>
+          </ul>
+        </div>
+
+        <!-- Price. An office of 40 crosses twenty on day one, so — like the
+             club leaflet — the pack price stays on the sheet. -->
+        <div class="mt-5 shrink-0 border-y border-ink/25 py-3.5">
+          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p class="font-display text-[21pt] font-extrabold uppercase leading-none">
+              20 players free
+            </p>
+            <p class="font-body text-[9pt] text-ink-fade">
+              No card. Ever. More places from £10.
+            </p>
+          </div>
+        </div>
+
+        <!-- Contact ------------------------------------------------------- -->
+        <div class="mt-auto shrink-0 pt-4">
+          <div class="flex items-end justify-between gap-4">
+            <div>
+              <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+                Want one running at work?
+              </p>
+              <p class="mt-1 font-body text-[10.5pt] leading-snug">
+                Talk to <span class="font-semibold">Andreas</span> — I will set the first one up
+                with you.
+              </p>
+              <p class="mt-2 font-data text-[11pt] font-bold leading-tight">07818 443886</p>
+              <p class="font-data text-[9.5pt] leading-tight text-ink-fade">lmslocal8@gmail.com</p>
+            </div>
+
+            <div class="text-right">
+              <p class="font-display text-[20pt] font-extrabold uppercase leading-none">lmslocal</p>
+              <p class="mt-1 font-body text-[9pt] tracking-wide text-ink-fade">lmslocal.co.uk</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -126,14 +126,16 @@ Cricket, football, social, anything with a committee and a shortfall. No landlor
 premises, and the buyer is the same person as the user. A club of 60 crosses the free tier
 immediately.
 **Message:** fundraising — the competition that pays for itself. See §5.
-**Channel:** search, content, word of mouth, club association groups. No artwork exists yet.
+**Channel:** search, content, word of mouth, club association groups.
+`lmslocal-marketing/leaflet/a5-club.html` is the artwork.
 
 ### E — Workplace or mates' group
 **Probably the easiest first revenue and the most under-weighted.** An office of 40 crosses the
 free tier on day one, and there is no gatekeeper at all.
 **Message:** neither fundraising nor footfall — nobody here is raising money. It is something to
 talk about at work for three months, and it runs itself.
-**Channel:** search, content, word of mouth. No artwork exists yet.
+**Channel:** search, content, word of mouth.
+`lmslocal-marketing/leaflet/a5-workplace.html` is the artwork.
 
 ---
 
@@ -201,6 +203,8 @@ Beyond the honesty rules in the design system:
 | In-product prompt | B | **Does not exist** |
 | A5 leaflet, landlord | C | Built |
 | A5 leaflet, player | A/C | Built — generic, code filled in by hand |
+| A5 leaflet, club | D | Built |
+| A5 leaflet, workplace | E | Built |
 | Per-competition leaflet | players of a live comp | Built, in-app (`/leaflet/[competitionId]`) |
 | Social tiles | A | Built — square, portrait and story for the free game |
 | Search / content | D | Nothing |
@@ -235,8 +239,6 @@ Order matters: ad spend should track progress on 1, or we pay to fill a bucket w
 
 - Who goes through the door first — do we run the free game and the venue push together from
   week one, or stagger them?
-- D and E need artwork. D cannot reuse the landlord leaflet — different motivation, not just
-  different wording — so is it one club-facing piece, or one each?
 - What is the actual weekly budget beyond the £50 prize?
 - How do we measure "instigator" in the data — invites sent, or something better?
 
@@ -249,3 +251,4 @@ Order matters: ad spend should track progress on 1, or we pay to fill a bucket w
 | 5 Aug 2026 | Doc created. Deleted `pricing-strategy.md` (described a £29/£79 subscription model that was never shipped; live pricing is credit packs). Settled: fresh £50 weekly, no rollover until budget allows. |
 | 5 Aug 2026 | Three social tiles built for the free game (square, portrait, story), join code 1992. Headline is "win £50 every game", not "every week" — terms §5 lets us cancel or suspend, so the cadence is not printable as a promise. Open question raised: the homepage sells "the competition that pays for itself" while §5 of this doc said never to pitch organisers on money. |
 | 5 Aug 2026 | §5 rewritten and the old rule withdrawn — it was wrong. Fundraising is right for clubs and wrong for pubs, so the landing page and the landlord leaflet were both already correct and the blanket ban was the error. Kept three narrower cautions: no promised amounts, describe what the organiser controls rather than designing their scheme, never pair paid entry with random picks. Audiences split from four to five: D is now clubs (fundraising), E is workplaces and mates' groups (neither). |
+| 5 Aug 2026 | D and E artwork built — one each, not a shared piece, resolving the §8 open question. `a5-club.html` sells fundraising, matching D's message in §4. `a5-workplace.html` sells neither fundraising nor footfall — bragging rights and something to talk about at work, with no entry-fee language at all, keeping it distinct from the club leaflet per §5. |

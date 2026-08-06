@@ -18,6 +18,7 @@ _shared/brand.js    Tailwind token config + Google Fonts. Load on every page.
 _shared/print.css   Print rules, screen preview desk, trim/safe guides. Leaflets only.
 _shared/social.css  Fixed-size canvas + screenshot desk. Social tiles only.
 leaflet/            Print artwork. a5-test.html is the pipeline reference.
+                    a5-landlord (pubs), a5-club (clubs), a5-player (players).
 social/             Fixed-size tiles for Facebook etc. See social/README.md.
 out/                Exported PDFs and PNGs. Git-ignored.
 ```
@@ -59,6 +60,9 @@ most often:
 - **`font-data` (Courier Prime) is only for things a person filled in** — names, picks, figures.
   Never headings, labels or buttons.
 - No invented testimonials, no invented numbers. See the honesty rules in the design system doc.
+- **The money angle is per-audience, not global.** Clubs are sold on fundraising, pubs on
+  footfall — `a5-club.html` and `a5-landlord.html` are not rewordings of each other and must not
+  drift into one. Never promise an amount. See §5 of `docs/marketing-strategy.md`.
 
 `_shared/brand.js` duplicates the tokens from `lmslocal-web/tailwind.config.js` because these
 pages have no build step. **If the app's tokens change, update `brand.js` too** — a leaflet whose
