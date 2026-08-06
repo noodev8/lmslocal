@@ -363,7 +363,7 @@ export default function OrganizerFixturesPage() {
         setSubmitError(response.data.message || 'Complete the current round before adding new matches');
 
       } else if (response.data.return_code === 'ROUND_HAS_FIXTURES') {
-        setSubmitError(response.data.message || 'Fixtures already exist for this round. All fixtures must be added in one transaction.');
+        setSubmitError(response.data.message || 'This round already has its matches. They all have to be added at once.');
 
       } else {
         setSubmitError(response.data.message || 'Failed to add matches');
@@ -583,8 +583,12 @@ export default function OrganizerFixturesPage() {
                       const awayTeamName = awayTeam?.name || fixture.away_team_short || '';
 
                       return (
+                        /* Left-aligned, not justify-between. Spreading each row to its full width
+                           put "vs" wherever the two names happened to leave a gap, so it sat at a
+                           different position on every line and the list read as ragged. Same fix
+                           as the results ledger. */
                         <div key={index} className="flex items-center gap-2 px-4 py-2.5 text-[14px]">
-                          <div className="flex flex-1 items-center justify-between gap-2">
+                          <div className="flex flex-1 flex-wrap items-baseline gap-x-2 gap-y-1">
                             <span className={isNextSlot && nextSlot.side === 'home' ? 'text-overprint' : 'text-ink'}>
                               {homeTeamName || '—'}
                             </span>
@@ -599,8 +603,8 @@ export default function OrganizerFixturesPage() {
                               e.stopPropagation();
                               handleRemoveFixture(index);
                             }}
-                            className="text-ink-fade transition-colors hover:text-ink"
-                            title={fixtures.length === 1 ? 'Clear fixture' : 'Remove fixture'}
+                            className="flex-none text-ink-fade transition-colors hover:text-ink"
+                            title={fixtures.length === 1 ? 'Clear match' : 'Remove match'}
                           >
                             &times;
                           </button>
@@ -626,7 +630,7 @@ export default function OrganizerFixturesPage() {
                 onClick={() => {
                   const validFixtures = fixtures.filter(f => f.home_team_short && f.away_team_short);
                   if (validFixtures.length === 0) {
-                    setSubmitError('Please add at least one fixture with both home and away teams');
+                    setSubmitError('Please add at least one match with both home and away teams');
                     return;
                   }
                   setShowConfirmModal(true);
@@ -634,7 +638,7 @@ export default function OrganizerFixturesPage() {
                 disabled={isSubmitting || completeFixtureCount === 0}
                 className={`${BTN_PRIMARY} px-6 py-3 text-base disabled:opacity-40`}
               >
-                {isSubmitting ? 'Saving…' : 'Confirm & lock fixtures'}
+                {isSubmitting ? 'Saving…' : 'Confirm & lock matches'}
               </button>
             </div>
           </form>
