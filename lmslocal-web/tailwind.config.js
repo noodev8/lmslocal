@@ -23,6 +23,13 @@ module.exports = {
         // three states plus emphasis. Deep bottle green, same printed register.
         // 7.3:1 on `stock` — clears AA with room to spare.
         moss: '#2F4B32',
+        // The same green as a ground rather than an ink. `moss` is dark enough
+        // that a hairline or small text in it reads as black, while filling a
+        // whole card with it makes a murky slab — it works as a stamp and at no
+        // other size. This is the ground for anything larger: unmistakably
+        // green, light enough to take `ink` text at 11.5:1. Never use it for
+        // text or rules; that is what `moss` is for.
+        'moss-wash': '#CFE4C4',
       },
       fontFamily: {
         display: ['var(--font-big-shoulders)', 'ui-sans-serif', 'sans-serif'],

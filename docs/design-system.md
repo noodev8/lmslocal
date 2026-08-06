@@ -63,6 +63,8 @@ Defined as Tailwind theme extensions in `lmslocal-web/tailwind.config.js`.
 | `ink` | `#1C2620` | Primary ink. Body text, rules, dark sections |
 | `ink-fade` | `#4A5249` | Secondary text: labels, captions, ledger keys |
 | `overprint` | `#C8341E` | The second ink. Eliminations, primary actions, emphasis |
+| `moss` | `#2F4B32` | Third ink, game screens only (§8). "Still in", won. Marks and small fills |
+| `moss-wash` | `#CFE4C4` | The same green as a **ground**. Winner cards and panels. Never text or rules |
 
 ### Rules
 
@@ -265,6 +267,18 @@ rules.
   three states plus emphasis. Add a **third ink** for "still in" — a deep bottle green in the same
   printed register, so `overprint` keeps meaning "out". Define it as a token before using it, and
   never let it drift into decoration.
+- **`moss` is an ink; `moss-wash` is a ground. Pick by area, not by preference.** `moss` is
+  `#2F4B32` — dark enough that a hairline rule or 11px text set in it reads as plain black, and
+  dark enough that filling a card with it produces a murky slab that outweighs everything around
+  it. Both failures were shipped and rejected in turn on `/player-results`. The rule that came out
+  of it: **marks and stamps take `moss`, fields take `moss-wash` with `ink` text on top**
+  (11.5:1). A tint of `moss` is never the answer — `bg-moss/10` over the stock reads as grey,
+  which is what started the whole exercise.
+- **Say the state, don't just colour it.** Every status carries its word — "Won", "Lost", "Out" —
+  so nothing depends on a reader seeing the hue.
+- **One statement per row.** A results row states either what happened or what it meant for the
+  reader, never both: "Everton won · You picked Everton — won" says *won* twice and names the team
+  three times. The personal one wins, because it implies the other.
 - **State must not rely on colour alone.** The sheet strikes eliminated names through *and* colours
   them, and carries an `sr-only` "— out". Keep that doubling on every status.
 - **The survival sheet is the model for standings.** It is already the game screen, rendered for

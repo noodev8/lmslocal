@@ -265,23 +265,34 @@ export default function PlayerResultsPage() {
                     {fixture.away_team}
                   </span>
                 </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className={`${LABEL} text-ink-fade`}>
-                    {isPending ? 'Pending' : isDraw ? 'Draw' : homeWon ? `${fixture.home_team_short} won` : `${fixture.away_team_short} won`}
-                  </span>
-                  {(userPickedHome || userPickedAway) && (
-                    <>
-                      <span className="text-ink-fade/60" aria-hidden="true">&middot;</span>
-                      <span className={`${LABEL} ${userWon ? 'text-moss' : userLost ? 'text-overprint' : 'text-ink-fade'}`}>
-                        {userWon
-                          ? `You picked ${pickedTeam} — won`
-                          : userLost
-                          ? `You picked ${pickedTeam} — out`
-                          : `You picked ${pickedTeam}`}
-                      </span>
-                    </>
-                  )}
-                </div>
+                {/* One statement per row. A fixture the reader picked in used to carry two -
+                    "Everton won · You picked Everton — won" - which says won twice and names the
+                    team three times counting the line above. Their own stake is the more useful
+                    of the two and implies the result, so it replaces it rather than joining it.
+                    Which team won is still visible above: winner bold, beaten side faded. */}
+                <p
+                  className={`${LABEL} mt-1.5 ${
+                    userWon
+                      ? 'font-semibold text-moss'
+                      : userLost
+                      ? 'text-overprint'
+                      : isPending
+                      ? 'text-ink-fade'
+                      : 'text-ink'
+                  }`}
+                >
+                  {userPickedHome || userPickedAway
+                    ? userWon
+                      ? `You picked ${pickedTeam} — won`
+                      : userLost
+                      ? `You picked ${pickedTeam} — out`
+                      : `You picked ${pickedTeam}`
+                    : isPending
+                    ? 'Pending'
+                    : isDraw
+                    ? 'Draw'
+                    : `${homeWon ? fixture.home_team : fixture.away_team} won`}
+                </p>
               </div>
             );
           })}
@@ -310,21 +321,45 @@ export default function PlayerResultsPage() {
                   );
 
                   return (
+                    /* A winning team fills with moss-wash - the green as a ground, with ink text
+                       on top. Filling with `moss` itself was a dark slab, and a hairline rule or
+                       small moss text vanished, because #2F4B32 reads as black below about
+                       20px. The light ground is the only treatment that is both green and
+                       comfortable at card size.
+
+                       The word "Won" stays. design-system.md §8 requires state to be doubled
+                       rather than left to colour, so the card still says what it means in
+                       greyscale. Beaten teams recede and are struck through; overprint is not
+                       used, because every fixture has a loser and red is the ink that means the
+                       reader is out. */
                     <div
                       key={teamShort}
                       className={`border p-3 text-center ${
                         teamWon
-                          ? 'border-moss bg-moss/10'
+                          ? 'border-moss bg-moss-wash'
                           : teamLost
-                          ? 'border-overprint/40 bg-stock'
+                          ? 'border-ink/15 bg-stock'
                           : isCurrentPick
                           ? 'border-ink'
                           : 'border-ink/30'
                       }`}
                     >
-                      <p className={`font-data text-[14px] ${teamWon ? 'font-semibold text-moss' : teamLost ? 'text-ink-fade' : 'text-ink'}`}>
+                      <p
+                        className={`font-data text-[14px] ${
+                          teamWon
+                            ? 'font-semibold text-ink'
+                            : teamLost
+                            ? 'text-ink-fade line-through decoration-ink-fade/50'
+                            : 'text-ink'
+                        }`}
+                      >
                         {teamName}
                       </p>
+                      {(teamWon || teamLost) && (
+                        <p className={`${LABEL} mt-0.5 ${teamWon ? 'font-semibold text-moss' : 'text-ink-fade'}`}>
+                          {teamWon ? 'Won' : 'Lost'}
+                        </p>
+                      )}
                       <p className={`${LABEL} mt-1.5 text-ink-fade`}>
                         {count} player{count !== 1 ? 's' : ''}
                       </p>
