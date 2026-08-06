@@ -460,8 +460,12 @@ export default function PickPage() {
         {/* Remove Current Pick Card - shown when no team selected but user has current pick and round not locked */}
         {!selectedTeam && currentPick && !isRoundLocked && (
           <div className={`${PANEL} mt-5 p-5 text-center`}>
+            {/* Body face, not font-data, even though a pick is entered content. This name is
+                sitting directly under the same name in the fixture list above, and setting one
+                string in two faces on one screen reads as a mistake. The list wins because it's
+                the bigger block. See docs/design-system.md - the typewriter rule. */}
             <p className="text-[15px] text-ink">
-              Your pick: <span className="font-data font-semibold">{getFullTeamName(currentPick)}</span>
+              Your pick: <span className="font-semibold">{getFullTeamName(currentPick)}</span>
             </p>
             <p className="mt-1 text-[13px] text-ink-fade">
               Want to change your pick? Remove it first to select a different team.
@@ -501,7 +505,7 @@ export default function PickPage() {
               vs {getOpponentName(selectedTeam.fixtureId, selectedTeam.position)}
             </p>
             <p className="mt-3 text-[14px] text-ink-fade">
-              This is saved as soon as you confirm — you won&apos;t be asked again unless you remove it.
+              You can change this before the round locks.
             </p>
             <div className="mt-6 flex justify-center gap-3">
               <button
