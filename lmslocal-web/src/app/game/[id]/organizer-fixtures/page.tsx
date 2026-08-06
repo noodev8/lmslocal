@@ -138,11 +138,12 @@ export default function OrganizerFixturesPage() {
     return shortcuts;
   }, []);
 
-  // Time shortcuts
+  // Time shortcuts. 12-hour only - the 24-hour form said nothing extra and organisers
+  // read kickoffs as "half seven", not "19:30".
   const timeShortcuts = [
-    { label: '12:30', subLabel: '12:30pm', value: '12:30' },
-    { label: '15:00', subLabel: '3pm', value: '15:00' },
-    { label: '19:30', subLabel: '7:30pm', value: '19:30' }
+    { label: '12:30pm', value: '12:30' },
+    { label: '3pm', value: '15:00' },
+    { label: '7:30pm', value: '19:30' }
   ];
 
   // Set default date to next Friday on component mount
@@ -498,7 +499,6 @@ export default function OrganizerFixturesPage() {
                       }`}
                     >
                       <div className="font-data text-base">{shortcut.label}</div>
-                      <div className={`${LABEL} mt-0.5 opacity-75`}>{shortcut.subLabel}</div>
                     </button>
                   ))}
                 </div>

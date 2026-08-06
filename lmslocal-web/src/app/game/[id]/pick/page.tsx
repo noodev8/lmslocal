@@ -386,7 +386,9 @@ export default function PickPage() {
               <p className="font-data text-[15px] text-ink">
                 {lockDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                 {' '}
-                {lockDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {lockDate
+                  .toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })
+                  .replace(/\s/g, '')}
               </p>
             </div>
           )}
