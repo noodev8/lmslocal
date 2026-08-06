@@ -22,6 +22,7 @@ import { logout } from '@/lib/auth';
 import { useAppData } from '@/contexts/AppDataContext';
 import JoinCompetitionModal from '@/components/JoinCompetitionModal';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK, TICK } from '@/lib/design';
+import { deriveDashboardRoundState, pickDeadlineText } from '@/lib/roundState';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -515,7 +516,17 @@ export default function DashboardPage() {
                         {competition.needs_pick ? (
                           <div className="mb-3 flex items-center gap-2 border border-overprint px-3 py-2">
                             <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-overprint" />
-                            <span className={`${LABEL} text-ink`}>Pick needed</span>
+                            <span className={`${LABEL} text-ink`}>
+                              {pickDeadlineText(
+                                deriveDashboardRoundState({
+                                  currentRound: competition.current_round,
+                                  currentRoundLockTime: competition.current_round_lock_time,
+                                  automated: competition.fixture_service === true,
+                                  competitionComplete: competitionStatus.isComplete === true,
+                                  now: new Date(),
+                                })
+                              )}
+                            </span>
                           </div>
                         ) : (
                           <p className={`${LABEL} mb-3 text-moss`}>&#10003; Up to date</p>

@@ -201,6 +201,10 @@ is that there's nothing owed yet, which is what "Open for picks" says. So the Ro
 the phase and the Play tile carries "Pick needed by {day} {time}" (`pickDeadlineText`). The full
 deadline is still one click away on the page status line.
 
+The same `pickDeadlineText` fills the pick row on the `/dashboard` competition card, so the two
+places that warn a player never quote different deadlines. `/get-user-dashboard` already carries
+`current_round_lock_time`, so this costs no extra request on either screen.
+
 ---
 
 ## 6. What "the round" means

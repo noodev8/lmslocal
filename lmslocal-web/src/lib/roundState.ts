@@ -296,8 +296,9 @@ export function roundTileLabel(state: RoundState): string {
 }
 
 /**
- * The Play tile's second line, for a player who still owes a pick. Carries the deadline because
- * this is the tile where it's actionable — the Round tile beside it states the phase instead.
+ * The warning shown to a player who still owes a pick — the Play tile's second line, and the
+ * dashboard card's pick row. Carries the deadline because these are the places where it's
+ * actionable; the Round tile beside the Play tile states the phase instead.
  *
  * Falls back to the bare warning when there's no lock time to quote, which is the same thing the
  * tile said before and still true.
