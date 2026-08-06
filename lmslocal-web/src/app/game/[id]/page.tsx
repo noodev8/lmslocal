@@ -153,6 +153,21 @@ export default function UnifiedGameDashboard() {
     ]
   );
 
+  /* What the locked-round banner says. Reports the real count rather than assuming everyone
+     picked - a round can lock with picks missing, and saying otherwise contradicts the results
+     screen this button links to. Falls back to neutral wording if the stats haven't loaded. */
+  const lockedRoundPickSummary = useMemo(() => {
+    if (!pickStats) return 'Check which teams have been chosen';
+
+    const made = Math.min(pickStats.players_with_picks, pickStats.total_active_players);
+    const required = pickStats.total_active_players;
+
+    if (required === 0) return 'Check which teams have been chosen';
+    if (made === 0) return 'No picks were made this round';
+    if (made < required) return `${made} of ${required} picked — check which teams have been chosen`;
+    return 'All picks made — check which teams have been chosen';
+  }, [pickStats]);
+
   // Standings is unconditional; the rest are earned. Counted here so the grid can pick a column
   // count that divides evenly - see TILE_GRID_COLS.
   const tileCount =
@@ -839,11 +854,15 @@ Good luck! ⚽`;
                     </div>
                   </button>
                 ) : (
+                  /* Was a hardcoded "All picks made". It sat in the else of a branch gated on
+                     SHOW_ROUND_STATISTICS, which is off, so it rendered for every locked round and
+                     asserted something it never checked - including rounds where nobody picked at
+                     all, while the results screen it linked to correctly said "No pick made". */
                   <button
                     onClick={handlePlayClick}
                     className={`${BTN_OUTLINE} w-full justify-center px-4 py-3`}
                   >
-                    All picks made — check which teams have been chosen
+                    {lockedRoundPickSummary}
                   </button>
                 )}
               </div>

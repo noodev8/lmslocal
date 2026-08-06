@@ -155,9 +155,15 @@ router.post('/', verifyToken, async (req, res) => {
         COALESCE(player_counts.active_players, 0) as active_players,       -- Active players remaining
         
         -- === ROUND INFORMATION ===
-        round_info.current_round,              -- Current round number
-        round_info.total_rounds,               -- Total rounds created
-        round_info.current_round_lock_time,    -- When current round locks
+        -- Coalesced because the join is a LEFT JOIN: a competition created but not yet given
+        -- fixtures has no round row, and these came back null. The Flutter client casts both as
+        -- non-nullable ints and maps the competition list unguarded, so a single null failed the
+        -- player's entire dashboard rather than one entry. Every competition passes through this
+        -- state, and an organiser who shares the join code before entering fixtures puts every
+        -- player they invite into it. 0 reads as "no round yet" on both clients.
+        COALESCE(round_info.current_round, 0) as current_round,   -- Current round number
+        COALESCE(round_info.total_rounds, 0) as total_rounds,     -- Total rounds created
+        round_info.current_round_lock_time,    -- When current round locks (null before any round)
         round_info.current_round_id,           -- Current round ID for pick stats
         
         -- === PICK STATISTICS FOR CURRENT ROUND ===
@@ -205,14 +211,22 @@ router.post('/', verifyToken, async (req, res) => {
       ) player_counts ON c.id = player_counts.competition_id
       
       -- === JOIN ROUND INFORMATION ===
+      -- DISTINCT ON, not three separate MAX()es. The previous version took MAX(round_number),
+      -- MAX(lock_time) and MAX(id) independently, so they could come from different rows: a
+      -- competition whose latest round locks earlier than an earlier one reported the current
+      -- round number alongside some other round's lock time. That is not hypothetical - it makes
+      -- needs_pick (which tests current_round_lock_time > NOW()) claim a pick is due on a round
+      -- that has already locked, and any UI showing the lock time state the wrong one.
+      -- The window function is evaluated before DISTINCT ON, so total_rounds still counts them all.
       LEFT JOIN (
-        SELECT competition_id,
-               MAX(round_number) as current_round,
-               COUNT(*) as total_rounds,
-               MAX(lock_time) as current_round_lock_time,
-               MAX(id) as current_round_id  -- Get current round ID for pick stats
-        FROM round 
-        GROUP BY competition_id
+        SELECT DISTINCT ON (competition_id)
+               competition_id,
+               round_number as current_round,
+               COUNT(*) OVER (PARTITION BY competition_id) as total_rounds,
+               lock_time as current_round_lock_time,
+               id as current_round_id  -- Current round ID for pick stats
+        FROM round
+        ORDER BY competition_id, round_number DESC
       ) round_info ON c.id = round_info.competition_id
       
       -- === JOIN PICK STATISTICS FOR CURRENT ROUND ===
