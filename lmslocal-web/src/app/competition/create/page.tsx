@@ -62,7 +62,10 @@ export default function CreateCompetitionPage() {
       lives_per_player: 1,
       no_team_twice: true,
       organiser_joins_as_player: true,
-      start_delay_days: 0
+      // "Next week" is the safe answer for someone who hasn't invited anyone yet, and matches
+      // create-competition's own default. React Hook Form drives which radio is checked, so this
+      // is the value that actually decides it.
+      start_delay_days: 7
     }
   });
 
@@ -496,12 +499,51 @@ export default function CreateCompetitionPage() {
                   </label>
                 </div>
 
-                {/* Start delay - HIDDEN (default to ASAP/0 days) */}
-                <input
-                  {...register('start_delay_days', { valueAsNumber: true })}
-                  type="hidden"
-                  value={0}
-                />
+                {/* Only asked when we are the ones supplying the matches. An organiser entering
+                    their own picks the date on the fixture form, so asking here would be a second
+                    answer to the same question. Was a hidden input pinned to 0, which made every
+                    competition eligible for the very next batch - including one kicking off
+                    tomorrow, before anyone had been invited. */}
+                {usingFixtureService && (
+                  <div>
+                    <p className={`${LABEL} mb-3 flex items-center gap-1.5 text-ink-fade`}>
+                      <CalendarDaysIcon className="h-4 w-4" />
+                      First round
+                    </p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { days: 0, title: 'This week', note: 'Next matches we have' },
+                        { days: 7, title: 'Next week', note: 'Time to invite players' },
+                        { days: 14, title: 'In 2 weeks', note: 'A longer run-up' },
+                      ].map((option) => (
+                        <label key={option.days} className="relative">
+                          <input
+                            {...register('start_delay_days', { valueAsNumber: true })}
+                            type="radio"
+                            value={option.days}
+                            defaultChecked={option.days === 7}
+                            className="peer sr-only"
+                          />
+                          <div className="flex h-full cursor-pointer flex-col border border-ink/30 p-3 text-center transition-colors hover:border-ink peer-checked:border-ink peer-checked:bg-ink peer-checked:text-stock-lit sm:p-4">
+                            <div className="font-display text-xl uppercase tracking-[0.03em]">{option.title}</div>
+                            <div className={`${LABEL} mt-0.5`}>{option.note}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[13px] text-ink-fade">
+                      When your first round starts. Whichever you choose, we never give you a round
+                      starting within 48 hours &mdash; you always have time to get players in.
+                    </p>
+                  </div>
+                )}
+
+                {/* An organiser entering their own matches never sees the control above, so the
+                    value has to come from somewhere: no delay, because their first round starts
+                    whenever they enter it. */}
+                {!usingFixtureService && (
+                  <input {...register('start_delay_days', { valueAsNumber: true })} type="hidden" value={0} />
+                )}
               </div>
 
               <div className="mt-6 flex flex-col justify-between gap-3 sm:mt-8 sm:flex-row">
