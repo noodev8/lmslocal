@@ -283,7 +283,26 @@ Decide these here as they come up, don't decide them in a component.
 
 ---
 
-## 9. Related
+## 9. What lives where
+
+| Path | Role |
+|---|---|
+| `src/lib/roundState.ts` | the machine — phases, capabilities, copy, UK time formatting |
+| `src/app/game/[id]/round/page.tsx` | the merged screen |
+| `src/app/game/[id]/page.tsx` | the dashboard's single Round tile |
+| `src/app/game/[id]/organizer-fixtures/page.tsx` | **entry form only** — redirects to `/round` on automated competitions |
+| ~~`src/app/game/[id]/organizer-results`~~ | deleted; the round screen does all of it |
+
+The dashboard tile grid picks its column count from how many tiles the user actually gets
+(`TILE_GRID_COLS`), so a row can't strand one or two tiles on a line of their own the way a fixed
+four-column grid did with six tiles.
+
+**No "managed for you" badge.** Who entered the fixtures is an implementation detail; they're on
+the page either way, and saying so changes nothing the organiser does. The single exception is the
+`LOCKED` status line, where results are due and there are deliberately no buttons — that's the one
+moment the sentence answers a real question.
+
+## 10. Related
 
 - `docs/design-system.md` — the visual language and the copy rules
 - `docs/results-processing-logic.md` — what "process results" actually does

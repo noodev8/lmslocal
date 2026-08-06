@@ -112,6 +112,37 @@ export function deriveRoundState(snapshot: RoundSnapshot): RoundState {
   return { ...base, phase: derivePhase({ hasRound, competitionComplete, isLocked, totalFixtures, resultsIn, processedCount }) };
 }
 
+/**
+ * The dashboard's cut-down view of the same machine.
+ *
+ * `/get-user-dashboard` carries the round number and its lock time but no fixture rows, so the
+ * tile can reach OPEN / LOCKED / COMPETITION_COMPLETE but can never distinguish "in play" from
+ * "3 of 10 results in" — it has nothing to count. That's the deliberate trade in
+ * docs/round-state-machine.md §8: the tile states the phase, the round page states the detail,
+ * and the dashboard costs no extra request. It degrades to "In play", which is true at every
+ * point it's shown, rather than guessing.
+ *
+ * Add `fixtures_with_results` / `total_fixtures` to the dashboard payload if the counts ever need
+ * to appear on the tile.
+ */
+export function deriveDashboardRoundState(input: {
+  currentRound: number | null | undefined;
+  currentRoundLockTime: string | null | undefined;
+  automated: boolean;
+  competitionComplete: boolean;
+  now: Date;
+}): RoundState {
+  return deriveRoundState({
+    hasRound: !!input.currentRound && input.currentRound > 0,
+    roundNumber: input.currentRound ?? null,
+    lockTime: input.currentRoundLockTime ?? null,
+    fixtures: [],
+    automated: input.automated,
+    competitionComplete: input.competitionComplete,
+    now: input.now,
+  });
+}
+
 function parseTimestamp(value: string | null): Date | null {
   if (!value) return null;
   const parsed = new Date(value);
@@ -133,11 +164,14 @@ function derivePhase(input: {
 
   if (!hasRound) return 'NO_ROUND';
 
+  // Before the empty-round guard, not after: the dashboard derives a phase with no fixture rows
+  // at all (deriveDashboardRoundState), so testing emptiness first would report every round as
+  // LOCKED and OPEN would become unreachable there.
+  if (!isLocked) return 'OPEN';
+
   // A round carrying no fixtures is one still waiting for them, not one that's finished. Without
   // this guard the "everything processed" test below is vacuously true and reports COMPLETE.
   if (totalFixtures === 0) return 'LOCKED';
-
-  if (!isLocked) return 'OPEN';
 
   if (processedCount === totalFixtures) return 'COMPLETE';
 

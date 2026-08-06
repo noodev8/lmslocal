@@ -221,9 +221,10 @@ export default function RoundPage() {
           <p className="mt-2 text-[15px] text-ink-fade">{roundStatusLine(state)}</p>
         )}
 
-        {state.automated && state.phase !== 'NO_ROUND' && (
-          <p className={`${LABEL} mt-2 text-ink-fade`}>Fixtures and results are managed for you</p>
-        )}
+        {/* No "managed for you" badge here. Who typed the fixtures in is our business, not the
+            organiser's - they're on the page either way, and the phrase explains an implementation
+            detail that changes nothing they do. The one place it earns its keep is the LOCKED
+            status line, where results are due and there are deliberately no buttons. */}
 
         {actionError && (
           <div className={`${PANEL} mt-5 border-overprint p-4`}>

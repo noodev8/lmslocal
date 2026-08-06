@@ -12,13 +12,13 @@ import {
   PlayIcon,
   UserIcon,
   MegaphoneIcon,
-  CalendarIcon,
-  CheckCircleIcon
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
+import { deriveDashboardRoundState, roundTileLabel, roundTileSummary } from '@/lib/roundState';
 
 /**
  * FEATURE FLAG: Round Statistics Progress Bar
@@ -32,6 +32,23 @@ import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } fr
  * Set to true to re-enable the feature if needed in the future.
  */
 const SHOW_ROUND_STATISTICS = false;
+
+/**
+ * Columns for the action tile grid, by how many tiles the current user actually gets.
+ *
+ * Written out rather than built from a template string because Tailwind only ships classes it can
+ * see in the source - `sm:grid-cols-${n}` compiles to nothing. Keyed on the count so the row can't
+ * strand a tile or two on a line of its own, which is what a fixed 4-column grid did to the six
+ * tiles a full organiser sees.
+ */
+const TILE_GRID_COLS: Record<number, string> = {
+  1: 'sm:grid-cols-1',
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-3',
+  4: 'sm:grid-cols-4',
+  5: 'sm:grid-cols-5',
+  6: 'sm:grid-cols-3',
+};
 
 export default function UnifiedGameDashboard() {
   const router = useRouter();
@@ -114,6 +131,35 @@ export default function UnifiedGameDashboard() {
   const canManageFixtures = isOrganiser || competition?.manage_fixtures || false;
   const canManagePlayers = isOrganiser || competition?.manage_players || false;
   const canManagePromote = isOrganiser || competition?.manage_promote || false;
+
+  // Phase-level only - the dashboard payload carries no fixture rows, so this reaches "In play"
+  // but never "3 of 10 results in". See deriveDashboardRoundState.
+  const dashboardRoundState = useMemo(
+    () =>
+      deriveDashboardRoundState({
+        currentRound: competition?.current_round,
+        currentRoundLockTime: competition?.current_round_lock_time,
+        automated: competition?.fixture_service === true,
+        competitionComplete: competition?.is_complete === true,
+        now: new Date(),
+      }),
+    [
+      competition?.current_round,
+      competition?.current_round_lock_time,
+      competition?.fixture_service,
+      competition?.is_complete,
+    ]
+  );
+
+  // Standings is unconditional; the rest are earned. Counted here so the grid can pick a column
+  // count that divides evenly - see TILE_GRID_COLS.
+  const tileCount =
+    1 +
+    (isParticipant ? 1 : 0) +
+    (canManageFixtures || canManageResults ? 1 : 0) +
+    (canManagePlayers ? 1 : 0) +
+    (canManagePromote ? 1 : 0) +
+    (isOrganiser ? 1 : 0);
 
   // Winner detection only shows when competition status is COMPLETE
   const getWinnerStatus = (comp: CompetitionType) => {
@@ -813,7 +859,7 @@ Good luck! ⚽`;
 
         {/* Action Buttons */}
         {(isOrganiser || canManageResults || canManageFixtures || canManagePlayers) ? (
-          <div className={`grid gap-3 ${isParticipant ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
+          <div className={`grid gap-3 grid-cols-2 ${TILE_GRID_COLS[tileCount]}`}>
             {/* Play button - only show if user is also a participant */}
             {isParticipant && (
               <button
@@ -828,29 +874,17 @@ Good luck! ⚽`;
               </button>
             )}
 
-            {/* Fixture Management - Show if user has fixtures permission. Also reachable on
-                automated competitions, as a manual backstop for fixing a round the fixture
-                service got wrong. */}
-            {canManageFixtures && (
+            {/* The round: fixtures and results are one destination, because they are one thing
+                seen at two points in the week. The subtitle says which point, so the common
+                question - "what's on this week?" - is answered without a click. */}
+            {(canManageFixtures || canManageResults) && (
               <Link
-                href={`/game/${competitionId}/organizer-fixtures`}
-                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
+                href={`/game/${competitionId}/round`}
+                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 text-center transition-colors hover:border-ink`}
               >
                 <CalendarIcon className="h-6 w-6 text-ink" />
-                <span className={`${LABEL} text-ink`}>Fixtures</span>
-              </Link>
-            )}
-
-            {/* Results Management - Show if user has results permission. Also reachable on
-                automated competitions, as a manual backstop for fixing a round the fixture
-                service got wrong. */}
-            {canManageResults && (
-              <Link
-                href={`/game/${competitionId}/organizer-results`}
-                className={`${PANEL} flex flex-col items-center justify-center gap-2 p-5 transition-colors hover:border-ink`}
-              >
-                <CheckCircleIcon className="h-6 w-6 text-ink" />
-                <span className={`${LABEL} text-ink`}>Results</span>
+                <span className={`${LABEL} text-ink`}>{roundTileLabel(dashboardRoundState)}</span>
+                <span className={`${LABEL} text-ink-fade`}>{roundTileSummary(dashboardRoundState)}</span>
               </Link>
             )}
 

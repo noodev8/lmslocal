@@ -306,8 +306,12 @@ lmslocal-web/
   to individually. It refuses while any competition is still unfinished, unless forced. Every
   fixture in a batch shares a single kickoff time that becomes the round's lock time, so a real
   gameweek spread over Fri–Sun is entered as several batches.
-- **Organiser-managed competitions** (`fixture_service = false`) use the `organizer-*` routes and
-  their pages under `/game/[id]/organizer-fixtures` and `organizer-results`
+- **Organiser-managed competitions** (`fixture_service = false`) use the `organizer-*` routes.
+  Their fixtures and results are **one screen**, `/game/[id]/round`, driven by the state machine
+  in `src/lib/roundState.ts` — read `docs/round-state-machine.md` before changing what that
+  screen shows, and change the doc first. `/game/[id]/organizer-fixtures` survives only as the
+  fixture entry form and redirects to `/round` on automated competitions;
+  `/game/[id]/organizer-results` is gone.
 - **Disabled Routes**: create-round, add-fixtures-bulk, submit-results, update-round, reset-fixtures, set-fixture-result, get-calculated-fixtures, organiser-mid-round-submit-tip (all preserved with `.delete` extension)
 
 ### Technical Implementation

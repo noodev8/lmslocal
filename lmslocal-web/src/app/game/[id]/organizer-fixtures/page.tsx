@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { organizerApi, teamApi, OrganizerFixture, OrganizerFixtureWithResult, Team } from '@/lib/api';
+import { organizerApi, teamApi, OrganizerFixture, Team } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { cacheUtils } from '@/lib/cache';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
@@ -181,6 +181,13 @@ export default function OrganizerFixturesPage() {
     const canManageFixtures = competition?.is_organiser || competition?.manage_fixtures;
     if (competition && !canManageFixtures) {
       router.push(`/game/${competitionId}`);
+      return;
+    }
+
+    // Automated competitions have nothing to enter here - the fixture service owns their
+    // fixtures, and viewing them is the round screen's job. This page is now only the entry form.
+    if (competition && competition.fixture_service === true) {
+      router.replace(`/game/${competitionId}/round`);
       return;
     }
 
@@ -378,11 +385,9 @@ export default function OrganizerFixturesPage() {
     );
   }
 
-  // Automated competitions are read-only here - the fixture service owns their fixtures.
+  // Redirecting to the round screen (see the access effect above); render nothing meanwhile.
   if (competition.fixture_service === true) {
-    return (
-      <ReadOnlyFixturesView competitionId={competitionId} competitionName={competition.name} />
-    );
+    return null;
   }
 
   const completeFixtureCount = fixtures.filter(f => f.home_team_short && f.away_team_short).length;
@@ -688,128 +693,6 @@ export default function OrganizerFixturesPage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
-  );
-}
-
-/*
-Read-only view for automated competitions - shows whatever the fixture service has already
-pushed, with no way to add, change, or lock anything. There is no "add fixtures" concept here;
-the current round (if any) is the whole story.
-*/
-function ReadOnlyFixturesView({
-  competitionId,
-  competitionName,
-}: {
-  competitionId: string;
-  competitionName: string;
-}) {
-  const [fixtures, setFixtures] = useState<OrganizerFixtureWithResult[]>([]);
-  const [roundNumber, setRoundNumber] = useState<number | null>(null);
-  const [teamNames, setTeamNames] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      setLoadError('');
-      try {
-        const response = await organizerApi.getFixturesForResults(parseInt(competitionId));
-        if (response.data.return_code === 'SUCCESS') {
-          setRoundNumber(response.data.round_number);
-          setFixtures(response.data.fixtures || []);
-        } else if (response.data.return_code === 'NO_ROUNDS') {
-          setLoadError('No fixtures have been staged for this competition yet.');
-        } else {
-          setLoadError(response.data.message || 'Failed to load fixtures');
-        }
-      } catch (error) {
-        console.error('Error loading fixtures:', error);
-        setLoadError('Network error - could not connect to server');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, [competitionId]);
-
-  useEffect(() => {
-    const fetchTeams = async () => {
-      try {
-        const response = await teamApi.getTeams();
-        if (response.data.return_code === 'SUCCESS' && response.data.teams) {
-          const mapping: Record<string, string> = {};
-          response.data.teams.forEach(team => {
-            mapping[team.short_name] = team.name;
-          });
-          setTeamNames(mapping);
-        }
-      } catch (error) {
-        console.error('Failed to fetch teams:', error);
-      }
-    };
-    fetchTeams();
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-stock font-body text-ink">
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <Link href={`/game/${competitionId}`} className={`${LABEL} mb-4 inline-flex items-center gap-1.5 text-ink-fade transition-colors hover:text-ink`}>
-          <ArrowLeftIcon className="h-4 w-4" />
-          Back
-        </Link>
-
-        <p className={EYEBROW}>Fixtures</p>
-        <h1 className={`${HEADING} mt-1 text-3xl`}>{competitionName}</h1>
-        <p className="mt-2 text-[15px] text-ink-fade">
-          Fixtures are managed automatically for this competition — view only.
-        </p>
-        <p className={`${LABEL} mt-2 text-ink-fade`}>
-          {roundNumber ? `Round ${roundNumber}` : ''}
-          {/* Every fixture in a round shares one kickoff/lock time, so it's stated once here
-              rather than repeated on every row. */}
-          {fixtures[0]?.kickoff_time && (
-            <>
-              {' '}&middot;{' '}
-              {new Date(fixtures[0].kickoff_time).toLocaleDateString('en-GB', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </>
-          )}
-        </p>
-
-        <div className={`${PANEL} mt-5`}>
-          {isLoading && (
-            <p className="p-8 text-center text-[15px] text-ink-fade">Loading fixtures&hellip;</p>
-          )}
-
-          {!isLoading && loadError && (
-            <p className="p-8 text-center text-[15px] text-ink-fade">{loadError}</p>
-          )}
-
-          {!isLoading && !loadError && (
-            <div className="divide-y divide-ink/30">
-              {fixtures.map((fixture) => {
-                const homeTeamName = teamNames[fixture.home_team_short] || fixture.home_team_short;
-                const awayTeamName = teamNames[fixture.away_team_short] || fixture.away_team_short;
-                return (
-                  <div key={fixture.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-                    <span className="font-data text-[15px] text-ink">
-                      {homeTeamName} <span className="text-ink-fade">vs</span> {awayTeamName}
-                    </span>
-                    {fixture.result && <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>Result in</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </main>
     </div>
   );
