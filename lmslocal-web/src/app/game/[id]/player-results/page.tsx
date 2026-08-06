@@ -246,25 +246,40 @@ export default function PlayerResultsPage() {
             const userWon = (userPickedHome && homeWon) || (userPickedAway && awayWon);
             const userLost = (userPickedHome && awayWon) || (userPickedAway && homeWon);
 
+            const pickedTeam = userPickedHome ? fixture.home_team : fixture.away_team;
+
+            /* Everything left-aligned and set in reading order. This was two justify-between
+               rows across a max-w-3xl panel, which pushed the teams to opposite edges and left
+               "vs" floating at a different position on every row - it sat wherever the two name
+               widths happened to leave a gap. Worse, the pick label was pinned to the right, so
+               it appeared under the away team even when the home team was the one picked. It now
+               names the team instead of relying on position. */
             return (
               <div key={fixture.id} className="p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <span className={`font-data text-[15px] ${homeWon ? 'font-semibold text-moss' : awayWon ? 'text-ink-fade' : 'text-ink'}`}>
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-data text-[15px]">
+                  <span className={homeWon ? 'font-semibold text-moss' : awayWon ? 'text-ink-fade' : 'text-ink'}>
                     {fixture.home_team}
                   </span>
-                  <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>vs</span>
-                  <span className={`font-data text-right text-[15px] ${awayWon ? 'font-semibold text-moss' : homeWon ? 'text-ink-fade' : 'text-ink'}`}>
+                  <span className={`${LABEL} text-ink-fade`}>vs</span>
+                  <span className={awayWon ? 'font-semibold text-moss' : homeWon ? 'text-ink-fade' : 'text-ink'}>
                     {fixture.away_team}
                   </span>
                 </div>
-                <div className="mt-1.5 flex items-center justify-between gap-3">
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className={`${LABEL} text-ink-fade`}>
                     {isPending ? 'Pending' : isDraw ? 'Draw' : homeWon ? `${fixture.home_team_short} won` : `${fixture.away_team_short} won`}
                   </span>
                   {(userPickedHome || userPickedAway) && (
-                    <span className={`${LABEL} ${userWon ? 'text-moss' : userLost ? 'text-overprint' : 'text-ink-fade'}`}>
-                      {userWon ? 'Your pick — won' : userLost ? 'Your pick — out' : 'Your pick'}
-                    </span>
+                    <>
+                      <span className="text-ink-fade/60" aria-hidden="true">&middot;</span>
+                      <span className={`${LABEL} ${userWon ? 'text-moss' : userLost ? 'text-overprint' : 'text-ink-fade'}`}>
+                        {userWon
+                          ? `You picked ${pickedTeam} — won`
+                          : userLost
+                          ? `You picked ${pickedTeam} — out`
+                          : `You picked ${pickedTeam}`}
+                      </span>
+                    </>
                   )}
                 </div>
               </div>
