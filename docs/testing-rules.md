@@ -21,15 +21,23 @@ API route — that this is about.
 
 | | |
 |---|---|
-| **Competition 199** — "Andreas Test Comp" | Chop and change freely. No need to ask, no need to restore. |
-| **Organiser 50** — `aandreou25@gmail.com`, display name Andreas | The owner of 199, and the only account bots may be used under. |
+| **Organiser 50** — `aandreou25@gmail.com`, display name Andreas | Andreas's own account. Every competition under it is a sandbox, and it is the only account bots may be used under. |
+| **Competition 199** — "Andreas Test Comp" | The long-lived one. Chop and change freely. |
 
-Competition 199 is organiser 50's only competition, so in practice "the sandbox" is one
-competition. Confirm that is still true before relying on it:
+**Organiser 50 owns several competitions, and the list changes.** Andreas creates a competition
+to test a particular phase, works through it, and deletes it — so the set is different week to
+week (199, 200 and 202 as of 6 Aug 2026). Never assume 199 is the only one, and never assume a
+competition you used before still exists.
+
+**He will name the one he means, and it is the one to change.** "Fast-forward Andreas Test 3" is
+about that competition and no other. Look it up by name rather than guessing an id:
 
 ```bash
-node db/query.js "SELECT id, name, status FROM competition WHERE organiser_id = 50"
+node db/query.js "SELECT id, name, status FROM competition WHERE organiser_id = 50 ORDER BY id"
 ```
+
+If the name he gave isn't in that result, stop and ask — a competition of that name under a
+different organiser is a customer's, not a near-miss.
 
 ## Everything else
 
