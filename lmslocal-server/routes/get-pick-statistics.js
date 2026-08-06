@@ -17,7 +17,7 @@ Success Response (ALWAYS HTTP 200):
     "round_id": 456,                   // integer, current round database ID
     "round_number": 5                  // integer, human-readable round number
   },
-  "players_with_picks": 15,            // integer, number of players who made picks for current round
+  "players_with_picks": 15,            // integer, active players who made a pick for current round
   "total_active_players": 20,          // integer, total number of active players in competition
   "pick_percentage": 75                // integer, percentage (0-100) of active players who have made picks (floored, not rounded)
 }
@@ -89,11 +89,19 @@ router.post('/', verifyToken, async (req, res) => {
         )
       ) cr ON c.id = cr.competition_id
       
-      -- Count picks for current round (only if current round exists)
+      -- Count picks for current round (only if current round exists).
+      -- Restricted to players who are still active, because total_active_players below is, and
+      -- two counts drawn from different populations make the ratio meaningless: a player who
+      -- picks and is then eliminated or removed stays in the numerator but leaves the
+      -- denominator, which reads as "everyone has picked" while an active player still hasn't.
       LEFT JOIN (
-        SELECT round_id, COUNT(*) as players_with_picks
-        FROM pick
-        GROUP BY round_id
+        SELECT p.round_id, COUNT(*) as players_with_picks
+        FROM pick p
+        JOIN round r ON r.id = p.round_id
+        JOIN competition_user cu
+          ON cu.user_id = p.user_id AND cu.competition_id = r.competition_id
+        WHERE cu.status = 'active'
+        GROUP BY p.round_id
       ) ps ON cr.round_id = ps.round_id
       
       -- Count total active players in competition (from competition_user table)
