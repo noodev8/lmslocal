@@ -3,6 +3,8 @@
  * Reduces redundant API calls by caching responses based on data update frequency
  */
 
+import { cacheKeys, competitionCachePrefixes } from './cacheKeys';
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -86,6 +88,22 @@ class SimpleCache {
       this.cache.delete(key);
     });
     
+  }
+
+  /**
+   * Delete every entry whose key starts with `prefix`.
+   *
+   * Preferred over deletePattern for key families: it's a plain string comparison, so a key
+   * containing regex metacharacters can't misbehave, and it can't accidentally match in the
+   * middle of an unrelated key the way the unanchored pattern test can.
+   */
+  deletePrefix(prefix: string): number {
+    const keysToDelete: string[] = [];
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(prefix)) keysToDelete.push(key);
+    }
+    keysToDelete.forEach((key) => this.cache.delete(key));
+    return keysToDelete.length;
   }
 
   /**
@@ -195,37 +213,42 @@ export const cacheUtils = {
   // Individual cache operations
   invalidateKey: (key: string) => apiCache.delete(key),
   invalidatePattern: (pattern: string) => apiCache.deletePattern(pattern),
-  
-  // Competition-specific cleanup (still useful during session)
-  invalidateCompetition: (id: number) => apiCache.deletePattern(`competition-${id}-*`),
-  
-  // Current user's competitions (for manual refresh)
-  invalidateCompetitions: () => {
-    const userId = getCurrentUserId();
-    if (userId) {
-      apiCache.delete(`competitions-user-${userId}`);
-    }
+  invalidatePrefix: (prefix: string) => apiCache.deletePrefix(prefix),
+
+  /**
+   * Everything cached about one competition.
+   *
+   * Was `deletePattern('competition-${id}-*')`, which matched nothing at all: the real keys are
+   * `competition-players-199-...` and `competition-status-199`, so the id never appears where
+   * that pattern looked for it. Driven off competitionCachePrefixes now, so adding a
+   * competition-scoped key in one place is enough.
+   */
+  invalidateCompetition: (id: number | string) => {
+    competitionCachePrefixes(id).forEach((prefix) => apiCache.deletePrefix(prefix));
   },
-  
+
+  /** The current user's dashboard — the competition list and its round/pick figures. */
+  invalidateCompetitions: () => {
+    apiCache.delete(cacheKeys.userDashboard());
+  },
+
+  /** Credits and billing, after a purchase or a player joining. */
+  invalidateCredits: () => {
+    apiCache.delete(cacheKeys.userCredits());
+    apiCache.delete(cacheKeys.billingHistory());
+  },
+
+  /** Billing, after a payment. Covers the legacy subscription key as well as credits. */
+  invalidateBilling: () => {
+    apiCache.delete(cacheKeys.userSubscription());
+    apiCache.delete(cacheKeys.userCredits());
+    apiCache.delete(cacheKeys.billingHistory());
+  },
+
   // Debug utilities
   getStats: () => apiCache.getStats(),
   debug: () => debugCache()
 };
-
-// Helper to get current user ID for cache keys
-function getCurrentUserId(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const user = JSON.parse(userData);
-      return user.id?.toString() || null;
-    }
-  } catch {
-    // Failed to get current user ID
-  }
-  return null;
-}
 
 // Legacy export for backward compatibility
 export const invalidateCache = cacheUtils;

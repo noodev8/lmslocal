@@ -19,6 +19,8 @@ import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
 import { deriveDashboardRoundState, roundTileLabel, roundTileSummary } from '@/lib/roundState';
+import { cacheUtils } from '@/lib/cache';
+import { cachePrefixes } from '@/lib/cacheKeys';
 
 /**
  * FEATURE FLAG: Round Statistics Progress Bar
@@ -267,10 +269,10 @@ export default function UnifiedGameDashboard() {
       );
 
       if (response.data.return_code === 'SUCCESS') {
-        // Clear any cache related to competition players/data
-        const { cacheUtils } = await import('@/lib/api');
-        cacheUtils.invalidateKey(`competition-players-${competition.id}`);
-        cacheUtils.invalidateKey(`user-dashboard`);
+        // Player list is paginated, so it must go by prefix - an exact-key delete of
+        // `competition-players-${id}` matches none of the real keys.
+        cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competition.id));
+        cacheUtils.invalidateCompetitions();
 
         // Reset form and close modal
         setAddPlayerForm({ display_name: '' });

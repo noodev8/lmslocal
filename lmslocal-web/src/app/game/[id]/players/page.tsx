@@ -16,6 +16,7 @@ import {
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, roundApi, fixtureApi, teamApi, userApi, organizerApi, Competition, Player, Team, cacheUtils } from '@/lib/api';
+import { cachePrefixes } from '@/lib/cacheKeys';
 import { useAppData } from '@/contexts/AppDataContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useToast, ToastContainer } from '@/components/Toast';
@@ -312,7 +313,7 @@ export default function CompetitionPlayersPage() {
         ));
 
         // Invalidate cached player data so fresh data is fetched on next visit
-        cacheUtils.invalidatePattern(`competition-players-${competition.id}`);
+        cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competition.id));
       } else {
         alert(`Failed to update payment status: ${response.data.message || 'Unknown error'}`);
       }
@@ -400,8 +401,7 @@ export default function CompetitionPlayersPage() {
         setPendingLivesChanges(new Map());
 
         // Clear the players cache to ensure fresh data on next load
-        const { apiCache } = await import('@/lib/cache');
-        apiCache.delete(`competition-players-${competition.id}`);
+        cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competition.id));
 
         // Reload fresh player data from server
         await loadPlayers();
@@ -454,8 +454,7 @@ export default function CompetitionPlayersPage() {
         ));
 
         // Clear the players cache to ensure fresh data on page reload
-        const { apiCache } = await import('@/lib/cache');
-        apiCache.delete(`competition-players-${competition.id}`);
+        cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competition.id));
       } else {
         console.error(`Failed to update player status: ${response.data.message || 'Unknown error'}`);
       }
@@ -488,8 +487,7 @@ export default function CompetitionPlayersPage() {
         ));
 
         // Clear the players cache to ensure fresh data on page reload
-        const { apiCache } = await import('@/lib/cache');
-        apiCache.delete(`competition-players-${competition.id}`);
+        cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competition.id));
       } else {
         console.error(`Failed to unhide player: ${response.data.message || 'Unknown error'}`);
       }
@@ -584,10 +582,10 @@ export default function CompetitionPlayersPage() {
         const actionText = selectedTeam === 'NO_PICK' ? 'removed' : 'set';
         const teamText = selectedTeam === 'NO_PICK' ? '' : `: ${selectedTeam}`;
 
-        // Invalidate picks cache and allowed teams cache
-        cacheUtils.invalidateKey(`picks-${competitionId}`);
-        cacheUtils.invalidateKey(`competition-players-${competitionId}`);
-        cacheUtils.invalidatePattern(`allowed-teams-${competitionId}`);
+        // A pick changes the player's row and which teams remain available to them. There is no
+        // `picks-${id}` cache; that key was invented at this call site and never written.
+        cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competitionId));
+        cacheUtils.invalidatePrefix(cachePrefixes.allowedTeams(competitionId));
 
         // Show toast notification
         showToast(`Pick ${actionText}${teamText} for ${selectedPlayerForPick.display_name}`, 'success');

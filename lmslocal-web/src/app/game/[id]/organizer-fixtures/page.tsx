@@ -343,11 +343,11 @@ export default function OrganizerFixturesPage() {
 
       // Check response
       if (response.data.return_code === 'SUCCESS') {
-        // Invalidate specific caches to ensure fresh data
-        cacheUtils.invalidateCompetition(parseInt(competitionId));
-        cacheUtils.invalidateKey(`rounds-${competitionId}`); // Rounds cache
-        cacheUtils.invalidatePattern(`fixtures-*`); // All fixture caches
-        cacheUtils.invalidateKey(`pick-stats-${competitionId}`); // Pick statistics cache
+        // invalidateCompetition already covers rounds and pick statistics for this competition.
+        // Fixtures are keyed by round id, not competition, so they need the separate sweep.
+        cacheUtils.invalidateCompetition(competitionId);
+        cacheUtils.invalidatePattern(`fixtures-*`);
+        cacheUtils.invalidateCompetitions();
 
         // Redirect immediately
         router.push(`/game/${competitionId}`);

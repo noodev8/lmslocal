@@ -1076,49 +1076,12 @@ export const promoteApi = {
   ),
 };
 
-// Cache utilities
-export const cacheUtils = {
-  // Clear competition-related cache when competitions change
-  invalidateCompetitions: () => {
-    const userId = getUserId();
-    apiCache.delete(`user-dashboard-${userId}`);
-  },
-
-  // Clear credit and billing cache after purchases or player joins
-  invalidateCredits: () => {
-    const userId = getUserId();
-    apiCache.delete(`user-credits-${userId}`);
-    apiCache.delete(`billing-history-${userId}`);
-  },
-
-  // Clear billing-related cache after payments (legacy + new system)
-  invalidateBilling: () => {
-    const userId = getUserId();
-    apiCache.delete(`user-subscription-${userId}`); // Legacy
-    apiCache.delete(`user-credits-${userId}`);       // New credit system
-    apiCache.delete(`billing-history-${userId}`);
-  },
-
-  // Clear specific cache key
-  invalidateKey: (key: string) => {
-    apiCache.delete(key);
-  },
-
-  // Clear cache keys matching a pattern
-  invalidatePattern: (pattern: string) => {
-    apiCache.deletePattern(pattern);
-  },
-
-  // Clear all cache entries
-  clearAll: () => {
-    apiCache.clear();
-  },
-
-  // Get cache diagnostics
-  getStats: () => {
-    return apiCache.getStats();
-  }
-};
+/*
+Re-exported, not redefined. There used to be a second cacheUtils here with the same name and
+different behaviour to the one in cache.ts, so which invalidation a caller got depended on which
+module they happened to import from - and the two disagreed about several keys. One object now.
+*/
+export { cacheUtils } from './cache';
 
 // ========================================
 // ORGANIZER FIXTURE MANAGEMENT API

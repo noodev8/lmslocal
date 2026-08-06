@@ -316,14 +316,10 @@ export default function CompetitionSettings() {
         const { cacheUtils } = await import('@/lib/api');
         cacheUtils.invalidateCompetitions();
 
-        // Clear competition-specific caches
-        const competitionId = competition.id;
-        cacheUtils.invalidateKey(`competition-standings-${competitionId}`);
-        cacheUtils.invalidateKey(`competition-status-${competitionId}`);
-        cacheUtils.invalidateKey(`competition-players-${competitionId}`);
-        cacheUtils.invalidateKey(`pick-statistics-${competitionId}`);
-        cacheUtils.invalidateKey(`rounds-${competitionId}`);
-        cacheUtils.invalidateKey(`allowed-teams-${competitionId}-current`);
+        // One call covers standings, status, players, pick statistics, rounds and allowed teams.
+        // Several of the individual keys above never matched: standings and players carry
+        // pagination and filters on the end, so they can only be cleared by prefix.
+        cacheUtils.invalidateCompetition(competition.id);
 
         refreshCompetitions();
 
@@ -378,28 +374,10 @@ export default function CompetitionSettings() {
         const { cacheUtils } = await import('@/lib/api');
         cacheUtils.invalidateCompetitions();
 
-        // Clear user-specific competitions cache
-        const userData = localStorage.getItem('user');
-        if (userData) {
-          try {
-            const user = JSON.parse(userData);
-            const userId = user.id?.toString();
-            if (userId) {
-              cacheUtils.invalidateKey(`competitions-user-${userId}`);
-            }
-          } catch (error) {
-            console.warn('Failed to get user ID for cache clearing:', error);
-          }
-        }
-
-        // Clear all competition-specific caches
-        const competitionId = competition.id;
-        cacheUtils.invalidateKey(`competition-standings-${competitionId}`);
-        cacheUtils.invalidateKey(`competition-status-${competitionId}`);
-        cacheUtils.invalidateKey(`competition-players-${competitionId}`);
-        cacheUtils.invalidateKey(`pick-statistics-${competitionId}`);
-        cacheUtils.invalidateKey(`rounds-${competitionId}`);
-        cacheUtils.invalidateKey(`allowed-teams-${competitionId}-current`);
+        // One call covers standings, status, players, pick statistics, rounds and allowed teams.
+        // Several of the individual keys above never matched: standings and players carry
+        // pagination and filters on the end, so they can only be cleared by prefix.
+        cacheUtils.invalidateCompetition(competition.id);
 
         // Refresh competitions context to remove deleted competition
         refreshCompetitions();

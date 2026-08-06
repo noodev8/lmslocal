@@ -229,24 +229,40 @@ What the page *does* take from cache:
 And it refetches on `visibilitychange`, because the organiser's actual pattern is to leave the
 page open, go and do something else, and come back expecting it to be current.
 
-### Known cache-invalidation bugs (pre-existing, not introduced here)
+### Cache-invalidation bugs found and fixed
 
-Three invalidation calls reference keys nothing is stored under, so they do nothing:
+An audit during this work found **fifteen** invalidation calls that did nothing. Nothing throws
+when a delete misses — the key simply isn't there, and the stale entry survives — so they were
+invisible. Two distinct faults:
 
-| Call site | Key used | Key actually written |
-|---|---|---|
-| `organizer-results/page.tsx:191`, `game/[id]/page.tsx:227` | `user-dashboard` | `user-dashboard-${userId}` (`api.ts:716`) |
-| `organizer-fixtures/page.tsx:343` | `pick-stats-${id}` | `pick-statistics-${id}` (`api.ts:477`) |
-| `cache.ts:206`, `settings/page.tsx:388` | `competitions-user-${userId}` | nothing |
+**Wrong key.** The name at the delete site never matched the name at the write site:
 
-The consequence that matters: after processing results, the dashboard cache is not cleared. It
-only refreshes because `organizer-results` calls `refreshCompetitions(true)` — and that is
-guarded by `if (playersEliminated > 0)`, so a round where nobody is eliminated leaves the
-organiser looking at stale dashboard figures.
+| Key used | Key actually written |
+|---|---|
+| `user-dashboard` | `user-dashboard-${userId}` |
+| `pick-stats-${id}` | `pick-statistics-${id}` |
+| `competitions-user-${userId}` | nothing — no such key ever existed |
+| `picks-${id}` | nothing — invented at the call site |
 
-The root cause is cache keys as inline strings with no single definition, which makes a typo
-undetectable. Worth a follow-up job to export the key builders from one module. Deliberately
-**not** bundled into this merge.
+**Exact delete against a parameterised family.** `competition-players-${id}` and
+`competition-standings-${id}` look like keys but are only prefixes: the real ones carry page,
+size, filter and search on the end. An exact-key delete matches none of them. Nine calls did
+this. `invalidateCompetition` was the same fault in pattern form — it swept
+`competition-${id}-*`, but the id sits *after* the family name (`competition-players-199-…`), so
+it matched nothing at all. Verified: it cleared 0 of 10 seeded keys.
+
+The fix is `src/lib/cacheKeys.ts` — every key and prefix built in one place, with the exact keys
+and the prefix families deliberately separated so the type of thing you hold tells you which
+delete to use. `cache.ts` gains `deletePrefix` (plain `startsWith`, no regex to misfire), and
+`invalidateCompetition` now drives off `competitionCachePrefixes`, so a new competition-scoped key
+is registered once. There were also **two different `cacheUtils` objects** exported under the same
+name from `api.ts` and `cache.ts`, disagreeing about several keys, so which behaviour a caller got
+depended on which module they imported from; `api.ts` now re-exports the one in `cache.ts`.
+
+The consequence that had been live: after processing results the dashboard cache was never
+cleared. It only refreshed because the old results screen called `refreshCompetitions(true)`
+guarded by `if (playersEliminated > 0)` — so a round where nobody went out left the organiser
+looking at stale figures. The round screen refreshes unconditionally.
 
 ## 8. Open questions
 
