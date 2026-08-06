@@ -18,7 +18,8 @@ _shared/brand.js    Tailwind token config + Google Fonts. Load on every page.
 _shared/print.css   Print rules, screen preview desk, trim/safe guides. Leaflets only.
 _shared/social.css  Fixed-size canvas + screenshot desk. Social tiles only.
 leaflet/            Print artwork. a5-test.html is the pipeline reference.
-                    a5-landlord (pubs), a5-club (clubs), a5-player (players).
+                    a5-landlord (pubs), a5-club (clubs), a5-workplace (offices),
+                    a5-player (players).
 social/             Fixed-size tiles for Facebook etc. See social/README.md.
 out/                Exported PDFs and PNGs. Git-ignored.
 ```
