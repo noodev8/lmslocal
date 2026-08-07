@@ -467,8 +467,8 @@ export default function CreateCompetitionPage() {
                     <HeartIcon className="h-4 w-4" />
                     Lives per player
                   </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[0, 1, 2].map((lives) => (
+                  <div className="grid grid-cols-2 gap-3">
+                    {[0, 1].map((lives) => (
                       <label key={lives} className="relative">
                         <input
                           {...register('lives_per_player', { valueAsNumber: true })}
@@ -480,7 +480,7 @@ export default function CreateCompetitionPage() {
                         <div className="cursor-pointer border border-ink/30 p-3 text-center transition-colors hover:border-ink peer-checked:border-ink peer-checked:bg-ink peer-checked:text-stock-lit sm:p-4">
                           <div className="font-display text-2xl">{lives}</div>
                           <div className={`${LABEL} mt-0.5`}>
-                            {lives === 0 ? 'Knockout' : lives === 1 ? 'Life' : 'Lives'}
+                            {lives === 0 ? 'Knockout' : 'Life'}
                           </div>
                         </div>
                       </label>

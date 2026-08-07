@@ -20,7 +20,7 @@ Request Payload:
   "entry_fee": 10.00,                          // decimal, optional - Suggested entry fee in GBP
   "prize_structure": "Winner takes all",        // string, optional - Prize distribution description (max 500 chars)
   "team_list_id": 1,                           // integer, required - ID of team list to use
-  "lives_per_player": 1,                       // integer, optional - Number of lives per player (default: 1)
+  "lives_per_player": 0,                       // integer, optional - 0 (knockout) or 1 (default: 0)
   "no_team_twice": true,                       // boolean, optional - Prevent team reuse (default: true)
   "organiser_joins_as_player": true,           // boolean, optional - Add organiser as player (default: false)
   "fixture_service": true                      // boolean, optional - Subscribe to the automated fixture service (default: false)
@@ -83,6 +83,21 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "Team list ID is required and must be a number"
+      });
+    }
+
+    // The wizard's radio group sends this as a string ("0"/"1"), so coerce before validating.
+    // Absent means Knockout - and note ?? rather than ||, because 0 is falsy: the old `|| 1`
+    // would have turned every Knockout competition into a one-life one the moment the frontend
+    // started sending a real number.
+    const livesPerPlayer = lives_per_player === undefined || lives_per_player === null
+      ? 0
+      : Number(lives_per_player);
+
+    if (!Number.isInteger(livesPerPlayer) || livesPerPlayer < 0 || livesPerPlayer > 1) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Lives per player must be 0 or 1"
       });
     }
 
@@ -276,7 +291,7 @@ router.post('/', verifyToken, async (req, res) => {
             entry_fee ? Number(entry_fee) : null,
             prize_structure ? prize_structure.trim() : null,
             team_list_id,
-            lives_per_player || 1,
+            livesPerPlayer,
             no_team_twice !== false, // Default to true
             organiser_id,
             inviteCode,

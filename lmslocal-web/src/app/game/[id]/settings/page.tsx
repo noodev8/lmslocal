@@ -682,8 +682,8 @@ export default function CompetitionSettings() {
               {/* Lives Per Player */}
               <div>
                 <p className={`${LABEL} mb-3 text-ink-fade`}>Lives per player</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {[0, 1, 2].map((lives) => (
+                <div className="grid grid-cols-2 gap-3">
+                  {[0, 1].map((lives) => (
                     <label key={lives} className="relative">
                       <input
                         type="radio"
@@ -699,7 +699,7 @@ export default function CompetitionSettings() {
                       } ${hasStarted ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}>
                         <div className="font-display text-2xl">{lives}</div>
                         <div className={`${LABEL} mt-0.5`}>
-                          {lives === 0 ? 'Knockout' : lives === 1 ? 'Life' : 'Lives'}
+                          {lives === 0 ? 'Knockout' : 'Life'}
                         </div>
                       </div>
                     </label>

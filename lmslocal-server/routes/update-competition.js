@@ -14,7 +14,7 @@ Request Payload:
   "venue_name": "The Red Barn",             // string, optional - Venue/organization name (max 100 chars, can be updated anytime)
   "entry_fee": 10.00,                      // decimal, optional - Entry fee in GBP (can be updated anytime)
   "prize_structure": "Winner takes all",    // string, optional - Prize distribution (max 500 chars, can be updated anytime)
-  "lives_per_player": 3,                   // integer, optional - New lives per player (only if not started)
+  "lives_per_player": 1,                   // integer, optional - 0 (knockout) or 1 (only if not started)
   "no_team_twice": false                   // boolean, optional - Allow team reuse setting (only if not started)
 }
 
@@ -26,7 +26,7 @@ Success Response (ALWAYS HTTP 200):
     "id": 123,                                     // integer, competition ID
     "name": "Updated Competition Name",            // string, updated competition name
     "description": "New description",              // string, updated competition description
-    "lives_per_player": 3,                        // integer, current lives per player setting
+    "lives_per_player": 1,                        // integer, current lives per player setting
     "no_team_twice": false,                       // boolean, current team reuse setting
     "has_started": false,                         // boolean, indicates if competition has started
     "updated_at": "2025-09-06T10:30:00.000Z"     // string, ISO datetime when competition was last updated
@@ -202,10 +202,10 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Validate lives_per_player if provided (only if not started)
     if (lives_per_player !== undefined) {
-      if (!Number.isInteger(lives_per_player) || lives_per_player < 0 || lives_per_player > 2) {
+      if (!Number.isInteger(lives_per_player) || lives_per_player < 0 || lives_per_player > 1) {
         return res.json({
           return_code: "VALIDATION_ERROR",
-          message: "Lives per player must be an integer between 0 and 2"
+          message: "Lives per player must be 0 or 1"
         });
       }
     }
