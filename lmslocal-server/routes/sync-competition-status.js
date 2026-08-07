@@ -4,7 +4,12 @@ API Route: sync-competition-status
 =======================================================================================================================================
 Method: POST
 Purpose: Promote competitions from SETUP to ACTIVE once their Round 1 lock time has passed.
-         Machine-invoked nightly; there is no user context.
+         Machine-invoked; there is no user context.
+
+         The nightly run is scripts/sync-competition-status.js on the VPS cron, matching how
+         every other scheduled job here is invoked. This route exists so the same work can be
+         triggered on demand without shell access; both call services/competitionStatus.js so
+         they cannot drift.
 =======================================================================================================================================
 Request Payload:
 {}                                     // none
@@ -52,32 +57,14 @@ holding an old poster into a different organiser's competition. See §3.1.
 
 const express = require('express');
 const router = express.Router();
-const { query } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
+const { syncCompetitionStatus } = require('../services/competitionStatus');
 
 router.post('/', async (req, res) => {
   logApiCall('sync-competition-status');
 
   try {
-    // One statement: find every SETUP competition whose Round 1 has locked and promote it.
-    // Restricting the UPDATE to status = 'SETUP' makes the route idempotent, so a scheduler
-    // that fires twice does no extra work and reports nothing the second time.
-    const result = await query(`
-      UPDATE competition c
-      SET    status = 'ACTIVE'
-      FROM   round r
-      WHERE  r.competition_id = c.id
-        AND  r.round_number = 1
-        AND  r.lock_time <= CURRENT_TIMESTAMP
-        AND  c.status = 'SETUP'
-      RETURNING c.id AS competition_id, c.name, r.lock_time
-    `);
-
-    const promoted = result.rows.map(row => ({
-      competition_id: row.competition_id,
-      name: row.name,
-      lock_time: row.lock_time
-    }));
+    const promoted = await syncCompetitionStatus();
 
     return res.status(200).json({
       return_code: "SUCCESS",
