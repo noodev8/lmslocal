@@ -6,7 +6,7 @@
     </style>
     <!-- Theme for Android 15+ (API 35) with mandatory edge-to-edge support - Dark Mode -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="android:windowBackground">@color/splash_background</item>
         <!-- Android 15 requires ALWAYS for display cutout mode -->
         <item name="android:windowLayoutInDisplayCutoutMode">always</item>
         <!-- Android 15 makes system bars transparent by default - don't set colors -->

@@ -7,7 +7,14 @@ it records how it lands in Flutter and what is done.
 The app is **live on both stores** (`1.2.9+15` at the time of writing) and is **player-only**.
 Every API it needs already exists; no server work is in scope.
 
-**Status:** not started. Baseline is commit `aa0f83e`, working tree clean.
+**Status:** Release A in progress on Android. Baseline was commit `aa0f83e`.
+
+Done: fonts bundled, low-risk dependency bumps, version to `2.0.0+16`, launcher icons
+(adaptive + monochrome + iOS) from the new badge, native and Dart splash on `stock`,
+`coupon_theme.dart` tokens. Verified building and installing on a physical SM A426B (Android 12).
+
+Outstanding for Release A: the four major dependency bumps (`go_router`, Firebase,
+`flutter_secure_storage`, `package_info_plus`), then the iOS build on the Mac.
 
 ---
 
@@ -68,11 +75,26 @@ Source art is `docs/LMS-Local-Logo.jpg` (800×800), which is already the coupon 
 badge: `stock-lit` ground, `ink` linework, `overprint` on the stars, cup and the "1". It replaces
 `assets/images/logo.png` (the old blue and green tile), which is a different brand.
 
-- Generate through `flutter_launcher_icons` with `adaptive_icon_background: "#F2F3EC"`
-  (`stock-lit`) and the badge as the foreground layer, inset so the circle survives the round and
-  squircle masks Android applies.
+Source art is `docs/LMS-Local-Logo.png`, 1024×1024. Config lives in `pubspec.yaml`; regenerate with
+`dart run flutter_launcher_icons` after changing the art.
+
+- **Background** is `#EAE4D1`, sampled from the logo's own paper — *not* `stock-lit` `#F2F3EC`.
+  The badge's ground is warmer than the design system's, and matching it makes the icon read as
+  one sheet with a stamp on it rather than a disc pasted onto a lighter square.
+- **Foreground** is the emblem cut to its own circle on transparency, so a launcher mask crops
+  paper instead of slicing through the outer rings.
+- **Sizing.** Only the centre 72/108 (66.7%) of an adaptive layer is ever visible — the outer 18dp
+  each side is always masked. The emblem is a circle, so it fills that viewport at 65.3% rather
+  than hiding inside the 66/108 (61%) safe zone, which is sized for arbitrary content and leaves a
+  circular mark looking marooned with an illegible wordmark at 48dp. `flutter_launcher_icons`
+  applies its own further 16% inset, so the source art is sized to `target / 0.68`.
 - `remove_alpha_ios: true` — iOS rejects icons with an alpha channel.
-- iOS needs a true **1024×1024**; the source is 800×800 (see §6).
+- Samsung One UI's "icon frames" setting wraps the result in a white squircle on some devices.
+  That is a launcher preference, not a fault in the icon; stock Android fills the mask with the
+  background colour.
+
+`assets/images/logo.png` is the same emblem on transparency at 512px, for in-app use — it carries
+no paper square, so it drops onto the `stock` ground cleanly.
 
 ### Native splash
 

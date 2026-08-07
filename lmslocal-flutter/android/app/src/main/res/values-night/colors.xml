@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- LMS Local brand colors matching logo background -->
-    <color name="primary_navy">#2C497C</color>
-    <color name="splash_white">#FFFFFF</color>
+    <!-- Same as values/colors.xml on purpose — the app is light-only. -->
+    <color name="splash_background">#DDE1D6</color>
+    <color name="ic_launcher_background">#EAE4D1</color>
 </resources>

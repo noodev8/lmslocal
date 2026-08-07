@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- LMS Local brand colors matching logo background -->
-    <color name="primary_navy">#2C497C</color>
-    <color name="splash_white">#FFFFFF</color>
+    <!-- stock, the design system's page ground (docs/design-system.md §2).
+         The native launch window, the Dart splash and the first real screen all
+         sit on this so there is no flash of a different colour between them. -->
+    <color name="splash_background">#DDE1D6</color>
+    <!-- The app is light-only: no dark variant exists on the web to copy, so
+         values-night carries the same value rather than inventing one. -->
+    <color name="ic_launcher_background">#EAE4D1</color>
 </resources>

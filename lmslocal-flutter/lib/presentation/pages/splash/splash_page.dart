@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
-import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 import 'package:lmslocal_flutter/presentation/widgets/update_required_dialog.dart';
@@ -115,22 +115,27 @@ class _SplashPageState extends State<SplashPage> {
     return BlocListener<AuthBloc, AuthState>(
       listener: _handleAuthStateChange,
       child: Scaffold(
-        backgroundColor: GameTheme.background,
+        // Matches @color/splash_background in the native launch theme, so the
+        // handover from the Android window to Flutter's first frame is invisible.
+        backgroundColor: CouponTheme.stock,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // LMS Local Logo
               Image.asset(
                 'assets/images/logo.png',
                 width: 200,
                 height: 200,
               ),
-              const SizedBox(height: 24),
-              // Loading indicator
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  GameTheme.glowCyan,
+              const SizedBox(height: 32),
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    CouponTheme.inkFade,
+                  ),
                 ),
               ),
             ],

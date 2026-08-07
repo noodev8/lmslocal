@@ -72,6 +72,22 @@ dev_dependencies:
   # Launcher icon generation
   flutter_launcher_icons: ^0.14.4
 
+# Run `dart run flutter_launcher_icons` after changing the source art.
+# icon.png is the full badge on its paper square; icon-foreground.png is the
+# emblem cut to its own circle and inset into Android's 66/108 safe zone, so a
+# launcher mask crops paper instead of slicing through the outer rings.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_foreground: "assets/icon/icon-foreground.png"
+  # The logo's own paper, not stock-lit — matching it makes the icon read as one
+  # sheet with a stamp on it rather than a disc pasted onto a lighter square.
+  adaptive_icon_background: "#EAE4D1"
+  adaptive_icon_monochrome: "assets/icon/icon-foreground.png"
+  # iOS rejects icons carrying an alpha channel.
+  remove_alpha_ios: true
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
