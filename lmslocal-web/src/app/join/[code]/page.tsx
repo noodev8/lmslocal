@@ -30,12 +30,14 @@ type Competition = {
 };
 
 /**
- * There is no 'closed' stage. A competition that has started or is full comes back from the
- * lookup as COMPETITION_NOT_FOUND with no detail, so it lands on 'not-found' along with a typo.
- * That is deliberate: telling the two apart would turn the code space into a directory of every
- * venue on the platform. See §4.3 of docs/player-onboarding.md.
+ * A competition that has started is indistinguishable from a typo — both land on 'not-found' with
+ * no detail, because telling them apart would turn the code space into a directory of every venue
+ * on the platform.
+ *
+ * 'full' is the deliberate exception. It is the one closed state a player can do something about,
+ * so it says so and names the organiser. See §4.3 of docs/player-onboarding.md.
  */
-type Stage = 'looking-up' | 'not-found' | 'ready' | 'lookup-failed';
+type Stage = 'looking-up' | 'not-found' | 'full' | 'ready' | 'lookup-failed';
 
 /** 'navigating' means a full page load is already under way — leave the button busy. */
 type JoinOutcome = 'navigating' | 'signed-out' | 'failed';
@@ -46,6 +48,8 @@ export default function JoinPage() {
 
   const [stage, setStage] = useState<Stage>('looking-up');
   const [competition, setCompetition] = useState<Competition | null>(null);
+  /** Only the organiser's name — a full competition returns nothing else about itself. */
+  const [fullOrganiser, setFullOrganiser] = useState<string | null>(null);
 
   // Identity: we only believe we are signed in once the server agrees, but we
   // still name whoever the stored session claims to be — "not you?" is
@@ -99,6 +103,9 @@ export default function JoinPage() {
           // SUCCESS is only ever returned for a competition that can still be joined.
           setCompetition(res.data.competition);
           setStage('ready');
+        } else if (res.data.return_code === 'COMPETITION_FULL') {
+          setFullOrganiser(res.data.organiser_name ?? null);
+          setStage('full');
         } else if (res.data.return_code === 'COMPETITION_NOT_FOUND') {
           setStage('not-found');
         } else {
@@ -255,6 +262,33 @@ export default function JoinPage() {
   if (stage === 'looking-up') {
     return shell(
       <p className={`${LABEL} text-ink-fade`}>Looking up {code}…</p>
+    );
+  }
+
+  if (stage === 'full') {
+    // The organiser's name is the only thing the server tells us here, and it is the whole point:
+    // a full competition is fixable, so the player needs someone to go and ask.
+    const organiser = fullOrganiser ?? 'Whoever runs it';
+    return shell(
+      <div>
+        <p className={`${EYEBROW} text-overprint`}>No room</p>
+        <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
+          This one is full
+        </h1>
+        <p className="mt-6 max-w-lg text-xl leading-relaxed text-ink">
+          {organiser} has as many players as their competitions can take at the moment. Let them
+          know you are trying to join — they can make room from their end in a couple of minutes.
+        </p>
+        <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-fade">
+          Nothing has gone wrong at your end, and no account has been created. Worth trying this
+          code again once they have sorted it.
+        </p>
+        <div className="mt-8">
+          <Link href="/" className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px]`}>
+            Back to LMSLocal
+          </Link>
+        </div>
+      </div>
     );
   }
 

@@ -14,13 +14,18 @@ Purpose: Public lookup of a competition from its invite code, so the /join/[code
          competition name, the venue, the organiser's display name and how many are playing. No
          player names, no contact details, no invite code echoed back.
 
-         AND ONLY WHEN THE COMPETITION IS OPEN TO NEW PLAYERS. A competition that has started, is
-         full, or does not exist all produce the same COMPETITION_NOT_FOUND with no detail
-         whatsoever - not a name, not a reason, not an acknowledgement that anything is there.
-         This is the whole point of the route's shape, so resist adding a helpful discriminator:
-         the moment a closed competition answers differently from a missing one, the code space
-         becomes a directory of every venue and organiser on the platform. See §4.3 of
-         docs/player-onboarding.md.
+         AND ONLY WHEN THE COMPETITION IS OPEN TO NEW PLAYERS. A competition that has started, and
+         one that does not exist, produce the same COMPETITION_NOT_FOUND with no detail whatsoever
+         - not a name, not a reason, not an acknowledgement that anything is there. Resist adding a
+         helpful discriminator between those two: the moment a started competition answers
+         differently from a missing one, the code space becomes a directory of every venue on the
+         platform. See §4.3 of docs/player-onboarding.md.
+
+         COMPETITION_FULL is the one deliberate exception, and it returns the organiser's name.
+         The split is recoverable vs not: a started competition will never take this player, so
+         saying so achieves nothing, while a full one is one credit purchase away from letting them
+         in. Silence there loses a player, a sale, and an organiser who never learns why their
+         competition stopped growing.
 
          That matters more than it used to. Codes were previously set to NULL when round 1 locked,
          which dropped started competitions out of this lookup as a side effect. Codes now live for
@@ -59,11 +64,20 @@ Error Response (ALWAYS HTTP 200):
   "message": "Descriptive error message"
 }
 =======================================================================================================================================
+Full Response (ALWAYS HTTP 200):
+{
+  "return_code": "COMPETITION_FULL",
+  "message": "That competition has no room for another player at the moment",
+  "organiser_name": "Dave R."          // string|null, the one identifying detail any closed
+}                                      // response gives up - deliberate, see §4.3
+
+=======================================================================================================================================
 Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"      - Missing or invalid competition_code parameter
-"COMPETITION_NOT_FOUND" - No competition with that code, OR it has started, OR it is full.
-                          Deliberately indistinguishable - see the Purpose note above.
+"COMPETITION_NOT_FOUND" - No competition with that code, OR it has started. Deliberately
+                          indistinguishable from each other - see the Purpose note above.
+"COMPETITION_FULL"      - Real, open, but the organiser is at their player limit with no credits
 "SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -150,20 +164,30 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // STEP 4: A closed competition is indistinguishable from one that does not exist.
-    // The reason is worked out above but deliberately not returned - see the header. Callers get
-    // the same COMPETITION_NOT_FOUND they would get for a typo, with no competition object.
-    if (closed_reason !== null) {
-      // FULL is a business event, not a player error: an organiser is losing players because they
-      // are out of credits, and the generic response means they will never hear about it from the
-      // player. Logged so it is at least visible to us until they can be notified properly.
-      if (closed_reason === "FULL") {
-        console.warn(
-          `[join] competition ${data.competition_id} turned a player away: organiser ` +
-          `${data.competition_organiser_id} is at the free player limit with no credits`
-        );
-      }
+    // STEP 4: A full competition says so. Every other closed case says nothing.
+    //
+    // The split is recoverable vs not. A started competition will never accept this player, so
+    // silence costs nothing - there is no action to prompt. A full one is one credit purchase
+    // away from letting them in, and staying quiet destroys that recovery: the player walks, the
+    // organiser never finds out, and a competition that was working stops growing.
+    if (closed_reason === "FULL") {
+      console.warn(
+        `[join] competition ${data.competition_id} turned a player away: organiser ` +
+        `${data.competition_organiser_id} is at the free player limit with no credits`
+      );
 
+      // The organiser's display name is returned deliberately, and it is the one identifying
+      // detail any closed response gives up. Naming them makes the message something the player
+      // can act on rather than a dead end. Weighed and chosen; see §4.3.
+      return res.status(200).json({
+        return_code: "COMPETITION_FULL",
+        message: "That competition has no room for another player at the moment",
+        organiser_name: data.organiser_name || null
+      });
+    }
+
+    if (closed_reason !== null) {
+      // Started, or no such code - deliberately indistinguishable. See the header.
       return res.status(200).json({
         return_code: "COMPETITION_NOT_FOUND",
         message: "No competition found with that code"

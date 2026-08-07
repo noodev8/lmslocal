@@ -441,18 +441,22 @@ export const supportApi = {
 export const competitionApi = {
   // Public, unauthenticated lookup used by /join/[code]. Lets a player see what they are joining
   // before we ask them to sign in or create an account, so a typo costs them nothing.
+  //
+  // `competition` is present ONLY on SUCCESS, which the server returns only for a competition
+  // that can still be joined. A started competition and a code that never existed both come back
+  // as COMPETITION_NOT_FOUND with nothing attached, on purpose. COMPETITION_FULL is the single
+  // exception and carries organiser_name so the player knows who to ask. See §4.3 of
+  // docs/player-onboarding.md before adding anything to a non-SUCCESS response.
   getByCode: (competition_code: string) => api.post<{
     return_code: string;
     message?: string;
+    organiser_name?: string | null;
     competition?: {
       id: number;
       name: string;
       venue_name: string | null;
       organiser_name: string | null;
       player_count: number;
-      status: string;
-      can_join: boolean;
-      closed_reason: string | null;
     };
   }>('/get-competition-by-code', { competition_code }),
   create: (data: CreateCompetitionRequest) => api.post<{ return_code: string; message?: string; competition?: Competition; competition_id?: string }>('/create-competition', data),
