@@ -152,7 +152,6 @@ export interface Competition {
   logo_url?: string;
   invite_code?: string;
   access_code?: string;
-  slug?: string;
   venue_name?: string;
   address_line_1?: string;
   address_line_2?: string;
@@ -321,7 +320,6 @@ export interface CreateCompetitionRequest {
   entry_fee?: number;
   prize_structure?: string;
   access_code?: string;
-  slug?: string;
   team_list_id: number;
   lives_per_player: number;
   no_team_twice: boolean;

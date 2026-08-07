@@ -3,7 +3,7 @@
 API Route: create-competition
 =======================================================================================================================================
 Method: POST
-Purpose: Creates a new competition for authenticated user with unique invite code and slug
+Purpose: Creates a new competition for authenticated user with a unique invite code
 =======================================================================================================================================
 Request Payload:
 {
@@ -187,92 +187,118 @@ router.post('/', verifyToken, async (req, res) => {
         throw new Error('FIXTURE_SERVICE_UNAVAILABLE');
       }
 
-      // 2. Generate unique invite code atomically (prevents race conditions)
+      // 2. Claim an invite code and create the competition.
+      //
+      // The lookup below is a courtesy, not a guarantee: it does not lock, so two concurrent
+      // creations can both find the same code free and both proceed. The unique index on
+      // UPPER(invite_code) is what actually enforces uniqueness. This loop exists so that when
+      // the index fires, the organiser never sees it - a 23505 here means "that code went, take
+      // another", not "your competition could not be created".
+      //
+      // The INSERT is wrapped in a SAVEPOINT because a constraint violation aborts the enclosing
+      // transaction: without one, every statement after the first collision would fail with
+      // "current transaction is aborted" and the retry would be pointless.
+      //
       // Codes the organiser keeps for their own recurring use - never auto-assigned to a customer
       const RESERVED_INVITE_CODES = ['1992'];
-      let inviteCode = '';
-      let attempts = 0;
       const maxAttempts = 100;
+      let competitionResult = null;
+      let attempts = 0;
 
-      while (attempts < maxAttempts) {
+      while (attempts < maxAttempts && competitionResult === null) {
+        attempts++;
+
         // Generate 4-digit random number
-        inviteCode = Math.floor(1000 + Math.random() * 9000).toString();
+        const inviteCode = Math.floor(1000 + Math.random() * 9000).toString();
 
         if (RESERVED_INVITE_CODES.includes(inviteCode)) {
-          attempts++;
           continue;
         }
 
-        // Check if this code already exists within the same transaction
+        // Cheap pre-check so the common case never reaches the constraint at all.
+        // Case-insensitive to match the index, which is what decides.
         const existingCodeResult = await client.query(
-          'SELECT id FROM competition WHERE invite_code = $1',
+          'SELECT id FROM competition WHERE UPPER(invite_code) = UPPER($1)',
           [inviteCode]
         );
 
-        if (existingCodeResult.rows.length === 0) {
-          break; // Found unique code
+        if (existingCodeResult.rows.length > 0) {
+          continue;
         }
 
-        attempts++;
+        await client.query('SAVEPOINT invite_code_attempt');
+
+        try {
+          // 3. Create the competition with generated invite code
+          competitionResult = await client.query(`
+            INSERT INTO competition (
+              name,
+              description,
+              logo_url,
+              venue_name,
+              address_line_1,
+              address_line_2,
+              city,
+              postcode,
+              phone,
+              email,
+              entry_fee,
+              prize_structure,
+              team_list_id,
+              status,
+              lives_per_player,
+              no_team_twice,
+              organiser_id,
+              invite_code,
+              fixture_service,
+              fixture_service_price_paid,
+              fixture_service_granted_at,
+              created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP)
+            RETURNING *
+          `, [
+            name.trim(),
+            description ? description.trim() : null,
+            logo_url ? logo_url.trim() : null,
+            venue_name ? venue_name.trim() : null,
+            address_line_1 ? address_line_1.trim() : null,
+            address_line_2 ? address_line_2.trim() : null,
+            city ? city.trim() : null,
+            postcode ? postcode.trim() : null,
+            phone ? phone.trim() : null,
+            email ? email.trim() : null,
+            entry_fee ? Number(entry_fee) : null,
+            prize_structure ? prize_structure.trim() : null,
+            team_list_id,
+            lives_per_player || 1,
+            no_team_twice !== false, // Default to true
+            organiser_id,
+            inviteCode,
+            wantsFixtureService,
+            // Launch promotion: the service is offered free, so the recorded price is 0.00 rather
+            // than the 20-credit list price. This is what tells a grandfathered competition apart from a
+            // paying one once charging begins.
+            wantsFixtureService ? 0.00 : null,
+            wantsFixtureService ? new Date() : null
+          ]);
+
+          await client.query('RELEASE SAVEPOINT invite_code_attempt');
+        } catch (err) {
+          await client.query('ROLLBACK TO SAVEPOINT invite_code_attempt');
+          competitionResult = null;
+
+          // Only an invite code collision is retryable. Any other constraint violation is a
+          // real fault and must surface rather than being spent as a retry.
+          if (err.code !== '23505' || err.constraint !== 'idx_competition_invite_code') {
+            throw err;
+          }
+        }
       }
 
-      if (attempts >= maxAttempts) {
+      if (competitionResult === null) {
         throw new Error('SERVER_ERROR: Unable to generate unique invite code after multiple attempts');
       }
-
-      // 3. Create the competition with generated invite code
-      const competitionResult = await client.query(`
-        INSERT INTO competition (
-          name,
-          description,
-          logo_url,
-          venue_name,
-          address_line_1,
-          address_line_2,
-          city,
-          postcode,
-          phone,
-          email,
-          entry_fee,
-          prize_structure,
-          team_list_id,
-          status,
-          lives_per_player,
-          no_team_twice,
-          organiser_id,
-          invite_code,
-          fixture_service,
-          fixture_service_price_paid,
-          fixture_service_granted_at,
-          created_at
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP)
-        RETURNING *
-      `, [
-        name.trim(),
-        description ? description.trim() : null,
-        logo_url ? logo_url.trim() : null,
-        venue_name ? venue_name.trim() : null,
-        address_line_1 ? address_line_1.trim() : null,
-        address_line_2 ? address_line_2.trim() : null,
-        city ? city.trim() : null,
-        postcode ? postcode.trim() : null,
-        phone ? phone.trim() : null,
-        email ? email.trim() : null,
-        entry_fee ? Number(entry_fee) : null,
-        prize_structure ? prize_structure.trim() : null,
-        team_list_id,
-        lives_per_player || 1,
-        no_team_twice !== false, // Default to true
-        organiser_id,
-        inviteCode,
-        wantsFixtureService,
-        // Launch promotion: the service is offered free, so the recorded price is 0.00 rather
-        // than the 20-credit list price. This is what tells a grandfathered competition apart from a
-        // paying one once charging begins.
-        wantsFixtureService ? 0.00 : null,
-        wantsFixtureService ? new Date() : null
-      ]);
 
       const competition = competitionResult.rows[0];
 

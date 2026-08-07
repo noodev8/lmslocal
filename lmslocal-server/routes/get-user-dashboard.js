@@ -25,8 +25,7 @@ Success Response (ALWAYS HTTP 200):
       "status": "ACTIVE",                       // string, competition status
       "lives_per_player": 1,                    // integer, lives per player
       "no_team_twice": true,                    // boolean, team reuse restriction
-      "invite_code": "1234",                    // string, 4-digit join code
-      "slug": "premier-lms",                    // string, competition slug
+      "invite_code": "1234",                    // string, join code; the competition's only public identity
       "team_list_id": 1,                        // integer, team list ID
       "team_list_name": "Premier League",      // string, team list name
       "created_at": "2025-01-01T12:00:00Z",    // string, ISO creation datetime
@@ -69,7 +68,6 @@ Success Response (ALWAYS HTTP 200):
       "prize_structure": "Winner takes £500",   // string, prize details
       "entry_fee": "5.00",                      // string, entry fee
       "logo_url": "https://...",                // string, logo URL (nullable)
-      "slug": "winter-lms",                     // string, competition slug for joining
       "player_count": 45,                       // integer, current player count
       "lock_time": "2025-12-01T15:00:00Z"       // string, Round 1 lock time (join deadline)
     }
@@ -125,8 +123,7 @@ router.post('/', verifyToken, async (req, res) => {
         c.status,                              -- Competition status
         c.lives_per_player,                    -- Lives per player setting
         c.no_team_twice,                       -- Team reuse restriction
-        c.invite_code,                         -- 4-digit join code
-        c.slug,                                -- Competition slug
+        c.invite_code,                         -- Join code; the competition's only public identity
         c.team_list_id,                        -- Team list identifier
         c.created_at,                          -- Competition creation time
         c.organiser_id,                        -- Organizer user ID
@@ -303,21 +300,32 @@ router.post('/', verifyToken, async (req, res) => {
     const mainResult = await query(mainQuery, [user_id]);
 
 
-    // === EXPIRE INVITE CODES WHOSE ROUND 1 HAS LOCKED ===
-    // A competition stops accepting its join code once Round 1 locks. This used to
-    // run one lock-time lookup per competition, and then one UPDATE per expiry;
-    // both are now a single round trip regardless of how many competitions the
-    // user has.
-    const codedCompetitionIds = mainResult.rows
-      .filter(comp => comp.invite_code)
+    // === PROMOTE COMPETITIONS WHOSE ROUND 1 HAS LOCKED ===
+    // A competition stops accepting new players once Round 1 locks, and its status
+    // moves SETUP -> ACTIVE. The invite code is deliberately left in place: it is the
+    // competition's identity for its whole life, so a code printed on a poster keeps
+    // resolving rather than going dead - or, far worse, being reissued to a different
+    // competition and quietly sending people to the wrong one. See §3.1 of
+    // docs/player-onboarding.md.
+    //
+    // Selecting on status rather than on the code's presence matters now the code
+    // never disappears: filtering by invite_code would no longer narrow anything and
+    // would re-check Round 1 for every competition, finished ones included.
+    //
+    // This is only a convenience refresh for an organiser looking at their own
+    // dashboard. The join gate computes the same condition live from Round 1's lock
+    // time and must keep doing so - see §4.2. The nightly /sync-competition-status
+    // sweep keeps the stored column honest for organisers who never sign in.
+    const setupCompetitionIds = mainResult.rows
+      .filter(comp => comp.status === 'SETUP')
       .map(comp => comp.id);
 
-    if (codedCompetitionIds.length > 0) {
+    if (setupCompetitionIds.length > 0) {
       const round1Result = await query(`
         SELECT competition_id, lock_time
         FROM round
         WHERE competition_id = ANY($1) AND round_number = 1
-      `, [codedCompetitionIds]);
+      `, [setupCompetitionIds]);
 
       // Competitions with no Round 1 row simply do not come back, which matches
       // the old behaviour of skipping them.
@@ -331,15 +339,14 @@ router.post('/', verifyToken, async (req, res) => {
         // production carried a mix of casings.
         await query(`
           UPDATE competition
-          SET invite_code = NULL, status = 'ACTIVE'
-          WHERE id = ANY($1) AND invite_code IS NOT NULL
+          SET status = 'ACTIVE'
+          WHERE id = ANY($1) AND status = 'SETUP'
         `, [expiredIds]);
 
         // Reflect the change in the rows we are about to serialise
         const expired = new Set(expiredIds);
         for (const comp of mainResult.rows) {
           if (expired.has(comp.id)) {
-            comp.invite_code = null;
             comp.status = 'ACTIVE';
           }
         }
@@ -433,7 +440,6 @@ router.post('/', verifyToken, async (req, res) => {
         lives_per_player: comp.lives_per_player,
         no_team_twice: comp.no_team_twice,
         invite_code: comp.invite_code,
-        slug: comp.slug,
         team_list_id: comp.team_list_id,
         team_list_name: comp.team_list_name,
         created_at: comp.created_at,

@@ -109,6 +109,7 @@ const loadResultsEmailRoute = require('./routes/load-results-email');
 const loadWelcomeCompetitionRoute = require('./routes/load-welcome-competition');
 const loadCompetitionAnnouncementRoute = require('./routes/load-competition-announcement');
 const sendEmailRoute = require('./routes/send-email');
+const syncCompetitionStatusRoute = require('./routes/sync-competition-status');
 const getEmailPreferencesRoute = require('./routes/get-email-preferences');
 const updateEmailPreferencesBatchRoute = require('./routes/update-email-preferences-batch');
 const unsubscribeRoute = require('./routes/unsubscribe');
@@ -423,6 +424,18 @@ app.use('/update-email-preferences-batch', updateEmailPreferencesBatchRoute);
 app.use('/unsubscribe', unsubscribeRoute);
 // DISABLED: Manual fixture management - replaced by automated fixture service
 // app.use('/organiser-mid-round-submit-tip', organiserMidRoundSubmitTipRoute);
+
+/*
+Scheduled Maintenance Routes
+
+Machine-invoked on a timer, never by a client. Same X-Service-Token as the email pipeline
+(middleware/service-auth.js) - these have no user context, so JWT auth does not apply.
+
+/sync-competition-status runs nightly and promotes SETUP competitions whose Round 1 has locked.
+It corrects a reporting column only; nothing that decides whether a player may join reads it.
+See docs/player-onboarding.md §4.2.
+*/
+app.use('/sync-competition-status', verifyServiceToken, syncCompetitionStatusRoute);
 
 /*
 Admin Tool API Routes (lmslocal-admin)

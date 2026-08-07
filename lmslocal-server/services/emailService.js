@@ -1325,14 +1325,14 @@ const sendCompetitionAnnouncementEmail = async (email, templateData) => {
       user_display_name,
       competition_name,
       access_code,
-      competition_slug,
       competition_id,
       unsubscribe_token,
       email_tracking_id
     } = templateData;
 
-    // Build the join URL using PLAYER_FRONTEND_URL and competition slug
-    const joinUrl = `${process.env.PLAYER_FRONTEND_URL}/competition/${competition_slug}`;
+    // Build the join URL from the invite code. This previously pointed at /competition/{slug},
+    // a route that does not exist, using a column that was never populated.
+    const joinUrl = `${process.env.PLAYER_FRONTEND_URL}/join/${access_code}`;
 
     // Build unsubscribe URL using EMAIL_VERIFICATION_URL (server-side GET route, same as verify-email)
     const unsubscribeUrl = `${process.env.EMAIL_VERIFICATION_URL}/unsubscribe?token=${unsubscribe_token}`;

@@ -3,7 +3,7 @@
 API Route: get-competition-by-code
 =======================================================================================================================================
 Method: POST
-Purpose: Public lookup of a competition from an invite code or slug, so the /join/[code] page can
+Purpose: Public lookup of a competition from its invite code, so the /join/[code] page can
          show a player what they are joining BEFORE asking them to sign in or create an account.
 
          Deliberately unauthenticated. A player arriving from a poster, a WhatsApp message or the
@@ -25,7 +25,7 @@ Purpose: Public lookup of a competition from an invite code or slug, so the /joi
 =======================================================================================================================================
 Request Payload:
 {
-  "competition_code": "RED-BARN"       // string, required - invite code or slug, case-insensitive
+  "competition_code": "1252"           // string, required - invite code, case-insensitive
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -52,7 +52,7 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"      - Missing or invalid competition_code parameter
-"COMPETITION_NOT_FOUND" - No competition with that invite code or slug
+"COMPETITION_NOT_FOUND" - No competition with that invite code
 "SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -100,7 +100,10 @@ router.post('/', async (req, res) => {
       FROM competition c
       LEFT JOIN round r ON c.id = r.competition_id
       LEFT JOIN app_user u ON c.organiser_id = u.id
-      WHERE UPPER(c.invite_code) = $1 OR UPPER(c.slug) = $1
+      -- UPPER() is kept, not folded away: today's codes are all digits so it is a no-op,
+      -- but the field is free to hold REDBARN25 later and matching must stay
+      -- case-insensitive. idx_competition_invite_code indexes this exact expression.
+      WHERE UPPER(c.invite_code) = $1
       GROUP BY c.id, c.name, c.venue_name, c.status, u.display_name, u.paid_credit
       LIMIT 1
     `;

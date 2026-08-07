@@ -242,9 +242,23 @@ router.post('/', verifyToken, async (req, res) => {
         throw new Error('UNAUTHORIZED: Only the competition organiser can update this competition');
       }
 
-      // 3. Check if competition has started (invite_code is NULL means started)
-      const hasStarted = currentCompetition.invite_code === null;
-      
+      // 3. Check if the competition has started.
+      //    Round 1's lock time is the authority, computed here rather than read from
+      //    competition.status: that column is written after the fact and can still say
+      //    SETUP for a competition that locked hours ago. This used to test
+      //    invite_code IS NULL, which is why the code was being nulled at all - the
+      //    field now survives for the competition's whole life. See §4.2 of
+      //    docs/player-onboarding.md.
+      const round1Result = await client.query(`
+        SELECT 1
+        FROM round
+        WHERE competition_id = $1
+          AND round_number = 1
+          AND lock_time <= CURRENT_TIMESTAMP
+      `, [competition_id]);
+
+      const hasStarted = round1Result.rows.length > 0;
+
       // 4. Validate restricted fields can only be changed if competition hasn't started
       if (hasStarted && (lives_per_player !== undefined || no_team_twice !== undefined)) {
         throw new Error('COMPETITION_STARTED: Lives per player and team reuse settings cannot be changed after competition has started');

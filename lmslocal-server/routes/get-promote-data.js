@@ -112,7 +112,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Fetch competition details and verify organizer (including winner info)
     const competitionResult = await query(
-      `SELECT c.id, c.name, c.description, c.status, c.invite_code, c.slug, c.organiser_id, c.logo_url, c.entry_fee, c.prize_structure, c.lives_per_player,
+      `SELECT c.id, c.name, c.description, c.status, c.invite_code, c.organiser_id, c.logo_url, c.entry_fee, c.prize_structure, c.lives_per_player,
               c.winner_id, winner.display_name as winner_name
        FROM competition c
        LEFT JOIN app_user winner ON c.winner_id = winner.id
@@ -138,10 +138,11 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Build join URL (prefer slug, fallback to invite code) - for pre-launch invitations
-    const join_url = competition.slug
-      ? `https://lmslocal.co.uk/join/${competition.slug}`
-      : `https://lmslocal.co.uk/join/${competition.invite_code}`;
+    // Build join URL - for pre-launch invitations. The invite code is the competition's only
+    // public identity and lasts its whole life, so this link stays valid rather than dying when
+    // the competition starts. A word slug alongside it was considered and rejected; see §6.1 of
+    // docs/player-onboarding.md.
+    const join_url = `https://lmslocal.co.uk/join/${competition.invite_code}`;
 
     // Build game URL - for players to view active competition
     const game_url = `https://lmslocal.co.uk/game/${competition_id}`;

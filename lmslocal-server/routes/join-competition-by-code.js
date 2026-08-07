@@ -7,7 +7,7 @@ Purpose: Allow authenticated players to join competitions using invite codes wit
 =======================================================================================================================================
 Request Payload:
 {
-  "competition_code": "ABC123"      // string, required - competition invite code or slug
+  "competition_code": "1252"        // string, required - competition invite code
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -78,7 +78,6 @@ router.post('/', verifyToken, async (req, res) => {
           SELECT
             c.id as competition_id,
             c.name as competition_name,
-            c.slug,
             c.status as competition_status,
             c.invite_code,
             c.lives_per_player,
@@ -90,8 +89,11 @@ router.post('/', verifyToken, async (req, res) => {
             NOW() as current_time
           FROM competition c
           LEFT JOIN round r ON c.id = r.competition_id
-          WHERE UPPER(c.invite_code) = $1 OR UPPER(c.slug) = $1
-          GROUP BY c.id, c.name, c.slug, c.status, c.invite_code, c.lives_per_player
+          -- UPPER() is kept, not folded away: today's codes are all digits so it is a no-op,
+          -- but the field is free to hold REDBARN25 later and matching must stay
+          -- case-insensitive. idx_competition_invite_code indexes this exact expression.
+          WHERE UPPER(c.invite_code) = $1
+          GROUP BY c.id, c.name, c.status, c.invite_code, c.lives_per_player
         ),
         membership_check AS (
           -- Check if user is already a member of this competition
@@ -120,7 +122,7 @@ router.post('/', verifyToken, async (req, res) => {
       if (mainResult.rows.length === 0) {
         throw {
           return_code: "COMPETITION_NOT_FOUND",
-          message: "No competition found with that code or slug"
+          message: "No competition found with that code"
         };
       }
 

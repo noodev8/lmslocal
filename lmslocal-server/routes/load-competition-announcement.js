@@ -73,13 +73,12 @@ router.post('/', async (req, res) => {
     }
 
     // === FETCH COMPETITION DETAILS ===
-    // Get competition name, access_code, and slug for email template data
+    // Get competition name and invite code for email template data
     const competitionResult = await query(`
       SELECT
         id,
         name,
-        access_code,
-        slug
+        invite_code
       FROM competition
       WHERE id = $1
     `, [competition_id]);
@@ -200,8 +199,9 @@ router.post('/', async (req, res) => {
           user_email: recipient.email,
           user_display_name: recipient.display_name,
           competition_name: competition.name,
-          access_code: competition.access_code,
-          competition_slug: competition.slug,
+          // The column is invite_code; access_code has never existed, so this SELECT threw on
+          // every call and no announcement could be sent. The template keeps the older key name.
+          access_code: competition.invite_code,
           competition_id: competition_id,
           user_id: recipient.user_id,
           unsubscribe_token: unsubscribeToken
