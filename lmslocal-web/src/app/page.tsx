@@ -17,8 +17,14 @@ import { LABEL, EYEBROW, TICK } from '@/lib/design';
  * mono does not.
  *
  * Voice rule: "you" on this page is always the organiser, never the player.
- * Anything the player does is written in the third person ("they pick"). The
- * only text addressed to players is the join strip at the very top.
+ * Anything the player does is written in the third person ("they pick").
+ *
+ * The two exceptions are the join strip at the very top and the players band
+ * near the foot, which address the player directly as "you". Both are fenced
+ * off visually — the strip by the ink bar, the band by being the one light
+ * section between two dark ones — so the switch of audience is never something
+ * the reader has to infer from the words. Do not let that voice leak into the
+ * organiser sections between them.
  */
 
 // Real platform figures. Update these by hand rather than inventing them.
@@ -98,7 +104,11 @@ const INCLUDED = [
 export default function LandingPage() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Two independent boxes, top strip and players band. Sharing one state would
+  // mirror keystrokes between them, which reads as a glitch on the way past.
   const [code, setCode] = useState('');
+  const [bandCode, setBandCode] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('jwt_token');
@@ -116,13 +126,11 @@ export default function LandingPage() {
     }
   }, []);
 
-  const onJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = code.trim().toUpperCase();
+  // The join page looks the code up before asking for anything, and handles
+  // signed in, signed out and expired sessions itself.
+  const goToJoin = (raw: string) => {
+    const trimmed = raw.trim().toUpperCase();
     if (!trimmed) return;
-
-    // The join page looks the code up before asking for anything, and handles
-    // signed in, signed out and expired sessions itself.
     router.push(`/join/${encodeURIComponent(trimmed)}`);
   };
 
@@ -133,7 +141,10 @@ export default function LandingPage() {
       {/* ---------------------------------------------------------------- */}
       <div className="sticky top-0 z-50 bg-ink shadow-[0_1px_0_0_rgba(221,225,214,0.18)]">
         <form
-          onSubmit={onJoin}
+          onSubmit={(e) => {
+            e.preventDefault();
+            goToJoin(code);
+          }}
           className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 sm:justify-start sm:gap-4 sm:px-6 sm:py-3"
         >
           <label htmlFor="join-code" className={`${LABEL} text-stock/80`}>
@@ -463,30 +474,81 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Players: a footnote, because by now they have already joined */}
-          <div className="mt-14 border-t border-stock/25 pt-7">
-            <p className={`${EYEBROW} text-stock/60`}>For players</p>
-            <p className="mt-2.5 max-w-lg text-[17px] leading-relaxed text-stock/85">
-              Once you have joined, the app is the easiest way to make your pick and find out
-              whether you survived.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <a
-                href="https://apps.apple.com/gb/app/lms-local/id6755344736"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${LABEL} rounded-sm border border-stock/40 px-4 py-2.5 text-stock/85 transition-colors hover:border-stock hover:text-stock`}
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Players. Their own band rather than a footnote inside the close:  */}
+      {/* light stock between two ink blocks, so the one section addressed  */}
+      {/* to somebody else is the one that visibly changes colour.          */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="border-y border-ink/30 bg-stock-lit">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
+            <div>
+              <p className={`${EYEBROW} text-overprint`}>Not running one &mdash; playing in one?</p>
+              <h2 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
+                Join your competition
+              </h2>
+              <p className="mt-5 max-w-lg text-xl leading-relaxed text-ink">
+                Your organiser will have given you a code, on a poster or in a message. Put it in
+                here and you are on the sheet.
+              </p>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  goToJoin(bandCode);
+                }}
+                className="mt-7 flex flex-wrap items-center gap-3"
               >
-                App Store
-              </a>
-              <a
-                href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${LABEL} rounded-sm border border-stock/40 px-4 py-2.5 text-stock/85 transition-colors hover:border-stock hover:text-stock`}
-              >
-                Google Play
-              </a>
+                <label htmlFor="join-code-band" className="sr-only">
+                  Competition code
+                </label>
+                <input
+                  id="join-code-band"
+                  value={bandCode}
+                  onChange={(e) => setBandCode(e.target.value.toUpperCase())}
+                  placeholder="ENTER CODE"
+                  autoComplete="off"
+                  className="w-44 rounded-sm border border-ink/40 bg-stock px-4 py-3.5 font-data text-lg uppercase tracking-[0.12em] text-ink placeholder:text-ink-fade/70 focus:border-ink focus:outline-none sm:w-56"
+                />
+                <button
+                  type="submit"
+                  className="rounded-sm bg-overprint px-7 py-3.5 font-display text-2xl uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  Join
+                </button>
+              </form>
+              <p className="mt-4 text-[16px] leading-relaxed text-ink-fade">
+                No code yet? Ask whoever is running it &mdash; only they can hand one out.
+              </p>
+            </div>
+
+            <div className="border border-ink/30 bg-stock p-6 sm:p-7">
+              <p className={`${EYEBROW} text-ink-fade`}>Once you are in</p>
+              <p className="mt-3 text-[17px] leading-relaxed text-ink">
+                The app is the easiest way to make your pick each round and find out whether you
+                survived.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <a
+                  href="https://apps.apple.com/gb/app/lms-local/id6755344736"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${LABEL} rounded-sm border border-ink/40 px-4 py-2.5 text-ink transition-colors hover:bg-ink hover:text-stock-lit`}
+                >
+                  App Store
+                </a>
+                <a
+                  href="https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${LABEL} rounded-sm border border-ink/40 px-4 py-2.5 text-ink transition-colors hover:bg-ink hover:text-stock-lit`}
+                >
+                  Google Play
+                </a>
+              </div>
             </div>
           </div>
         </div>
