@@ -7,7 +7,7 @@ link for a competition they are already in, on a phone they have never signed in
 it here first, then change the code to match.
 
 Where the doc and the code disagree, this doc is right and the code is a defect — §7 lists the ones
-already known, and which phase each belongs to. Phases 1 and 2 are done; §9 tracks the rest.
+already known, and which phase each belongs to. Phases 1–3 are done; §9 tracks the rest.
 
 ---
 
@@ -330,7 +330,7 @@ renumbered out of it.
 | 3 | No unique constraint on `invite_code`. Uniqueness relied on a retry loop whose `SELECT` does not lock, so concurrent creations could collide. No duplicates ever existed. | `create-competition.js` | **Fixed** — Phase 1 |
 | 4 | No index on `invite_code`, and the lookup was `WHERE UPPER(invite_code) = $1 OR UPPER(slug) = $1` — a sequential scan with a function, on a public endpoint. | `get-competition-by-code.js`, `join-competition-by-code.js` | **Fixed** — Phase 1 |
 | 5 | The public lookup returned competition name, venue, organiser and player count for started and full competitions, not only open ones. Contradicted §4.3. | `get-competition-by-code.js` | **Fixed** — Phase 2 |
-| 6 | The leaflet instructs players to install the app and type the code — no link, no QR. | `leaflet/[competitionId]/page.tsx:312` | Open — Phase 3 |
+| 6 | The leaflet instructed players to install the app and type the code. Its two QR codes pointed at app stores; `join_url` was fetched but unused. | `leaflet/[competitionId]/page.tsx` | **Fixed** — Phase 3 |
 | 7 | A signed-in player who is already a member still has to press **Join** and wait for `ALREADY_JOINED` before being redirected. Should go straight in. | `join/[code]/page.tsx:366-402` | Open — Phase 4 |
 | 8 | `SETUP → ACTIVE` was written only on organiser dashboard load, so a competition that had started read `SETUP` until its organiser next signed in — indefinitely, if they never did. Admin reporting counts by `status` and undercounted started competitions as a result. | `get-user-dashboard.js` | **Fixed** — Phase 1 |
 | 9 | `load-competition-announcement.js` selected `access_code`, a column that does not exist, so the query threw on every call and no announcement email could be sent. The same path built a join URL as `/competition/{slug}`, a route that does not exist. | `load-competition-announcement.js`, `emailService.js` | **Fixed** in passing — both blocked the `slug` drop. The wider email rewrite is still separate; see §9. |
@@ -436,10 +436,27 @@ Two follow-ons, deliberately not built: nothing tells the organiser in the momen
 pull, not push — it waits for them to log in), and a player who bounces is not offered any way to
 be told when space opens. Both are real, neither is urgent while the numbers are this small.
 
-**Phase 3 — Print and share.** QR code on the leaflet targeting the join URL, with the URL and
-code printed underneath. Same QR on the promote screen for organisers who share digitally. Rewrite
-the leaflet's join instructions away from app-first. Fixes defect 6. *Independent of Phases 1–2 and
-the highest-value work in this doc — the QR points at the code either way.*
+**Phase 3 — Print and share. ✅ DONE.** Fixed defect 6.
+
+The leaflet already generated two QR codes and already fetched `join_url`. The codes pointed at the
+App Store and Google Play; `join_url` was never used. So the sheet's first instruction was
+"Download or open the LMS Local app" — install, register, sign in, then find the code again, four
+things before seeing the competition. On paper it was worse than in principle: two codes side by
+side compete, and scanning the wrong one lands you in an app store with no idea what the
+competition was.
+
+Now one QR, straight to the join page, with the URL printed underneath for anyone who cannot or
+will not scan. Error correction is `H` rather than the default — this ends up creased and
+photographed at an angle in a pub. Instructions are two steps, neither of which is installing
+anything, with the app mentioned in passing for players already in (§5.3).
+
+The same QR is on the promote screen, downloadable as a PNG for organisers who put it on their own
+poster or a pub TV, shown on the same terms as the leaflet link — once joining closes, a QR nobody
+can act on is worse than none.
+
+*Not done:* the generated invitation image (`/api/generate-invite-image`) still carries only the
+code, no QR. A scannable Facebook post is worth more than a typed code, but it is server-side image
+generation and a separate piece of work.
 
 **Phase 4 — The join page, rebuilt.** One resolver, the §8 matrix, auth forms extracted from the
 page component. Single-request join for both new and returning accounts, which means register must
