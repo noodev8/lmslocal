@@ -11,6 +11,7 @@ import {
   PrinterIcon,
   PhotoIcon
 } from '@heroicons/react/24/outline';
+import QRCode from 'qrcode';
 import { promoteApi, roundApi, fixtureApi, Round } from '@/lib/api';
 import { templates, replaceTemplateVariables, Template } from '@/lib/templates';
 import { useToast, ToastContainer } from '@/components/Toast';
@@ -112,6 +113,10 @@ export default function PromotePage() {
   const [generatingInviteImage, setGeneratingInviteImage] = useState(false);
   const [inviteImagePreviewUrl, setInviteImagePreviewUrl] = useState<string | null>(null);
 
+  // Join QR code. Generated in the browser from the join URL - no server round trip, and it
+  // stays correct automatically because it is built from the same join_url the templates use.
+  const [joinQrCodeUrl, setJoinQrCodeUrl] = useState<string>('');
+
   const { toasts, showToast, removeToast } = useToast();
 
   useEffect(() => {
@@ -137,6 +142,21 @@ export default function PromotePage() {
             template_context: response.data.template_context!
           });
           setError(null);
+
+          // 'H' error correction because this ends up printed, screenshotted and photographed
+          // off a screen rather than scanned from a pristine display.
+          try {
+            setJoinQrCodeUrl(await QRCode.toDataURL(response.data.competition!.join_url, {
+              width: 600,
+              margin: 2,
+              errorCorrectionLevel: 'H',
+              color: { dark: '#000000', light: '#FFFFFF' }
+            }));
+          } catch (qrError) {
+            // The URL is shown beside it, so a missing QR costs the organiser a convenience
+            // rather than the ability to share.
+            console.error('Error generating join QR code:', qrError);
+          }
         } else {
           setError(response.data.message || 'Failed to load promotion data');
         }
@@ -393,6 +413,29 @@ export default function PromotePage() {
     setImagePreviewUrl(null);
   };
 
+  const handleDownloadJoinQr = () => {
+    if (!joinQrCodeUrl || !data) return;
+
+    const link = document.createElement('a');
+    link.href = joinQrCodeUrl;
+    link.download = `${data.competition.name}-Join-QR.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast('QR code downloaded', 'success');
+  };
+
+  const handleCopyJoinUrl = async () => {
+    if (!data) return;
+    try {
+      await navigator.clipboard.writeText(data.competition.join_url);
+      showToast('Join link copied', 'success');
+    } catch {
+      showToast('Could not copy the link', 'error');
+    }
+  };
+
   const handleDownloadInviteImage = () => {
     if (!inviteImagePreviewUrl || !data) return;
 
@@ -499,6 +542,59 @@ export default function PromotePage() {
               <PrinterIcon className="h-4 w-4" />
               View &amp; print
             </Link>
+          </div>
+        )}
+
+        {/*
+          Join QR - shown on the same terms as the leaflet, because it is the same artifact in a
+          different form: something an organiser sticks on their own poster, puts on the pub TV,
+          or posts to Facebook. Hidden once joining closes, since a QR nobody can act on is worse
+          than none.
+        */}
+        {(!data.current_round ||
+          (data.current_round.round_number === 1 && !data.current_round.is_locked) ||
+          data.current_round.round_number < 1) && (
+          <div className={`${PANEL} p-5 sm:p-6`}>
+            <p className={`${HEADING} text-xl`}>Join QR code</p>
+            <p className="mt-1 text-[14px] text-ink-fade">Put it on a poster, a screen, or a social post</p>
+
+            <div className="mt-4 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+              <div className="border border-ink/30 bg-white p-3">
+                {joinQrCodeUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={joinQrCodeUrl} alt="QR code to join this competition" className="h-[160px] w-[160px]" />
+                ) : (
+                  <div className="h-[160px] w-[160px] animate-pulse bg-ink/10" />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className={`${LABEL} text-ink-fade`}>Scanning it opens</p>
+                <p className="mt-1 break-all font-data text-[15px] text-ink">{data.competition.join_url}</p>
+                <p className="mt-3 text-[14px] text-ink-fade">
+                  Anyone who scans goes straight to the join page — no code to type, no app to
+                  install.
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={handleDownloadJoinQr}
+                    disabled={!joinQrCodeUrl}
+                    className={`${BTN_DARK} inline-flex items-center gap-2 px-5 py-2.5 text-base disabled:opacity-50`}
+                  >
+                    <PhotoIcon className="h-4 w-4" />
+                    Download QR
+                  </button>
+                  <button
+                    onClick={handleCopyJoinUrl}
+                    className={`${BTN_OUTLINE} inline-flex items-center gap-2 px-5 py-2.5 text-base`}
+                  >
+                    <ClipboardDocumentIcon className="h-4 w-4" />
+                    Copy link
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

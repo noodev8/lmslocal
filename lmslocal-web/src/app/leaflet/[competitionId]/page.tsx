@@ -21,10 +21,6 @@ interface LeafletData {
   };
 }
 
-// App store URLs
-const IOS_APP_URL = 'https://apps.apple.com/gb/app/lms-local/id6755344736';
-const ANDROID_APP_URL = 'https://play.google.com/store/apps/details?id=uk.co.lmslocal.lmslocal_flutter';
-
 export default function LeafletPage() {
   const params = useParams();
   const router = useRouter();
@@ -33,8 +29,7 @@ export default function LeafletPage() {
   const [data, setData] = useState<LeafletData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [iosQrCodeUrl, setIosQrCodeUrl] = useState<string>('');
-  const [androidQrCodeUrl, setAndroidQrCodeUrl] = useState<string>('');
+  const [joinQrCodeUrl, setJoinQrCodeUrl] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,33 +54,31 @@ export default function LeafletPage() {
           };
           setData(leafletData);
 
-          // Generate QR codes for both app stores
+          // One QR code, and it goes straight to the join page.
+          //
+          // This used to be two, both pointing at app stores. That made the leaflet's first ask
+          // "install an app" - the highest-friction path in the system, aimed at the least patient
+          // audience, and on a printed sheet the two codes competed: scan the wrong one and you
+          // land in an app store with no idea what the competition was. See §5.3 of
+          // docs/player-onboarding.md.
+          //
+          // Error correction is bumped to 'H' because this ends up on paper in a pub, where it
+          // will be creased, smudged and photographed at an angle.
           try {
-            // iOS App Store QR code
-            const iosDataUrl = await QRCode.toDataURL(IOS_APP_URL, {
+            const joinDataUrl = await QRCode.toDataURL(response.data.competition.join_url, {
               width: 400,
               margin: 2,
+              errorCorrectionLevel: 'H',
               color: {
                 dark: '#000000',
                 light: '#FFFFFF'
               }
             });
-            setIosQrCodeUrl(iosDataUrl);
-
-            // Android Play Store QR code
-            const androidDataUrl = await QRCode.toDataURL(ANDROID_APP_URL, {
-              width: 400,
-              margin: 2,
-              color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-              }
-            });
-            setAndroidQrCodeUrl(androidDataUrl);
-
-            console.log('QR Codes generated successfully');
+            setJoinQrCodeUrl(joinDataUrl);
           } catch (qrError) {
-            console.error('Error generating QR codes:', qrError);
+            // The URL and code are printed underneath, so a missing QR is a degraded leaflet
+            // rather than a useless one.
+            console.error('Error generating join QR code:', qrError);
           }
 
           setError(null);
@@ -240,52 +233,23 @@ export default function LeafletPage() {
             )}
           </div>
 
-          {/* Download App Section - Full Width with Two QR Codes */}
+          {/* Join Section - one QR, straight to the join page */}
           <div className="border-4 border-gray-900 p-4 bg-gray-50 mb-4">
-            <h3 className="text-2xl font-black text-gray-900 mb-3 uppercase text-center">Download the App</h3>
+            <h3 className="text-2xl font-black text-gray-900 mb-3 uppercase text-center">Scan to Join</h3>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* iOS QR Code */}
-              <div className="flex flex-col items-center">
-                <div className="border-2 border-gray-300 p-3 bg-white rounded-lg mb-2">
-                  {iosQrCodeUrl ? (
-                    <Image src={iosQrCodeUrl} alt="iOS App Store QR Code" width={140} height={140} className="mx-auto" unoptimized />
-                  ) : (
-                    <div className="w-[140px] h-[140px] bg-gray-200 animate-pulse mx-auto"></div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Apple Logo SVG */}
-                  <svg className="w-6 h-6" viewBox="0 0 384 512" fill="currentColor">
-                    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-                  </svg>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">iPhone / iPad</p>
-                    <p className="text-xs text-gray-500">App Store</p>
-                  </div>
-                </div>
+            <div className="flex flex-col items-center">
+              <div className="border-2 border-gray-300 p-3 bg-white rounded-lg mb-3">
+                {joinQrCodeUrl ? (
+                  <Image src={joinQrCodeUrl} alt="QR code to join this competition" width={200} height={200} className="mx-auto" unoptimized />
+                ) : (
+                  <div className="w-[200px] h-[200px] bg-gray-200 animate-pulse mx-auto"></div>
+                )}
               </div>
 
-              {/* Android QR Code */}
-              <div className="flex flex-col items-center">
-                <div className="border-2 border-gray-300 p-3 bg-white rounded-lg mb-2">
-                  {androidQrCodeUrl ? (
-                    <Image src={androidQrCodeUrl} alt="Google Play QR Code" width={140} height={140} className="mx-auto" unoptimized />
-                  ) : (
-                    <div className="w-[140px] h-[140px] bg-gray-200 animate-pulse mx-auto"></div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Google Play Logo SVG */}
-                  <svg className="w-6 h-6" viewBox="0 0 512 512" fill="currentColor">
-                    <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/>
-                  </svg>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">Android</p>
-                    <p className="text-xs text-gray-500">Google Play</p>
-                  </div>
-                </div>
-              </div>
+              {/* Printed underneath so the leaflet still works for anyone who cannot or will not
+                  scan - an older phone, a bad camera, or simple suspicion of QR codes. */}
+              <p className="text-sm text-gray-600 mb-1">Or go to</p>
+              <p className="text-lg font-bold text-gray-900 break-all text-center">{data.competition.join_url}</p>
             </div>
           </div>
 
@@ -299,23 +263,28 @@ export default function LeafletPage() {
               </p>
             </div>
 
-            {/* Join Instructions */}
+            {/*
+              Two steps, and neither is "install something". The old first step was download the
+              app, which meant install, register, sign in, then find the code again - four things
+              before seeing the competition. The web join needs none of them; the app is for
+              players who are already in. See §5.3 of docs/player-onboarding.md.
+            */}
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-gray-900 uppercase">How to Join</h3>
               <ol className="space-y-3 text-base text-gray-700">
                 <li className="flex items-start">
                   <span className="font-bold mr-2 text-gray-900">1.</span>
-                  <span>Download or open the <strong>LMS Local</strong> app</span>
+                  <span>Scan the code above, or type the address into your phone</span>
                 </li>
                 <li className="flex items-start">
                   <span className="font-bold mr-2 text-gray-900">2.</span>
-                  <span>Tap <strong>Join Competition</strong>, enter code: <strong className="text-lg">{data.competition.invite_code}</strong></span>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold mr-2 text-gray-900">3.</span>
-                  <span>Tap <strong>PLAY</strong> to start!</span>
+                  <span>Pick your team each week before kick-off</span>
                 </li>
               </ol>
+              <p className="text-sm text-gray-500 pt-1">
+                Nothing to type in if you scan. Playing already? The <strong>LMS Local</strong> app
+                is on the App Store and Google Play.
+              </p>
             </div>
           </div>
 
@@ -440,48 +409,18 @@ export default function LeafletPage() {
             )}
           </div>
 
-          {/* Download App Section - Full Width with Two QR Codes */}
+          {/* Join Section - one QR, straight to the join page (print) */}
           <div className="border-4 border-gray-900 p-4 bg-gray-50 mb-4">
-            <h3 className="text-2xl font-black text-gray-900 mb-3 uppercase text-center">Download the App</h3>
+            <h3 className="text-2xl font-black text-gray-900 mb-3 uppercase text-center">Scan to Join</h3>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* iOS QR Code */}
-              <div className="flex flex-col items-center">
-                <div className="border-2 border-gray-300 p-3 bg-white rounded-lg mb-2">
-                  {iosQrCodeUrl && (
-                    <Image src={iosQrCodeUrl} alt="iOS App Store QR Code" width={140} height={140} className="mx-auto" unoptimized />
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Apple Logo SVG */}
-                  <svg className="w-6 h-6" viewBox="0 0 384 512" fill="currentColor">
-                    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-                  </svg>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">iPhone / iPad</p>
-                    <p className="text-xs text-gray-500">App Store</p>
-                  </div>
-                </div>
+            <div className="flex flex-col items-center">
+              <div className="border-2 border-gray-300 p-3 bg-white rounded-lg mb-3">
+                {joinQrCodeUrl && (
+                  <Image src={joinQrCodeUrl} alt="QR code to join this competition" width={200} height={200} className="mx-auto" unoptimized />
+                )}
               </div>
-
-              {/* Android QR Code */}
-              <div className="flex flex-col items-center">
-                <div className="border-2 border-gray-300 p-3 bg-white rounded-lg mb-2">
-                  {androidQrCodeUrl && (
-                    <Image src={androidQrCodeUrl} alt="Google Play QR Code" width={140} height={140} className="mx-auto" unoptimized />
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Google Play Logo SVG */}
-                  <svg className="w-6 h-6" viewBox="0 0 512 512" fill="currentColor">
-                    <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/>
-                  </svg>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">Android</p>
-                    <p className="text-xs text-gray-500">Google Play</p>
-                  </div>
-                </div>
-              </div>
+              <p className="text-sm text-gray-600 mb-1">Or go to</p>
+              <p className="text-lg font-bold text-gray-900 break-all text-center">{data.competition.join_url}</p>
             </div>
           </div>
 
@@ -495,23 +434,28 @@ export default function LeafletPage() {
               </p>
             </div>
 
-            {/* Join Instructions */}
+            {/*
+              Two steps, and neither is "install something". The old first step was download the
+              app, which meant install, register, sign in, then find the code again - four things
+              before seeing the competition. The web join needs none of them; the app is for
+              players who are already in. See §5.3 of docs/player-onboarding.md.
+            */}
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-gray-900 uppercase">How to Join</h3>
               <ol className="space-y-3 text-base text-gray-700">
                 <li className="flex items-start">
                   <span className="font-bold mr-2 text-gray-900">1.</span>
-                  <span>Download or open the <strong>LMS Local</strong> app</span>
+                  <span>Scan the code above, or type the address into your phone</span>
                 </li>
                 <li className="flex items-start">
                   <span className="font-bold mr-2 text-gray-900">2.</span>
-                  <span>Tap <strong>Join Competition</strong>, enter code: <strong className="text-lg">{data.competition.invite_code}</strong></span>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold mr-2 text-gray-900">3.</span>
-                  <span>Tap <strong>PLAY</strong> to start!</span>
+                  <span>Pick your team each week before kick-off</span>
                 </li>
               </ol>
+              <p className="text-sm text-gray-500 pt-1">
+                Nothing to type in if you scan. Playing already? The <strong>LMS Local</strong> app
+                is on the App Store and Google Play.
+              </p>
             </div>
           </div>
 
