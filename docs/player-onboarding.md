@@ -6,8 +6,8 @@ This doc is the contract. When a new scenario turns up ("what does a player see 
 link for a competition they are already in, on a phone they have never signed in on?"), answer
 it here first, then change the code to match.
 
-The current implementation predates the thinking in this doc. Where the two disagree, this doc
-is right and the code is a defect — §7 lists the ones already known.
+Where the doc and the code disagree, this doc is right and the code is a defect — §7 lists the ones
+already known, and which phase each belongs to. Phase 1 is deployed; §9 tracks the rest.
 
 ---
 
@@ -56,7 +56,7 @@ in having two.
 
 | Property | Rule |
 |---|---|
-| **Shape** | Digits. 4 for competitions created before the change, 5 from then on. Exact-match lookup, so mixed lengths coexist with no migration. |
+| **Shape** | 4 digits today. Phase 5 moves new competitions to 5; matching is exact so mixed lengths will coexist with no migration. |
 | **Generated** | Automatically at creation, exactly as now. The organiser is never asked and never sees a decision. |
 | **Unique** | Across all *existing* competitions, enforced by a database constraint, not a retry loop. |
 | **Lifetime** | Permanent for the life of the competition. **Never nulled.** |
@@ -127,9 +127,10 @@ after lock.
 
 So the gate computes the condition live from round 1's lock time, per the table above, and treats
 `status` as a denormalised mirror for display and reporting. Same rule, two representations, only
-one of them trustworthy at any given instant. The nightly sweep (§9, Phase 1) shrinks the window of
-disagreement from "until the organiser next logs in" to "at most a day", which matters for admin
-reporting — but it never makes the column safe to gate on, and no amount of scheduling would.
+one of them trustworthy at any given instant. The nightly sweep
+(`scripts/sync-competition-status.js`) shrinks the window of disagreement from "until the organiser
+next logs in" to "at most a day", which matters for admin reporting — but it never makes the column
+safe to gate on, and no amount of scheduling would.
 
 ### 4.3 A closed competition reveals nothing
 
@@ -282,20 +283,34 @@ watching for it — and it buys that by adding a scheduled job. It is the worst 
 
 ---
 
-## 7. Known defects in the current implementation
+## 7. Known defects
 
-| # | Defect | Location |
-|---|---|---|
-| 1 | `invite_code IS NULL` is overloaded as the "has started" flag, which is why the code is nulled at all. One field, two meanings, and the root of the rejected redesign. There is exactly **one** reader — the guard on changing `lives_per_player` and `no_team_twice` — so this needs no new column, only that line computing from round 1's lock time like everything else does. | `update-competition.js:246`, `get-user-dashboard.js:334-335` |
-| 2 | Register issues no token, so joining is three sequential requests: register, login, join. If register succeeds and login drops, the player has an account and is not in the competition. Recovery works but is confusing — retrying returns `EMAIL_EXISTS`, which switches them to the sign-in form and tells them an account already exists, seconds after they created it. | `join/[code]/page.tsx:175-212`, `register.js:193` |
-| 3 | No unique constraint on `invite_code`. Uniqueness relies on a retry loop whose `SELECT` does not lock, so concurrent creations can collide. No duplicates exist today. | `create-competition.js:197-221` |
-| 4 | No index on `invite_code`, and the lookup is `WHERE UPPER(invite_code) = $1 OR UPPER(slug) = $1` — a sequential scan with a function, on a public endpoint. | `get-competition-by-code.js:103`, `join-competition-by-code.js:93` |
-| 5 | The public lookup returns competition name, venue, organiser and player count for started and full competitions, not only open ones. Contradicts §4.3. | `get-competition-by-code.js:144-160` |
-| 6 | The leaflet instructs players to install the app and type the code — no link, no QR. | `leaflet/[competitionId]/page.tsx:312` |
-| 7 | A signed-in player who is already a member still has to press **Join** and wait for `ALREADY_JOINED` before being redirected. Should go straight in. | `join/[code]/page.tsx:366-402` |
-| 8 | `SETUP → ACTIVE` is written only on organiser dashboard load, so a competition that has started reads `SETUP` until its organiser next signs in — indefinitely, if they never do. Admin reporting counts by `status` and undercounts started competitions as a result. | `get-user-dashboard.js:334` |
-| 9 | `load-competition-announcement.js` selects `access_code`, a column that does not exist, so the query throws on every call and the announcement email cannot be sent. The same path builds a join URL as `/competition/{slug}`, a route that does not exist. | `load-competition-announcement.js:79`, `emailService.js:1335` |
-| 10 | `competition_user` carries five overlapping indexes on `(competition_id)` and `(competition_id, user_id)`. Harmless but wasteful on write. | schema |
+Numbers are stable and referenced from §9. Fixed entries stay in the table rather than being
+renumbered out of it.
+
+| # | Defect | Location | Status |
+|---|---|---|---|
+| 1 | `invite_code IS NULL` is overloaded as the "has started" flag, which is why the code is nulled at all. One field, two meanings, and the root of the rejected redesign. There was exactly **one** reader — the guard on changing `lives_per_player` and `no_team_twice` — so this needed no new column, only that line computing from round 1's lock time like everything else does. | `update-competition.js`, `get-user-dashboard.js` | **Fixed** — Phase 1 |
+| 2 | Register issues no token, so joining is three sequential requests: register, login, join. If register succeeds and login drops, the player has an account and is not in the competition. Recovery works but is confusing — retrying returns `EMAIL_EXISTS`, which switches them to the sign-in form and tells them an account already exists, seconds after they created it. | `join/[code]/page.tsx:175-212`, `register.js:193` | Open — Phase 4 |
+| 3 | No unique constraint on `invite_code`. Uniqueness relied on a retry loop whose `SELECT` does not lock, so concurrent creations could collide. No duplicates ever existed. | `create-competition.js` | **Fixed** — Phase 1 |
+| 4 | No index on `invite_code`, and the lookup was `WHERE UPPER(invite_code) = $1 OR UPPER(slug) = $1` — a sequential scan with a function, on a public endpoint. | `get-competition-by-code.js`, `join-competition-by-code.js` | **Fixed** — Phase 1 |
+| 5 | The public lookup returns competition name, venue, organiser and player count for started and full competitions, not only open ones. Contradicts §4.3. | `get-competition-by-code.js:144-160` | Open — Phase 2 |
+| 6 | The leaflet instructs players to install the app and type the code — no link, no QR. | `leaflet/[competitionId]/page.tsx:312` | Open — Phase 3 |
+| 7 | A signed-in player who is already a member still has to press **Join** and wait for `ALREADY_JOINED` before being redirected. Should go straight in. | `join/[code]/page.tsx:366-402` | Open — Phase 4 |
+| 8 | `SETUP → ACTIVE` was written only on organiser dashboard load, so a competition that had started read `SETUP` until its organiser next signed in — indefinitely, if they never did. Admin reporting counts by `status` and undercounted started competitions as a result. | `get-user-dashboard.js` | **Fixed** — Phase 1 |
+| 9 | `load-competition-announcement.js` selected `access_code`, a column that does not exist, so the query threw on every call and no announcement email could be sent. The same path built a join URL as `/competition/{slug}`, a route that does not exist. | `load-competition-announcement.js`, `emailService.js` | **Fixed** in passing — both blocked the `slug` drop. The wider email rewrite is still separate; see §9. |
+| 10 | `competition_user` carries five overlapping indexes on `(competition_id)` and `(competition_id, user_id)`. Harmless but wasteful on write. | schema | Open — Phase 7 |
+
+### 7.1 Dead code found alongside, deliberately left
+
+- `emailService.js` exports `sendPlayerMagicLink`, which nothing calls. It belongs to the
+  magic-link approach ruled out in §5.4.
+- `api.ts` exports a whole `playerApi` block — `player-login`, `join-competition-by-slug`,
+  `register-and-join-competition`. All three routes are commented out in `server.js` and nothing
+  in the frontend imports it.
+
+Neither blocks anything. Removing them is a decision about the parked magic-link question, not
+about onboarding.
 
 ---
 
@@ -322,30 +337,45 @@ drop-off — they had already decided to join.
 
 Ordered by friction removed per unit of work. Each phase is independently shippable.
 
-**Phase 1 — Make the code durable.** Fixes defects 1, 3, 4, 8.
+**Phase 1 — Make the code durable. ✅ DONE, deployed 7 Aug 2026** (`56c8fa7`, `cd3b1fc`).
+Fixed defects 1, 3, 4, 8, and 9 in passing.
 
-1. **One unique functional index**, `UNIQUE (UPPER(invite_code))`, created `CONCURRENTLY`. This
+1. **One unique functional index**, `idx_competition_invite_code` on `UPPER(invite_code)`. This
    single object does uniqueness *and* serves the existing `WHERE UPPER(invite_code) = $1` lookup,
-   so no query has to change. `UPPER()` is deliberately **kept**, not dropped: it is a no-op on
+   so no query had to change. `UPPER()` is deliberately **kept**, not dropped: it is a no-op on
    today's all-digit codes, but the field is free to hold `REDBARN25` one day and case-insensitive
    matching should not have to be reintroduced when it does. Case-insensitive uniqueness also stops
-   `REDBARN25` and `redbarn25` coexisting.
+   `REDBARN25` and `redbarn25` coexisting. Built without `CONCURRENTLY` — at 16 rows the write lock
+   is milliseconds, and `db/write.js` wraps everything in one transaction, which `CONCURRENTLY`
+   cannot run inside.
 2. **The constraint is a backstop, not a gate.** `create-competition.js` keeps its retry loop and
-   additionally catches `23505`, treating it as "that code went, pick another". The race the
+   catches `23505` on that index, treating it as "that code went, pick another". The race the
    constraint closes must never surface to an organiser as a failed creation — that would be a
-   worse defect than the one being fixed.
-3. **`update-competition.js:246` computes hasStarted from round 1's lock time** instead of reading
-   a nulled code. One line, no new column.
-4. **Stop nulling `invite_code`.** The guard at `get-user-dashboard.js:335` is currently doing
-   double duty as "has not transitioned yet", so it becomes `AND status = 'SETUP'` or the update
-   fires forever. Any UI that offers to share the code must key off status rather than the code's
-   existence, or it will invite sharing for a competition nobody can join.
-5. **Drop the `slug` column** and the `OR` branch in both resolvers.
-6. **A nightly status sweep**, `POST /sync-competition-status`, behind `verifyServiceToken` per
-   `middleware/service-auth.js` and mounted with the middleware visible in `server.js`. Run at
-   01:00 by the same scheduler that drives the email pipeline. It sets `ACTIVE` on any `SETUP`
-   competition whose round 1 lock time has passed. This is a *reporting* fix — see §4.2 for why the
-   join gate still must not read the column.
+   worse defect than the one being fixed. The `INSERT` sits inside a `SAVEPOINT`, which is
+   load-bearing rather than tidy: a constraint violation aborts the enclosing transaction, so
+   without one every statement after the first collision fails and the retry is decorative.
+3. **`update-competition.js` computes hasStarted from round 1's lock time** instead of reading a
+   nulled code. No new column.
+4. **Stopped nulling `invite_code`.** The guard in `get-user-dashboard.js` was doing double duty as
+   "has not transitioned yet" and became `AND status = 'SETUP'`. The candidate filter moved from
+   the code's presence to `status === 'SETUP'` for the same reason — with the code never
+   disappearing, filtering on it would stop narrowing anything and re-check round 1 for every
+   competition on every dashboard load, finished ones included.
+   **Still to check:** any UI offering to share the code must key off status, or it will invite
+   sharing for a competition nobody can join. Not audited.
+5. **Dropped the `slug` column** and every read of it. Done as a separate step *after* the code
+   deploy: five routes selected it, including `get-user-dashboard`, so dropping first would have
+   taken down the dashboard for every user.
+6. **A nightly status sweep**, `scripts/sync-competition-status.js`, run by the VPS crontab at
+   `30 3 * * *` (04:30 BST — the server clock is GMT). A script rather than a scheduled HTTP call
+   because every other cron job on that box is `cd /apps/production/<app> && node scripts/<x>.js`
+   and none use curl. `POST /sync-competition-status` survives as an on-demand trigger behind
+   `verifyServiceToken`; both call `services/competitionStatus.js` so they cannot drift. It sets
+   `ACTIVE` on any `SETUP` competition whose round 1 lock time has passed. This is a *reporting*
+   fix — see §4.2 for why the join gate still must not read the column.
+
+*Nothing was eligible for promotion at deploy time — the earliest round 1 lock was 20 Aug 2026 — so
+the sweep's first runs correctly report nothing. A quiet run is the normal case, not a fault.*
 
 **Phase 2 — Close the lookup.** Return competition details only when the gate says open; one
 generic message for every closed case. Fixes defect 5.
@@ -369,8 +399,9 @@ competition.
 
 **Phase 7 — Tidy.** Drop the duplicate `competition_user` indexes. Fixes defect 10.
 
-Defect 9 sits outside this plan: the announcement email path is being replanned and rewritten
-separately. It is recorded here because it lives in the invite path, not because this doc owns it.
+The announcement email path is being replanned and rewritten separately. Defect 9 was fixed only
+because it blocked the `slug` drop — that route now runs at all, which it previously could not.
+Nothing further about that path is owned by this doc.
 
 ---
 
