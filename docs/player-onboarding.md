@@ -7,7 +7,7 @@ link for a competition they are already in, on a phone they have never signed in
 it here first, then change the code to match.
 
 Where the doc and the code disagree, this doc is right and the code is a defect — §7 lists the ones
-already known, and which phase each belongs to. Phase 1 is deployed; §9 tracks the rest.
+already known, and which phase each belongs to. Phases 1 and 2 are done; §9 tracks the rest.
 
 ---
 
@@ -82,12 +82,14 @@ Finished competitions are deleted as a matter of routine, so the code space is b
 number of competitions **alive at once**, not by the number ever created. Five digits gives 90,000
 of those. The pool does not need recycling to survive, which is what makes §3.1 affordable.
 
-### 3.3 The `slug` column is dead
+### 3.3 The `slug` column is gone
 
-`competition.slug` exists, is `NULL` on every row, and was the intended second identity under the
-rejected design. Nothing reads it except the resolver's `OR` branch and
-`get-promote-data.js`'s `join_url` fallback. It should be dropped, and the resolver reduced to
-matching one column.
+`competition.slug` was the intended second identity under the rejected design. It was `NULL` on
+every row for its whole existence, and was dropped in Phase 1 along with every read of it. The
+resolver matches one column.
+
+Recorded because the name still appears in `emailService.js`'s unused `sendPlayerMagicLink` and in
+the dead `playerApi` block (§7.1), where it is a function argument rather than the column.
 
 ---
 
@@ -294,7 +296,7 @@ renumbered out of it.
 | 2 | Register issues no token, so joining is three sequential requests: register, login, join. If register succeeds and login drops, the player has an account and is not in the competition. Recovery works but is confusing — retrying returns `EMAIL_EXISTS`, which switches them to the sign-in form and tells them an account already exists, seconds after they created it. | `join/[code]/page.tsx:175-212`, `register.js:193` | Open — Phase 4 |
 | 3 | No unique constraint on `invite_code`. Uniqueness relied on a retry loop whose `SELECT` does not lock, so concurrent creations could collide. No duplicates ever existed. | `create-competition.js` | **Fixed** — Phase 1 |
 | 4 | No index on `invite_code`, and the lookup was `WHERE UPPER(invite_code) = $1 OR UPPER(slug) = $1` — a sequential scan with a function, on a public endpoint. | `get-competition-by-code.js`, `join-competition-by-code.js` | **Fixed** — Phase 1 |
-| 5 | The public lookup returns competition name, venue, organiser and player count for started and full competitions, not only open ones. Contradicts §4.3. | `get-competition-by-code.js:144-160` | Open — Phase 2 |
+| 5 | The public lookup returned competition name, venue, organiser and player count for started and full competitions, not only open ones. Contradicted §4.3. | `get-competition-by-code.js` | **Fixed** — Phase 2 |
 | 6 | The leaflet instructs players to install the app and type the code — no link, no QR. | `leaflet/[competitionId]/page.tsx:312` | Open — Phase 3 |
 | 7 | A signed-in player who is already a member still has to press **Join** and wait for `ALREADY_JOINED` before being redirected. Should go straight in. | `join/[code]/page.tsx:366-402` | Open — Phase 4 |
 | 8 | `SETUP → ACTIVE` was written only on organiser dashboard load, so a competition that had started read `SETUP` until its organiser next signed in — indefinitely, if they never did. Admin reporting counts by `status` and undercounted started competitions as a result. | `get-user-dashboard.js` | **Fixed** — Phase 1 |
@@ -377,8 +379,23 @@ Fixed defects 1, 3, 4, 8, and 9 in passing.
 *Nothing was eligible for promotion at deploy time — the earliest round 1 lock was 20 Aug 2026 — so
 the sweep's first runs correctly report nothing. A quiet run is the normal case, not a fault.*
 
-**Phase 2 — Close the lookup.** Return competition details only when the gate says open; one
-generic message for every closed case. Fixes defect 5.
+**Phase 2 — Close the lookup. ✅ DONE.** Fixed defect 5.
+
+`get-competition-by-code` now returns `COMPETITION_NOT_FOUND` with no competition object for
+started, full *and* nonexistent codes alike. `can_join`, `closed_reason` and `status` are gone from
+the response: the reason is still computed, just never sent, because a discriminator is the whole
+vulnerability. The frontend's `closed` stage was deleted rather than rewired — with the server
+silent there is nothing to render — and the `not-found` copy now has to stay true of all three
+cases, so it says nothing is *open* under this code rather than that no such competition exists.
+
+Phase 1 made this urgent rather than merely planned. Nulling the code at lock had been dropping
+started competitions out of this lookup as a side effect; competitions 149, 167, 161 and 168 are
+the last that will ever have that. With codes now permanent, the set of matchable rows only grows,
+so returning nothing when closed is the only thing keeping them private.
+
+`FULL` is logged server-side (`console.warn`, with competition and organiser id). The generic
+response means an organiser who is losing players to their credit limit will never hear it from
+the player, and until they can be notified properly that log is the only trace.
 
 **Phase 3 — Print and share.** QR code on the leaflet targeting the join URL, with the URL and
 code printed underneath. Same QR on the promote screen for organisers who share digitally. Rewrite

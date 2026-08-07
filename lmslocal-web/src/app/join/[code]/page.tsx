@@ -20,17 +20,22 @@ import { LABEL, EYEBROW } from '@/lib/design';
  * the code still safe in the URL.
  */
 
+/** Only ever returned for a competition that is open to join - see get-competition-by-code. */
 type Competition = {
   id: number;
   name: string;
   venue_name: string | null;
   organiser_name: string | null;
   player_count: number;
-  can_join: boolean;
-  closed_reason: string | null;
 };
 
-type Stage = 'looking-up' | 'not-found' | 'closed' | 'ready' | 'lookup-failed';
+/**
+ * There is no 'closed' stage. A competition that has started or is full comes back from the
+ * lookup as COMPETITION_NOT_FOUND with no detail, so it lands on 'not-found' along with a typo.
+ * That is deliberate: telling the two apart would turn the code space into a directory of every
+ * venue on the platform. See §4.3 of docs/player-onboarding.md.
+ */
+type Stage = 'looking-up' | 'not-found' | 'ready' | 'lookup-failed';
 
 /** 'navigating' means a full page load is already under way — leave the button busy. */
 type JoinOutcome = 'navigating' | 'signed-out' | 'failed';
@@ -91,8 +96,9 @@ export default function JoinPage() {
         if (cancelled) return;
 
         if (res.data.return_code === 'SUCCESS' && res.data.competition) {
+          // SUCCESS is only ever returned for a competition that can still be joined.
           setCompetition(res.data.competition);
-          setStage(res.data.competition.can_join ? 'ready' : 'closed');
+          setStage('ready');
         } else if (res.data.return_code === 'COMPETITION_NOT_FOUND') {
           setStage('not-found');
         } else {
@@ -260,12 +266,17 @@ export default function JoinPage() {
         <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
           {notFound ? 'That code is not working' : 'We could not check that code'}
         </h1>
+        {/*
+          One message covers a typo, a competition that has started, and one that is full. The
+          server does not tell us which, on purpose (§4.3), so this copy must stay true of all
+          three: it says nothing is open under this code, not that no such competition exists.
+        */}
         <p className="mt-6 max-w-lg text-xl leading-relaxed text-ink">
           {notFound ? (
             <>
               Nothing is open under <span className="font-data font-bold">{code || '—'}</span>.
-              Either it has been typed wrong, or that competition has already started — codes stop
-              working the moment round one locks.
+              It may have been typed wrong, or that competition may already be under way — codes
+              stop letting people in once round one locks.
             </>
           ) : (
             'Something went wrong at our end, not yours. Give it a moment and try again.'
@@ -273,7 +284,7 @@ export default function JoinPage() {
         </p>
         <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-fade">
           {notFound
-            ? 'Worth checking with whoever gave it to you. Nothing has been created and no account was set up.'
+            ? 'Ask whoever gave it to you — they will know which it is, and when the next one opens. Nothing has been created and no account was set up.'
             : 'Nothing has been created and no account was set up.'}
         </p>
         <div className="mt-8">
@@ -282,42 +293,6 @@ export default function JoinPage() {
             className="inline-block rounded-sm bg-overprint px-7 py-3.5 font-display text-2xl uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             Try another code
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (stage === 'closed' && competition) {
-    const isFull = competition.closed_reason === 'FULL';
-    const organiser = competition.organiser_name ?? 'your organiser';
-    return shell(
-      <div>
-        <p className={`${EYEBROW} text-overprint`}>{isFull ? 'No room' : 'Closed'}</p>
-        <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
-          {isFull ? `${competition.name} is full` : `${competition.name} has started`}
-        </h1>
-        <p className="mt-6 max-w-lg text-xl leading-relaxed text-ink">
-          {isFull ? (
-            <>
-              {organiser} has taken on as many players as their competitions can hold at the moment.
-              Let them know you are trying to join — they can make room from their end.
-            </>
-          ) : (
-            <>
-              Round one has locked, so nobody else can join this one. Ask {organiser} to let you
-              know when the next competition opens.
-            </>
-          )}
-        </p>
-        {isFull && (
-          <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-fade">
-            Nothing has gone wrong at your end, and no account has been created.
-          </p>
-        )}
-        <div className="mt-8">
-          <Link href="/" className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px]`}>
-            Back to LMSLocal
           </Link>
         </div>
       </div>

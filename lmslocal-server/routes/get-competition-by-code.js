@@ -14,14 +14,26 @@ Purpose: Public lookup of a competition from its invite code, so the /join/[code
          competition name, the venue, the organiser's display name and how many are playing. No
          player names, no contact details, no invite code echoed back.
 
+         AND ONLY WHEN THE COMPETITION IS OPEN TO NEW PLAYERS. A competition that has started, is
+         full, or does not exist all produce the same COMPETITION_NOT_FOUND with no detail
+         whatsoever - not a name, not a reason, not an acknowledgement that anything is there.
+         This is the whole point of the route's shape, so resist adding a helpful discriminator:
+         the moment a closed competition answers differently from a missing one, the code space
+         becomes a directory of every venue and organiser on the platform. See §4.3 of
+         docs/player-onboarding.md.
+
+         That matters more than it used to. Codes were previously set to NULL when round 1 locked,
+         which dropped started competitions out of this lookup as a side effect. Codes now live for
+         the whole life of a competition (§3.1), so the set of rows this route can match only ever
+         grows, and returning nothing when closed is the only thing keeping them private.
+
          Joining eligibility mirrors join-competition-by-code exactly: players may join until
          round 1 locks. If those rules change, change them in both places.
 
          Rate limited in server.js by joinLookupLimit (30 a minute per IP) rather than the general
          DB-intensive limiter, which at 50 per 10 seconds would let the whole 4-digit code space be
-         walked in under a minute. Note this raises the cost of enumeration, it does not prevent
-         it — the mitigation that matters is that invite_code is set to NULL once round 1 locks, so
-         only competitions still open to new players are visible at all.
+         walked in under a minute. That raises the cost of enumeration; returning nothing for a
+         closed competition is what makes enumeration pointless.
 =======================================================================================================================================
 Request Payload:
 {
@@ -29,6 +41,7 @@ Request Payload:
 }
 
 Success Response (ALWAYS HTTP 200):
+Returned only when the competition is open to new players. There is no "closed" success shape.
 {
   "return_code": "SUCCESS",
   "competition": {
@@ -36,10 +49,7 @@ Success Response (ALWAYS HTTP 200):
     "name": "Premier League LMS",      // string, competition name
     "venue_name": "The Crown & Anchor",// string|null, venue if the organiser set one
     "organiser_name": "Dave R.",       // string|null, organiser display name
-    "player_count": 24,                // integer, players who have joined so far
-    "status": "SETUP",                 // string, competition status as stored
-    "can_join": true,                  // boolean, whether a new player may join right now
-    "closed_reason": null              // string|null, "STARTED" or "FULL" when can_join is false
+    "player_count": 24                 // integer, players who have joined so far
   }
 }
 
@@ -52,7 +62,8 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"      - Missing or invalid competition_code parameter
-"COMPETITION_NOT_FOUND" - No competition with that invite code
+"COMPETITION_NOT_FOUND" - No competition with that code, OR it has started, OR it is full.
+                          Deliberately indistinguishable - see the Purpose note above.
 "SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -84,7 +95,7 @@ router.post('/', async (req, res) => {
         c.id                        AS competition_id,
         c.name                      AS competition_name,
         c.venue_name,
-        c.status                    AS competition_status,
+        c.organiser_id              AS competition_organiser_id,
         u.display_name              AS organiser_name,
         u.paid_credit               AS organiser_credits,
         MAX(r.round_number)         AS current_round_number,
@@ -104,7 +115,7 @@ router.post('/', async (req, res) => {
       -- but the field is free to hold REDBARN25 later and matching must stay
       -- case-insensitive. idx_competition_invite_code indexes this exact expression.
       WHERE UPPER(c.invite_code) = $1
-      GROUP BY c.id, c.name, c.venue_name, c.status, u.display_name, u.paid_credit
+      GROUP BY c.id, c.name, c.venue_name, c.organiser_id, u.display_name, u.paid_credit
       LIMIT 1
     `;
 
@@ -121,27 +132,42 @@ router.post('/', async (req, res) => {
 
     // STEP 3: Work out whether a new player can still join.
     // Players may join before round 1 exists, and during round 1 until it locks.
-    let can_join = true;
     let closed_reason = null;
 
     if (data.current_round_number && Number(data.current_round_number) > 1) {
-      can_join = false;
       closed_reason = "STARTED";
     } else if (data.latest_lock_time && new Date(data.current_time) >= new Date(data.latest_lock_time)) {
-      can_join = false;
       closed_reason = "STARTED";
     } else {
       // The organiser pays for player places past the free allowance. If they are at the limit
-      // with no credits left, the join would be refused with ORGANISER_INSUFFICIENT_CREDITS —
-      // so say so here rather than letting someone fill in a whole registration form first.
+      // with no credits left, the join would be refused with ORGANISER_INSUFFICIENT_CREDITS.
       const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
       const organiserPlayers = Number(data.organiser_player_count) || 0;
       const organiserCredits = Number(data.organiser_credits) || 0;
 
       if (organiserPlayers >= FREE_PLAYER_LIMIT && organiserCredits < 1) {
-        can_join = false;
         closed_reason = "FULL";
       }
+    }
+
+    // STEP 4: A closed competition is indistinguishable from one that does not exist.
+    // The reason is worked out above but deliberately not returned - see the header. Callers get
+    // the same COMPETITION_NOT_FOUND they would get for a typo, with no competition object.
+    if (closed_reason !== null) {
+      // FULL is a business event, not a player error: an organiser is losing players because they
+      // are out of credits, and the generic response means they will never hear about it from the
+      // player. Logged so it is at least visible to us until they can be notified properly.
+      if (closed_reason === "FULL") {
+        console.warn(
+          `[join] competition ${data.competition_id} turned a player away: organiser ` +
+          `${data.competition_organiser_id} is at the free player limit with no credits`
+        );
+      }
+
+      return res.status(200).json({
+        return_code: "COMPETITION_NOT_FOUND",
+        message: "No competition found with that code"
+      });
     }
 
     return res.status(200).json({
@@ -151,10 +177,7 @@ router.post('/', async (req, res) => {
         name: data.competition_name,
         venue_name: data.venue_name || null,
         organiser_name: data.organiser_name || null,
-        player_count: Number(data.player_count) || 0,
-        status: data.competition_status,
-        can_join,
-        closed_reason
+        player_count: Number(data.player_count) || 0
       }
     });
 
