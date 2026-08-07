@@ -7,7 +7,8 @@ link for a competition they are already in, on a phone they have never signed in
 it here first, then change the code to match.
 
 Where the doc and the code disagree, this doc is right and the code is a defect — §7 lists the ones
-already known, and which phase each belongs to. Phases 1–6 are done; only Phase 7 remains.
+already known, and which phase each belongs to. **Every phase is done** — §9 records what each one
+turned out to involve, including the three items that needed nothing.
 
 ---
 
@@ -347,7 +348,7 @@ renumbered out of it.
 | 7 | A signed-in player who was already a member still had to press **Join** and wait for `ALREADY_JOINED` before being redirected. | `join/[code]/page.tsx` | **Fixed** — Phase 4 |
 | 8 | `SETUP → ACTIVE` was written only on organiser dashboard load, so a competition that had started read `SETUP` until its organiser next signed in — indefinitely, if they never did. Admin reporting counts by `status` and undercounted started competitions as a result. | `get-user-dashboard.js` | **Fixed** — Phase 1 |
 | 9 | `load-competition-announcement.js` selected `access_code`, a column that does not exist, so the query threw on every call and no announcement email could be sent. The same path built a join URL as `/competition/{slug}`, a route that does not exist. | `load-competition-announcement.js`, `emailService.js` | **Fixed** in passing — both blocked the `slug` drop. The wider email rewrite is still separate; see §9. |
-| 10 | `competition_user` carries five overlapping indexes on `(competition_id)` and `(competition_id, user_id)`. Harmless but wasteful on write. | schema | Open — Phase 7 |
+| 10 | `competition_user` carried nine indexes, five of them overlapping on `(competition_id)` and `(competition_id, user_id)`. Harmless but wasteful on every write. | schema | **Fixed** — Phase 7 |
 
 ### 7.1 Dead code found alongside, deliberately left
 
@@ -532,7 +533,28 @@ competition card sits above that form, and focusing an input scrolls past the ve
 name the player needs in order to know they are joining the right thing — which is the whole reason
 §4.4 puts the card first.
 
-**Phase 7 — Tidy.** Drop the duplicate `competition_user` indexes. Fixes defect 10.
+**Phase 7 — Tidy. ✅ DONE.** Fixed defect 10.
+
+`competition_user` carried nine indexes on a 145-row, 120 kB table — 624 kB of index against
+120 kB of data, every one updated on every write. Five of them covered `(competition_id)` or
+`(competition_id, user_id)` between them.
+
+Four dropped: `idx_comp_user_competition`, `idx_competition_user_comp`,
+`idx_competition_user_comp_user`, `idx_competition_user_lookup`.
+
+`idx_comp_user_unique` — `UNIQUE (competition_id, user_id)` — has to exist to enforce the
+constraint, and a btree on those columns already serves both `WHERE competition_id = ?` and
+`WHERE competition_id = ? AND user_id = ?`. That was all four of them were doing.
+
+Two of the four had large scan counts (307k and 227k over seven days), which looks alarming until
+you notice it is not unique work: the planner had three identical options and picked one. Verified
+before dropping anything, by dropping all four inside a transaction and running `EXPLAIN` on each
+access pattern — `(competition_id)`, `(competition_id, user_id)`, `(user_id)` and `(status)` all
+still resolve to an index, none falls back to a sequential scan — then rolling back.
+
+`idx_competition_user_paid` — `(competition_id, paid)` — was kept despite zero recorded scans. It
+is not a duplicate, and with the others gone the planner picks it for `competition_id`-only lookups
+on the strength of its leading column.
 
 The announcement email path is being replanned and rewritten separately. Defect 9 was fixed only
 because it blocked the `slug` drop — that route now runs at all, which it previously could not.
