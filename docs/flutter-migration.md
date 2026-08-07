@@ -18,22 +18,21 @@ Outstanding for Release A: the four major dependency bumps (`go_router`, Firebas
 
 ---
 
-## 1. Two releases, in this order
+## 1. One release, `2.0.0+16`
 
-Shipping the toolchain upgrade and the restyle together would mean bisecting a dependency bump and
-a full visual rewrite at the same time if production breaks. So they are separate submissions.
+Originally planned as two submissions — toolchain first, restyle second — so that a production
+failure would be attributable to one or the other. That was reconsidered once the numbers were
+clear: the user base is small enough that a staged rollout buys little, and the app is not yet
+load-bearing for anyone. Upgrade and restyle ship together.
 
-| | Release A — toolchain | Release B — design |
-|---|---|---|
-| Version | `1.3.0+16` | `1.4.0+17` |
-| Visible change | New icon and splash only | The whole app |
-| Risk | Push notifications, session storage | Cosmetic, but total |
-| Ship gate | Verified on real devices, both stores, no user reports | Same |
+The two failure modes to watch for are silent, and neither shows an error the user can see:
+`flutter_secure_storage` failing to read existing tokens (everyone is logged out) and a Firebase
+bump breaking push. **A forced re-login is accepted** rather than engineered around.
 
-Release A must be **verified in production** before Release B starts. The two failure modes worth
-waiting for are silent: a `flutter_secure_storage` major bump that fails to read existing tokens
-logs every user out, and a Firebase major bump that breaks push does so with no error anywhere the
-user can see.
+**Nobody is locked out by the version bump.** The gate in `splash_page.dart` compares against
+`app_version.minimum_version` in the database, currently `1.1.1` on both platforms. Shipping 2.0.0
+leaves every existing install working. Raising that row is a deliberate, separate act — do not do
+it as part of this release.
 
 ---
 
@@ -43,10 +42,36 @@ user can see.
 
 Do not "fix" these; they are current as of Flutter 3.38.9.
 
-- `compileSdk` and `targetSdk` resolve from `flutter.*`, which defaults to **36**. The Play Store
+- `targetSdk` resolves from `flutter.targetSdkVersion`, which defaults to **36**. The Play Store
   target-API requirement is already met — this is not a deadline we are racing.
 - Gradle 8.14, AGP 8.11.1, Kotlin 2.2.20, Java 17, `minSdk` 24.
 - The project builds with the Kotlin DSL (`build.gradle.kts`), not Groovy.
+
+### compileSdk 37
+
+`flutter_secure_storage` 11 compiles against API 37, above Flutter's default of 36, so
+`compileSdk` is **pinned to 37** in `android/app/build.gradle.kts`. Compiling against a higher SDK
+is backward compatible and does not change which devices are supported — `targetSdk` still comes
+from Flutter.
+
+A machine without that platform fails with `Failed to find target with hash string 'android-37'`.
+Install it with:
+
+```bash
+export JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"
+"$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager.bat" "platforms;android-37"
+```
+
+It lands as `platforms/android-37.0` under the newer major.minor SDK naming, and `sdkmanager`
+reports `Failed to find package 'platforms;android-37'` while installing it anyway. Both are
+expected; Gradle resolves it correctly.
+
+### If the build fails on a plugin class that plainly exists
+
+After a major plugin bump, `android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java`
+can go stale and fail with `cannot find symbol` on a class that is present in the pub cache. It is
+a generated, gitignored artifact. `flutter clean` fixes it — deleting the file alone does not,
+because the stale Gradle build directory is the actual culprit.
 
 ### Dependency bumps
 

@@ -18,7 +18,11 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "uk.co.lmslocal.lmslocal_flutter"
-    compileSdk = flutter.compileSdkVersion
+    // Pinned rather than flutter.compileSdkVersion (36) because
+    // flutter_secure_storage 11 compiles against 37. Compiling against a higher
+    // SDK is backward compatible and does not change what devices we support —
+    // targetSdk below still comes from Flutter.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
