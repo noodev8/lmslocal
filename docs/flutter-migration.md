@@ -29,10 +29,20 @@ The two failure modes to watch for are silent, and neither shows an error the us
 `flutter_secure_storage` failing to read existing tokens (everyone is logged out) and a Firebase
 bump breaking push. **A forced re-login is accepted** rather than engineered around.
 
-**Nobody is locked out by the version bump.** The gate in `splash_page.dart` compares against
-`app_version.minimum_version` in the database, currently `1.1.1` on both platforms. Shipping 2.0.0
-leaves every existing install working. Raising that row is a deliberate, separate act — do not do
-it as part of this release.
+### The version gate is gone
+
+The app used to call `/check-app-version` on the splash screen and, if the installed version was
+below `app_version.minimum_version`, show a dialog the user could not dismiss. That has been
+removed at the client's request — it was never used in anger, and letting the stores update
+whenever they can is the simpler behaviour. `UpdateRequiredException` went with it; it was declared
+and caught but never actually thrown.
+
+**Do not delete the server route or the `app_version` table.** Every 1.2.9 install still in the
+wild calls `/check-app-version` on every launch. The row stays at `1.1.1` so those clients keep
+getting `update_required: false`; removing the route would make them fail that call on startup.
+The table becomes dead only once no old installs remain, which is not something we can observe.
+
+`package_info_plus` stays a dependency — the profile screen still shows the app version.
 
 ---
 
@@ -249,8 +259,56 @@ There is no CI. Both platforms are built by hand.
 - iOS deployment target is 13.0. Leave it unless a dependency forces it up; raising it drops
   devices.
 
-### Loose end
+---
 
-`lmslocal-flutter/upload-keystore.jks.old` is **committed to the repo** (added in `501f25a`). It
-is a different file from the live `android/upload-keystore.jks` and appears to be dead, but a
-keystore does not belong in git. Confirm it is unused, then delete it.
+## 6. Owed by the client
+
+Things that cannot be done from this machine, or that are decisions rather than work.
+
+### Deep links: add `/join/*` — **not done, needs a web deploy**
+
+Deep links already work and are correctly set up. `assetlinks.json` and
+`apple-app-site-association` are both live and returning 200, and the Android fingerprints cover
+the upload key *and* the Play App Signing key.
+
+But both files only claim `/game/*`, so an invite link — `/join/[code]`, which is what onboarding
+actually sends people — always opens the browser and never the app. Closing that needs three
+changes, and only the first is in this repo:
+
+1. **App** (here): an intent filter for `/join/*` in `AndroidManifest.xml`, plus a `/join/:code`
+   route. The data layer already has `joinCompetitionByCode`, so this is routing, not new API
+   work. The signed-out path is the fiddly half: remember the code, authenticate, *then* join.
+2. **`lmslocal-web/public/.well-known/assetlinks.json`** — no change needed; it delegates all URLs.
+3. **`lmslocal-web/public/.well-known/apple-app-site-association`** — add `"/join/*"` to `paths`.
+   **This needs deploying to production before iOS join links work**, and iOS caches the file, so
+   allow for it not taking effect immediately.
+
+Test it separately from the rest of this work — it has its own failure modes and nothing else
+depends on it.
+
+Bundle IDs differ per platform and both are correct as they stand: Android is
+`uk.co.lmslocal.lmslocal_flutter`, iOS is `uk.co.lmslocal.lmslocalflutter` (no underscore).
+
+### iOS build
+
+Built on the client's Mac; there is no Xcode on the Windows dev machine. All iOS-side changes are
+made in this repo and pulled there. `flutter_secure_storage` 11 brings in a new
+`flutter_secure_storage_darwin` implementation, so iOS wants a real device test of login and
+session persistence, not just a compile.
+
+### Push notifications
+
+Firebase went 3→4 and 15→16. Token registration can be checked from here, but an actual send has
+to be triggered by the client. Test foreground, background and terminated separately — they take
+different code paths.
+
+### `app_version.minimum_version`
+
+Leave at `1.1.1`. See §2.
+
+### Resolved
+
+- `upload-keystore.jks.old` was committed to the repo (added in `501f25a`). Confirmed dead and
+  deleted. The live `android/upload-keystore.jks` was and remains correctly gitignored.
+- The 1024×1024 badge now exists as `docs/LMS-Local-Logo.png`. The two older 1024 files in `docs/`
+  are the previous blue logo.

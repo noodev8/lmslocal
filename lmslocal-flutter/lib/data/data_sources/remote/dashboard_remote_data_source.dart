@@ -38,7 +38,7 @@ class DashboardRemoteDataSource {
 
   /// Get user dashboard data
   /// Returns cached data if fresh, otherwise fetches from API
-  /// Throws ServerFailure, NetworkFailure, or UpdateRequiredException on error
+  /// Throws ServerFailure or NetworkFailure on error
   Future<DashboardData> getUserDashboard({
     bool forceRefresh = false,
   }) async {

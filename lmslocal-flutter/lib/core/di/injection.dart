@@ -4,7 +4,6 @@ import 'package:lmslocal_flutter/core/services/notification_service.dart';
 import 'package:lmslocal_flutter/data/data_sources/local/token_storage.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/auth_remote_data_source.dart';
-import 'package:lmslocal_flutter/data/data_sources/remote/version_remote_data_source.dart';
 import 'package:lmslocal_flutter/data/repositories/auth_repository_impl.dart';
 import 'package:lmslocal_flutter/domain/repositories/auth_repository.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
@@ -19,7 +18,6 @@ class Injection {
   static late TokenStorage _tokenStorage;
   static late ApiClient _apiClient;
   static late AuthRemoteDataSource _authRemoteDataSource;
-  static late VersionRemoteDataSource _versionRemoteDataSource;
   static late AuthRepository _authRepository;
   static late NotificationService _notificationService;
   static late AuthBloc _authBloc;
@@ -39,7 +37,6 @@ class Injection {
       tokenStorage: _tokenStorage,
     );
     _authRemoteDataSource = AuthRemoteDataSource(_apiClient);
-    _versionRemoteDataSource = VersionRemoteDataSource(apiClient: _apiClient);
 
     // Repositories
     _authRepository = AuthRepositoryImpl(
@@ -73,11 +70,6 @@ class Injection {
   /// Get TokenStorage instance
   static TokenStorage getTokenStorage() {
     return _tokenStorage;
-  }
-
-  /// Get VersionRemoteDataSource instance
-  static VersionRemoteDataSource getVersionRemoteDataSource() {
-    return _versionRemoteDataSource;
   }
 
   /// Get NotificationService instance
