@@ -41,10 +41,14 @@ are better understood as three, because they want different things:
 | **Spoken code** — heard at the bar, read off a poster | Four or five digits | Short, unambiguous, forgiving of case and whitespace |
 | **Organiser-added** — the landlord adds them by hand | Nothing | Not a self-service flow at all; see §5.2 |
 
-Link is the path that matters most and is currently the weakest — not because of what the URL
-says, but because no QR code exists and the leaflet tells people to install the app first (§7,
-defect 6). Spoken code is the path the system was built for and works. Organiser-added is out of
-scope for changes (§5.2).
+Link is the path that matters most. It was the weakest — not because of what the URL says, but
+because the leaflet's QR codes pointed at app stores and its first instruction was to install one
+(defect 6, fixed in Phase 3). Spoken code is the path the system was built for and works.
+Organiser-added is out of scope for changes (§5.2).
+
+What still stands between an arriving player and the competition is the join page itself: three
+sequential requests, and a member who is already in still has to press a button (defects 2 and 7,
+Phase 4).
 
 ---
 
