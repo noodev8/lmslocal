@@ -544,6 +544,8 @@ function CompetitionsList() {
       router.replace('/login');
       return;
     }
+    localStorage.removeItem(LAST_VIEWED_KEY);
+    setLastViewed(null);
     load();
   }, [router, load]);
 
