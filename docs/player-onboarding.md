@@ -134,28 +134,61 @@ one of them trustworthy at any given instant. The nightly sweep
 next logs in" to "at most a day", which matters for admin reporting — but it never makes the column
 safe to gate on, and no amount of scheduling would.
 
-### 4.3 A closed competition reveals nothing
+### 4.3 What a closed competition reveals
 
-When the gate says closed — for **any** reason, including the code not existing at all — the
-response is identical:
+The line is **recoverable or not**, not leak or no-leak.
 
-> That code isn't working. Ask your organiser for the correct one.
+| Closed because | Response | Why |
+|---|---|---|
+| No such code | `COMPETITION_NOT_FOUND`, nothing attached | — |
+| Started | `COMPETITION_NOT_FOUND`, nothing attached | Nothing recovers it. That competition will never take this player, so saying so achieves nothing |
+| **Full** | `COMPETITION_FULL` **naming the organiser** | One credit purchase away from letting them in. Silence destroys the recovery |
 
-No competition name, no venue, no organiser name, no player count, no indication of whether the
-competition exists, has started, is full, or was never real.
+Withholding an *unrecoverable* state costs nothing, because there is no action to prompt.
+Withholding a *recoverable* one loses a player, a sale, and an organiser who never learns why their
+competition stopped growing. Started and nonexistent must stay indistinguishable **from each
+other** — the moment they differ, the code space becomes a directory of every venue on the
+platform. Codes are enumerable by construction; enumeration that returns nothing is not worth
+performing.
 
-This is what makes the permanent code safe. Codes are enumerable by construction — 90,000 of them
-against a rate limit — but enumeration that returns nothing is not worth performing. **The lookup
-route must therefore return competition details only when the gate says open.** Anything else is a
-leak of the customer list.
+This matters more than it did. Nulling the code at lock used to drop started competitions out of
+the lookup as a side effect. Competitions 149, 167, 161 and 168 are the last that will ever have
+that — with codes now permanent (§3.1), the set of matchable rows only grows, and returning nothing
+is the only thing keeping them private.
 
-The cost, accepted knowingly: a player who is genuinely too late gets no explanation. That is
-tolerable because "ask your organiser" is the correct next action in every closed case, and it
-routes them to the one person who can actually do something.
+**The organiser's display name on `FULL` is the one identifying detail any closed response gives
+up.** Weighed and chosen: a message naming someone to go and ask is something a player can act on,
+and it reads as human rather than broken. It is a real, deliberate narrowing of §4.3's original
+absolutism.
 
-The known rough edge is `FULL`. The organiser is out of credits, the player bounces off a generic
-message, and the organiser never finds out. **The organiser should be notified when someone is
-turned away by their limit** — separate work, not part of this.
+The accepted cost: a player who is genuinely too late gets no explanation. Tolerable, because "ask
+your organiser" is the right next action in every unrecoverable case anyway.
+
+### 4.3.1 The organiser is told too
+
+Telling the player is necessary but not sufficient — many will not pass the message on, and the
+organiser is the only person who can fix it.
+
+Every block is recorded in `join_block` (`services/joinBlock.js`), written from the public lookup
+and from `join-competition-by-code`'s race path, and surfaced on the dashboard as *"3 people tried
+to join EKRR AFC this week and couldn't"* beside an **Add credits** button. It replaces the generic
+credit banner rather than stacking with it.
+
+Three constraints that shaped it, all still binding:
+
+- **Nothing identifying the player.** This is written from a public, unauthenticated endpoint. No
+  IP, no user agent. A salted IP hash would still be personal data under GDPR and would buy
+  precision the message does not want.
+- **The count is a floor, never a headcount.** Repeats inside ten minutes collapse to one row —
+  which also bounds how fast strangers can grow the table — but two real players arriving five
+  minutes apart also collapse, and anyone who never opened the link is invisible. The copy says
+  "people tried" and must never imply precision.
+- **The dashboard lookup is wrapped and must stay wrapped.** It is an enrichment for a banner;
+  `get-user-dashboard` is the most-called authenticated route in the product and must not gain a
+  new way to fail for it.
+
+Pruned to 90 days nightly by `scripts/prune-join-blocks.js` — a public endpoint writing to an
+unbounded table needs an upper limit.
 
 ### 4.4 Why the lookup happens before identity
 
@@ -327,7 +360,8 @@ Given a resolved competition and an arriving player:
 | Open | Signed out, has an account | Card, then sign in, then join — **one** request, landing in the competition. |
 | Open | Signed out, no account | Card, then create account and join in **one** request. |
 | Open | Stale token | Treat as signed out. Fall back to the form in place, code still in the URL. Never bounce to `/login`. |
-| Closed, any reason | Any | The §4.3 message. Nothing created, no account made, nothing revealed. |
+| Started, or no such code | Any | The generic §4.3 message. Nothing created, no account made, nothing revealed — the two are indistinguishable. |
+| Full | Any | Told it is full, and who to ask. Nothing created. The block is recorded and shown to the organiser (§4.3.1). |
 
 Cross-cutting: if a player is ever sent to `/login`, the pending join must survive the round trip
 and complete on return. Losing the code because someone took a phone call is the worst kind of
@@ -381,21 +415,26 @@ the sweep's first runs correctly report nothing. A quiet run is the normal case,
 
 **Phase 2 — Close the lookup. ✅ DONE.** Fixed defect 5.
 
-`get-competition-by-code` now returns `COMPETITION_NOT_FOUND` with no competition object for
-started, full *and* nonexistent codes alike. `can_join`, `closed_reason` and `status` are gone from
-the response: the reason is still computed, just never sent, because a discriminator is the whole
-vulnerability. The frontend's `closed` stage was deleted rather than rewired — with the server
-silent there is nothing to render — and the `not-found` copy now has to stay true of all three
-cases, so it says nothing is *open* under this code rather than that no such competition exists.
+`get-competition-by-code` returns `COMPETITION_NOT_FOUND` with no competition object for started
+and nonexistent codes alike. `can_join`, `closed_reason` and `status` are gone from the response:
+the reason is still computed, just never sent, because a discriminator is the whole vulnerability.
+The frontend's `closed` stage was deleted rather than rewired — with the server silent there was
+nothing to render.
 
-Phase 1 made this urgent rather than merely planned. Nulling the code at lock had been dropping
-started competitions out of this lookup as a side effect; competitions 149, 167, 161 and 168 are
-the last that will ever have that. With codes now permanent, the set of matchable rows only grows,
-so returning nothing when closed is the only thing keeping them private.
+Phase 1 made this urgent rather than merely planned; see §4.3 for why.
 
-`FULL` is logged server-side (`console.warn`, with competition and organiser id). The generic
-response means an organiser who is losing players to their credit limit will never hear it from
-the player, and until they can be notified properly that log is the only trace.
+**Phase 2a — The full case, corrected. ✅ DONE.** Not in the original plan.
+
+The first cut collapsed `FULL` into the same silence, which was wrong and was actively costing
+money: organiser 1047 was at exactly 20 players with 0 credits, so their open competition (172,
+round 1 locking 21 Aug) turned away everyone who scanned the poster, and they had no way to know.
+`COMPETITION_FULL` now says so and names the organiser, and every block is recorded and shown to
+them on the dashboard. §4.3 and §4.3.1 carry the reasoning and the three constraints that still
+bind.
+
+Two follow-ons, deliberately not built: nothing tells the organiser in the moment (the dashboard is
+pull, not push — it waits for them to log in), and a player who bounces is not offered any way to
+be told when space opens. Both are real, neither is urgent while the numbers are this small.
 
 **Phase 3 — Print and share.** QR code on the leaflet targeting the join URL, with the URL and
 code printed underneath. Same QR on the promote screen for organisers who share digitally. Rewrite
