@@ -27,7 +27,7 @@ import { deriveDashboardRoundState, pickDeadlineText } from '@/lib/roundState';
 export default function DashboardPage() {
   const router = useRouter();
   // Use app-level data from context instead of local API calls
-  const { competitions, loading, updateCompetition, refreshCompetitions } = useAppData();
+  const { competitions, loading, updateCompetition, refreshCompetitions, blockedJoins } = useAppData();
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [userType, setUserType] = useState<string | null>(null);
@@ -49,6 +49,23 @@ export default function DashboardPage() {
   const userCompetitions = useMemo(() => {
     return competitions?.filter(comp => comp.is_organiser || comp.is_participant) || [];
   }, [competitions]);
+
+  /*
+    Deliberately vague about the number of people. The server collapses repeat visits inside a
+    short window, but this is a floor rather than a headcount, and anyone who heard "it's full"
+    from a mate and never opened the link is invisible to it. Naming the competition matters more
+    than the count anyway — it turns a capacity warning into evidence of demand.
+  */
+  const blockedJoinsHeadline = useMemo(() => {
+    if (!blockedJoins) return null;
+
+    const { total, competitions: blocked } = blockedJoins;
+    const who = total === 1 ? 'Someone' : `${total} people`;
+
+    return blocked.length === 1
+      ? `${who} tried to join ${blocked[0].name} this week and couldn't`
+      : `${who} tried to join your competitions this week and couldn't`;
+  }, [blockedJoins]);
 
   // Calculate player count from existing competition data (no extra API calls)
   // Note: We don't show credit warnings here since we don't have paid_credit balance
@@ -409,8 +426,30 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* Credits Info Banner - Only show for organizers */}
-            {playerStats.hasOrganizedCompetitions && (
+            {/*
+              Two versions of the same prompt. The blocked one replaces the generic one rather
+              than stacking with it — two credit banners at once is noise, and evidence of real
+              demand is a far stronger reason to act than a standing suggestion.
+            */}
+            {blockedJoins ? (
+              <div className={`${PANEL} mb-6 border-overprint p-4`}>
+                <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                  <div className="flex items-start gap-3">
+                    <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-overprint" />
+                    <div>
+                      <p className="text-[15px] font-medium text-ink">{blockedJoinsHeadline}</p>
+                      <p className="text-[13px] text-ink-fade">
+                        You are at your player limit, so they were turned away. Add credits and
+                        they can join straight away with the same code.
+                      </p>
+                    </div>
+                  </div>
+                  <Link href="/billing" className={`${BTN_PRIMARY} flex-shrink-0 px-4 py-2 text-base`}>
+                    Add credits
+                  </Link>
+                </div>
+              </div>
+            ) : playerStats.hasOrganizedCompetitions && (
               <div className={`${PANEL} mb-6 p-4`}>
                 <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                   <div className="flex items-start gap-3">

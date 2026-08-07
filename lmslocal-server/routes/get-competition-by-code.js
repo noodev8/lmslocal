@@ -84,6 +84,7 @@ Return Codes:
 
 const express = require('express');
 const { query } = require('../database');
+const { recordJoinBlock } = require('../services/joinBlock');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
@@ -171,10 +172,10 @@ router.post('/', async (req, res) => {
     // away from letting them in, and staying quiet destroys that recovery: the player walks, the
     // organiser never finds out, and a competition that was working stops growing.
     if (closed_reason === "FULL") {
-      console.warn(
-        `[join] competition ${data.competition_id} turned a player away: organiser ` +
-        `${data.competition_organiser_id} is at the free player limit with no credits`
-      );
+      // Recorded so the organiser is told on their dashboard - they are the only person who can
+      // fix this, and without it they never learn their competition stopped growing.
+      // Never throws; see services/joinBlock.js.
+      await recordJoinBlock(data.competition_id, data.competition_organiser_id);
 
       // The organiser's display name is returned deliberately, and it is the one identifying
       // detail any closed response gives up. Naming them makes the message something the player

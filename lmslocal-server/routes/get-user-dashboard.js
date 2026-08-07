@@ -71,7 +71,18 @@ Success Response (ALWAYS HTTP 200):
       "player_count": 45,                       // integer, current player count
       "lock_time": "2025-12-01T15:00:00Z"       // string, Round 1 lock time (join deadline)
     }
-  ]
+  ],
+  "blocked_joins": {                            // object|null, null when nothing was blocked.
+    "total": 4,                                 // integer, blocks in the last 7 days. A FLOOR,
+                                                // not a headcount - see services/joinBlock.js
+    "competitions": [
+      {
+        "competition_id": 172,                  // integer, competition that turned someone away
+        "name": "EKRR AFC",                     // string, competition name
+        "count": 4                              // integer, blocks for this competition
+      }
+    ]
+  }
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -651,13 +662,53 @@ router.post('/', verifyToken, async (req, res) => {
       email_verified: userDataResult.rows[0].email_verified
     } : null;
 
+    // === PLAYERS TURNED AWAY BY THE CREDIT LIMIT ===
+    // The most valuable thing an organiser can be told and the one they cannot find out for
+    // themselves: someone wanted in and could not get in, and only they can fix it. Counted at
+    // organiser level rather than per competition because the free limit is counted that way too.
+    //
+    // Single query, no N+1. Returns null when there is nothing to say, so the frontend renders
+    // nothing rather than a reassuring zero.
+    // Wrapped because this is an enrichment, not part of the dashboard's job. A missing table,
+    // a slow query, anything at all - the organiser still gets their competitions. This is the
+    // most-called authenticated route in the product and it must not acquire a new way to fail
+    // for the sake of a banner.
+    let blockedJoins = null;
+    try {
+      const blockedResult = await query(`
+        SELECT jb.competition_id, c.name AS competition_name, COUNT(*) AS block_count
+        FROM   join_block jb
+        JOIN   competition c ON c.id = jb.competition_id
+        WHERE  jb.organiser_id = $1
+          AND  jb.occurred_at > NOW() - INTERVAL '7 days'
+        GROUP  BY jb.competition_id, c.name
+        ORDER  BY block_count DESC
+      `, [user_id]);
+
+      if (blockedResult.rows.length > 0) {
+        blockedJoins = {
+          // Deliberately vague in the UI - see services/joinBlock.js. Repeat visits inside a short
+          // window collapse to one row, but this is a floor, never an exact headcount.
+          total: blockedResult.rows.reduce((sum, row) => sum + Number(row.block_count), 0),
+          competitions: blockedResult.rows.map(row => ({
+            competition_id: row.competition_id,
+            name: row.competition_name,
+            count: Number(row.block_count)
+          }))
+        };
+      }
+    } catch (blockedError) {
+      console.error('blocked_joins lookup failed (non-fatal):', blockedError.message);
+    }
+
     // === SUCCESS RESPONSE ===
     res.json({
       return_code: "SUCCESS",
       user: userData,
       competitions: competitions,
       promoted_competitions: promotedCompetitions,
-      latest_round_stats: latestRoundStats
+      latest_round_stats: latestRoundStats,
+      blocked_joins: blockedJoins
     });
 
   } catch (error) {

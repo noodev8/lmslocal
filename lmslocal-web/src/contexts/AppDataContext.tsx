@@ -22,6 +22,14 @@ interface AppDataContextType {
     user_status: string;
     user_picked_team: string | null;
   } | null;
+  /**
+   * Players turned away because the organiser is at their credit limit, last 7 days.
+   * null when there were none. A floor, not a headcount — see services/joinBlock.js.
+   */
+  blockedJoins: {
+    total: number;
+    competitions: { competition_id: number; name: string; count: number }[];
+  } | null;
 
   // Loading states
   loading: boolean;
@@ -68,6 +76,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   const [competitions, setCompetitions] = useState<Competition[] | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [latestRoundStats, setLatestRoundStats] = useState<AppDataContextType['latestRoundStats']>(null);
+  const [blockedJoins, setBlockedJoins] = useState<AppDataContextType['blockedJoins']>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -92,6 +101,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         setUser(null);
         setCompetitions([]);
         setLatestRoundStats(null);
+        setBlockedJoins(null);
         setLoading(false);
         return;
       }
@@ -127,6 +137,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
 
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
         setLatestRoundStats(competitionsData.data.latest_round_stats || null);
+        setBlockedJoins(competitionsData.data.blocked_joins || null);
       } else if (competitionsData.data.return_code === 'UNAUTHORIZED' ||
                  competitionsData.data.message?.includes('Invalid token') ||
                  competitionsData.data.message?.includes('user not found')) {
@@ -136,6 +147,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         setUser(null);
         setCompetitions([]);
         setLatestRoundStats(null);
+        setBlockedJoins(null);
         console.log('Invalid token detected, cleared localStorage');
 
         // Send them somewhere they can act: an expired session needs a sign-in, not
@@ -172,6 +184,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         setUser(null);
         setCompetitions([]);
         setLatestRoundStats(null);
+        setBlockedJoins(null);
         setError(null);
         console.log('Invalid token detected in catch, cleared localStorage');
         return;
@@ -183,6 +196,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
         setUser(null);
         setCompetitions([]);
         setLatestRoundStats(null);
+        setBlockedJoins(null);
         setError(null); // Don't show errors for public pages
       } else {
         setError(err instanceof Error ? err.message : 'Failed to load app data');
@@ -239,6 +253,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       if (competitionsData.data.return_code === 'SUCCESS') {
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
         setLatestRoundStats(competitionsData.data.latest_round_stats || null);
+        setBlockedJoins(competitionsData.data.blocked_joins || null);
         setLastUpdated(timestamp);
         setError(null); // Clear any previous errors
       } else {
@@ -275,6 +290,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       if (competitionsData.data.return_code === 'SUCCESS') {
         setCompetitions((competitionsData.data.competitions as Competition[]) || []);
         setLatestRoundStats(competitionsData.data.latest_round_stats || null);
+        setBlockedJoins(competitionsData.data.blocked_joins || null);
         setLastUpdated(Date.now());
       } else {
         console.error('Failed to refresh competitions:', competitionsData.data.message);
@@ -324,6 +340,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       setUser(null);
       setCompetitions(null);
       setLatestRoundStats(null);
+        setBlockedJoins(null);
       setLoading(false);
     };
 
@@ -349,6 +366,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     competitions,
     user,
     latestRoundStats,
+    blockedJoins,
     loading,
     error,
     refreshData,

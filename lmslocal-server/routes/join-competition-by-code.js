@@ -46,6 +46,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
+const { recordJoinBlock } = require('../services/joinBlock');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety for competition joining
@@ -201,7 +202,11 @@ router.post('/', verifyToken, async (req, res) => {
         if (deductResult.rows.length === 0) {
           throw {
             return_code: "ORGANISER_INSUFFICIENT_CREDITS",
-            message: "The competition organiser has reached their player limit. They need to purchase more credits to accept new players."
+            message: "The competition organiser has reached their player limit. They need to purchase more credits to accept new players.",
+            // Carried out of the transaction so the block can be recorded after it rolls back.
+            // Recording it here would be undone by this very throw.
+            blocked_competition_id: data.competition_id,
+            blocked_organiser_id: data.organiser_id
           };
         }
 
@@ -418,6 +423,14 @@ router.post('/', verifyToken, async (req, res) => {
   } catch (error) {
     // Handle custom business logic errors (thrown from transaction)
     if (error.return_code) {
+      // A join blocked by the organiser's credit limit is recorded here, outside the transaction
+      // that just rolled back, so the organiser is told on their dashboard. This path is only the
+      // race where a competition fills between the lookup and the join - the lookup catches
+      // almost all of them.
+      if (error.return_code === "ORGANISER_INSUFFICIENT_CREDITS" && error.blocked_competition_id) {
+        await recordJoinBlock(error.blocked_competition_id, error.blocked_organiser_id);
+      }
+
       return res.json({
         return_code: error.return_code,
         message: error.message

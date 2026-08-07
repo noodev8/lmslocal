@@ -778,6 +778,16 @@ export const userApi = {
           user_status: string;
           user_picked_team: string | null;
         };
+        /**
+         * Players turned away in the last 7 days because this organiser is at their credit
+         * limit. null when there were none — so the UI shows nothing rather than a
+         * reassuring zero. `total` is a FLOOR, never an exact headcount: repeat visits inside a
+         * short window collapse to one, and anyone who never opened the link is invisible.
+         */
+        blocked_joins?: {
+          total: number;
+          competitions: { competition_id: number; name: string; count: number }[];
+        } | null;
       }>('/get-user-dashboard', {})
     );
   },
