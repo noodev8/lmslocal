@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
-import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 
-/// Login page
-/// Allows users to login with email and password
+/// Login page.
+///
+/// Mirrors the web's `/login`, which is already on the coupon system — same
+/// eyebrow, title, intro and field labels, so a player who met the form in a
+/// browser meets the same one here.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -46,243 +48,194 @@ class _LoginPageState extends State<LoginPage> {
     return PopScope(
       canPop: false, // Prevent back button on login screen
       child: Scaffold(
-        backgroundColor: GameTheme.background,
         body: BlocConsumer<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthSessionExpiredState) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: GameTheme.accentRed,
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          } else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: GameTheme.accentRed,
-              ),
-            );
-          } else if (state is AuthAuthenticated) {
-            // Initialize push notifications (fresh login)
-            Injection.getNotificationService().initialize();
-            // Navigate to dashboard
-            context.go('/dashboard');
-          }
-        },
-        builder: (context, state) {
-          final isLoading = state is AuthLoading;
+          listener: (context, state) {
+            if (state is AuthSessionExpiredState) {
+              _notify(state.message);
+            } else if (state is AuthError) {
+              _notify(state.message);
+            } else if (state is AuthAuthenticated) {
+              Injection.getNotificationService().initialize();
+              context.go('/dashboard');
+            }
+          },
+          builder: (context, state) {
+            final isLoading = state is AuthLoading;
 
-          return SafeArea(
-            child: Center(
+            return SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppConstants.paddingLarge),
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
                 child: Form(
                   key: _formKey,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Logo
-                      Image.asset(
-                        'assets/images/logo.png',
-                        height: 120,
+                      Center(
+                        child: Image.asset('assets/images/logo.png', height: 96),
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 40),
 
-                      // Title
+                      Text('Welcome back', style: CouponTheme.eyebrow),
+                      const SizedBox(height: 12),
+                      Text('SIGN IN', style: CouponTheme.heading(48)),
+                      const SizedBox(height: 16),
                       Text(
-                        'Welcome Back',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: GameTheme.textPrimary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Login to your account',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: GameTheme.textSecondary,
-                        ),
-                        textAlign: TextAlign.center,
+                        "Manage your competitions, or make this week's pick.",
+                        style: CouponTheme.intro,
                       ),
                       const SizedBox(height: 32),
 
-                      // Email field
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        enabled: !isLoading,
-                        style: const TextStyle(color: GameTheme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
-                          prefixIcon: const Icon(Icons.email_outlined, color: GameTheme.textSecondary),
-                          filled: true,
-                          fillColor: GameTheme.cardBackground,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
-                          ),
+                      _Field(
+                        label: 'Email',
+                        child: TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          enabled: !isLoading,
+                          style: CouponTheme.bodyText,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Enter your email address.';
+                            }
+                            if (!value.contains('@')) {
+                              return 'That does not look like an email address.';
+                            }
+                            return null;
+                          },
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter your email';
-                          }
-                          if (!value.contains('@')) {
-                            return 'Please enter a valid email';
-                          }
-                          return null;
-                        },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
-                      // Password field
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        enabled: !isLoading,
-                        style: const TextStyle(color: GameTheme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
-                          prefixIcon: const Icon(Icons.lock_outlined, color: GameTheme.textSecondary),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              color: GameTheme.textSecondary,
+                      _Field(
+                        label: 'Password',
+                        child: TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          textInputAction: TextInputAction.done,
+                          enabled: !isLoading,
+                          style: CouponTheme.bodyText,
+                          onFieldSubmitted: (_) => isLoading ? null : _handleLogin(),
+                          decoration: InputDecoration(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                color: CouponTheme.inkFade,
+                                size: 20,
+                              ),
+                              tooltip: _obscurePassword
+                                  ? 'Show password'
+                                  : 'Hide password',
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
                           ),
-                          filled: true,
-                          fillColor: GameTheme.cardBackground,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
-                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Enter your password.';
+                            }
+                            return null;
+                          },
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your password';
-                          }
-                          return null;
-                        },
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
 
-                      // Forgot password link
                       Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: isLoading ? null : () => context.push('/forgot-password'),
-                          child: const Text(
-                            'Forgot Password?',
-                            style: TextStyle(color: GameTheme.textSecondary),
-                          ),
+                        alignment: Alignment.centerLeft,
+                        child: _DottedLink(
+                          label: 'Forgotten your password?',
+                          onPressed: isLoading
+                              ? null
+                              : () => context.push('/forgot-password'),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 28),
 
-                      // Login button
                       ElevatedButton(
                         onPressed: isLoading ? null : _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: GameTheme.glowCyan,
-                          foregroundColor: GameTheme.background,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                          ),
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
-                                ),
-                              )
-                            : const Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                        child: Text(isLoading ? 'SIGNING YOU IN…' : 'SIGN IN'),
                       ),
                       const SizedBox(height: 32),
 
-                      // Divider
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: GameTheme.border)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'New to LMS Local?',
-                              style: TextStyle(
-                                color: GameTheme.textMuted,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: GameTheme.border)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
+                      Divider(color: CouponTheme.ink.withValues(alpha: 0.3)),
+                      const SizedBox(height: 20),
 
-                      // Prominent Register button
+                      Text('New to LMS Local?', style: CouponTheme.bodyText),
+                      const SizedBox(height: 12),
                       OutlinedButton(
-                        onPressed: isLoading ? null : () => context.push('/register'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: GameTheme.glowCyan,
-                          side: const BorderSide(color: GameTheme.glowCyan, width: 2),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                          ),
-                        ),
-                        child: const Text(
-                          'Create Account',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        onPressed:
+                            isLoading ? null : () => context.push('/register'),
+                        child: const Text('CREATE ACCOUNT'),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
+    );
+  }
+
+  /// Notices are ink on stock-lit with an overprint rule down the side. The
+  /// second ink means "eliminated" or "primary action" — an error set in it
+  /// reads as emphasis rather than alarm.
+  void _notify(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+  }
+}
+
+/// A field label sitting above its input, matching the web's auth pages.
+class _Field extends StatelessWidget {
+  const _Field({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(), style: CouponTheme.label),
+        const SizedBox(height: 8),
+        child,
+      ],
+    );
+  }
+}
+
+/// Tertiary action: a label with a dotted underline, per design-system.md §6.
+class _DottedLink extends StatelessWidget {
+  const _DottedLink({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Text(
+          label,
+          style: CouponTheme.bodyText.copyWith(
+            decoration: TextDecoration.underline,
+            decorationStyle: TextDecorationStyle.dotted,
+            decorationColor: CouponTheme.ink.withValues(alpha: 0.5),
+          ),
+        ),
       ),
     );
   }

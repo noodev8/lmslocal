@@ -8,6 +8,7 @@ import 'package:lmslocal_flutter/core/config/env_dev.dart';
 import 'package:lmslocal_flutter/core/config/env_prod.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/core/router/app_router.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 
@@ -66,29 +67,7 @@ class LmsLocalApp extends StatelessWidget {
       child: MaterialApp.router(
         title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: AppConstants.primaryNavy,
-            primary: AppConstants.primaryNavy,
-          ),
-          useMaterial3: true,
-          appBarTheme: AppBarTheme(
-            backgroundColor: AppConstants.primaryNavy,
-            foregroundColor: Colors.white,
-            elevation: 0,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryNavy,
-              foregroundColor: Colors.white,
-            ),
-          ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: AppConstants.primaryNavy,
-            ),
-          ),
-        ),
+        theme: CouponTheme.themeData(),
         routerConfig: AppRouter.createRouter(),
       ),
     );

@@ -222,10 +222,22 @@ names, team picks, scores, access codes and timestamps. Not labels, not buttons,
 Migrate a screen completely or not at all — design system §10. A half-migrated screen looks worse
 than an unmigrated one.
 
+**`CouponTheme.themeData()` does most of the work.** It squares and flattens Cards, Dialogs,
+BottomSheets, SnackBars and inputs, and sets the three families, so a screen migration is mostly
+deleting per-widget colour and radius overrides rather than writing new ones.
+
+**Display type is always uppercase**, and Flutter has no `text-transform`. Headings and button
+labels are uppercased at the call site — `Text('SIGN IN')`. There is no way to enforce this from
+the theme, so it is the easiest rule in the system to break.
+
+`login_page.dart` is the migrated pattern to copy: eyebrow, display heading, intro, labelled
+fields, one `overprint` primary action, a dotted-underline tertiary link.
+
 | Screen | Lines | Notes |
 |---|---|---|
-| `splash_page.dart` | 142 | Do first — it is the icon, splash and font work meeting |
-| `login` / `register` / `forgot_password` | 982 | Web equivalents are already migrated. Copy `AuthShell` |
+| ~~`splash_page.dart`~~ | 142 | **Done.** Where icon, splash and font work met |
+| ~~`login_page.dart`~~ | 289 | **Done.** Mirrors the web's `/login` — same eyebrow, title, intro |
+| `register` / `forgot_password` | ~690 | Web equivalents already migrated. Copy `login_page.dart` |
 | `dashboard_page.dart` | 1480 | Competition list |
 | `competition_home_page.dart` + 11 widgets | 642 + ~1400 | Where the four dead widgets live |
 | `play_page` / `pick_page` / `waiting_page` / `player_results_page` | ~1600 | `player_results` is where `moss` vs `moss-wash` was already got wrong twice on web — read §8 before touching it |

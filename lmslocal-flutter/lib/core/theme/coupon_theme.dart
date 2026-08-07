@@ -74,4 +74,190 @@ class CouponTheme {
   /// than thickening into bars.
   static BorderSide rule({double opacity = 0.3}) =>
       BorderSide(color: ink.withValues(alpha: opacity), width: 0.5);
+
+  // === TEXT STYLES ===
+  // Sizes and tracking mirror docs/design-system.md §3. Small uppercase text
+  // needs some tracking and is ruined by too much — 0.12em labels, 0.16em
+  // eyebrows, 0.06em display buttons.
+
+  /// Section eyebrow above a display heading. Usually `overprint`.
+  static const TextStyle eyebrow = TextStyle(
+    fontFamily: body,
+    fontSize: 12,
+    letterSpacing: 12 * 0.16,
+    height: 1.2,
+    color: overprint,
+  );
+
+  /// Utility label: field labels, captions, chips, nav.
+  static const TextStyle label = TextStyle(
+    fontFamily: body,
+    fontSize: 12,
+    letterSpacing: 12 * 0.12,
+    height: 1.2,
+    color: inkFade,
+  );
+
+  /// Display heading. Always uppercase, always semibold — the page has one
+  /// display voice, so do not mix weights within it.
+  static TextStyle heading(double size) => TextStyle(
+        fontFamily: display,
+        fontSize: size,
+        height: 0.9,
+        fontVariations: weight(600),
+        color: ink,
+      );
+
+  /// The middle rung between display and body. Do not skip it.
+  static const TextStyle intro = TextStyle(
+    fontFamily: body,
+    fontSize: 20,
+    height: 1.5,
+    color: ink,
+  );
+
+  static const TextStyle bodyText = TextStyle(
+    fontFamily: body,
+    fontSize: 17,
+    height: 1.45,
+    color: ink,
+  );
+
+  /// Filled-in data only: names, picks, scores, access codes, timestamps.
+  static const TextStyle dataText = TextStyle(
+    fontFamily: data,
+    fontSize: 15,
+    color: ink,
+  );
+
+  /// The app-wide Material theme.
+  ///
+  /// Material defaults fight this system — Cards, Dialogs, BottomSheets,
+  /// SnackBars and Chips all arrive rounded and elevated. Squaring and
+  /// flattening them here means individual screens do not each have to.
+  static ThemeData themeData() {
+    const squared = RoundedRectangleBorder(borderRadius: BorderRadius.zero);
+    // rounded-sm: a slight stamped softening, buttons and inputs only.
+    final stamped = BorderRadius.circular(4);
+
+    OutlineInputBorder field(Color color, double width) => OutlineInputBorder(
+          borderRadius: stamped,
+          borderSide: BorderSide(color: color, width: width),
+        );
+
+    return ThemeData(
+      useMaterial3: true,
+      fontFamily: body,
+      scaffoldBackgroundColor: stock,
+      canvasColor: stock,
+      dividerColor: ink.withValues(alpha: 0.3),
+      colorScheme: const ColorScheme.light(
+        primary: ink,
+        onPrimary: stockLit,
+        secondary: overprint,
+        onSecondary: stockLit,
+        surface: stockLit,
+        onSurface: ink,
+        error: overprint,
+        onError: stockLit,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: stock,
+        foregroundColor: ink,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        titleTextStyle: heading(28),
+      ),
+      // Square, flat, hairline-ruled.
+      cardTheme: CardThemeData(
+        color: stockLit,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
+          side: rule(),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: stockLit,
+        elevation: 0,
+        shape: squared,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: stockLit,
+        elevation: 0,
+        shape: squared,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: ink,
+        contentTextStyle: bodyText.copyWith(color: stockLit),
+        elevation: 0,
+        shape: squared,
+        behavior: SnackBarBehavior.floating,
+      ),
+      dividerTheme: DividerThemeData(
+        color: ink.withValues(alpha: 0.3),
+        thickness: 0.5,
+        space: 0.5,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: stockLit,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        labelStyle: label,
+        floatingLabelStyle: label.copyWith(color: ink),
+        hintStyle: bodyText.copyWith(color: inkFade.withValues(alpha: 0.7)),
+        // Errors get ink text with an overprint rule beside them — overprint is
+        // the brand's second ink, so an error set in it reads as emphasis.
+        errorStyle: bodyText.copyWith(fontSize: 15),
+        border: field(ink.withValues(alpha: 0.4), 1),
+        enabledBorder: field(ink.withValues(alpha: 0.4), 1),
+        focusedBorder: field(ink, 1.5),
+        errorBorder: field(overprint, 1),
+        focusedErrorBorder: field(overprint, 1.5),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: overprint,
+          foregroundColor: stockLit,
+          disabledBackgroundColor: overprint.withValues(alpha: 0.7),
+          disabledForegroundColor: stockLit,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+          shape: RoundedRectangleBorder(borderRadius: stamped),
+          textStyle: TextStyle(
+            fontFamily: display,
+            fontSize: 24,
+            letterSpacing: 24 * 0.06,
+            fontVariations: weight(600),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: ink,
+          side: const BorderSide(color: ink, width: 1),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+          shape: RoundedRectangleBorder(borderRadius: stamped),
+          textStyle: TextStyle(
+            fontFamily: display,
+            fontSize: 24,
+            letterSpacing: 24 * 0.06,
+            fontVariations: weight(600),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: ink,
+          textStyle: bodyText,
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: ink,
+        linearTrackColor: stockDeep,
+        circularTrackColor: stockDeep,
+      ),
+    );
+  }
 }
