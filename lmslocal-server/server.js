@@ -82,6 +82,7 @@ const searchPlayersRoute = require('./routes/search-players');
 const getPlayerHistoryRoute = require('./routes/get-player-history');
 const joinCompetitionByCodeRoute = require('./routes/join-competition-by-code');
 const getCompetitionByCodeRoute = require('./routes/get-competition-by-code');
+const getJoinStatusRoute = require('./routes/get-join-status');
 const getFixturePickCountRoute = require('./routes/get-fixture-pick-count');
 const getRoundHistoryRoute = require('./routes/get-round-history');
 const addOfflinePlayerRoute = require('./routes/add-offline-player');
@@ -381,6 +382,9 @@ app.use('/join-competition-by-code', joinCompetitionByCodeRoute);
 // Public, unauthenticated lookup for the /join/[code] page. Rate limited so invite codes
 // cannot be enumerated quickly.
 app.use('/get-competition-by-code', joinLookupLimit, getCompetitionByCodeRoute);
+// Authenticated companion to the lookup above: answers only "are you already in this one?",
+// so the join page can send a member straight in rather than showing them a Join button.
+app.use('/get-join-status', getJoinStatusRoute);
 app.use('/get-fixture-pick-count', getFixturePickCountRoute);
 app.use('/get-round-history', getRoundHistoryRoute);
 app.use('/add-offline-player', addOfflinePlayerRoute);

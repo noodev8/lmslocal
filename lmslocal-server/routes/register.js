@@ -15,7 +15,9 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "message": "Registration successful. You can now log in to your account.", // string, confirmation message
+  "message": "Registration successful.",      // string, confirmation message
+  "token": "eyJhbGciOiJIUzI1NiIs...",         // string, JWT - the caller is signed in already,
+                                              // same payload and lifetime as login.js
   "user": {                                   // object, created user information
     "id": 123,                                // integer, unique user ID
     "display_name": "John Doe",               // string, user's display name
@@ -42,6 +44,7 @@ Return Codes:
 
 const express = require('express');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const { query, transaction } = require('../database');
 const router = express.Router();
 router.post('/', async (req, res) => {
@@ -187,11 +190,32 @@ router.post('/', async (req, res) => {
     // Users are automatically verified upon registration
     emailSent = false; // No email sent (verification disabled)
 
+    // === SIGN THEM IN ===
+    // Registration issues a token, so creating an account and using it is one round trip rather
+    // than two. The join page used to call register and then login back to back: if the second
+    // request dropped, the player had an account and was not in the competition, and the only way
+    // back was to retry, hit EMAIL_EXISTS, and be told an account already existed seconds after
+    // creating it. Accounts are auto-verified here anyway, so there was never anything for the
+    // extra step to check.
+    //
+    // Payload and lifetime match login.js exactly - see the token policy in CLAUDE.md. If one
+    // changes, change both.
+    const token = jwt.sign(
+      {
+        user_id: newUser.id,
+        email: newUser.email,
+        display_name: newUser.display_name
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '270d' }
+    );
+
     // === SUCCESS RESPONSE ===
     // Return comprehensive user data and email status for frontend handling
     res.json({
       return_code: "SUCCESS",
-      message: "Registration successful. You can now log in to your account.",
+      message: "Registration successful.",
+      token,                                    // JWT - the caller is signed in already
       user: {
         id: newUser.id,                         // User's unique identifier
         display_name: newUser.display_name,     // Confirmed display name

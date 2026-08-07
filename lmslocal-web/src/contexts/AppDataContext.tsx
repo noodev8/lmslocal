@@ -340,7 +340,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
       setUser(null);
       setCompetitions(null);
       setLatestRoundStats(null);
-        setBlockedJoins(null);
+      setBlockedJoins(null);
       setLoading(false);
     };
 

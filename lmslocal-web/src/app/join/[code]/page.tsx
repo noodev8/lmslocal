@@ -96,8 +96,25 @@ export default function JoinPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await competitionApi.getByCode(code);
+        // Both at once. The membership check only matters when there is a session, and firing it
+        // alongside the lookup rather than after means an existing member is redirected without
+        // paying for a second round trip first.
+        const [res, membership] = await Promise.all([
+          competitionApi.getByCode(code),
+          token
+            ? competitionApi.getJoinStatus(code).catch(() => null)
+            : Promise.resolve(null)
+        ]);
         if (cancelled) return;
+
+        // Already in? Then there is nothing to decide. Straight through, no card, no button —
+        // pressing Join only to be told ALREADY_JOINED was the old behaviour and it was noise.
+        if (membership?.data.return_code === 'SUCCESS' && membership.data.is_member && membership.data.competition_id) {
+          setNavigating(true);
+          cacheUtils.clearAll();
+          window.location.href = `/game/${membership.data.competition_id}`;
+          return;
+        }
 
         if (res.data.return_code === 'SUCCESS' && res.data.competition) {
           // SUCCESS is only ever returned for a competition that can still be joined.
@@ -178,6 +195,15 @@ export default function JoinPage() {
     setFormError('');
 
     try {
+      /*
+        One request to get a session, whichever door they came through. Creating an account used
+        to be register followed by login, because register issued no token — so a dropped second
+        request left the player with an account and no membership, and retrying told them an
+        account already existed seconds after they made one. register.js now returns a token, so
+        there is one call either way and no window between them to fall into.
+      */
+      let session: { token?: string; user?: unknown; return_code: string; };
+
       if (mode === 'create') {
         if (!acceptTerms) {
           setFormError('Please accept the terms and privacy policy to continue.');
@@ -204,23 +230,35 @@ export default function JoinPage() {
           setBusy(false);
           return;
         }
+
+        session = reg.data;
+      } else {
+        const login = await authApi.login({ email, password });
+
+        if (login.data.return_code !== 'SUCCESS') {
+          setFormError(
+            login.data.return_code === 'INVALID_CREDENTIALS'
+              ? 'That email and password do not match an account.'
+              : 'Could not sign you in. Please try again.'
+          );
+          setBusy(false);
+          return;
+        }
+
+        session = login.data;
       }
 
-      // Registration does not issue a token, so sign in either way
-      const login = await authApi.login({ email, password });
-      if (login.data.return_code !== 'SUCCESS') {
-        setFormError(
-          login.data.return_code === 'INVALID_CREDENTIALS'
-            ? 'That email and password do not match an account.'
-            : 'Could not sign you in. Please try again.'
-        );
+      if (!session.token) {
+        // Should not happen — both routes issue one on SUCCESS. Fail loudly here rather than
+        // proceeding to a join that would come back UNAUTHORIZED and read as a join problem.
+        setFormError('Could not sign you in. Please try again.');
         setBusy(false);
         return;
       }
 
       cacheUtils.clearAll();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setAuthData(login.data.token as string, login.data.user as any);
+      setAuthData(session.token, session.user as any);
       window.dispatchEvent(new CustomEvent('auth-success'));
 
       const outcome = await attemptJoin();

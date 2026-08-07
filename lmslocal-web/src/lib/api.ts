@@ -459,6 +459,17 @@ export const competitionApi = {
       player_count: number;
     };
   }>('/get-competition-by-code', { competition_code }),
+
+  // Authenticated companion to getByCode. Answers only "am I already in this one?", so the join
+  // page can send an existing member straight to the competition instead of showing them a Join
+  // button for something they already joined. Says nothing about why a competition is unjoinable
+  // — that stays getByCode's business.
+  getJoinStatus: (competition_code: string) => api.post<{
+    return_code: string;
+    message?: string;
+    is_member?: boolean;
+    competition_id?: number | null;
+  }>('/get-join-status', { competition_code }),
   create: (data: CreateCompetitionRequest) => api.post<{ return_code: string; message?: string; competition?: Competition; competition_id?: string }>('/create-competition', data),
   getStatus: (competition_id: number) => withCache(
     `competition-status-${competition_id}`,
