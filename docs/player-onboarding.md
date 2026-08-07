@@ -7,7 +7,7 @@ link for a competition they are already in, on a phone they have never signed in
 it here first, then change the code to match.
 
 Where the doc and the code disagree, this doc is right and the code is a defect — §7 lists the ones
-already known, and which phase each belongs to. Phases 1–3 are done; §9 tracks the rest.
+already known, and which phase each belongs to. Phases 1–4 are done; §9 tracks the rest.
 
 ---
 
@@ -46,9 +46,8 @@ because the leaflet's QR codes pointed at app stores and its first instruction w
 (defect 6, fixed in Phase 3). Spoken code is the path the system was built for and works.
 Organiser-added is out of scope for changes (§5.2).
 
-What still stands between an arriving player and the competition is the join page itself: three
-sequential requests, and a member who is already in still has to press a button (defects 2 and 7,
-Phase 4).
+The join page behind it is now one request for a new account and a straight-through redirect for
+an existing member (Phase 4).
 
 ---
 
@@ -330,12 +329,12 @@ renumbered out of it.
 | # | Defect | Location | Status |
 |---|---|---|---|
 | 1 | `invite_code IS NULL` is overloaded as the "has started" flag, which is why the code is nulled at all. One field, two meanings, and the root of the rejected redesign. There was exactly **one** reader — the guard on changing `lives_per_player` and `no_team_twice` — so this needed no new column, only that line computing from round 1's lock time like everything else does. | `update-competition.js`, `get-user-dashboard.js` | **Fixed** — Phase 1 |
-| 2 | Register issues no token, so joining is three sequential requests: register, login, join. If register succeeds and login drops, the player has an account and is not in the competition. Recovery works but is confusing — retrying returns `EMAIL_EXISTS`, which switches them to the sign-in form and tells them an account already exists, seconds after they created it. | `join/[code]/page.tsx:175-212`, `register.js:193` | Open — Phase 4 |
+| 2 | Register issued no token, so joining was three sequential requests: register, login, join. If register succeeded and login dropped, the player had an account and was not in the competition. | `join/[code]/page.tsx`, `register.js` | **Fixed** — Phase 4 |
 | 3 | No unique constraint on `invite_code`. Uniqueness relied on a retry loop whose `SELECT` does not lock, so concurrent creations could collide. No duplicates ever existed. | `create-competition.js` | **Fixed** — Phase 1 |
 | 4 | No index on `invite_code`, and the lookup was `WHERE UPPER(invite_code) = $1 OR UPPER(slug) = $1` — a sequential scan with a function, on a public endpoint. | `get-competition-by-code.js`, `join-competition-by-code.js` | **Fixed** — Phase 1 |
 | 5 | The public lookup returned competition name, venue, organiser and player count for started and full competitions, not only open ones. Contradicted §4.3. | `get-competition-by-code.js` | **Fixed** — Phase 2 |
 | 6 | The leaflet instructed players to install the app and type the code. Its two QR codes pointed at app stores; `join_url` was fetched but unused. | `leaflet/[competitionId]/page.tsx` | **Fixed** — Phase 3 |
-| 7 | A signed-in player who is already a member still has to press **Join** and wait for `ALREADY_JOINED` before being redirected. Should go straight in. | `join/[code]/page.tsx:366-402` | Open — Phase 4 |
+| 7 | A signed-in player who was already a member still had to press **Join** and wait for `ALREADY_JOINED` before being redirected. | `join/[code]/page.tsx` | **Fixed** — Phase 4 |
 | 8 | `SETUP → ACTIVE` was written only on organiser dashboard load, so a competition that had started read `SETUP` until its organiser next signed in — indefinitely, if they never did. Admin reporting counts by `status` and undercounted started competitions as a result. | `get-user-dashboard.js` | **Fixed** — Phase 1 |
 | 9 | `load-competition-announcement.js` selected `access_code`, a column that does not exist, so the query threw on every call and no announcement email could be sent. The same path built a join URL as `/competition/{slug}`, a route that does not exist. | `load-competition-announcement.js`, `emailService.js` | **Fixed** in passing — both blocked the `slug` drop. The wider email rewrite is still separate; see §9. |
 | 10 | `competition_user` carries five overlapping indexes on `(competition_id)` and `(competition_id, user_id)`. Harmless but wasteful on write. | schema | Open — Phase 7 |
@@ -462,10 +461,31 @@ can act on is worse than none.
 code, no QR. A scannable Facebook post is worth more than a typed code, but it is server-side image
 generation and a separate piece of work.
 
-**Phase 4 — The join page, rebuilt.** One resolver, the §8 matrix, auth forms extracted from the
-page component. Single-request join for both new and returning accounts, which means register must
-return a token or a dedicated join route must exist. Pending-join survives a `/login` bounce. Fixes
-defects 2 and 7.
+**Phase 4 — The join page. ✅ DONE.** Fixed defects 2 and 7.
+
+`register.js` now issues a JWT — same payload, same lifetime as `login.js`, and the token policy in
+CLAUDE.md applies to both. Creating an account and using it is one request instead of two, so the
+window where a player had an account but no membership is gone. Accounts were already auto-verified,
+so the extra step had nothing to check.
+
+`get-join-status` answers only "am I already in this one?", fired **alongside** the public lookup
+rather than after it, so an existing member is redirected with no added latency and never sees a
+Join button for something they already joined.
+
+It is a separate route rather than optional auth on `get-competition-by-code`, and should stay one.
+That route is deliberately unauthenticated and deliberately silent about competitions nobody can
+join; membership is meaningless without an identity and is only ever disclosed to the person it is
+about. Two concerns in one handler is how a future edit leaks one through the other's branch.
+
+*Pending-join across a `/login` bounce needed nothing:* the page never sends anyone to `/login`.
+A stale token falls back to the form in place with the code still in the URL — `/join` is in the
+context's `PUBLIC_PATH_PREFIXES` and the `auth-expired` handler only clears state. Not bouncing is
+the stronger version of surviving a bounce.
+
+*Auth forms were not extracted.* The plan called for it, but the form shares ten pieces of state
+with the page it sits in — mode, the four fields, busy, error, and the submit handler. Passing that
+across a component boundary is more coupling than it removes, not less. Revisit if the page grows a
+third mode.
 
 **Phase 5 — Widen the code.** Move new competitions to 5 digits. No migration; existing 4-digit
 codes keep working. Do this before the live-competition count makes collisions frequent, not after.
