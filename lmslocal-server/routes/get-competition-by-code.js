@@ -36,8 +36,8 @@ Purpose: Public lookup of a competition from its invite code, so the /join/[code
          round 1 locks. If those rules change, change them in both places.
 
          Rate limited in server.js by joinLookupLimit (30 a minute per IP) rather than the general
-         DB-intensive limiter, which at 50 per 10 seconds would let the whole 4-digit code space be
-         walked in under a minute. That raises the cost of enumeration; returning nothing for a
+         DB-intensive limiter, which at 50 per 10 seconds would let the whole code space be walked
+         in well under an hour. That raises the cost of enumeration; returning nothing for a
          closed competition is what makes enumeration pointless.
 =======================================================================================================================================
 Request Payload:

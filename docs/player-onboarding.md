@@ -7,7 +7,7 @@ link for a competition they are already in, on a phone they have never signed in
 it here first, then change the code to match.
 
 Where the doc and the code disagree, this doc is right and the code is a defect — §7 lists the ones
-already known, and which phase each belongs to. Phases 1–4 are done; §9 tracks the rest.
+already known, and which phase each belongs to. Phases 1–5 are done; §9 tracks the rest.
 
 ---
 
@@ -38,7 +38,7 @@ are better understood as three, because they want different things:
 | Context | Player is holding | Requirement |
 |---|---|---|
 | **Link or QR** — WhatsApp, a leaflet, the organiser's own social post | A URL with the code in it | Never type anything. Tap or scan, confirm, in. |
-| **Spoken code** — heard at the bar, read off a poster | Four or five digits | Short, unambiguous, forgiving of case and whitespace |
+| **Spoken code** — heard at the bar, read off a poster | Five digits, or four on older competitions | Short, unambiguous, forgiving of case and whitespace |
 | **Organiser-added** — the landlord adds them by hand | Nothing | Not a self-service flow at all; see §5.2 |
 
 Link is the path that matters most. It was the weakest — not because of what the URL says, but
@@ -59,11 +59,11 @@ in having two.
 
 | Property | Rule |
 |---|---|
-| **Shape** | 4 digits today. Phase 5 moves new competitions to 5; matching is exact so mixed lengths will coexist with no migration. |
+| **Shape** | 5 digits. Competitions created before Phase 5 keep their 4; matching is exact, so the two lengths coexist and no migration was needed. |
 | **Generated** | Automatically at creation, exactly as now. The organiser is never asked and never sees a decision. |
 | **Unique** | Across all *existing* competitions, enforced by a database constraint, not a retry loop. |
 | **Lifetime** | Permanent for the life of the competition. **Never nulled.** |
-| **Released** | Only when the competition row is deleted. |
+| **Released** | Only when the competition row is deleted. A reset keeps it — see §3.1. |
 | **Editable** | Not yet. See §6.3 for the deliberately deferred option. |
 
 ### 3.1 Why it must not be recycled while the competition exists
@@ -78,6 +78,11 @@ Nags Inn's competition and invites them to join it.
 That is worse than a dead link, and it is invisible to everyone involved. So: while the
 competition exists, its code is its own. Deleting a finished competition frees the code, and that
 is acceptable because the competition it pointed at is genuinely gone.
+
+**A reset does not end a competition, so it keeps its code.** `reset-competition.js` used to issue
+a fresh one, which silently killed every poster and QR already printed — the same failure as
+recycling, arriving through the back door on the one action an organiser takes between seasons.
+Fixed in Phase 5.
 
 ### 3.2 Why the namespace is not under pressure
 
@@ -295,8 +300,13 @@ it means a new decision in the flow of an organiser who wants to create a compet
 their friends — friction placed on exactly the people the project depends on.
 
 The problem it solves is real but not present: only two competitions have ever reached `COMPLETE`,
-and none has been succeeded by another. `reset-competition.js` already restarts a competition in
-place, keeping its row and therefore its code, which may be the whole answer.
+and none has been succeeded by another. `reset-competition.js` restarts a competition in place,
+keeping its row and — since Phase 5 — its code, so printed material survives a season rollover.
+That may be the whole answer.
+
+*This paragraph originally claimed reset already kept the code. It did not; it generated a new one
+on every reset. The claim was load-bearing for rejecting an organiser namespace, so it was made
+true rather than quietly dropped.*
 
 **What would bring it back:** an organiser actually asking how to keep their poster across
 seasons, and `reset-competition` turning out to be the wrong model for it. Adding a second path
@@ -487,8 +497,20 @@ with the page it sits in — mode, the four fields, busy, error, and the submit 
 across a component boundary is more coupling than it removes, not less. Revisit if the page grows a
 third mode.
 
-**Phase 5 — Widen the code.** Move new competitions to 5 digits. No migration; existing 4-digit
-codes keep working. Do this before the live-competition count makes collisions frequent, not after.
+**Phase 5 — Widen the code. ✅ DONE.**
+
+New competitions get 5 digits — 90,000 against the number alive at once, since finished ones are
+deleted and release their codes. Existing 4-digit codes keep working untouched: matching is exact,
+so the lengths coexist and nothing needed migrating. Nothing in either frontend or the Flutter app
+constrained a code's length, so there was nothing else to change.
+
+The larger find was `reset-competition.js`, which held a **second copy of the code generator** —
+4-digit, case-sensitive pre-check, no reserved-code list, and no `23505` retry. That last one was a
+regression Phase 1 introduced: before the unique index a race there produced a rare duplicate,
+after it the organiser got `SERVER_ERROR` mid-reset.
+
+It is gone rather than fixed, because a reset should not issue a new code at all (§3.1). That
+leaves one generator in the codebase, which is why widening was a one-line change.
 
 **Phase 6 — Registration trim.** Terms as inline consent rather than a checkbox, single screen,
 sensible autofocus and `autocomplete`. Small, but it is the last thing between a player and the

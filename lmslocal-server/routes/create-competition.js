@@ -39,7 +39,8 @@ Success Response (ALWAYS HTTP 200):
     "lives_per_player": 1,                     // integer, lives per player
     "no_team_twice": true,                     // boolean, team reuse prevention
     "fixture_service": true,                   // boolean, subscribed to the automated fixture service
-    "invite_code": "4567",                     // string, 4-digit invite code
+    "invite_code": "45678",                    // string, 5-digit invite code. Competitions
+                                               // created before this change keep their 4 digits.
     "created_at": "2025-01-01T12:00:00.000Z",  // string, ISO datetime when created
     "organiser_id": 456                        // integer, organiser user ID
   }
@@ -199,7 +200,9 @@ router.post('/', verifyToken, async (req, res) => {
       // transaction: without one, every statement after the first collision would fail with
       // "current transaction is aborted" and the retry would be pointless.
       //
-      // Codes the organiser keeps for their own recurring use - never auto-assigned to a customer
+      // Codes the organiser keeps for their own recurring use - never auto-assigned to a customer.
+      // Currently unreachable, since every entry is 4 digits and generation is 5 - kept because it
+      // is the right place to put a reserved code, whatever its length.
       const RESERVED_INVITE_CODES = ['1992'];
       const maxAttempts = 100;
       let competitionResult = null;
@@ -208,8 +211,10 @@ router.post('/', verifyToken, async (req, res) => {
       while (attempts < maxAttempts && competitionResult === null) {
         attempts++;
 
-        // Generate 4-digit random number
-        const inviteCode = Math.floor(1000 + Math.random() * 9000).toString();
+        // 5 digits: 90,000 codes against the number of competitions alive at once, since finished
+        // ones are deleted and their codes released. Existing 4-digit codes keep working - matching
+        // is exact, so the two lengths coexist and no migration was needed.
+        const inviteCode = Math.floor(10000 + Math.random() * 90000).toString();
 
         if (RESERVED_INVITE_CODES.includes(inviteCode)) {
           continue;

@@ -3,7 +3,8 @@
 API Route: reset-competition
 =======================================================================================================================================
 Method: POST
-Purpose: Completely resets a competition to its initial state, clearing all game data and generating a new invite code
+Purpose: Completely resets a competition to its initial state, clearing all game data. The invite
+         code is deliberately preserved - see the note below.
 =======================================================================================================================================
 Request Payload:
 {
@@ -18,7 +19,7 @@ Success Response (ALWAYS HTTP 200):
     "id": 123,                                    // integer, competition ID
     "name": "My Competition",                     // string, competition name
     "status": "LOCKED",                           // string, reset to LOCKED status
-    "invite_code": "7392",                        // string, newly generated invite code
+    "invite_code": "7392",                        // string, UNCHANGED - the competition keeps it
     "reset_at": "2025-09-06T10:30:00.000Z",     // string, ISO datetime when reset occurred
     "players_affected": 15                        // integer, number of players who had their data reset
   }
@@ -80,7 +81,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 1. Get current competition details and verify organiser access with row lock
       const competitionResult = await client.query(`
-        SELECT id, name, organiser_id, team_list_id, status, created_at, lives_per_player, fixture_service
+        SELECT id, name, organiser_id, team_list_id, status, created_at, lives_per_player, fixture_service, invite_code
         FROM competition
         WHERE id = $1
         FOR UPDATE
@@ -97,31 +98,16 @@ router.post('/', verifyToken, async (req, res) => {
         throw new Error('UNAUTHORIZED: Only the competition organiser can reset this competition');
       }
 
-      // 3. Generate unique invite code atomically (prevents race conditions)
-      let newInviteCode = '';
-      let attempts = 0;
-      const maxAttempts = 100;
-
-      while (attempts < maxAttempts) {
-        // Generate 4-digit random number
-        newInviteCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-        // Check if this code already exists within the same transaction
-        const existingCodeResult = await client.query(
-          'SELECT id FROM competition WHERE invite_code = $1 AND id != $2',
-          [newInviteCode, competition_id]
-        );
-
-        if (existingCodeResult.rows.length === 0) {
-          break; // Found unique code
-        }
-        
-        attempts++;
-      }
-
-      if (attempts >= maxAttempts) {
-        throw new Error('SERVER_ERROR: Unable to generate unique invite code after multiple attempts');
-      }
+      // 3. The invite code is deliberately NOT regenerated.
+      //
+      // A reset clears a competition; it does not end it. The row survives, so under §3.1 of
+      // docs/player-onboarding.md the code belongs to it for as long as it exists. Issuing a new
+      // one silently killed every poster, beer mat and WhatsApp link already out there - which is
+      // the exact problem a permanent code is meant to prevent, arriving through the back door on
+      // the one action an organiser takes between seasons.
+      //
+      // This also removes a second copy of the code generator that predated the unique index on
+      // UPPER(invite_code) and never gained the 23505 retry that create-competition has.
 
       // 4. Count players before deletion for reporting purposes
       const playersCountResult = await client.query(`
@@ -173,17 +159,16 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING id
       `, [competition_id]);
 
-      // 6. Update competition status and generate new invite code. ready_at goes back to null so
-      //    the fixture service waits to be told again - see the header.
+      // 6. Back to SETUP. invite_code is absent from the SET list on purpose - see step 3.
+      //    ready_at goes back to null so the fixture service waits to be told again - see the header.
       const updatedCompetitionResult = await client.query(`
         UPDATE competition
         SET status = 'SETUP',
             created_at = CURRENT_TIMESTAMP,
-            invite_code = $1,
             ready_at = NULL
-        WHERE id = $2
+        WHERE id = $1
         RETURNING id, name, status, invite_code, created_at
-      `, [newInviteCode, competition_id]);
+      `, [competition_id]);
 
       const updatedCompetition = updatedCompetitionResult.rows[0];
 
@@ -229,7 +214,7 @@ router.post('/', verifyToken, async (req, res) => {
         `Deleted ${deletedProgressResult.rows.length} player progress records`,
         `Deleted ${deletedAllowedTeamsResult.rows.length} allowed team entries`,
         `Reset player states (payment status, lives, join date) for ${resetPlayerResult.rows.length} players`,
-        `Generated new invite code: ${newInviteCode}`,
+        `Kept invite code ${competition.invite_code}`,
         `Affected ${playersAffected} players`,
         `Repopulated allowed teams for all players`,
         ...(competition.fixture_service === true ? ['Start put back on hold until the organiser presses Ready'] : [])
@@ -267,7 +252,7 @@ router.post('/', verifyToken, async (req, res) => {
         id: result.competition.id,                                    // Competition ID for reference
         name: result.competition.name,                               // Competition name
         status: result.competition.status,                           // Reset status (LOCKED)
-        invite_code: result.competition.invite_code,                // New invite code generated
+        invite_code: result.competition.invite_code,                // Unchanged - the competition keeps it
         reset_at: result.competition.created_at,                    // When the reset occurred
         players_affected: result.playersAffected                   // Number of players affected
       }
