@@ -96,17 +96,13 @@ router.post('/', verifyToken, async (req, res) => {
             (SELECT COUNT(*) FROM allowed_teams WHERE user_id = $1) as allowed_teams,
             -- Count progress records
             (SELECT COUNT(*) FROM player_progress WHERE player_id = $1) as progress_records,
-            -- Count user activities
-            (SELECT COUNT(*) FROM user_activity WHERE user_id = $1) as user_activities,
             -- Count audit logs for this user
-            (SELECT COUNT(*) FROM audit_log WHERE user_id = $1) as audit_logs,
-            -- Count invitations sent to this email
-            (SELECT COUNT(*) FROM invitation WHERE email = $2) as invitations
+            (SELECT COUNT(*) FROM audit_log WHERE user_id = $1) as audit_logs
         )
         SELECT * FROM user_stats
       `;
 
-      const statsResult = await client.query(dataAnalysisQuery, [user_id, user_email]);
+      const statsResult = await client.query(dataAnalysisQuery, [user_id]);
       const stats = statsResult.rows[0];
 
       // Business Rule: Check if user has active competitions as organiser
@@ -179,8 +175,6 @@ router.post('/', verifyToken, async (req, res) => {
         picks_made: 0,
         allowed_teams: 0,
         progress_records: 0,
-        user_activities: 0,
-        invitations: 0,
         audit_logs: 0
       };
 
@@ -211,11 +205,8 @@ router.post('/', verifyToken, async (req, res) => {
           // Delete all player progress for this competition
           await client.query('DELETE FROM player_progress WHERE competition_id = $1', [competitionId]);
           
-          // Delete all user activities for this competition
-          await client.query('DELETE FROM user_activity WHERE competition_id = $1', [competitionId]);
-          
-          // Delete all invitations for this competition
-          await client.query('DELETE FROM invitation WHERE competition_id = $1', [competitionId]);
+          // Delete queued push notifications for this competition
+          await client.query('DELETE FROM mobile_notification_queue WHERE competition_id = $1', [competitionId]);
 
           // Delete all email preferences for this competition
           await client.query('DELETE FROM email_preference WHERE competition_id = $1', [competitionId]);
@@ -248,13 +239,16 @@ router.post('/', verifyToken, async (req, res) => {
       const deleteProgressResult = await client.query('DELETE FROM player_progress WHERE player_id = $1', [user_id]);
       deletionCounts.progress_records = deleteProgressResult.rowCount || 0;
 
-      await client.query('DELETE FROM user_allowance WHERE user_id = $1', [user_id]);
+      // Queued push notifications and the devices they would be sent to. Device tokens matter
+      // beyond tidiness: a token left behind can be reissued by the OS to another install, so a
+      // deleted user's row is a route to someone else's phone.
+      await client.query('DELETE FROM mobile_notification_queue WHERE user_id = $1', [user_id]);
+      await client.query('DELETE FROM device_tokens WHERE user_id = $1', [user_id]);
 
-      const deleteActivitiesResult = await client.query('DELETE FROM user_activity WHERE user_id = $1', [user_id]);
-      deletionCounts.user_activities = deleteActivitiesResult.rowCount || 0;
-
-      const deleteInvitationsResult = await client.query('DELETE FROM invitation WHERE email = $1', [user_email]);
-      deletionCounts.invitations = deleteInvitationsResult.rowCount || 0;
+      // Promo redemptions. credit_purchases, credit_transactions and join_block are not listed
+      // here on purpose - their foreign keys to app_user are ON DELETE CASCADE, so the final
+      // delete takes them.
+      await client.query('DELETE FROM promo_code_usage WHERE user_id = $1', [user_id]);
 
       // Delete user's global email preferences (competition_id = 0 and any remaining competition-specific ones)
       await client.query('DELETE FROM email_preference WHERE user_id = $1', [user_id]);
