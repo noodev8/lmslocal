@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.2.9+15
+version: 2.0.0+16
 
 environment:
   sdk: ^3.10.0
@@ -32,25 +32,25 @@ dependencies:
     sdk: flutter
 
   # Icons
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^1.0.9
 
   # State Management
   flutter_bloc: ^8.1.6
   provider: ^6.1.2
-  equatable: ^2.0.5
+  equatable: ^2.1.0
 
   # Networking
-  dio: ^5.7.0
+  dio: ^5.11.0
 
   # Storage
   flutter_secure_storage: ^9.2.2
-  shared_preferences: ^2.3.3
+  shared_preferences: ^2.5.5
 
   # Navigation
   go_router: ^14.6.2
 
   # Utilities
-  intl: ^0.19.0
+  intl: ^0.20.3
   url_launcher: ^6.3.1
   package_info_plus: ^8.1.2
 
@@ -70,7 +70,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # Launcher icon generation
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -87,12 +87,23 @@ flutter:
   assets:
     - assets/images/logo.png
 
-# Flutter Launcher Icons Configuration
-# flutter_launcher_icons:
-#   android: true
-#   ios: true
-#   image_path: "assets/lmslocal_icon_1024.png"
-#   remove_alpha_ios: true
+  # Fonts are bundled rather than fetched at runtime: the splash screen is the
+  # first thing anyone sees and must not paint in a fallback face.
+  # See docs/design-system.md §3 for what each family is allowed to be used for.
+  # Big Shoulders and Instrument Sans are variable fonts, so weight is selected
+  # with FontVariation in the theme, not by shipping one file per weight.
+  fonts:
+    - family: BigShoulders
+      fonts:
+        - asset: assets/fonts/BigShoulders.ttf
+    - family: InstrumentSans
+      fonts:
+        - asset: assets/fonts/InstrumentSans.ttf
+    - family: CourierPrime
+      fonts:
+        - asset: assets/fonts/CourierPrime-Regular.ttf
+        - asset: assets/fonts/CourierPrime-Bold.ttf
+          weight: 700
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
