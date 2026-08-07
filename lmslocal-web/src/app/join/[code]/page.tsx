@@ -61,7 +61,6 @@ export default function JoinPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const [busy, setBusy] = useState(false);
   // Held true through the page load that follows a successful join, so the button
@@ -205,19 +204,13 @@ export default function JoinPage() {
       let session: { token?: string; user?: unknown; return_code: string; };
 
       if (mode === 'create') {
-        if (!acceptTerms) {
-          setFormError('Please accept the terms and privacy policy to continue.');
-          setBusy(false);
-          return;
-        }
-
+        // Consent is given by submitting, which the line above the button says. Nothing to check.
         const reg = await authApi.register({
           name,
           display_name: name,
           email,
           password,
-          confirmPassword: password,
-          acceptTerms
+          acceptTerms: true
         });
 
         if (reg.data.return_code !== 'SUCCESS') {
@@ -456,6 +449,12 @@ export default function JoinPage() {
           {mode === 'create' && (
             <label className="mt-5 block">
               <span className={`${LABEL} text-ink-fade`}>Your name</span>
+              {/*
+                No autoFocus here, deliberately — unlike /register, where the page is the form.
+                The competition card sits above this, and focusing an input scrolls past the venue
+                and organiser name the player needs in order to know they are joining the right
+                thing. That card existing before the form is the whole point of §4.4.
+              */}
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -492,33 +491,31 @@ export default function JoinPage() {
             />
           </label>
 
+          {/*
+            Consent is stated, not ticked. A checkbox whose only valid answer is yes is a step
+            that stops people rather than informing them, and this is the last thing standing
+            between someone holding a poster and being in the competition. Same wording as
+            /register, so the two signup surfaces say the same thing.
+          */}
           {mode === 'create' && (
-            <label className="mt-5 flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={acceptTerms}
-                onChange={(e) => setAcceptTerms(e.target.checked)}
-                className="mt-1 h-4 w-4 accent-overprint"
-              />
-              <span className="text-[16px] leading-relaxed text-ink">
-                I agree to the{' '}
-                <Link href="/terms" target="_blank" className="underline underline-offset-4">
-                  terms
-                </Link>{' '}
-                and{' '}
-                <Link href="/privacy" target="_blank" className="underline underline-offset-4">
-                  privacy policy
-                </Link>
-                .
-              </span>
-            </label>
+            <p className="mt-5 text-[15px] leading-relaxed text-ink-fade">
+              Joining means you agree to the{' '}
+              <Link href="/terms" target="_blank" className="underline underline-offset-4">
+                terms
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" target="_blank" className="underline underline-offset-4">
+                privacy policy
+              </Link>
+              .
+            </p>
           )}
 
           <button
             type="submit"
             disabled={busy}
             aria-busy={busy}
-            className="mt-7 w-full rounded-sm bg-overprint px-8 py-4 font-display text-2xl uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="mt-5 w-full rounded-sm bg-overprint px-8 py-4 font-display text-2xl uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {navigating ? 'Taking you in…' : busy ? 'One moment…' : `Join ${competition.name}`}
           </button>

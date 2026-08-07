@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { authApi, RegisterRequest } from '@/lib/api';
+import { setAuthData } from '@/lib/auth';
 import AuthShell, { authInput, authButton, Notice, AuthLink } from '@/components/public/AuthShell';
 import { LABEL } from '@/lib/design';
 
@@ -17,21 +18,29 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors }
   } = useForm<RegisterRequest>();
-
-  const password = watch('password');
 
   const onSubmit = async (data: RegisterRequest) => {
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await authApi.register({ ...data, display_name: data.name });
+      // acceptTerms is stated rather than ticked — submitting is the consent, and the line above
+      // the button says so. The server validates neither this nor confirmPassword.
+      const response = await authApi.register({ ...data, display_name: data.name, acceptTerms: true });
 
-      if (response.data.return_code === 'SUCCESS') {
-        router.push('/login?message=Account created. Sign in to get going.');
+      if (response.data.return_code === 'SUCCESS' && response.data.token) {
+        // Straight in. Registration used to bounce to /login with "Account created, sign in to get
+        // going", which asked someone to prove who they were seconds after telling us — and the
+        // account is auto-verified, so there was nothing to prove. register.js issues a token now,
+        // so this matches what /login does with it, landing in the same place.
+        const { cacheUtils } = await import('@/lib/api');
+        cacheUtils.clearAll();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setAuthData(response.data.token, response.data.user as any);
+        window.dispatchEvent(new CustomEvent('auth-success'));
+        router.push('/dashboard');
         return;
       }
 
@@ -77,6 +86,7 @@ export default function RegisterPage() {
               minLength: { value: 2, message: 'That is a little short' }
             })}
             type="text"
+            autoFocus
             autoComplete="name"
             placeholder="How you appear to your players"
             className={authInput}
@@ -125,38 +135,21 @@ export default function RegisterPage() {
           <span className="mt-2 block text-[15px] text-ink-fade">At least 6 characters.</span>
         </label>
 
-        <label className="mt-5 block">
-          <span className={`${LABEL} text-ink-fade`}>Confirm password</span>
-          <input
-            {...register('confirmPassword', {
-              required: 'Type your password again',
-              validate: (value) => value === password || 'Those two passwords do not match'
-            })}
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="new-password"
-            className={authInput}
-          />
-          {errors.confirmPassword && (
-            <span className="mt-2 block text-[15px] text-overprint">{errors.confirmPassword.message}</span>
-          )}
-        </label>
+        {/*
+          No confirm-password field. It guards against a typo you cannot see — but the password can
+          be revealed with the toggle above, and a forgotten one is a reset away. The join page's
+          signup has never had one. Asking twice for the same thing is a step, and this form is the
+          last thing between someone and using the product.
 
-        <label className="mt-6 flex items-start gap-3">
-          <input
-            {...register('acceptTerms', { required: 'Accept the terms to create an account' })}
-            type="checkbox"
-            className="mt-1 h-4 w-4 accent-overprint"
-          />
-          <span className="text-[16px] leading-relaxed text-ink">
-            I agree to the <AuthLink href="/terms">terms</AuthLink> and{' '}
-            <AuthLink href="/privacy">privacy policy</AuthLink>.
-          </span>
-        </label>
-        {errors.acceptTerms && (
-          <span className="mt-2 block text-[15px] text-overprint">{errors.acceptTerms.message}</span>
-        )}
+          Consent is stated rather than ticked, for the same reason: a checkbox whose only valid
+          answer is "yes" is a lock with the key taped to it. The server validates neither field.
+        */}
+        <p className="mt-7 text-[15px] leading-relaxed text-ink-fade">
+          Creating an account means you agree to the <AuthLink href="/terms">terms</AuthLink> and{' '}
+          <AuthLink href="/privacy">privacy policy</AuthLink>.
+        </p>
 
-        <button type="submit" disabled={isLoading} aria-busy={isLoading} className={`${authButton} mt-7`}>
+        <button type="submit" disabled={isLoading} aria-busy={isLoading} className={`${authButton} mt-4`}>
           {isLoading ? 'Creating your account…' : 'Create account'}
         </button>
       </form>

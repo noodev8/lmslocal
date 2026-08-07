@@ -302,8 +302,13 @@ export interface RegisterRequest {
   display_name?: string;
   email: string;
   password: string;
-  confirmPassword: string;
-  acceptTerms: boolean;
+  /**
+   * Both are sent for the API's benefit and validated nowhere on the server — it checks neither.
+   * Consent is given by submitting the form, which says so above the button, so `acceptTerms` is
+   * always true by the time this is called rather than a field anyone ticks.
+   */
+  confirmPassword?: string;
+  acceptTerms?: boolean;
 }
 
 export interface CreateCompetitionRequest {
