@@ -214,10 +214,15 @@ export default function JoinPage() {
         });
 
         if (reg.data.return_code !== 'SUCCESS') {
+          // Pass the server's own message through. register.js writes user-facing copy for each
+          // validation case ("Please enter a valid email address" and four others), and collapsing
+          // them all into "try again" tells a player to repeat exactly what just failed. A typo
+          // like gmailcom instead of gmail.com clears HTML5 email validation, so the server's
+          // message is the only thing that can name it.
           setFormError(
             reg.data.return_code === 'EMAIL_EXISTS'
               ? 'There is already an account with that email. Sign in instead.'
-              : 'Could not create your account. Please try again.'
+              : reg.data.message || 'Could not create your account. Please try again.'
           );
           if (reg.data.return_code === 'EMAIL_EXISTS') setMode('signin');
           setBusy(false);
@@ -232,7 +237,7 @@ export default function JoinPage() {
           setFormError(
             login.data.return_code === 'INVALID_CREDENTIALS'
               ? 'That email and password do not match an account.'
-              : 'Could not sign you in. Please try again.'
+              : login.data.message || 'Could not sign you in. Please try again.'
           );
           setBusy(false);
           return;

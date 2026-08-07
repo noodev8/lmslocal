@@ -400,8 +400,10 @@ export interface DeleteCompetitionResponse {
 
 // Auth API calls
 export const authApi = {
-  login: (data: LoginRequest) => api.post<{ return_code: string; token: string; user: User }>('/login', data),
-  register: (data: RegisterRequest) => api.post<{ return_code: string; token: string; user: User }>('/register', data),
+  // message is present only on failure, and carries the reason - both routes write user-facing
+  // copy per validation case, which callers should show rather than inventing a generic retry.
+  login: (data: LoginRequest) => api.post<{ return_code: string; token: string; user: User; message?: string }>('/login', data),
+  register: (data: RegisterRequest) => api.post<{ return_code: string; token: string; user: User; message?: string }>('/register', data),
   forgotPassword: (email: string) => api.post<{ return_code: string; message: string }>('/forgot-password', { email }),
   resetPassword: (token: string, new_password: string) => api.post<{ return_code: string; message: string }>('/reset-password', { token, new_password }),
   verifyEmail: (token: string) => api.post<{ return_code: string; message: string }>('/verify-email', { token }),
