@@ -8,8 +8,24 @@ Bots**.
 
 ## The two rules that shape everything else
 
-**1. Bots are obviously bots.** Every one is called `Bot <Name>` and every player sees that
-name in standings, pick statistics and player lists. Nothing hides it or dresses it up.
+**1. Bots are obviously bots.** Every player sees a **Bot** chip beside a bot's name wherever
+names are listed. Nothing hides it or dresses it up.
+
+The chip replaced a `Bot ` name prefix, which was the disclosure until it read as clutter in a
+competition holding twenty of them. The mechanism is worth knowing because it is no longer
+automatic:
+
+- There is **no `is_bot` column**. A bot is identified by its email (`isBotEmail` /
+  `BOT_EMAIL_LIKE` in `services/botPool.js`), and player-facing routes never return email.
+- So each route that lists names must derive and return an `is_bot` boolean, and each screen must
+  render `components/BotChip.tsx` from it. Currently: `get-standings-group`, `get-player-history`
+  and `get-competition-players`.
+- **A new player-visible screen that forgets `is_bot` will show bots as ordinary people.** That is
+  the failure mode the old prefix could not have — it travelled inside the name string.
+
+The prefix still exists on the `app_user` account (`Bot Alice`), so the pool and the admin Bots
+screen stay readable. What players see is `competition_user.player_display_name`, which is
+per-competition — competition 200 has it stripped to bare first names, competition 199 does not.
 
 **2. Bots can only go in our own competitions.** The Bots screen only offers competitions run by
 an organiser in `BOT_ORGANISER_IDS` (`lmslocal-server/services/botPool.js`), currently just
@@ -80,6 +96,10 @@ nothing.
 
 **Create bots** in the Bot pool panel adds more, continuing the name series (`Bot Uma`,
 `Bot Victor`, …). Up to 20 per press.
+
+A new bot joins a competition under its account name, prefix and all. Strip the prefix from
+`competition_user.player_display_name` for that competition if it should match the bare-name
+convention the others there use — the **Bot** chip is what discloses it either way.
 
 The pool is shared: the same bot can be in any number of competitions at once. So it only has to
 be as big as the largest single competition, not the total across all of them.

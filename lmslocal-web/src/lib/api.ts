@@ -236,6 +236,8 @@ export interface Round {
 export interface Player {
   id: number;
   display_name: string;
+  /** True for one of our bots. Derived server-side from the bot email pattern (services/botPool.js). */
+  is_bot?: boolean;
   email?: string;
   is_managed?: boolean;
   joined_competition?: boolean;

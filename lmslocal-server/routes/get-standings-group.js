@@ -30,6 +30,7 @@ Success Response (ALWAYS HTTP 200):
     {
       "id": 456,                          // integer, player user ID
       "display_name": "John Doe",         // string, player name
+      "is_bot": false,                    // boolean, true if this is one of our bots
       "lives_remaining": 2,               // integer, remaining lives
       "status": "active",                 // string, player status
       "current_pick": {                   // object|null, current round pick
@@ -63,6 +64,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { BOT_EMAIL_LIKE } = require('../services/botPool');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -283,6 +285,14 @@ router.post('/', verifyToken, async (req, res) => {
     const offsetParamIndex = paramIndex + 1;
     queryParams.push(offset);
 
+    /*
+    Bots have no flag of their own - the email pattern is what identifies one (services/botPool.js).
+    Nothing else on this response leaks the address, so this boolean is the only thing that tells
+    the standings screen to badge the row.
+    */
+    const botParamIndex = paramIndex + 2;
+    queryParams.push(BOT_EMAIL_LIKE);
+
     // Build the pick join clause based on whether we have a round
     const pickJoinClause = currentRound
       ? `LEFT JOIN pick p ON p.user_id = cu.user_id AND p.round_id = $${roundParamIndex}`
@@ -292,6 +302,7 @@ router.post('/', verifyToken, async (req, res) => {
       SELECT
         cu.user_id as id,
         cu.player_display_name as display_name,
+        (au.email LIKE $${botParamIndex}) as is_bot,
         cu.lives_remaining,
         cu.status,
 
@@ -351,6 +362,7 @@ router.post('/', verifyToken, async (req, res) => {
       const player = {
         id: row.id,
         display_name: row.display_name,
+        is_bot: row.is_bot === true,
         lives_remaining: row.lives_remaining,
         status: row.status,
         current_pick: null,

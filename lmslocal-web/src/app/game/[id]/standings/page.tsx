@@ -14,6 +14,7 @@ import {
 import { userApi } from '@/lib/api';
 import { getCurrentUser } from '@/lib/auth';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
+import BotChip from '@/components/BotChip';
 
 interface StandingsGroup {
   key: string;
@@ -35,6 +36,7 @@ interface Competition {
 interface Player {
   id: number;
   display_name: string;
+  is_bot?: boolean;
   lives_remaining: number;
   status: string;
   group_name?: string;
@@ -440,6 +442,7 @@ export default function StandingsPage() {
                                       />
                                     </span>
                                     <span className="sr-only"> &mdash; out</span>
+                                    {player.is_bot && <BotChip />}
                                     {player.elimination_pick && (
                                       <span className={`${LABEL} text-ink-fade`}>Round {player.elimination_pick.round_number}</span>
                                     )}
@@ -463,6 +466,7 @@ export default function StandingsPage() {
                               <div key={player.id} className="p-4">
                                 <div className="mb-2 flex items-center gap-2">
                                   <span className="font-data text-[15px] text-ink">{player.display_name}</span>
+                                  {player.is_bot && <BotChip />}
                                   {isYou && <span className={`${LABEL} border border-ink px-1.5 py-0.5 text-ink`}>You</span>}
                                 </div>
 
@@ -617,6 +621,7 @@ export default function StandingsPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="truncate font-data text-[15px] text-ink">{player.display_name}</span>
+                            {player.is_bot && <BotChip />}
                             {isYou && <span className={`${LABEL} border border-ink px-1.5 py-0.5 text-ink`}>You</span>}
                           </div>
                           <p className={`${LABEL} mt-1 text-ink-fade`}>{player.group_name}</p>
@@ -672,7 +677,10 @@ export default function StandingsPage() {
           >
             <div className="border-b border-ink/30 px-6 py-4">
               <p className={EYEBROW}>Pick history</p>
-              <h3 className={`${HEADING} mt-1 text-2xl`}>{selectedPlayer.display_name}</h3>
+              <div className="mt-1 flex items-center gap-2">
+                <h3 className={`${HEADING} text-2xl`}>{selectedPlayer.display_name}</h3>
+                {selectedPlayer.is_bot && <BotChip />}
+              </div>
             </div>
 
             <div className="overflow-y-auto p-6">

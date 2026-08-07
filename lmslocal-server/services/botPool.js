@@ -44,8 +44,28 @@ A bot created outside this pattern would silently start receiving player email.
 */
 const BOT_EMAIL_LIKE = 'bot_%@lms-guest.com';
 
-/* Display names all start with this, so a player can tell what they are looking at. */
+/*
+Display names for newly created bots start with this. It is no longer what discloses a bot to
+players - competitions strip it from competition_user.player_display_name and the web app renders
+a "Bot" chip beside the name instead (components/BotChip.tsx), driven by the is_bot flag the
+player-facing routes derive from the email pattern above. The prefix survives on the app_user
+account so the admin Bots screen and the pool stay readable.
+*/
 const BOT_NAME_PREFIX = 'Bot ';
+
+/**
+ * Whether an email address belongs to a bot.
+ *
+ * The one definition, so a screen deciding whether to badge a row cannot disagree with the routes
+ * that decide what a bot is. Mirrors BOT_EMAIL_LIKE, which is the SQL form of the same test.
+ *
+ * @param {string|null|undefined} email
+ * @returns {boolean}
+ */
+function isBotEmail(email) {
+  if (!email) return false;
+  return email.startsWith('bot_') && email.endsWith('@lms-guest.com');
+}
 
 /*
 First names for new bots, continuing the A-T series the original 20 used. Ordinary given names
@@ -361,6 +381,7 @@ module.exports = {
   BOT_ORGANISER_IDS,
   BOT_EMAIL_LIKE,
   BOT_NAME_PREFIX,
+  isBotEmail,
   loadBotCompetition,
   assertCompetitionNotStarted,
   nextBotNames,

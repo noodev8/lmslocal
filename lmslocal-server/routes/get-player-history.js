@@ -17,6 +17,7 @@ Success Response (ALWAYS HTTP 200):
   "player": {
     "id": 456,                         // integer, player user ID
     "display_name": "John Doe",        // string, player display name
+    "is_bot": false,                   // boolean, true if this is one of our bots
     "lives_remaining": 1,              // integer, current lives remaining
     "status": "active"                 // string, player status (active/out)
   },
@@ -69,6 +70,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { BOT_EMAIL_LIKE } = require('../services/botPool');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -142,12 +144,13 @@ router.post('/', verifyToken, async (req, res) => {
       SELECT
         u.id,
         cu.player_display_name as display_name,
+        (u.email LIKE $3) as is_bot,
         cu.lives_remaining,
         cu.status
       FROM competition_user cu
       JOIN app_user u ON u.id = cu.user_id
       WHERE cu.competition_id = $1 AND cu.user_id = $2
-    `, [competition_id_int, player_id_int]);
+    `, [competition_id_int, player_id_int, BOT_EMAIL_LIKE]);
 
     // Check if player exists in this competition
     if (playerResult.rows.length === 0) {
@@ -229,6 +232,7 @@ router.post('/', verifyToken, async (req, res) => {
       player: {
         id: player.id,
         display_name: player.display_name,
+        is_bot: player.is_bot === true,
         lives_remaining: player.lives_remaining,
         status: player.status
       },

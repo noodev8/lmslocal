@@ -36,6 +36,7 @@ Success Response (ALWAYS HTTP 200):
     {
       "id": 456,                          // integer, unique player user ID
       "display_name": "John Doe",         // string, player's display name
+      "is_bot": false,                    // boolean, true if this is one of our bots
       "email": "john@example.com",        // string, player's email address
       "status": "active",                 // string, player status: 'active', 'OUT', etc.
       "lives_remaining": 2,               // integer, player's remaining lives
@@ -70,6 +71,7 @@ const { query } = require('../database'); // Use central database with destructu
 const { verifyToken } = require('../middleware/auth'); // Use correct auth middleware
 const { canManagePlayers } = require('../utils/permissions'); // Permission helper
 const { logApiCall } = require('../utils/apiLogger');
+const { isBotEmail } = require('../services/botPool');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication and data validation
@@ -301,6 +303,7 @@ router.post('/', verifyToken, async (req, res) => {
     const players = playersResult.rows.map(row => ({
       id: row.player_id,
       display_name: row.display_name,
+      is_bot: isBotEmail(row.email),
       email: row.email,
       status: row.status || 'active', // Return database status as-is ('active' or 'out')
       lives_remaining: row.lives_remaining || 0,

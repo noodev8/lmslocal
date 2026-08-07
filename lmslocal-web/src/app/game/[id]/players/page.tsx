@@ -21,6 +21,8 @@ import { useAppData } from '@/contexts/AppDataContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
+import BotChip from '@/components/BotChip';
+import PlayerEmail from '@/components/PlayerEmail';
 
 
 export default function CompetitionPlayersPage() {
@@ -742,8 +744,11 @@ export default function CompetitionPlayersPage() {
             <div key={player.id} className={`p-4 ${player.hidden ? 'border-l-2 border-overprint' : ''}`}>
               {/* Player Info */}
               <div className="mb-3">
-                <h3 className="font-data text-[15px] text-ink">{player.display_name}</h3>
-                <p className="text-[13px] text-ink-fade">{player.email || 'No email'}</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-data text-[15px] text-ink">{player.display_name}</h3>
+                  {player.is_bot && <BotChip />}
+                </div>
+                <PlayerEmail email={player.email} isBot={player.is_bot} />
               </div>
 
               {/* Admin Controls Row */}
