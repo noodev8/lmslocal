@@ -14,7 +14,7 @@ import {
   MegaphoneIcon,
   CalendarIcon
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi } from '@/lib/api';
+import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -22,6 +22,7 @@ import {
   deriveDashboardRoundState,
   pickDeadlineText,
   isStartGateVisible,
+  startBlockedText,
   formatRoundStart,
   roundTileLabel,
   roundTileNeedsAction,
@@ -121,6 +122,15 @@ export default function UnifiedGameDashboard() {
   // The start gate. `startsAt` is the kickoff their first round would actually get, answered by
   // the same rules the push uses - so it is fetched rather than guessed here.
   const [startsAt, setStartsAt] = useState<string | null>(null);
+  // The matches behind that date. Same toggle as the round screen - this is the card the organiser
+  // actually presses, so it needs the same answer to "a full gameweek, or two leftovers?".
+  const [startFixtures, setStartFixtures] = useState<{ home_team: string; away_team: string; kickoff_time: string }[]>([]);
+  const [showStartFixtures, setShowStartFixtures] = useState(false);
+  const [teamNames, setTeamNames] = useState<Record<string, string>>({});
+  // Ready is offered only when a round is actually available. False by default so a failed outlook
+  // call blocks rather than offering a button that would do nothing.
+  const [canStart, setCanStart] = useState(false);
+  const [currentBatchKickoff, setCurrentBatchKickoff] = useState<string | null>(null);
   const [isSettingReady, setIsSettingReady] = useState(false);
   const [readyError, setReadyError] = useState<string | null>(null);
   const [messageCopied, setMessageCopied] = useState(false);
@@ -199,11 +209,15 @@ export default function UnifiedGameDashboard() {
   const showStartGate = isStartGateVisible(dashboardRoundState, { canManageResults, canManageFixtures });
   const isReadyToStart = dashboardRoundState.readyToStart;
 
-  // Fetched in both faces of the gate. The date is the answer to "what happens if I press this?",
-  // so it has to be on screen before the button, not only after it.
+  // Fetched before the button ("what happens if I press this?") and after it too - once they are
+  // ready the gate card removes itself and the Round tile is the only thing left describing the
+  // competition, so it needs the date. Hence showStartGate alone, not `&& !isReadyToStart`.
   useEffect(() => {
-    if (!showStartGate || isReadyToStart) {
+    if (!showStartGate) {
       setStartsAt(null);
+      setStartFixtures([]);
+      setCanStart(false);
+      setCurrentBatchKickoff(null);
       return;
     }
 
@@ -212,11 +226,32 @@ export default function UnifiedGameDashboard() {
       .then((response) => {
         if (cancelled || response.data.return_code !== 'SUCCESS') return;
         setStartsAt(response.data.starts_at);
+        setStartFixtures(response.data.fixtures ?? []);
+        setCanStart(response.data.can_start === true);
+        setCurrentBatchKickoff(response.data.current_batch_kickoff ?? null);
       })
       .catch(() => { /* Card falls back to "as soon as the next matches are in", still true */ });
 
     return () => { cancelled = true; };
-  }, [showStartGate, isReadyToStart, competitionId]);
+  }, [showStartGate, competitionId]);
+
+  // Only once the organiser opens the list. Team names are static and cached, but this is the
+  // busiest screen in the app and most visits never open the toggle.
+  useEffect(() => {
+    if (!showStartFixtures || Object.keys(teamNames).length > 0) return;
+
+    let cancelled = false;
+    teamApi.getTeams()
+      .then((response) => {
+        if (cancelled || response.data.return_code !== 'SUCCESS' || !response.data.teams) return;
+        const mapping: Record<string, string> = {};
+        response.data.teams.forEach((team) => { mapping[team.short_name] = team.name; });
+        setTeamNames(mapping);
+      })
+      .catch(() => { /* Falls back to short codes, which are still readable */ });
+
+    return () => { cancelled = true; };
+  }, [showStartFixtures, teamNames]);
 
 
   const handleStartCompetition = async () => {
@@ -228,6 +263,11 @@ export default function UnifiedGameDashboard() {
       const response = await competitionApi.setReady(competition.id, true);
 
       if (response.data.return_code === 'SUCCESS') {
+        // Pressing ready can publish round 1 there and then. The round load is a one-shot ref, so
+        // without clearing it the dashboard would sit on "no rounds" beside a round that exists.
+        if (response.data.round_started) {
+          roundLoadedRef.current = false;
+        }
         cacheUtils.invalidateCompetitions();
         await refreshCompetitions();
       } else {
@@ -793,7 +833,12 @@ Good luck! ⚽`;
             </div>
 
             <div className="mt-5 border-t border-ink/30 pt-5 text-center">
-              <p className={`${LABEL} mb-3 text-ink-fade`}>Or add players directly</p>
+              <p className={`${LABEL} mb-1 text-ink-fade`}>Or add players directly</p>
+              {/* Says what a guest is before the button, not after it in the modal - organisers
+                  were clicking to find out. One line, because the whole idea is one line. */}
+              <p className="mb-3 text-[13px] text-ink-fade">
+                A guest has no login and no app &mdash; you make their picks for them
+              </p>
               <button
                 onClick={() => {
                   setShowAddPlayerModal(true);
@@ -816,24 +861,54 @@ Good luck! ⚽`;
             a heading that read as news, on the one screen they check most. The Round tile carries
             the state from then on, and the round screen carries the date for anyone who asks. */}
         {showStartGate && !isReadyToStart && (
-          <div className={`${PANEL} border-overprint p-6`}>
-            <p className={EYEBROW}>Next step</p>
+          <div className={`${PANEL} p-6 ${canStart ? 'border-overprint' : ''}`}>
+            {/* Not "Next step" when there is no step to take, and no accent either - a red card
+                with nothing to press on it reads as a problem the organiser has caused. */}
+            <p className={EYEBROW}>{canStart ? 'Next step' : 'Waiting on the matches'}</p>
             <p className={`${HEADING} mt-1 text-2xl`}>
-              {startsAt ? `Start with the matches on ${formatRoundStart(startsAt)}?` : 'Start with the next set of matches?'}
+              {canStart
+                ? (startsAt ? `Start with the matches on ${formatRoundStart(startsAt)}?` : 'Start with the next set of matches?')
+                : 'Not yet — no matches ready for you'}
             </p>
             <p className="mt-2 text-[15px] text-ink-fade">
-              {startsAt
-                ? 'That would be your Round 1, and your players can pick as soon as it appears. Nothing happens until you press this.'
-                : "We don't have the next set of matches yet. Say the word now and your Round 1 will be the first ones that arrive."}
+              {canStart
+                ? 'That would be your Round 1, and your players can pick as soon as you press it.'
+                : startBlockedText(currentBatchKickoff)}
             </p>
-            <button
+            {canStart && <button
               type="button"
               onClick={() => handleStartCompetition()}
               disabled={isSettingReady}
               className={`${BTN_PRIMARY} mt-4 inline-flex px-6 py-3 text-base disabled:opacity-50`}
             >
               {isSettingReady ? 'Starting…' : 'Yes, start my competition'}
-            </button>
+            </button>}
+
+            {/* Collapsed so it doesn't push the button this card exists for below the fold. Only
+                populated when they can actually start, so it never previews a round they can't have. */}
+            {startFixtures.length > 0 && (
+              <div className="mt-4 border-t border-ink/30 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowStartFixtures((open) => !open)}
+                  className={`${LABEL} text-ink-fade transition-colors hover:text-ink`}
+                >
+                  {showStartFixtures ? 'Hide the matches' : `See the ${startFixtures.length} matches`}
+                </button>
+
+                {showStartFixtures && (
+                  <ul className="mt-3 space-y-1.5">
+                    {startFixtures.map((fixture, index) => (
+                      <li key={`${fixture.home_team}-${fixture.away_team}-${index}`} className="font-data text-[15px] text-ink">
+                        {teamNames[fixture.home_team] || fixture.home_team}
+                        <span className="text-ink-fade"> vs </span>
+                        {teamNames[fixture.away_team] || fixture.away_team}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             {readyError && <p className="mt-3 text-[14px] text-overprint">{readyError}</p>}
           </div>
@@ -1040,7 +1115,7 @@ Good luck! ⚽`;
                   {roundTileLabel(dashboardRoundState, { canManageResults, canManageFixtures })}
                 </span>
                 <span className={`${LABEL} ${roundNeedsAction ? 'text-overprint' : 'text-ink-fade'}`}>
-                  {roundTileSummary(dashboardRoundState, { canManageResults, canManageFixtures })}
+                  {roundTileSummary(dashboardRoundState, { canManageResults, canManageFixtures }, startsAt)}
                 </span>
               </Link>
             )}
@@ -1120,7 +1195,10 @@ Good luck! ⚽`;
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
           <div className={`${PANEL} w-full max-w-md p-6`}>
             <p className={EYEBROW}>Guest player</p>
-            <h3 className={`${HEADING} mt-1 text-2xl`}>Add player</h3>
+            <h3 className={`${HEADING} mt-1 text-2xl`}>Add guest player</h3>
+            <p className="mt-2 text-[13px] text-ink-fade">
+              No login and no app &mdash; you make their picks for them.
+            </p>
 
             <div className="mt-5">
               <label htmlFor="display_name" className={`${LABEL} mb-2 block text-ink-fade`}>
@@ -1135,10 +1213,6 @@ Good luck! ⚽`;
                 className="w-full rounded-sm border border-ink bg-transparent px-3 py-2 font-data text-[15px] text-ink placeholder-ink-fade/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 disabled={addingPlayer}
               />
-
-              <p className="mt-4 text-[13px] text-ink-fade">
-                This creates a player that you can manage and set picks for. Perfect for customers who need assistance or don&apos;t have access to join themselves.
-              </p>
             </div>
 
             {addPlayerError && (

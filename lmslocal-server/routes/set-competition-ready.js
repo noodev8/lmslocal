@@ -16,6 +16,8 @@ Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "ready_at": "2026-08-06T10:30:00.000Z",  // string|null, when they pressed it (null once held)
+  "round_started": true,                   // boolean, a first round was published then and there
+  "round_number": 1,                       // integer|null, which round that was (null if none)
   "message": "Competition is ready to start"
 }
 
@@ -48,6 +50,25 @@ an accidental press - and for anyone reaching the route directly.
 
 Once a round exists the gate has done its job and the answer is ALREADY_STARTED either way, since
 the ready check only ever applies to a first round (services/fixtureService.js).
+
+**Pressing ready publishes the round immediately.** Ready was the last thing standing between the
+organiser and their first round: the batch was staged, it passed every rule, and the only remaining
+step was an operator opening the admin screen and pressing push. That left the organiser looking at
+a card saying "you're all set" beside a Play button that did nothing. Publishing here closes that
+gap - picks open the moment they say go.
+
+**Ready therefore means "start me on the round I can see", not a standing order.** The UI only
+offers the button when `get-competition-start-outlook` says `can_start`, so this route should never
+be reached without a qualifying batch. It stays tolerant of that anyway rather than rejecting it:
+the flag is harmless on its own, and `round_started: false` tells the caller nothing was published.
+An organiser who cannot start yet is told when to come back instead - see startBlockedText in
+lmslocal-web/src/lib/roundState.ts.
+
+The push runs in **its own transaction, after the ready flag has committed**, and its failures are
+swallowed deliberately. Ready is the organiser's decision and must stick even if publishing fails;
+a failed push leaves the competition ready and waiting for the admin screen, which is a working
+state, not a broken one. Rolling the flag back would tell an organiser their press failed when it
+did not.
 =======================================================================================================================================
 */
 
@@ -55,6 +76,7 @@ const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { pushFixturesToCompetition } = require('../services/fixtureService');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -133,11 +155,27 @@ router.post('/', verifyToken, async (req, res) => {
       return updated.rows[0];
     });
 
+    // Separate transaction, after the flag is committed - see the header. pushFixturesToCompetition
+    // re-checks eligibility itself, which is what makes NOT_ELIGIBLE here mean "the screen offered
+    // a button it should not have" rather than an ordinary outcome.
+    let pushed = null;
+    if (result.ready_at) {
+      try {
+        pushed = await transaction(async (client) => pushFixturesToCompetition(client, competition_id));
+      } catch (pushError) {
+        if (pushError.message !== 'NOT_ELIGIBLE') {
+          console.error('set-competition-ready push failed:', competition_id, pushError.message);
+        }
+      }
+    }
+
     res.json({
       return_code: "SUCCESS",
       ready_at: result.ready_at,
+      round_started: pushed !== null,
+      round_number: pushed ? pushed.round_number : null,
       message: result.ready_at
-        ? "Competition is ready to start"
+        ? (pushed ? "Your first round is live" : "Competition is ready to start")
         : "Competition is on hold"
     });
 

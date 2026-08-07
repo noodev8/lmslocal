@@ -338,8 +338,19 @@ export function isStartGateVisible(state: RoundState, viewer: RoundTileViewer = 
   return state.automated && state.phase === 'NO_ROUND' && !!viewer.canManageFixtures;
 }
 
-/** Short form for the dashboard tile, under the round number. */
-export function roundTileSummary(state: RoundState, viewer: RoundTileViewer = {}): string {
+/**
+ * Short form for the dashboard tile, under the round number.
+ *
+ * `startsAt` is the kickoff their first round would get, from get-competition-start-outlook. It is
+ * passed in rather than derived because it depends on what is staged for their team list, which
+ * the machine cannot see. Optional: without it the tile falls back to stating the condition, which
+ * is what it said before and still true.
+ */
+export function roundTileSummary(
+  state: RoundState,
+  viewer: RoundTileViewer = {},
+  startsAt: string | null = null
+): string {
   // The organiser of a manual competition is told the job, not the condition. "In play" is a
   // true description of a locked round and useless to the one person who has to act on it - and
   // this tile is the only route to the result buttons. See docs/round-state-machine.md §5.
@@ -350,8 +361,15 @@ export function roundTileSummary(state: RoundState, viewer: RoundTileViewer = {}
       return 'Finished';
     case 'NO_ROUND':
       // The start gate card above carries the prompt and the button, so the tile states the
-      // condition plainly and stays out of its way.
-      if (state.automated) return state.readyToStart ? 'Waiting for matches' : 'Not started yet';
+      // condition plainly and stays out of its way. Once they are ready the card removes itself
+      // and this tile is the only thing left on the dashboard describing the competition - so it
+      // has to carry the date, not "waiting for matches". We know when round 1 starts; a tile
+      // still saying we're waiting reads as though pressing Ready did nothing.
+      if (state.automated) {
+        if (!state.readyToStart) return 'Not started yet';
+        const started = formatTileStart(startsAt);
+        return started ? `Starts ${started}` : 'Waiting for matches';
+      }
       return needsAction ? 'Add matches' : 'No matches yet';
     case 'OPEN':
       // No lock time here even though we have one. An organiser who plays sees this tile beside
@@ -426,6 +444,34 @@ export function roundTileLabel(state: RoundState, viewer: RoundTileViewer = {}):
 }
 
 /**
+ * What the start gate says when the organiser cannot press Ready yet.
+ *
+ * Ready only ever means "start me on the round I can see" — it is not a standing order, because a
+ * button that appears to work while quietly deferring is worse than one that says why not. An
+ * organiser knows their own gameweeks and can come back; what they cannot do is act on a promise
+ * with no date in it.
+ *
+ * Two refusals, and the difference is whether we have a date at all. A staged batch they cannot
+ * have (mid-gameweek, or inside the 48-hour lead time) carries its kickoff, so we can name it and
+ * send them back after it. An empty staging table carries nothing — the next batch arrives when it
+ * is entered by hand — so we say there is nothing for them yet and promise no date.
+ */
+export function startBlockedText(currentBatchKickoff: string | null): string {
+  const kickoff = currentBatchKickoff ? parseTimestamp(currentBatchKickoff) : null;
+  if (!kickoff) {
+    return "There are no matches ready for you at the moment. As soon as the next set is in, you can start your competition on it.";
+  }
+
+  // Tense follows the clock. The same block covers a batch that hasn't started (staged mid-gameweek,
+  // or inside the lead time) and one that already has, and "they kick off last Friday" is the kind
+  // of wrong that makes an organiser distrust every other date on the screen.
+  const started = kickoff.getTime() <= Date.now();
+  const when = `${started ? 'They kicked off' : 'They kick off'} ${formatLong(kickoff)}`;
+
+  return `The current matches are already under way. ${when}. Come back once they're done and you can start on the next round.`;
+}
+
+/**
  * The warning shown to a player who still owes a pick — the Play tile's second line, and the
  * dashboard card's pick row. Carries the deadline because these are the places where it's
  * actionable; the Round tile beside the Play tile states the phase instead.
@@ -455,18 +501,34 @@ const DISPLAY_TIME_ZONE = 'Europe/London';
  * form offers its shortcuts the same way. `hour12` gives "7:30 pm" — the space is closed up so
  * this matches the `7:30pm` form used on the pick and fixture screens. The class covers the
  * narrow no-break space some engines emit in place of a plain one.
+ *
+ * On the hour loses its minutes: nobody says "eight o'clock pee em" as "8:00pm", and most kickoffs
+ * land on the hour, so the zeros were the commonest thing on these screens.
  */
 const TIME_PARTS = { hour: 'numeric', minute: '2-digit', hour12: true } as const;
 
 function closeUpMeridiem(text: string): string {
-  return text.replace(/\s(?=[ap]m\b)/gi, '');
+  return text.replace(/:00(?=\s*[ap]m\b)/gi, '').replace(/\s(?=[ap]m\b)/gi, '');
 }
 
-function formatShort(date: Date): string {
+/**
+ * "Fri, 8pm" for a deadline this side of a week, "Fri 21 Aug, 8pm" for anything further out.
+ *
+ * A bare weekday only identifies a day within the next six: on the 7th, "Friday" reads as the 14th,
+ * and a deadline on the 21st shown that way is not ambiguous — it is wrong, and it is wrong in the
+ * direction that makes a player think they have a week less than they do. Six rather than seven
+ * because a deadline exactly a week out shares today's weekday name.
+ */
+const WEEKDAY_ALONE_IS_CLEAR_MS = 6 * 24 * 60 * 60 * 1000;
+
+function formatShort(date: Date, reference: Date = new Date()): string {
+  const withinTheWeek = date.getTime() - reference.getTime() < WEEKDAY_ALONE_IS_CLEAR_MS;
+
   return closeUpMeridiem(
     date.toLocaleString('en-GB', {
       timeZone: DISPLAY_TIME_ZONE,
       weekday: 'short',
+      ...(withinTheWeek ? {} : { day: 'numeric', month: 'short' }),
       ...TIME_PARTS,
     })
   );
@@ -481,6 +543,25 @@ function formatShort(date: Date): string {
 export function formatRoundStart(timestamp: string): string | null {
   const parsed = parseTimestamp(timestamp);
   return parsed ? formatLong(parsed) : null;
+}
+
+/**
+ * Tile-sized: "Fri 21 Aug, 8pm". Carries the date as well as the weekday because a first round can
+ * be a fortnight out, where a bare "Fri" says nothing useful.
+ */
+function formatTileStart(timestamp: string | null): string | null {
+  const parsed = timestamp ? parseTimestamp(timestamp) : null;
+  if (!parsed) return null;
+
+  return closeUpMeridiem(
+    parsed.toLocaleString('en-GB', {
+      timeZone: DISPLAY_TIME_ZONE,
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      ...TIME_PARTS,
+    })
+  );
 }
 
 function formatLong(date: Date): string {

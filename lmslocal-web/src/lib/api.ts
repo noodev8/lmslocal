@@ -503,8 +503,16 @@ export const competitionApi = {
 
   // The organiser's start gate. `ready` false puts it back on hold, which the backend allows
   // right up until the first round exists.
+  // Publishes the first round then and there when the staged batch already qualifies, so
+  // `round_started` decides whether the caller is landing on a live round or still waiting.
   setReady: (competition_id: number, ready: boolean) =>
-    api.post<{ return_code: string; ready_at: string | null; message?: string }>('/set-competition-ready', { competition_id, ready }),
+    api.post<{
+      return_code: string;
+      ready_at: string | null;
+      round_started?: boolean;
+      round_number?: number | null;
+      message?: string;
+    }>('/set-competition-ready', { competition_id, ready }),
 
   // When their first round would actually start. Three answers - not ready, a date, or ready with
   // nothing staged - computed by the same rules the push uses.
@@ -514,6 +522,15 @@ export const competitionApi = {
       ready_at: string | null;
       starts_at: string | null;
       waiting_for_fixtures: boolean;
+      // Gates the Ready button: it may only be pressed when a round is actually available.
+      // current_batch_kickoff is set when a batch exists but they cannot have it, and is the date
+      // to send them back after; null when nothing is staged, where no date exists to give.
+      can_start?: boolean;
+      blocked_reason?: string | null;
+      current_batch_kickoff?: string | null;
+      // The batch behind starts_at, so a date can be shown as a real gameweek. Preview only -
+      // empty whenever there is no date.
+      fixtures: { home_team: string; away_team: string; kickoff_time: string }[];
     }>(`/get-competition-start-outlook?competition_id=${competition_id}`),
   delete: (data: DeleteCompetitionRequest) => api.post<DeleteCompetitionResponse & { return_code: string; message?: string }>('/delete-competition', data),
   hide: (competition_id: number) => api.post<{ return_code: string; message: string }>('/hide-competition', { competition_id }),

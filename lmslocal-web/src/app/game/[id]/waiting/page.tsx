@@ -111,7 +111,7 @@ export default function WaitingForFixtures() {
           <ClockIcon className="mx-auto h-8 w-8 text-ink-fade" />
           <p className={`${HEADING} mt-4 text-2xl`}>Waiting for the next round</p>
           <p className="mt-2 text-[15px] text-ink-fade">
-            Fixtures haven&apos;t been set yet. This page will move on as soon as they&apos;re in.
+            Matches haven&apos;t been set yet. This page will move on as soon as they&apos;re in.
           </p>
         </div>
       </main>

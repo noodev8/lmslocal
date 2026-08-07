@@ -101,8 +101,8 @@ three-way result row under each fixture.
 
 | Phase | Page shows |
 |---|---|
-| `NO_ROUND`, not ready | The start gate: **"Start with the matches on Saturday 15 March?"** + the button. Also on the competition dashboard, which is where it is normally pressed. |
-| `NO_ROUND`, ready | The start date if we have one, otherwise "starts when the next fixtures are in" |
+| `NO_ROUND`, not ready | The start gate: **"Start with the matches on Saturday 15 March?"** + the button, + **See the N matches** (§3.1). Also on the competition dashboard, which is where it is normally pressed. |
+| `NO_ROUND`, ready | The start date if we have one, otherwise "starts when the next fixtures are in". Same **See the N matches** toggle. |
 | `OPEN` | Sheet + the lock time. **This is the "I just want to see upcoming fixtures" case.** |
 | `LOCKED` | Sheet + "Picks are locked. Results come in automatically." |
 | `RESULTS_PARTIAL` | Sheet with slots, read-only, filled ones marked |
@@ -110,6 +110,22 @@ three-way result row under each fixture.
 
 No buttons anywhere. The old `results.png` greyed-button wall never appears, because before
 kickoff there are no slots at all.
+
+#### 3.1 Seeing the first round's matches
+
+Both faces of the start gate carry a **See the N matches** toggle, collapsed by default, listing
+the staged batch behind the date. A date on its own does not say whether Saturday is a full
+gameweek or the two matches left at the end of one, and that is the difference between a Round 1
+worth launching and one that makes the organiser look careless.
+
+Collapsed by default because the date answers the question for most organisers, and a ten-line
+list sitting above **Yes, start my competition** buries the button the card exists for.
+
+It is a **preview, not a promise**. The staged batch can be cleared and replaced before the
+organiser presses, so the copy around the list must not commit us to those teams — the same rule
+that already governs the date. The list comes from `get-competition-start-outlook`'s `fixtures`,
+which is populated only when the batch is eligible, so an organiser is never shown a round that
+was never going to happen.
 
 ### B. Manual fixtures, organiser runs the round
 
@@ -202,7 +218,7 @@ disagrees with the screen it links to.
 | Phase | Tile subtitle | Page status line |
 |---|---|---|
 | `NO_ROUND` (automated, not ready) | "Not started yet" | "Press Ready when you've invited your players." |
-| `NO_ROUND` (automated, ready) | "Waiting for fixtures" | "Your first round starts with the next set of matches." |
+| `NO_ROUND` (automated, ready) | "Starts Fri 21 Aug, 8pm" — or "Waiting for matches" if no date | "Started" + "Round 1 starts {full date}" |
 | `NO_ROUND` (manual) | "No fixtures yet" | "Add this round's fixtures to get started." |
 | `OPEN` | "Open for picks" | "Picks close {full date}." |
 | `LOCKED` | "In play" | "Picks are locked." |
@@ -222,7 +238,35 @@ spectator — the tile stays on the neutral wording above.
 they press Ready. That gets its own card — `isStartGateVisible` — carrying the prompt, the button
 and afterwards the date. `roundTileNeedsAction` stays false on automated competitions, because a
 red tile beneath a red card is two alarms for one job; the tile states the condition ("Not started
-yet" / "Waiting for matches") and stays out of the card's way.
+yet") and stays out of the card's way.
+
+**Pressing Ready publishes round 1 immediately**, so the organiser presses the button and lands on
+a live round with picks open. `set-competition-ready` runs the same `pushFixturesToCompetition` the
+admin screen does, in its own transaction after the flag commits, and swallows failure: ready is
+the organiser's decision and must stick even if publishing does not.
+
+**The button is therefore only offered when a round is actually available** (`can_start` from
+`get-competition-start-outlook`). Ready is not a standing order — it means "start me on the round I
+can see". An organiser knows their own gameweeks and can come back; what they cannot act on is a
+button that appears to work while quietly deferring to some unnamed later date. When they can't
+start, the card drops the button entirely rather than greying it out, and `startBlockedText` says
+why. Two refusals, differing in whether we have a date:
+
+| Situation | What we say |
+|---|---|
+| A batch is staged but they can't have it (mid-gameweek, or inside the 48-hour lead time) | Name its kickoff — "come back once they're done and you can start on the next round" |
+| Nothing staged at all | "No matches ready for you at the moment" — no date, because none exists until a batch is entered by hand |
+
+The states below still apply to a competition already marked ready — support can still set the flag
+directly, and a batch can be cleared after they pressed.
+
+**Once they are ready, the card removes itself and the tile inherits the job.** From that moment
+the tile is the only thing on the dashboard describing the competition, so it carries the start
+date — "Starts Fri 21 Aug, 8pm" — rather than "Waiting for matches". We know when round 1 starts,
+and a tile still reporting a wait reads as though pressing Ready did nothing. The date is passed
+into `roundTileSummary` from `get-competition-start-outlook`; it is not derivable from the machine,
+which cannot see what is staged for the team list. It falls back to "Waiting for matches" when
+there is genuinely no date, which is the one case where the wait is real.
 
 **The card is drawn on the competition dashboard, where the button is pressed**, and on the round
 screen, which would otherwise be an empty page. Pressing Ready is one act on a competition that

@@ -119,7 +119,7 @@ export default function PricingPage() {
           {/* -------------------------------------------------- fixture service */}
           <section className="mt-16 border-t border-ink/30 pt-14">
             <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink sm:text-5xl">
-              Fixtures and results
+              Matches and results
             </h2>
             <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
               You choose this when you create a competition, and you can change your mind at any
@@ -132,11 +132,11 @@ export default function PricingPage() {
                   We run them
                 </h3>
                 <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <span className={`${LABEL} text-ink-fade`}>£10 a competition</span>
+                  <span className={`${LABEL} text-ink-fade`}>20 credits a competition</span>
                   <span className={`${LABEL} bg-overprint px-2 py-1 text-stock-lit`}>Free right now</span>
                 </p>
                 <p className="mt-3 text-[17px] leading-relaxed text-ink">
-                  Each round arrives already built from the real fixture list, and results and
+                  Each round arrives already built from the real match list, and results and
                   eliminations follow after full time. Nothing for you to enter. Available on the
                   leagues we cover.
                 </p>
@@ -150,11 +150,19 @@ export default function PricingPage() {
                   <span className={`${LABEL} text-ink-fade`}>Always free</span>
                 </p>
                 <p className="mt-3 text-[17px] leading-relaxed text-ink">
-                  Enter the fixtures and results yourself, round by round. Best if you want your own
+                  Enter the matches and results yourself, round by round. Best if you want your own
                   rounds, your own teams, or simply like holding the reins.
                 </p>
               </div>
             </div>
+
+            <p className="mt-6 max-w-2xl border-l-2 border-ink/40 bg-stock-lit px-4 py-3 text-[16px] leading-relaxed text-ink">
+              <strong className="font-semibold">What a credit is.</strong> A credit is a player
+              place — the same ones the packs above buy. So running the matches for a competition
+              costs twenty places, not a separate bill: it comes out of your balance once, for that
+              competition, and never touches your free twenty. While it is free it costs nothing at
+              all, and competitions started during the offer stay free.
+            </p>
           </section>
 
           {/* ------------------------------------------------------- onboarding */}

@@ -388,6 +388,8 @@ export default function PickPage() {
                 {' '}
                 {lockDate
                   .toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })
+                  // On the hour drops its minutes — "8pm", not "8:00pm" — matching roundState.ts
+                  .replace(/:00(?=\s*[ap]m\b)/i, '')
                   .replace(/\s/g, '')}
               </p>
             </div>

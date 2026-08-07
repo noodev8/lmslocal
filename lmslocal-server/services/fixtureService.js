@@ -414,9 +414,11 @@ async function pushFixturesToCompetition(client, competitionId) {
  * hypothetical - a mid-gameweek batch or one kicking off inside the lead time gives no date here
  * either, because it would give them no round.
  *
- * @returns {Promise<{ready_at: string|null, starts_at: string|null, waiting_for_fixtures: boolean}>}
- *   starts_at is the kickoff their first round would have, ready or not; null when there is no
- *   batch they could start on, which is exactly when waiting_for_fixtures is true.
+ * @returns {Promise<object>} starts_at is the kickoff their first round would have, ready or not;
+ *   null when there is no batch they could start on, which is exactly when waiting_for_fixtures is
+ *   true. fixtures is the batch behind that date - empty whenever starts_at is null, since there is
+ *   nothing to preview. can_start gates the Ready button; blocked_reason and current_batch_kickoff
+ *   say why not, and when to come back if we know.
  */
 async function getCompetitionStartOutlook(client, competitionId) {
   const competitionResult = await client.query(
@@ -436,10 +438,29 @@ async function getCompetitionStartOutlook(client, competitionId) {
     stagedFixtures
   );
 
+  // The organiser cannot press Ready unless we can actually give them a round, so the screen needs
+  // to tell two refusals apart. A staged batch they can't have (mid-gameweek, or too close to
+  // kickoff) has a date attached, so we can say when to come back. An empty staging table has no
+  // date at all - the next batch arrives when it is entered by hand - so we say only that there is
+  // nothing for them yet, and promise nothing.
+  const batchKickoff = stagedFixtures.length > 0 ? stagedFixtures[0].kickoff_time : null;
+
   return {
     ready_at: competition.ready_at,
     starts_at: verdict.eligible ? stagedFixtures[0].kickoff_time : null,
     waiting_for_fixtures: !verdict.eligible,
+    can_start: verdict.eligible,
+    blocked_reason: verdict.eligible ? null : verdict.reason,
+    current_batch_kickoff: verdict.eligible ? null : batchKickoff,
+    // Only when eligible: an ineligible batch is not the one they would get, so showing it would
+    // preview a round that is never going to happen.
+    fixtures: verdict.eligible
+      ? stagedFixtures.map(f => ({
+          home_team: f.home_team_short,
+          away_team: f.away_team_short,
+          kickoff_time: f.kickoff_time,
+        }))
+      : [],
   };
 }
 

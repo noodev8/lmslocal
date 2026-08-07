@@ -58,7 +58,7 @@ const WEEKEND = [
 const TWO_WAYS = [
   {
     title: 'We run the fixtures',
-    price: '£10 a competition',
+    price: '20 credits a competition',
     flag: 'Free right now',
     detail:
       'Each round arrives already built, with results and eliminations following after full time. Best if you want it off your hands. Available on the leagues we cover.',

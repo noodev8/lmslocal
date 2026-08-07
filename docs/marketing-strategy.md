@@ -20,7 +20,7 @@ Worth stating plainly, because it constrains everything below.
 | Starter pack | +20 places, £10 |
 | Popular pack | +50 places, £20 |
 | Best value pack | +120 places, £40 |
-| Fixture service | £10 a competition — **free right now** |
+| Fixture service | 20 credits a competition — **free right now** |
 | Done-for-you setup | Normally £30 — **free right now** |
 
 A place is consumed when a player joins beyond the free twenty, and is not returned when they

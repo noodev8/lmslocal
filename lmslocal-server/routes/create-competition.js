@@ -268,7 +268,7 @@ router.post('/', verifyToken, async (req, res) => {
         inviteCode,
         wantsFixtureService,
         // Launch promotion: the service is offered free, so the recorded price is 0.00 rather
-        // than the £10 list price. This is what tells a grandfathered competition apart from a
+        // than the 20-credit list price. This is what tells a grandfathered competition apart from a
         // paying one once charging begins.
         wantsFixtureService ? 0.00 : null,
         wantsFixtureService ? new Date() : null

@@ -58,7 +58,7 @@ export default function CreateCompetitionPage() {
     formState: { errors }
   } = useForm<CreateCompetitionForm>({
     defaultValues: {
-      lives_per_player: 1,
+      lives_per_player: 0,
       no_team_twice: true,
       organiser_joins_as_player: true,
     }
@@ -388,7 +388,7 @@ export default function CreateCompetitionPage() {
                   <div>
                     <p className={`${LABEL} mb-3 flex items-center gap-1.5 text-ink-fade`}>
                       <CalendarDaysIcon className="h-4 w-4" />
-                      Fixtures &amp; results
+                      Matches &amp; results
                     </p>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <button
@@ -407,10 +407,10 @@ export default function CreateCompetitionPage() {
                           </span>
                         </div>
                         <p className={`text-[13px] ${useFixtureService ? 'text-stock/85' : 'text-ink-fade'}`}>
-                          We add each round&apos;s fixtures and enter the results for you. You just invite players.
+                          We add each round&apos;s matches and enter the results for you. You just invite players.
                         </p>
                         <p className={`mt-2 text-[12px] ${useFixtureService ? 'text-stock/70' : 'text-ink-fade'}`}>
-                          Free for this competition &mdash; normally <span className="line-through">£10</span>
+                          Free for this competition &mdash; normally <span className="line-through">20 credits</span>
                         </p>
                       </button>
 
@@ -423,7 +423,7 @@ export default function CreateCompetitionPage() {
                       >
                         <p className={`${LABEL} mb-1`}>I&apos;ll do my own</p>
                         <p className={`text-[13px] ${!useFixtureService ? 'text-stock/85' : 'text-ink-fade'}`}>
-                          You add the fixtures and enter results each round yourself.
+                          You add the matches and enter results each round yourself.
                         </p>
                         <p className={`mt-2 text-[12px] ${!useFixtureService ? 'text-stock/70' : 'text-ink-fade'}`}>
                           Full control over kick-off times and lock times
@@ -432,6 +432,34 @@ export default function CreateCompetitionPage() {
                     </div>
                   </div>
                 )}
+
+                {/* No start date is asked for. The organiser presses Ready on their round screen
+                    when they have invited everyone, and the first round follows - see
+                    docs/round-state-machine.md. Asking here meant guessing a date before anyone
+                    had been invited, and implying we knew when the next fixtures were.
+                    Sits under the fixtures/results choice because the answer depends on it, and
+                    stays put either way rather than appearing and shunting the fields below. */}
+                <div className="border border-ink/30 p-4">
+                  <p className={`${LABEL} mb-1 flex items-center gap-1.5 text-ink-fade`}>
+                    <CalendarDaysIcon className="h-4 w-4" />
+                    Starting
+                  </p>
+                  <p className="text-[13px] text-ink-fade">
+                    {usingFixtureService ? (
+                      <>
+                        Nothing starts until you say so. Once the competition exists, invite your
+                        players and press Ready &mdash; your first round is the next set of matches
+                        after that.
+                      </>
+                    ) : (
+                      <>
+                        Nothing starts until you say so. Once the competition exists, invite your
+                        players, then add your first round&apos;s matches when you&apos;re ready to
+                        begin.
+                      </>
+                    )}
+                  </p>
+                </div>
 
                 {/* Lives per player */}
                 <div>
@@ -446,7 +474,7 @@ export default function CreateCompetitionPage() {
                           {...register('lives_per_player', { valueAsNumber: true })}
                           type="radio"
                           value={lives}
-                          defaultChecked={lives === 1}
+                          defaultChecked={lives === 0}
                           className="peer sr-only"
                         />
                         <div className="cursor-pointer border border-ink/30 p-3 text-center transition-colors hover:border-ink peer-checked:border-ink peer-checked:bg-ink peer-checked:text-stock-lit sm:p-4">
@@ -490,23 +518,6 @@ export default function CreateCompetitionPage() {
                   </label>
                 </div>
 
-                {/* No start date is asked for. The organiser presses Ready on their round screen
-                    when they have invited everyone, and the first round follows - see
-                    docs/round-state-machine.md. Asking here meant guessing a date before anyone
-                    had been invited, and implying we knew when the next fixtures were. */}
-                {usingFixtureService && (
-                  <div className="border border-ink/30 p-4">
-                    <p className={`${LABEL} mb-1 flex items-center gap-1.5 text-ink-fade`}>
-                      <CalendarDaysIcon className="h-4 w-4" />
-                      Starting
-                    </p>
-                    <p className="text-[13px] text-ink-fade">
-                      Nothing starts until you say so. Once the competition exists, invite your
-                      players and press Ready &mdash; your first round is the next set of matches
-                      after that.
-                    </p>
-                  </div>
-                )}
               </div>
 
               <div className="mt-6 flex flex-col justify-between gap-3 sm:mt-8 sm:flex-row">
@@ -559,9 +570,9 @@ export default function CreateCompetitionPage() {
                     </div>
                     {fixtureServiceOffered && (
                       <div className="flex justify-between gap-3 py-2">
-                        <dt className="flex-shrink-0 text-ink-fade">Fixtures &amp; results</dt>
+                        <dt className="flex-shrink-0 text-ink-fade">Matches &amp; results</dt>
                         <dd className="text-right text-ink">
-                          {usingFixtureService ? 'We do them for you (free, normally £10)' : 'You enter them yourself'}
+                          {usingFixtureService ? 'We do them for you (free, normally 20 credits)' : 'You enter them yourself'}
                         </dd>
                       </div>
                     )}
@@ -583,9 +594,9 @@ export default function CreateCompetitionPage() {
                         <li>Your competition will be created with a unique access code</li>
                         <li>You can invite players using the access code or link</li>
                         {usingFixtureService ? (
-                          <li>We&apos;ll add the fixtures and results each round &mdash; nothing for you to do</li>
+                          <li>We&apos;ll add the matches and results each round &mdash; nothing for you to do</li>
                         ) : (
-                          <li>Start by creating rounds and adding fixtures</li>
+                          <li>Start by creating rounds and adding matches</li>
                         )}
                         <li>Your competition starts locked - unlock it when ready!</li>
                       </ul>

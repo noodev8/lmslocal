@@ -115,7 +115,7 @@ const { verifyToken } = require('../middleware/auth');
 const { checkSafeToEnable, checkClearableStalledRound } = require('../services/fixtureServiceSwitch');
 const router = express.Router();
 
-// Launch promotion. The service lists at £10 but is being given away while we build up
+// Launch promotion. The service lists at 20 credits but is being given away while we build up
 // organisers, so this is what an opt-in records. Raise it when charging starts - competitions
 // already holding 0.00 are the grandfathered ones.
 const PROMO_PRICE = 0.00;

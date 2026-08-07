@@ -21,9 +21,12 @@ import {
   roundStatusLine,
   formatRoundStart,
   isStartGateVisible,
+  startBlockedText,
   outcomeFromResult,
   ResultOutcome,
 } from '@/lib/roundState';
+
+type StartOutlookFixture = { home_team: string; away_team: string; kickoff_time: string };
 
 export default function RoundPage() {
   const router = useRouter();
@@ -50,6 +53,14 @@ export default function RoundPage() {
   // deliberately from the server rather than derived here: the answer depends on what is staged
   // for their team list, which this screen has no other way of knowing.
   const [startsAt, setStartsAt] = useState<string | null>(null);
+  // The matches behind that date. Behind a toggle rather than always on: the date answers the
+  // question for most organisers, and a ten-line list above the button would bury it.
+  const [startFixtures, setStartFixtures] = useState<StartOutlookFixture[]>([]);
+  const [showStartFixtures, setShowStartFixtures] = useState(false);
+  // Ready is only offered when a round is actually available - see startBlockedText. Defaults to
+  // false so a failed outlook call blocks rather than offering a button that would do nothing.
+  const [canStart, setCanStart] = useState(false);
+  const [currentBatchKickoff, setCurrentBatchKickoff] = useState<string | null>(null);
   const [isSettingReady, setIsSettingReady] = useState(false);
 
   // Re-derived on every render so the phase follows the clock without a timer: any refetch or
@@ -127,6 +138,9 @@ export default function RoundPage() {
   useEffect(() => {
     if (!shouldLoadOutlook) {
       setStartsAt(null);
+      setStartFixtures([]);
+      setCanStart(false);
+      setCurrentBatchKickoff(null);
       return;
     }
 
@@ -135,6 +149,9 @@ export default function RoundPage() {
       .then((response) => {
         if (cancelled || response.data.return_code !== 'SUCCESS') return;
         setStartsAt(response.data.starts_at);
+        setStartFixtures(response.data.fixtures ?? []);
+        setCanStart(response.data.can_start === true);
+        setCurrentBatchKickoff(response.data.current_batch_kickoff ?? null);
       })
       .catch(() => { /* The card falls back to "when the next matches are in", which is still true */ });
 
@@ -152,6 +169,11 @@ export default function RoundPage() {
       if (response.data.return_code === 'SUCCESS') {
         cacheUtils.invalidateCompetitions();
         await refreshCompetitions();
+        // Ready can publish round 1 immediately, in which case this screen has a round to show
+        // rather than a start gate.
+        if (response.data.round_started) {
+          await loadRound();
+        }
       } else {
         setActionError(response.data.message || 'Could not update your competition.');
       }
@@ -316,35 +338,80 @@ export default function RoundPage() {
         {!isLoading && !loadError && state.phase === 'NO_ROUND' && showStartGate && (
           <div className={`${PANEL} mt-5 p-6 ${!state.readyToStart ? 'border-overprint' : ''}`}>
             {!state.readyToStart ? (
-              <>
-                <p className={`${HEADING} text-xl`}>
-                  {startsAt ? `Start with the matches on ${formatRoundStart(startsAt)}?` : 'Start with the next set of matches?'}
-                </p>
-                <p className="mt-2 text-[15px] text-ink-fade">
-                  {startsAt
-                    ? 'That would be your Round 1, and your players can pick as soon as it appears. Nothing happens until you press this.'
-                    : "We don't have the next set of matches yet. Say the word now and your Round 1 will be the first ones that arrive."}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => handleStartCompetition()}
-                  disabled={isSettingReady}
-                  className={`${BTN_PRIMARY} mt-4 inline-flex px-6 py-3 text-base disabled:opacity-50`}
-                >
-                  {isSettingReady ? 'Starting…' : 'Yes, start my competition'}
-                </button>
-              </>
+              canStart ? (
+                <>
+                  <p className={`${HEADING} text-xl`}>
+                    {startsAt ? `Start with the matches on ${formatRoundStart(startsAt)}?` : 'Start with the next set of matches?'}
+                  </p>
+                  <p className="mt-2 text-[15px] text-ink-fade">
+                    That would be your Round 1, and your players can pick as soon as you press it.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleStartCompetition()}
+                    disabled={isSettingReady}
+                    className={`${BTN_PRIMARY} mt-4 inline-flex px-6 py-3 text-base disabled:opacity-50`}
+                  >
+                    {isSettingReady ? 'Starting…' : 'Yes, start my competition'}
+                  </button>
+                </>
+              ) : (
+                /* No button at all rather than a disabled one. There is nothing to press yet, and
+                   a greyed-out primary action on the one card that matters reads as broken. */
+                <>
+                  <p className={`${HEADING} text-xl`}>Not yet — no matches ready for you</p>
+                  <p className="mt-2 text-[15px] text-ink-fade">{startBlockedText(currentBatchKickoff)}</p>
+                </>
+              )
             ) : (
               <>
-                <p className={`${HEADING} text-xl`}>
+                {/* Says the competition is started before it says when. Without this the card
+                    reads identically whether or not they ever pressed the button, and an
+                    organiser who has just pressed it wants confirmation, not a date. */}
+                <p className={EYEBROW}>Started</p>
+                <p className={`${HEADING} mt-1 text-xl`}>
                   {startsAt ? `Round 1 starts ${formatRoundStart(startsAt)}` : 'Waiting for the next matches'}
                 </p>
+                {/* Names what is actually being waited on. "Players can pick as soon as it appears"
+                    invited the obvious question - the matches are right there, so why can't
+                    anyone pick? Because the round itself is published separately, and until it is
+                    there is nothing to pick on. Saying so is the difference between a wait and a
+                    fault. */}
                 <p className="mt-2 text-[15px] text-ink-fade">
                   {startsAt
-                    ? 'Your players can pick as soon as it appears here.'
-                    : "You're ready. Your first round will start as soon as the next set of matches is in."}
+                    ? "You're all set — nothing more to do. We publish the round before kick-off, and picks open for everyone the moment it lands."
+                    : "You're all set. Your first round will start as soon as the next set of matches is in."}
                 </p>
               </>
+            )}
+
+            {/* The matches behind that date, in both faces of the gate — a date alone doesn't say
+                whether it's a full gameweek or two leftovers. A preview, not a promise: the staged
+                batch can still be replaced, so nothing here commits us to these teams. */}
+            {startFixtures.length > 0 && (
+              <div className="mt-4 border-t border-ink/30 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowStartFixtures((open) => !open)}
+                  className={`${LABEL} text-ink-fade transition-colors hover:text-ink`}
+                >
+                  {showStartFixtures
+                    ? 'Hide the matches'
+                    : `See the ${startFixtures.length} matches`}
+                </button>
+
+                {showStartFixtures && (
+                  <ul className="mt-3 space-y-1.5">
+                    {startFixtures.map((fixture, index) => (
+                      <li key={`${fixture.home_team}-${fixture.away_team}-${index}`} className="font-data text-[15px] text-ink">
+                        {teamNames[fixture.home_team] || fixture.home_team}
+                        <span className="text-ink-fade"> vs </span>
+                        {teamNames[fixture.away_team] || fixture.away_team}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
         )}

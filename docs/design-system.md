@@ -305,7 +305,7 @@ The design rules and the copy rules are one system. These are enforced on the la
 - **Never state an optional feature as universal.** The fixture service is opt-in and costs money;
   an early draft said "fixtures arrive on their own" as a flat fact. Check the code before writing
   a capability claim.
-- **State prices and offers as facts.** "£10 a competition — free right now" with no countdown
+- **State prices and offers as facts.** "20 credits a competition — free right now" with no countdown
   clock, no "limited time!", no urgency theatre.
 - **Sentence case in prose, active voice, plain verbs.** An action keeps its name through the whole
   flow: a button that says "Start one" leads to a screen about starting one.

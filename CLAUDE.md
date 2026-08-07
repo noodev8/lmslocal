@@ -321,6 +321,17 @@ lmslocal-web/
      is pushed until they say so, however long that takes. Reversible until the first round
      exists (`/set-competition-ready`); a **reset clears it** so an emptied competition goes back
      to waiting instead of taking the next batch with nobody told.
+
+     **Pressing Ready publishes round 1 there and then** — `set-competition-ready` calls
+     `pushFixturesToCompetition` itself, in a second transaction after the flag commits, swallowing
+     failure so the organiser's decision always sticks. Without it the organiser was left "all set"
+     beside a Play button that did nothing until an operator opened the admin screen.
+
+     **So the button is only offered when a round is available** (`can_start` from
+     `/get-competition-start-outlook`). Ready means "start me on the round I can see", not a
+     standing order. When they can't start, the card drops the button and says why: it names the
+     current batch's kickoff and tells them to come back after it, or — when nothing is staged —
+     says only that there is nothing ready, since no date exists to promise.
   2. `fixture_load.opens_gameweek` — the batch must **start** a gameweek, not continue one. A real
      Fri–Sun gameweek is staged as several batches, one round each, so a competition that first
      became eligible on the Saturday would get a round 1 of Sunday's two matches while everyone

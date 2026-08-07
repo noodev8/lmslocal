@@ -280,13 +280,16 @@ router.post('/', verifyToken, async (req, res) => {
           const minute = kickoffDate.getMinutes();
           const ampm = hour >= 12 ? 'pm' : 'am';
           const displayHour = hour % 12 || 12;
-          const displayMinute = minute.toString().padStart(2, '0');
+          // Minutes only when there are any - "3pm", not "3:00pm" - matching lock_time_formatted
+          const timeStr = minute > 0
+            ? `${displayHour}:${minute.toString().padStart(2, '0')}${ampm}`
+            : `${displayHour}${ampm}`;
 
           next_round_info = {
             exists: true,
             round_number: nextRound.round_number,
             has_fixtures: true,
-            message: `${dayName} ${date} ${month} at ${displayHour}:${displayMinute}${ampm}`
+            message: `${dayName} ${date} ${month} at ${timeStr}`
           };
         } else {
           // Next round exists but no fixtures yet
