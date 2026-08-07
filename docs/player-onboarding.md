@@ -7,7 +7,7 @@ link for a competition they are already in, on a phone they have never signed in
 it here first, then change the code to match.
 
 Where the doc and the code disagree, this doc is right and the code is a defect — §7 lists the ones
-already known, and which phase each belongs to. Phases 1–5 are done; §9 tracks the rest.
+already known, and which phase each belongs to. Phases 1–6 are done; only Phase 7 remains.
 
 ---
 
@@ -512,9 +512,25 @@ after it the organiser got `SERVER_ERROR` mid-reset.
 It is gone rather than fixed, because a reset should not issue a new code at all (§3.1). That
 leaves one generator in the codebase, which is why widening was a one-line change.
 
-**Phase 6 — Registration trim.** Terms as inline consent rather than a checkbox, single screen,
-sensible autofocus and `autocomplete`. Small, but it is the last thing between a player and the
-competition.
+**Phase 6 — Registration trim. ✅ DONE.**
+
+Consent is stated rather than ticked, on `/register` and on the join page's signup. A checkbox
+whose only valid answer is yes stops people without informing them, and the server validates
+neither `acceptTerms` nor `confirmPassword` — it never has.
+
+`/register` loses its confirm-password field. It guards a typo you cannot see, but the password can
+be revealed with the toggle directly above it and a forgotten one is a reset away. The join page's
+signup never had one, so the two disagreed and the shorter version was already in production.
+
+`/register` also stops bouncing to `/login`. It used to redirect with "Account created. Sign in to
+get going" — asking someone to prove who they were seconds after telling us, for an account that is
+auto-verified and so had nothing to prove. It uses the token from Phase 4 and lands on `/dashboard`,
+the same place `/login` goes. Not a new destination, just the existing one reached without a detour.
+
+`autoFocus` on `/register` only, where the page *is* the form. **Not** on the join page: the
+competition card sits above that form, and focusing an input scrolls past the venue and organiser
+name the player needs in order to know they are joining the right thing — which is the whole reason
+§4.4 puts the card first.
 
 **Phase 7 — Tidy.** Drop the duplicate `competition_user` indexes. Fixes defect 10.
 
