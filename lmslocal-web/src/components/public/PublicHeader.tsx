@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Wordmark from './Wordmark';
 import { LABEL } from '@/lib/design';
 
 /**
@@ -32,12 +33,7 @@ export default function PublicHeader({ current, width = 'wide' }: Props) {
   return (
     <header className="border-b border-ink/30">
       <div className={`mx-auto flex ${measure} items-center justify-between gap-4 px-4 py-4 sm:px-6`}>
-        <Link
-          href="/"
-          className="font-display text-2xl font-semibold uppercase tracking-[0.1em] text-ink sm:text-[1.75rem]"
-        >
-          LMSLocal
-        </Link>
+        <Wordmark />
         <nav className="flex items-center gap-5 sm:gap-7">
           {current !== 'pricing' && (
             <Link href="/pricing" className={`${LABEL} text-ink-fade transition-colors hover:text-ink`}>
