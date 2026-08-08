@@ -14,8 +14,6 @@ import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/domain/entities/promoted_competition.dart';
-import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
-import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 
 /// The competitions half of [HomeShellPage] — a body, not a screen.
 ///
@@ -275,21 +273,18 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        // Navigate to login when logged out
-        if (state is AuthUnauthenticated) {
-          context.go('/login');
-        }
-      },
-      // The masthead and the bottom bar belong to HomeShellPage, which is the
-      // only thing that builds this page. Owning them here as well is what let
-      // Home carry two Profile controls, and what made the bar disappear the
-      // moment Profile was opened.
-      child: Scaffold(
-        backgroundColor: GameTheme.background,
-        body: _buildBody(),
-      ),
+    // The masthead and the bottom bar belong to HomeShellPage, which is the
+    // only thing that builds this page. Owning them here as well is what let
+    // Home carry two Profile controls, and what made the bar disappear the
+    // moment Profile was opened.
+    //
+    // The logout redirect belongs to the shell too, for the same reason: only
+    // the visible tab is mounted, so a listener here was deaf to the logout it
+    // was meant to catch — it is fired from the Profile tab, with this page
+    // gone from the tree.
+    return Scaffold(
+      backgroundColor: GameTheme.background,
+      body: _buildBody(),
     );
   }
 

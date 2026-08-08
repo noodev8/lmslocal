@@ -41,11 +41,23 @@ class ApiClient {
 
           return handler.next(options);
         },
-        onResponse: (response, handler) {
+        onResponse: (response, handler) async {
           if (config.enableLogging) {
             debugPrint('✅ RESPONSE: ${response.statusCode} ${response.requestOptions.path}');
             debugPrint('📥 DATA: ${response.data}');
           }
+
+          // The server answers HTTP 200 to everything and puts the outcome in
+          // return_code (see CLAUDE.md), so an expired or missing token arrives
+          // here, not in onError — which left the 401 branch below unreachable
+          // for every route behind verifyToken. Without this, a signed-out app
+          // showed each screen's own failure text ("Failed to load dashboard")
+          // and never offered the login it actually needed.
+          final data = response.data;
+          if (data is Map && data['return_code'] == 'UNAUTHORIZED') {
+            await _handleUnauthorized();
+          }
+
           return handler.next(response);
         },
         onError: (error, handler) async {

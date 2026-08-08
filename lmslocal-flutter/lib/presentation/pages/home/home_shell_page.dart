@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
+import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
+import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 import 'package:lmslocal_flutter/presentation/pages/dashboard/dashboard_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/profile/profile_page.dart';
 import 'package:lmslocal_flutter/presentation/widgets/app_nav_bar.dart';
@@ -46,7 +50,17 @@ class _HomeShellPageState extends State<HomeShellPage> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
+    return BlocListener<AuthBloc, AuthState>(
+      // Logout is pressed on the Profile tab, and `body` mounts only the tab
+      // you can see — so this has to live on the shell, which outlives both.
+      // On the Dashboard tab it never heard the logout it was written for, and
+      // the app sat on Profile's spinner instead of returning to login.
+      listener: (context, state) {
+        if (state is AuthUnauthenticated) {
+          context.go('/login');
+        }
+      },
+      child: PopScope(
       // Back off Profile returns to your competitions rather than leaving the
       // app — the same rule the competition shell follows for its own tabs.
       canPop: _currentIndex == 0,
@@ -94,6 +108,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
