@@ -12,9 +12,10 @@ import {
   PlayIcon,
   UserIcon,
   MegaphoneIcon,
-  CalendarIcon
+  CalendarIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi } from '@/lib/api';
+import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi, playerActionApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -29,6 +30,7 @@ import {
   roundTileSummary,
   roundTileTarget,
 } from '@/lib/roundState';
+import { buildInviteMessage, buildJoinUrl } from '@/lib/templates';
 import { cacheUtils } from '@/lib/cache';
 import { cachePrefixes } from '@/lib/cacheKeys';
 
@@ -118,6 +120,20 @@ export default function UnifiedGameDashboard() {
 
   // Copy button states
   const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const joinUrl = competition?.invite_code ? buildJoinUrl(competition.invite_code) : '';
+
+  // Whether anyone can still join, computed the way the join gate itself computes it - round 1's
+  // lock time, never competition.status, which lags behind it (docs/player-onboarding.md §4.2).
+  // Codes are permanent now, so their presence no longer implies an open competition and this
+  // card would otherwise invite sharing that only leads to a dead end.
+  const joiningOpen = useMemo(() => {
+    if (!currentRoundInfo) return true; // no rounds yet - the competition has not started
+    if (currentRoundInfo.round_number > 1) return false;
+    if (!currentRoundInfo.lock_time) return true;
+    return new Date(currentRoundInfo.lock_time).getTime() > Date.now();
+  }, [currentRoundInfo]);
 
   // The start gate. `startsAt` is the kickoff their first round would actually get, answered by
   // the same rules the push uses - so it is fetched rather than guessed here.
@@ -148,6 +164,13 @@ export default function UnifiedGameDashboard() {
   const pickStatsLoadedRef = useRef(false);
   const roundStatsLoadedRef = useRef(false);
   const currentRoundStatsLoadedRef = useRef(false);
+  const myPickLoadedRef = useRef(false);
+
+  // The player's own pick for the current round. `myPickLoaded` exists so the card can stay off
+  // the screen until the answer is in - rendering "not picked yet" for a moment to someone who
+  // has picked is the one thing it must never do.
+  const [myPick, setMyPick] = useState<{ team_full_name: string; fixture: string } | null>(null);
+  const [myPickLoaded, setMyPickLoaded] = useState(false);
 
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
@@ -508,6 +531,30 @@ export default function UnifiedGameDashboard() {
           });
       }
 
+      // Load this player's own pick. Deliberately uncached: the player arrives here straight
+      // after picking on the pick screen, and a stale hit would tell them it did not save.
+      if (!myPickLoadedRef.current && currentRoundInfo && competition.is_participant) {
+        myPickLoadedRef.current = true;
+        playerActionApi.getCurrentPick(currentRoundInfo.id)
+          .then(response => {
+            if (response.data.return_code === 'SUCCESS') {
+              const pick = response.data.pick;
+              // Both names fall back to the short one rather than being assumed present: the
+              // full name comes from a join on an active team row, so a team retired from the
+              // list mid-season returns a pick with no name attached.
+              setMyPick(pick ? {
+                team_full_name: pick.team_full_name || pick.team,
+                fixture: pick.fixture || ''
+              } : null);
+              setMyPickLoaded(true);
+            }
+          })
+          .catch(() => {
+            // Non-fatal - the card stays hidden rather than claiming no pick was made.
+            myPickLoadedRef.current = false;
+          });
+      }
+
       // Load round statistics for the most recently completed round
       if (SHOW_ROUND_STATISTICS && !roundStatsLoadedRef.current && currentRoundInfo) {
         roundStatsLoadedRef.current = true;
@@ -577,6 +624,12 @@ export default function UnifiedGameDashboard() {
   useEffect(() => {
     pickStatsLoadedRef.current = false;
   }, [competition?.player_count, currentRoundInfo?.round_number]);
+
+  // A new round means a new pick to make, so the old answer must not survive into it.
+  useEffect(() => {
+    myPickLoadedRef.current = false;
+    setMyPickLoaded(false);
+  }, [currentRoundInfo?.round_number]);
 
   if (loading) {
     return (
@@ -712,6 +765,48 @@ export default function UnifiedGameDashboard() {
               <p className={`${LABEL} mt-1 text-ink-fade`}>Still in</p>
             </div>
 
+            {/* The player's own pick, above their status: it is the one thing here they can still
+                act on, and it reads that way on the Flutter dashboard, which puts it in the same
+                place. Without it, someone who had just picked came back to a dashboard identical
+                to one who had not, and the only way to confirm a pick was to open the pick screen
+                and read the highlight off the fixture list. */}
+            {isParticipant && myPickLoaded && competition.user_status === 'active' && (
+              <div className={`${PANEL} flex items-center justify-between gap-4 p-4`}>
+                <div className="min-w-0">
+                  <p className={`${LABEL} text-ink-fade`}>Your pick</p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {/* A mark beside the value, never a panel behind it - design-system.md §8. */}
+                    <span className={`h-2 w-2 flex-none rounded-full ${myPick ? 'bg-moss' : 'bg-overprint'}`} />
+                    {myPick ? (
+                      // font-data: a value the player chose, not interface chrome. The empty
+                      // state is the app talking, so it is set in body type instead.
+                      <p className="truncate font-data text-lg text-ink">{myPick.team_full_name}</p>
+                    ) : (
+                      <p className="text-lg text-overprint">
+                        {currentRoundInfo.is_locked ? 'No pick made' : 'Not picked yet'}
+                      </p>
+                    )}
+                  </div>
+                  {myPick?.fixture && (
+                    <p className="mt-1 pl-4 font-data text-[13px] text-ink-fade">{myPick.fixture}</p>
+                  )}
+                </div>
+                {currentRoundInfo.is_locked ? (
+                  // The affordance is removed rather than left dead - a tap that does nothing
+                  // reads as broken.
+                  <span className={`${LABEL} flex-none text-ink-fade`}>{myPick ? 'Locked in' : 'Locked'}</span>
+                ) : (
+                  <Link
+                    href={`/game/${competitionId}/pick`}
+                    className={`${LABEL} flex flex-none items-center gap-1 text-ink hover:text-overprint`}
+                  >
+                    {myPick ? 'Change' : 'Pick'}
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </Link>
+                )}
+              </div>
+            )}
+
             {isParticipant && (
               <div className={`${PANEL} grid grid-cols-2 divide-x divide-ink/30`}>
                 <div className="p-4 text-center">
@@ -756,19 +851,55 @@ export default function UnifiedGameDashboard() {
         )}
 
         {/* Invite Players */}
-        {competition.invite_code && (isOrganiser || canManagePlayers) && (
+        {competition.invite_code && joiningOpen && (isOrganiser || canManagePlayers) && (
           <div className={`${PANEL} p-6`}>
             <div className="text-center">
               <p className={EYEBROW}>Setup</p>
               <p className={`${HEADING} mt-1 text-2xl`}>Invite players</p>
             </div>
 
+            {/* The link comes first and the code second: a player sent a link never has to type
+                anything, which is the whole point of docs/player-onboarding.md §2. The code is
+                still here for anyone told it out loud. */}
             <div className="mt-5 border-t border-ink/30 pt-5 text-center">
-              <p className="text-[15px] text-ink-fade">
-                Invite players to <span className="text-ink">lmslocal.co.uk</span> using competition code
-              </p>
-              <div className="mt-3 flex items-center justify-center gap-2">
-                <code className="font-data text-2xl tracking-wider text-ink">{competition.invite_code}</code>
+              <p className="text-[15px] text-ink-fade">Send players this link</p>
+              <p className="mt-2 break-all font-data text-[15px] text-ink">{joinUrl}</p>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(joinUrl);
+                    setLinkCopied(true);
+                    showToast('Join link copied', 'success');
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  }}
+                  className={`${BTN_OUTLINE} px-3 py-1.5`}
+                >
+                  {linkCopied ? 'Copied' : 'Copy link'}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      buildInviteMessage({
+                        competition_name: competition.name,
+                        join_url: joinUrl,
+                        lock_time: currentRoundInfo?.lock_time,
+                        entry_fee: competition.entry_fee,
+                        prize_structure: competition.prize_structure,
+                      })
+                    );
+                    setMessageCopied(true);
+                    showToast('Message copied! Paste it into WhatsApp, email, or any messaging app', 'success');
+                    setTimeout(() => setMessageCopied(false), 2000);
+                  }}
+                  className={`${BTN_OUTLINE} px-3 py-1.5`}
+                >
+                  {messageCopied ? 'Copied' : 'Copy full message'}
+                </button>
+              </div>
+
+              <p className="mt-4 text-[13px] text-ink-fade">
+                Or give them the code <code className="font-data text-[15px] text-ink">{competition.invite_code}</code>{' '}
+                to enter at lmslocal.co.uk
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(competition.invite_code || '');
@@ -776,60 +907,11 @@ export default function UnifiedGameDashboard() {
                     showToast('Competition code copied to clipboard!', 'success');
                     setTimeout(() => setCodeCopied(false), 2000);
                   }}
-                  className={`${BTN_OUTLINE} px-3 py-1.5`}
+                  className="ml-2 underline underline-offset-2 hover:text-ink"
                 >
                   {codeCopied ? 'Copied' : 'Copy code'}
                 </button>
-              </div>
-
-              <button
-                onClick={() => {
-                  // Format lock time if available
-                  let lockTimeText = '';
-                  if (currentRoundInfo?.lock_time) {
-                    const lockDate = new Date(currentRoundInfo.lock_time);
-                    lockTimeText = `\n⏰ First round locks: ${lockDate.toLocaleString('en-GB', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}`;
-                  }
-
-                  // Format entry details if available
-                  let entryDetails = '';
-                  const entryFee = competition.entry_fee ? Number(competition.entry_fee) : 0;
-                  if (entryFee > 0) {
-                    entryDetails = `\n💷 Entry: £${entryFee.toFixed(2)}`;
-                    if (competition.prize_structure) {
-                      entryDetails += `\n🏆 Prizes: ${competition.prize_structure}`;
-                    }
-                  } else if (competition.prize_structure) {
-                    entryDetails = `\n🏆 Prizes: ${competition.prize_structure}`;
-                  }
-
-                  const message = `🏆 Last Man Standing Competition 🏆
-
-I'm running a ${competition.name} competition!
-
-📱 Download the app:
-Search "LMS Local" in App Store or Google Play, then join using code: ${competition.invite_code}${lockTimeText}
-${entryDetails}
-Pick a team each round - if they win, you survive!
-
-🌐 Or join on web: https://lmslocal.co.uk (use same code)
-
-Good luck! ⚽`;
-                  navigator.clipboard.writeText(message);
-                  setMessageCopied(true);
-                  showToast('Message copied! Paste it into WhatsApp, email, or any messaging app', 'success');
-                  setTimeout(() => setMessageCopied(false), 2000);
-                }}
-                className={`${BTN_OUTLINE} mt-3`}
-              >
-                {messageCopied ? 'Copied — paste into your chat app' : 'Copy message for WhatsApp, email…'}
-              </button>
+              </p>
             </div>
 
             <div className="mt-5 border-t border-ink/30 pt-5 text-center">

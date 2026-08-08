@@ -657,7 +657,11 @@ export const teamApi = {
 export const playerActionApi = {
   setPick: (fixture_id: number, team: string) => api.post<{ return_code: string; message: string }>('/set-pick', { fixture_id, team }),
   unselectPick: (round_id: number) => api.post<{ return_code: string; message?: string; warning?: string }>('/unselect-pick', { round_id }),
-  getCurrentPick: (round_id: number) => api.post<{ return_code: string; pick?: { team: string, fixture_id: number } }>('/get-current-pick', { round_id }),
+  getCurrentPick: (round_id: number) => api.post<{
+    return_code: string;
+    // Null rather than absent when no pick has been made - the route distinguishes the two.
+    pick?: { team: string; team_full_name?: string; fixture_id: number; fixture?: string } | null;
+  }>('/get-current-pick', { round_id }),
   // REMOVED: calculateResults (orphaned API - never used)
 };
 

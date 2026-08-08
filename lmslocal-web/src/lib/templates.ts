@@ -41,22 +41,18 @@ export const templates: Template[] = [
     name: 'Simple Invitation',
     category: 'pre_launch',
     tone: 'casual',
-    content: `🏆 Last Man Standing Competition 🏆
+    // Leads with the link, per docs/player-onboarding.md §2: a player arriving from a message
+    // should never have to type anything. The code is in the URL, so repeating it as a second
+    // instruction only gives them a choice they don't need.
+    content: `[COMP_NAME] — Last Man Standing
 
-I'm running a [COMP_NAME] competition!
+Pick one team each round. If they win you're through; draw or lose and you're out.
 
-📱 Download the app:
-Search "LMS Local" in App Store or Google Play, then join using code: [JOIN_CODE]
-
-⏰ First round locks: [PICK_DEADLINE]
+Join here: [JOIN_URL]
 
 [ENTRY_DETAILS]
 
-Pick a team each round - if they win, you survive!
-
-🌐 Or join on web: https://lmslocal.co.uk (use same code)
-
-Good luck! ⚽`
+First round locks [PICK_DEADLINE].`
   },
 
   // ==================================================
@@ -291,18 +287,7 @@ export function replaceTemplateVariables(
   const survivorsLabel = data.players_remaining > 5 ? 'Some of our survivors:' : 'Still standing:';
   result = result.replace(/\[SURVIVORS_LABEL\]/g, survivorsLabel);
 
-  // Format entry details (entry fee + prize structure)
-  let entryDetails = '';
-  const entryFeeNum = data.entry_fee ? Number(data.entry_fee) : 0;
-  if (entryFeeNum > 0) {
-    entryDetails = `💷 Entry: £${entryFeeNum.toFixed(2)}`;
-    if (data.prize_structure) {
-      entryDetails += `\n🏆 Prizes: ${data.prize_structure}`;
-    }
-  } else if (data.prize_structure) {
-    entryDetails = `🏆 Prizes: ${data.prize_structure}`;
-  }
-  result = result.replace(/\[ENTRY_DETAILS\]/g, entryDetails);
+  result = result.replace(/\[ENTRY_DETAILS\]/g, formatEntryDetails(data.entry_fee, data.prize_structure));
 
   // Format top players list - only show lives count if competition has multiple lives
   const hasMultipleLives = data.lives_per_player && data.lives_per_player > 1;
@@ -355,7 +340,92 @@ export function replaceTemplateVariables(
     result = result.replace(/\[UNLUCKY_PICK\]\n?/g, '');
   }
 
+  // An optional block that resolved to nothing (entry details on a free competition)
+  // leaves the blank line either side of it, so close the gap back to one.
+  result = result.replace(/\n{3,}/g, '\n\n');
+
   return result;
+}
+
+/**
+ * Entry fee and prizes, as they appear in a shared message. Empty when the competition is free
+ * and has no prizes, which is why the caller collapses the gap it leaves behind.
+ */
+export function formatEntryDetails(
+  entry_fee?: number | string | null,
+  prize_structure?: string | null
+): string {
+  const fee = entry_fee ? Number(entry_fee) : 0;
+  const lines: string[] = [];
+  if (fee > 0) lines.push(`Entry: £${fee.toFixed(2)}`);
+  if (prize_structure) lines.push(`Prizes: ${prize_structure}`);
+  return lines.join('\n');
+}
+
+/**
+ * A lock time as a player should read it: UK time, 12-hour, minutes only when there are any
+ * ("Friday 14 August at 7:30pm", "Friday 14 August at 3pm"). Fixed to Europe/London rather than
+ * the reader's locale — the kickoff is a UK kickoff wherever the organiser happens to be.
+ */
+export function formatLockTime(lockTime: string): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date(lockTime));
+
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+  const hour24 = parseInt(get('hour'), 10);
+  const minute = parseInt(get('minute'), 10);
+  const hour12 = hour24 % 12 || 12;
+  const ampm = hour24 >= 12 ? 'pm' : 'am';
+  const time = minute > 0 ? `${hour12}:${minute.toString().padStart(2, '0')}${ampm}` : `${hour12}${ampm}`;
+
+  return `${get('weekday')} ${get('day')} ${get('month')} at ${time}`;
+}
+
+/**
+ * The public join link. Mirrors `get-promote-data.js`, which builds the same URL server-side —
+ * the production host is deliberate even in development, because this string is only ever
+ * produced to be pasted somewhere a player will open it.
+ */
+export function buildJoinUrl(inviteCode: string): string {
+  return `https://lmslocal.co.uk/join/${inviteCode}`;
+}
+
+/**
+ * The invitation message, built from the same `pre_launch_1` template the promote screen renders.
+ * The game dashboard used to hold its own copy of this text, which drifted; anything that offers
+ * an invitation to share should come through here.
+ */
+export function buildInviteMessage(data: {
+  competition_name: string;
+  join_url: string;
+  lock_time?: string | null;
+  entry_fee?: number | string | null;
+  prize_structure?: string | null;
+}): string {
+  const template = getTemplateById('pre_launch_1');
+  if (!template) return '';
+
+  let result = template.content;
+  result = result.replace(/\[COMP_NAME\]/g, data.competition_name);
+  result = result.replace(/\[JOIN_URL\]/g, data.join_url);
+  result = result.replace(/\[ENTRY_DETAILS\]/g, formatEntryDetails(data.entry_fee, data.prize_structure));
+
+  // Without a lock time there is no deadline to state, so the line goes rather than promising
+  // the player something vague.
+  if (data.lock_time) {
+    result = result.replace(/\[PICK_DEADLINE\]/g, formatLockTime(data.lock_time));
+  } else {
+    result = result.replace(/^First round locks \[PICK_DEADLINE\]\.$/m, '');
+  }
+
+  return result.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /**

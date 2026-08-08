@@ -10,7 +10,7 @@ import { roundApi, fixtureApi, playerActionApi, userApi } from '@/lib/api';
 import { withCache, apiCache } from '@/lib/cache';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
-import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
+import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 interface Fixture {
   id: number;
@@ -44,8 +44,10 @@ export default function PickPage() {
   const [currentRoundId, setCurrentRoundId] = useState<number | null>(null);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTeam, setSelectedTeam] = useState<{teamShort: string, fixtureId: number, position: 'home' | 'away'} | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The team whose tap is in flight, so its own button can show the wait rather than a banner
+  // somewhere else on the screen.
+  const [submittingTeam, setSubmittingTeam] = useState<string | null>(null);
   const [allowedTeams, setAllowedTeams] = useState<string[]>([]);
   const [currentPick, setCurrentPick] = useState<string | null>(null);
   const [isRoundLocked, setIsRoundLocked] = useState<boolean>(false);
@@ -215,40 +217,38 @@ export default function PickPage() {
     return shortName;
   };
 
-  const getOpponentName = (fixtureId: number, position: 'home' | 'away') => {
-    const fixture = fixtures.find(f => f.id === fixtureId);
-    if (!fixture) return null;
-    return position === 'home' ? fixture.away_team : fixture.home_team;
-  };
-
-  const handleTeamSelect = (teamShort: string, fixtureId: number, position: 'home' | 'away') => {
-    // Can't select if round is locked
-    if (isRoundLocked) return;
-
-    // User must remove current pick first
-    if (currentPick) {
-      return;
-    }
-
-    // No current pick, allow selection if team is in allowed list
-    if (allowedTeams.includes(teamShort)) {
-      setSelectedTeam({ teamShort, fixtureId, position });
-    }
-  };
-
-  const handleUnselectPick = async () => {
-    if (!currentRoundId || submitting || isRoundLocked) return;
+  /**
+   * Tapping a team IS the pick. There is no separate confirm step, and no modal in its place.
+   *
+   * A pick is not a commitment until the round locks: `set-pick` takes a change directly
+   * (ON CONFLICT DO UPDATE, putting the old team back into allowed_teams and auditing it as
+   * "Pick Changed"), so a mis-tap is corrected by tapping the right team. Asking someone to
+   * confirm something they can simply redo buys nothing — and the step it replaces was itself
+   * losing people their round, since a player who tapped a team and closed the page had picked
+   * nothing. Same reasoning, and same behaviour, as the Flutter app's pick page.
+   */
+  const pickTeam = async (teamShort: string, fixtureId: number, position: 'home' | 'away') => {
+    if (submitting || isRoundLocked || !currentRoundId) return;
+    // The current pick is exempt from the allowed test - see the disabled logic below.
+    if (!allowedTeams.includes(teamShort) && currentPick !== teamShort) return;
+    // Tapping the team already picked is a no-op rather than a pointless write.
+    if (currentPick === teamShort) return;
 
     setSubmitting(true);
+    setSubmittingTeam(teamShort);
     try {
-      const response = await playerActionApi.unselectPick(currentRoundId);
+      const response = await playerActionApi.setPick(fixtureId, position);
 
       if (response.data.return_code === 'SUCCESS') {
+        // Check if this pick triggered auto-lock
+        const roundLocked = (response.data as { round_locked?: boolean }).round_locked;
+
         // Clear pick-related caches and refresh data
         if (competition && currentRoundId) {
           // Clear pick-specific caches
           apiCache.delete(`current-pick-${currentRoundId}-${competitionId}`);
-          // Clear allowed teams cache so fresh data loads after team restoration
+          // A change hands the previous team back to allowed_teams, so a stale list would keep
+          // showing it as unavailable.
           apiCache.delete(`allowed-teams-${competitionId}-current`);
 
           // Clear user dashboard cache to update pick counts on main game page
@@ -264,51 +264,9 @@ export default function PickPage() {
           // Force dashboard data refresh for immediate stats update
           refreshData();
         }
-        setSelectedTeam(null);
-      } else {
-        alert('Failed to remove pick: ' + (response.data.message || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Failed to remove pick:', error);
-      alert('Failed to remove pick');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
-  const submitPick = async () => {
-    if (!selectedTeam || submitting || isRoundLocked) return;
-
-    setSubmitting(true);
-    try {
-      const response = await playerActionApi.setPick(selectedTeam.fixtureId, selectedTeam.position);
-
-      if (response.data.return_code === 'SUCCESS') {
-        // Check if this pick triggered auto-lock
-        const roundLocked = (response.data as { round_locked?: boolean }).round_locked;
-
-        // Clear pick-related caches and refresh data
-        if (competition && currentRoundId) {
-          // Clear pick-specific caches
-          apiCache.delete(`current-pick-${currentRoundId}-${competitionId}`);
-
-          // Clear user dashboard cache to update pick counts on main game page
-          const userData = localStorage.getItem('user');
-          if (userData) {
-            const user = JSON.parse(userData);
-            apiCache.delete(`user-dashboard-${user.id}`);
-          }
-
-          await loadAllowedTeams(parseInt(competitionId));
-          await loadCurrentPick(currentRoundId);
-
-          // Force dashboard data refresh for immediate stats update
-          refreshData();
-        }
-
-        setSelectedTeam(null);
-
-        // Show appropriate success toast and handle refresh
+        // Names the team. With the tap itself being the pick, this is the only confirmation the
+        // player gets, so it has to say what was saved rather than that something was.
         if (roundLocked) {
           showToast('You were the last player to pick. Pick choices are now available.', 'success');
           // Refresh page to show updated lock status
@@ -316,16 +274,17 @@ export default function PickPage() {
             window.location.reload();
           }, 1500); // Give user time to see the toast
         } else {
-          showToast('Pick saved successfully!', 'success');
+          showToast(`Picked ${getFullTeamName(teamShort)}`, 'success');
         }
       } else {
-        showToast('Failed to submit pick: ' + (response.data.message || 'Unknown error'), 'error');
+        showToast('Failed to save pick: ' + (response.data.message || 'Unknown error'), 'error');
       }
     } catch (error) {
-      console.error('Failed to submit pick:', error);
-      showToast('Failed to submit pick. Please try again.', 'error');
+      console.error('Failed to save pick:', error);
+      showToast('Failed to save pick. Please try again.', 'error');
     } finally {
       setSubmitting(false);
+      setSubmittingTeam(null);
     }
   };
 
@@ -415,36 +374,44 @@ export default function PickPage() {
 
             const renderTeam = (team: { short: string; name: string; fixtureId: number; position: 'home' | 'away' }) => {
               const isAllowed = allowedTeams.includes(team.short);
-              const isSelected = selectedTeam?.teamShort === team.short;
               const isCurrentPick = currentPick === team.short;
-              const isDisabled = !isAllowed || !!(currentPick && !isCurrentPick) || isRoundLocked;
-              const isPicked = isSelected || isCurrentPick;
+              const isSubmittingThis = submittingTeam === team.short;
+              // Holding a pick no longer disables every other team - changing your mind is one
+              // tap, the same gesture as choosing. And the team you picked is never "unavailable"
+              // even though picking it removes it from allowed_teams under no_team_twice, which
+              // rendered your own choice in the same grey as a team you used in an earlier round.
+              const isDisabled = (!isAllowed && !isCurrentPick) || isRoundLocked;
 
               return (
                 <button
                   key={team.short}
-                  onClick={() => handleTeamSelect(team.short, team.fixtureId, team.position)}
-                  disabled={isDisabled}
+                  onClick={() => pickTeam(team.short, team.fixtureId, team.position)}
+                  disabled={isDisabled || submitting}
                   className={`relative flex min-h-[72px] flex-1 items-center justify-center border p-3 text-center transition-colors sm:p-4 ${
                     isCurrentPick
                       ? 'border-2 border-moss bg-moss/10'
-                      : isSelected
-                      ? 'border-2 border-overprint bg-stock-lit'
                       : isDisabled
                       ? 'cursor-not-allowed border-ink/15 bg-stock text-ink-fade/60'
-                      : 'cursor-pointer border-ink/30 hover:border-ink'
+                      : 'cursor-pointer border-ink/30 hover:border-ink disabled:cursor-wait'
                   }`}
                 >
+                  {/* Sits in the box's own top-left corner rather than above it as a caption:
+                      the tile has the room, and a mark on the thing itself is what a player
+                      scanning a list of ten matches actually sees. */}
                   {isCurrentPick && (
-                    <span className={`${LABEL} absolute -top-2.5 left-3 bg-moss px-1.5 text-stock-lit`}>
-                      Your pick
+                    <span className={`${LABEL} absolute left-0 top-0 bg-moss px-2 py-1 text-[11px] text-stock-lit`}>
+                      Pick
                     </span>
                   )}
-                  <span className={`text-sm font-medium leading-tight sm:text-base ${
-                    isCurrentPick ? 'text-ink' : isDisabled ? '' : 'text-ink'
-                  }`}>
-                    {team.name}
-                  </span>
+                  {isSubmittingThis ? (
+                    <span className="inline-flex h-5 w-5 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+                  ) : (
+                    <span className={`text-sm font-medium leading-tight sm:text-base ${
+                      isCurrentPick ? 'text-ink' : isDisabled ? '' : 'text-ink'
+                    }`}>
+                      {team.name}
+                    </span>
+                  )}
                 </button>
               );
             };
@@ -459,75 +426,15 @@ export default function PickPage() {
           })}
         </div>
 
-        {/* Remove Current Pick Card - shown when no team selected but user has current pick and round not locked */}
-        {!selectedTeam && currentPick && !isRoundLocked && (
-          <div className={`${PANEL} mt-5 p-5 text-center`}>
-            {/* Body face, not font-data, even though a pick is entered content. This name is
-                sitting directly under the same name in the fixture list above, and setting one
-                string in two faces on one screen reads as a mistake. The list wins because it's
-                the bigger block. See docs/design-system.md - the typewriter rule. */}
-            <p className="text-[15px] text-ink">
-              Your pick: <span className="font-semibold">{getFullTeamName(currentPick)}</span>
-            </p>
-            <p className="mt-1 text-[13px] text-ink-fade">
-              Want to change your pick? Remove it first to select a different team.
-            </p>
-            <button
-              onClick={handleUnselectPick}
-              disabled={submitting}
-              className={`${BTN_OUTLINE} mt-4 min-w-[140px] px-6 py-3`}
-            >
-              {submitting ? 'Removing…' : 'Remove pick'}
-            </button>
-          </div>
-        )}
-
-        {/* Help Section - only show when round not locked and no current pick */}
-        {!isRoundLocked && !currentPick && (
-          <div className={`${PANEL} mt-5 p-5`}>
-            <p className={`${EYEBROW} text-center`}>How to make your pick</p>
-            <ul className="mx-auto mt-3 max-w-sm space-y-1.5 text-[15px] text-ink-fade">
-              <li>Tap any available team to select them.</li>
-              <li>Confirm your selection before the round locks.</li>
-              <li>Your team must win to advance — a draw or a loss eliminates you.</li>
-            </ul>
-          </div>
+        {/* One line, and it is the only rule that matters at the moment of picking. It replaces
+            a titled card of three bullets: "tap a team to select" narrated what the player was
+            already doing, "confirm your selection" described a step that no longer exists, and
+            the third said a draw or loss eliminates you — untrue for anyone holding a life, which
+            is most players in most competitions. */}
+        {!isRoundLocked && (
+          <p className="mt-5 text-center text-[15px] text-ink-fade">Your team must win to advance.</p>
         )}
       </main>
-
-      {/* Confirm Pick Modal - opens the instant a team is tapped, so a pick can't be
-          half-made: last season players tapped a team and believed that was the
-          pick, without noticing the round still needed a separate confirm. */}
-      {selectedTeam && !isRoundLocked && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
-          <div className={`${PANEL} w-full max-w-sm p-6 text-center`}>
-            <p className={EYEBROW}>Confirm your pick</p>
-            <p className={`${HEADING} mt-2 text-2xl`}>{getFullTeamName(selectedTeam.teamShort)}</p>
-            <p className={`${LABEL} mt-1 text-ink-fade`}>
-              vs {getOpponentName(selectedTeam.fixtureId, selectedTeam.position)}
-            </p>
-            <p className="mt-3 text-[14px] text-ink-fade">
-              You can change this before the round locks.
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <button
-                onClick={() => setSelectedTeam(null)}
-                disabled={submitting}
-                className={`${BTN_OUTLINE} px-6 py-3 disabled:opacity-50`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitPick}
-                disabled={submitting}
-                className={`${BTN_PRIMARY} min-w-[140px] px-6 py-3 text-base disabled:opacity-50`}
-              >
-                {submitting ? 'Confirming…' : 'Confirm pick'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>

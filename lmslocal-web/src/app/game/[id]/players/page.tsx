@@ -740,7 +740,8 @@ export default function CompetitionPlayersPage() {
 
         {/* Players List */}
         <div className={`${PANEL} mt-6 divide-y divide-ink/30`}>
-          {players.map((player) => (
+          {players.map((player) => {
+            return (
             <div key={player.id} className={`p-4 ${player.hidden ? 'border-l-2 border-overprint' : ''}`}>
               {/* Player Info */}
               <div className="mb-3">
@@ -779,26 +780,38 @@ export default function CompetitionPlayersPage() {
                   </button>
                 </div>
 
-                {/* Payment Button */}
-                {player.paid ? (
-                  <button
-                    onClick={() => handlePaymentToggle(player.id, player.paid)}
-                    disabled={updatingPayment.has(player.id)}
-                    className={`${BTN_DARK} inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-50`}
-                    title="Click to mark as unpaid"
-                  >
+                {/* Set pick. Out here rather than in the menu because it is the recurring,
+                    deadline-bound job on this screen - once a round, before lock - and for a
+                    guest it is the only way they ever get a pick at all. Payment went the other
+                    way for the same reason: it is marked once a season.
+
+                    One style for every row, guest or not. A filled button on the guest rows was
+                    meant to say "this is the important one" and said "this one is different,
+                    leave it alone" instead. */}
+                <button
+                  onClick={() => handleOpenSetPickModal(player)}
+                  disabled={!currentRoundId || !hasFixtures || roundIsLocked}
+                  title={
+                    roundIsLocked
+                      ? 'The round is locked'
+                      : !currentRoundId || !hasFixtures
+                      ? 'No fixtures in this round yet'
+                      : `Set a pick for ${player.display_name}`
+                  }
+                  className={`${BTN_OUTLINE} inline-flex items-center gap-1.5 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40`}
+                >
+                  <CheckCircleIcon className="h-4 w-4" />
+                  Set pick
+                </button>
+
+                {/* Paid stays visible once it is true - it is the answer to "have they paid?",
+                    which is the question the list gets scanned for. Marking it happens in the
+                    menu. */}
+                {player.paid && (
+                  <span className={`${LABEL} inline-flex items-center gap-1.5 border border-moss px-2 py-1 text-moss`}>
                     <CheckCircleIcon className="h-4 w-4" />
                     Paid
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handlePaymentToggle(player.id, player.paid)}
-                    disabled={updatingPayment.has(player.id)}
-                    className={`${BTN_OUTLINE} disabled:opacity-50`}
-                    title="Click to mark as paid"
-                  >
-                    Mark as paid
-                  </button>
+                  </span>
                 )}
 
                 {/* Hidden Badge */}
@@ -827,20 +840,27 @@ export default function CompetitionPlayersPage() {
 
                       {/* Menu */}
                       <div className="absolute left-0 top-full z-20 mt-1 w-52 border border-ink/30 bg-stock-lit sm:left-auto sm:right-0">
-                        {/* Set Pick */}
-                        <button
-                          onClick={() => {
-                            setOpenDropdownId(null);
-                            handleOpenSetPickModal(player);
-                          }}
-                          disabled={!currentRoundId || !hasFixtures || roundIsLocked}
-                          className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock disabled:cursor-not-allowed disabled:text-ink-fade/50 disabled:hover:bg-transparent`}
-                        >
-                          <CheckCircleIcon className="h-4 w-4" />
-                          Set pick
-                        </button>
+                        {/* Payment. Two organisers use this on real competitions, so it stays -
+                            but it is marked once and then read, which is a menu action, not a
+                            button on every row. Never offered for a bot: nobody is collecting
+                            a fiver off one. */}
+                        {!player.is_bot && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setOpenDropdownId(null);
+                                handlePaymentToggle(player.id, player.paid);
+                              }}
+                              disabled={updatingPayment.has(player.id)}
+                              className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock disabled:opacity-50`}
+                            >
+                              <CheckCircleIcon className="h-4 w-4" />
+                              {player.paid ? 'Mark as unpaid' : 'Mark as paid'}
+                            </button>
 
-                        <div className="border-t border-ink/30" />
+                            <div className="border-t border-ink/30" />
+                          </>
+                        )}
 
                         {/* Toggle Status */}
                         <button
@@ -910,7 +930,8 @@ export default function CompetitionPlayersPage() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* No Players State */}
