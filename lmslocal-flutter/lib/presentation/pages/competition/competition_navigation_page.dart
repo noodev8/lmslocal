@@ -94,10 +94,10 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
         onPopInvokedWithResult: (didPop, result) {
           if (!didPop) {
             if (_currentIndex == 0) {
-              // On Game tab: go to main dashboard
+              // On the competition's Dashboard tab: go to the app's home
               context.go('/dashboard');
             } else {
-              // On other tabs: go back to Game tab
+              // On other tabs: go back to the Dashboard tab
               setState(() => _currentIndex = 0);
             }
           }
@@ -138,7 +138,9 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
         AppNavItem(
           icon: Icons.dashboard_outlined,
           activeIcon: Icons.dashboard,
-          label: 'Game',
+          // "Dashboard", not "Game": the tab is a competition's overview, and
+          // "Game" beside "Play" read as two names for the same thing.
+          label: 'Dashboard',
           isActive: _currentIndex == 0,
           onTap: () => setState(() => _currentIndex = 0),
         ),

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:lmslocal_flutter/core/config/app_config.dart';
 import 'package:flutter/services.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/game/round_state.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/presentation/widgets/app_nav_bar.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
@@ -585,7 +585,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
     String deadline;
     if (difference.inDays > 0) {
-      deadline = DateFormat('EEE d MMM, h:mm a').format(lockTime);
+      // Same shared formatter as every other kickoff in the app. It was
+      // formatting a UTC DateTime without converting, so a promoted
+      // competition's deadline read an hour early right through BST.
+      deadline = formatShort(lockTime, reference: now);
     } else if (difference.inHours > 0) {
       deadline = '${difference.inHours}h ${difference.inMinutes % 60}m left';
     } else if (difference.inMinutes > 0) {
@@ -1195,6 +1198,18 @@ class _DashboardPageState extends State<DashboardPage> {
     final hasWinner = isComplete && competition.winnerName != null;
     final isOut = competition.isParticipant && competition.userStatus == 'out';
 
+    // The same machine the web dashboard card runs, off the same three counts,
+    // so the two surfaces cannot describe one round differently.
+    final roundState = deriveDashboardRoundState(
+      currentRound: competition.currentRound,
+      currentRoundLockTime: competition.currentRoundLockTime,
+      competitionComplete: isComplete,
+      now: DateTime.now(),
+      totalFixtures: competition.totalFixtures,
+      fixturesWithResults: competition.fixturesWithResults,
+      fixturesProcessed: competition.fixturesProcessed,
+    );
+
     // Determine glow color based on status
     Color glowColor;
     if (isOut) {
@@ -1259,8 +1274,59 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
+                // Two separate facts, and the card was previously showing
+                // neither: what the player owes, and where the round has got
+                // to. The web card carries the first, the web game screen the
+                // second — a phone card is the only thing a player sees before
+                // deciding whether to open anything, so it carries both.
+                if (competition.isParticipant) ...[
+                  if (needsPick)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: CouponTheme.overprint),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_outlined,
+                            size: 16,
+                            color: CouponTheme.overprint,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              pickDeadlineText(roundState),
+                              style: CouponTheme.label.copyWith(
+                                color: CouponTheme.ink,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    Text(
+                      '✓ UP TO DATE',
+                      style: CouponTheme.label.copyWith(color: CouponTheme.moss),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      playerRoundStatus(roundState),
+                      style: CouponTheme.bodyText.copyWith(
+                        fontSize: 15,
+                        color: CouponTheme.inkFade,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                ] else
+                  const SizedBox(height: 4),
 
                 // Competition info
                 Row(

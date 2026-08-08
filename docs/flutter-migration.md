@@ -196,7 +196,7 @@ Recolouring these produces a pale glow, which is worse than the dark one. They n
 | `glowing_players_circle.dart` | A cyan glow ring | The count in display type over a ruled field |
 | `active_players_ring.dart` | Same idea, second copy | Folded into the above |
 | `glass_card.dart` | Frosted translucency | `PANEL` — hairline border on `stock-lit` |
-| `dark_status_cards.dart` | Named for the dark theme | Ruled rows |
+| ~~`dark_status_cards.dart`~~ | Named for the dark theme | **Done** — `player_status_block.dart` |
 
 ### Flutter-specific rules
 
@@ -288,18 +288,107 @@ deliberately avoids `moss`: green means "still in" in this product, and spending
 blunt that.
 
 `/competition/:id?tab=play` opens straight on Play. The dashboard's "Make pick" uses it, because
-landing a player on Game and making them find the tab is the action changing its name halfway
-through the flow. The tab highlight itself was never broken — that was the actual complaint's cause.
+landing a player on the competition's own dashboard and making them find the tab is the action
+changing its name halfway through the flow. The tab highlight itself was never broken — that was
+the actual complaint's cause.
+
+The competition tab is labelled **Dashboard**, not "Game". "Game" sat beside "Play" and read as
+two names for one thing, when it is in fact the competition's overview.
+
+**Play keeps its name in every phase.** The web's equivalent tile relabels itself — "Play" while
+picks are open, "Round 3 results" once they're settled, "Round progress" between — which works
+for a tile and not for navigation. A bottom-nav item is an address, and an address that renames
+itself through the week makes the app feel like it has moved. The phase is carried by the copy on
+the screens instead (§3a below).
 
 | Screen | Lines | Notes |
 |---|---|---|
 | ~~`splash_page.dart`~~ | 142 | **Done.** Where icon, splash and font work met |
 | ~~`login` / `register` / `forgot_password`~~ | ~700 | **Done.** Share `widgets/auth_shell.dart`, mirroring the web's `AuthShell`. Register's intro is *not* the web's — that one sells to organisers |
-| `dashboard_page.dart` | 1480 | Palette and shapes done, actions fixed. Layout awaits the redesign |
-| `competition_home_page.dart` + widgets | ~2000 | Glow ring replaced by `players_active_block.dart`. `active_players_ring.dart` and `glass_card.dart` were dead and are deleted |
-| `play_page` / `pick_page` / `waiting_page` / `player_results_page` | ~1600 | Palette only so far. `player_results` is where `moss` vs `moss-wash` was already got wrong twice on web — read §8 first |
+| `dashboard_page.dart` | 1480 | Palette and shapes done, actions fixed, pick and round status added (§3a). Layout awaits the redesign |
+| `competition_home_page.dart` + widgets | ~1900 | Glow ring replaced by `players_active_block.dart`. `active_players_ring.dart` and `glass_card.dart` were dead and are deleted. Round status and the inline `ABOUT` block added (§3a); the info sheet is deleted |
+| `play_page` / `pick_page` / `waiting_page` / `player_results_page` | ~1600 | Palette only so far, plus `pick_page`'s deadline now on the shared formatter (§3a). `player_results` is where `moss` vs `moss-wash` was already got wrong twice on web — read §8 first |
 | `standings_page.dart` | 1663 | Group tints fixed. Still to do: the survival sheet model — `font-data` names, dotted leaders, struck-through eliminations |
 | `profile_page.dart` | 1214 | Palette, shapes and both tints done |
+
+---
+
+## 3a. Telling the player where the round has got to
+
+The app knew less than the web about its own rounds, and it was a data gap rather than a design
+one. `/get-user-dashboard` has always returned `current_round_lock_time`, `total_fixtures`,
+`fixtures_with_results` and `fixtures_processed`; `CompetitionModel` simply never parsed them, so
+the app could say "Round 2" and nothing about whether picks were open, closed, or settled. A
+player had to open the Play tab and see what it offered.
+
+Those four fields are now on `Competition`, and
+`lib/core/game/round_state.dart` derives the phase from them — the same machine, off the same
+counts, as `lmslocal-web/src/lib/roundState.ts`. **`docs/round-state-machine.md` is the contract
+for both**; change it first, then change both files. The port is partial by design: phases and
+player-facing copy only. The organiser copy, the capability functions and the start gate have no
+reader in a player-only app.
+
+Two divergences are deliberate, per §4: the copy is in the player's voice, and every phase past
+the lock states what is happening rather than what someone owes. One is not: kickoff times render
+in the device's zone rather than pinned to Europe/London, because Dart needs the `timezone`
+package for that. It is still a fix on what was there — the app formatted UTC instants without
+converting, showing every BST kickoff an hour early.
+
+### One formatter, and the hour it was losing
+
+`formatShort` / `formatLong` in `round_state.dart` are now the only place a kickoff is rendered.
+There were two others, both calling `DateFormat(...).format()` straight onto a `DateTime` parsed
+from an ISO string with a `Z` — which is a **UTC** `DateTime`, so it printed UTC. Through BST that
+is an hour early, every time. The pick page also spoke 24-hour ("14:00") where everything else
+says "3pm".
+
+It stayed invisible while every screen was wrong in the same direction. It became a visible
+contradiction the moment the dashboard card started saying "Pick needed by Sat 15 Aug, 3pm" beside
+a pick page headed "Sat 15 Aug, 14:00" for the same deadline. Both now call `formatShort`.
+
+If a third kickoff needs rendering, call these — do not reach for `DateFormat`. `intl` is no
+longer imported by either screen.
+
+Where it shows:
+
+- **Dashboard card** — the pick row the web card has always had ("Pick needed by Fri, 8pm" in
+  overprint with a rule round it, or "✓ Up to date"), plus the round's own status underneath when
+  no pick is owed. Both, because a card on a phone is the only thing a player sees before deciding
+  whether to open anything.
+- **Competition dashboard** — "Round 2" as the eyebrow over the still-in count, and the status
+  line under it: *Picks close Saturday 9 August, 3pm* → *Picks are in — the window is closed* →
+  *4 of 10 results in* → *Round 2 is settled*.
+
+### Competition info is on the page
+
+`competition_home_page.dart` used to hide prize, description, venue and player count behind a
+"Competition Info" button that opened a bottom sheet. The prize is the reason most players entered,
+and a detail you have to know to ask for is one most players never see. It is now a ruled `ABOUT`
+block at the foot of the screen — prize, blurb, then venue — matching where the web has always put
+it. The sheet and its button are gone.
+
+### The player's own status
+
+`dark_status_cards.dart` is gone, replaced by `player_status_block.dart` — the two-column ruled
+panel from the web's game screen, so the same two facts read the same way in both places. Colour
+is a dot beside the word, never a fill behind it, and the word carries the state on its own.
+
+**It shows two cells, not three.** The old middle cell repeated the round number that the block
+directly above it already sets in 88pt. Two facts that are actually the player's — still in, lives
+left — earn a cell each; the round is the screen's subject, not a statistic about them.
+
+One thing that only shows up on a device: **display type needs its 0.06em tracking at small
+sizes.** Big Shoulders is ultra-condensed, and `CouponTheme.heading()` carries no letter spacing,
+so a two-letter value like "IN" sets with the strokes touching. Track any short display string.
+
+**Prize, blurb and venue only.** The block first carried a player count and the team list as well,
+and both were noise: the count is already the biggest thing on the screen, and which team list a
+competition runs on is not a fact a player acts on. The whole block hides itself when an organiser
+filled none of the three in, rather than showing a bare heading ruled off at both ends.
+
+The generic football that sat beside the competition name went with it. It decorated the header
+without identifying anything; an organiser's uploaded logo still shows, and nothing stands in for
+it when there isn't one.
 
 ---
 
@@ -309,6 +398,53 @@ Design system §9 applies with one inversion that matters: **on the web "you" is
 organiser. This app is player-only, so here "you" is the player.** Everything else holds — sentence
 case, active voice, "matches" not "fixtures" in anything a person reads, errors that say what
 happened and what to do, empty states that invite action.
+
+---
+
+## 4a. Checking a change on the real phone
+
+A UI change is not verified until it has been looked at. There is no simulator worth trusting for
+this — the coupon system is about hairlines, tracking and density, and all three lie on a desktop
+window. The device is an SM A426B, 720×1600, `RZCR30746QZ`.
+
+**Hot reload cannot be driven from an agent session.** `flutter run` wants a key press on an
+interactive stdin, and an agent's shell has none. So drive it over adb instead, which needs no
+attached session:
+
+```bash
+cd lmslocal-flutter
+flutter build apk --debug                                   # ~15s warm, minutes cold
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+adb shell monkey -p uk.co.lmslocal.lmslocal_flutter -c android.intent.category.LAUNCHER 1
+adb shell 'sleep 6'                                         # Dart splash holds 2s minimum
+adb exec-out screencap -p > shot.png                        # then read the image
+```
+
+Then `adb shell input tap <x> <y>` to navigate, in the screenshot's own pixel coordinates
+(`adb shell wm size` confirms they are 1:1 with the device).
+
+**When you are working, don't use the phone.** Taps land in whatever is in front, and a
+notification or a resumed app that arrives between `input tap` and `screencap` silently sends the
+tap somewhere else — during this work one landed in Chess.com. Relaunch with `monkey` and carry
+on; nothing is broken by it, but the screenshot is worthless.
+
+Three things that will otherwise cost time:
+
+- **Never `adb uninstall` to get past a signature clash.** The debug build shares
+  `uk.co.lmslocal.lmslocal_flutter` with the release one, so installing over a *release*-signed
+  build fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` and uninstalling is the obvious fix. It is
+  the wrong one: it wipes `flutter_secure_storage`, forcing a re-login, and destroys the only
+  real-world instance of the untested v9→v11 token migration in §1. Stop and ask instead.
+- **The dashboard cache outlives the build.** `dashboard_competitions` in `SharedPreferences` has
+  a 5-minute TTL and is keyed on nothing else, so after a change to what `CompetitionModel` parses,
+  the first launch reads a payload written by the old build with the new fields absent. Pull to
+  refresh, or the round phase will be derived from defaults and be wrong.
+- **`flutter build` and `flutter analyze` must run from `lmslocal-flutter/`.** Run from the repo
+  root they analyse `lmslocal-server` and report "No issues found" having checked nothing Dart.
+
+Verify what the screen claims against the database rather than trusting it — `node db/query.js`
+from `lmslocal-server/`, read-only, no permission needed. A status line that says the right thing
+for the wrong reason looks identical.
 
 ---
 

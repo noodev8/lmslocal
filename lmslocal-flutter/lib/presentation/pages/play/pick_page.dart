@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lmslocal_flutter/core/game/round_state.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/pick_remote_data_source.dart';
@@ -320,8 +320,12 @@ class _PickPageState extends State<PickPage> {
   }
 
   Widget _buildRoundHeader() {
-    final formatter = DateFormat('EEE d MMM, HH:mm');
-    final deadline = formatter.format(widget.round.lockTime);
+    // The one formatter, shared with the dashboard card and the competition
+    // screen. It was `DateFormat('EEE d MMM, HH:mm')` on a UTC DateTime with no
+    // conversion, so this said "14:00" for the same deadline the dashboard
+    // called "3pm" — an hour out through BST, and 24-hour where the rest of the
+    // app speaks kickoffs as "3pm".
+    final deadline = formatShort(widget.round.lockTime);
 
     return Container(
       padding: const EdgeInsets.all(16),

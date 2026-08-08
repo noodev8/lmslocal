@@ -13,10 +13,16 @@ class PlayersActiveBlock extends StatefulWidget {
   const PlayersActiveBlock({
     super.key,
     required this.playerCount,
+    this.heading,
     this.label = 'Players still in',
   });
 
   final int playerCount;
+
+  /// Which round the count belongs to — the eyebrow above it, matching the web
+  /// panel. Optional: before any round exists there is nothing to name.
+  final String? heading;
+
   final String label;
 
   @override
@@ -80,6 +86,10 @@ class _PlayersActiveBlockState extends State<PlayersActiveBlock>
       ),
       child: Column(
         children: [
+          if (widget.heading != null) ...[
+            Text(widget.heading!.toUpperCase(), style: CouponTheme.label),
+            const SizedBox(height: 8),
+          ],
           animation == null
               ? _Count(widget.playerCount)
               : AnimatedBuilder(

@@ -7,6 +7,12 @@ This doc is the contract. When a new scenario turns up ("what should a delegated
 between kickoff and the first result?"), answer it here first, then change the code to match.
 The code deliberately carries no rules that aren't written down here.
 
+**There are now two implementations**, and a change to the rules has to land in both:
+`roundState.ts` above, and `lmslocal-flutter/lib/core/game/round_state.dart`. The Dart file is a
+partial port — the phase rules line for line, plus the player-facing copy, and nothing else. The
+app is player-only, so the capability functions, the organiser copy and the start gate have no
+reader there and are deliberately absent. Its one unwanted divergence is time zones: see §6.
+
 ## Why it was merged
 
 Fixtures and Results were two dashboard tiles pointing at two pages that render the same list of
@@ -379,6 +385,13 @@ times *are* UK kickoff times: an organiser checking from Spain still needs to re
 match actually starts, and a player shown "9pm" when the pub says "8pm" has been given wrong
 information, not localised information. Revisit only if the product runs outside the UK.
 
+**The Flutter port does not do this yet**, and it is the one place the two implementations
+disagree. Dart cannot pin a zone without the `timezone` package, so `round_state.dart` renders in
+the device's own zone — right for a player in the UK, an hour out for one abroad in summer. It is
+still an improvement on what the app did before, which was to format UTC instants without
+converting at all and so show every BST kickoff an hour early. Closing it properly means adding
+`timezone`, initialising tzdata at startup, and sweeping every other `DateFormat` call in the app.
+
 Storage is already correct and needs no change. `round.lock_time` and `fixture.kickoff_time` are
 `timestamptz` holding true UTC instants — `organizer-add-fixtures.js:113-152` reads the entered
 wall-clock components and converts via `Europe/London` before writing, ignoring the redundant `Z`
@@ -537,6 +550,7 @@ Decide these here as they come up, don't decide them in a component.
 | Path | Role |
 |---|---|
 | `src/lib/roundState.ts` | the machine — phases, capabilities, copy, UK time formatting |
+| `lmslocal-flutter/lib/core/game/round_state.dart` | the mobile port — phases and player copy only |
 | `src/app/game/[id]/round/page.tsx` | the merged screen |
 | `src/app/game/[id]/page.tsx` | the dashboard's single Round tile |
 | `src/app/game/[id]/organizer-fixtures/page.tsx` | **entry form only** — redirects to `/round` on automated competitions |

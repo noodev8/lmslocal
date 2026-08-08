@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
+import 'package:lmslocal_flutter/core/game/round_state.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/competition_remote_data_source.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_source.dart';
@@ -13,7 +15,7 @@ import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/round_statistics.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/players_active_block.dart';
-import 'package:lmslocal_flutter/presentation/pages/competition/widgets/dark_status_cards.dart';
+import 'package:lmslocal_flutter/presentation/pages/competition/widgets/player_status_block.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/pick_status_card.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/round_results_card.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/invite_section.dart';
@@ -287,19 +289,27 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                   children: [
                     // Current Round Card (if not complete)
                     if (_competition!.status != 'COMPLETE' &&
-                        _currentRound != null)
+                        _currentRound != null) ...[
                       _buildCurrentRoundCard(_currentRound!),
-
-                    if (_competition!.status != 'COMPLETE' &&
-                        _currentRound != null)
                       const SizedBox(height: 12),
+                      // Where the round has got to, in one sentence. Without it
+                      // the screen showed a count and a lives figure and left
+                      // "have picks closed?" — the thing a player actually
+                      // wants to know — to be inferred from whether the Play
+                      // tab happened to offer a pick.
+                      Text(
+                        playerRoundStatus(_roundState()),
+                        style: CouponTheme.bodyText.copyWith(
+                          color: CouponTheme.inkFade,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     // Personal Status Cards (participants only)
                     if (_competition!.isParticipant) ...[
-                      _buildPersonalStatusCards(
-                        _competition!,
-                        _currentRound?.roundNumber ?? _competition!.currentRound,
-                      ),
+                      _buildPersonalStatusCards(_competition!),
                       const SizedBox(height: 16),
                     ],
 
@@ -326,25 +336,12 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                     if (_competition!.status == 'COMPLETE')
                       CompleteBanner(competition: _competition!),
 
-                    // Info button - always show, displays competition details
-                    const SizedBox(height: 24),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () => _showCompetitionInfoModal(_competition!),
-                        icon: Icon(
-                          Icons.info_outline,
-                          size: 18,
-                          color: GameTheme.textMuted,
-                        ),
-                        label: Text(
-                          'Competition Info',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: GameTheme.textMuted,
-                          ),
-                        ),
-                      ),
-                    ),
+                    // The competition's own details, on the page rather than
+                    // behind a button. They were a bottom sheet nobody opened
+                    // twice — the prize is the reason a player entered, and a
+                    // detail you have to remember to ask for is a detail most
+                    // players never see. The web has always shown them inline.
+                    _buildAboutBlock(_competition!),
                   ],
                 ),
               ),
@@ -355,165 +352,98 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     );
   }
 
-  void _showCompetitionInfoModal(Competition competition) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.3,
-        maxChildSize: 0.85,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: GameTheme.cardBackground,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            border: Border.all(
-              color: GameTheme.glowCyan.withValues(alpha: 0.3),
-              width: 1,
+  /// The competition's details as a ruled block: prize first, then the blurb,
+  /// then a two-column ledger of facts.
+  ///
+  /// Prize leads because it is the answer to "what am I playing for?" — the
+  /// question the old sheet buried under a heading. Set in `font-data` where a
+  /// person typed the value in and `font-body` where the app supplies the key,
+  /// per design-system.md §3.
+  Widget _buildAboutBlock(Competition competition) {
+    final venue = [competition.venueName, competition.city]
+        .where((part) => part != null && part.isNotEmpty)
+        .join(', ');
+
+    final prize = competition.prizeStructure;
+    final description = competition.description;
+
+    // Venue only. The player count is already the biggest thing on this screen
+    // and the team list is not a fact a player acts on — repeating either here
+    // made the block longer without making it more useful.
+    final rows = <Widget>[
+      if (venue.isNotEmpty) _buildLedgerRow('Venue', venue),
+    ];
+
+    final hasPrize = prize != null && prize.isNotEmpty;
+    final hasDescription = description != null && description.isNotEmpty;
+
+    // Nothing to say, so nothing is drawn. An organiser who filled none of this
+    // in would otherwise get a bare "ABOUT" ruled off at both ends, which reads
+    // as content that failed to load.
+    if (!hasPrize && !hasDescription && rows.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        border: Border(
+          top: CouponTheme.rule(),
+          bottom: CouponTheme.rule(),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ABOUT', style: CouponTheme.label),
+          if (hasPrize) ...[
+            const SizedBox(height: 12),
+            Text(prize, style: CouponTheme.intro.copyWith(fontSize: 18)),
+          ],
+          if (hasDescription) ...[
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: CouponTheme.bodyText.copyWith(color: CouponTheme.inkFade),
+            ),
+          ],
+          if (rows.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            ...rows,
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// One key/value line. The dotted leader between them is the coupon's own
+  /// device — it ties a label to a value across a gap without needing a rule
+  /// or a box round either.
+  Widget _buildLedgerRow(String key, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(key.toUpperCase(), style: CouponTheme.label),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Divider(
+                color: CouponTheme.ink.withValues(alpha: 0.25),
+                height: 1,
+                thickness: 0.5,
+              ),
             ),
           ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: GameTheme.textMuted,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: GameTheme.glowCyan,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        competition.name,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: GameTheme.textPrimary,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.close,
-                        color: GameTheme.textMuted,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(color: GameTheme.border, height: 1),
-              // Content
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Prize structure as headline
-                      if (competition.prizeStructure != null && competition.prizeStructure!.isNotEmpty) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: GameTheme.glowCyan.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.zero,
-                            border: Border.all(
-                              color: GameTheme.glowCyan.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.emoji_events,
-                                size: 24,
-                                color: GameTheme.glowCyan,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  competition.prizeStructure!,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: GameTheme.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                      // Details section
-                      Text(
-                        'Details',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: GameTheme.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Description
-                      if (competition.description != null && competition.description!.isNotEmpty) ...[
-                        Text(
-                          competition.description!,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: GameTheme.textPrimary,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      // Info items
-                      if (competition.venueName != null || competition.city != null)
-                        _buildInfoRow(
-                          Icons.location_on_outlined,
-                          [competition.venueName, competition.city].where((p) => p != null).join(', '),
-                        ),
-                      _buildInfoRow(Icons.people_outline, '${competition.playerCount} players'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: GameTheme.textMuted),
-          const SizedBox(width: 12),
-          Expanded(
+          Flexible(
             child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 15,
-                color: GameTheme.textSecondary,
-              ),
+              value,
+              style: CouponTheme.dataText,
+              textAlign: TextAlign.right,
             ),
           ),
         ],
@@ -541,50 +471,50 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                 ),
                 onPressed: () => context.go('/dashboard'),
               ),
-              const Spacer(),
-              // Small Logo
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: GameTheme.cardBackground,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: GameTheme.border,
-                    width: 1,
+              // The organiser's own logo, if they uploaded one. There is no
+              // placeholder behind it: a generic football beside every
+              // competition's name decorated the header without identifying
+              // anything, and the name is the identifier.
+              if (competition.logoUrl != null) ...[
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: GameTheme.cardBackground,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: GameTheme.border,
+                      width: 1,
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.network(
+                    competition.logoUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const SizedBox.shrink(),
                   ),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: competition.logoUrl != null
-                    ? Image.network(
-                        competition.logoUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.sports_soccer,
-                            size: 20,
-                            color: GameTheme.glowCyan,
-                          );
-                        },
-                      )
-                    : Icon(
-                        Icons.sports_soccer,
-                        size: 20,
-                        color: GameTheme.glowCyan,
-                      ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
 
-              // Competition Name
-              Text(
-                competition.name,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: GameTheme.textPrimary,
+              // Competition Name. Expanded rather than Flexible between two
+              // Spacers: a Spacer is an Expanded, so three flex:1 children
+              // split the row in thirds and the name ellipsised with half the
+              // header empty. It takes the space the back arrow and its
+              // counterweight leave, and centres in it.
+              Expanded(
+                child: Text(
+                  competition.name,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: GameTheme.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
               // Empty space to balance back arrow
               const SizedBox(width: 48),
             ],
@@ -594,23 +524,39 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     );
   }
 
+  /// The round state, off the same three fixture counts the web dashboard uses,
+  /// so the app and the web can never describe one round differently. See
+  /// `core/game/round_state.dart`.
+  RoundState _roundState() {
+    final competition = _competition!;
+    return deriveDashboardRoundState(
+      currentRound: _currentRound?.roundNumber ?? competition.currentRound,
+      currentRoundLockTime:
+          _currentRound?.lockTime ?? competition.currentRoundLockTime,
+      competitionComplete: competition.status == 'COMPLETE',
+      now: DateTime.now(),
+      totalFixtures: competition.totalFixtures,
+      fixturesWithResults: competition.fixturesWithResults,
+      fixturesProcessed: competition.fixturesProcessed,
+    );
+  }
+
   Widget _buildCurrentRoundCard(RoundInfo round) {
     // Use fresh pick statistics total when available - it's the accurate count from DB
     final activeCount = _pickStats?.totalActivePlayers ??
                        round.activePlayers ??
                        _competition!.playerCount;
 
-    return PlayersActiveBlock(playerCount: activeCount);
+    return PlayersActiveBlock(
+      playerCount: activeCount,
+      heading: roundHeading(_roundState()),
+    );
   }
 
-  Widget _buildPersonalStatusCards(Competition competition, int roundNumber) {
-    final isIn = competition.userStatus?.toLowerCase() == 'active';
-    final lives = competition.livesRemaining ?? 0;
-
-    return DarkStatusCards(
-      roundNumber: roundNumber,
-      isStillIn: isIn,
-      livesRemaining: lives,
+  Widget _buildPersonalStatusCards(Competition competition) {
+    return PlayerStatusBlock(
+      isStillIn: competition.userStatus?.toLowerCase() == 'active',
+      livesRemaining: competition.livesRemaining ?? 0,
     );
   }
 

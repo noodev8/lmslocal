@@ -19,6 +19,18 @@ class Competition extends Equatable {
   final DateTime createdAt;
   final int playerCount;
   final int currentRound;
+
+  /// The current round's lock time, and the three fixture counts beside it.
+  ///
+  /// Only ever read together, by the round state machine in
+  /// `core/game/round_state.dart` — they are what lets the dashboard reach
+  /// every phase without fetching a round's fixture rows. Null before any round
+  /// exists.
+  final DateTime? currentRoundLockTime;
+  final int totalFixtures;
+  final int fixturesWithResults;
+  final int fixturesProcessed;
+
   final int totalRounds;
   final bool isComplete;
   final bool isOrganiser;
@@ -53,6 +65,10 @@ class Competition extends Equatable {
     required this.createdAt,
     required this.playerCount,
     required this.currentRound,
+    this.currentRoundLockTime,
+    this.totalFixtures = 0,
+    this.fixturesWithResults = 0,
+    this.fixturesProcessed = 0,
     required this.totalRounds,
     required this.isComplete,
     required this.isOrganiser,
@@ -89,6 +105,10 @@ class Competition extends Equatable {
         createdAt,
         playerCount,
         currentRound,
+        currentRoundLockTime,
+        totalFixtures,
+        fixturesWithResults,
+        fixturesProcessed,
         totalRounds,
         isComplete,
         isOrganiser,
