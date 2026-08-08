@@ -3,6 +3,7 @@ import 'package:lmslocal_flutter/core/errors/failures.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/models/fixture_model.dart';
 import 'package:lmslocal_flutter/data/models/allowed_team_model.dart';
+import 'package:lmslocal_flutter/data/models/competition_model.dart';
 
 /// Remote data source for pick-related API calls
 class PickRemoteDataSource {
@@ -68,6 +69,18 @@ class PickRemoteDataSource {
   /// Get current pick for a round
   /// Returns the team short name if pick exists, null otherwise
   Future<String?> getCurrentPick(int roundId) async {
+    return (await getCurrentPickDetail(roundId))?.team;
+  }
+
+  /// The current pick with the team's full name and its fixture.
+  ///
+  /// Same call as [getCurrentPick] — the endpoint has always returned all three
+  /// — but the competition dashboard shows the pick to the player rather than
+  /// testing it against a fixture row, and "Everton" beside "Everton v Fulham"
+  /// is what they picked as they would say it. Deliberately uncached: it is read
+  /// straight after a pick was made on another tab, so a stale hit would tell a
+  /// player their pick did not save.
+  Future<CurrentPickModel?> getCurrentPickDetail(int roundId) async {
     try {
       final response = await _apiClient.post(
         '/get-current-pick',
@@ -79,10 +92,17 @@ class PickRemoteDataSource {
 
       if (returnCode == AppConstants.successCode) {
         final pick = data['pick'] as Map<String, dynamic>?;
-        if (pick != null) {
-          return pick['team'] as String?;
-        }
-        return null;
+        final team = pick?['team'] as String?;
+        if (pick == null || team == null) return null;
+
+        // Both fall back to the short name rather than being asserted: the full
+        // name comes from a join on an active team row, so a team retired from
+        // the list mid-season returns a pick with no name attached.
+        return CurrentPickModel(
+          team: team,
+          teamFullName: pick['team_full_name'] as String? ?? team,
+          fixture: pick['fixture'] as String? ?? '',
+        );
       } else if (returnCode == 'NO_PICK') {
         return null;
       } else {

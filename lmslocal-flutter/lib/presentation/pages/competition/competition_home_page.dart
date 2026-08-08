@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,9 +17,10 @@ import 'package:lmslocal_flutter/presentation/pages/competition/widgets/players_
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/player_status_block.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/pick_status_card.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/round_results_card.dart';
-import 'package:lmslocal_flutter/presentation/pages/competition/widgets/invite_section.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/complete_banner.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/unpicked_players_sheet.dart';
+import 'package:lmslocal_flutter/presentation/pages/competition/widgets/your_pick_block.dart';
+import 'package:lmslocal_flutter/data/data_sources/remote/pick_remote_data_source.dart';
 
 /// Competition home page - Overview of a specific competition
 /// Shows competition details, current round, picks, etc.
@@ -28,10 +28,16 @@ class CompetitionHomePage extends StatefulWidget {
   final String competitionId;
   final Object? initialCompetition;
 
+  /// Switches the shell to the Play tab. Supplied by
+  /// `CompetitionNavigationPage`, because the pick block's whole value is being
+  /// one tap from the screen that changes the pick.
+  final VoidCallback? onGoToPlay;
+
   const CompetitionHomePage({
     super.key,
     required this.competitionId,
     this.initialCompetition,
+    this.onGoToPlay,
   });
 
   @override
@@ -41,11 +47,22 @@ class CompetitionHomePage extends StatefulWidget {
 class _CompetitionHomePageState extends State<CompetitionHomePage> {
   late CompetitionRemoteDataSource _competitionDataSource;
   late DashboardRemoteDataSource _dashboardDataSource;
+  late PickRemoteDataSource _pickDataSource;
 
   Competition? _competition;
   RoundInfo? _currentRound;
   PickStatistics? _pickStats;
   RoundStatistics? _roundStats;
+
+  /// The player's own pick for the current round, fetched fresh rather than read
+  /// off the cached dashboard payload — `competition.currentPick` is a snapshot
+  /// taken before they picked, and this screen is where they come back to check.
+  CurrentPick? _myPick;
+
+  /// Whether the pick fetch has returned. Without it the block would render its
+  /// "Not picked yet" state for a moment on every load — telling a player who
+  /// has picked that they haven't, which is the one thing it must never do.
+  bool _myPickLoaded = false;
 
   bool _isLoading = true;
   String? _error;
@@ -74,6 +91,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       apiClient: apiClient,
       prefs: prefs,
     );
+    _pickDataSource = PickRemoteDataSource(apiClient: apiClient);
 
     await _loadCompetitionData();
   }
@@ -115,9 +133,23 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       RoundInfo? currentRound;
       PickStatistics? pickStats;
       RoundStatistics? roundStats;
+      CurrentPick? myPick;
+      var myPickLoaded = false;
 
       if (rounds.isNotEmpty) {
         currentRound = rounds.first;
+
+        if (competition.isParticipant) {
+          try {
+            myPick = await _pickDataSource.getCurrentPickDetail(
+              currentRound.id,
+            );
+            myPickLoaded = true;
+          } catch (e) {
+            // Non-fatal: the rest of the screen is still worth showing. The
+            // block stays hidden rather than claiming no pick was made.
+          }
+        }
 
         if (!currentRound.isLocked) {
           try {
@@ -148,6 +180,8 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
           _currentRound = currentRound;
           _pickStats = pickStats;
           _roundStats = roundStats;
+          _myPick = myPick;
+          _myPickLoaded = myPickLoaded;
           _isLoading = false;
           _error = null;
         });
@@ -216,17 +250,6 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
         );
       }
     }
-  }
-
-  void _copyToClipboard(String text, String label) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label copied to clipboard'),
-        backgroundColor: GameTheme.accentGreen,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   @override
@@ -307,6 +330,12 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                       const SizedBox(height: 16),
                     ],
 
+                    // The player's own pick, above their status: it is the one
+                    // thing on this screen they can still act on, and the
+                    // status line directly above has just told them how long
+                    // they have to act.
+                    ..._buildYourPick(),
+
                     // Personal Status Cards (participants only)
                     if (_competition!.isParticipant) ...[
                       _buildPersonalStatusCards(_competition!),
@@ -321,16 +350,6 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                     if (_currentRound != null &&
                         _competition!.status != 'COMPLETE')
                       const SizedBox(height: 16),
-
-                    // Invite Section (organizers only, during setup)
-                    if (_competition!.isOrganiser &&
-                        _competition!.status == 'SETUP') ...[
-                      InviteSection(
-                        competition: _competition!,
-                        onCopyToClipboard: _copyToClipboard,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
 
                     // Competition Complete Banner
                     if (_competition!.status == 'COMPLETE')
@@ -449,6 +468,43 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
         ],
       ),
     );
+  }
+
+  /// The pick block, or nothing at all.
+  ///
+  /// It is withheld rather than shown empty in every case where "your pick" has
+  /// no answer: an organiser who is not playing, a player already out, a round
+  /// that has been settled, and the moment before the fetch returns. A block
+  /// that says "No pick made" to someone who was never owed one is worse than no
+  /// block.
+  List<Widget> _buildYourPick() {
+    final competition = _competition!;
+    if (!competition.isParticipant || !_myPickLoaded) return const [];
+
+    final isStillIn = competition.userStatus?.toLowerCase() == 'active';
+    if (!isStillIn) return const [];
+
+    final state = _roundState();
+    switch (state.phase) {
+      case RoundPhase.noRound:
+      case RoundPhase.complete:
+      case RoundPhase.competitionComplete:
+        return const [];
+      case RoundPhase.open:
+      case RoundPhase.locked:
+      case RoundPhase.resultsPartial:
+      case RoundPhase.resultsReady:
+        break;
+    }
+
+    return [
+      YourPickBlock(
+        pick: _myPick,
+        picksOpen: state.phase == RoundPhase.open,
+        onTap: widget.onGoToPlay,
+      ),
+      const SizedBox(height: 16),
+    ];
   }
 
   Widget _buildHeroHeader(Competition competition) {

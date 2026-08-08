@@ -11,6 +11,7 @@ import 'package:lmslocal_flutter/data/data_sources/remote/standings_remote_data_
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
+import 'package:lmslocal_flutter/presentation/widgets/shell_back_button.dart';
 
 /// Standings page - shows player standings grouped by status
 class StandingsPage extends StatefulWidget {
@@ -18,11 +19,17 @@ class StandingsPage extends StatefulWidget {
   final String competitionName;
   final String? playerDisplayName;
 
+  /// Back to the competition dashboard. Standings is only reachable from inside
+  /// the shell, so unlike the Play tab there is only ever one answer — but it
+  /// still needs asking, because the tab bar is not one. See `ShellBackButton`.
+  final VoidCallback? onBack;
+
   const StandingsPage({
     super.key,
     required this.competitionId,
     this.competitionName = '',
     this.playerDisplayName,
+    this.onBack,
   });
 
   @override
@@ -199,11 +206,40 @@ class _StandingsPageState extends State<StandingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: GameTheme.background,
-      body: _buildBody(),
+      // Above _buildBody rather than inside it, so the arrow is there while the
+      // page loads and when it fails — a failed load is exactly when a player
+      // wants out, and the early returns in _buildBody would have skipped it.
+      body: Column(
+        children: [
+          _buildTopBar(),
+          Expanded(child: _buildBody()),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showSearchModal,
         backgroundColor: GameTheme.glowCyan,
         child: Icon(Icons.search, color: GameTheme.background),
+      ),
+    );
+  }
+
+  /// The arrow, and the page title it never had.
+  ///
+  /// Standings used to open straight onto the "View My Pick History" card with
+  /// nothing naming the screen. The row the arrow needs is a place to say what
+  /// the player is looking at, so the line it costs buys something back.
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, right: 16, top: 8),
+      child: Row(
+        children: [
+          if (widget.onBack != null) ...[
+            ShellBackButton(onPressed: widget.onBack!),
+            const SizedBox(width: 4),
+          ] else
+            const SizedBox(width: 8),
+          Text('STANDINGS', style: CouponTheme.label),
+        ],
       ),
     );
   }

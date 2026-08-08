@@ -38,6 +38,18 @@ class CompetitionNavigationPage extends StatefulWidget {
 class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
   late int _currentIndex = widget.initialTab;
 
+  /// Whether the shell opened straight onto Play, and the player has not chosen
+  /// a tab since.
+  ///
+  /// This is the whole of "where did they come from". The main dashboard's "Make
+  /// pick" opens `/competition/:id?tab=play`, so it arrives with `initialTab: 1`;
+  /// entering from the competition dashboard arrives on tab 0 and switches
+  /// inward. Nothing needs tracking — the two entries already differ at the door.
+  ///
+  /// Cleared by any deliberate tab tap, because from that point the player has
+  /// seen the competition dashboard and it is a sensible place to come back to.
+  late bool _arrivedOnPlay = widget.initialTab == 1;
+
   // Cache built pages to preserve state when switching tabs
   final Map<int, Widget> _builtPages = {};
 
@@ -58,15 +70,25 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
         page = CompetitionHomePage(
           competitionId: widget.competitionId,
           initialCompetition: widget.competition,
+          // Through _selectTab, not a bare index set: reaching Play from the
+          // competition dashboard is as deliberate as tapping the tab, and back
+          // must then return there rather than to the main dashboard.
+          onGoToPlay: () => _selectTab(1),
         );
         break;
       case 1:
-        page = PlayPage(competitionId: widget.competitionId);
+        page = PlayPage(
+          competitionId: widget.competitionId,
+          onBack: _leavePlay,
+        );
         break;
       case 2:
         page = StandingsPage(
           competitionId: widget.competitionId,
           playerDisplayName: playerDisplayName,
+          // Always the competition dashboard: Standings is only reachable from
+          // inside the shell, so there is no outside origin to return to.
+          onBack: () => _selectTab(0),
         );
         break;
       case 3:
@@ -78,6 +100,29 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
 
     _builtPages[index] = page;
     return page;
+  }
+
+  /// Where "back" goes from the Play tab.
+  ///
+  /// Drives both the arrow on the Play screens and the Android back button, so
+  /// the two cannot disagree. The hardware button used to send every non-zero
+  /// tab to tab 0 unconditionally, which dropped a player who came from the main
+  /// dashboard onto a competition dashboard they had never seen.
+  void _leavePlay() {
+    if (_arrivedOnPlay) {
+      context.go('/dashboard');
+    } else {
+      setState(() => _currentIndex = 0);
+    }
+  }
+
+  /// A tab tap is a deliberate choice, so the shell stops treating the player as
+  /// a visitor who came for one screen.
+  void _selectTab(int index) {
+    setState(() {
+      _currentIndex = index;
+      _arrivedOnPlay = false;
+    });
   }
 
   @override
@@ -96,6 +141,9 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
             if (_currentIndex == 0) {
               // On the competition's Dashboard tab: go to the app's home
               context.go('/dashboard');
+            } else if (_currentIndex == 1) {
+              // Play: the same decision the arrow makes.
+              _leavePlay();
             } else {
               // On other tabs: go back to the Dashboard tab
               setState(() => _currentIndex = 0);
@@ -142,28 +190,28 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
           // "Game" beside "Play" read as two names for the same thing.
           label: 'Dashboard',
           isActive: _currentIndex == 0,
-          onTap: () => setState(() => _currentIndex = 0),
+          onTap: () => _selectTab(0),
         ),
         AppNavItem(
           icon: Icons.sports_soccer_outlined,
           activeIcon: Icons.sports_soccer,
           label: 'Play',
           isActive: _currentIndex == 1,
-          onTap: () => setState(() => _currentIndex = 1),
+          onTap: () => _selectTab(1),
         ),
         AppNavItem(
           icon: Icons.leaderboard_outlined,
           activeIcon: Icons.leaderboard,
           label: 'Standings',
           isActive: _currentIndex == 2,
-          onTap: () => setState(() => _currentIndex = 2),
+          onTap: () => _selectTab(2),
         ),
         AppNavItem(
           icon: Icons.person_outline,
           activeIcon: Icons.person,
           label: 'Profile',
           isActive: _currentIndex == 3,
-          onTap: () => setState(() => _currentIndex = 3),
+          onTap: () => _selectTab(3),
         ),
       ],
     );

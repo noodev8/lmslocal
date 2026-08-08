@@ -7,6 +7,7 @@ import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/fixture.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/pick_remote_data_source.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
+import 'package:lmslocal_flutter/presentation/widgets/shell_back_button.dart';
 
 /// Player results page - shown when round is locked or player is eliminated
 /// Displays all picks made by players and match results
@@ -15,11 +16,15 @@ class PlayerResultsPage extends StatefulWidget {
   final Competition competition;
   final RoundInfo round;
 
+  /// Leaves the Play tab — see `ShellBackButton`.
+  final VoidCallback? onBack;
+
   const PlayerResultsPage({
     super.key,
     required this.competitionId,
     required this.competition,
     required this.round,
+    this.onBack,
   });
 
   @override
@@ -215,13 +220,26 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Round ${widget.round.roundNumber} Results',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: GameTheme.textPrimary,
-          ),
+        // On the title's own line, so the arrow costs no vertical space. The
+        // title is Expanded because a long round number plus the arrow must
+        // wrap rather than overflow.
+        Row(
+          children: [
+            if (widget.onBack != null) ...[
+              ShellBackButton(onPressed: widget.onBack!),
+              const SizedBox(width: 4),
+            ],
+            Expanded(
+              child: Text(
+                'Round ${widget.round.roundNumber} Results',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: GameTheme.textPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         // Only show status messages if user is actually a participant

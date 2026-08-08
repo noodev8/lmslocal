@@ -14,9 +14,15 @@ import 'package:lmslocal_flutter/presentation/pages/play/waiting_page.dart';
 class PlayPage extends StatefulWidget {
   final String competitionId;
 
+  /// Leaves the Play tab, wherever the player came from. Forwarded unchanged to
+  /// all three destinations: this page only routes, and the decision belongs to
+  /// `CompetitionNavigationPage`.
+  final VoidCallback? onBack;
+
   const PlayPage({
     super.key,
     required this.competitionId,
+    this.onBack,
   });
 
   @override
@@ -70,7 +76,10 @@ class _PlayPageState extends State<PlayPage> {
       // Step 3: Check if no rounds exist
       if (rounds.isEmpty) {
         _setDestination(
-          WaitingPage(competitionId: widget.competitionId),
+          WaitingPage(
+            competitionId: widget.competitionId,
+            onBack: widget.onBack,
+          ),
         );
         return;
       }
@@ -79,7 +88,10 @@ class _PlayPageState extends State<PlayPage> {
       final latestRound = rounds.first; // Most recent round (rounds are in descending order)
       if (latestRound.fixtureCount == 0) {
         _setDestination(
-          WaitingPage(competitionId: widget.competitionId),
+          WaitingPage(
+            competitionId: widget.competitionId,
+            onBack: widget.onBack,
+          ),
         );
         return;
       }
@@ -93,6 +105,7 @@ class _PlayPageState extends State<PlayPage> {
             competitionId: widget.competitionId,
             competition: competition,
             round: latestRound,
+            onBack: widget.onBack,
           ),
         );
         return;
@@ -106,6 +119,7 @@ class _PlayPageState extends State<PlayPage> {
             competitionId: widget.competitionId,
             competition: competition,
             round: latestRound,
+            onBack: widget.onBack,
           ),
         );
       } else {
@@ -115,6 +129,7 @@ class _PlayPageState extends State<PlayPage> {
             competitionId: widget.competitionId,
             competition: competition,
             round: latestRound,
+            onBack: widget.onBack,
           ),
         );
       }

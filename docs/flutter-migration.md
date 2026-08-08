@@ -412,6 +412,14 @@ and both were noise: the count is already the biggest thing on the screen, and w
 competition runs on is not a fact a player acts on. The whole block hides itself when an organiser
 filled none of the three in, rather than showing a bare heading ruled off at both ends.
 
+**`invite_section.dart` is deleted.** It put "Invite Players", the access code and a "Share Invite
+Message" button on the competition dashboard, gated on `isOrganiser && status == 'SETUP'` — so it
+appeared only on a competition the signed-in user runs, which is why it showed on one comp and not
+the next and looked like a bug. It was the last organiser tool left on a player screen: this app is
+player-only (§3a), organisers invite from the web, and the block was the largest thing on the
+screen for a job the reader almost never has. `_copyToClipboard` on the home page went with it —
+nothing else called it.
+
 The generic football that sat beside the competition name went with it. It decorated the header
 without identifying anything; an organiser's uploaded logo still shows, and nothing stands in for
 it when there isn't one.
@@ -454,6 +462,42 @@ What survives is the half that is true for everyone.
 
 The round header says "10 matches", not "10 fixtures" — §4 below, and design-system.md §9.
 
+### Your pick, on the competition dashboard
+
+`your_pick_block.dart` puts the player's own pick on the competition dashboard, under the round
+status line. Before it, a player who had just picked came back to a screen identical to one who
+hadn't: the status line said *Picks close Saturday 9 August, 3pm* and nothing said whether they had
+done their bit. The only confirmation available was to reopen Play and read the highlight off the
+fixture list — the same gap §3b closed on the pick screen itself, one screen along.
+
+Four states, and the distinctions are the content:
+
+| Round | Pick | Shows |
+|---|---|---|
+| Open | made | team in `font-data`, its fixture beneath, `CHANGE ›` — tap goes to Play |
+| Open | none | *Not picked yet* in `overprint`, `PICK ›` |
+| Locked | made | the same facts, `LOCKED IN`, no tap |
+| Locked | none | *No pick made* — it costs a life, so it is stated, not left as an absence |
+
+It is **withheld entirely**, not shown empty, for an organiser who isn't playing, a player already
+out, a settled round, and the instant before the fetch returns. A block saying "No pick made" to
+someone never owed one is worse than no block.
+
+Two things to keep if this is touched again:
+
+- **The pick is fetched, not read off the cached dashboard.** `competition.currentPick` comes from
+  the `/get-user-dashboard` payload, which on this screen is a snapshot taken *before* the player
+  picked — it would show a stale answer on precisely the visit that matters.
+  `PickRemoteDataSource.getCurrentPickDetail` calls `/get-current-pick` uncached. (Returning to the
+  Dashboard tab remounts the page, so the call happens on every visit; `_builtPages` in
+  `competition_navigation_page.dart` caches widgets, not state.)
+- **`_myPickLoaded` is separate from `_myPick == null`.** A failed fetch must not render as "not
+  picked". Only a successful call sets the flag.
+
+The tap needs the shell to change tabs, so `CompetitionHomePage` takes an `onGoToPlay` callback
+from `CompetitionNavigationPage` rather than routing — same reasoning as `initialTab` for the
+dashboard's "Make pick".
+
 ### Hidden pending removal: the pick progress card
 
 `PickStatusCard` — "Picks 0% / 0 of 4 players have picked" on the competition screen — is behind
@@ -464,6 +508,44 @@ carries where the round has got to.
 Flipping the constant brings it back unchanged, which is the only reason it still exists. When the
 decision is settled, delete `PickStatusCard`, `_showUnpickedPlayersModal` and
 `UnpickedPlayersSheet` together — the sheet is reachable from nowhere else.
+
+---
+
+## 3c. Getting out of the Play tab
+
+The Play tab had no way back. It is reachable from two places, which is why:
+
+- **Main dashboard → "MAKE PICK"** → `/competition/:id?tab=play`, so the shell opens on tab 1.
+- **Competition dashboard → the pick block (§3b) or the Play tab itself** → the shell opens on tab
+  0 and switches inward.
+
+So "where did they come from" needs no tracking — the two entries already differ at the door.
+`_arrivedOnPlay` in `competition_navigation_page.dart` is `initialTab == 1`, cleared by any
+deliberate tab tap (`_selectTab`), and `_leavePlay()` reads it: `/dashboard` if still set, tab 0
+otherwise.
+
+**`_leavePlay` drives the Android back button too**, which is where the real bug was. `PopScope`
+sent every non-zero tab to tab 0 unconditionally, so a player who came from the main dashboard was
+dropped on a competition dashboard they had never seen. The arrow and the hardware button now
+cannot disagree, because there is one method.
+
+`PlayBackButton` (`presentation/widgets/`) is on **all three** Play destinations, not just the pick
+screen — `PickPage`, `PlayerResultsPage` and `WaitingPage`. A back arrow that appears on one of
+three states is worse than none. `PlayPage` only routes, so it forwards `onBack` untouched.
+
+**No screen gained a line for it.** The button is 44×44 with `padding: EdgeInsets.zero` and tight
+constraints — an `IconButton`'s default box plus padding would have grown every header it was
+dropped into. On the pick screen it sits inside the existing "Round 1 / 10 matches" card, grouped
+in a `Row` **with** the round line: as a third child of that `mainAxisAlignment: spaceBetween` row
+it would have parked against the card's left edge with a gap before "Round 1". On the results
+screen it shares the title's line, with the title `Expanded` so a long heading wraps instead of
+overflowing. `WaitingPage` is the exception — it has no header to sit in, so it gets its own row,
+and that screen has nothing else on it.
+
+**Verified on the phone**: arrow and hardware back from "MAKE PICK" both reach the main dashboard;
+from the competition dashboard's pick block, both return to that dashboard. The results and waiting
+screens were not exercised on the device — neither test competition had a locked round, and forcing
+one means writing to the database (see `docs/testing-rules.md`).
 
 ---
 

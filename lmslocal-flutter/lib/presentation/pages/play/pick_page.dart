@@ -9,6 +9,7 @@ import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/fixture.dart';
 import 'package:lmslocal_flutter/domain/entities/allowed_team.dart';
+import 'package:lmslocal_flutter/presentation/widgets/shell_back_button.dart';
 
 /// Pick page - shown when round is unlocked and player can make their pick
 /// Displays fixtures and allows team selection
@@ -17,11 +18,15 @@ class PickPage extends StatefulWidget {
   final Competition competition;
   final RoundInfo round;
 
+  /// Leaves the Play tab — see `ShellBackButton`.
+  final VoidCallback? onBack;
+
   const PickPage({
     super.key,
     required this.competitionId,
     required this.competition,
     required this.round,
+    this.onBack,
   });
 
   @override
@@ -298,26 +303,39 @@ class _PickPageState extends State<PickPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          // The arrow travels with the round line rather than being a third
+          // child of a spaceBetween row, which would have parked it against the
+          // card's left edge with a gap before "Round 1". Inside the card, not
+          // above it: this row already has the height, so the arrow costs
+          // horizontal room only.
+          Row(
             children: [
-              Text(
-                'Round ${widget.round.roundNumber}',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: GameTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                // "Matches", not "fixtures" — design-system.md §9: fixtures is
-                // the organiser's word for the same thing.
-                '${widget.round.fixtureCount} matches',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: GameTheme.textSecondary,
-                ),
+              if (widget.onBack != null) ...[
+                ShellBackButton(onPressed: widget.onBack!),
+                const SizedBox(width: 4),
+              ],
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Round ${widget.round.roundNumber}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: GameTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    // "Matches", not "fixtures" — design-system.md §9: fixtures
+                    // is the organiser's word for the same thing.
+                    '${widget.round.fixtureCount} matches',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: GameTheme.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
