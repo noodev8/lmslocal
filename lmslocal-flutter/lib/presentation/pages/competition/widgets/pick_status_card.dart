@@ -21,12 +21,12 @@ class PickStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.zero,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: GameTheme.cardBackground,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: GameTheme.border),
         ),
         child: Column(
@@ -38,7 +38,7 @@ class PickStatusCard extends StatelessWidget {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: GameTheme.accentGreen.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Icon(
                     Icons.check_circle_outline,
@@ -71,7 +71,7 @@ class PickStatusCard extends StatelessWidget {
 
             // Progress bar
             ClipRRect(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.zero,
               child: LinearProgressIndicator(
                 value: stats.pickPercentage / 100,
                 minHeight: 10,

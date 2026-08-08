@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
-import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
+import 'package:lmslocal_flutter/presentation/widgets/auth_shell.dart';
 
-/// Register page
-/// Allows users to create a new account with display name, email and password
+/// Register page.
+///
+/// Structure mirrors the web's `/register`, but not its intro copy: the web
+/// sells to organisers ("twenty player places, free"), and this app is only
+/// ever used by players.
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -42,7 +45,6 @@ class _RegisterPageState extends State<RegisterPage> {
   void _handleRegister() {
     final isFormValid = _formKey.currentState!.validate();
 
-    // Check terms acceptance
     if (!_acceptedTerms) {
       setState(() {
         _showTermsError = true;
@@ -69,399 +71,257 @@ class _RegisterPageState extends State<RegisterPage> {
 
   String? _validateDisplayName(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Please enter your account name';
+      return 'Enter the name other players will see.';
     }
     final trimmed = value.trim();
     if (trimmed.length < 2) {
-      return 'Account name must be at least 2 characters';
+      return 'That is too short — use at least 2 characters.';
     }
     if (trimmed.length > 50) {
-      return 'Account name must be 50 characters or less';
+      return 'That is too long — use 50 characters or fewer.';
     }
     return null;
   }
 
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Please enter your email';
+      return 'Enter your email address.';
     }
     if (!value.contains('@')) {
-      return 'Please enter a valid email';
+      return 'That does not look like an email address.';
     }
     return null;
   }
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter a password';
+      return 'Choose a password.';
     }
     if (value.length < 6) {
-      return 'Password must be at least 6 characters';
+      return 'Use at least 6 characters.';
     }
     return null;
   }
 
   String? _validateConfirmPassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
+      return 'Type your password again.';
     }
     if (value != _passwordController.text) {
-      return 'Passwords do not match';
+      return 'These two do not match.';
     }
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: GameTheme.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: GameTheme.textPrimary),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: BlocConsumer<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: GameTheme.accentRed,
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated) {
+          Injection.getNotificationService().initialize();
+          context.go('/dashboard');
+        }
+      },
+      builder: (context, state) {
+        final isLoading = state is AuthLoading;
+        final error = state is AuthError ? state.message : null;
+
+        return Form(
+          key: _formKey,
+          child: AuthShell(
+            showBack: true,
+            eyebrow: 'Get started',
+            title: 'Create your account',
+            intro: 'One account joins you to any competition you are invited to.',
+            children: [
+              if (error != null) Notice(message: error),
+
+              AuthField(
+                label: 'Name',
+                hint: 'What other players will see on the standings.',
+                child: TextFormField(
+                  controller: _displayNameController,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  enabled: !isLoading,
+                  style: CouponTheme.bodyText,
+                  validator: _validateDisplayName,
+                ),
               ),
-            );
-          } else if (state is AuthAuthenticated) {
-            // Initialize push notifications (fresh registration)
-            Injection.getNotificationService().initialize();
-            // Navigate to dashboard
-            context.go('/dashboard');
-          }
-        },
-        builder: (context, state) {
-          final isLoading = state is AuthLoading;
 
-          return SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppConstants.paddingLarge),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Logo
-                      Image.asset(
-                        'assets/images/logo.png',
-                        height: 100,
-                      ),
-                      const SizedBox(height: 32),
+              AuthField(
+                label: 'Email',
+                child: TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  enabled: !isLoading,
+                  style: CouponTheme.bodyText,
+                  validator: _validateEmail,
+                ),
+              ),
 
-                      // Title
-                      const Text(
-                        'Create Account',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: GameTheme.textPrimary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Sign up to get started',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: GameTheme.textSecondary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Display name field
-                      TextFormField(
-                        controller: _displayNameController,
-                        textCapitalization: TextCapitalization.words,
-                        enabled: !isLoading,
-                        style: const TextStyle(color: GameTheme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Account Name',
-                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
-                          prefixIcon: const Icon(Icons.person_outlined, color: GameTheme.textSecondary),
-                          filled: true,
-                          fillColor: GameTheme.cardBackground,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
-                          ),
-                          helperText: '2-50 characters',
-                          helperStyle: const TextStyle(color: GameTheme.textMuted),
-                        ),
-                        validator: _validateDisplayName,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Email field
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        enabled: !isLoading,
-                        style: const TextStyle(color: GameTheme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
-                          prefixIcon: const Icon(Icons.email_outlined, color: GameTheme.textSecondary),
-                          filled: true,
-                          fillColor: GameTheme.cardBackground,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
-                          ),
-                        ),
-                        validator: _validateEmail,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Password field
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        enabled: !isLoading,
-                        style: const TextStyle(color: GameTheme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
-                          prefixIcon: const Icon(Icons.lock_outlined, color: GameTheme.textSecondary),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              color: GameTheme.textSecondary,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                          filled: true,
-                          fillColor: GameTheme.cardBackground,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
-                          ),
-                          helperText: 'Minimum 6 characters',
-                          helperStyle: const TextStyle(color: GameTheme.textMuted),
-                        ),
-                        validator: _validatePassword,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Confirm password field
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        obscureText: _obscureConfirmPassword,
-                        enabled: !isLoading,
-                        style: const TextStyle(color: GameTheme.textPrimary),
-                        decoration: InputDecoration(
-                          labelText: 'Confirm Password',
-                          labelStyle: const TextStyle(color: GameTheme.textSecondary),
-                          prefixIcon: const Icon(Icons.lock_outlined, color: GameTheme.textSecondary),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              color: GameTheme.textSecondary,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureConfirmPassword = !_obscureConfirmPassword;
-                              });
-                            },
-                          ),
-                          filled: true,
-                          fillColor: GameTheme.cardBackground,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                            borderSide: const BorderSide(color: GameTheme.glowCyan, width: 2),
-                          ),
-                        ),
-                        validator: _validateConfirmPassword,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Terms acceptance checkbox
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: Checkbox(
-                                  value: _acceptedTerms,
-                                  onChanged: isLoading
-                                      ? null
-                                      : (value) {
-                                          setState(() {
-                                            _acceptedTerms = value ?? false;
-                                            if (_acceptedTerms) {
-                                              _showTermsError = false;
-                                            }
-                                          });
-                                        },
-                                  activeColor: GameTheme.glowCyan,
-                                  checkColor: GameTheme.background,
-                                  side: BorderSide(
-                                    color: _showTermsError
-                                        ? GameTheme.accentRed
-                                        : GameTheme.border,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: GameTheme.textSecondary,
-                                      height: 1.4,
-                                    ),
-                                    children: [
-                                      const TextSpan(text: 'I agree to the '),
-                                      TextSpan(
-                                        text: 'Terms of Service',
-                                        style: const TextStyle(
-                                          color: GameTheme.glowCyan,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                        recognizer: TapGestureRecognizer()
-                                          ..onTap = () => _launchUrl(
-                                              'https://lmslocal.co.uk/terms'),
-                                      ),
-                                      const TextSpan(text: ' and '),
-                                      TextSpan(
-                                        text: 'Privacy Policy',
-                                        style: const TextStyle(
-                                          color: GameTheme.glowCyan,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                        recognizer: TapGestureRecognizer()
-                                          ..onTap = () => _launchUrl(
-                                              'https://lmslocal.co.uk/privacy'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_showTermsError)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 36, top: 8),
-                              child: Text(
-                                'You must accept the Terms of Service and Privacy Policy',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: GameTheme.accentRed,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Register button
-                      ElevatedButton(
-                        onPressed: isLoading ? null : _handleRegister,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: GameTheme.glowCyan,
-                          foregroundColor: GameTheme.background,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                          ),
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
-                                ),
-                              )
-                            : const Text(
-                                'Register',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Login link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Already have an account? ',
-                            style: TextStyle(color: GameTheme.textSecondary),
-                          ),
-                          TextButton(
-                            onPressed: isLoading ? null : () => context.pop(),
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(color: GameTheme.glowCyan),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+              AuthField(
+                label: 'Password',
+                hint: 'At least 6 characters.',
+                child: TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.next,
+                  enabled: !isLoading,
+                  style: CouponTheme.bodyText,
+                  decoration: InputDecoration(
+                    suffixIcon: passwordToggle(
+                      obscured: _obscurePassword,
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
                   ),
+                  validator: _validatePassword,
+                ),
+              ),
+
+              AuthField(
+                label: 'Confirm password',
+                child: TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
+                  textInputAction: TextInputAction.done,
+                  enabled: !isLoading,
+                  style: CouponTheme.bodyText,
+                  decoration: InputDecoration(
+                    suffixIcon: passwordToggle(
+                      obscured: _obscureConfirmPassword,
+                      onPressed: () => setState(
+                        () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                      ),
+                    ),
+                  ),
+                  validator: _validateConfirmPassword,
+                ),
+              ),
+
+              _TermsTickBox(
+                accepted: _acceptedTerms,
+                showError: _showTermsError,
+                enabled: !isLoading,
+                onChanged: (value) => setState(() {
+                  _acceptedTerms = value;
+                  if (value) _showTermsError = false;
+                }),
+                onOpenTerms: () => _launchUrl('https://lmslocal.co.uk/terms'),
+                onOpenPrivacy: () => _launchUrl('https://lmslocal.co.uk/privacy'),
+              ),
+              const SizedBox(height: 24),
+
+              ElevatedButton(
+                onPressed: isLoading ? null : _handleRegister,
+                child: Text(
+                  isLoading ? 'CREATING YOUR ACCOUNT…' : 'CREATE ACCOUNT',
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              Center(
+                child: DottedLink(
+                  label: 'Already have an account? Sign in',
+                  onPressed: isLoading ? null : () => context.pop(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A real tick box with a border, per design-system.md §6 — it reads as a form,
+/// not as an icon list.
+class _TermsTickBox extends StatelessWidget {
+  const _TermsTickBox({
+    required this.accepted,
+    required this.showError,
+    required this.enabled,
+    required this.onChanged,
+    required this.onOpenTerms,
+    required this.onOpenPrivacy,
+  });
+
+  final bool accepted;
+  final bool showError;
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onOpenTerms;
+  final VoidCallback onOpenPrivacy;
+
+  @override
+  Widget build(BuildContext context) {
+    final linkStyle = CouponTheme.bodyText.copyWith(
+      decoration: TextDecoration.underline,
+      decorationStyle: TextDecorationStyle.dotted,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 24,
+              width: 24,
+              child: Checkbox(
+                value: accepted,
+                onChanged: enabled ? (v) => onChanged(v ?? false) : null,
+                activeColor: CouponTheme.ink,
+                checkColor: CouponTheme.stockLit,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                ),
+                side: BorderSide(
+                  color: showError
+                      ? CouponTheme.overprint
+                      : CouponTheme.ink.withValues(alpha: 0.4),
+                  width: 1.5,
                 ),
               ),
             ),
-          );
-        },
-      ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: CouponTheme.bodyText,
+                  children: [
+                    const TextSpan(text: 'I agree to the '),
+                    TextSpan(
+                      text: 'terms of service',
+                      style: linkStyle,
+                      recognizer: TapGestureRecognizer()..onTap = onOpenTerms,
+                    ),
+                    const TextSpan(text: ' and '),
+                    TextSpan(
+                      text: 'privacy policy',
+                      style: linkStyle,
+                      recognizer: TapGestureRecognizer()..onTap = onOpenPrivacy,
+                    ),
+                    const TextSpan(text: '.'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        // Says what to do, not just that something is wrong.
+        if (showError)
+          Padding(
+            padding: const EdgeInsets.only(left: 36, top: 8),
+            child: Text(
+              'Tick the box to agree before creating your account.',
+              style: CouponTheme.bodyText.copyWith(fontSize: 15),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -324,7 +324,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: GameTheme.cardBackground,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: GameTheme.border),
             ),
             child: Center(
@@ -396,7 +396,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
           color: borderColor,
           width: info.isUserPick || info.didWin || info.didLose ? 2 : 1,
@@ -405,7 +405,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
             ? [
                 BoxShadow(
                   color: GameTheme.accentGreen.withValues(alpha: 0.3),
-                  blurRadius: 8,
+                  blurRadius: 0,
                   spreadRadius: 1,
                 ),
               ]
@@ -505,7 +505,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: GameTheme.border),
       ),
       child: Column(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/standings_group.dart';
 import 'package:lmslocal_flutter/domain/entities/standings_player.dart';
 import 'package:lmslocal_flutter/domain/entities/round_history.dart';
@@ -301,7 +302,7 @@ class _StandingsPageState extends State<StandingsPage> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: GameTheme.cardBackground,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.zero,
                     border: Border.all(color: GameTheme.border),
                   ),
                   child: Material(
@@ -317,7 +318,7 @@ class _StandingsPageState extends State<StandingsPage> {
                         );
                         _showHistoryModal(currentUserPlayer);
                       },
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.zero,
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         child: Row(
@@ -423,37 +424,40 @@ class _StandingsPageState extends State<StandingsPage> {
     Color badgeColor;
     Color badgeTextColor;
 
+    // moss is a mark and moss-wash is a ground — pick by area, not preference.
+    // A tint of moss over the stock reads as grey, which is the failure
+    // design-system.md §8 names outright. Fields take moss-wash with ink on top.
     if (isWinner) {
-      borderColor = GameTheme.glowCyan;
-      backgroundColor = GameTheme.glowCyan.withValues(alpha: 0.1);
-      badgeColor = GameTheme.glowCyan;
-      badgeTextColor = GameTheme.background;
+      borderColor = CouponTheme.moss;
+      backgroundColor = CouponTheme.mossWash;
+      badgeColor = CouponTheme.moss;
+      badgeTextColor = CouponTheme.stockLit;
     } else if (isTopGroup) {
-      borderColor = GameTheme.accentGreen;
-      backgroundColor = GameTheme.accentGreen.withValues(alpha: 0.1);
-      badgeColor = GameTheme.accentGreen;
-      badgeTextColor = GameTheme.background;
+      borderColor = CouponTheme.moss;
+      backgroundColor = CouponTheme.mossWash;
+      badgeColor = CouponTheme.moss;
+      badgeTextColor = CouponTheme.stockLit;
     } else if (isDangerZone) {
-      borderColor = GameTheme.accentRed.withValues(alpha: 0.5);
-      backgroundColor = GameTheme.cardBackground;
-      badgeColor = GameTheme.accentRed;
-      badgeTextColor = Colors.white;
+      borderColor = CouponTheme.overprint;
+      backgroundColor = CouponTheme.stockLit;
+      badgeColor = CouponTheme.overprint;
+      badgeTextColor = CouponTheme.stockLit;
     } else if (isBottomGroup) {
-      borderColor = GameTheme.border;
-      backgroundColor = GameTheme.backgroundLight;
-      badgeColor = GameTheme.textSecondary;
-      badgeTextColor = GameTheme.background;
+      borderColor = CouponTheme.ink.withValues(alpha: 0.3);
+      backgroundColor = CouponTheme.stockDeep;
+      badgeColor = CouponTheme.inkFade;
+      badgeTextColor = CouponTheme.stockLit;
     } else {
-      borderColor = GameTheme.border;
-      backgroundColor = GameTheme.cardBackground;
-      badgeColor = GameTheme.glowCyan;
-      badgeTextColor = GameTheme.background;
+      borderColor = CouponTheme.ink.withValues(alpha: 0.3);
+      backgroundColor = CouponTheme.stockLit;
+      badgeColor = CouponTheme.ink;
+      badgeTextColor = CouponTheme.stockLit;
     }
 
     return Container(
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
           color: borderColor,
           width: isWinner ? 2 : 1,
@@ -462,7 +466,7 @@ class _StandingsPageState extends State<StandingsPage> {
             ? [
                 BoxShadow(
                   color: borderColor.withValues(alpha: 0.3),
-                  blurRadius: 8,
+                  blurRadius: 0,
                   spreadRadius: 1,
                 ),
               ]
@@ -474,7 +478,7 @@ class _StandingsPageState extends State<StandingsPage> {
           children: [
             InkWell(
               onTap: () => _toggleGroup(group.key),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -485,7 +489,7 @@ class _StandingsPageState extends State<StandingsPage> {
                   height: 48,
                   decoration: BoxDecoration(
                     color: badgeColor,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Center(
                     child: isWinner
@@ -747,7 +751,7 @@ class _StandingsPageState extends State<StandingsPage> {
                 color: player.livesRemaining > 0
                     ? GameTheme.glowCyan.withValues(alpha: 0.15)
                     : GameTheme.backgroundLight,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.zero,
               ),
               child: Center(
                 child: Row(
@@ -1110,7 +1114,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
         border: Border(
           left: BorderSide(
             color: borderColor,
@@ -1126,7 +1130,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
             height: 36,
             decoration: BoxDecoration(
               color: GameTheme.backgroundLight,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.zero,
               border: Border.all(
                 color: GameTheme.border,
               ),
@@ -1181,7 +1185,7 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: iconColor,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.zero,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1389,15 +1393,15 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                           hintText: 'Enter name or email...',
                           hintStyle: TextStyle(color: GameTheme.textMuted),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.zero,
                             borderSide: BorderSide(color: GameTheme.border),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.zero,
                             borderSide: BorderSide(color: GameTheme.border),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.zero,
                             borderSide: BorderSide(
                               color: GameTheme.glowCyan,
                               width: 2,
@@ -1439,7 +1443,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                           vertical: 12,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
                       child: _isLoading
@@ -1566,7 +1570,7 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: GameTheme.glowCyan,
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.zero,
                                 ),
                                 child: Text(
                                   'You',

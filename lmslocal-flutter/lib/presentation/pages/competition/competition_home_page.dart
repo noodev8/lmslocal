@@ -12,7 +12,7 @@ import 'package:lmslocal_flutter/domain/entities/pick_statistics.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/round_statistics.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
-import 'package:lmslocal_flutter/presentation/pages/competition/widgets/glowing_players_circle.dart';
+import 'package:lmslocal_flutter/presentation/pages/competition/widgets/players_active_block.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/dark_status_cards.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/pick_status_card.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/round_results_card.dart';
@@ -432,7 +432,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: GameTheme.glowCyan.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.zero,
                             border: Border.all(
                               color: GameTheme.glowCyan.withValues(alpha: 0.3),
                             ),
@@ -600,16 +600,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                        round.activePlayers ??
                        _competition!.playerCount;
 
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: GameTheme.background,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: GlowingPlayersCircle(
-        playerCount: activeCount,
-      ),
-    );
+    return PlayersActiveBlock(playerCount: activeCount);
   }
 
   Widget _buildPersonalStatusCards(Competition competition, int roundNumber) {

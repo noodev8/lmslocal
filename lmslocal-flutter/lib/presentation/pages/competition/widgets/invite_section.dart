@@ -28,7 +28,7 @@ $inviteCode''';
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: GameTheme.border),
       ),
       child: Column(
@@ -40,7 +40,7 @@ $inviteCode''';
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: GameTheme.glowCyan.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Icon(
                   Icons.group_add,
@@ -67,7 +67,7 @@ $inviteCode''';
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: GameTheme.backgroundLight,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
               border: Border.all(
                 color: GameTheme.border,
                 width: 1.5,
@@ -89,7 +89,7 @@ $inviteCode''';
                 Container(
                   decoration: BoxDecoration(
                     color: GameTheme.glowCyan.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: IconButton(
                     icon: Icon(Icons.copy, color: GameTheme.glowCyan),
@@ -121,7 +121,7 @@ $inviteCode''';
                 foregroundColor: GameTheme.background,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                 ),
                 elevation: 0,
               ),

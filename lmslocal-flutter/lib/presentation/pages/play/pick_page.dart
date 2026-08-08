@@ -327,7 +327,7 @@ class _PickPageState extends State<PickPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: GameTheme.border),
       ),
       child: Row(
@@ -383,7 +383,7 @@ class _PickPageState extends State<PickPage> {
     return Container(
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: GameTheme.border),
       ),
       child: ListView.separated(
@@ -478,7 +478,7 @@ class _PickPageState extends State<PickPage> {
                         : GameTheme.border,
                 width: (isSelected || isCurrentPick) ? 2 : 1,
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
             ),
             child: Center(
               child: Text(
@@ -501,7 +501,7 @@ class _PickPageState extends State<PickPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: GameTheme.glowCyan,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Text(
                   'PICK',
@@ -526,7 +526,7 @@ class _PickPageState extends State<PickPage> {
         border: Border.all(
           color: GameTheme.accentGreen.withValues(alpha: 0.3),
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       child: Column(
         children: [
@@ -589,7 +589,7 @@ class _PickPageState extends State<PickPage> {
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
         border: Border.all(color: GameTheme.border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       child: Column(
         children: [
@@ -641,7 +641,7 @@ class _PickPageState extends State<PickPage> {
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
         border: Border.all(color: GameTheme.border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       child: Column(
         children: [
@@ -675,7 +675,7 @@ class _PickPageState extends State<PickPage> {
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
         border: Border.all(color: GameTheme.border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       child: Column(
         children: [

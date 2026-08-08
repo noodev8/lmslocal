@@ -1,129 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 
-/// Dark gaming theme colors for the competition dashboard redesign
-/// Based on Mock-Up.jpg - dark navy with cyan glow effects
+/// **Transitional.** The old dark navy/cyan gaming theme, remapped onto the
+/// coupon system so every screen that still imports it is on the right palette
+/// while it waits its turn to be migrated properly.
+///
+/// Do not add to this, and do not use it in new code — use [CouponTheme].
+/// A screen is done when its `game_theme.dart` import is gone; when the last
+/// one goes, delete this file.
+///
+/// The members with no counterpart in the coupon system are deliberately
+/// neutered rather than removed, so the screens still compile while they wait:
+/// the gradients return a flat colour and the glow shadows return nothing. The
+/// system has no gradients and exactly one shadow — see docs/design-system.md.
 class GameTheme {
-  // === BACKGROUND COLORS ===
-  /// Main dark background - deep navy
-  static const Color background = Color(0xFF0A1628);
+  // === BACKGROUNDS ===
+  static const Color background = CouponTheme.stock;
+  static const Color backgroundLight = CouponTheme.stockDeep;
+  static const Color cardBackground = CouponTheme.stockLit;
 
-  /// Slightly lighter background for layering
-  static const Color backgroundLight = Color(0xFF12203A);
+  // === WAS GLOW ===
+  // Cyan carried emphasis in the old theme. Emphasis here is ink; overprint is
+  // reserved for eliminations and primary actions, so a blanket remap to it
+  // would scatter red over every screen.
+  static const Color glowCyan = CouponTheme.ink;
+  static const Color glowTeal = CouponTheme.ink;
+  static const Color glowBlue = CouponTheme.inkFade;
 
-  /// Card/surface background - semi-transparent
-  static const Color cardBackground = Color(0xFF1A2D4A);
+  // === TEXT ===
+  static const Color textPrimary = CouponTheme.ink;
+  static const Color textSecondary = CouponTheme.inkFade;
+  static const Color textMuted = CouponTheme.inkFade;
 
-  // === GLOW COLORS ===
-  /// Primary cyan glow for the players ring
-  static const Color glowCyan = Color(0xFF00D4FF);
+  // === ACCENTS ===
+  /// "Still in", won. The third ink.
+  static const Color accentGreen = CouponTheme.moss;
 
-  /// Secondary teal glow
-  static const Color glowTeal = Color(0xFF00B4D8);
+  /// Out, eliminated, lives lost. The second ink.
+  static const Color accentRed = CouponTheme.overprint;
 
-  /// Subtle blue glow
-  static const Color glowBlue = Color(0xFF4DA8DA);
+  /// Warnings. There is no third accent in this system, so this is plain ink —
+  /// a warning earns its weight from size and position, not from a new hue.
+  static const Color accentOrange = CouponTheme.ink;
 
-  // === TEXT COLORS ===
-  /// Primary text - bright white
-  static const Color textPrimary = Color(0xFFFFFFFF);
+  // === BORDERS ===
+  static Color get border => CouponTheme.ink.withValues(alpha: 0.3);
+  static const Color borderGlow = CouponTheme.ink;
 
-  /// Secondary text - slightly dimmed
-  static const Color textSecondary = Color(0xFFB8C5D6);
-
-  /// Muted text - for labels
-  static const Color textMuted = Color(0xFF6B7D93);
-
-  // === ACCENT COLORS ===
-  /// Success/active state - green
-  static const Color accentGreen = Color(0xFF00E676);
-
-  /// Lives/heart - red
-  static const Color accentRed = Color(0xFFFF5252);
-
-  /// Warning - orange
-  static const Color accentOrange = Color(0xFFFFAB40);
-
-  // === BORDER/DIVIDER COLORS ===
-  /// Subtle border
-  static const Color border = Color(0xFF2A3F5F);
-
-  /// Glowing border for highlighted elements
-  static const Color borderGlow = Color(0xFF00D4FF);
-
-  // === GRADIENTS ===
-  /// Background gradient (top to bottom)
+  // === NEUTERED: no gradients in this system ===
   static const LinearGradient backgroundGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [
-      Color(0xFF0A1628),
-      Color(0xFF0D1B2A),
-      Color(0xFF1B2838),
-    ],
+    colors: [CouponTheme.stock, CouponTheme.stock],
   );
-
-  /// Card gradient for depth
   static const LinearGradient cardGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFF1A2D4A),
-      Color(0xFF152238),
-    ],
+    colors: [CouponTheme.stockLit, CouponTheme.stockLit],
   );
-
-  /// Glow gradient for the ring effect
   static const LinearGradient glowGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [
-      Color(0xFF00D4FF),
-      Color(0xFF00B4D8),
-      Color(0xFF0077B6),
-    ],
+    colors: [CouponTheme.ink, CouponTheme.ink],
   );
 
-  // === BOX SHADOWS ===
-  /// Cyan glow shadow for the main ring
-  static List<BoxShadow> get glowShadow => [
-    BoxShadow(
-      color: glowCyan.withValues(alpha: 0.4),
-      blurRadius: 30,
-      spreadRadius: 5,
-    ),
-    BoxShadow(
-      color: glowCyan.withValues(alpha: 0.2),
-      blurRadius: 60,
-      spreadRadius: 10,
-    ),
-  ];
+  // === NEUTERED: exactly one shadow exists, and it is not a glow ===
+  static List<BoxShadow> get glowShadow => const [];
+  static List<BoxShadow> get borderGlowShadow => const [];
+  static List<BoxShadow> get cardShadow => CouponTheme.printOffset;
 
-  /// Subtle card shadow
-  static List<BoxShadow> get cardShadow => [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.3),
-      blurRadius: 10,
-      offset: const Offset(0, 4),
-    ),
-  ];
+  // === HELPERS ===
+  static Color cardBackgroundWithOpacity(double opacity) =>
+      CouponTheme.stockLit.withValues(alpha: opacity);
 
-  /// Glow border shadow for status cards
-  static List<BoxShadow> get borderGlowShadow => [
-    BoxShadow(
-      color: glowCyan.withValues(alpha: 0.15),
-      blurRadius: 8,
-      spreadRadius: 1,
-    ),
-  ];
-
-  // === HELPER METHODS ===
-  /// Get a semi-transparent version of the card background
-  static Color cardBackgroundWithOpacity(double opacity) {
-    return cardBackground.withValues(alpha: opacity);
-  }
-
-  /// Get glow color with custom intensity
-  static Color glowWithIntensity(double intensity) {
-    return glowCyan.withValues(alpha: intensity);
-  }
+  static Color glowWithIntensity(double intensity) =>
+      CouponTheme.ink.withValues(alpha: intensity);
 }

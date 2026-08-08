@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/repositories/auth_repository.dart';
@@ -718,15 +719,12 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              // A secondary action, so outlined — filling it with stock-deep
+              // produced a murky slab that outweighed everything near it.
+              child: OutlinedButton.icon(
                 onPressed: () => _handleManageCompetitionNames(user),
                 icon: const Icon(Icons.edit, size: 18),
-                label: const Text('Manage Competition Names'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GameTheme.backgroundLight,
-                  foregroundColor: GameTheme.textPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
+                label: const Text('MANAGE NAMES'),
               ),
             ),
           ],
@@ -1142,22 +1140,25 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildDangerZoneCard() {
+    // overprint is the brand's second ink, not an error colour — a heading set
+    // in it reads as emphasis, not alarm, and a 10% tint of it reads as a
+    // washed pink slab. The warning is carried by an overprint rule down the
+    // side with the text left in plain ink (design-system.md §2).
     return Container(
       decoration: BoxDecoration(
-        color: GameTheme.accentRed.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-        border: Border.all(color: GameTheme.accentRed.withValues(alpha: 0.4)),
+        color: CouponTheme.stockLit,
+        border: Border(left: BorderSide(color: CouponTheme.overprint, width: 2)),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          leading: Icon(Icons.warning_amber, color: GameTheme.accentRed),
+          leading: const Icon(Icons.warning_amber, color: CouponTheme.ink),
           title: Text(
-            'Danger Zone',
-            style: TextStyle(color: GameTheme.accentRed, fontWeight: FontWeight.bold),
+            'Danger zone',
+            style: CouponTheme.bodyText.copyWith(fontWeight: FontWeight.w600),
           ),
-          iconColor: GameTheme.accentRed,
-          collapsedIconColor: GameTheme.accentRed,
+          iconColor: CouponTheme.ink,
+          collapsedIconColor: CouponTheme.ink,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppConstants.paddingMedium),

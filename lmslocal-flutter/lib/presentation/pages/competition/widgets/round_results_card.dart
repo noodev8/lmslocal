@@ -22,11 +22,11 @@ class RoundResultsCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
+            blurRadius: 0,
             offset: const Offset(0, 3),
           ),
         ],
@@ -40,7 +40,7 @@ class RoundResultsCard extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: AppConstants.primaryNavy.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Icon(
                   Icons.bar_chart,
@@ -62,7 +62,7 @@ class RoundResultsCard extends StatelessWidget {
 
           // Three-segment bar
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.zero,
             child: Row(
               children: [
                 if (stats.won > 0)

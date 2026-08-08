@@ -20,7 +20,7 @@ class CompleteBanner extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
           color: GameTheme.border,
           width: 1,
@@ -51,7 +51,7 @@ class CompleteBanner extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
             decoration: BoxDecoration(
               color: GameTheme.accentGreen.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
               border: Border.all(
                 color: GameTheme.accentGreen.withValues(alpha: 0.3),
                 width: 1,

@@ -233,17 +233,40 @@ the theme, so it is the easiest rule in the system to break.
 `login_page.dart` is the migrated pattern to copy: eyebrow, display heading, intro, labelled
 fields, one `overprint` primary action, a dotted-underline tertiary link.
 
+### How the palette got everywhere at once
+
+`GameTheme` and `AppConstants`' brand colours are now **transitional shims remapped onto coupon
+tokens**, rather than the dark navy/cyan originals. Every screen that still imports them is on the
+right palette without having been rewritten. The members with no counterpart are neutered in place:
+the gradients return a flat colour, the glow shadows return nothing.
+
+That put the whole app on the palette in one move. What it cannot fix is shape and structure, so
+those were swept separately: 65 panel corners squared, 12 blurred shadows flattened, and
+`radiusMedium`/`radiusLarge` set to 0 (`radiusSmall` stays 4 for buttons and inputs).
+
+**A screen is properly done when its `game_theme.dart` import is gone.** When the last one goes,
+delete both shims.
+
+### The tint trap
+
+The single most common defect found while migrating, three times over: an accent at 10–20% opacity
+used as a fill. `moss` at 20% behind "Make pick", `moss` at 10% on the leading standings group,
+`overprint` at 10% behind "Danger zone". Over the stock ground every one of them reads as grey
+murk — this is the failure design-system.md §8 names outright.
+
+The fixes, in order of how often they apply: a real action becomes a real button (solid `overprint`
+if primary, outlined if secondary); a field becomes `moss-wash` with `ink` on top; a warning
+becomes `ink` text with an `overprint` rule down the side. **A tint is never the answer.**
+
 | Screen | Lines | Notes |
 |---|---|---|
 | ~~`splash_page.dart`~~ | 142 | **Done.** Where icon, splash and font work met |
-| ~~`login_page.dart`~~ | 289 | **Done.** Mirrors the web's `/login` — same eyebrow, title, intro |
-| `register` / `forgot_password` | ~690 | Web equivalents already migrated. Copy `login_page.dart` |
-| `dashboard_page.dart` | 1480 | Competition list |
-| `competition_home_page.dart` + 11 widgets | 642 + ~1400 | Where the four dead widgets live |
-| `play_page` / `pick_page` / `waiting_page` / `player_results_page` | ~1600 | `player_results` is where `moss` vs `moss-wash` was already got wrong twice on web — read §8 before touching it |
-| `standings_page.dart` | 1663 | The survival sheet is the model: `font-data` names, dotted leaders, struck-through eliminations, count in display type |
-| `profile_page.dart` | 1214 | |
-| `update_required_dialog.dart` | | Small, but it is the only screen a blocked user ever sees |
+| ~~`login` / `register` / `forgot_password`~~ | ~700 | **Done.** Share `widgets/auth_shell.dart`, mirroring the web's `AuthShell`. Register's intro is *not* the web's — that one sells to organisers |
+| `dashboard_page.dart` | 1480 | Palette and shapes done, actions fixed. Layout awaits the redesign |
+| `competition_home_page.dart` + widgets | ~2000 | Glow ring replaced by `players_active_block.dart`. `active_players_ring.dart` and `glass_card.dart` were dead and are deleted |
+| `play_page` / `pick_page` / `waiting_page` / `player_results_page` | ~1600 | Palette only so far. `player_results` is where `moss` vs `moss-wash` was already got wrong twice on web — read §8 first |
+| `standings_page.dart` | 1663 | Group tints fixed. Still to do: the survival sheet model — `font-data` names, dotted leaders, struck-through eliminations |
+| `profile_page.dart` | 1214 | Palette, shapes and both tints done |
 
 ---
 

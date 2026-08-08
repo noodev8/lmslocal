@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 
 /// Application-wide constants
 class AppConstants {
@@ -6,11 +7,12 @@ class AppConstants {
   static const String appName = 'LMS Local';
   static const String appVersion = '1.2.5'; // Not used - version comes from pubspec.yaml
 
-  // Brand Colors (extracted from LMS-Local-Logo.png)
-  // Note: For UI colors, use GameTheme instead (accentGreen, accentRed, accentOrange)
-  static const Color primaryNavy = Color(0xFF2C497C);
-  static const Color primaryWhite = Color(0xFFFFFFFF);
-  static const Color accentLightBlue = Color(0xFF6B8EBF);
+  // **Transitional**, like GameTheme: the old navy brand colours remapped onto
+  // the coupon system so the screens still importing them are on the right
+  // palette. Use CouponTheme in new code; there is no blue in this system.
+  static const Color primaryNavy = CouponTheme.ink;
+  static const Color primaryWhite = CouponTheme.stockLit;
+  static const Color accentLightBlue = CouponTheme.inkFade;
 
   // JWT Token
   static const String tokenKey = 'jwt_token';
@@ -29,9 +31,11 @@ class AppConstants {
   static const double paddingSmall = 8.0;
   static const double paddingMedium = 16.0;
   static const double paddingLarge = 24.0;
+  // Printed forms are square. rounded-sm (4) survives on buttons and inputs as
+  // a slight stamped softening; everything else is squared off.
   static const double radiusSmall = 4.0;
-  static const double radiusMedium = 8.0;
-  static const double radiusLarge = 12.0;
+  static const double radiusMedium = 0.0;
+  static const double radiusLarge = 0.0;
 
   // Animation Durations
   static const Duration animationFast = Duration(milliseconds: 200);

@@ -40,7 +40,7 @@ class CompetitionHeader extends StatelessWidget {
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF3B82F6).withValues(alpha: 0.5), // Electric Blue Glow
-                      blurRadius: 20,
+                      blurRadius: 0,
                       spreadRadius: 2,
                     ),
                   ],

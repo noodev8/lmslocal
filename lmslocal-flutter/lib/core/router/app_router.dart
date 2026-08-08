@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lmslocal_flutter/core/theme/game_theme.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/forgot_password_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/register_page.dart';
@@ -41,14 +40,10 @@ class AppRouter {
         // Profile (standalone page, no bottom nav)
         GoRoute(
           path: '/profile',
+          // Colours, elevation and the title face all come from
+          // CouponTheme.themeData()'s appBarTheme — do not restate them here.
           builder: (context, state) => Scaffold(
-            backgroundColor: GameTheme.background,
-            appBar: AppBar(
-              title: const Text('Profile'),
-              backgroundColor: GameTheme.background,
-              foregroundColor: GameTheme.textPrimary,
-              elevation: 0,
-            ),
+            appBar: AppBar(title: const Text('PROFILE')),
             body: const ProfilePage(),
           ),
         ),

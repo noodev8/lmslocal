@@ -129,7 +129,7 @@ class _DashboardPageState extends State<DashboardPage> {
         builder: (context, setState) => AlertDialog(
           backgroundColor: const Color(0xFF2A3F5F),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.zero,
             side: BorderSide(color: GameTheme.glowCyan.withValues(alpha: 0.3)),
           ),
           title: Row(
@@ -170,15 +170,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   fillColor: GameTheme.background,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                     borderSide: BorderSide(color: GameTheme.textMuted),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                     borderSide: BorderSide(color: GameTheme.textMuted),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                     borderSide: BorderSide(color: GameTheme.glowCyan, width: 2),
                   ),
                   errorText: errorMessage,
@@ -340,7 +340,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     margin: const EdgeInsets.only(right: 16),
                     decoration: BoxDecoration(
                       color: GameTheme.cardBackground,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: IconButton(
                       icon: Icon(
@@ -423,7 +423,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     vertical: 16,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                   ),
                   elevation: 0,
                 ),
@@ -487,7 +487,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     vertical: 16,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                   ),
                   elevation: 0,
                 ),
@@ -614,7 +614,7 @@ class _DashboardPageState extends State<DashboardPage> {
             GameTheme.cardBackground,
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
           color: GameTheme.glowCyan.withValues(alpha: 0.3),
           width: 1,
@@ -622,7 +622,7 @@ class _DashboardPageState extends State<DashboardPage> {
         boxShadow: [
           BoxShadow(
             color: GameTheme.glowCyan.withValues(alpha: 0.2),
-            blurRadius: 16,
+            blurRadius: 0,
             spreadRadius: 0,
           ),
         ],
@@ -631,7 +631,7 @@ class _DashboardPageState extends State<DashboardPage> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => _showCompetitionInfoModal(promo),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -749,7 +749,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                     color: GameTheme.glowCyan.withValues(alpha: 0.15),
                   ),
                   child: Row(
@@ -856,7 +856,7 @@ class _DashboardPageState extends State<DashboardPage> {
       builder: (context) => AlertDialog(
         backgroundColor: GameTheme.cardBackground,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
         ),
         title: Text(
           'Remove Competition',
@@ -920,7 +920,7 @@ class _DashboardPageState extends State<DashboardPage> {
       builder: (context) => AlertDialog(
         backgroundColor: GameTheme.cardBackground,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
         ),
         title: Text(
           'Remove Competition',
@@ -1072,7 +1072,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: GameTheme.glowCyan.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.zero,
                             border: Border.all(
                               color: GameTheme.glowCyan.withValues(alpha: 0.3),
                             ),
@@ -1150,7 +1150,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       foregroundColor: GameTheme.background,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.zero,
                       ),
                     ),
                     child: const Text(
@@ -1211,11 +1211,11 @@ class _DashboardPageState extends State<DashboardPage> {
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
         color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         boxShadow: [
           BoxShadow(
             color: glowColor,
-            blurRadius: needsPick ? 16 : 12,
+            blurRadius: 0,
             spreadRadius: needsPick ? 1.5 : 1,
           ),
         ],
@@ -1226,7 +1226,7 @@ class _DashboardPageState extends State<DashboardPage> {
           onTap: () {
             context.go('/competition/${competition.id}', extra: competition);
           },
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1323,7 +1323,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: GameTheme.glowCyan.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Row(
                       children: [
@@ -1360,41 +1360,25 @@ class _DashboardPageState extends State<DashboardPage> {
 
                 // Action button
                 const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () {
-                    context.go('/competition/${competition.id}', extra: competition);
-                  },
-                  child: Container(
+                // A tint of an ink is never the answer — moss at 20% and ink at
+                // 15% both read as grey murk over the stock, which is the
+                // failure design-system.md §8 calls out by name. An outstanding
+                // pick is the one thing on this screen worth acting on, so it
+                // takes the solid overprint; entering an up-to-date competition
+                // is secondary and outlined.
+                Builder(builder: (context) {
+                  void open() => context.go(
+                        '/competition/${competition.id}',
+                        extra: competition,
+                      );
+                  final label = Text(needsPick ? 'MAKE PICK' : 'ENTER');
+                  return SizedBox(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: needsPick
-                          ? GameTheme.accentGreen.withValues(alpha: 0.2)
-                          : GameTheme.glowCyan.withValues(alpha: 0.15),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          needsPick ? 'Make Pick' : 'Enter',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: needsPick ? GameTheme.accentGreen : GameTheme.glowCyan,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 20,
-                          color: needsPick ? GameTheme.accentGreen : GameTheme.glowCyan,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                    child: needsPick
+                        ? ElevatedButton(onPressed: open, child: label)
+                        : OutlinedButton(onPressed: open, child: label),
+                  );
+                }),
               ],
             ),
           ),
@@ -1409,14 +1393,14 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Container(
         decoration: BoxDecoration(
           color: GameTheme.cardBackground,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.zero,
           boxShadow: GameTheme.borderGlowShadow,
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: _openWebPlatform,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.zero,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
