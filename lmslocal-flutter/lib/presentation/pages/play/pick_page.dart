@@ -35,8 +35,9 @@ class _PickPageState extends State<PickPage> {
   List<String> _allowedTeamShorts = [];
   String? _currentPick;
 
-  // Selected team (before confirmation)
-  ({String teamShort, int fixtureId, String position})? _selectedTeam;
+  /// The team whose tap is in flight, so its own card can show the wait rather
+  /// than a banner somewhere else on the screen.
+  String? _submittingTeam;
 
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -132,123 +133,88 @@ class _PickPageState extends State<PickPage> {
     }
   }
 
-  void _handleTeamSelect(String teamShort, int fixtureId, String position) {
-    // Can't select if round is locked
-    final isLocked = widget.round.isLocked || _roundLockedOverride;
-    if (isLocked) return;
-
-    // User must remove current pick first
-    if (_currentPick != null) return;
-
-    // Only allow selection if team is in allowed list
-    if (_allowedTeamShorts.contains(teamShort)) {
-      setState(() {
-        _selectedTeam = (
-          teamShort: teamShort,
-          fixtureId: fixtureId,
-          position: position
-        );
-      });
-    }
-  }
-
-  Future<void> _submitPick() async {
-    if (_selectedTeam == null || _isSubmitting) return;
-
-    setState(() => _isSubmitting = true);
-
-    try {
-      final roundLocked = await _pickDataSource.setPick(
-        _selectedTeam!.fixtureId,
-        _selectedTeam!.position,
-      );
-
-      if (mounted) {
-        // Clear dashboard cache so it reloads with fresh data
-        await _clearDashboardCache();
-
-        // Reload data to reflect new pick
-        await _loadPickData();
-
-        setState(() {
-          _selectedTeam = null;
-          _isSubmitting = false;
-        });
-
-        // If round locked, clear caches before showing message
-        if (roundLocked) {
-          await _clearPickStatisticsCache();
-        }
-
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pick saved successfully!'),
-              backgroundColor: GameTheme.accentGreen,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-
-        // If round locked, update state to reflect locked round
-        if (roundLocked && mounted) {
-          setState(() {
-            _roundLockedOverride = true;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to submit pick: ${e.toString()}'),
-            backgroundColor: GameTheme.accentRed,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _removePick() async {
+  /// Tapping a team **is** the pick. There is no separate confirm step.
+  ///
+  /// There used to be one, and it lost people their round: the confirm banner
+  /// rendered under the fixture list, so on a ten-match round it sat off the
+  /// bottom of the screen. A player tapped their team, saw it highlight, and
+  /// left — having selected nothing. The step that existed to prevent mistakes
+  /// was causing them.
+  ///
+  /// Safe to do directly because a pick is not a commitment until the round
+  /// locks: `set-pick` takes a change (`ON CONFLICT (round_id, user_id) DO
+  /// UPDATE`, putting the old team back in `allowed_teams` and auditing it as
+  /// "Pick Changed"), so a mis-tap is corrected by tapping the right team. A
+  /// modal would ask people to confirm something they can simply redo.
+  Future<void> _pickTeam(String teamShort, int fixtureId, String position) async {
     if (_isSubmitting) return;
+    if (widget.round.isLocked || _roundLockedOverride) return;
+    if (!_allowedTeamShorts.contains(teamShort)) return;
+    // Tapping the team already picked is a no-op rather than a pointless write.
+    if (_currentPick == teamShort) return;
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _submittingTeam = teamShort;
+    });
 
     try {
-      await _pickDataSource.unselectPick(widget.round.id);
+      final roundLocked = await _pickDataSource.setPick(fixtureId, position);
 
+      if (!mounted) return;
+
+      // Clear dashboard cache so it reloads with fresh data
+      await _clearDashboardCache();
+
+      // Reload data to reflect new pick
+      await _loadPickData();
+
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        _submittingTeam = null;
+      });
+
+      // If round locked, clear caches before showing message
+      if (roundLocked) {
+        await _clearPickStatisticsCache();
+      }
+
+      // Names the team. With the tap itself being the pick, this is the only
+      // confirmation the player gets, so it has to say what was saved rather
+      // than that something was.
       if (mounted) {
-        // Clear dashboard cache so it reloads with fresh data
-        await _clearDashboardCache();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Picked ${_getFullTeamName(teamShort)}'),
+            backgroundColor: GameTheme.accentGreen,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
 
-        // Reload data to reflect removed pick
-        await _loadPickData();
-
-        setState(() => _isSubmitting = false);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pick removed successfully!'),
-              backgroundColor: GameTheme.accentGreen,
-            ),
-          );
-        }
+      // If round locked, update state to reflect locked round
+      if (roundLocked && mounted) {
+        setState(() {
+          _roundLockedOverride = true;
+        });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSubmitting = false);
+        setState(() {
+          _isSubmitting = false;
+          _submittingTeam = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to remove pick: ${e.toString()}'),
+            content: Text('Failed to save pick: ${e.toString()}'),
             backgroundColor: GameTheme.accentRed,
           ),
         );
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -305,15 +271,10 @@ class _PickPageState extends State<PickPage> {
           _buildFixturesList(),
           const SizedBox(height: 16),
 
-          // Confirmation banner or remove pick card or help
-          if (_selectedTeam != null && !widget.round.isLocked && !_roundLockedOverride)
-            _buildConfirmationBanner()
-          else if (_currentPick != null && !widget.round.isLocked && !_roundLockedOverride)
-            _buildRemovePickCard()
-          else if (!widget.round.isLocked && !_roundLockedOverride && _currentPick == null)
-            _buildHelpSection()
-          else if (_roundLockedOverride)
-            _buildRoundLockedMessage(),
+          if (_roundLockedOverride)
+            _buildRoundLockedMessage()
+          else if (!widget.round.isLocked)
+            _buildFooterNote(),
         ],
       ),
     );
@@ -350,7 +311,9 @@ class _PickPageState extends State<PickPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${widget.round.fixtureCount} fixtures',
+                // "Matches", not "fixtures" — design-system.md §9: fixtures is
+                // the organiser's word for the same thing.
+                '${widget.round.fixtureCount} matches',
                 style: TextStyle(
                   fontSize: 14,
                   color: GameTheme.textSecondary,
@@ -448,21 +411,23 @@ class _PickPageState extends State<PickPage> {
     required String position,
   }) {
     final isAllowed = _allowedTeamShorts.contains(teamShort);
-    final isSelected = _selectedTeam?.teamShort == teamShort;
     final isCurrentPick = _currentPick == teamShort;
+    final isSubmittingThis = _submittingTeam == teamShort;
 
-    // Disable teams if:
-    // 1. Team not in allowed list
-    // 2. There's already a current pick (user must remove it first)
-    // 3. Round is locked
+    // Having a pick no longer disables every other team. Changing your mind is
+    // one tap, the way choosing was — the old "remove your pick first" step was
+    // friction set-pick never required, since it takes a change directly.
     final roundIsLocked = widget.round.isLocked || _roundLockedOverride;
-    final isDisabled =
-        !isAllowed || (_currentPick != null && !isCurrentPick) || roundIsLocked;
+    // The team you picked is never "unavailable", even though it leaves
+    // allowed_teams the moment you pick it — that is set-pick enforcing
+    // no_team_twice, and it made your own choice render in the same grey as a
+    // team you already used in an earlier round.
+    final isDisabled = (!isAllowed && !isCurrentPick) || roundIsLocked;
 
     return GestureDetector(
-      onTap: isDisabled
+      onTap: (isDisabled || _isSubmitting)
           ? null
-          : () => _handleTeamSelect(teamShort, fixtureId, position),
+          : () => _pickTeam(teamShort, fixtureId, position),
       child: Stack(
         children: [
           Container(
@@ -471,29 +436,34 @@ class _PickPageState extends State<PickPage> {
             decoration: BoxDecoration(
               color: isDisabled
                   ? GameTheme.backgroundLight
-                  : (isSelected || isCurrentPick)
-                      ? GameTheme.glowCyan.withValues(alpha: 0.15)
-                      : GameTheme.cardBackground,
+                  : GameTheme.cardBackground,
               border: Border.all(
-                color: (isSelected || isCurrentPick)
-                    ? GameTheme.glowCyan
-                    : isDisabled
-                        ? GameTheme.border
-                        : GameTheme.border,
-                width: (isSelected || isCurrentPick) ? 2 : 1,
+                color: isCurrentPick ? GameTheme.glowCyan : GameTheme.border,
+                width: isCurrentPick ? 2 : 1,
               ),
               borderRadius: BorderRadius.zero,
             ),
             child: Center(
-              child: Text(
-                teamFull,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isDisabled ? GameTheme.textMuted : GameTheme.textPrimary,
-                ),
-                textAlign: TextAlign.center,
-              ),
+              child: isSubmittingThis
+                  ? SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: GameTheme.glowCyan,
+                      ),
+                    )
+                  : Text(
+                      teamFull,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDisabled
+                            ? GameTheme.textMuted
+                            : GameTheme.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
             ),
           ),
           // Current pick badge
@@ -522,153 +492,28 @@ class _PickPageState extends State<PickPage> {
     );
   }
 
-  Widget _buildConfirmationBanner() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GameTheme.accentGreen.withValues(alpha: 0.15),
-        border: Border.all(
-          color: GameTheme.accentGreen.withValues(alpha: 0.3),
+  /// One line, and it is the only rule a player needs at the moment of picking.
+  ///
+  /// It replaces a titled card of three bullets. "Tap a team to select" narrated
+  /// the thing they are already doing, "confirm your selection" described a step
+  /// that no longer exists, and the title asked a question nobody had.
+  ///
+  /// **It does not say what losing costs.** The old line — "draws and losses
+  /// eliminate you" — is untrue for anyone holding a life, which is most players
+  /// in most competitions. What survives is the part that is true for everyone.
+  Widget _buildFooterNote() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      child: Text(
+        _currentPick == null
+            ? 'Your team must win to advance.'
+            : 'Your team must win to advance. Tap another team to change your pick.',
+        style: TextStyle(
+          fontSize: 14,
+          color: GameTheme.textSecondary,
+          height: 1.5,
         ),
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Confirm your pick: ${_getFullTeamName(_selectedTeam!.teamShort)}',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: GameTheme.accentGreen,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitPick,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: GameTheme.accentGreen,
-                    foregroundColor: GameTheme.background,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: _isSubmitting
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: GameTheme.background,
-                          ),
-                        )
-                      : const Text('Confirm Pick'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _isSubmitting
-                      ? null
-                      : () => setState(() => _selectedTeam = null),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: GameTheme.textSecondary,
-                    side: BorderSide(color: GameTheme.border),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRemovePickCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GameTheme.cardBackground,
-        border: Border.all(color: GameTheme.border),
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Current Pick: ${_getFullTeamName(_currentPick!)}',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: GameTheme.textPrimary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Want to change your pick? Remove it first to select a different team.',
-            style: TextStyle(
-              fontSize: 14,
-              color: GameTheme.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _isSubmitting ? null : _removePick,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GameTheme.glowCyan,
-              foregroundColor: GameTheme.background,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
-            ),
-            child: _isSubmitting
-                ? SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: GameTheme.background,
-                    ),
-                  )
-                : const Text('Remove Pick'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHelpSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GameTheme.cardBackground,
-        border: Border.all(color: GameTheme.border),
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Column(
-        children: [
-          Text(
-            'How to make your pick',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: GameTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '• Tap on any available team to select them\n'
-            '• Confirm your selection before the round locks\n'
-            '• Your team must WIN to advance - draws and losses eliminate you',
-            style: TextStyle(
-              fontSize: 14,
-              color: GameTheme.textSecondary,
-              height: 1.5,
-            ),
-          ),
-        ],
+        textAlign: TextAlign.center,
       ),
     );
   }

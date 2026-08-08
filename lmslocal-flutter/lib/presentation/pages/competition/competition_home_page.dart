@@ -560,8 +560,22 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     );
   }
 
+  /// Hidden pending removal — see [_showPickProgress].
+  ///
+  /// The pre-lock half of this is the "N of M picked" progress card. It is a
+  /// statistic about other people, on the screen a player opens to find out
+  /// about themselves, and with the round status line above it now saying where
+  /// the round has got to, it earns none of the room it takes.
+  ///
+  /// Flipping the flag brings it back unchanged, which is the only reason it is
+  /// still here. Delete it, `PickStatusCard`, `_showUnpickedPlayersModal` and
+  /// `UnpickedPlayersSheet` together once that decision is settled — the sheet
+  /// is reachable from nowhere else.
+  static const bool _showPickProgress = false;
+
   Widget _buildRoundStatusSection(RoundInfo round) {
     if (!round.isLocked && _pickStats != null) {
+      if (!_showPickProgress) return const SizedBox.shrink();
       return PickStatusCard(
         round: round,
         stats: _pickStats!,

@@ -392,6 +392,55 @@ it when there isn't one.
 
 ---
 
+## 3b. Tapping a team is the pick
+
+`pick_page.dart` had a two-step flow: tap a team to *select* it, then press "Confirm Pick" in a
+banner. **The banner rendered under the fixture list**, so on a ten-match round it sat off the
+bottom of the screen. Players tapped their team, saw it highlight, and left — having picked
+nothing. Reported from real use: people believed they had picked and had not. The step that
+existed to prevent mistakes was the thing causing them.
+
+**The tap now saves the pick.** No confirm button, and no modal either — a modal would ask people
+to confirm something they can simply redo. `set-pick` takes a change directly
+(`ON CONFLICT (round_id, user_id) DO UPDATE`, putting the previous team back into `allowed_teams`
+and auditing it as "Pick Changed"), so a pick is not a commitment until the round locks and a
+mis-tap is corrected by tapping the right team.
+
+Consequences worth knowing before touching this screen again:
+
+- **Having a pick no longer disables the other teams.** The old screen made you press "Remove
+  Pick" before you could choose again — friction the API never required. Changing your mind is now
+  one tap, the same gesture as choosing.
+- **"Remove Pick" is gone.** It existed only to enable that change. Removing a pick outright has
+  no use to a player: no pick costs a life. `unselect-pick` is untouched server-side.
+- **Your own pick must not render as unavailable.** Picking removes the team from `allowed_teams`
+  when `no_team_twice` is on, so the naive `isAllowed` test greys out the very team you chose, in
+  the same grey as one you burned in an earlier round. The current pick is exempted explicitly.
+- **The snackbar names the team** — "Picked Everton". With the tap being the whole interaction, it
+  is the only confirmation there is, so it has to say what was saved rather than that something
+  was.
+
+The footer is one line: *"Your team must win to advance."* It replaced a titled card of three
+bullets. "Tap a team to select" narrated what the player was already doing and "confirm your
+selection" described a step that no longer exists. The old third bullet said draws and losses
+eliminate you — **untrue for anyone holding a life**, which is most players in most competitions.
+What survives is the half that is true for everyone.
+
+The round header says "10 matches", not "10 fixtures" — §4 below, and design-system.md §9.
+
+### Hidden pending removal: the pick progress card
+
+`PickStatusCard` — "Picks 0% / 0 of 4 players have picked" on the competition screen — is behind
+`_showPickProgress = false` in `competition_home_page.dart`. It is a statistic about other people
+on the screen a player opens to find out about themselves, and the round status line above it now
+carries where the round has got to.
+
+Flipping the constant brings it back unchanged, which is the only reason it still exists. When the
+decision is settled, delete `PickStatusCard`, `_showUnpickedPlayersModal` and
+`UnpickedPlayersSheet` together — the sheet is reachable from nowhere else.
+
+---
+
 ## 4. Copy
 
 Design system §9 applies with one inversion that matters: **on the web "you" is always the
