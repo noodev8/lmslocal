@@ -46,6 +46,13 @@ class StandingsPlayer extends Equatable {
   final CurrentPick? currentPick;
   final EliminationPick? eliminationPick;
 
+  /// One of our placeholder players. Derived server-side from the bot email
+  /// pattern (`services/botPool.js`), never guessed from the name — the "Bot "
+  /// prefix is stripped from a competition's own display names, so the name is
+  /// not evidence either way. Defaults false so a route that does not return the
+  /// flag cannot label a real person a bot.
+  final bool isBot;
+
   const StandingsPlayer({
     required this.id,
     required this.displayName,
@@ -54,6 +61,7 @@ class StandingsPlayer extends Equatable {
     this.groupName,
     this.currentPick,
     this.eliminationPick,
+    this.isBot = false,
   });
 
   @override
@@ -65,5 +73,6 @@ class StandingsPlayer extends Equatable {
         groupName,
         currentPick,
         eliminationPick,
+        isBot,
       ];
 }

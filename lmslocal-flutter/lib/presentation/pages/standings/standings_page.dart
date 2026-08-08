@@ -12,6 +12,7 @@ import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 import 'package:lmslocal_flutter/presentation/widgets/shell_back_button.dart';
+import 'package:lmslocal_flutter/presentation/widgets/bot_chip.dart';
 
 /// Standings page - shows player standings grouped by status
 class StandingsPage extends StatefulWidget {
@@ -822,16 +823,29 @@ class _StandingsPageState extends State<StandingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Player name
-                  Text(
-                    player.displayName,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: player.status == 'eliminated'
-                          ? GameTheme.textMuted
-                          : GameTheme.textPrimary,
-                    ),
+                  // Player name. The chip sits beside it rather than in the name
+                  // itself: it survives truncation, and it stays put when the
+                  // list is sorted by name.
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          player.displayName,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: player.status == 'eliminated'
+                                ? GameTheme.textMuted
+                                : GameTheme.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (player.isBot) ...[
+                        const SizedBox(width: 8),
+                        const BotChip(),
+                      ],
+                    ],
                   ),
 
                   // Current pick or elimination info
@@ -1033,13 +1047,24 @@ class _PlayerHistoryModalState extends State<_PlayerHistoryModal> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.player.displayName,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: GameTheme.textPrimary,
-                            ),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  widget.player.displayName,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: GameTheme.textPrimary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (widget.player.isBot) ...[
+                                const SizedBox(width: 8),
+                                const BotChip(),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -1617,6 +1642,15 @@ class _PlayerSearchModalState extends State<_PlayerSearchModal> {
                                   ),
                                 ),
                               ),
+                            ],
+                            // Wired, but dark until `/search-players` returns
+                            // `is_bot` — it is the one player-facing route that
+                            // does not. Left in place so fixing the route is all
+                            // it takes, rather than someone having to notice this
+                            // screen again.
+                            if (player.isBot) ...[
+                              const SizedBox(width: 8),
+                              const BotChip(),
                             ],
                           ],
                         ),

@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 
+/// What became of the pick, once the round has been processed.
+///
+/// `unknown` is not `pending`: pending means the round is settled for others but
+/// this player's outcome has not been written, while unknown means nothing has
+/// been asked. They render the same today and are kept apart so a future caller
+/// cannot mistake "not fetched" for "no result".
+enum PickOutcome { unknown, pending, won, lost }
+
 /// The player's own pick for the current round, and the way back to change it.
 ///
 /// The competition dashboard could say where the round had got to — "Picks close
@@ -25,23 +33,32 @@ import 'package:lmslocal_flutter/domain/entities/competition.dart';
 ///   reason; only the word changes.
 /// - **Locked, not picked** — says so plainly. It costs a life and the player
 ///   should not have to work that out from an absence.
+/// - **Settled** — "Won" or "Lost" in place of "Locked in", with the mark to
+///   match. The block used to disappear when the round completed, which took the
+///   answer away at the moment the player came looking for it: the screen said
+///   "After round 1" and nothing said what round 1 had done to them.
 ///
 /// Tappable in every state, because the block sends the player to the Play tab
-/// and the Play tab always has something to show them. Only the copy tracks
-/// whether the pick can still be changed.
+/// and the Play tab always has something to show them — the pick screen, the
+/// live round, or the full results. Only the copy tracks what the tap will find.
 class YourPickBlock extends StatelessWidget {
   const YourPickBlock({
     super.key,
     required this.pick,
     required this.picksOpen,
+    this.outcome = PickOutcome.unknown,
     this.onTap,
   });
 
   final CurrentPick? pick;
 
+  /// How the pick finished, once the round has been processed.
+
   /// Whether the round still takes picks. Drives the copy only — a locked round
   /// still leads somewhere worth going.
   final bool picksOpen;
+
+  final PickOutcome outcome;
 
   /// Where a tap goes — the Play tab, which routes to the pick screen or the
   /// round's results depending on the lock. Null leaves the block inert.
@@ -72,12 +89,15 @@ class YourPickBlock extends StatelessWidget {
                     Row(
                       children: [
                         // A mark beside the value, never a panel behind it —
-                        // design-system.md §8.
+                        // design-system.md §8. Moss for a pick in hand or a pick
+                        // that won, overprint for one that lost or was never
+                        // made: the two things a player is sorry to see.
                         Container(
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: pick != null
+                            color: (pick != null &&
+                                    outcome != PickOutcome.lost)
                                 ? CouponTheme.moss
                                 : CouponTheme.overprint,
                             shape: BoxShape.circle,
@@ -134,22 +154,36 @@ class YourPickBlock extends StatelessWidget {
     );
   }
 
-  /// The word says what the tap does; the chevron says there is one.
+  /// The word says where the round has got to for this player; the chevron says
+  /// there is somewhere to tap.
   ///
-  /// A locked round keeps both: "Locked in" is the reassurance the player came
-  /// for, and the tap still opens the round's results. Only the label goes grey,
-  /// because the pick itself can no longer be acted on.
+  /// "Won" and "Lost" beat "Locked in" once the round is processed — the pick is
+  /// still the subject, but its outcome is the news. Both keep the chevron,
+  /// because the tap now opens the full results, which is the natural next
+  /// question after either one.
   Widget _action({required bool tappable, required bool hasPick}) {
-    if (!tappable) {
-      return Text(
-        hasPick ? 'LOCKED IN' : 'LOCKED',
-        style: CouponTheme.label,
-      );
+    final String label;
+    final Color colour;
+
+    switch (outcome) {
+      case PickOutcome.won:
+        label = 'WON';
+        colour = CouponTheme.moss;
+      case PickOutcome.lost:
+        label = 'LOST';
+        colour = CouponTheme.overprint;
+      case PickOutcome.pending:
+      case PickOutcome.unknown:
+        if (picksOpen) {
+          label = hasPick ? 'CHANGE' : 'PICK';
+          colour = CouponTheme.ink;
+        } else {
+          label = hasPick ? 'LOCKED IN' : 'LOCKED';
+          colour = CouponTheme.inkFade;
+        }
     }
 
-    final label = picksOpen
-        ? (hasPick ? 'CHANGE' : 'PICK')
-        : (hasPick ? 'LOCKED IN' : 'LOCKED');
+    if (!tappable) return Text(label, style: CouponTheme.label.copyWith(color: colour));
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -157,14 +191,11 @@ class YourPickBlock extends StatelessWidget {
         Text(
           label,
           style: CouponTheme.label.copyWith(
-            color: picksOpen ? CouponTheme.ink : CouponTheme.inkFade,
+            color: colour,
+            fontWeight: outcome == PickOutcome.won ? FontWeight.w600 : null,
           ),
         ),
-        Icon(
-          Icons.chevron_right,
-          size: 20,
-          color: picksOpen ? CouponTheme.ink : CouponTheme.inkFade,
-        ),
+        Icon(Icons.chevron_right, size: 20, color: colour),
       ],
     );
   }

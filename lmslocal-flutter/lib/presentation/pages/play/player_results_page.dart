@@ -68,15 +68,23 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
 
       if (!mounted) return;
 
-      // Sorted here, not trusted from the response. `/get-fixtures` now carries
-      // an ORDER BY (it had none, which is what made rows move when a result was
-      // written), but a screen that must not reflow should not depend on an
-      // endpoint's incidental ordering — and the deployed server may still be
-      // the version without it.
+      // Alphabetical by home team, which is how the rows read: "Arsenal vs
+      // Coventry". The point is a fixed order a reader can rely on between
+      // visits — nothing here may depend on the result, or rows move as a round
+      // comes in.
+      //
+      // Sorted here rather than trusted from the response: `/get-fixtures` now
+      // carries an ORDER BY (it had none, which is what let rows move when a
+      // result was written), but that is kickoff order, and it is the server's
+      // job to be deterministic rather than to decide how this screen reads.
       final fixtures = results[0] as List<Fixture>
         ..sort((a, b) {
-          final byKickoff = a.kickoffTime.compareTo(b.kickoffTime);
-          return byKickoff != 0 ? byKickoff : a.id.compareTo(b.id);
+          final byHome =
+              a.homeTeam.toLowerCase().compareTo(b.homeTeam.toLowerCase());
+          if (byHome != 0) return byHome;
+          final byAway =
+              a.awayTeam.toLowerCase().compareTo(b.awayTeam.toLowerCase());
+          return byAway != 0 ? byAway : a.id.compareTo(b.id);
         });
 
       setState(() {
@@ -329,21 +337,16 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       }
     }
 
-    // Most-picked first, then alphabetically. **Nothing here may depend on the
-    // result.** This used to put winners first, so a card jumped to the front of
-    // the grid the moment its result was written and the whole grid reflowed
-    // under a reader who was watching the round come in. Which team the crowd
-    // backed is a fact about the round that does not move; won and lost are
-    // already said on each card, in a word and a ground.
+    // Alphabetical, and nothing else. **Nothing here may depend on the result:**
+    // this used to put winners first, so a card jumped to the front the moment
+    // its result was written and the grid reflowed under a reader watching the
+    // round come in. Sorting by pick count had the milder version of the same
+    // fault — an admin setting a pick after the lock could move a card — and it
+    // ranked the crowd's favourite, which each card already states.
     //
-    // The alphabetical tie-break is what makes it stable rather than merely
-    // less unstable: with every team on one pick — a small competition, which is
-    // most of them — a count-only sort leaves the order to however the fixtures
-    // happened to arrive.
-    teamsWithPicks.sort((a, b) {
-      final byCount = b.pickCount.compareTo(a.pickCount);
-      return byCount != 0 ? byCount : a.shortName.compareTo(b.shortName);
-    });
+    // One order, fixed, so a reader who looked at this grid an hour ago finds
+    // the same card in the same place. Won and lost are said on the cards.
+    teamsWithPicks.sort((a, b) => a.shortName.compareTo(b.shortName));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

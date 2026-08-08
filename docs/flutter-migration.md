@@ -483,6 +483,24 @@ It is **withheld entirely**, not shown empty, for an organiser who isn't playing
 out, a settled round, and the instant before the fetch returns. A block saying "No pick made" to
 someone never owed one is worse than no block.
 
+**It stays on screen when the round settles**, showing "Won" or "Lost" in place of "Locked in" with
+the mark to match, still tapping through to the full results. It used to be hidden along with the
+no-round and competition-complete phases, which took the answer away at the moment the player came
+looking for it: the heading said "After round 1" and nothing on the screen said what round 1 had
+done to them.
+
+Finding the outcome needs a third call, and the obvious two sources do not work. `/get-current-pick`
+does not carry it. `/get-user-dashboard`'s `history` only covers rounds **before** the current one
+(`round_number < current_round`), so the round that just finished is precisely the one missing.
+`/get-player-history` returns every round with its `pick_result`, so that is the source, and the
+call is confined to the case that needs it — settled round, and only if they picked. A failure falls
+back to "Locked in" rather than costing the screen its pick.
+
+**An eliminated player still sees the pick that did it.** On the round it happened, "Lost" beside
+the team is the explanation for the "Out" in the panel below. Someone eliminated in an earlier round
+has no pick for the current round, and there the block hides rather than reading "No pick made" at a
+player who was never in it.
+
 Two things to keep if this is touched again:
 
 - **The pick is fetched, not read off the cached dashboard.** `competition.currentPick` comes from
@@ -600,14 +618,22 @@ round come in, for two unrelated reasons:
 - **`/get-fixtures` had no `ORDER BY`** — its own comment advertised "database order (no sorting)".
   Postgres returns heap order and an `UPDATE` rewrites the row to a new position, so writing a
   result physically moved that fixture in every client's list, web included. It is now
-  `ORDER BY f.kickoff_time, f.id`. **The app sorts the response as well**, both because a screen
-  that must not reflow should not depend on an endpoint's incidental ordering, and because the debug
-  build talks to the production API — so the fix is not visible on a phone until the server ships.
+  `ORDER BY f.kickoff_time, f.id` — deterministic, which is the server's job. The fix is not visible
+  on a phone until the server ships, because the debug build talks to the production API.
 - **The pick grid sorted winners first**, so a card jumped to the front the moment its result was
-  written. It is now most-picked first, then alphabetical. The alphabetical tie-break is what makes
-  it stable rather than merely less unstable: with every team on one pick — a small competition,
-  which is most of them — a count-only sort leaves the order to however the fixtures arrived. Won
-  and lost are already stated on each card, in a word and a ground.
+  written.
+
+**Both blocks are now sorted alphabetically, and only alphabetically** — the fixtures by home team,
+which is how the rows read ("Arsenal vs Coventry"), and the grid by team. The app sorts the fixture
+response itself rather than displaying it in the order it arrives: being deterministic is the
+endpoint's job, but deciding how this screen reads is not.
+
+Alphabetical over the alternatives because it is the only order that is fixed for the whole life of
+the round. Sorting by pick count is a milder version of the same fault the winners-first sort had —
+an admin setting a pick after the lock moves a card — and it ranks the crowd's favourite, which each
+card already states. Kickoff order is stable but tells the reader nothing they can look something up
+by. One fixed order means a reader who saw this screen an hour ago finds the same row in the same
+place.
 
 The tick and cross icons are gone — set in `moss` and `overprint` they carried half the darkness,
 and the words carry the state better. The solid-ink "N players" pills are plain labels now; four
@@ -625,6 +651,32 @@ was.
 pick. That is untrue for anyone holding a life — most players in most competitions, the same trap
 §3b removed from the pick screen's footer. This says "You lost" / "Draw — you lost" and leaves the
 dashboard's lives panel to say what it cost.
+
+---
+
+## 3e. Bots are disclosed by a chip, and the app was not drawing it
+
+`bot_chip.dart` is the Flutter twin of the web's `components/BotChip.tsx`. Keep them looking alike.
+
+A bot's `app_user.display_name` keeps its "Bot " prefix so the admin pool reads well, but
+competitions strip it from `competition_user.player_display_name` — which makes **the chip the only
+bot disclosure a player ever sees**. `/get-standings-group` has returned `is_bot` all along, derived
+from the bot email pattern by the single definition in `services/botPool.js`;
+`StandingsPlayerModel.fromJson` simply never read it, so the app rendered bots as ordinary people.
+That is the failure the web component's own comment warns about.
+
+`isBot` defaults to **false** on the entity, so a route that does not return the flag cannot end up
+labelling a real person a bot.
+
+The chip has to appear everywhere a name is printed, or it stops being reliable disclosure. On the
+standings screen that is three places: the group rows, the pick-history sheet header, and the search
+results. **The search one is wired but cannot light up** — `/search-players` is the one
+player-facing route that does not return `is_bot`, so the web's search chip is dark for the same
+reason. The Flutter code is left in place with a comment, so fixing the route is the whole job.
+
+Known and not fixed: bot memberships created before the strip still carry the prefix in
+`player_display_name`, so a row can read "Bot George" *and* carry the chip. Cosmetic while one
+person manages every bot.
 
 ---
 

@@ -21,6 +21,9 @@ import 'package:lmslocal_flutter/presentation/pages/competition/widgets/complete
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/unpicked_players_sheet.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/your_pick_block.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/pick_remote_data_source.dart';
+import 'package:lmslocal_flutter/data/data_sources/remote/standings_remote_data_source.dart';
+import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
+import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 
 /// Competition home page - Overview of a specific competition
 /// Shows competition details, current round, picks, etc.
@@ -48,6 +51,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
   late CompetitionRemoteDataSource _competitionDataSource;
   late DashboardRemoteDataSource _dashboardDataSource;
   late PickRemoteDataSource _pickDataSource;
+  late StandingsRemoteDataSource _standingsDataSource;
 
   Competition? _competition;
   RoundInfo? _currentRound;
@@ -63,6 +67,9 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
   /// "Not picked yet" state for a moment on every load — telling a player who
   /// has picked that they haven't, which is the one thing it must never do.
   bool _myPickLoaded = false;
+
+  /// What the pick came to, once the round has been processed.
+  PickOutcome _myOutcome = PickOutcome.unknown;
 
   bool _isLoading = true;
   String? _error;
@@ -92,6 +99,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       prefs: prefs,
     );
     _pickDataSource = PickRemoteDataSource(apiClient: apiClient);
+    _standingsDataSource = StandingsRemoteDataSource(apiClient: apiClient);
 
     await _loadCompetitionData();
   }
@@ -135,6 +143,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       RoundStatistics? roundStats;
       CurrentPick? myPick;
       var myPickLoaded = false;
+      var myOutcome = PickOutcome.unknown;
 
       if (rounds.isNotEmpty) {
         currentRound = rounds.first;
@@ -148,6 +157,21 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
           } catch (e) {
             // Non-fatal: the rest of the screen is still worth showing. The
             // block stays hidden rather than claiming no pick was made.
+          }
+
+          // Only on a settled round, and only if they picked. `/get-current-pick`
+          // does not carry the outcome, and `/get-user-dashboard`'s history is no
+          // use either — it only covers rounds *before* the current one, so the
+          // round that just finished is exactly the one missing from it.
+          // `/get-player-history` returns every round with its outcome, so the
+          // extra call is confined to the case that needs it.
+          if (myPick != null &&
+              _roundStateFor(competition, currentRound).phase ==
+                  RoundPhase.complete) {
+            myOutcome = await _fetchOutcome(
+              competition.id,
+              currentRound.roundNumber,
+            );
           }
         }
 
@@ -182,6 +206,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
           _roundStats = roundStats;
           _myPick = myPick;
           _myPickLoaded = myPickLoaded;
+          _myOutcome = myOutcome;
           _isLoading = false;
           _error = null;
         });
@@ -481,19 +506,28 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     final competition = _competition!;
     if (!competition.isParticipant || !_myPickLoaded) return const [];
 
+    // An eliminated player still sees the pick that did it — on the round it
+    // happened, "Lost" beside the team is the explanation for the "Out" in the
+    // panel below. One who went out earlier has no pick for this round, and a
+    // block reading "No pick made" would be scolding them for a round they were
+    // never in.
     final isStillIn = competition.userStatus?.toLowerCase() == 'active';
-    if (!isStillIn) return const [];
+    if (!isStillIn && _myPick == null) return const [];
 
     final state = _roundState();
     switch (state.phase) {
       case RoundPhase.noRound:
-      case RoundPhase.complete:
       case RoundPhase.competitionComplete:
         return const [];
       case RoundPhase.open:
       case RoundPhase.locked:
       case RoundPhase.resultsPartial:
       case RoundPhase.resultsReady:
+      // Settled, and still shown. This used to be hidden with the two above,
+      // which took the pick off the screen at the moment the player came back to
+      // find out how it went: the heading said "After round 1" and nothing said
+      // what round 1 had done to them.
+      case RoundPhase.complete:
         break;
     }
 
@@ -501,6 +535,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       YourPickBlock(
         pick: _myPick,
         picksOpen: state.phase == RoundPhase.open,
+        outcome: _myOutcome,
         onTap: widget.onGoToPlay,
       ),
       const SizedBox(height: 16),
@@ -583,18 +618,51 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
   /// The round state, off the same three fixture counts the web dashboard uses,
   /// so the app and the web can never describe one round differently. See
   /// `core/game/round_state.dart`.
-  RoundState _roundState() {
-    final competition = _competition!;
+  RoundState _roundState() => _roundStateFor(_competition!, _currentRound);
+
+  /// The same derivation, on values passed in rather than read from state.
+  ///
+  /// Needed because the load decides whether to fetch the pick's outcome, and
+  /// that decision is the phase — which at that moment is not in `setState` yet.
+  RoundState _roundStateFor(Competition competition, RoundInfo? round) {
     return deriveDashboardRoundState(
-      currentRound: _currentRound?.roundNumber ?? competition.currentRound,
-      currentRoundLockTime:
-          _currentRound?.lockTime ?? competition.currentRoundLockTime,
+      currentRound: round?.roundNumber ?? competition.currentRound,
+      currentRoundLockTime: round?.lockTime ?? competition.currentRoundLockTime,
       competitionComplete: competition.status == 'COMPLETE',
       now: DateTime.now(),
       totalFixtures: competition.totalFixtures,
       fixturesWithResults: competition.fixturesWithResults,
       fixturesProcessed: competition.fixturesProcessed,
     );
+  }
+
+  /// The player's own outcome for a settled round, via `/get-player-history`.
+  ///
+  /// Returns `pending` rather than throwing on failure: the block then shows
+  /// "Locked in", which is true but incomplete, instead of the screen losing the
+  /// pick altogether over one call.
+  Future<PickOutcome> _fetchOutcome(int competitionId, int roundNumber) async {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return PickOutcome.pending;
+
+    try {
+      final response = await _standingsDataSource.getPlayerHistory(
+        competitionId: competitionId,
+        playerId: authState.user.id,
+      );
+
+      for (final round in response.history) {
+        if (round.roundNumber != roundNumber) continue;
+        return switch (round.pickResult) {
+          'win' => PickOutcome.won,
+          'loss' => PickOutcome.lost,
+          _ => PickOutcome.pending,
+        };
+      }
+    } catch (e) {
+      // Falls through to pending — see above.
+    }
+    return PickOutcome.pending;
   }
 
   Widget _buildCurrentRoundCard(RoundInfo round) {

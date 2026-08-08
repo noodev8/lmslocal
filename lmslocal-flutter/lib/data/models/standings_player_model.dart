@@ -66,6 +66,7 @@ class StandingsPlayerModel extends StandingsPlayer {
     super.groupName,
     super.currentPick,
     super.eliminationPick,
+    super.isBot,
   });
 
   factory StandingsPlayerModel.fromJson(Map<String, dynamic> json) {
@@ -75,6 +76,7 @@ class StandingsPlayerModel extends StandingsPlayer {
       livesRemaining: json['lives_remaining'] as int,
       status: json['status'] as String,
       groupName: json['group_name'] as String?,
+      isBot: json['is_bot'] as bool? ?? false,
       currentPick: json['current_pick'] != null
           ? CurrentPickModel.fromJson(json['current_pick'] as Map<String, dynamic>)
           : null,
@@ -91,6 +93,7 @@ class StandingsPlayerModel extends StandingsPlayer {
       'lives_remaining': livesRemaining,
       'status': status,
       'group_name': groupName,
+      'is_bot': isBot,
       'current_pick': currentPick != null
           ? (currentPick as CurrentPickModel).toJson()
           : null,
