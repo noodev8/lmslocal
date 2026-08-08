@@ -54,9 +54,12 @@ class AppRouter {
           builder: (context, state) {
             final competitionId = state.pathParameters['id']!;
             final competition = state.extra;
+            // ?tab=play lets the dashboard's "Make pick" open the Play tab
+            // directly, so the action keeps its name through the whole flow.
             return CompetitionNavigationPage(
               competitionId: competitionId,
               competition: competition,
+              initialTab: state.uri.queryParameters['tab'] == 'play' ? 1 : 0,
             );
           },
         ),

@@ -311,7 +311,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Pick Distribution',
+          'Picks',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,

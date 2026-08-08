@@ -258,6 +258,20 @@ The fixes, in order of how often they apply: a real action becomes a real button
 if primary, outlined if secondary); a field becomes `moss-wash` with `ink` on top; a warning
 becomes `ink` text with an `overprint` rule down the side. **A tint is never the answer.**
 
+### Navigation
+
+`widgets/app_nav_bar.dart` is shared by the dashboard and the competition screens so the two cannot
+drift. The dashboard carries only Home and Profile — sparse, but the app keeping its navigation as
+you move in and out of a competition beats it appearing and vanishing.
+
+The active item is marked by an ink rule **and** a weight change, never by colour alone. It
+deliberately avoids `moss`: green means "still in" in this product, and spending it on chrome would
+blunt that.
+
+`/competition/:id?tab=play` opens straight on Play. The dashboard's "Make pick" uses it, because
+landing a player on Game and making them find the tab is the action changing its name halfway
+through the flow. The tab highlight itself was never broken — that was the actual complaint's cause.
+
 | Screen | Lines | Notes |
 |---|---|---|
 | ~~`splash_page.dart`~~ | 142 | **Done.** Where icon, splash and font work met |

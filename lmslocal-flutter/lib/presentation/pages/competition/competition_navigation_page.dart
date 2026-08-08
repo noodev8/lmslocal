@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
+import 'package:lmslocal_flutter/presentation/widgets/app_nav_bar.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
@@ -17,10 +18,16 @@ class CompetitionNavigationPage extends StatefulWidget {
   final String competitionId;
   final Object? competition;
 
+  /// Which tab to open on. The dashboard's "Make pick" sends players straight
+  /// to Play (1) — landing them on Game and making them find the tab is the
+  /// action changing its name halfway through the flow.
+  final int initialTab;
+
   const CompetitionNavigationPage({
     super.key,
     required this.competitionId,
     this.competition,
+    this.initialTab = 0,
   });
 
   @override
@@ -29,7 +36,7 @@ class CompetitionNavigationPage extends StatefulWidget {
 }
 
 class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
-  int _currentIndex = 0;
+  late int _currentIndex = widget.initialTab;
 
   // Cache built pages to preserve state when switching tabs
   final Map<int, Widget> _builtPages = {};
@@ -96,17 +103,19 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
           }
         },
         child: Scaffold(
-        backgroundColor: GameTheme.background,
+        backgroundColor: CouponTheme.stock,
         appBar: AppBar(
-          backgroundColor: GameTheme.background,
+          backgroundColor: CouponTheme.stock,
           elevation: 0,
           toolbarHeight: 0,
+          // Dark icons: the app is light now, and light-on-light is the classic
+          // tell of a half-finished light-mode conversion.
           systemOverlayStyle: const SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.light,
-            statusBarBrightness: Brightness.dark,
-            systemNavigationBarColor: Colors.transparent,
-            systemNavigationBarIconBrightness: Brightness.light,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+            systemNavigationBarColor: CouponTheme.stockLit,
+            systemNavigationBarIconBrightness: Brightness.dark,
           ),
         ),
         body: _getPage(_currentIndex),
@@ -117,103 +126,44 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
   }
 
   Widget _buildNavBar() {
-    // Order: Home | Game | Play | Standings | Profile
-    return Container(
-      decoration: BoxDecoration(
-        color: GameTheme.cardBackground,
-        border: Border(
-          top: BorderSide(
-            color: GameTheme.border,
-            width: 1,
-          ),
+    return AppNavBar(
+      items: [
+        AppNavItem(
+          icon: Icons.home_outlined,
+          activeIcon: Icons.home,
+          label: 'Home',
+          isActive: false,
+          onTap: () => context.go('/dashboard'),
         ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            children: [
-              // Home - navigates to main dashboard
-              Expanded(
-                child: _buildNavItem(
-                  icon: Icons.home_outlined,
-                  label: 'Home',
-                  isActive: false,
-                  onTap: () => context.go('/dashboard'),
-                ),
-              ),
-              // Game
-              Expanded(
-                child: _buildNavItem(
-                  icon: _currentIndex == 0 ? Icons.dashboard : Icons.dashboard_outlined,
-                  label: 'Game',
-                  isActive: _currentIndex == 0,
-                  onTap: () => setState(() => _currentIndex = 0),
-                ),
-              ),
-              // Play
-              Expanded(
-                child: _buildNavItem(
-                  icon: _currentIndex == 1 ? Icons.sports_soccer : Icons.sports_soccer_outlined,
-                  label: 'Play',
-                  isActive: _currentIndex == 1,
-                  onTap: () => setState(() => _currentIndex = 1),
-                ),
-              ),
-              // Standings
-              Expanded(
-                child: _buildNavItem(
-                  icon: _currentIndex == 2 ? Icons.leaderboard : Icons.leaderboard_outlined,
-                  label: 'Standings',
-                  isActive: _currentIndex == 2,
-                  onTap: () => setState(() => _currentIndex = 2),
-                ),
-              ),
-              // Profile
-              Expanded(
-                child: _buildNavItem(
-                  icon: _currentIndex == 3 ? Icons.person : Icons.person_outline,
-                  label: 'Profile',
-                  isActive: _currentIndex == 3,
-                  onTap: () => setState(() => _currentIndex = 3),
-                ),
-              ),
-            ],
-          ),
+        AppNavItem(
+          icon: Icons.dashboard_outlined,
+          activeIcon: Icons.dashboard,
+          label: 'Game',
+          isActive: _currentIndex == 0,
+          onTap: () => setState(() => _currentIndex = 0),
         ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 26,
-            color: isActive ? GameTheme.accentGreen : GameTheme.textMuted,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              color: isActive ? GameTheme.accentGreen : GameTheme.textMuted,
-            ),
-          ),
-        ],
-      ),
+        AppNavItem(
+          icon: Icons.sports_soccer_outlined,
+          activeIcon: Icons.sports_soccer,
+          label: 'Play',
+          isActive: _currentIndex == 1,
+          onTap: () => setState(() => _currentIndex = 1),
+        ),
+        AppNavItem(
+          icon: Icons.leaderboard_outlined,
+          activeIcon: Icons.leaderboard,
+          label: 'Standings',
+          isActive: _currentIndex == 2,
+          onTap: () => setState(() => _currentIndex = 2),
+        ),
+        AppNavItem(
+          icon: Icons.person_outline,
+          activeIcon: Icons.person,
+          label: 'Profile',
+          isActive: _currentIndex == 3,
+          onTap: () => setState(() => _currentIndex = 3),
+        ),
+      ],
     );
   }
 }

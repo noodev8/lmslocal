@@ -8,6 +8,8 @@ import 'package:lmslocal_flutter/core/config/app_config.dart';
 import 'package:flutter/services.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/presentation/widgets/app_nav_bar.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/competition_remote_data_source.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_source.dart';
@@ -127,62 +129,42 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          backgroundColor: const Color(0xFF2A3F5F),
+          // Was a hardcoded navy, which survived the palette remap and left the
+          // dialog as the one dark surface in a light app.
+          backgroundColor: CouponTheme.stockLit,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.zero,
-            side: BorderSide(color: GameTheme.glowCyan.withValues(alpha: 0.3)),
+            side: CouponTheme.rule(),
           ),
-          title: Row(
-            children: [
-              Icon(Icons.group_add_outlined, color: GameTheme.glowCyan),
-              const SizedBox(width: 16),
-              Text(
-                'Join Competition',
-                style: TextStyle(
-                  color: GameTheme.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
+          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          title: Text('JOIN A COMPETITION', style: CouponTheme.heading(30)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Enter the invite code shared by the competition organiser',
-                style: TextStyle(fontSize: 14, color: GameTheme.textSecondary),
+                'Enter the invite code the organiser gave you.',
+                style: CouponTheme.bodyText,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+              Text('INVITE CODE', style: CouponTheme.label),
+              const SizedBox(height: 8),
               TextField(
                 controller: codeController,
-                style: TextStyle(
-                  color: GameTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                // An access code is something a person was handed and types in,
+                // which is exactly what font-data is for (design-system.md §3).
+                style: CouponTheme.dataText.copyWith(
+                  fontSize: 20,
+                  letterSpacing: 2,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Invite Code',
-                  labelStyle: TextStyle(color: GameTheme.textSecondary),
                   hintText: 'ABC123',
-                  hintStyle: TextStyle(color: GameTheme.textMuted),
-                  filled: true,
-                  fillColor: GameTheme.background,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: GameTheme.textMuted),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: GameTheme.textMuted),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide: BorderSide(color: GameTheme.glowCyan, width: 2),
+                  hintStyle: CouponTheme.dataText.copyWith(
+                    fontSize: 20,
+                    letterSpacing: 2,
+                    color: CouponTheme.inkFade.withValues(alpha: 0.7),
                   ),
                   errorText: errorMessage,
-                  errorStyle: TextStyle(color: GameTheme.accentRed),
                 ),
                 textCapitalization: TextCapitalization.characters,
                 enabled: !isLoading,
@@ -208,10 +190,11 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.of(dialogContext).pop(),
-              child: Text('Cancel', style: TextStyle(color: GameTheme.textSecondary)),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: (isLoading || codeController.text.trim().isEmpty)
@@ -224,25 +207,15 @@ class _DashboardPageState extends State<DashboardPage> {
                         (error) => errorMessage = error,
                       ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: GameTheme.glowBlue,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: GameTheme.cardBackground,
-                disabledForegroundColor: GameTheme.textSecondary,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                textStyle: TextStyle(
+                  fontFamily: CouponTheme.display,
+                  fontSize: 20,
+                  letterSpacing: 20 * 0.06,
+                  fontVariations: CouponTheme.weight(600),
+                ),
               ),
-              child: isLoading
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
-                      ),
-                    )
-                  : const Text(
-                      'Join Competition',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+              child: Text(isLoading ? 'JOINING…' : 'JOIN'),
             ),
           ],
         ),
@@ -328,12 +301,14 @@ class _DashboardPageState extends State<DashboardPage> {
                 foregroundColor: GameTheme.textPrimary,
                 automaticallyImplyLeading: false,
                 elevation: 0,
+                // Dark icons: the app is light now, and light-on-light is the
+                // classic tell of a half-finished light-mode conversion.
                 systemOverlayStyle: const SystemUiOverlayStyle(
                   statusBarColor: Colors.transparent,
-                  statusBarIconBrightness: Brightness.light,
-                  statusBarBrightness: Brightness.dark,
-                  systemNavigationBarColor: Colors.transparent,
-                  systemNavigationBarIconBrightness: Brightness.light,
+                  statusBarIconBrightness: Brightness.dark,
+                  statusBarBrightness: Brightness.light,
+                  systemNavigationBarColor: CouponTheme.stockLit,
+                  systemNavigationBarIconBrightness: Brightness.dark,
                 ),
                 actions: [
                   Container(
@@ -356,6 +331,29 @@ class _DashboardPageState extends State<DashboardPage> {
               )
             : null,
         body: _buildBody(),
+        // Only two destinations exist above a competition, but carrying the
+        // same bar here means the app does not gain and lose its navigation as
+        // you move in and out of a competition.
+        bottomNavigationBar: widget.showAppBar
+            ? AppNavBar(
+                items: [
+                  AppNavItem(
+                    icon: Icons.home_outlined,
+                    activeIcon: Icons.home,
+                    label: 'Home',
+                    isActive: true,
+                    onTap: () {},
+                  ),
+                  AppNavItem(
+                    icon: Icons.person_outline,
+                    activeIcon: Icons.person,
+                    label: 'Profile',
+                    isActive: false,
+                    onTap: () => context.push('/profile'),
+                  ),
+                ],
+              )
+            : null,
       ),
     );
   }
@@ -1368,7 +1366,9 @@ class _DashboardPageState extends State<DashboardPage> {
                 // is secondary and outlined.
                 Builder(builder: (context) {
                   void open() => context.go(
-                        '/competition/${competition.id}',
+                        needsPick
+                            ? '/competition/${competition.id}?tab=play'
+                            : '/competition/${competition.id}',
                         extra: competition,
                       );
                   final label = Text(needsPick ? 'MAKE PICK' : 'ENTER');
