@@ -7,14 +7,33 @@ it records how it lands in Flutter and what is done.
 The app is **live on both stores** (`1.2.9+15` at the time of writing) and is **player-only**.
 Every API it needs already exists; no server work is in scope.
 
-**Status:** Release A in progress on Android. Baseline was commit `aa0f83e`.
+**Status:** the core is done on Android. Baseline was commit `aa0f83e`; this work ends at `47ce453`.
 
-Done: fonts bundled, low-risk dependency bumps, version to `2.0.0+16`, launcher icons
-(adaptive + monochrome + iOS) from the new badge, native and Dart splash on `stock`,
-`coupon_theme.dart` tokens. Verified building and installing on a physical SM A426B (Android 12).
+**Done, and exercised on a physical SM A426B (Android 12):**
 
-Outstanding for Release A: the four major dependency bumps (`go_router`, Firebase,
-`flutter_secure_storage`, `package_info_plus`), then the iOS build on the Mac.
+- Toolchain: every dependency current, including the four majors. `compileSdk` pinned to 37.
+- Version `2.0.0+16`. The forced-update gate is gone (§2).
+- Launcher icons — adaptive, monochrome and iOS — from the new badge. Native and Dart splash
+  on `stock`, so there is no flash between them.
+- The whole app is on the coupon palette, square, and free of blurred shadows.
+- Splash and the three auth screens are properly migrated; everything else is on the palette
+  via the shims in §3 and awaits its own pass.
+- Shared bottom navigation, on the dashboard as well as inside a competition.
+- Sign in, session persistence across a cold restart, routing, and the join dialog all verified
+  by hand on the device.
+
+**Not done, and none of it blocked by the app code** — see §6 for the detail:
+
+1. `/join/*` deep links: the app-side route, plus adding `"/join/*"` to
+   `apple-app-site-association` and **deploying it**.
+2. The iOS build, on the Mac. Nothing iOS-specific has been run — only compiled against.
+3. A real push-notification send, after the Firebase 3→4 / 15→16 bump.
+4. The remaining screens' own migration passes, and the UX rework that follows.
+
+**One risk to carry forward.** `flutter_secure_storage` 11 was verified reading a token *it* wrote,
+on a fresh install — not one written by v9, which is what everyone currently on 1.2.9 has. A forced
+re-login on upgrade is accepted rather than engineered around, but it has not been proven either
+way, so do not report it as tested.
 
 ---
 
