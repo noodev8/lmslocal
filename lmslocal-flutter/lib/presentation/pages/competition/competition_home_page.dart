@@ -36,11 +36,16 @@ class CompetitionHomePage extends StatefulWidget {
   /// one tap from the screen that changes the pick.
   final VoidCallback? onGoToPlay;
 
+  /// Switches the shell to Standings — where an eliminated player's own row,
+  /// and the round they went out in, are.
+  final VoidCallback? onGoToStandings;
+
   const CompetitionHomePage({
     super.key,
     required this.competitionId,
     this.initialCompetition,
     this.onGoToPlay,
+    this.onGoToStandings,
   });
 
   @override
@@ -70,6 +75,12 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
 
   /// What the pick came to, once the round has been processed.
   PickOutcome _myOutcome = PickOutcome.unknown;
+
+  /// For a player who is out: the pick that ended it, and the round it was.
+  /// Held apart from `_myPick` because it belongs to an earlier round — usually
+  /// not the one the rest of the screen is describing.
+  CurrentPick? _knockoutPick;
+  int? _knockoutRound;
 
   bool _isLoading = true;
   String? _error;
@@ -144,11 +155,23 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       CurrentPick? myPick;
       var myPickLoaded = false;
       var myOutcome = PickOutcome.unknown;
+      CurrentPick? knockoutPick;
+      int? knockoutRound;
 
       if (rounds.isNotEmpty) {
         currentRound = rounds.first;
 
-        if (competition.isParticipant) {
+        final isStillIn = competition.userStatus?.toLowerCase() == 'active';
+
+        if (competition.isParticipant && !isStillIn) {
+          // An eliminated player has no pick in the current round — often not
+          // even a round of their own on screen, since a new one starts while
+          // they are out. What they have is the pick that ended it.
+          final knockout = await _fetchKnockout(competition.id);
+          knockoutPick = knockout?.pick;
+          knockoutRound = knockout?.round;
+          myPickLoaded = true;
+        } else if (competition.isParticipant) {
           try {
             myPick = await _pickDataSource.getCurrentPickDetail(
               currentRound.id,
@@ -207,6 +230,8 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
           _myPick = myPick;
           _myPickLoaded = myPickLoaded;
           _myOutcome = myOutcome;
+          _knockoutPick = knockoutPick;
+          _knockoutRound = knockoutRound;
           _isLoading = false;
           _error = null;
         });
@@ -506,13 +531,27 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     final competition = _competition!;
     if (!competition.isParticipant || !_myPickLoaded) return const [];
 
-    // An eliminated player still sees the pick that did it — on the round it
-    // happened, "Lost" beside the team is the explanation for the "Out" in the
-    // panel below. One who went out earlier has no pick for this round, and a
-    // block reading "No pick made" would be scolding them for a round they were
-    // never in.
+    // An eliminated player sees the pick that ended it, whichever round that was,
+    // and taps through to the standings rather than to Play — they have no stake
+    // in the round now being played, so Play has nothing of theirs to show. This
+    // is the explanation for the "Out" in the panel below; without it the screen
+    // states the verdict and withholds the reason.
+    //
+    // Nothing at all if the losing round could not be established: a block naming
+    // the wrong round would be worse than the bare "Out".
     final isStillIn = competition.userStatus?.toLowerCase() == 'active';
-    if (!isStillIn && _myPick == null) return const [];
+    if (!isStillIn) {
+      if (_knockoutRound == null) return const [];
+      return [
+        YourPickBlock(
+          pick: _knockoutPick,
+          picksOpen: false,
+          knockedOutInRound: _knockoutRound,
+          onTap: widget.onGoToStandings,
+        ),
+        const SizedBox(height: 16),
+      ];
+    }
 
     final state = _roundState();
     switch (state.phase) {
@@ -634,6 +673,46 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       fixturesWithResults: competition.fixturesWithResults,
       fixturesProcessed: competition.fixturesProcessed,
     );
+  }
+
+  /// The pick that knocked the player out: the most recent losing round.
+  ///
+  /// `/get-player-history` returns every round newest-first, so the first `loss`
+  /// is the one that ended it. A missed pick also comes back as `loss` with no
+  /// team, which is why the pick may be null while the round is known — the block
+  /// then says no pick was made, which is the true reason they went out.
+  Future<({CurrentPick? pick, int round})?> _fetchKnockout(
+    int competitionId,
+  ) async {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return null;
+
+    try {
+      final response = await _standingsDataSource.getPlayerHistory(
+        competitionId: competitionId,
+        playerId: authState.user.id,
+      );
+
+      for (final round in response.history) {
+        if (round.pickResult != 'loss') continue;
+        final team = round.pickTeam;
+        return (
+          pick: team.isEmpty
+              ? null
+              : CurrentPick(
+                  team: team,
+                  teamFullName: round.pickTeamFullName.isEmpty
+                      ? team
+                      : round.pickTeamFullName,
+                  fixture: round.fixture ?? '',
+                ),
+          round: round.roundNumber,
+        );
+      }
+    } catch (e) {
+      // Nothing to show rather than a wrong round — see _buildYourPick.
+    }
+    return null;
   }
 
   /// The player's own outcome for a settled round, via `/get-player-history`.

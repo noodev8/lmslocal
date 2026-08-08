@@ -74,6 +74,7 @@ class _CompetitionNavigationPageState extends State<CompetitionNavigationPage> {
           // competition dashboard is as deliberate as tapping the tab, and back
           // must then return there rather than to the main dashboard.
           onGoToPlay: () => _selectTab(1),
+          onGoToStandings: () => _selectTab(2),
         );
         break;
       case 1:

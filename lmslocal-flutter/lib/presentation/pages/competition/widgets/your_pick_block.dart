@@ -38,15 +38,20 @@ enum PickOutcome { unknown, pending, won, lost }
 ///   answer away at the moment the player came looking for it: the screen said
 ///   "After round 1" and nothing said what round 1 had done to them.
 ///
-/// Tappable in every state, because the block sends the player to the Play tab
-/// and the Play tab always has something to show them — the pick screen, the
-/// live round, or the full results. Only the copy tracks what the tap will find.
+/// - **Knocked out** — the pick that ended it, named with its round, and the tap
+///   goes to the standings rather than to Play. An eliminated player has no stake
+///   in the current round, so Play has nothing of theirs to show; the standings
+///   have their row, their round, and everyone who is still going.
+///
+/// Tappable in every state, because the block always leads somewhere with more of
+/// the same story. Only the copy tracks what the tap will find.
 class YourPickBlock extends StatelessWidget {
   const YourPickBlock({
     super.key,
     required this.pick,
     required this.picksOpen,
     this.outcome = PickOutcome.unknown,
+    this.knockedOutInRound,
     this.onTap,
   });
 
@@ -59,6 +64,12 @@ class YourPickBlock extends StatelessWidget {
   final bool picksOpen;
 
   final PickOutcome outcome;
+
+  /// Set when this is the pick that eliminated the player, and which round it
+  /// was. The round has to be named: by the time they read it there is usually a
+  /// newer round on the screen above, so an unlabelled team would look like a
+  /// pick in the round now being played.
+  final int? knockedOutInRound;
 
   /// Where a tap goes — the Play tab, which routes to the pick screen or the
   /// round's results depending on the lock. Null leaves the block inert.
@@ -84,7 +95,12 @@ class YourPickBlock extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('YOUR PICK', style: CouponTheme.label),
+                    Text(
+                      knockedOutInRound != null
+                          ? 'YOUR LAST PICK · ROUND $knockedOutInRound'
+                          : 'YOUR PICK',
+                      style: CouponTheme.label,
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -97,7 +113,8 @@ class YourPickBlock extends StatelessWidget {
                           height: 8,
                           decoration: BoxDecoration(
                             color: (pick != null &&
-                                    outcome != PickOutcome.lost)
+                                    outcome != PickOutcome.lost &&
+                                    knockedOutInRound == null)
                                 ? CouponTheme.moss
                                 : CouponTheme.overprint,
                             shape: BoxShape.circle,
@@ -107,13 +124,13 @@ class YourPickBlock extends StatelessWidget {
                         Expanded(child: _value(pick)),
                       ],
                     ),
-                    if (pick != null && pick.fixture.isNotEmpty) ...[
+                    if (_caption(pick) case final caption?) ...[
                       const SizedBox(height: 4),
                       Padding(
                         // Aligned under the team name, clear of the dot.
                         padding: const EdgeInsets.only(left: 16),
                         child: Text(
-                          pick.fixture,
+                          caption,
                           style: CouponTheme.dataText.copyWith(
                             fontSize: 13,
                             color: CouponTheme.inkFade,
@@ -133,6 +150,18 @@ class YourPickBlock extends StatelessWidget {
     );
   }
 
+  /// The fixture, on its own.
+  ///
+  /// The round used to be prefixed here for a knocked-out player, and a real
+  /// fixture pushed it onto two lines — "Round 2 · Crystal Palace vs Fulham". It
+  /// belongs with the heading anyway: the heading is where this block says which
+  /// round it is talking about, and a live round says nothing there because the
+  /// round is what the whole screen is about.
+  String? _caption(CurrentPick? pick) {
+    final fixture = pick?.fixture ?? '';
+    return fixture.isEmpty ? null : fixture;
+  }
+
   /// The team as the player picked it, in `font-data` — a value someone chose,
   /// not interface chrome (design-system.md §3). The empty states are the app
   /// talking, so they are set in body type instead.
@@ -146,6 +175,8 @@ class YourPickBlock extends StatelessWidget {
     }
 
     return Text(
+      // A knocked-out player with no pick went out by missing one, which is a
+      // different sentence from a round still open.
       picksOpen ? 'Not picked yet' : 'No pick made',
       style: CouponTheme.intro.copyWith(
         fontSize: 18,
@@ -165,6 +196,14 @@ class YourPickBlock extends StatelessWidget {
     final String label;
     final Color colour;
 
+    // Knocked out beats the round's own state: whatever phase the competition has
+    // moved on to, this block is about the round that ended their run.
+    if (knockedOutInRound != null) {
+      label = 'LOST';
+      colour = CouponTheme.overprint;
+      return _labelled(label, colour, tappable);
+    }
+
     switch (outcome) {
       case PickOutcome.won:
         label = 'WON';
@@ -183,18 +222,21 @@ class YourPickBlock extends StatelessWidget {
         }
     }
 
-    if (!tappable) return Text(label, style: CouponTheme.label.copyWith(color: colour));
+    return _labelled(label, colour, tappable);
+  }
+
+  Widget _labelled(String label, Color colour, bool tappable) {
+    final style = CouponTheme.label.copyWith(
+      color: colour,
+      fontWeight: outcome == PickOutcome.won ? FontWeight.w600 : null,
+    );
+
+    if (!tappable) return Text(label, style: style);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: CouponTheme.label.copyWith(
-            color: colour,
-            fontWeight: outcome == PickOutcome.won ? FontWeight.w600 : null,
-          ),
-        ),
+        Text(label, style: style),
         Icon(Icons.chevron_right, size: 20, color: colour),
       ],
     );

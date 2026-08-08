@@ -496,10 +496,28 @@ does not carry it. `/get-user-dashboard`'s `history` only covers rounds **before
 call is confined to the case that needs it — settled round, and only if they picked. A failure falls
 back to "Locked in" rather than costing the screen its pick.
 
-**An eliminated player still sees the pick that did it.** On the round it happened, "Lost" beside
-the team is the explanation for the "Out" in the panel below. Someone eliminated in an earlier round
-has no pick for the current round, and there the block hides rather than reading "No pick made" at a
-player who was never in it.
+**An eliminated player sees the pick that ended it, and taps through to the standings** rather than
+to Play. This started as "the pick that did it, on the round it happened", which held up for about
+five minutes: a new round opens while a knocked-out player is out, so the current round holds no pick
+of theirs and the block vanished again — the screen stated "Out" and withheld the reason.
+
+It now looks up the **last losing round** instead, which works whatever round the competition has
+moved on to: `/get-player-history` returns rounds newest-first, so the first `loss` is the one that
+ended the run. Play is the wrong destination for them — they have no stake in the round being played,
+so it has nothing of theirs to show, while the standings have their row and their round.
+
+Three things that fall out of it:
+
+- **The round is named in the heading** — "YOUR LAST PICK · ROUND 2". It has to be named at all
+  because the panel above says "ROUND 3", and an unlabelled team there reads as a pick in the round
+  now being played. It sits in the heading rather than the caption because a real fixture prefixed
+  with "Round 2 · " wrapped onto two lines. That also makes the two cases one shape: the heading
+  names the round when it is not the obvious one, and the caption is always just the fixture.
+- **A missed pick reaches this code too.** `pick_result` is `loss` for `NO_PICK` as well, with no
+  team attached, so the block says "No pick made" against the round — which is the true reason they
+  went out.
+- **If the losing round cannot be established, nothing is drawn.** A block naming the wrong round is
+  worse than the bare "Out".
 
 Two things to keep if this is touched again:
 
