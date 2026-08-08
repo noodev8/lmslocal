@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
@@ -62,12 +62,24 @@ export default function OrganizerFixturesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
+  // The error banner sits above the form, so an organiser who submits from the team grid at
+  // the bottom never sees it appear. Bring it to them.
+  const errorRef = useRef<HTMLDivElement>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Block state
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockReason, setBlockReason] = useState('');
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+
+  // YYYY-MM-DD in the organiser's own timezone. toISOString() would convert to UTC first,
+  // so west of Greenwich an evening date, and east of it an early-morning one, silently
+  // shift by a day - the button would say "Sat 8" and select the 7th.
+  const toLocalDateValue = (date: Date): string => {
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+  };
 
   // Helper function to get next occurrence of a day of week
   const getNextDayOfWeek = (dayOfWeek: number, weeksAhead: number = 0): Date => {
@@ -100,17 +112,17 @@ export default function OrganizerFixturesPage() {
 
     shortcuts.push({
       label: `This Fri ${thisFri.getDate()} ${thisFri.toLocaleString('en-GB', { month: 'short' })}`,
-      value: thisFri.toISOString().split('T')[0],
+      value: toLocalDateValue(thisFri),
       isCurrent: true
     });
     shortcuts.push({
       label: `This Sat ${thisSat.getDate()} ${thisSat.toLocaleString('en-GB', { month: 'short' })}`,
-      value: thisSat.toISOString().split('T')[0],
+      value: toLocalDateValue(thisSat),
       isCurrent: true
     });
     shortcuts.push({
       label: `This Tue ${thisTue.getDate()} ${thisTue.toLocaleString('en-GB', { month: 'short' })}`,
-      value: thisTue.toISOString().split('T')[0],
+      value: toLocalDateValue(thisTue),
       isCurrent: true
     });
 
@@ -121,17 +133,17 @@ export default function OrganizerFixturesPage() {
 
     shortcuts.push({
       label: `Next Fri ${nextFri.getDate()} ${nextFri.toLocaleString('en-GB', { month: 'short' })}`,
-      value: nextFri.toISOString().split('T')[0],
+      value: toLocalDateValue(nextFri),
       isCurrent: false
     });
     shortcuts.push({
       label: `Next Sat ${nextSat.getDate()} ${nextSat.toLocaleString('en-GB', { month: 'short' })}`,
-      value: nextSat.toISOString().split('T')[0],
+      value: toLocalDateValue(nextSat),
       isCurrent: false
     });
     shortcuts.push({
       label: `Next Tue ${nextTue.getDate()} ${nextTue.toLocaleString('en-GB', { month: 'short' })}`,
-      value: nextTue.toISOString().split('T')[0],
+      value: toLocalDateValue(nextTue),
       isCurrent: false
     });
 
@@ -146,6 +158,21 @@ export default function OrganizerFixturesPage() {
     { label: '7:30pm', value: '19:30' }
   ];
 
+  // Which of the time shortcuts have already gone by on the chosen date. "This Sat" can be
+  // today, and today's 3pm is not a lock time you can still offer players - so say so on the
+  // button rather than letting the organiser find out at submit.
+  const pastTimeShortcuts = useMemo(() => {
+    const past = new Set<string>();
+    if (!kickoffDate) return past;
+    const now = new Date();
+    timeShortcuts.forEach(({ value }) => {
+      if (new Date(`${kickoffDate}T${value}:00`) < now) past.add(value);
+    });
+    return past;
+    // timeShortcuts is a module-level constant in all but name; only the date moves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kickoffDate]);
+
   // Set default date to next Friday on component mount
   useEffect(() => {
     if (!kickoffDate && dateShortcuts.length > 0) {
@@ -153,6 +180,12 @@ export default function OrganizerFixturesPage() {
       setKickoffDate(dateShortcuts[0].value);
     }
   }, [dateShortcuts, kickoffDate]);
+
+  useEffect(() => {
+    if (submitError) {
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [submitError]);
 
   // Format selected date/time for display
   const selectedDateTimeDisplay = useMemo(() => {
@@ -315,7 +348,9 @@ export default function OrganizerFixturesPage() {
     const now = new Date();
 
     if (kickoffDateTime < now) {
-      setSubmitError('Kickoff date and time cannot be in the past. Please select a future date and time.');
+      // Name the time they actually chose - "in the past" alone reads as a bug when the date
+      // looks fine and it is only the hour that has gone by.
+      setSubmitError(`${selectedDateTimeDisplay} has already passed. Choose a later date or time.`);
       return;
     }
 
@@ -427,8 +462,13 @@ export default function OrganizerFixturesPage() {
           </div>
         )}
         {submitError && (
-          <div className={`${PANEL} mt-5 border-overprint p-4`}>
-            <p className="text-[15px] text-ink">{submitError}</p>
+          <div
+            ref={errorRef}
+            role="alert"
+            className={`${PANEL} mt-5 border-2 border-overprint border-l-8 p-4`}
+          >
+            <p className={`${LABEL} text-overprint`}>Not saved</p>
+            <p className="mt-1 text-[15px] font-semibold text-overprint">{submitError}</p>
           </div>
         )}
 
@@ -472,9 +512,9 @@ export default function OrganizerFixturesPage() {
                 {showCustomDate && (
                   <input
                     type="date"
-                    {...(kickoffDate && { value: kickoffDate })}
+                    value={kickoffDate}
                     onChange={(e) => setKickoffDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={toLocalDateValue(new Date())}
                     className="mt-2 w-full rounded-sm border border-ink bg-transparent px-3 py-2 text-[15px] text-ink focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   />
                 )}
@@ -484,23 +524,30 @@ export default function OrganizerFixturesPage() {
               <div className="mt-5">
                 <p className={`${LABEL} mb-3 text-ink-fade`}>Time</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {timeShortcuts.map((shortcut) => (
-                    <button
-                      key={shortcut.value}
-                      type="button"
-                      onClick={() => {
-                        setKickoffTime(shortcut.value);
-                        setShowCustomTime(false);
-                      }}
-                      className={`border px-3 py-3 text-center transition-colors ${
-                        kickoffTime === shortcut.value
-                          ? 'border-ink bg-ink text-stock-lit'
-                          : 'border-ink/30 text-ink hover:border-ink'
-                      }`}
-                    >
-                      <div className="font-data text-base">{shortcut.label}</div>
-                    </button>
-                  ))}
+                  {timeShortcuts.map((shortcut) => {
+                    const hasPassed = pastTimeShortcuts.has(shortcut.value);
+                    return (
+                      <button
+                        key={shortcut.value}
+                        type="button"
+                        disabled={hasPassed}
+                        onClick={() => {
+                          setKickoffTime(shortcut.value);
+                          setShowCustomTime(false);
+                        }}
+                        className={`border px-3 py-3 text-center transition-colors ${
+                          hasPassed
+                            ? 'cursor-not-allowed border-ink/20 text-ink-fade/50 line-through'
+                            : kickoffTime === shortcut.value
+                              ? 'border-ink bg-ink text-stock-lit'
+                              : 'border-ink/30 text-ink hover:border-ink'
+                        }`}
+                      >
+                        <div className="font-data text-base">{shortcut.label}</div>
+                        {hasPassed && <div className={`${LABEL} mt-0.5 no-underline`}>Passed</div>}
+                      </button>
+                    );
+                  })}
                 </div>
                 <button
                   type="button"

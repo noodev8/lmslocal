@@ -19,7 +19,11 @@ Success Response (ALWAYS HTTP 200):
   "unpicked_players": [                // array, players who haven't picked (alphabetical by display_name)
     {
       "user_id": 10,                   // integer, user ID
-      "display_name": "John Smith"     // string, player's display name
+      "display_name": "John Smith",    // string, player's display name
+      "is_guest": false                // boolean, true for offline guests - players with no login,
+                                       //          so the organiser must pick for them. Bots are
+                                       //          excluded: they cannot pick either, but nobody
+                                       //          is waiting on their pick
     },
     ...
   ],
@@ -152,7 +156,19 @@ router.post('/', verifyToken, async (req, res) => {
     const unpickedQuery = await query(`
       SELECT
         au.id as user_id,
-        cu.player_display_name as display_name
+        cu.player_display_name as display_name,
+        -- add-offline-player mints {id}@lms-guest.com for a guest: no login, so they can never
+        -- pick for themselves, which makes them the organiser's job rather than someone to
+        -- chase.
+        --
+        -- Bots carry bot_<name>@lms-guest.com and are deliberately NOT guests here. They cannot
+        -- pick either, but they are seeding furniture in a competition the organiser is trying
+        -- out - asking him to make picks for them is asking him to do work for nobody. The
+        -- prefix test matches services/botPool.js isBotEmail().
+        (
+          au.email IS NULL
+          OR (au.email LIKE '%@lms-guest.com' AND au.email NOT LIKE 'bot\\_%')
+        ) as is_guest
       FROM competition_user cu
       INNER JOIN app_user au ON cu.user_id = au.id
       LEFT JOIN pick p ON p.round_id = $2 AND p.user_id = au.id
@@ -165,7 +181,8 @@ router.post('/', verifyToken, async (req, res) => {
     // Build unpicked players array from query results
     const unpickedPlayers = unpickedQuery.rows.map(row => ({
       user_id: row.user_id,
-      display_name: row.display_name
+      display_name: row.display_name,
+      is_guest: row.is_guest === true
     }));
 
     // Return success response with unpicked players list

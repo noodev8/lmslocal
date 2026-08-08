@@ -207,16 +207,6 @@ export default function PickPage() {
 
 
 
-  const getFullTeamName = (shortName: string) => {
-    const fixture = fixtures.find(f =>
-      f.home_team_short === shortName || f.away_team_short === shortName
-    );
-    if (fixture) {
-      return fixture.home_team_short === shortName ? fixture.home_team : fixture.away_team;
-    }
-    return shortName;
-  };
-
   /**
    * Tapping a team IS the pick. There is no separate confirm step, and no modal in its place.
    *
@@ -265,16 +255,15 @@ export default function PickPage() {
           refreshData();
         }
 
-        // Names the team. With the tap itself being the pick, this is the only confirmation the
-        // player gets, so it has to say what was saved rather than that something was.
+        // No toast on an ordinary pick. The badge lands on the team they just tapped, which is
+        // the same fact in the place they are already looking - a message naming the team on top
+        // of that is the third time the screen has told them. Failures still speak, below.
         if (roundLocked) {
           showToast('You were the last player to pick. Pick choices are now available.', 'success');
           // Refresh page to show updated lock status
           setTimeout(() => {
             window.location.reload();
           }, 1500); // Give user time to see the toast
-        } else {
-          showToast(`Picked ${getFullTeamName(teamShort)}`, 'success');
         }
       } else {
         showToast('Failed to save pick: ' + (response.data.message || 'Unknown error'), 'error');

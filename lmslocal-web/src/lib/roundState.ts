@@ -489,6 +489,16 @@ export function pickDeadlineText(state: RoundState): string {
 }
 
 /**
+ * The deadline on its own — "Fri 7:30pm" — for callers writing their own sentence around it.
+ * Same formatting as pickDeadlineText, which is the point: two spellings of one instant on one
+ * screen reads as two different times.
+ */
+export function lockDeadlineText(state: RoundState): string | null {
+  if (!state.lockTime) return null;
+  return formatShort(state.lockTime);
+}
+
+/**
  * Kickoff times are UK kickoff times, so they are always shown in UK time — never the viewer's
  * local zone. An organiser checking the app from Spain still needs to read the time Arsenal
  * actually kick off, and a player who sees "9pm" when the pub says "8pm" has been given wrong

@@ -517,7 +517,9 @@ export const competitionApi = {
     return_code: string;
     message?: string;
     round_number?: number;
-    unpicked_players?: Array<{ user_id: number; display_name: string }>;
+    // is_guest covers guests and bots alike: neither can sign in, so the organiser is the only
+    // one who can pick for them.
+    unpicked_players?: Array<{ user_id: number; display_name: string; is_guest?: boolean }>;
     total_unpicked?: number;
   }>('/get-unpicked-players', { competition_id, round_id }),
   update: (data: UpdateCompetitionRequest) => api.post<UpdateCompetitionResponse & { return_code: string; message?: string }>('/update-competition', data),

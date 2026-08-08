@@ -15,13 +15,15 @@ import {
   CalendarIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi, playerActionApi, fixtureApi } from '@/lib/api';
+import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi, playerActionApi, fixtureApi, userApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
+import { getCurrentUser } from '@/lib/auth';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
 import {
   deriveDashboardRoundState,
   pickDeadlineText,
+  lockDeadlineText,
   isStartGateVisible,
   startBlockedText,
   formatRoundStart,
@@ -151,6 +153,13 @@ export default function UnifiedGameDashboard() {
   const [readyError, setReadyError] = useState<string | null>(null);
   const [messageCopied, setMessageCopied] = useState(false);
 
+  /* Guests and bots with no pick for the open round. They cannot sign in, so nobody but the
+     organiser can pick for them - which makes this a job with a deadline rather than a stat.
+     Kept apart from `unpickedPlayers` above: that list is everyone, and the point here is the
+     part of it that is his to do. */
+  const [unpickedGuests, setUnpickedGuests] = useState<Array<{ user_id: number; display_name: string }>>([]);
+  const unpickedGuestsLoadedRef = useRef(false);
+
   // Unpicked players modal state
   const [showUnpickedModal, setShowUnpickedModal] = useState(false);
   const [unpickedPlayers, setUnpickedPlayers] = useState<Array<{ user_id: number; display_name: string }>>([]);
@@ -179,6 +188,18 @@ export default function UnifiedGameDashboard() {
   // How their pick actually finished, once the result is in. Null while the fixture is unplayed.
   const [myPickOutcome, setMyPickOutcome] = useState<'won' | 'lost' | 'draw' | null>(null);
   const myPickOutcomeLoadedRef = useRef(false);
+
+  // The round that knocked them out, for a player who is no longer in. Their current-round pick
+  // says nothing here - once out they stop picking, so `myPick` is null and the card would have
+  // read "not picked yet" at someone who cannot pick.
+  const [myExit, setMyExit] = useState<{
+    round_number: number;
+    team_full_name: string | null;
+    beaten_by: string | null;
+    drew: boolean;
+  } | null>(null);
+  const [myExitLoaded, setMyExitLoaded] = useState(false);
+  const myExitLoadedRef = useRef(false);
 
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
@@ -596,6 +617,72 @@ export default function UnifiedGameDashboard() {
           });
       }
 
+      // The round that put them out. Only for a participant who is no longer active, and only
+      // once: their history cannot change after elimination.
+      if (
+        !myExitLoadedRef.current &&
+        competition.is_participant &&
+        competition.user_status &&
+        competition.user_status !== 'active'
+      ) {
+        myExitLoadedRef.current = true;
+        const user = getCurrentUser();
+        if (user) {
+          userApi.getPlayerHistory(parseInt(competitionId), user.id)
+            .then(response => {
+              if (response.data.return_code !== 'SUCCESS') return;
+              // Rounds come back newest first, so the first losing round is the one that did it.
+              const exit = (response.data.history || []).find(r => r.pick_result === 'loss');
+              if (!exit) return;
+
+              // The fixture string carries both full names; theirs is one of them, so the other
+              // is who beat them. Missing when they never picked - that is a self-inflicted
+              // exit and there is nobody to name.
+              let beatenBy: string | null = null;
+              if (exit.fixture && exit.pick_team_full_name) {
+                const sides = exit.fixture.split(/\s+vs?\s+/i);
+                beatenBy = sides.find(side => side.trim() !== exit.pick_team_full_name.trim())?.trim() || null;
+              }
+
+              setMyExit({
+                round_number: exit.round_number,
+                team_full_name: exit.pick_team_full_name || null,
+                beaten_by: beatenBy,
+                drew: exit.fixture_result === 'DRAW'
+              });
+              setMyExitLoaded(true);
+            })
+            .catch(() => {
+              myExitLoadedRef.current = false;
+            });
+        }
+      }
+
+      /* Who still needs a pick made for them. Only while the round is open - once it locks
+         nothing can be done about it and a prompt would just be a reproach - and only for
+         someone who can actually act on it. */
+      if (
+        !unpickedGuestsLoadedRef.current &&
+        currentRoundInfo &&
+        !currentRoundInfo.is_locked &&
+        (currentRoundInfo.fixture_count || 0) > 0 &&
+        (competition.is_organiser || canManagePlayers)
+      ) {
+        unpickedGuestsLoadedRef.current = true;
+        competitionApi.getUnpickedPlayers(competition.id)
+          .then(response => {
+            if (response.data.return_code !== 'SUCCESS') return;
+            setUnpickedGuests(
+              (response.data.unpicked_players || [])
+                .filter(p => p.is_guest)
+                .map(p => ({ user_id: p.user_id, display_name: p.display_name }))
+            );
+          })
+          .catch(() => {
+            unpickedGuestsLoadedRef.current = false;
+          });
+      }
+
       // Load round statistics for the most recently completed round
       if (SHOW_ROUND_STATISTICS && !roundStatsLoadedRef.current && currentRoundInfo) {
         roundStatsLoadedRef.current = true;
@@ -651,7 +738,7 @@ export default function UnifiedGameDashboard() {
           });
       }
     }
-  }, [competition, competitionId, router, currentRoundInfo, myPick]);
+  }, [competition, competitionId, router, currentRoundInfo, myPick, canManagePlayers]);
 
   // Reset current round stats ref when round is locked
   useEffect(() => {
@@ -665,6 +752,11 @@ export default function UnifiedGameDashboard() {
   useEffect(() => {
     pickStatsLoadedRef.current = false;
   }, [competition?.player_count, currentRoundInfo?.round_number]);
+
+  // A new round means new guest picks owed, and coming back from setting one should re-ask.
+  useEffect(() => {
+    unpickedGuestsLoadedRef.current = false;
+  }, [currentRoundInfo?.round_number, competition?.player_count]);
 
   // A new round means a new pick to make, so the old answer must not survive into it.
   useEffect(() => {
@@ -807,6 +899,71 @@ export default function UnifiedGameDashboard() {
               <p className="mt-2 font-display text-6xl text-overprint">{competition.player_count}</p>
               <p className={`${LABEL} mt-1 text-ink-fade`}>Still in</p>
             </div>
+
+            {/* Guest picks the organiser owes. A guest has no login and no app, so a round can
+                lock with them unpicked and nobody the wiser until a life is gone - and the only
+                route to fixing it was Players, find the row, overflow menu, Set pick.
+
+                It removes itself the moment nothing is owed, which is what lets it be a card
+                rather than a permanent counter: if it is on screen, there is something to do. */}
+            {unpickedGuests.length > 0 && (
+              <div className={`${PANEL} border-l-4 border-l-overprint p-4`}>
+                <p className={`${LABEL} text-ink-fade`}>Guest picks</p>
+                <p className="mt-1.5 text-[17px] text-ink">
+                  {unpickedGuests.length === 1
+                    ? '1 to make'
+                    : `${unpickedGuests.length} to make`}
+                  {lockDeadlineText(dashboardRoundState) && (
+                    <span className="text-ink-fade"> before {lockDeadlineText(dashboardRoundState)}</span>
+                  )}
+                </p>
+                <p className="mt-1 font-data text-[13px] text-ink-fade">
+                  {unpickedGuests.map(g => g.display_name).join(' \u00b7 ')}
+                </p>
+                {/* Straight into the pick modal for the first of them, rather than the players
+                    list. With one guest that is the whole job done in a tap. */}
+                <Link
+                  href={`/game/${competitionId}/players?pick=${unpickedGuests[0].user_id}`}
+                  className={`${BTN_PRIMARY} mt-4 inline-flex px-5 py-2.5 text-base`}
+                >
+                  {unpickedGuests.length === 1 ? `Pick for ${unpickedGuests[0].display_name}` : 'Set guest picks'}
+                </Link>
+              </div>
+            )}
+
+            {/* The same slot for a player who is out, showing the pick that did it and who beat
+                them. The card used to disappear on elimination, which left the one question they
+                have - "what knocked me out?" - answered nowhere on the screen. It goes to
+                standings rather than the round: their own round is finished, and what is left to
+                follow is everyone else. */}
+            {isParticipant && myExitLoaded && myExit && competition.user_status !== 'active' && (
+              <div className={`${PANEL} flex items-center justify-between gap-4 p-4`}>
+                <div className="min-w-0">
+                  <p className={`${LABEL} text-ink-fade`}>Knocked out &mdash; round {myExit.round_number}</p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="h-2 w-2 flex-none rounded-full bg-overprint" />
+                    {myExit.team_full_name ? (
+                      <p className="truncate font-data text-lg text-ink">{myExit.team_full_name}</p>
+                    ) : (
+                      <p className="text-lg text-overprint">No pick made</p>
+                    )}
+                  </div>
+                  {myExit.beaten_by && (
+                    <p className="mt-1 pl-4 text-[13px] text-ink-fade">
+                      {myExit.drew ? 'Drew with' : 'Beaten by'}{' '}
+                      <span className="font-data">{myExit.beaten_by}</span>
+                    </p>
+                  )}
+                </div>
+                <Link
+                  href={`/game/${competitionId}/standings`}
+                  className={`${LABEL} flex flex-none items-center gap-1 text-ink-fade hover:text-ink`}
+                >
+                  Standings
+                  <ChevronRightIcon className="h-4 w-4" />
+                </Link>
+              </div>
+            )}
 
             {/* The player's own pick, above their status: it is the one thing here they can still
                 act on, and it reads that way on the Flutter dashboard, which puts it in the same

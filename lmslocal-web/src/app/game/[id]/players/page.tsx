@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -28,7 +28,13 @@ import PlayerEmail from '@/components/PlayerEmail';
 export default function CompetitionPlayersPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const competitionId = parseInt(params.id as string);
+
+  /* Arriving from somewhere that already knows whose pick needs setting - the dashboard's guest
+     prompt - so the modal opens on that player instead of making the organiser find the row.
+     A player id, not a name: names are not unique and are editable. */
+  const pickForPlayerId = searchParams.get('pick');
 
   const [competition, setCompetition] = useState<Competition | null>(null);
 
@@ -90,6 +96,7 @@ export default function CompetitionPlayersPage() {
   const [savingPermissions, setSavingPermissions] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const deepLinkHandledRef = useRef(false);
 
   useEffect(() => {
     // Create abort controller for this effect
@@ -132,6 +139,18 @@ export default function CompetitionPlayersPage() {
       abortControllerRef.current = null;
     };
   }, [competitionId, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Fires once, and only when both halves are in: the player list, and the round data the pick
+     modal needs to offer teams. Guarded by a ref rather than clearing the query string, so a
+     refresh does not silently drop the organiser somewhere different from the URL they hold. */
+  useEffect(() => {
+    if (deepLinkHandledRef.current || !pickForPlayerId || !currentRoundId) return;
+    const player = players.find(p => p.id === parseInt(pickForPlayerId));
+    if (!player) return;
+
+    deepLinkHandledRef.current = true;
+    handleOpenSetPickModal(player);
+  }, [pickForPlayerId, currentRoundId, players]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPlayers = useCallback(async (page: number = currentPage, search: string = activeSearchTerm) => {
     if (abortControllerRef.current?.signal.aborted) return;
@@ -582,15 +601,17 @@ export default function CompetitionPlayersPage() {
         setPickSuccess(true);
 
         const actionText = selectedTeam === 'NO_PICK' ? 'removed' : 'set';
-        const teamText = selectedTeam === 'NO_PICK' ? '' : `: ${selectedTeam}`;
 
         // A pick changes the player's row and which teams remain available to them. There is no
         // `picks-${id}` cache; that key was invented at this call site and never written.
         cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competitionId));
         cacheUtils.invalidatePrefix(cachePrefixes.allowedTeams(competitionId));
 
-        // Show toast notification
-        showToast(`Pick ${actionText}${teamText} for ${selectedPlayerForPick.display_name}`, 'success');
+        // Says it saved, not what was saved. The team was chosen a second ago in this modal and
+        // is still on screen behind the toast - naming it back is the screen telling the
+        // organiser something they just told it. The player's name stays, because with several
+        // guests to set picks for that is the part worth confirming.
+        showToast(`Pick ${actionText} for ${selectedPlayerForPick.display_name}`, 'success');
 
         // Auto-close modal after brief delay
         setTimeout(() => {
