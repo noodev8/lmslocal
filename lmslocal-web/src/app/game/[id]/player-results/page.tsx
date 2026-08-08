@@ -246,53 +246,70 @@ export default function PlayerResultsPage() {
             const userWon = (userPickedHome && homeWon) || (userPickedAway && awayWon);
             const userLost = (userPickedHome && awayWon) || (userPickedAway && homeWon);
 
-            const pickedTeam = userPickedHome ? fixture.home_team : fixture.away_team;
-
             /* Everything left-aligned and set in reading order. This was two justify-between
                rows across a max-w-3xl panel, which pushed the teams to opposite edges and left
                "vs" floating at a different position on every row - it sat wherever the two name
                widths happened to leave a gap. Worse, the pick label was pinned to the right, so
                it appeared under the away team even when the home team was the one picked. It now
-               names the team instead of relying on position. */
+               names the team instead of relying on position.
+
+               One line per fixture, not two. The status had a whole row of its own and mostly
+               repeated the line above it: "Coventry won" under a bolded Coventry, "You picked
+               Brentford" under Brentford. Four fixtures then filled a screen with four
+               statements the reader had already read. What is left in the right-hand column is
+               only what the teams cannot say themselves - whose stake it is, and whether a
+               result has arrived at all. */
+            const status = userPickedHome || userPickedAway
+              ? userWon
+                ? 'You won'
+                : userLost
+                ? "You're out"
+                : isDraw
+                ? 'Draw — pick'
+                : 'Pick'
+              : isPending
+              ? 'Pending'
+              : isDraw
+              ? 'Draw'
+              : '';
+
             return (
-              <div key={fixture.id} className="p-4 sm:p-5">
+              <div key={fixture.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-data text-[15px]">
-                  <span className={homeWon ? 'font-semibold text-moss' : awayWon ? 'text-ink-fade' : 'text-ink'}>
+                  {/* The reader's own team is underlined, so "Pick" in the right-hand column has
+                      something to point at. Underline rather than weight or colour: bold
+                      already means winner and fade already means beaten, and a pick can be
+                      either or neither. */}
+                  <span className={`${homeWon ? 'font-semibold text-moss' : awayWon ? 'text-ink-fade' : 'text-ink'} ${
+                    userPickedHome ? 'underline decoration-2 underline-offset-4' : ''
+                  }`}>
                     {fixture.home_team}
                   </span>
                   <span className={`${LABEL} text-ink-fade`}>vs</span>
-                  <span className={awayWon ? 'font-semibold text-moss' : homeWon ? 'text-ink-fade' : 'text-ink'}>
+                  <span className={`${awayWon ? 'font-semibold text-moss' : homeWon ? 'text-ink-fade' : 'text-ink'} ${
+                    userPickedAway ? 'underline decoration-2 underline-offset-4' : ''
+                  }`}>
                     {fixture.away_team}
                   </span>
                 </div>
-                {/* One statement per row. A fixture the reader picked in used to carry two -
-                    "Everton won · You picked Everton — won" - which says won twice and names the
-                    team three times counting the line above. Their own stake is the more useful
-                    of the two and implies the result, so it replaces it rather than joining it.
-                    Which team won is still visible above: winner bold, beaten side faded. */}
-                <p
-                  className={`${LABEL} mt-1.5 ${
-                    userWon
-                      ? 'font-semibold text-moss'
-                      : userLost
-                      ? 'text-overprint'
-                      : isPending
-                      ? 'text-ink-fade'
-                      : 'text-ink'
-                  }`}
-                >
-                  {userPickedHome || userPickedAway
-                    ? userWon
-                      ? `You picked ${pickedTeam} — won`
-                      : userLost
-                      ? `You picked ${pickedTeam} — out`
-                      : `You picked ${pickedTeam}`
-                    : isPending
-                    ? 'Pending'
-                    : isDraw
-                    ? 'Draw'
-                    : `${homeWon ? fixture.home_team : fixture.away_team} won`}
-                </p>
+                {/* Empty on a settled fixture the reader had no stake in: the winner is already
+                    bold and the beaten side already faded, which survives in greyscale, so a
+                    word saying so again is the noise this row was carrying. */}
+                {status && (
+                  <p
+                    className={`${LABEL} whitespace-nowrap ${
+                      userWon
+                        ? 'font-semibold text-moss'
+                        : userLost
+                        ? 'text-overprint'
+                        : isPending
+                        ? 'text-ink-fade'
+                        : 'text-ink'
+                    }`}
+                  >
+                    {status}
+                  </p>
+                )}
               </div>
             );
           })}

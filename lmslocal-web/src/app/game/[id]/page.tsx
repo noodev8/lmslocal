@@ -792,9 +792,16 @@ export default function UnifiedGameDashboard() {
                   )}
                 </div>
                 {currentRoundInfo.is_locked ? (
-                  // The affordance is removed rather than left dead - a tap that does nothing
-                  // reads as broken.
-                  <span className={`${LABEL} flex-none text-ink-fade`}>{myPick ? 'Locked in' : 'Locked'}</span>
+                  // A locked pick can no longer be changed, but it is still the way into the
+                  // round: same destination the Round progress tile takes a participant to once
+                  // the round locks, reached from the thing they were already looking at.
+                  <Link
+                    href={`/game/${competitionId}/player-results`}
+                    className={`${LABEL} flex flex-none items-center gap-1 text-ink-fade hover:text-ink`}
+                  >
+                    {myPick ? 'Locked in' : 'Locked'}
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </Link>
                 ) : (
                   <Link
                     href={`/game/${competitionId}/pick`}
