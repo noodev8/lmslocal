@@ -287,6 +287,32 @@ The active item is marked by an ink rule **and** a weight change, never by colou
 deliberately avoids `moss`: green means "still in" in this product, and spending it on chrome would
 blunt that.
 
+### The bar is the navigation
+
+Two shells, and every screen belongs to one of them: `HomeShellPage` (Home, Profile) and
+`CompetitionNavigationPage` (Dashboard, Play, Standings, Profile). A destination is a tab in its
+shell — never a route pushed over the top — and the bar is visible on all of them.
+
+**There is no `/profile` route any more, and adding one back would undo this.** Profile used to be
+pushed from Home and be a tab inside a competition, which produced two faults from one cause:
+
+- Opening Profile from Home **took the bottom bar away**, because the pushed route built its own
+  `Scaffold` with no navigation in it.
+- Profile **had a back arrow from Home and none from a competition** — one screen wearing two sets
+  of chrome depending on a route the player cannot see. It read as two screens.
+
+`ProfilePage` is a bare body with no `Scaffold` of its own, which is what made it usable both ways
+and is worth keeping: the shell supplies the chrome. `DashboardPage` is the same — it lost its
+`showAppBar` flag along with its own app bar and bar.
+
+Android back is handled by `PopScope` in each shell rather than by the navigation stack: off a
+secondary tab it returns to the first, and only leaves from there.
+
+**One deliberate exception.** The competition screen keeps its back arrow beside the competition
+name, even though HOME in the bar goes to the same place. "Leave this competition" and "go Home"
+are the same destination but not the same intent, and the arrow is where a player looks for the
+first. It is the only duplicated control left, and it is a decision rather than an oversight.
+
 `/competition/:id?tab=play` opens straight on Play. The dashboard's "Make pick" uses it, because
 landing a player on the competition's own dashboard and making them find the tab is the action
 changing its name halfway through the flow. The tab highlight itself was never broken — that was
@@ -305,7 +331,7 @@ the screens instead (§3a below).
 |---|---|---|
 | ~~`splash_page.dart`~~ | 142 | **Done.** Where icon, splash and font work met |
 | ~~`login` / `register` / `forgot_password`~~ | ~700 | **Done.** Share `widgets/auth_shell.dart`, mirroring the web's `AuthShell`. Register's intro is *not* the web's — that one sells to organisers |
-| `dashboard_page.dart` | 1480 | Palette and shapes done, actions fixed, pick and round status added (§3a). Layout awaits the redesign |
+| `home_shell_page.dart` + `dashboard_page.dart` | ~1440 | Palette and shapes done, actions fixed, pick and round status added (§3a). Layout awaits the redesign |
 | `competition_home_page.dart` + widgets | ~1900 | Glow ring replaced by `players_active_block.dart`. `active_players_ring.dart` and `glass_card.dart` were dead and are deleted. Round status and the inline `ABOUT` block added (§3a); the info sheet is deleted |
 | `play_page` / `pick_page` / `waiting_page` / `player_results_page` | ~1600 | Palette only so far, plus `pick_page`'s deadline now on the shared formatter (§3a). `player_results` is where `moss` vs `moss-wash` was already got wrong twice on web — read §8 first |
 | `standings_page.dart` | 1663 | Group tints fixed. Still to do: the survival sheet model — `font-data` names, dotted leaders, struck-through eliminations |

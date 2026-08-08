@@ -4,11 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:lmslocal_flutter/core/config/app_config.dart';
-import 'package:flutter/services.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/game/round_state.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
-import 'package:lmslocal_flutter/presentation/widgets/app_nav_bar.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/competition_remote_data_source.dart';
@@ -19,12 +17,12 @@ import 'package:lmslocal_flutter/domain/entities/promoted_competition.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 
-/// Dashboard page - Home screen
-/// Shows user's competitions with status, picks, and navigation
+/// The competitions half of [HomeShellPage] — a body, not a screen.
+///
+/// It has no app bar and no bottom bar of its own; the shell supplies both so
+/// that they survive a switch to Profile.
 class DashboardPage extends StatefulWidget {
-  final bool showAppBar;
-
-  const DashboardPage({super.key, this.showAppBar = true});
+  const DashboardPage({super.key});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -284,76 +282,13 @@ class _DashboardPageState extends State<DashboardPage> {
           context.go('/login');
         }
       },
+      // The masthead and the bottom bar belong to HomeShellPage, which is the
+      // only thing that builds this page. Owning them here as well is what let
+      // Home carry two Profile controls, and what made the bar disappear the
+      // moment Profile was opened.
       child: Scaffold(
         backgroundColor: GameTheme.background,
-        appBar: widget.showAppBar
-            ? AppBar(
-                title: Text(
-                  'LMS Local',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                    color: GameTheme.textPrimary,
-                  ),
-                ),
-                backgroundColor: GameTheme.background,
-                foregroundColor: GameTheme.textPrimary,
-                automaticallyImplyLeading: false,
-                elevation: 0,
-                // Dark icons: the app is light now, and light-on-light is the
-                // classic tell of a half-finished light-mode conversion.
-                systemOverlayStyle: const SystemUiOverlayStyle(
-                  statusBarColor: Colors.transparent,
-                  statusBarIconBrightness: Brightness.dark,
-                  statusBarBrightness: Brightness.light,
-                  systemNavigationBarColor: CouponTheme.stockLit,
-                  systemNavigationBarIconBrightness: Brightness.dark,
-                ),
-                actions: [
-                  Container(
-                    margin: const EdgeInsets.only(right: 16),
-                    decoration: BoxDecoration(
-                      color: GameTheme.cardBackground,
-                      borderRadius: BorderRadius.zero,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.person_outline,
-                        size: 24,
-                        color: GameTheme.textPrimary,
-                      ),
-                      onPressed: () => context.push('/profile'),
-                      tooltip: 'Profile',
-                    ),
-                  ),
-                ],
-              )
-            : null,
         body: _buildBody(),
-        // Only two destinations exist above a competition, but carrying the
-        // same bar here means the app does not gain and lose its navigation as
-        // you move in and out of a competition.
-        bottomNavigationBar: widget.showAppBar
-            ? AppNavBar(
-                items: [
-                  AppNavItem(
-                    icon: Icons.home_outlined,
-                    activeIcon: Icons.home,
-                    label: 'Home',
-                    isActive: true,
-                    onTap: () {},
-                  ),
-                  AppNavItem(
-                    icon: Icons.person_outline,
-                    activeIcon: Icons.person,
-                    label: 'Profile',
-                    isActive: false,
-                    onTap: () => context.push('/profile'),
-                  ),
-                ],
-              )
-            : null,
       ),
     );
   }
