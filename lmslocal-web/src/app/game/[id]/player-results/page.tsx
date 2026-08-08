@@ -49,7 +49,14 @@ export default function PlayerResultsPage() {
     try {
       const response = await fixtureApi.get(roundId.toString());
       if (response.data.return_code === 'SUCCESS') {
-        setFixtures(response.data.fixtures || []);
+        // Sorted here rather than trusted from the response: writing a result changed the order
+        // rows came back in, so the list reshuffled under a reader watching the round come in.
+        // Alphabetical by home team, matching the picks grid below - every fixture in a round
+        // shares one kickoff time, so ordering on that decided nothing and left ties to chance.
+        const ordered = [...(response.data.fixtures || [])].sort((a, b) =>
+          a.home_team.localeCompare(b.home_team) || a.id - b.id
+        );
+        setFixtures(ordered);
       }
     } catch (error) {
       console.error('Failed to load fixtures:', error);
@@ -168,16 +175,6 @@ export default function PlayerResultsPage() {
     initializeData();
   }, [competitionId, router, competition, contextLoading, loadFixtures, loadCurrentPick, loadTeamPickCounts]);
 
-  const getFullTeamName = (shortName: string) => {
-    const fixture = fixtures.find(f =>
-      f.home_team_short === shortName || f.away_team_short === shortName
-    );
-    if (fixture) {
-      return fixture.home_team_short === shortName ? fixture.home_team : fixture.away_team;
-    }
-    return shortName;
-  };
-
   const isEliminated = !!(competition?.is_participant && competition?.user_status && competition.user_status !== 'active');
 
   if (loading || contextLoading) {
@@ -273,21 +270,24 @@ export default function PlayerResultsPage() {
               ? 'Draw'
               : '';
 
+            // "Pick" and "Draw — pick" name no team, so the fixture line has to.
+            const markPick = isPending || isDraw;
+
             return (
               <div key={fixture.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-data text-[15px]">
-                  {/* The reader's own team is underlined, so "Pick" in the right-hand column has
-                      something to point at. Underline rather than weight or colour: bold
-                      already means winner and fade already means beaten, and a pick can be
-                      either or neither. */}
+                  {/* The pick is underlined only while the outcome cannot point at it. Once the
+                      fixture is settled, "You won" beside a bolded winner - or "You're out"
+                      beside the faded loser - already says which team was theirs, and a third
+                      mark saying it again is the repetition this row keeps attracting. */}
                   <span className={`${homeWon ? 'font-semibold text-moss' : awayWon ? 'text-ink-fade' : 'text-ink'} ${
-                    userPickedHome ? 'underline decoration-2 underline-offset-4' : ''
+                    userPickedHome && markPick ? 'underline decoration-2 underline-offset-4' : ''
                   }`}>
                     {fixture.home_team}
                   </span>
                   <span className={`${LABEL} text-ink-fade`}>vs</span>
                   <span className={`${awayWon ? 'font-semibold text-moss' : homeWon ? 'text-ink-fade' : 'text-ink'} ${
-                    userPickedAway ? 'underline decoration-2 underline-offset-4' : ''
+                    userPickedAway && markPick ? 'underline decoration-2 underline-offset-4' : ''
                   }`}>
                     {fixture.away_team}
                   </span>
@@ -319,17 +319,21 @@ export default function PlayerResultsPage() {
         {Object.keys(teamPickCounts).length > 0 && (
           <div className={`${PANEL} p-5`}>
             <p className={`${EYEBROW} mb-3`}>Who picked what</p>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {/* auto-rows-fr so every card is the height of the tallest. A team with no result yet
+                carries two lines against a settled team's three, and left to itself the grid gave
+                each row its own height - so an unplayed team on a row of its own came out squat
+                and read as a lesser kind of card. */}
+            <div className="grid auto-rows-fr grid-cols-2 gap-2.5 sm:grid-cols-3">
               {Object.entries(teamPickCounts)
-                .sort(([teamA, countA], [teamB, countB]) => {
-                  const teamAWon = fixtures.some(f => f.result === teamA);
-                  const teamBWon = fixtures.some(f => f.result === teamB);
-                  if (teamAWon && !teamBWon) return -1;
-                  if (!teamAWon && teamBWon) return 1;
-                  return countB - countA;
-                })
+                /* Alphabetical, and **nothing here may depend on the result.** This used to put
+                   winners first, so a card jumped to the front of the grid the moment its result
+                   was written and the whole grid reflowed under a reader watching the round come
+                   in. Won and lost are already said on each card, in a word and a ground.
+
+                   Alphabetical alone, not most-picked first: a count moves as picks arrive, so
+                   sorting on it is only stable once every pick is in. A name never moves. */
+                .sort(([teamA], [teamB]) => teamA.localeCompare(teamB))
                 .map(([teamShort, count]) => {
-                  const teamName = getFullTeamName(teamShort);
                   const isCurrentPick = currentPick === teamShort;
                   const teamWon = fixtures.some(f => f.result === teamShort);
                   const teamLost = fixtures.some(f =>
@@ -346,12 +350,14 @@ export default function PlayerResultsPage() {
 
                        The word "Won" stays. design-system.md §8 requires state to be doubled
                        rather than left to colour, so the card still says what it means in
-                       greyscale. Beaten teams recede and are struck through; overprint is not
-                       used, because every fixture has a loser and red is the ink that means the
+                       greyscale. Beaten teams recede, and that is all: the strike-through went,
+                       because "Lost" is already printed underneath and crossing the name out on
+                       top of it is a third telling and a needlessly unkind one. Overprint is not
+                       used either - every fixture has a loser, and red is the ink that means the
                        reader is out. */
                     <div
                       key={teamShort}
-                      className={`border p-3 text-center ${
+                      className={`relative border p-3 text-center ${
                         teamWon
                           ? 'border-moss bg-moss-wash'
                           : teamLost
@@ -361,26 +367,37 @@ export default function PlayerResultsPage() {
                           : 'border-ink/30'
                       }`}
                     >
+                      {/* Corner badge rather than a "Your pick" line inside the card: the line
+                          made one card taller than its neighbours and repeated a word the badge
+                          says in the same space the pick screen uses for it. */}
+                      {isCurrentPick && (
+                        <span className={`${LABEL} absolute left-0 top-0 bg-moss px-1.5 py-0.5 text-[10px] text-stock-lit`}>
+                          Pick
+                        </span>
+                      )}
+                      {/* Short name. The full name wrapped to two lines on the longer clubs, so
+                          cards in the same row disagreed about where their result line sat. */}
                       <p
                         className={`font-data text-[14px] ${
                           teamWon
                             ? 'font-semibold text-ink'
                             : teamLost
-                            ? 'text-ink-fade line-through decoration-ink-fade/50'
+                            ? 'text-ink-fade'
                             : 'text-ink'
                         }`}
                       >
-                        {teamName}
+                        {teamShort}
                       </p>
-                      {(teamWon || teamLost) && (
-                        <p className={`${LABEL} mt-0.5 ${teamWon ? 'font-semibold text-moss' : 'text-ink-fade'}`}>
-                          {teamWon ? 'Won' : 'Lost'}
-                        </p>
-                      )}
-                      <p className={`${LABEL} mt-1.5 text-ink-fade`}>
-                        {count} player{count !== 1 ? 's' : ''}
+                      {/* Always a word here, "Pending" included. A blank line held the height but
+                          read as something missing rather than something not yet decided. */}
+                      <p className={`${LABEL} mt-0.5 ${teamWon ? 'font-semibold text-moss' : 'text-ink-fade'}`}>
+                        {teamWon ? 'Won' : teamLost ? 'Lost' : 'Pending'}
                       </p>
-                      {isCurrentPick && <p className={`${LABEL} mt-0.5 text-ink`}>Your pick</p>}
+                      {/* Sentence case, not the LABEL caps. "1 PLAYER" shouted a number nobody
+                          needs shouted, and set at label weight it competed with the result. */}
+                      <p className="mt-1.5 text-[13px] text-ink-fade">
+                        {count} {count === 1 ? 'Player' : 'Players'}
+                      </p>
                     </div>
                   );
                 })}

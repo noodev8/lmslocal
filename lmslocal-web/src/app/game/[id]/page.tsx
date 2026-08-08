@@ -15,7 +15,7 @@ import {
   CalendarIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
-import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi, playerActionApi } from '@/lib/api';
+import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi, playerActionApi, fixtureApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -169,8 +169,16 @@ export default function UnifiedGameDashboard() {
   // The player's own pick for the current round. `myPickLoaded` exists so the card can stay off
   // the screen until the answer is in - rendering "not picked yet" for a moment to someone who
   // has picked is the one thing it must never do.
-  const [myPick, setMyPick] = useState<{ team_full_name: string; fixture: string } | null>(null);
+  const [myPick, setMyPick] = useState<{
+    team: string;
+    team_full_name: string;
+    fixture: string;
+    fixture_id: number;
+  } | null>(null);
   const [myPickLoaded, setMyPickLoaded] = useState(false);
+  // How their pick actually finished, once the result is in. Null while the fixture is unplayed.
+  const [myPickOutcome, setMyPickOutcome] = useState<'won' | 'lost' | 'draw' | null>(null);
+  const myPickOutcomeLoadedRef = useRef(false);
 
   // User role detection
   const isOrganiser = competition?.is_organiser || false;
@@ -543,8 +551,10 @@ export default function UnifiedGameDashboard() {
               // full name comes from a join on an active team row, so a team retired from the
               // list mid-season returns a pick with no name attached.
               setMyPick(pick ? {
+                team: pick.team,
                 team_full_name: pick.team_full_name || pick.team,
-                fixture: pick.fixture || ''
+                fixture: pick.fixture || '',
+                fixture_id: pick.fixture_id
               } : null);
               setMyPickLoaded(true);
             }
@@ -552,6 +562,37 @@ export default function UnifiedGameDashboard() {
           .catch(() => {
             // Non-fatal - the card stays hidden rather than claiming no pick was made.
             myPickLoadedRef.current = false;
+          });
+      }
+
+      // How their pick finished. Only once the round is locked and something has been
+      // processed - before that there is no result to find, and this is a second request on a
+      // screen that already makes several. "Locked in" is the honest answer until then.
+      if (
+        !myPickOutcomeLoadedRef.current &&
+        currentRoundInfo?.is_locked &&
+        myPick &&
+        (currentRoundInfo.completed_fixtures || 0) > 0
+      ) {
+        myPickOutcomeLoadedRef.current = true;
+        const pick = myPick;
+        fixtureApi.get(currentRoundInfo.id.toString())
+          .then(response => {
+            if (response.data.return_code !== 'SUCCESS') return;
+            const fixture = (response.data.fixtures || []).find(f => f.id === pick.fixture_id);
+            if (!fixture?.result) return;
+            setMyPickOutcome(
+              fixture.result === pick.team
+                ? 'won'
+                // `result` holds the winning team's short name, or the string below for a draw -
+                // see lmslocal-server/db/README.md.
+                : fixture.result === 'DRAW'
+                ? 'draw'
+                : 'lost'
+            );
+          })
+          .catch(() => {
+            myPickOutcomeLoadedRef.current = false;
           });
       }
 
@@ -610,7 +651,7 @@ export default function UnifiedGameDashboard() {
           });
       }
     }
-  }, [competition, competitionId, router, currentRoundInfo]);
+  }, [competition, competitionId, router, currentRoundInfo, myPick]);
 
   // Reset current round stats ref when round is locked
   useEffect(() => {
@@ -629,6 +670,8 @@ export default function UnifiedGameDashboard() {
   useEffect(() => {
     myPickLoadedRef.current = false;
     setMyPickLoaded(false);
+    myPickOutcomeLoadedRef.current = false;
+    setMyPickOutcome(null);
   }, [currentRoundInfo?.round_number]);
 
   if (loading) {
@@ -776,7 +819,9 @@ export default function UnifiedGameDashboard() {
                   <p className={`${LABEL} text-ink-fade`}>Your pick</p>
                   <div className="mt-1.5 flex items-center gap-2">
                     {/* A mark beside the value, never a panel behind it - design-system.md §8. */}
-                    <span className={`h-2 w-2 flex-none rounded-full ${myPick ? 'bg-moss' : 'bg-overprint'}`} />
+                    <span className={`h-2 w-2 flex-none rounded-full ${
+                      !myPick || (myPickOutcome && myPickOutcome !== 'won') ? 'bg-overprint' : 'bg-moss'
+                    }`} />
                     {myPick ? (
                       // font-data: a value the player chose, not interface chrome. The empty
                       // state is the app talking, so it is set in body type instead.
@@ -795,11 +840,29 @@ export default function UnifiedGameDashboard() {
                   // A locked pick can no longer be changed, but it is still the way into the
                   // round: same destination the Round progress tile takes a participant to once
                   // the round locks, reached from the thing they were already looking at.
+                  //
+                  // Once the result is in it says how the pick did, not that it is locked. A
+                  // settled round left this reading "Locked in" beside a team that had already
+                  // won - true, and the least interesting true thing available.
                   <Link
                     href={`/game/${competitionId}/player-results`}
-                    className={`${LABEL} flex flex-none items-center gap-1 text-ink-fade hover:text-ink`}
+                    className={`${LABEL} flex flex-none items-center gap-1 ${
+                      myPickOutcome === 'won'
+                        ? 'font-semibold text-moss hover:opacity-80'
+                        : myPickOutcome
+                        ? 'text-overprint hover:opacity-80'
+                        : 'text-ink-fade hover:text-ink'
+                    }`}
                   >
-                    {myPick ? 'Locked in' : 'Locked'}
+                    {myPickOutcome === 'won'
+                      ? 'Won'
+                      : myPickOutcome === 'lost'
+                      ? 'Lost'
+                      : myPickOutcome === 'draw'
+                      ? 'Draw'
+                      : myPick
+                      ? 'Locked in'
+                      : 'Locked'}
                     <ChevronRightIcon className="h-4 w-4" />
                   </Link>
                 ) : (

@@ -326,9 +326,14 @@ condition wording states the round's condition; the action wording states theirs
 |---|---|---|---|---|
 | `NO_ROUND` (manual) | "No matches yet" | **"Add matches"** | `canManageFixtures` | entry form |
 | `LOCKED` | "In play" | **"Enter results"** | `canManageResults` | round |
-| `RESULTS_PARTIAL` | "{n} of {total} results in" | **"{n} of {total} — enter the rest"** | `canManageResults` | round |
+| `RESULTS_PARTIAL` | "{n} of {total} results in" | **"Enter results"** | `canManageResults` | round |
 | `RESULTS_READY` | "All results in" | **"Process the round"** | `canManageResults` | round |
 | `COMPLETE` | "Complete" | **"Add next matches"** | `canManageFixtures` | entry form |
+
+`LOCKED` and `RESULTS_PARTIAL` give the organiser the same words, deliberately. The job is
+identical — open the round and put results in — and "1 of 4 — enter the rest" made a tile whose
+whole purpose is to name one action into a progress report with an instruction appended. The count
+belongs to the neutral wording, where progress is the only thing being reported.
 
 **A tile that names a job goes where the job is done.** "Add next matches" used to land on the
 round screen — a read-only page of last week's results, with the actual button somewhere below the

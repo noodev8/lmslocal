@@ -9,6 +9,7 @@ import {
   ClockIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ChevronRightIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { userApi } from '@/lib/api';
@@ -432,14 +433,22 @@ export default function StandingsPage() {
                             // Minimal display for eliminated players
                             if (isEliminatedRow) {
                               return (
-                                <div key={player.id} className="flex items-center justify-between px-4 py-2.5">
+                                <button
+                                  key={player.id}
+                                  onClick={() => {
+                                    setSelectedPlayer(player);
+                                    setShowHistoryModal(true);
+                                    loadPlayerHistory(player.id);
+                                  }}
+                                  className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-stock"
+                                >
                                   <div className="flex items-baseline gap-2">
-                                    <span className="relative font-data text-[14px] text-ink-fade">
+                                    {/* Faded, not struck through. The group they sit in is headed
+                                        "Eliminated" and the row says which round did it - scoring
+                                        the name out on top of that is a third telling of the same
+                                        fact, aimed at a person. */}
+                                    <span className="font-data text-[14px] text-ink-fade">
                                       {player.display_name}
-                                      <span
-                                        aria-hidden="true"
-                                        className="absolute left-0 right-0 top-1/2 h-[1.5px] -translate-y-1/2 bg-overprint"
-                                      />
                                     </span>
                                     <span className="sr-only"> &mdash; out</span>
                                     {player.is_bot && <BotChip />}
@@ -447,62 +456,57 @@ export default function StandingsPage() {
                                       <span className={`${LABEL} text-ink-fade`}>Round {player.elimination_pick.round_number}</span>
                                     )}
                                   </div>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedPlayer(player);
-                                      setShowHistoryModal(true);
-                                      loadPlayerHistory(player.id);
-                                    }}
-                                    className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-4 transition-colors hover:text-ink`}
-                                  >
-                                    History
-                                  </button>
-                                </div>
+                                  <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-ink-fade" />
+                                </button>
                               );
                             }
 
-                            // Full display for active players
+                            /* One line per player, and the whole line opens their history - the
+                               way the Flutter standings work. This was a stacked block: name, a
+                               ruled panel holding the team, its fixture and the outcome, then a
+                               full-width History button, about 130px a head. Twenty players was a
+                               page of scrolling to answer "who is still in?".
+
+                               The fixture goes because history now carries the detail. It was the
+                               widest thing in the row for the least it said, and everyone in a
+                               group is picking from the same round anyway. What is left is the
+                               name, the team and how it went. */
                             return (
-                              <div key={player.id} className="p-4">
-                                <div className="mb-2 flex items-center gap-2">
-                                  <span className="font-data text-[15px] text-ink">{player.display_name}</span>
+                              <button
+                                key={player.id}
+                                onClick={() => {
+                                  setSelectedPlayer(player);
+                                  setShowHistoryModal(true);
+                                  loadPlayerHistory(player.id);
+                                }}
+                                className="flex w-full flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-2 text-left transition-colors hover:bg-stock"
+                              >
+                                <div className="flex items-baseline gap-2">
+                                  <span className="font-data text-[14px] text-ink">{player.display_name}</span>
                                   {player.is_bot && <BotChip />}
                                   {isYou && <span className={`${LABEL} border border-ink px-1.5 py-0.5 text-ink`}>You</span>}
                                 </div>
 
-                                {player.current_pick && (
-                                  <div className="mb-2 flex items-baseline justify-between gap-2 border-t border-ink/30 pt-2">
-                                    <div>
-                                      <p className="font-data text-[14px] text-ink">{player.current_pick.team_full_name}</p>
-                                      {player.current_pick.fixture && (
-                                        <p className="text-[12px] text-ink-fade">{player.current_pick.fixture}</p>
-                                      )}
-                                    </div>
-                                    <span className={`${LABEL} flex-shrink-0 ${
-                                      player.current_pick.outcome === 'WIN'
-                                        ? 'text-moss'
-                                        : player.current_pick.outcome === 'LOSE'
-                                        ? 'text-overprint'
-                                        : 'text-ink-fade'
-                                    }`}>
-                                      {player.current_pick.outcome === 'WIN' ? 'Won' : player.current_pick.outcome === 'LOSE' ? 'Out' : 'Pending'}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {competition.current_round > 1 && (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedPlayer(player);
-                                      setShowHistoryModal(true);
-                                      loadPlayerHistory(player.id);
-                                    }}
-                                    className={`${BTN_OUTLINE} w-full justify-center py-2`}
-                                  >
-                                    View history
-                                  </button>
-                                )}
-                              </div>
+                                <div className="flex items-baseline gap-3">
+                                  {player.current_pick && (
+                                    <>
+                                      <span className="font-data text-[14px] text-ink-fade">
+                                        {player.current_pick.team_full_name}
+                                      </span>
+                                      <span className={`${LABEL} ${
+                                        player.current_pick.outcome === 'WIN'
+                                          ? 'text-moss'
+                                          : player.current_pick.outcome === 'LOSE'
+                                          ? 'text-overprint'
+                                          : 'text-ink-fade'
+                                      }`}>
+                                        {player.current_pick.outcome === 'WIN' ? 'Won' : player.current_pick.outcome === 'LOSE' ? 'Out' : 'Pending'}
+                                      </span>
+                                    </>
+                                  )}
+                                  <ChevronRightIcon className="h-4 w-4 flex-shrink-0 translate-y-0.5 text-ink-fade" />
+                                </div>
+                              </button>
                             );
                           })}
                         </div>

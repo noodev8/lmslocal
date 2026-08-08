@@ -380,8 +380,12 @@ export function roundTileSummary(
     case 'LOCKED':
       return needsAction ? 'Enter results' : 'In play';
     case 'RESULTS_PARTIAL':
+      // Same words as LOCKED, because it is the same job: open the round and put results in.
+      // "1 of 4 — enter the rest" turned a tile whose purpose is to name one action into a
+      // progress report with an instruction stuck on the end. The count stays in the neutral
+      // wording, where reporting progress is all it is doing.
       return needsAction
-        ? `${state.resultsIn} of ${state.totalFixtures} — enter the rest`
+        ? 'Enter results'
         : `${state.resultsIn} of ${state.totalFixtures} results in`;
     case 'RESULTS_READY':
       return needsAction ? 'Process the round' : 'All results in';
