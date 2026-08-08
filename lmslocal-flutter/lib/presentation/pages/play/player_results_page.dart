@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/fixture.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/pick_remote_data_source.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/presentation/widgets/shell_back_button.dart';
+import 'package:lmslocal_flutter/presentation/widgets/pick_tag.dart';
 
 /// Player results page - shown when round is locked or player is eliminated
 /// Displays all picks made by players and match results
@@ -200,12 +202,14 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
               _buildHeader(),
               const SizedBox(height: 24),
 
-              // Pick distribution grid
-              _buildPickDistributionGrid(),
+              // The matches first. They are the round — what happened, and what
+              // it meant for the reader, on the fixture they have a stake in.
+              // Who else picked what is context for that, so it follows rather
+              // than standing between the reader and their own result.
+              _buildMatchResultsList(),
               const SizedBox(height: 32),
 
-              // Match results list
-              _buildMatchResultsList(),
+              _buildPickDistributionGrid(),
             ],
           ),
         ),
@@ -374,101 +378,109 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     );
   }
 
+  /// One team in the "who picked what" grid.
+  ///
+  /// The colours are a port of the web's `/player-results`, which went through
+  /// two rejected attempts before this one — see design-system.md §8 and the
+  /// comment in `lmslocal-web/src/app/game/[id]/player-results/page.tsx`. The
+  /// short version, because it is easy to undo by accident:
+  ///
+  /// - **A winner takes `mossWash` as a ground with `ink` text on top.** Filling
+  ///   with `moss` itself is a dark slab, and `moss` at 20% over the stock reads
+  ///   as grey — both were shipped here and both were wrong. The light ground is
+  ///   the only treatment that is green *and* comfortable at card size.
+  /// - **A loser is not `overprint`.** Every fixture has a loser, and red is the
+  ///   ink that means *the reader is out*. Beaten teams recede: stock ground,
+  ///   faint rule, name struck through in `inkFade`.
+  /// - **The word stays.** §8 requires state to be doubled rather than left to
+  ///   colour, so the card reads correctly in greyscale. That is also what
+  ///   replaced the status icons — a tick and a cross said the same thing in
+  ///   `moss` and `overprint`, which is where half the darkness came from.
   Widget _buildPickCard(_TeamPickInfo info) {
-    Color cardColor;
-    Color borderColor;
-    Color textColor;
-    late IconData statusIcon;
-    late Color iconColor;
+    final Color cardColor;
+    final Color borderColor;
+    final double borderWidth;
+    final Color textColor;
 
     if (info.didWin) {
-      // Winner - green with visible background
-      cardColor = GameTheme.accentGreen.withValues(alpha: 0.2);
-      borderColor = GameTheme.accentGreen.withValues(alpha: 0.5);
-      textColor = GameTheme.accentGreen;
-      statusIcon = Icons.check_circle;
-      iconColor = GameTheme.accentGreen;
+      cardColor = CouponTheme.mossWash;
+      borderColor = CouponTheme.moss;
+      borderWidth = 1;
+      textColor = CouponTheme.ink;
     } else if (info.didLose) {
-      // Loser - red with visible background
-      cardColor = GameTheme.accentRed.withValues(alpha: 0.2);
-      borderColor = GameTheme.accentRed.withValues(alpha: 0.5);
-      textColor = GameTheme.accentRed;
-      statusIcon = Icons.cancel;
-      iconColor = GameTheme.accentRed;
-    } else if (info.isUserPick) {
-      // User's pick (pending) - cyan highlight
-      cardColor = GameTheme.glowCyan.withValues(alpha: 0.15);
-      borderColor = GameTheme.glowCyan.withValues(alpha: 0.5);
-      textColor = GameTheme.glowCyan;
-      statusIcon = Icons.schedule;
-      iconColor = GameTheme.glowCyan;
+      cardColor = CouponTheme.stock;
+      borderColor = CouponTheme.ink.withValues(alpha: 0.15);
+      borderWidth = 1;
+      textColor = CouponTheme.inkFade;
     } else {
-      // Other teams (pending) - card background (more visible)
+      // No result yet, whether or not it is the player's own pick. The pick is
+      // marked by its border and its stamp, never by a tint: a wash here read as
+      // "greyed out, already lost" on a round with no results at all.
       cardColor = GameTheme.cardBackground;
-      borderColor = GameTheme.border;
-      textColor = GameTheme.textPrimary;
-      statusIcon = Icons.schedule;
-      iconColor = GameTheme.textMuted;
+      borderColor = info.isUserPick ? CouponTheme.ink : GameTheme.border;
+      borderWidth = info.isUserPick ? 2 : 1;
+      textColor = CouponTheme.ink;
     }
 
-    return Container(
+    final card = Container(
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.zero,
-        border: Border.all(
-          color: borderColor,
-          width: info.isUserPick || info.didWin || info.didLose ? 2 : 1,
-        ),
-        boxShadow: info.didWin
-            ? [
-                BoxShadow(
-                  color: GameTheme.accentGreen.withValues(alpha: 0.3),
-                  blurRadius: 0,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
+        border: Border.all(color: borderColor, width: borderWidth),
       ),
       padding: const EdgeInsets.all(12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            statusIcon,
-            size: 24,
-            color: iconColor,
-          ),
-          const SizedBox(height: 6),
+          // The team as the player chose it, so `font-data` (§3).
           Text(
             info.shortName,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+            style: CouponTheme.dataText.copyWith(
+              fontSize: 15,
               color: textColor,
+              decoration: info.didLose ? TextDecoration.lineThrough : null,
+              decorationColor: CouponTheme.inkFade.withValues(alpha: 0.5),
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 3,
-            ),
-            decoration: BoxDecoration(
-              color: GameTheme.glowCyan,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '${info.pickCount} ${info.pickCount == 1 ? 'player' : 'players'}',
-              style: TextStyle(
-                fontSize: 11,
-                color: GameTheme.background,
-                fontWeight: FontWeight.w600,
+          if (info.didWin || info.didLose) ...[
+            const SizedBox(height: 4),
+            Text(
+              info.didWin ? 'WON' : 'LOST',
+              style: CouponTheme.label.copyWith(
+                color: info.didWin ? CouponTheme.moss : CouponTheme.inkFade,
+                fontWeight: info.didWin ? FontWeight.w600 : null,
               ),
             ),
+          ],
+          const SizedBox(height: 6),
+          // A plain label, not a solid ink pill. Four black pills in a
+          // four-card grid outweighed the state they sat next to.
+          Text(
+            '${info.pickCount} ${info.pickCount == 1 ? 'player' : 'players'}',
+            style: CouponTheme.label,
           ),
         ],
       ),
+    );
+
+    if (!info.isUserPick) return card;
+
+    // Stamped on the corner, in every result state — "which of these is mine?"
+    // is the first question this grid is asked, and a win or a loss does not
+    // stop it being asked.
+    //
+    // `StackFit.passthrough` matters: a Stack hands *loose* constraints to a
+    // non-positioned child, so without it the card shrank to its intrinsic
+    // width inside the grid cell and the player's own card came out visibly
+    // narrower than every other one. `clipBehavior: none` lets the tag overhang.
+    return Stack(
+      fit: StackFit.passthrough,
+      clipBehavior: Clip.none,
+      children: [
+        card,
+        const Positioned(top: -4, left: -4, child: PickTag()),
+      ],
     );
   }
 
@@ -485,167 +497,148 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
           ),
         ),
         const SizedBox(height: 12),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _fixtures.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            return _buildMatchResultCard(_fixtures[index]);
-          },
+        // A ledger: one panel, hairline rules between fixtures. Four separately
+        // boxed cards drew four frames the reader had to cross; the rows are a
+        // list, so they are ruled like one.
+        Container(
+          decoration: BoxDecoration(
+            color: GameTheme.cardBackground,
+            border: Border.all(color: GameTheme.border),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < _fixtures.length; i++) ...[
+                if (i > 0)
+                  Divider(
+                    height: 0.5,
+                    thickness: 0.5,
+                    color: CouponTheme.ink.withValues(alpha: 0.3),
+                  ),
+                _buildFixtureRow(_fixtures[i]),
+              ],
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildMatchResultCard(Fixture fixture) {
+  /// One fixture, one line, everything in reading order.
+  ///
+  /// This was two rows: the teams pushed to opposite edges, then a status pill
+  /// whose alignment moved with the result — left when the home team won, right
+  /// when the away team did, centred on a draw. Nothing sat in the same place
+  /// twice, so the eye had to search each row to find out where the answer had
+  /// been put this time. The pick badge made it worse by being pinned to a team's
+  /// side rather than saying whose stake it was.
+  ///
+  /// Now: names left in `font-data`, one status right, in the same two places on
+  /// every row. The status column carries only what the names cannot say
+  /// themselves — whose pick it is, and whether a result has arrived — because
+  /// the winner is already bold and the beaten side already faded, which is why
+  /// a settled fixture the reader had no stake in says nothing at all.
+  ///
+  /// **Copy deliberately diverges from the web here.** `player-results/page.tsx`
+  /// says "You're out" on a lost pick, which is untrue for anyone holding a life
+  /// — most players in most competitions (the same trap §3b removed from the
+  /// pick screen's footer). This states the pick's outcome and lets the
+  /// dashboard's lives panel say what it cost.
+  Widget _buildFixtureRow(Fixture fixture) {
     final homeIsUserPick = _currentPick == fixture.homeTeamShort;
     final awayIsUserPick = _currentPick == fixture.awayTeamShort;
+    final isUserFixture = homeIsUserPick || awayIsUserPick;
 
-    // Result contains the winning team's short name (e.g., "ARS", "CHE")
-    final homeIsWinner = fixture.result == fixture.homeTeamShort;
-    final awayIsWinner = fixture.result == fixture.awayTeamShort;
+    // `result` holds the winning team's short name, or nothing at all.
+    final homeWon = fixture.result == fixture.homeTeamShort;
+    final awayWon = fixture.result == fixture.awayTeamShort;
     final isPending = fixture.result == null || fixture.result!.isEmpty;
+    final isDraw = !isPending && !homeWon && !awayWon;
 
-    // Result text
-    String resultText;
-    if (homeIsWinner) {
-      resultText = '${fixture.homeTeamShort} won';
-    } else if (awayIsWinner) {
-      resultText = '${fixture.awayTeamShort} won';
-    } else if (!isPending) {
-      resultText = 'Draw';
+    final userWon = (homeIsUserPick && homeWon) || (awayIsUserPick && awayWon);
+
+    final String status;
+    if (isUserFixture) {
+      // "Pick", not "Your pick": the column is narrow and the underline on the
+      // team name already establishes whose it is.
+      status = isPending
+          ? 'Pick'
+          : userWon
+              ? 'You won'
+              : isDraw
+                  ? 'Draw — you lost'
+                  : 'You lost';
     } else {
-      resultText = 'Pending';
+      status = isPending ? 'Pending' : (isDraw ? 'Draw' : '');
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.zero,
-        border: Border.all(color: GameTheme.border),
-      ),
-      child: Column(
+    final Color statusColor;
+    if (isUserFixture && !isPending) {
+      statusColor = userWon ? CouponTheme.moss : CouponTheme.overprint;
+    } else if (isPending) {
+      statusColor = CouponTheme.inkFade;
+    } else {
+      statusColor = CouponTheme.ink;
+    }
+
+    // The picked team is underlined, as on the web. "PICK" in the status column
+    // says the reader has a stake in the row; the underline says which of the
+    // two names it is — a two-team row cannot answer that from the status
+    // word alone, which is the gap this closes. The word stays as well, because
+    // an underline on its own is a mark with no meaning attached (§8).
+    TextStyle teamStyle(bool won, bool lost, bool isPick) =>
+        CouponTheme.dataText.copyWith(
+          fontSize: 15,
+          color: lost ? CouponTheme.inkFade : CouponTheme.ink,
+          fontWeight: won ? FontWeight.w600 : null,
+          decoration: isPick ? TextDecoration.underline : null,
+          decorationColor: lost ? CouponTheme.inkFade : CouponTheme.ink,
+          // Clear of the descenders, or the rule cuts through a "p" or a "y".
+          decorationThickness: 1,
+        );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Teams
-          Row(
-            children: [
-              // Home team
-              Expanded(
-                child: Row(
-                  children: [
-                    if (homeIsUserPick)
-                      Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          color: GameTheme.glowCyan,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    Expanded(
-                      child: Text(
-                        fixture.homeTeam,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: homeIsWinner ? FontWeight.bold : FontWeight.normal,
-                          color: homeIsWinner ? GameTheme.accentGreen : GameTheme.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'vs',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: GameTheme.textMuted,
-                    fontWeight: FontWeight.w500,
+          // Text.rich rather than a Row of three: the names wrap as one phrase
+          // and share a baseline, which a Row of separate Texts does not.
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: fixture.homeTeam,
+                    style: teamStyle(homeWon, awayWon, homeIsUserPick),
                   ),
-                ),
+                  TextSpan(
+                    text: '  vs  ',
+                    style: CouponTheme.label.copyWith(fontSize: 12),
+                  ),
+                  TextSpan(
+                    text: fixture.awayTeam,
+                    style: teamStyle(awayWon, homeWon, awayIsUserPick),
+                  ),
+                ],
               ),
-              // Away team
-              Expanded(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        fixture.awayTeam,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: awayIsWinner ? FontWeight.bold : FontWeight.normal,
-                          color: awayIsWinner ? GameTheme.accentGreen : GameTheme.textPrimary,
-                        ),
-                        textAlign: TextAlign.right,
-                      ),
-                    ),
-                    if (awayIsUserPick)
-                      Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.only(left: 8),
-                        decoration: BoxDecoration(
-                          color: GameTheme.glowCyan,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 8),
-
-          // Result - positioned based on which team won
-          Row(
-            mainAxisAlignment: homeIsWinner
-                ? MainAxisAlignment.start
-                : awayIsWinner
-                    ? MainAxisAlignment.end
-                    : !isPending
-                        ? MainAxisAlignment.center  // Draw in center
-                        : MainAxisAlignment.start,  // Pending on left
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: homeIsWinner || awayIsWinner
-                      ? GameTheme.accentGreen.withValues(alpha: 0.15)
-                      : GameTheme.backgroundLight,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: homeIsWinner || awayIsWinner
-                        ? GameTheme.accentGreen.withValues(alpha: 0.3)
-                        : GameTheme.border,
-                  ),
-                ),
-                child: Text(
-                  resultText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: homeIsWinner || awayIsWinner
-                        ? GameTheme.accentGreen
-                        : GameTheme.textMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+          if (status.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            Text(
+              status.toUpperCase(),
+              style: CouponTheme.label.copyWith(
+                color: statusColor,
+                fontWeight: isUserFixture ? FontWeight.w600 : null,
               ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
+
 
 /// Helper class to organize team pick information
 class _TeamPickInfo {

@@ -549,6 +549,65 @@ one means writing to the database (see `docs/testing-rules.md`).
 
 ---
 
+## 3d. The round's results
+
+`player_results_page.dart` is now a port of the web's `/player-results`, which had already been
+through this. Reach for that file, and design-system.md §8, before changing anything here — three
+of the four problems below were fixed on the web first, then reintroduced in Flutter, then fixed
+again.
+
+**Order: matches first, "who picked what" second.** The matches are the round, including the one
+line saying what happened to the reader's own pick. Everyone else's picks are context for that, so
+they no longer stand between the reader and their own result.
+
+**One line per fixture, in a ruled ledger.** It was two rows in a boxed card: teams pushed to
+opposite edges, then a status pill whose alignment moved with the result — left when the home team
+won, right when the away team did, centred on a draw. Nothing sat in the same place twice, so the
+eye searched every row to find where the answer had been put. Reported from real use as "my eyes
+are flipping back and forth". Now: names left in `font-data`, one status right, same two positions
+on every row, hairline rules instead of four separate frames.
+
+The status column carries only what the names cannot say themselves — whose pick it is, and whether
+a result has arrived. **A settled fixture the reader had no stake in says nothing at all**: the
+winner is already bold and the beaten side already faded, which survives in greyscale.
+
+**The picked team is underlined**, and the status says `PICK`. Neither alone is enough — a two-team
+row cannot say *which* name is yours from the word, and an underline with no word is a mark with no
+meaning attached (§8). "Pick" rather than "Your pick" because the column is narrow and the
+underline already establishes whose it is.
+
+**Colours — the part that gets undone by accident.** §8 spells it out: `moss` is an ink, `moss-wash`
+is a ground, and *a tint of `moss` is never the answer*. This screen shipped both failures the web
+had already shipped and rejected:
+
+| State | Treatment |
+|---|---|
+| Won | `mossWash` ground, `ink` text, `moss` rule, the word "WON" |
+| Lost | `stock` ground, faint rule, name struck through in `inkFade`, the word "LOST" |
+| Yours, no result | normal ground, 2px `ink` border, `PickTag` stamp — **never a tint** |
+
+**A loss is not `overprint`.** Every fixture has a loser, and red is the ink that means *the reader
+is out*. Beaten teams recede instead.
+
+The tick and cross icons are gone — set in `moss` and `overprint` they carried half the darkness,
+and the words carry the state better. The solid-ink "N players" pills are plain labels now; four
+black pills in a four-card grid outweighed the state beside them.
+
+**`PickTag`** (`presentation/widgets/`) is the shared stamp, on the pick screen before the lock and
+on the results grid after it. Two things it must keep: `StackFit.passthrough`, because a `Stack`
+hands *loose* constraints to a non-positioned child and without it the player's own card rendered
+visibly narrower than every other one in the grid; and `clipBehavior: Clip.none`, so the tag may
+overhang. It is a corner stamp on a card only — it sat inline in the fixture rows briefly and was
+removed, because pinned to one team's side it marked a position rather than saying whose stake it
+was.
+
+**One deliberate divergence from the web.** `player-results/page.tsx` says "You're out" on a lost
+pick. That is untrue for anyone holding a life — most players in most competitions, the same trap
+§3b removed from the pick screen's footer. This says "You lost" / "Draw — you lost" and leaves the
+dashboard's lives panel to say what it cost.
+
+---
+
 ## 4. Copy
 
 Design system §9 applies with one inversion that matters: **on the web "you" is always the

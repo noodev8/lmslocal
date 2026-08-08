@@ -19,11 +19,16 @@ import 'package:lmslocal_flutter/domain/entities/competition.dart';
 ///   something cheap.
 /// - **Open, not picked** — stated in `overprint`, the same ink the dashboard
 ///   card uses for a pick owed, and tappable straight into Play.
-/// - **Locked, picked** — the same facts with the affordance removed. "Locked
-///   in" rather than a dead chevron, because a tap that does nothing reads as
-///   broken.
+/// - **Locked, picked** — "Locked in", still tappable. The destination is the
+///   same Play tab, which now routes to the round's results, so the tap remains
+///   worth making even though the pick cannot change. The chevron stays for that
+///   reason; only the word changes.
 /// - **Locked, not picked** — says so plainly. It costs a life and the player
 ///   should not have to work that out from an absence.
+///
+/// Tappable in every state, because the block sends the player to the Play tab
+/// and the Play tab always has something to show them. Only the copy tracks
+/// whether the pick can still be changed.
 class YourPickBlock extends StatelessWidget {
   const YourPickBlock({
     super.key,
@@ -34,18 +39,18 @@ class YourPickBlock extends StatelessWidget {
 
   final CurrentPick? pick;
 
-  /// Whether the round still takes picks. Drives both the copy and whether the
-  /// block is tappable at all.
+  /// Whether the round still takes picks. Drives the copy only — a locked round
+  /// still leads somewhere worth going.
   final bool picksOpen;
 
-  /// Where a tap goes — the Play tab. Null leaves the block inert, which is
-  /// what a locked round wants.
+  /// Where a tap goes — the Play tab, which routes to the pick screen or the
+  /// round's results depending on the lock. Null leaves the block inert.
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final pick = this.pick;
-    final tappable = picksOpen && onTap != null;
+    final tappable = onTap != null;
 
     return Container(
       decoration: BoxDecoration(
@@ -53,7 +58,7 @@ class YourPickBlock extends StatelessWidget {
         border: Border.fromBorderSide(CouponTheme.rule()),
       ),
       child: InkWell(
-        onTap: tappable ? onTap : null,
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
           child: Row(
@@ -129,6 +134,11 @@ class YourPickBlock extends StatelessWidget {
     );
   }
 
+  /// The word says what the tap does; the chevron says there is one.
+  ///
+  /// A locked round keeps both: "Locked in" is the reassurance the player came
+  /// for, and the tap still opens the round's results. Only the label goes grey,
+  /// because the pick itself can no longer be acted on.
   Widget _action({required bool tappable, required bool hasPick}) {
     if (!tappable) {
       return Text(
@@ -137,14 +147,24 @@ class YourPickBlock extends StatelessWidget {
       );
     }
 
+    final label = picksOpen
+        ? (hasPick ? 'CHANGE' : 'PICK')
+        : (hasPick ? 'LOCKED IN' : 'LOCKED');
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          hasPick ? 'CHANGE' : 'PICK',
-          style: CouponTheme.label.copyWith(color: CouponTheme.ink),
+          label,
+          style: CouponTheme.label.copyWith(
+            color: picksOpen ? CouponTheme.ink : CouponTheme.inkFade,
+          ),
         ),
-        const Icon(Icons.chevron_right, size: 20, color: CouponTheme.ink),
+        Icon(
+          Icons.chevron_right,
+          size: 20,
+          color: picksOpen ? CouponTheme.ink : CouponTheme.inkFade,
+        ),
       ],
     );
   }

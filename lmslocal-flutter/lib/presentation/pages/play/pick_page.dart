@@ -10,6 +10,7 @@ import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/fixture.dart';
 import 'package:lmslocal_flutter/domain/entities/allowed_team.dart';
 import 'package:lmslocal_flutter/presentation/widgets/shell_back_button.dart';
+import 'package:lmslocal_flutter/presentation/widgets/pick_tag.dart';
 
 /// Pick page - shown when round is unlocked and player can make their pick
 /// Displays fixtures and allows team selection
@@ -484,27 +485,10 @@ class _PickPageState extends State<PickPage> {
                     ),
             ),
           ),
-          // Current pick badge
+          // Current pick badge. Shared with the results screen so the team you
+          // picked is stamped the same way before and after the lock.
           if (isCurrentPick)
-            Positioned(
-              top: -4,
-              left: -4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: GameTheme.glowCyan,
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: Text(
-                  'PICK',
-                  style: TextStyle(
-                    color: GameTheme.background,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+            const Positioned(top: -4, left: -4, child: PickTag()),
         ],
       ),
     );
