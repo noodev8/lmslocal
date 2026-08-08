@@ -68,8 +68,19 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
 
       if (!mounted) return;
 
+      // Sorted here, not trusted from the response. `/get-fixtures` now carries
+      // an ORDER BY (it had none, which is what made rows move when a result was
+      // written), but a screen that must not reflow should not depend on an
+      // endpoint's incidental ordering — and the deployed server may still be
+      // the version without it.
+      final fixtures = results[0] as List<Fixture>
+        ..sort((a, b) {
+          final byKickoff = a.kickoffTime.compareTo(b.kickoffTime);
+          return byKickoff != 0 ? byKickoff : a.id.compareTo(b.id);
+        });
+
       setState(() {
-        _fixtures = results[0] as List<Fixture>;
+        _fixtures = fixtures;
         _currentPick = results[1] as String?;
         _pickCounts = results[2] as Map<String, int>;
         _isLoading = false;
@@ -318,15 +329,20 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       }
     }
 
-    // Sort: Winners first, then by pick count descending
+    // Most-picked first, then alphabetically. **Nothing here may depend on the
+    // result.** This used to put winners first, so a card jumped to the front of
+    // the grid the moment its result was written and the whole grid reflowed
+    // under a reader who was watching the round come in. Which team the crowd
+    // backed is a fact about the round that does not move; won and lost are
+    // already said on each card, in a word and a ground.
+    //
+    // The alphabetical tie-break is what makes it stable rather than merely
+    // less unstable: with every team on one pick — a small competition, which is
+    // most of them — a count-only sort leaves the order to however the fixtures
+    // happened to arrive.
     teamsWithPicks.sort((a, b) {
-      final aWon = a.didWin;
-      final bWon = b.didWin;
-
-      if (aWon && !bWon) return -1;
-      if (!aWon && bWon) return 1;
-
-      return b.pickCount.compareTo(a.pickCount);
+      final byCount = b.pickCount.compareTo(a.pickCount);
+      return byCount != 0 ? byCount : a.shortName.compareTo(b.shortName);
     });
 
     return Column(
@@ -389,9 +405,10 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
   ///   with `moss` itself is a dark slab, and `moss` at 20% over the stock reads
   ///   as grey — both were shipped here and both were wrong. The light ground is
   ///   the only treatment that is green *and* comfortable at card size.
-  /// - **A loser is not `overprint`.** Every fixture has a loser, and red is the
-  ///   ink that means *the reader is out*. Beaten teams recede: stock ground,
-  ///   faint rule, name struck through in `inkFade`.
+  /// - **A loser is not `overprint`, and is not struck through.** Every fixture
+  ///   has a loser; red is the ink that means *the reader is out*, and the
+  ///   strike-through belongs to an eliminated player on the survival sheet.
+  ///   Beaten teams simply recede: stock ground, faint rule, `inkFade` name.
   /// - **The word stays.** §8 requires state to be doubled rather than left to
   ///   colour, so the card reads correctly in greyscale. That is also what
   ///   replaced the status icons — a tick and a cross said the same thing in
@@ -435,11 +452,14 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
           // The team as the player chose it, so `font-data` (§3).
           Text(
             info.shortName,
+            // Not struck through. The strike-through in this system belongs to
+            // an eliminated **player** on the survival sheet (§8) — a beaten team
+            // has not been removed from anything, it lost a match, and borrowing
+            // the elimination mark for it overstates what happened. Receding to
+            // `inkFade` with the word "LOST" under it is the whole story.
             style: CouponTheme.dataText.copyWith(
               fontSize: 15,
               color: textColor,
-              decoration: info.didLose ? TextDecoration.lineThrough : null,
-              decorationColor: CouponTheme.inkFade.withValues(alpha: 0.5),
             ),
             textAlign: TextAlign.center,
           ),
@@ -559,7 +579,7 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
     final String status;
     if (isUserFixture) {
       // "Pick", not "Your pick": the column is narrow and the underline on the
-      // team name already establishes whose it is.
+      // team name establishes whose it is on exactly the rows that carry one.
       status = isPending
           ? 'Pick'
           : userWon
@@ -580,11 +600,18 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
       statusColor = CouponTheme.ink;
     }
 
-    // The picked team is underlined, as on the web. "PICK" in the status column
-    // says the reader has a stake in the row; the underline says which of the
-    // two names it is — a two-team row cannot answer that from the status
-    // word alone, which is the gap this closes. The word stays as well, because
-    // an underline on its own is a mark with no meaning attached (§8).
+    // The underline names which of the two teams is the reader's — but only
+    // while nothing else in the row does.
+    //
+    // Once a result lands, the row already says it twice over: exactly one team
+    // is bold and one faded, and "You won" / "You lost" says which of the two
+    // the reader held. Underlining as well marks a team that is already marked.
+    //
+    // A **draw is the exception**, and the reason this is a condition rather
+    // than a deletion: neither team wins, so neither is bold or faded, and
+    // "Draw — you lost" cannot say which name was picked. The underline is the
+    // only thing carrying it there. Pending rows are the same case.
+    final markThePick = isPending || isDraw;
     TextStyle teamStyle(bool won, bool lost, bool isPick) =>
         CouponTheme.dataText.copyWith(
           fontSize: 15,
@@ -609,7 +636,11 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
                 children: [
                   TextSpan(
                     text: fixture.homeTeam,
-                    style: teamStyle(homeWon, awayWon, homeIsUserPick),
+                    style: teamStyle(
+                      homeWon,
+                      awayWon,
+                      homeIsUserPick && markThePick,
+                    ),
                   ),
                   TextSpan(
                     text: '  vs  ',
@@ -617,7 +648,11 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
                   ),
                   TextSpan(
                     text: fixture.awayTeam,
-                    style: teamStyle(awayWon, homeWon, awayIsUserPick),
+                    style: teamStyle(
+                      awayWon,
+                      homeWon,
+                      awayIsUserPick && markThePick,
+                    ),
                   ),
                 ],
               ),

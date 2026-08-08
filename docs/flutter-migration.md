@@ -571,10 +571,13 @@ The status column carries only what the names cannot say themselves — whose pi
 a result has arrived. **A settled fixture the reader had no stake in says nothing at all**: the
 winner is already bold and the beaten side already faded, which survives in greyscale.
 
-**The picked team is underlined**, and the status says `PICK`. Neither alone is enough — a two-team
-row cannot say *which* name is yours from the word, and an underline with no word is a mark with no
-meaning attached (§8). "Pick" rather than "Your pick" because the column is narrow and the
-underline already establishes whose it is.
+**The picked team is underlined, but only while nothing else in the row names it.** Once a result
+lands the row says it twice over — exactly one team is bold and one faded, and "You won" / "You
+lost" says which the reader held — so the underline would be marking an already-marked team. **A
+draw is the exception, and the reason this is a condition rather than a deletion:** neither team
+wins, so neither is bold or faded, and "Draw — you lost" cannot say which name was picked. Pending
+rows are the same case. The status word stays alongside, because an underline with no word is a mark
+with no meaning attached (§8). "Pick" rather than "Your pick" — the column is narrow.
 
 **Colours — the part that gets undone by accident.** §8 spells it out: `moss` is an ink, `moss-wash`
 is a ground, and *a tint of `moss` is never the answer*. This screen shipped both failures the web
@@ -583,11 +586,28 @@ had already shipped and rejected:
 | State | Treatment |
 |---|---|
 | Won | `mossWash` ground, `ink` text, `moss` rule, the word "WON" |
-| Lost | `stock` ground, faint rule, name struck through in `inkFade`, the word "LOST" |
+| Lost | `stock` ground, faint rule, `inkFade` name, the word "LOST" |
 | Yours, no result | normal ground, 2px `ink` border, `PickTag` stamp — **never a tint** |
 
-**A loss is not `overprint`.** Every fixture has a loser, and red is the ink that means *the reader
-is out*. Beaten teams recede instead.
+**A loss is not `overprint`, and a beaten team is not struck through.** Every fixture has a loser,
+and red is the ink that means *the reader is out*. The strike-through belongs to an eliminated
+**player** on the survival sheet (§8) — a team has not been removed from anything, it lost a match,
+and borrowing the elimination mark overstates it. Beaten teams simply recede.
+
+**Nothing on this screen may be ordered by result.** Both lists moved under a reader watching a
+round come in, for two unrelated reasons:
+
+- **`/get-fixtures` had no `ORDER BY`** — its own comment advertised "database order (no sorting)".
+  Postgres returns heap order and an `UPDATE` rewrites the row to a new position, so writing a
+  result physically moved that fixture in every client's list, web included. It is now
+  `ORDER BY f.kickoff_time, f.id`. **The app sorts the response as well**, both because a screen
+  that must not reflow should not depend on an endpoint's incidental ordering, and because the debug
+  build talks to the production API — so the fix is not visible on a phone until the server ships.
+- **The pick grid sorted winners first**, so a card jumped to the front the moment its result was
+  written. It is now most-picked first, then alphabetical. The alphabetical tie-break is what makes
+  it stable rather than merely less unstable: with every team on one pick — a small competition,
+  which is most of them — a count-only sort leaves the order to however the fixtures arrived. Won
+  and lost are already stated on each card, in a word and a ground.
 
 The tick and cross icons are gone — set in `moss` and `overprint` they carried half the darkness,
 and the words carry the state better. The solid-ink "N players" pills are plain labels now; four

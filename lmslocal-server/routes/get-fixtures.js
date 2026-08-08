@@ -111,9 +111,15 @@ router.post('/', verifyToken, async (req, res) => {
     `, [round_id]);
 
     // === FIXTURE RETRIEVAL ===
-    // Get all fixtures for the specified round in database order (no sorting)
     // This is used by both admin (results management) and players (viewing fixtures/results)
     // Teams are stored as both full names and short names for different display needs
+    //
+    // ORDER BY is not optional here. With no sort this returned heap order, and
+    // an UPDATE rewrites a row to a new heap position — so the moment a result
+    // was written, that fixture jumped somewhere else in every client's list.
+    // A player watching a round come in saw the matches reshuffle under them.
+    // Kickoff then id: kickoff is the order a coupon is read in, and id breaks
+    // the tie between matches kicking off together.
     const fixtureResult = await query(`
       SELECT 
         f.id,                     -- Unique fixture identifier for database operations
@@ -126,6 +132,7 @@ router.post('/', verifyToken, async (req, res) => {
         f.away_team_short         -- Abbreviated away team name for compact UI (e.g., "CHE")
       FROM fixture f
       WHERE f.round_id = $1       -- Filter to specific round only
+      ORDER BY f.kickoff_time, f.id
     `, [round_id]);
 
     // === PROCESS RESULTS ===
