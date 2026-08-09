@@ -6,5 +6,5 @@
     <color name="splash_background">#DDE1D6</color>
     <!-- The app is light-only: no dark variant exists on the web to copy, so
          values-night carries the same value rather than inventing one. -->
-    <color name="ic_launcher_background">#EAE4D1</color>
+    <color name="ic_launcher_background">#EDE7D1</color>
 </resources>

@@ -73,10 +73,11 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
 
 # Run `dart run flutter_launcher_icons` after changing the source art.
-# icon.png is the full badge on its paper square; icon-foreground.png is the
-# emblem cut to its own circle, so a launcher mask crops paper rather than
-# slicing through the outer rings. See docs/flutter-migration.md for how the
-# foreground is sized — it is not the 66/108 safe zone, and the reason matters.
+# Both files are the same artwork: the wordmark sits well inside the centre 66%
+# that Android's adaptive mask guarantees, so the foreground needs no inset and a
+# launcher mask crops blank paper rather than slicing through the letters. Art
+# that runs closer to the edges would have to be inset before it could be used
+# as the foreground.
 flutter_launcher_icons:
   android: true
   ios: true
@@ -84,7 +85,9 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icon/icon-foreground.png"
   # The logo's own paper, not stock-lit — matching it makes the icon read as one
   # sheet with a stamp on it rather than a disc pasted onto a lighter square.
-  adaptive_icon_background: "#EAE4D1"
+  # Sampled from the source art's corner, so the paper carries on past the edge of
+  # the artwork instead of meeting a differently-toned ground under the mask.
+  adaptive_icon_background: "#EDE7D1"
   adaptive_icon_monochrome: "assets/icon/icon-foreground.png"
   # iOS rejects icons carrying an alpha channel.
   remove_alpha_ios: true

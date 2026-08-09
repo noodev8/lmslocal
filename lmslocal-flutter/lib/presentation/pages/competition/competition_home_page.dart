@@ -601,32 +601,11 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                 ),
                 onPressed: () => context.go('/dashboard'),
               ),
-              // The organiser's own logo, if they uploaded one. There is no
-              // placeholder behind it: a generic football beside every
-              // competition's name decorated the header without identifying
-              // anything, and the name is the identifier.
-              if (competition.logoUrl != null) ...[
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: GameTheme.cardBackground,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: GameTheme.border,
-                      width: 1,
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.network(
-                    competition.logoUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const SizedBox.shrink(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
+              // No logo here. The organiser's uploaded badge used to sit beside
+              // the name, but at 36px it read as chrome rather than
+              // identification, and it pushed the name off centre whenever one
+              // existed — so the header looked different per competition for no
+              // gain. The name is the identifier.
 
               // Competition Name. Expanded rather than Flexible between two
               // Spacers: a Spacer is an Expanded, so three flex:1 children
