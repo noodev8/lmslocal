@@ -229,13 +229,33 @@ the organiser enters by hand. Those players have no way to take the account over
 stays true. They are offline players by definition; the organiser is their interface to the
 competition.
 
-### 5.3 Web only
+### 5.3 Web first, with the app claiming `/join/*` when it is installed
 
-The Flutter app can join by code once you are signed in
-(`user_remote_data_source.dart:153`) but has no deep-link handling, so a `/join/...` link opens
-the web. That is fine and stays that way for now. The app is for players who are already in.
+*Superseded in part. This section originally said the app had no deep-link handling and that a
+`/join/...` link always opened the web. It now claims the path.*
 
-**Consequence for print:** the leaflet must stop leading with "download the app". Asking someone
+Universal Links / App Links are configured for `/game/*` **and `/join/*`** on both platforms:
+`lmslocal-web/public/.well-known/apple-app-site-association`, the same directory's
+`assetlinks.json`, `ios/Runner/Runner.entitlements` and the intent filters in
+`AndroidManifest.xml`. All four must agree — a path claimed in one and not the others fails
+silently.
+
+**Web is still the path for a new player, and that is not a compromise.** Universal Links only
+fire if the app is already installed, so a link cannot install anything. The case the app deep
+link serves is narrow and deliberate: *an existing player being sent a second competition*. Anyone
+else lands on the web join page, which is correct.
+
+The app's `/join/:code` screen (`presentation/pages/join/join_page.dart`) honours the same gate as
+the web — §4's rules and §4.3's recoverable-vs-not split are the contract for all clients, not just
+the browser. Signed-out arrivals are held in `core/router/pending_destination.dart` across sign-in,
+because unlike the web there is no URL to come back to. Tapped push notifications use the same
+holder for the same reason — see `docs/mobile-notifications.md`.
+
+Nothing here is settled beyond that. Deferred deep linking (install, *then* land on the join),
+in-app account creation from a link, and a smart banner on the web join page are all open, and none
+is ruled out by the above.
+
+**Consequence for print** (unchanged): the leaflet must stop leading with "download the app". Asking someone
 to install an app, register in it, sign in, and then type a code is the highest-friction path in
 the system aimed at the least patient audience. QR to web, with the URL and code printed
 underneath.

@@ -39,6 +39,13 @@
                     android:scheme="https"
                     android:host="lmslocal.co.uk"
                     android:pathPattern="/game/.*"/>
+                <!-- Invite links. Only reaches the app when it is already installed, so
+                     this serves an existing player joining another competition; everyone
+                     else lands on the web join page. See §5.3 of docs/player-onboarding.md -->
+                <data
+                    android:scheme="https"
+                    android:host="lmslocal.co.uk"
+                    android:pathPattern="/join/.*"/>
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
@@ -48,8 +55,20 @@
                     android:scheme="https"
                     android:host="www.lmslocal.co.uk"
                     android:pathPattern="/game/.*"/>
+                <data
+                    android:scheme="https"
+                    android:host="www.lmslocal.co.uk"
+                    android:pathPattern="/join/.*"/>
             </intent-filter>
         </activity>
+        <!-- The channel FCM uses for any message that does not name one itself. Must match
+             CHANNEL_ID in MainActivity.kt (which creates it) and the channelId sent by
+             lmslocal-server/services/fcmService.js. A notification posted to a channel that
+             does not exist is dropped by Android without any error. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="lms_notifications" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

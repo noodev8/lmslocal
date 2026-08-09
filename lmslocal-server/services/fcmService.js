@@ -77,12 +77,41 @@ const NOTIFICATION_MESSAGES = {
 };
 
 /**
+ * Build the data payload the app uses to decide where a tap should land.
+ *
+ * Every value must be a string. FCM rejects a data map containing numbers, and it does so
+ * for the whole message - a single integer competition_id would stop the notification
+ * being delivered at all rather than merely arriving without its id.
+ *
+ * Nulls are dropped rather than sent as "null", so the app can test for a key's presence
+ * instead of having to know that the string "null" means absent.
+ *
+ * The app maps type -> screen itself, and falls back to the competition's own page for a
+ * type it does not recognise. That is what lets a new notification type ship from the
+ * server without stranding taps on the app versions already on people's phones - which
+ * matters here, because an app release takes days to reach everyone and never reaches
+ * everyone.
+ */
+const buildDataPayload = (notificationType, data) => {
+  const payload = { type: notificationType };
+
+  for (const [key, value] of Object.entries(data || {})) {
+    if (value !== null && value !== undefined) {
+      payload[key] = String(value);
+    }
+  }
+
+  return payload;
+};
+
+/**
  * Send a push notification to a single device
  * @param {string} fcmToken - The device's FCM token
  * @param {string} notificationType - 'new_round' | 'pick_reminder'
+ * @param {Object} [data] - Routing context: competition_id, round_id, round_number
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-const sendNotification = async (fcmToken, notificationType) => {
+const sendNotification = async (fcmToken, notificationType, data = {}) => {
   // Ensure Firebase is initialized
   if (!initializeFirebase()) {
     return { success: false, error: 'Firebase not initialized' };
@@ -100,11 +129,17 @@ const sendNotification = async (fcmToken, notificationType) => {
         title: messageConfig.title,
         body: messageConfig.body
       },
+      // Where a tap should land. Delivered to the app on both platforms via
+      // onMessageOpenedApp (backgrounded) and getInitialMessage (cold start).
+      data: buildDataPayload(notificationType, data),
       // Android-specific configuration
       android: {
         priority: 'high',
         notification: {
           sound: 'default',
+          // Must match the channel the app declares as its default in
+          // AndroidManifest.xml. A channel id that does not exist on the device is not a
+          // formatting detail - Android will not display the notification at all.
           channelId: 'lms_notifications'
         }
       },
@@ -138,9 +173,10 @@ const sendNotification = async (fcmToken, notificationType) => {
  * Send notifications to multiple devices for the same user
  * @param {string[]} fcmTokens - Array of FCM tokens for the user's devices
  * @param {string} notificationType - 'new_round' | 'pick_reminder'
+ * @param {Object} [data] - Routing context: competition_id, round_id, round_number
  * @returns {Promise<{success: boolean, sent: number, failed: number, invalidTokens: string[]}>}
  */
-const sendNotificationToUser = async (fcmTokens, notificationType) => {
+const sendNotificationToUser = async (fcmTokens, notificationType, data = {}) => {
   const results = {
     success: true,
     sent: 0,
@@ -150,7 +186,7 @@ const sendNotificationToUser = async (fcmTokens, notificationType) => {
 
   // Send to all user's devices
   for (const token of fcmTokens) {
-    const result = await sendNotification(token, notificationType);
+    const result = await sendNotification(token, notificationType, data);
 
     if (result.success) {
       results.sent++;

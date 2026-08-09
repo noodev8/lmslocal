@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
+import 'package:lmslocal_flutter/core/router/pending_destination.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
@@ -51,8 +52,13 @@ class _SplashPageState extends State<SplashPage> {
 
     if (state is AuthAuthenticated) {
       Injection.getNotificationService().initialize();
-      context.go('/dashboard');
+      // A notification that started the app from cold left its destination here, because
+      // it resolved before there was a session to open it with. Spending it now is what
+      // stops a cold-start tap landing on the dashboard instead of what it was about.
+      context.go(PendingDestination.take() ?? '/dashboard');
     } else if (state is AuthUnauthenticated) {
+      // Any pending destination is deliberately left in place — the login page spends it
+      // once there is a session, so the tap still finishes where it was aimed.
       context.go('/login');
     }
   }

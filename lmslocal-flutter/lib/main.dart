@@ -10,7 +10,10 @@ import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/core/router/app_router.dart';
+import 'package:lmslocal_flutter/core/router/pending_destination.dart';
+import 'package:lmslocal_flutter/core/services/notification_routes.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
+import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +38,30 @@ void main() async {
 
   // Setup foreground notification handler
   Injection.getNotificationService().setupForegroundHandler();
+
+  // A notification tapped while the app was backgrounded. The router exists by the time
+  // this can fire, so it is acted on immediately unless there is no session to act with.
+  Injection.getNotificationService().setupBackgroundTapHandler((message) {
+    final route = routeForNotification(message);
+    if (route == null) return;
+
+    if (Injection.getAuthBloc().state is AuthAuthenticated) {
+      AppRouter.router.go(route);
+    } else {
+      // Signed out, or a session that expired while the app sat in the background.
+      // Holding the route means signing in finishes the journey the tap started.
+      PendingDestination.remember(route);
+    }
+  });
+
+  // A notification that started the app from cold. This resolves before the first frame,
+  // long before the auth check has settled, so it cannot navigate — it is handed to the
+  // splash screen, which already waits for auth and knows where to send people.
+  final initialMessage = await Injection.getNotificationService().getInitialMessage();
+  if (initialMessage != null) {
+    final route = routeForNotification(initialMessage);
+    if (route != null) PendingDestination.remember(route);
+  }
 
   runApp(const LmsLocalApp());
 }

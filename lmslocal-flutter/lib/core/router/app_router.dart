@@ -1,9 +1,11 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/forgot_password_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/register_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/competition_navigation_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/home/home_shell_page.dart';
+import 'package:lmslocal_flutter/presentation/pages/join/join_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/splash/splash_page.dart';
 
 /// App router configuration using GoRouter
@@ -63,6 +65,25 @@ class AppRouter {
               competitionId: competitionId,
               competition: null,
             );
+          },
+        ),
+
+        // Deep link: /join/:code - the invite link an organiser shares. Claimed by the
+        // app only because Universal Links cannot install anything, so reaching here
+        // means the player already has LMS Local and is being sent a second competition.
+        // Anyone without the app gets the web join page, which is the intended path for
+        // a genuinely new player. See §5.3 of docs/player-onboarding.md.
+        GoRoute(
+          path: '/join/:code',
+          builder: (context, state) {
+            final code = state.pathParameters['code']!;
+            // Keyed on the code so a second join link tears the screen down and
+            // rebuilds it. Without this, Flutter reuses the existing State — same
+            // widget type, same position — so initState never re-runs and the card
+            // keeps showing the previous competition beside the new code. Being
+            // shown one competition and joining another is the exact failure that
+            // looking the code up before offering the button exists to prevent.
+            return JoinPage(key: ValueKey(code), code: code);
           },
         ),
 

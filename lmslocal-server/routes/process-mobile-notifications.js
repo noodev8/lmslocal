@@ -218,8 +218,13 @@ router.post('/', async (req, res) => {
         continue;
       }
 
-      // Send notification to all user's devices
-      const result = await sendNotificationToUser(userTokens, notification.type);
+      // Send notification to all user's devices, carrying the competition and round the
+      // entry is about so a tap lands on that competition rather than the dashboard.
+      const result = await sendNotificationToUser(userTokens, notification.type, {
+        competition_id: notification.entry.competition_id,
+        round_id: notification.entry.round_id,
+        round_number: notification.entry.round_number
+      });
 
       if (result.success) {
         entriesToMarkSent.push(notification.entry.id);

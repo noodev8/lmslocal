@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/core/di/injection.dart';
+import 'package:lmslocal_flutter/core/router/pending_destination.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_event.dart';
@@ -52,7 +53,10 @@ class _LoginPageState extends State<LoginPage> {
         listener: (context, state) {
           if (state is AuthAuthenticated) {
             Injection.getNotificationService().initialize();
-            context.go('/dashboard');
+            // A join link or a tapped notification that arrived while signed out is
+            // resumed here rather than dropped. The web keeps its target in the URL
+            // across a sign-in; in the app this holder is the only thing carrying it.
+            context.go(PendingDestination.take() ?? '/dashboard');
           }
         },
         builder: (context, state) {
