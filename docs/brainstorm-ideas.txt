@@ -1,10 +1,3 @@
-== ALLOWED TEAMS ==
-Having a row of allowed teams for each player should be more economical
-Thinking about a single entry in the player competition with a 20 digit string. 1/0 with 1 being allowed and 0 beig not allowed. e.g 1111111111111111111 all on. 0000000000000000000 all off.
-Need to be absolutely careful that the list of teams corresponds with the position in the string. That needs technical feedback and thought, but probably something to do with the team list as long as we are clear they stay in the same order or have a separate order number linked to them.
-This should save a lot of redundnat rows and retire the allowed teams table. When returning the list to the client, Im expecting the data format to stay the same so the mobile app and web app still works regardless.
-
-
 == PROFILE ==
 Decide if we should have the settings on a web page instead of the app in case they change often
 We want to use it to determine if the user wants/doesnt want different types of emails. Display names for each comeptition and maybe more in future.
