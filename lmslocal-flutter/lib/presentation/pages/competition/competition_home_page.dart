@@ -83,6 +83,11 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
   int? _knockoutRound;
 
   bool _isLoading = true;
+
+  /// Whether the ABOUT block is open, once the competition is under way and it
+  /// has collapsed. Deliberately screen state and nothing more: a per-player
+  /// stored flag would be a table and a migration for a few lines of text.
+  bool _aboutOpen = false;
   String? _error;
 
   @override
@@ -410,6 +415,13 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                     // twice — the prize is the reason a player entered, and a
                     // detail you have to remember to ask for is a detail most
                     // players never see. The web has always shown them inline.
+                    //
+                    // Open on arrival, then a heading you tap once a round
+                    // exists: readership of this falls off a cliff after the
+                    // first week, but the few who come back want one specific
+                    // thing out of it. That is a different thing from the
+                    // bottom sheet, which hid it at the moment it mattered
+                    // most and gave no sign there was anything to open.
                     _buildAboutBlock(_competition!),
                   ],
                 ),
@@ -453,6 +465,13 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       return const SizedBox.shrink();
     }
 
+    // Before there is a round, this is most of what the screen has to say, so
+    // it stays open and the heading is not a control. Once the competition is
+    // running, everything above it — the round, the pick, the status — is what
+    // the player came back for, and this folds down to one line.
+    final collapsible = _currentRound != null;
+    final open = !collapsible || _aboutOpen;
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(top: 24),
@@ -466,21 +485,40 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ABOUT', style: CouponTheme.label),
-          if (hasPrize) ...[
-            const SizedBox(height: 12),
-            Text(prize, style: CouponTheme.intro.copyWith(fontSize: 18)),
-          ],
-          if (hasDescription) ...[
-            const SizedBox(height: 12),
-            Text(
-              description,
-              style: CouponTheme.bodyText.copyWith(color: CouponTheme.inkFade),
-            ),
-          ],
-          if (rows.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ...rows,
+          if (collapsible)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _aboutOpen = !_aboutOpen),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('ABOUT', style: CouponTheme.label),
+                  Icon(
+                    open ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: CouponTheme.inkFade,
+                  ),
+                ],
+              ),
+            )
+          else
+            Text('ABOUT', style: CouponTheme.label),
+          if (open) ...[
+            if (hasPrize) ...[
+              const SizedBox(height: 12),
+              Text(prize, style: CouponTheme.intro.copyWith(fontSize: 18)),
+            ],
+            if (hasDescription) ...[
+              const SizedBox(height: 12),
+              Text(
+                description,
+                style: CouponTheme.bodyText.copyWith(color: CouponTheme.inkFade),
+              ),
+            ],
+            if (rows.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              ...rows,
+            ],
           ],
         ],
       ),
@@ -601,11 +639,21 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                 ),
                 onPressed: () => context.go('/dashboard'),
               ),
-              // No logo here. The organiser's uploaded badge used to sit beside
-              // the name, but at 36px it read as chrome rather than
-              // identification, and it pushed the name off centre whenever one
-              // existed — so the header looked different per competition for no
-              // gain. The name is the identifier.
+              // No badge here. It has now been tried twice and cut twice, so
+              // take this as settled rather than as an oversight.
+              //
+              // The first removal blamed the off-centre name, which turned out
+              // to be a fixable counterweight bug rather than a reason. With
+              // that fixed and the badge sized up to 40 so the crest was
+              // actually legible, the objection that survived was the plain
+              // one: this header is a back arrow and a name, and a third
+              // element makes it busy without telling the player anything they
+              // do not already know — they tapped this competition to get
+              // here, and its badge was on the card they tapped.
+              //
+              // The badge earns its place where identity is in question: the
+              // join screen, and a dashboard listing several competitions.
+              // Neither is true here.
 
               // Competition Name. Expanded rather than Flexible between two
               // Spacers: a Spacer is an Expanded, so three flex:1 children
@@ -624,7 +672,7 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Empty space to balance back arrow
+              // Balances the back arrow so the name sits centred in the header.
               const SizedBox(width: 48),
             ],
           ),

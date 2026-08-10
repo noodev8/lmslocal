@@ -11,6 +11,7 @@ import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
+import 'package:lmslocal_flutter/presentation/widgets/common/competition_logo.dart';
 
 /// The in-app half of a `lmslocal.co.uk/join/<code>` link.
 ///
@@ -323,6 +324,8 @@ class _JoinPageState extends State<JoinPage> {
         final competition = _competition!;
         final venue = competition['venue_name'] as String?;
         final organiser = competition['organiser_name'] as String?;
+        final name = competition['name'] as String? ?? '';
+        final description = competition['description'] as String?;
 
         return _shell(
           Column(
@@ -330,10 +333,41 @@ class _JoinPageState extends State<JoinPage> {
             children: [
               _eyebrow('You have been invited'),
               const SizedBox(height: 16),
-              Text(
-                (competition['name'] as String? ?? '').toUpperCase(),
-                style: CouponTheme.heading(48),
+              // The badge sits beside the name rather than above it. Alone on
+              // its own line it read as a stray tile with nothing to do — it
+              // needs the name next to it to be understood as that
+              // competition's mark rather than as decoration.
+              //
+              // This is still the one moment it does real work: a code has
+              // been typed off a beer mat and an email address is about to be
+              // handed over, and the organiser's own crest is what says this
+              // is the right competition. Elsewhere it only tells competitions
+              // apart in a list.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CompetitionLogo(
+                    name: name,
+                    logoUrl: competition['logo_url'] as String?,
+                    size: 52,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      name.toUpperCase(),
+                      style: CouponTheme.heading(40),
+                    ),
+                  ),
+                ],
               ),
+              // The organiser's blurb, in full. Readership of it peaks here and
+              // never recovers, and it is where organisers put the entry fee
+              // and the prize — exactly what someone deciding whether to join
+              // needs without having to ask for it.
+              if (description != null && description.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text(description, style: CouponTheme.intro),
+              ],
               const SizedBox(height: 28),
               Container(
                 decoration: BoxDecoration(

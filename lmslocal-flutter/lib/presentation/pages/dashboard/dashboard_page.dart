@@ -14,6 +14,7 @@ import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/domain/entities/promoted_competition.dart';
+import 'package:lmslocal_flutter/presentation/widgets/common/competition_logo.dart';
 
 /// The competitions half of [HomeShellPage] — a body, not a screen.
 ///
@@ -1179,6 +1180,15 @@ class _DashboardPageState extends State<DashboardPage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Small on purpose. In a list of competitions the badge's
+                    // only job is telling them apart at a glance; the join
+                    // screen is where it is asked to prove one is real.
+                    CompetitionLogo(
+                      name: competition.name,
+                      logoUrl: competition.logoUrl,
+                      size: 40,
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         competition.name,
