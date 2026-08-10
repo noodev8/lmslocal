@@ -31,16 +31,20 @@ per-competition — competition 200 has it stripped to bare first names, competi
 an organiser in `BOT_ORGANISER_IDS` (`lmslocal-server/services/botPool.js`), currently just
 organiser 50. Every bot route refuses anything else with `COMPETITION_NOT_ELIGIBLE`.
 
-The second rule is about money. `competition_user` rows are counted against the organiser's
-free player allowance in six places, with no exclusion for bots — so a bot uses up one of the 20
-free places exactly like a person, and past that it costs the organiser a credit. Worse,
-`get-competition-by-code` answers `FULL` and turns real players away once an organiser is at the
-limit with no credit left. Seeding a customer's competition would spend their money and could
-lock their players out. Confining bots to our own accounts is what makes that survivable without
-putting a bot exclusion into live billing code.
+The second rule used to be about money, and no longer is. **A bot costs nothing anywhere**: every
+counting query excludes them, via the shared definition in `services/botPool.js`
+(`organiserChargeableCountSql`). A bot takes no free place and never triggers a deduction, and
+`get-competition-by-code` no longer answers `FULL` on account of bots — which was a real bug, since
+seeding one of our own competitions could slam the door on the very players the seeding existed to
+attract. See `docs/reset-billing.md` §4.
 
-Adding an id to `BOT_ORGANISER_IDS` is therefore a decision about someone's credit balance, not
-a config tweak.
+**The rule survives that change, for a better reason.** A customer's competition filling with fake
+entrants is bad on its own terms: real players would see phantom names in the standings, play
+against opponents who are not people, and be eliminated in a field padded with accounts we drive.
+No billing argument is needed to make that unacceptable.
+
+Adding an id to `BOT_ORGANISER_IDS` is therefore a decision about whether someone's players are
+competing against real opponents, not a config tweak.
 
 ---
 

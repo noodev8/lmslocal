@@ -22,7 +22,6 @@ Success Response (ALWAYS HTTP 200):
   },
   "removed_data": {
     "picks_deleted": 5,               // integer, number of picks deleted
-    "allowed_teams_deleted": 20,      // integer, number of allowed team entries deleted
     "progress_deleted": 3,            // integer, number of progress records deleted
     "notifications_deleted": 2,       // integer, number of pending push notifications deleted
     "email_queue_deleted": 1,         // integer, number of pending emails deleted
@@ -60,6 +59,7 @@ const express = require('express');
 const { transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const { canManagePlayers } = require('../utils/permissions');
+const { countOrganiserChargeableMembers, isBotEmail } = require('../services/botPool');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety for player removal
@@ -166,23 +166,26 @@ router.post('/', verifyToken, async (req, res) => {
       }
 
       // STEP 2.5: Credit refund logic for SETUP competitions (PAYG System)
-      // Only refund credits if competition is still in SETUP mode
+      //
+      // This window is not an accident of the reset code - it is the release valve that makes a
+      // paid reset tolerable. An organiser pays for the field they are actually going to run, and
+      // can correct that field right up until the game starts. See docs/reset-billing.md §6.
+      //
+      // The comparison is case-insensitive on purpose. competition.status holds only uppercase
+      // values today, so an exact match is sound - but this refund is now something we promise an
+      // organiser in writing in the reset dialog, and it should not quietly stop working the day
+      // a route writes 'setup'.
       let creditRefunded = false;
       let refundedAmount = 0;
 
-      if (data.competition_status === 'SETUP') {
-        // Count organiser's current total players across ALL competitions
+      // Removing a bot refunds nothing, because adding one charged nothing.
+      const removedPlayerWasChargeable = !isBotEmail(data.player_email);
+
+      if (String(data.competition_status).toUpperCase() === 'SETUP' && removedPlayerWasChargeable) {
+        // Count organiser's chargeable players across ALL competitions
         const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
 
-        const playerCountQuery = `
-          SELECT COUNT(cu.id) as current_player_count
-          FROM competition c
-          LEFT JOIN competition_user cu ON cu.competition_id = c.id
-          WHERE c.organiser_id = $1
-        `;
-
-        const countResult = await client.query(playerCountQuery, [admin_id]);
-        const currentPlayerCount = parseInt(countResult.rows[0].current_player_count) || 0;
+        const currentPlayerCount = await countOrganiserChargeableMembers(client, admin_id);
 
         // If organiser currently has more players than free limit, refund 1 credit
         // This is because removing a player reduces their paid player count
@@ -229,12 +232,6 @@ router.post('/', verifyToken, async (req, res) => {
       `;
       const picksResult = await client.query(picksDeleteQuery, [player_id, competition_id]);
 
-      // 2. Delete allowed teams for this player in this competition
-      const allowedTeamsDeleteQuery = `
-        DELETE FROM allowed_teams 
-        WHERE user_id = $1 AND competition_id = $2
-      `;
-      const allowedTeamsResult = await client.query(allowedTeamsDeleteQuery, [player_id, competition_id]);
 
       // 3. Delete player progress records for this competition
       const progressDeleteQuery = `
@@ -274,7 +271,6 @@ router.post('/', verifyToken, async (req, res) => {
       // Calculate total records removed for audit purposes
       const totalRecordsDeleted =
         (picksResult.rowCount || 0) +
-        (allowedTeamsResult.rowCount || 0) +
         (progressResult.rowCount || 0) +
         (notificationsResult.rowCount || 0) +
         (emailQueueResult.rowCount || 0) +
@@ -298,7 +294,6 @@ router.post('/', verifyToken, async (req, res) => {
         },
         records_deleted: {
           picks: picksResult.rowCount || 0,
-          allowed_teams: allowedTeamsResult.rowCount || 0,
           progress: progressResult.rowCount || 0,
           notifications: notificationsResult.rowCount || 0,
           email_queue: emailQueueResult.rowCount || 0,
@@ -337,7 +332,6 @@ router.post('/', verifyToken, async (req, res) => {
         },
         removed_data: {
           picks_deleted: picksResult.rowCount || 0,
-          allowed_teams_deleted: allowedTeamsResult.rowCount || 0,
           progress_deleted: progressResult.rowCount || 0,
           notifications_deleted: notificationsResult.rowCount || 0,
           email_queue_deleted: emailQueueResult.rowCount || 0,

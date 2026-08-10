@@ -45,6 +45,7 @@ const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { canManagePlayers } = require('../utils/permissions');
+const { countOrganiserChargeableMembers } = require('../services/botPool');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -138,19 +139,12 @@ router.post('/', verifyToken, async (req, res) => {
 
     await transaction(async (client) => {
       // Step 0: CREDIT DEDUCTION LOGIC (PAYG System)
-      // Count organiser's current total players across ALL competitions
+      // Count organiser's chargeable players across ALL competitions. Bots are not chargeable
+      // anywhere - services/botPool.js owns that definition.
       // Free tier limit from environment variable (defaults to 20 if not set)
       const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
 
-      const playerCountQuery = `
-        SELECT COUNT(cu.id) as current_player_count
-        FROM competition c
-        LEFT JOIN competition_user cu ON cu.competition_id = c.id
-        WHERE c.organiser_id = $1
-      `;
-
-      const countResult = await client.query(playerCountQuery, [admin_id]);
-      const currentPlayerCount = parseInt(countResult.rows[0].current_player_count) || 0;
+      const currentPlayerCount = await countOrganiserChargeableMembers(client, admin_id);
 
       // If organiser has reached free tier limit, need to deduct 1 credit
       if (currentPlayerCount >= FREE_PLAYER_LIMIT) {
@@ -232,15 +226,6 @@ router.post('/', verifyToken, async (req, res) => {
         VALUES ($1, $2, 'active', $3, NOW(), $4)
       `, [competition_id, newPlayer.id, competition.lives_per_player, newPlayer.display_name]);
 
-      // Step 3: Initialize allowed teams for this player
-      // All active teams from competition's team list are initially available
-      // This prevents the player from having to manually reset teams on first pick
-      await client.query(`
-        INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
-        SELECT $1, $2, t.id, NOW()
-        FROM team t
-        WHERE t.team_list_id = $3 AND t.is_active = true
-      `, [competition_id, newPlayer.id, competition.team_list_id]);
 
       // Step 4: Add comprehensive audit log for admin action tracking
       // Records who added what player to which competition for compliance

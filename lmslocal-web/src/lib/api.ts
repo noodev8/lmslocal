@@ -368,9 +368,14 @@ export interface UpdateCompetitionResponse {
 
 export interface ResetCompetitionRequest {
   competition_id: number;
+  // The price the organiser was shown. The server refuses with QUOTE_STALE rather than charging
+  // more than this, so a player joining mid-confirmation cannot produce a surprise debit.
+  quoted_cost?: number;
 }
 
 export interface ResetCompetitionResponse {
+  credits_used: number;
+  credits_remaining: number;
   competition: {
     id: number;
     name: string;
@@ -379,6 +384,18 @@ export interface ResetCompetitionResponse {
     reset_at: string;
     players_affected: number;
   };
+}
+
+export interface ResetQuoteRequest {
+  competition_id: number;
+}
+
+export interface ResetQuoteResponse {
+  cost: number;                 // places the reset will use; 0 means free
+  balance: number;              // organiser's current credit balance
+  affordable: boolean;
+  chargeable_players: number;   // members of this competition who cost a place
+  free_limit: number;
 }
 
 export interface DeleteCompetitionRequest {
@@ -394,7 +411,6 @@ export interface DeleteCompetitionResponse {
     fixtures_deleted: number;
     picks_deleted: number;
     progress_records_deleted: number;
-    allowed_teams_deleted: number;
     deleted_at: string;
   };
 }
@@ -523,7 +539,11 @@ export const competitionApi = {
     total_unpicked?: number;
   }>('/get-unpicked-players', { competition_id, round_id }),
   update: (data: UpdateCompetitionRequest) => api.post<UpdateCompetitionResponse & { return_code: string; message?: string }>('/update-competition', data),
-  reset: (data: ResetCompetitionRequest) => api.post<ResetCompetitionResponse & { return_code: string; message?: string }>('/reset-competition', data),
+  reset: (data: ResetCompetitionRequest) => api.post<ResetCompetitionResponse & { return_code: string; message?: string; required?: number; balance?: number }>('/reset-competition', data),
+
+  // What starting again will cost, so the organiser sees the price before the button rather than
+  // by pressing it. Read-only - nothing is charged here.
+  getResetQuote: (data: ResetQuoteRequest) => api.post<ResetQuoteResponse & { return_code: string; message?: string }>('/get-reset-quote', data),
 
   // The organiser's start gate. `ready` false puts it back on hold, which the backend allows
   // right up until the first round exists.

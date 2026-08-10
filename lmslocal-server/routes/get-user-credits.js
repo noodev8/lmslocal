@@ -55,6 +55,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { CREDIT_PACKS } = require('../config/credit-packs');
+const { organiserChargeableCountSql } = require('../services/botPool');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -97,17 +98,16 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // === STEP 2: GET CREDIT BALANCE AND PLAYER COUNT (SINGLE OPTIMIZED QUERY) ===
-    // Join user with their competitions and count all players across all competitions
-    // This avoids N+1 query problems by getting everything in one query
+    // Balance plus the chargeable player count across all their competitions, in one query.
+    // Bots are excluded - they cost nothing and take no free place, so reporting them as usage
+    // would show the organiser places being consumed that they are not being charged for.
+    // services/botPool.js owns that definition.
     const creditsQuery = `
       SELECT
         u.paid_credit,
-        COUNT(cu.id) as total_player_count
+        ${organiserChargeableCountSql('u.id')} as total_player_count
       FROM app_user u
-      LEFT JOIN competition c ON c.organiser_id = u.id
-      LEFT JOIN competition_user cu ON cu.competition_id = c.id
       WHERE u.id = $1
-      GROUP BY u.id, u.paid_credit
     `;
 
     const creditsResult = await query(creditsQuery, [userId]);

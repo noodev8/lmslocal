@@ -11,10 +11,17 @@ Request Payload:
   "competition_id": 123                    // integer, required - ID of competition to reset
 }
 
+Request Payload (optional, see "What a reset costs" below):
+{
+  "quoted_cost": 180                       // integer, optional - the price the organiser was shown
+}
+
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "message": "Competition reset successfully",     // string, success confirmation message
+  "credits_used": 180,                             // integer, places this reset spent (0 = free)
+  "credits_remaining": 45,                         // integer, organiser's balance afterwards
   "competition": {                                 // object, updated competition details
     "id": 123,                                    // integer, competition ID
     "name": "My Competition",                     // string, competition name
@@ -27,8 +34,10 @@ Success Response (ALWAYS HTTP 200):
 
 Error Response (ALWAYS HTTP 200):
 {
-  "return_code": "ERROR_TYPE",
-  "message": "Descriptive error message"           // string, user-friendly error description
+  "return_code": "INSUFFICIENT_CREDITS",
+  "message": "Descriptive error message",          // string, user-friendly error description
+  "required": 180,                                 // integer, places needed (this code only)
+  "balance": 20                                    // integer, places held (this code only)
 }
 =======================================================================================================================================
 Return Codes:
@@ -36,7 +45,24 @@ Return Codes:
 "VALIDATION_ERROR"
 "COMPETITION_NOT_FOUND"
 "UNAUTHORIZED"
+"INSUFFICIENT_CREDITS"
+"QUOTE_STALE"
 "SERVER_ERROR"
+=======================================================================================================================================
+What a reset costs:
+
+A reset re-charges for the players still in the competition - it is the same event as all of them
+joining again, and the previous run's places were spent on the previous run. services/resetCost.js
+holds the arithmetic and docs/reset-billing.md holds the reasoning.
+
+All or nothing. The charge happens inside the transaction that does the wipe, so if the debit
+cannot be taken in full then nothing is deleted, nothing is reset, and no credit moves.
+
+quoted_cost is what the organiser was shown by get-reset-quote. If the real cost has risen above
+it - a player joined in the two seconds in between - the reset refuses with QUOTE_STALE rather
+than taking a larger debit than the number on the screen. A cost that has FALLEN is charged as
+calculated and allowed through: the organiser is never billed more than they agreed to, and
+refusing a cheaper reset would be obstructive. Omitting quoted_cost skips the check.
 =======================================================================================================================================
 Starting again:
 
@@ -53,6 +79,7 @@ const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { calculateResetCost } = require('../services/resetCost');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -61,7 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
   
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id } = req.body;
+    const { competition_id, quoted_cost } = req.body;
     const user_id = req.user.id;
 
     // === INPUT VALIDATION ===
@@ -96,6 +123,67 @@ router.post('/', verifyToken, async (req, res) => {
       // 2. Verify user is the organiser of this competition
       if (competition.organiser_id !== user_id) {
         throw new Error('UNAUTHORIZED: Only the competition organiser can reset this competition');
+      }
+
+      // 2.5. Take payment for the new run BEFORE anything is deleted.
+      //
+      // Ordering is the whole safety property here: every DELETE below is in this transaction, so
+      // a throw at this point leaves the competition exactly as it was. There is no partial reset
+      // and no partial charge.
+      const { cost, balance } = await calculateResetCost(client, competition_id, user_id);
+
+      let creditsRemaining = balance;
+
+      if (cost > 0) {
+        /*
+        The quote the organiser agreed to is a ceiling, not a contract. If somebody joined between
+        the modal opening and the button being pressed, the real cost is higher than the number on
+        their screen - and taking that larger debit silently is the one thing this must not do.
+        A cost that has fallen is simply charged, which is why this is a one-sided check.
+        */
+        if (Number.isInteger(quoted_cost) && cost > quoted_cost) {
+          throw {
+            return_code: 'QUOTE_STALE',
+            message: 'The number of players changed while you were confirming. Check the new figure and try again.',
+            required: cost,
+            balance
+          };
+        }
+
+        /*
+        Conditional UPDATE rather than a read-then-write: the balance is checked and taken in one
+        statement, so two resets fired at once cannot both pass a check against the same balance
+        and overdraw it. No row back means it could not be afforded.
+        */
+        const debitResult = await client.query(`
+          UPDATE app_user
+          SET paid_credit = paid_credit - $2
+          WHERE id = $1 AND paid_credit >= $2
+          RETURNING paid_credit AS new_balance
+        `, [user_id, cost]);
+
+        if (debitResult.rows.length === 0) {
+          throw {
+            return_code: 'INSUFFICIENT_CREDITS',
+            message: `Starting again will use ${cost} ${cost === 1 ? 'place' : 'places'}. You have ${balance}.`,
+            required: cost,
+            balance
+          };
+        }
+
+        creditsRemaining = parseInt(debitResult.rows[0].new_balance, 10);
+
+        // 'deduction' rather than a reset-specific type, so the existing billing history keeps
+        // working without being taught a new word. The description is what tells them why.
+        await client.query(`
+          INSERT INTO credit_transactions (user_id, transaction_type, amount, competition_id, description, created_at)
+          VALUES ($1, 'deduction', $2, $3, $4, CURRENT_TIMESTAMP)
+        `, [
+          user_id,
+          -cost,
+          competition_id,
+          `${cost} ${cost === 1 ? 'place' : 'places'} used starting "${competition.name}" again`
+        ]);
       }
 
       // 3. The invite code is deliberately NOT regenerated.
@@ -152,12 +240,6 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING id
       `, [competition_id]);
 
-      // Delete allowed teams (references competition_id and user_id)
-      const deletedAllowedTeamsResult = await client.query(`
-        DELETE FROM allowed_teams 
-        WHERE competition_id = $1
-        RETURNING id
-      `, [competition_id]);
 
       // 6. Back to SETUP. invite_code is absent from the SET list on purpose - see step 3.
       //    ready_at goes back to null so the fixture service waits to be told again - see the header.
@@ -173,37 +255,25 @@ router.post('/', verifyToken, async (req, res) => {
       const updatedCompetition = updatedCompetitionResult.rows[0];
 
       // 7. Reset all player states for the fresh competition (payment status, lives, join date)
+      //
+      // teams_reset_round goes back to 0 with them. It is a ROUND NUMBER - the boundary after
+      // which a player's picks count against what they may pick again (services/allowedTeams.js)
+      // - and the new run starts at round 1. Left at, say, 5 from the previous run, every pick in
+      // rounds 1-5 of the new competition would sit below the boundary and count against nothing,
+      // so a player could pick the same team five weeks running. Zero is the correct starting
+      // state and it is what the column defaults to for a new member.
       const resetPlayerResult = await client.query(`
-        UPDATE competition_user 
-        SET paid = false, 
+        UPDATE competition_user
+        SET paid = false,
             paid_date = NULL,
             status = 'active',
             lives_remaining = $2,
+            teams_reset_round = 0,
             joined_at = CURRENT_TIMESTAMP
         WHERE competition_id = $1
         RETURNING user_id
       `, [competition_id, competition.lives_per_player]);
 
-      // 8. Repopulate allowed_teams for all existing players
-      // Get all current players in this competition
-      const playersResult = await client.query(`
-        SELECT user_id 
-        FROM competition_user 
-        WHERE competition_id = $1
-      `, [competition_id]);
-
-      // Repopulate allowed teams for each player using the competition's team list
-      if (playersResult.rows.length > 0) {
-        await client.query(`
-          INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
-          SELECT $1, cu.user_id, t.id, NOW()
-          FROM competition_user cu
-          CROSS JOIN team t
-          WHERE cu.competition_id = $1 
-            AND t.team_list_id = $2 
-            AND t.is_active = true
-        `, [competition_id, competition.team_list_id]);
-      }
 
       // 9. Create comprehensive audit log entry
       const resetDetails = [
@@ -212,10 +282,12 @@ router.post('/', verifyToken, async (req, res) => {
         `Deleted ${deletedFixturesResult.rows.length} fixtures`, 
         `Deleted ${deletedPicksResult.rows.length} picks`,
         `Deleted ${deletedProgressResult.rows.length} player progress records`,
-        `Deleted ${deletedAllowedTeamsResult.rows.length} allowed team entries`,
         `Reset player states (payment status, lives, join date) for ${resetPlayerResult.rows.length} players`,
         `Kept invite code ${competition.invite_code}`,
         `Affected ${playersAffected} players`,
+        cost > 0
+          ? `Used ${cost} ${cost === 1 ? 'place' : 'places'}, leaving ${creditsRemaining}`
+          : 'Used no places (within free allowance)',
         `Repopulated allowed teams for all players`,
         ...(competition.fixture_service === true ? ['Start put back on hold until the organiser presses Ready'] : [])
       ].join(', ');
@@ -233,12 +305,13 @@ router.post('/', verifyToken, async (req, res) => {
       return {
         competition: updatedCompetition,
         playersAffected: playersAffected,
+        creditsUsed: cost,
+        creditsRemaining: creditsRemaining,
         deletionCounts: {
           rounds: deletedRoundsResult.rows.length,
           fixtures: deletedFixturesResult.rows.length,
           picks: deletedPicksResult.rows.length,
-          progress: deletedProgressResult.rows.length,
-          allowedTeams: deletedAllowedTeamsResult.rows.length
+          progress: deletedProgressResult.rows.length
         }
       };
     });
@@ -248,6 +321,8 @@ router.post('/', verifyToken, async (req, res) => {
     res.json({
       return_code: "SUCCESS",
       message: "Competition reset successfully",
+      credits_used: result.creditsUsed,                             // Places this reset spent
+      credits_remaining: result.creditsRemaining,                   // Balance afterwards
       competition: {
         id: result.competition.id,                                    // Competition ID for reference
         name: result.competition.name,                               // Competition name
@@ -262,7 +337,19 @@ router.post('/', verifyToken, async (req, res) => {
     // === ERROR HANDLING ===
     // Log detailed error for debugging but return appropriate user-facing messages
     console.error('Reset competition error:', error);
-    
+
+    // The billing failures throw a structured object rather than an Error, because they carry
+    // numbers the dialog has to show. Handled first - the string matching below would fall
+    // through to SERVER_ERROR and lose both the code and the figures.
+    if (error && error.return_code) {
+      return res.json({
+        return_code: error.return_code,
+        message: error.message,
+        ...(error.required !== undefined && { required: error.required }),
+        ...(error.balance !== undefined && { balance: error.balance })
+      });
+    }
+
     // Handle specific business logic errors with appropriate return codes
     if (error.message.startsWith('VALIDATION_ERROR:')) {
       return res.json({

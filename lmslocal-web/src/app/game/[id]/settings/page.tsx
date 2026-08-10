@@ -9,7 +9,7 @@ import {
   XMarkIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, DeleteCompetitionRequest } from '@/lib/api';
+import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, ResetQuoteResponse, DeleteCompetitionRequest } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -36,6 +36,9 @@ export default function CompetitionSettings() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [resetting, setResetting] = useState(false);
+  const [resetQuote, setResetQuote] = useState<ResetQuoteResponse | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [resetQuoteError, setResetQuoteError] = useState<string | null>(null);
 
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -256,6 +259,36 @@ export default function CompetitionSettings() {
 
   // Removed Cancel button - users can navigate away if needed
 
+  /*
+   * What starting again will cost, fetched when the modal opens so the price is on screen before
+   * the button rather than arriving as a surprise debit. Re-fetched on every open, so an organiser
+   * who closes the dialog, removes a player and comes back sees the lower number.
+   */
+  const loadResetQuote = async (competitionIdToQuote: number) => {
+    setResetQuote(null);
+    setQuoteLoading(true);
+    try {
+      const response = await competitionApi.getResetQuote({ competition_id: competitionIdToQuote });
+      if (response.data.return_code === 'SUCCESS') {
+        setResetQuote(response.data);
+      } else {
+        setResetQuoteError(response.data.message || 'Could not work out what starting again will cost');
+      }
+    } catch (err) {
+      console.error('Reset quote error:', err);
+      setResetQuoteError('Could not work out what starting again will cost');
+    } finally {
+      setQuoteLoading(false);
+    }
+  };
+
+  const handleOpenResetModal = () => {
+    if (!competition) return;
+    setResetQuoteError(null);
+    setShowResetModal(true);
+    loadResetQuote(competition.id);
+  };
+
   const handleResetCompetition = async () => {
     if (!competition) return;
 
@@ -271,6 +304,8 @@ export default function CompetitionSettings() {
     try {
       const resetData: ResetCompetitionRequest = {
         competition_id: competition.id,
+        // The figure they actually saw. The server refuses rather than charging above it.
+        ...(resetQuote ? { quoted_cost: resetQuote.cost } : {}),
       };
 
       const response = await competitionApi.reset(resetData);
@@ -298,6 +333,15 @@ export default function CompetitionSettings() {
         }, 200);
       } else {
         setError(response.data.message || 'Failed to reset competition');
+
+        /*
+         * Both billing refusals mean the number on screen is out of date - either someone joined
+         * while they were confirming, or the balance moved. Re-fetch so they are looking at the
+         * real figure rather than the one that just failed.
+         */
+        if (response.data.return_code === 'INSUFFICIENT_CREDITS' || response.data.return_code === 'QUOTE_STALE') {
+          loadResetQuote(competition.id);
+        }
       }
 
     } catch (err: unknown) {
@@ -313,7 +357,21 @@ export default function CompetitionSettings() {
     setShowResetModal(false);
     setResetConfirmText('');
     setError(null);
+    setResetQuote(null);
+    setResetQuoteError(null);
   };
+
+  /*
+   * Whether to offer the reset control at all.
+   *
+   * With a quote in hand it is simply whether they can afford it. Without one - the quote is
+   * still in flight, or the call failed - the control stays available rather than being withheld
+   * on a number we do not have. That is safe because the price is authoritatively recalculated
+   * inside the reset transaction: the worst case is the server refusing with INSUFFICIENT_CREDITS
+   * and nothing being deleted, which is a better failure than an organiser unable to reset their
+   * own competition because one read-only call did not answer.
+   */
+  const resetAllowed = resetQuote ? resetQuote.affordable : !quoteLoading;
 
   const handleDeleteCompetition = async () => {
     if (!competition) return;
@@ -780,7 +838,7 @@ export default function CompetitionSettings() {
               <div className="flex flex-shrink-0 flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
-                  onClick={() => setShowResetModal(true)}
+                  onClick={handleOpenResetModal}
                   disabled={saving || resetting || deleting}
                   className={`${LABEL} flex items-center justify-center gap-2 border border-overprint px-4 py-3 text-overprint transition-colors hover:bg-overprint hover:text-stock-lit disabled:cursor-not-allowed disabled:opacity-50 sm:px-6`}
                 >
@@ -834,6 +892,57 @@ export default function CompetitionSettings() {
                 </p>
               </div>
 
+              {/*
+                What starting again costs. Three states, one fetch:
+
+                  - free (cost 0)  : say nothing at all. Telling an organiser inside their free
+                                     allowance that this will use no places invents a worry they
+                                     did not have and makes a free product feel metered.
+                  - affordable     : the price, the balance afterwards, and BOTH ways out of
+                                     paying for someone who is not playing - remove them now, or
+                                     remove them afterwards and get the place back. An organiser
+                                     who only knows about the first makes a worse decision.
+                  - short          : the price and what they hold, and no way to proceed. No link
+                                     and no button to billing - they go themselves, because a
+                                     dialog that navigates people owns getting them back, and the
+                                     way back cannot be made reliable (docs/reset-billing.md §7).
+              */}
+              {quoteLoading && (
+                <p className="mt-4 text-[13px] text-ink-fade">Working out what this will use…</p>
+              )}
+
+              {resetQuoteError && (
+                <p className="mt-4 border border-overprint p-3 text-[13px] text-overprint">
+                  {resetQuoteError}
+                </p>
+              )}
+
+              {resetQuote && resetQuote.cost > 0 && resetQuote.affordable && (
+                <div className="mt-4 border border-ink/30 p-3">
+                  <p className="text-[14px] font-medium text-ink">
+                    Starting again will use {resetQuote.cost} {resetQuote.cost === 1 ? 'place' : 'places'},
+                    leaving you {resetQuote.balance - resetQuote.cost}.
+                  </p>
+                  <p className="mt-2 text-[13px] text-ink-fade">
+                    Everyone currently in stays in, and each of them uses a place. If someone is not
+                    playing the next game, you can remove them now and not spend a place on them — or
+                    remove them afterwards, any time before the game starts, and the place comes back.
+                  </p>
+                </div>
+              )}
+
+              {resetQuote && resetQuote.cost > 0 && !resetQuote.affordable && (
+                <div className="mt-4 border border-overprint p-3">
+                  <p className="text-[14px] font-medium text-overprint">
+                    Starting again will use {resetQuote.cost} {resetQuote.cost === 1 ? 'place' : 'places'}.
+                    You have {resetQuote.balance}.
+                  </p>
+                  <p className="mt-2 text-[13px] text-ink-fade">
+                    Buy more places from Billing, or remove players you are not expecting to play.
+                  </p>
+                </div>
+              )}
+
               {/* A reset empties the competition back to nothing, so it goes back to waiting on
                   the organiser - otherwise it would be open to the very next batch of fixtures
                   with no warning to anyone. */}
@@ -844,19 +953,22 @@ export default function CompetitionSettings() {
                 </p>
               )}
 
-              <div className="mt-4">
-                <label htmlFor="confirmReset" className={`${LABEL} mb-2 block text-ink-fade`}>
-                  Type RESET to confirm
-                </label>
-                <input
-                  id="confirmReset"
-                  type="text"
-                  value={resetConfirmText}
-                  onChange={(e) => setResetConfirmText(e.target.value)}
-                  placeholder="RESET"
-                  className={`${INPUT} text-center font-data`}
-                />
-              </div>
+              {/* Type-to-confirm is pointless when there is nothing to confirm - see below. */}
+              {resetAllowed && (
+                <div className="mt-4">
+                  <label htmlFor="confirmReset" className={`${LABEL} mb-2 block text-ink-fade`}>
+                    Type RESET to confirm
+                  </label>
+                  <input
+                    id="confirmReset"
+                    type="text"
+                    value={resetConfirmText}
+                    onChange={(e) => setResetConfirmText(e.target.value)}
+                    placeholder="RESET"
+                    className={`${INPUT} text-center font-data`}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-3 border-t border-ink/30 p-4 sm:flex-row">
@@ -866,16 +978,23 @@ export default function CompetitionSettings() {
                 disabled={resetting}
                 className={`${BTN_OUTLINE} flex-1 justify-center py-2 disabled:opacity-50`}
               >
-                Cancel
+                {resetAllowed ? 'Cancel' : 'Close'}
               </button>
-              <button
-                type="button"
-                onClick={handleResetCompetition}
-                disabled={resetting || resetConfirmText.toLowerCase() !== 'reset'}
-                className={`${BTN_PRIMARY} flex-1 py-2 text-base disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                {resetting ? 'Resetting…' : 'Reset competition'}
-              </button>
+              {/*
+                The reset control is not offered at all when they cannot afford it. A disabled
+                button invites them to hunt for what would enable it; no button plus the figure
+                above says the same thing without the hunt.
+              */}
+              {resetAllowed && (
+                <button
+                  type="button"
+                  onClick={handleResetCompetition}
+                  disabled={resetting || resetConfirmText.toLowerCase() !== 'reset'}
+                  className={`${BTN_PRIMARY} flex-1 py-2 text-base disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {resetting ? 'Resetting…' : 'Reset competition'}
+                </button>
+              )}
             </div>
           </div>
         </div>

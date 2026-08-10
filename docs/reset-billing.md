@@ -1,12 +1,15 @@
 # Charging for a reset
 
-**Status: agreed, not built.** Written 8 Aug 2026. No code has been written for any of this.
-Picking it up needs a test competition set up by hand — see §8.
+**Status: built and tested on the backend, 10 Aug 2026.** Written 8 Aug 2026. Every §8 case has
+been exercised against competition 206 except the front end, which is being checked separately.
+`FREE_PLAYER_LIMIT` is still lowered in `.env` — see §8 before shipping.
 
-Two separable pieces of work here, and they can ship in either order:
+Two pieces of work, and the order is **not** free:
 
-- **§1-§3, §5-§6** — reset re-charges for the players still in the competition
-- **§4** — bots stop being chargeable anywhere, which is its own change and stands alone
+- **§4 first** — bots stop being chargeable anywhere. This is settled policy, not an option: a bot
+  never costs a credit and never consumes a free place. It goes in first so there is never a
+  moment where a reset prices a bot.
+- **§1-§3, §5-§7** — reset re-charges for the players still in the competition, on top of that.
 
 ---
 
@@ -231,7 +234,20 @@ required amount and the current balance so the message can be specific:
 >
 > Buy more places, or remove players you are not expecting to play.
 
-Plus a plain link to `/billing`. The reset control is not offered in this state.
+**No link, and no button.** The message names Billing in words and the organiser goes there
+themselves. The reset control is not offered in this state.
+
+This is the same instinct as the section below, carried one step further: the moment the dialog
+starts navigating people around, it owns getting them back, and the way back is the thing that
+cannot be made reliable.
+
+### The third state: the reset is free
+
+Under the free twenty the modal says **nothing about credits at all** — no price, no balance, no
+reassurance that it costs nothing. It looks exactly as it does today. Telling an organiser that
+starting again will use zero places invents a worry they did not have and makes a free product
+feel metered. All three states come from the same `/get-reset-quote` call on open; this one just
+renders none of it.
 
 ### Deliberately not doing: the round trip back
 
@@ -258,23 +274,43 @@ it cannot mislead anyone. The existing billing page already refreshes the balanc
 
 ## 8. Testing
 
-Hard, and needs setting up by hand. **To be done in a separate session**, once a test area exists.
-Noted here so the setup does not have to be re-derived.
-
 Constraints from `docs/testing-rules.md`: this is the **live production database** with no staging
-copy. **Competition 199, organiser 50 (`aandreou25@gmail.com`)** is the only sandbox. Check
-`organiser_id` before any targeted write — 199 and 170 are one keystroke apart and 170 belongs to
-a customer.
+copy.
 
-Organiser 50 is also the only member of `BOT_ORGANISER_IDS`, so 199 is the only place §4 can be
-exercised at all.
+**Competition 206, "Red Barn LMS", organiser 50 (`aandreou25@gmail.com`) is the test competition.**
+Competition 199 no longer exists — it is gone, not renamed. **Competition 200 also belongs to
+organiser 50 and is NOT a test competition**: owning it is not permission to write to it. Check
+the id and the name before any targeted write, not just `organiser_id`.
+
+Andreas sets `app_user.paid_credit` on user 50 by hand between tests, so affordability is his to
+arrange — do not top the balance up from a script.
+
+### The free limit has to come down to test any of this
+
+Once §4 lands, organiser 50's chargeable population is tiny — the bots stop counting, leaving
+roughly three real players in 206 and one in 200. Against a limit of 20 **every reset is free and
+there is nothing to test.**
+
+So `FREE_PLAYER_LIMIT` in `lmslocal-server/.env` is lowered for this work (production stays at
+20). Red Barn then quotes a real, non-zero price and the refusal, the debit and the refund can all
+be exercised without adding a single row. It is the same variable every counting query reads, so
+nothing goes inconsistent while it is lowered.
+
+It went to **3** for the backend tests, then to **1** once the removal tests left competition 206
+with a single member — the limit has to stay below the chargeable population or every quote comes
+back free and there is nothing on screen to look at.
+
+**Put it back to 20 when this is finished.** ⚠️ It is currently **1**.
+
+Adding ~20 offline players to 206 instead was considered and rejected: it spends real credits off
+Andreas's balance and leaves cleanup behind.
 
 What needs covering:
 
-1. **Under the free twenty** — reset stays free, no price shown, nothing debited.
-2. **Over the twenty, affordable** — quote matches what is actually debited; balance drops by
+1. **Under the free limit** — reset stays free, **no price shown at all**, nothing debited.
+2. **Over the limit, affordable** — quote matches what is actually debited; balance drops by
    exactly that; a row lands in `credit_transactions`.
-3. **Over the twenty, short** — reset refuses and **nothing is deleted**. The important one:
+3. **Over the limit, short** — reset refuses and **nothing is deleted**. The important one:
    verify rounds, picks and `player_progress` all survive a refused reset.
 4. **Bots free everywhere** (§4) — not just the reset quote. A bot joining costs nothing; a
    bot-heavy competition still lets real players in rather than answering FULL; `/get-user-credits`

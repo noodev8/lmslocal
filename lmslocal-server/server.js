@@ -38,6 +38,7 @@ const setCompetitionReadyRoute = require('./routes/set-competition-ready');
 const getCompetitionStartOutlookRoute = require('./routes/get-competition-start-outlook');
 // const setFixtureServiceOrganiserRoute = require('./routes/set-fixture-service-organiser'); // unregistered, see below
 const resetCompetitionRoute = require('./routes/reset-competition');
+const getResetQuoteRoute = require('./routes/get-reset-quote');
 const deleteCompetitionRoute = require('./routes/delete-competition');
 const getRoundsRoute = require('./routes/get-rounds');
 // DISABLED: Manual fixture management - replaced by automated fixture service
@@ -336,6 +337,7 @@ app.use('/get-competition-start-outlook', getCompetitionStartOutlookRoute);
 // is kept as the reference implementation for when the switch is worked through properly.
 // app.use('/set-fixture-service-organiser', setFixtureServiceOrganiserRoute);
 app.use('/reset-competition', resetCompetitionRoute);
+app.use('/get-reset-quote', getResetQuoteRoute);
 app.use('/delete-competition', deleteCompetitionRoute);
 app.use('/get-rounds', getRoundsRoute);
 // DISABLED: Manual fixture management - replaced by automated fixture service

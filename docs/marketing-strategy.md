@@ -26,6 +26,12 @@ Worth stating plainly, because it constrains everything below.
 A place is consumed when a player joins beyond the free twenty, and is not returned when they
 leave. The free twenty are counted live, so those do free up.
 
+Two exceptions, both deliberate. **Before the game starts** — while the competition is still in
+SETUP — removing a player does return the place, so an organiser pays for the field they are
+actually going to run and can correct it up to the whistle (`docs/reset-billing.md` §6). And
+**starting a competition again re-charges** for everyone still in it, because the previous run's
+places were spent on the previous run — which is exactly the repeat business described below.
+
 **The two facts that shape the strategy:**
 
 1. **The same person joining a second competition uses a second place.** Revenue does not come

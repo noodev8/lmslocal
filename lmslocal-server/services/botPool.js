@@ -8,27 +8,32 @@ Purpose: The rules about what a bot is and where one is allowed to go, in one pl
 Bots are ordinary app_user accounts that admin drives from the Bots screen, used to seed a
 competition so it is not empty when a real player joins.
 
-The important constraint here is billing, and it is the reason BOT_ORGANISER_IDS exists.
+Two rules live here: what counts as a bot, and where one is allowed to go. A third - that a bot
+is never chargeable - falls out of the first, and is expressed as SQL below so the billing
+queries cannot disagree with this file about it.
 =======================================================================================================================================
 */
 
 const { query, transaction } = require('../database');
-const { resetAllowedTeams } = require('./allowedTeams');
 
 /*
-Bots occupy paid player slots.
+Where bots are allowed.
 
-The PAYG counting queries - join-competition-by-code, get-competition-by-code, deduct-credit,
-add-offline-player, get-user-credits and remove-player - all count competition_user rows for an
-organiser against FREE_PLAYER_LIMIT with no exclusion for bots. So a bot is charged for exactly
-like a person: it uses up one of the 20 free places, and past that it costs the organiser a
-credit. Worse, get-competition-by-code answers FULL and turns real players away once an
-organiser is at the limit with no credit left.
+This list used to exist for billing reasons: bots were counted and charged for exactly like
+people, so letting one into a customer's competition spent their credits and could make
+get-competition-by-code answer FULL to the real players the seeding existed to attract.
 
-Rather than put a bot exclusion into live billing code, bots are confined to organisers who are
-us. Adding an id to this list is therefore a decision about someone's credit balance and their
-players' ability to join, not a config tweak - which is why it lives here in code with this
-comment attached rather than in an environment variable.
+That is no longer true - bots cost nothing anywhere (see chargeableMemberFilter below) - and the
+restriction is NOT therefore obsolete. The reason is simply a different one now, and it is the
+stronger of the two:
+
+  A customer's competition filling with fake entrants is bad on its own terms. Real players would
+  see phantom names in the standings, play against opponents who are not people, and be
+  eliminated in a field padded with accounts we drive.
+
+That survives the billing change intact. Adding an id to this list is a decision about whether
+someone's players are competing against real opponents - which is why it lives here in code with
+this comment attached rather than in an environment variable.
 */
 const BOT_ORGANISER_IDS = [50];
 
@@ -65,6 +70,111 @@ const BOT_NAME_PREFIX = 'Bot ';
 function isBotEmail(email) {
   if (!email) return false;
   return email.startsWith('bot_') && email.endsWith('@lms-guest.com');
+}
+
+/*
+=======================================================================================================================================
+Chargeable members
+=======================================================================================================================================
+A bot never costs a credit and never consumes one of the organiser's free places. Not a carve-out
+for one route - the rule is the same in every counting query in the system, which is what makes
+it possible to state plainly to an organiser.
+
+The PAYG counting queries - join-competition-by-code, get-competition-by-code, deduct-credit,
+add-offline-player, get-user-credits, remove-player and get-reset-quote - all ask the same
+question: how many chargeable memberships does this organiser have? Six copies of that question
+is six chances to drift, so the definition lives here, next to the definition of what a bot is.
+
+No schema change and no migration: every count is live, so the numbers simply become correct.
+
+Note there is no is_bot column to key off. The email pattern IS the definition (see
+BOT_EMAIL_LIKE above), so the filter has to join app_user to see it.
+=======================================================================================================================================
+*/
+
+/**
+ * SQL predicate that excludes bots from a membership count.
+ *
+ * BOT_EMAIL_LIKE is interpolated rather than parameterised on purpose: it is a module constant
+ * with a fixed value, never anything a caller or a user supplies, and inlining it is what lets
+ * these fragments drop into queries whose $n numbering is not known here.
+ *
+ * @param {string} userAlias - alias of the joined app_user row, e.g. 'u'
+ * @returns {string}
+ */
+function chargeableMemberFilter(userAlias = 'u') {
+  return `${userAlias}.email NOT LIKE '${BOT_EMAIL_LIKE}'`;
+}
+
+/**
+ * Scalar subquery counting an organiser's chargeable memberships across ALL their competitions.
+ *
+ * This is the number FREE_PLAYER_LIMIT is compared against everywhere.
+ *
+ * @param {string} organiserExpr - how the caller names the organiser: a placeholder like '$1',
+ *                                 or a correlated column like 'c.organiser_id'
+ * @returns {string} a parenthesised subquery, ready to drop into a SELECT list or comparison
+ */
+function organiserChargeableCountSql(organiserExpr) {
+  /*
+  Guard rather than trust. Everything passed here today is a literal written in a route file, but
+  a fragment builder that splices its argument into SQL is one careless call away from being an
+  injection point, and the cost of making that impossible is one regex.
+  */
+  if (!/^(\$\d+|[a-z_]+\.[a-z_]+)$/.test(organiserExpr)) {
+    throw new Error(`organiserChargeableCountSql: unsafe organiser expression "${organiserExpr}"`);
+  }
+
+  /*
+  The aliases are deliberately ugly. This subquery gets dropped into other people's queries, and
+  a correlated caller writes something like organiserChargeableCountSql('c.organiser_id') - if
+  this fragment also aliased competition as `c`, the inner one would shadow the outer and the
+  correlation would silently become `c.organiser_id = c.organiser_id`: true for every row, so the
+  count comes back as every membership on the platform. It reads as a working query and answers
+  a completely different question.
+  */
+  return `(
+    SELECT COUNT(chg_cu.id)
+      FROM competition chg_c
+      INNER JOIN competition_user chg_cu ON chg_cu.competition_id = chg_c.id
+      INNER JOIN app_user chg_u ON chg_u.id = chg_cu.user_id
+     WHERE chg_c.organiser_id = ${organiserExpr}
+       AND ${chargeableMemberFilter('chg_u')}
+  )`;
+}
+
+/**
+ * An organiser's chargeable memberships across all their competitions.
+ *
+ * @param {Object} client - a pg client inside a transaction, or the shared query helper's caller
+ * @param {number} organiserId
+ * @returns {Promise<number>}
+ */
+async function countOrganiserChargeableMembers(client, organiserId) {
+  const result = await client.query(
+    `SELECT ${organiserChargeableCountSql('$1')} AS chargeable_count`,
+    [organiserId]
+  );
+  return parseInt(result.rows[0].chargeable_count, 10) || 0;
+}
+
+/**
+ * Chargeable members of ONE competition.
+ *
+ * @param {Object} client - a pg client inside a transaction
+ * @param {number} competitionId
+ * @returns {Promise<number>}
+ */
+async function countCompetitionChargeableMembers(client, competitionId) {
+  const result = await client.query(`
+    SELECT COUNT(cu.id) AS chargeable_count
+      FROM competition_user cu
+      INNER JOIN app_user u ON u.id = cu.user_id
+     WHERE cu.competition_id = $1
+       AND ${chargeableMemberFilter('u')}
+  `, [competitionId]);
+
+  return parseInt(result.rows[0].chargeable_count, 10) || 0;
 }
 
 /*
@@ -264,7 +374,7 @@ async function loadRoundFixtures(roundId) {
 }
 
 /**
- * What each of these bots is allowed to pick, read from allowed_teams - the same table
+ * What each of these bots is allowed to pick, derived from its own picks - the same rule
  * get-allowed-teams.js serves the player pick screen from, and the same table set-pick.js
  * validates a human's pick against.
  *
@@ -282,42 +392,32 @@ async function loadAllowedTeams(competitionId, teamListId, userIds) {
 
   if (userIds.length === 0) return byUser;
 
-  const read = async () => {
-    const result = await query(`
-      SELECT at.user_id, t.short_name
-      FROM allowed_teams at
-      INNER JOIN team t ON t.id = at.team_id
-      WHERE at.competition_id = $1 AND at.user_id = ANY($2)
-    `, [competitionId, userIds]);
+  // Derived from each bot's own picks - see docs/allowed-teams.md. The rebuild step this used to
+  // run is gone with the table: an empty set can now only mean the bot has genuinely used every
+  // team, never that rows were never written for it. That ambiguity was the reason bots needed
+  // healing here at all.
+  const result = await query(`
+    SELECT cu.user_id, t.short_name
+    FROM competition_user cu
+    INNER JOIN competition c ON c.id = cu.competition_id
+    INNER JOIN team t ON t.team_list_id = $2 AND t.is_active = true
+    WHERE cu.competition_id = $1
+      AND cu.user_id = ANY($3)
+      AND (c.no_team_twice = false OR NOT EXISTS (
+            SELECT 1 FROM pick p
+            WHERE p.competition_id = $1
+              AND p.user_id        = cu.user_id
+              AND p.round_number   > cu.teams_reset_round
+              AND p.team           = t.short_name
+          ))
+  `, [competitionId, teamListId, userIds]);
 
-    const map = new Map(userIds.map((id) => [id, new Set()]));
-    for (const row of result.rows) {
-      map.get(row.user_id)?.add(row.short_name);
-    }
-    return map;
-  };
-
-  let teams = await read();
-
-  const empty = userIds.filter((id) => teams.get(id).size === 0);
-
-  if (empty.length > 0) {
-    await transaction(async (client) => {
-      for (const userId of empty) {
-        await resetAllowedTeams(
-          client,
-          competitionId,
-          userId,
-          teamListId,
-          'Bot had no allowed teams - automatically reset to all teams not yet picked'
-        );
-      }
-    });
-
-    teams = await read();
+  const map = new Map(userIds.map((id) => [id, new Set()]));
+  for (const row of result.rows) {
+    map.get(row.user_id)?.add(row.short_name);
   }
 
-  for (const [userId, set] of teams) byUser.set(userId, set);
+  for (const [userId, set] of map) byUser.set(userId, set);
 
   return byUser;
 }
@@ -325,7 +425,7 @@ async function loadAllowedTeams(competitionId, teamListId, userIds) {
 /**
  * Teams a player has already picked in this competition.
  *
- * The second of the two checks set-pick.js makes on a human's pick: allowed_teams says what is
+ * The second of the two checks set-pick.js makes on a human's pick: the derived list says what is
  * on the table, this says whether the no-team-twice rule has already been spent on it. Both are
  * needed to match, because the two can disagree.
  *
@@ -359,7 +459,7 @@ async function loadUsedTeams(competitionId, userIds, excludeRoundId = null) {
 }
 
 /**
- * Short name -> team id for one team list, so allowed_teams can be kept in step without a
+ * Short name -> team id for one team list. No longer used by the pick routes (nothing needs a
  * lookup per pick.
  *
  * Scoped to the competition's own team list: short names are not unique across lists, so an
@@ -382,6 +482,10 @@ module.exports = {
   BOT_EMAIL_LIKE,
   BOT_NAME_PREFIX,
   isBotEmail,
+  chargeableMemberFilter,
+  organiserChargeableCountSql,
+  countOrganiserChargeableMembers,
+  countCompetitionChargeableMembers,
   loadBotCompetition,
   assertCompetitionNotStarted,
   nextBotNames,

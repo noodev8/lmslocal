@@ -19,25 +19,36 @@ API route — that this is about.
 
 ## The sandbox
 
-| | |
-|---|---|
-| **Organiser 50** — `aandreou25@gmail.com`, display name Andreas | Andreas's own account. Every competition under it is a sandbox, and it is the only account bots may be used under. |
-| **Competition 199** — "Andreas Test Comp" | The long-lived one. Chop and change freely. |
+**Organiser 50** — `aandreou25@gmail.com`, display name Andreas — is the only stable fact here,
+and the only account bots may be used under. Everything else about the sandbox changes.
 
-**Organiser 50 owns several competitions, and the list changes.** Andreas creates a competition
-to test a particular phase, works through it, and deletes it — so the set is different week to
-week (199, 200 and 202 as of 6 Aug 2026). Never assume 199 is the only one, and never assume a
-competition you used before still exists.
+> **No competition id is written down in this doc on purpose. Ask which one to test against.**
 
-**He will name the one he means, and it is the one to change.** "Fast-forward Andreas Test 3" is
-about that competition and no other. Look it up by name rather than guessing an id:
+Andreas creates a competition to test a particular phase, works through it, and **deletes it**, so
+the sandbox is a different competition week to week and often a different one by the end of a
+session. Any id in a doc, a memory, a commit message or an earlier part of the conversation is a
+guess about the past. Competition 199 was named as the long-lived sandbox throughout the older
+docs and no longer exists — it was deleted, not renamed. **206 replaced it and will go the same
+way.**
 
-```bash
-node db/query.js "SELECT id, name, status FROM competition WHERE organiser_id = 50 ORDER BY id"
-```
+So the sequence at the start of any session that needs to write:
 
-If the name he gave isn't in that result, stop and ask — a competition of that name under a
-different organiser is a customer's, not a near-miss.
+1. **Ask.** "Which competition should I test against?" One line, and it settles it.
+2. Look it up **by the name he gives**, never by a remembered id:
+
+   ```bash
+   node db/query.js "SELECT id, name, status FROM competition WHERE organiser_id = 50 ORDER BY id"
+   ```
+
+3. If the name isn't in that result, **stop and ask again** — a competition of that name under a
+   different organiser is a customer's, not a near-miss.
+
+**Organiser 50 is necessary, never sufficient.** He also owns competitions that are *not* for
+testing — competition 200 was one as of 10 Aug 2026 — so the ownership check passing does not make
+a competition safe. Only his answer does.
+
+**If he hasn't said and isn't around, do the read-only part and stop.** A blocked write reported
+honestly costs a message; the wrong competition costs a customer's game.
 
 ## Everything else
 
@@ -53,9 +64,9 @@ take a competition or player apart across seven tables and there is no undo.
 
 ## Check ownership before you touch
 
-Competition ids are close together and easy to fat-finger — 199 and 170 are one keystroke apart,
-and 170 belongs to a customer with 18 players in it. Before any write aimed at a specific
-competition:
+Competition ids are close together and easy to fat-finger — 200 is a keystroke from 206 and is
+Andreas's but not a sandbox, and 170 belongs to a customer with 18 players in it. Before any
+write aimed at a specific competition:
 
 ```bash
 node db/query.js "SELECT c.id, c.name, c.organiser_id, u.email
@@ -63,7 +74,8 @@ node db/query.js "SELECT c.id, c.name, c.organiser_id, u.email
                   WHERE c.id = <id>"
 ```
 
-If `organiser_id` is not 50, stop.
+If `organiser_id` is not 50, stop. If it is 50 but the name is not the competition Andreas named
+in this session, stop as well.
 
 ## Leave it as you found it
 
@@ -158,10 +170,15 @@ pick reminder against a customer competition mails their players for real.
 
 Bots are already fenced in code: `BOT_ORGANISER_IDS` in `services/botPool.js` limits them to
 organiser 50, and every bot route refuses anything else with `COMPETITION_NOT_ELIGIBLE`. Adding
-an id to that list is a decision about someone's credit balance — see `docs/BOTS-Management.md`.
+an id to that list puts fake entrants into a real person's competition — see
+`docs/BOTS-Management.md`.
 
 Bots are the preferred way to create test players. They are free to add and remove, they never
 receive email, and they are obviously not real people to anyone looking at the standings.
+
+**A bot costs no credit and consumes no free place, anywhere in the system** — see
+`docs/reset-billing.md` §4. So a bot-filled competition is not a way to test anything about
+billing: to the counting queries those players are not there at all.
 
 ## When something needs more than the sandbox
 

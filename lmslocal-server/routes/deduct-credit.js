@@ -56,6 +56,7 @@ Business Logic:
 
 const express = require('express');
 const { query, transaction } = require('../database');
+const { organiserChargeableCountSql } = require('../services/botPool');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
@@ -86,13 +87,11 @@ router.post('/', async (req, res) => {
     }
 
     // === STEP 2: COUNT ORGANIZER'S CURRENT PLAYERS (BEFORE THIS NEW PLAYER) ===
-    // This count includes ALL players in ALL competitions owned by this organizer
+    // This count includes ALL chargeable players in ALL competitions owned by this organizer
     // Any status, any competition - total count determines if we're in free tier or paid tier
+    // Bots are not chargeable anywhere - services/botPool.js owns that definition
     const playerCountQuery = `
-      SELECT COUNT(cu.id) as current_player_count
-      FROM competition c
-      LEFT JOIN competition_user cu ON cu.competition_id = c.id
-      WHERE c.organiser_id = $1
+      SELECT ${organiserChargeableCountSql('$1')} as current_player_count
     `;
 
     const countResult = await query(playerCountQuery, [organiser_id]);

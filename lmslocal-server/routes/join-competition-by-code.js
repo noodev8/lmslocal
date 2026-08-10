@@ -47,6 +47,7 @@ const express = require('express');
 const { query, transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const { recordJoinBlock } = require('../services/joinBlock');
+const { countOrganiserChargeableMembers } = require('../services/botPool');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety for competition joining
@@ -172,19 +173,12 @@ router.post('/', verifyToken, async (req, res) => {
       }
 
       // === CREDIT DEDUCTION LOGIC (PAYG System) ===
-      // Count organiser's current total players across ALL competitions
+      // Count organiser's chargeable players across ALL competitions. Bots are not chargeable
+      // anywhere - services/botPool.js owns that definition.
       // Free tier limit from environment variable (defaults to 20 if not set)
       const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
 
-      const playerCountQuery = `
-        SELECT COUNT(cu.id) as current_player_count
-        FROM competition c
-        LEFT JOIN competition_user cu ON cu.competition_id = c.id
-        WHERE c.organiser_id = $1
-      `;
-
-      const countResult = await client.query(playerCountQuery, [data.organiser_id]);
-      const currentPlayerCount = parseInt(countResult.rows[0].current_player_count) || 0;
+      const currentPlayerCount = await countOrganiserChargeableMembers(client, data.organiser_id);
 
       // If organiser has reached free tier limit, need to deduct 1 credit
       if (currentPlayerCount >= FREE_PLAYER_LIMIT) {
@@ -251,24 +245,9 @@ router.post('/', verifyToken, async (req, res) => {
 
       const newMembership = joinResult.rows[0];
 
-      // Populate allowed teams for new member within the same transaction
-      // This ensures the player has access to team selection functionality
-      // and maintains transaction atomicity
-      const allowedTeamsQuery = `
-        INSERT INTO allowed_teams (competition_id, user_id, team_id)
-        SELECT $1, $2, t.id
-        FROM team t
-        JOIN competition c ON t.team_list_id = c.team_list_id
-        WHERE c.id = $1 AND t.is_active = true
-        ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-        RETURNING team_id
-      `;
-
-      const allowedTeamsResult = await client.query(allowedTeamsQuery, [data.competition_id, user_id]);
-
-      if (allowedTeamsResult.rows.length === 0) {
-        console.log(`⚠️ No teams found to populate for user ${user_id} in competition ${data.competition_id} - check if competition has teams`);
-      }
+      // Joining used to insert one allowed_teams row per team here - the whole list, inside this
+      // transaction, on the signup path. A new player starts with every team available because
+      // they have no picks yet, so there is nothing to write. See docs/allowed-teams.md.
 
       // === QUEUE PICK REMINDER NOTIFICATION ===
       // If there's an active round, queue a pick_reminder for this new player

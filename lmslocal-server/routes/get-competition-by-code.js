@@ -85,6 +85,7 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { recordJoinBlock } = require('../services/joinBlock');
+const { organiserChargeableCountSql } = require('../services/botPool');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
@@ -119,10 +120,9 @@ router.post('/', async (req, res) => {
         (SELECT COUNT(*) FROM competition_user cu WHERE cu.competition_id = c.id) AS player_count,
         -- Organiser capacity is counted across ALL their competitions, exactly as
         -- join-competition-by-code does it, so the two routes agree on whether there is room.
-        (SELECT COUNT(cu2.id)
-           FROM competition c2
-           LEFT JOIN competition_user cu2 ON cu2.competition_id = c2.id
-          WHERE c2.organiser_id = c.organiser_id) AS organiser_player_count
+        -- Bots are excluded, which is what stops a seeded competition answering FULL to the
+        -- real players the seeding existed to attract.
+        ${organiserChargeableCountSql('c.organiser_id')} AS organiser_player_count
       FROM competition c
       LEFT JOIN round r ON c.id = r.competition_id
       LEFT JOIN app_user u ON c.organiser_id = u.id
