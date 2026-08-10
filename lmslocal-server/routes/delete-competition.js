@@ -23,7 +23,6 @@ Success Response (ALWAYS HTTP 200):
     "fixtures_deleted": 24,                         // integer, number of fixtures deleted
     "picks_deleted": 120,                           // integer, number of picks deleted
     "progress_records_deleted": 105,                // integer, number of progress records deleted
-    "allowed_teams_deleted": 300,                   // integer, number of allowed team entries deleted
     "deleted_at": "2025-09-08T10:30:00.000Z"       // string, ISO datetime when deletion occurred
   }
 }
@@ -142,13 +141,6 @@ router.post('/', verifyToken, async (req, res) => {
       `, [competition_id]);
       const progressCount = parseInt(progressCountResult.rows[0].progress_count) || 0;
 
-      // Count allowed team entries
-      const allowedTeamsCountResult = await client.query(`
-        SELECT COUNT(*) as allowed_teams_count
-        FROM allowed_teams 
-        WHERE competition_id = $1
-      `, [competition_id]);
-      const allowedTeamsCount = parseInt(allowedTeamsCountResult.rows[0].allowed_teams_count) || 0;
 
       // 4. Delete all competition data in proper order to respect foreign key constraints
       // Order is critical: child records must be deleted before parent records
@@ -185,12 +177,6 @@ router.post('/', verifyToken, async (req, res) => {
         RETURNING id
       `, [competition_id]);
 
-      // Delete allowed teams (references competition_id and user_id)
-      await client.query(`
-        DELETE FROM allowed_teams
-        WHERE competition_id = $1
-        RETURNING id
-      `, [competition_id]);
 
       // Delete email preferences for this competition
       await client.query(`
@@ -234,7 +220,6 @@ router.post('/', verifyToken, async (req, res) => {
         `Deleted ${fixturesCount} fixtures`,
         `Deleted ${picksCount} picks`,
         `Deleted ${progressCount} player progress records`,
-        `Deleted ${allowedTeamsCount} allowed team entries`,
         `Operation performed by user ID: ${user_id}`,
         `Competition was in status: ${competition.status}`
       ].join(', ');
@@ -269,7 +254,6 @@ router.post('/', verifyToken, async (req, res) => {
           fixtures: fixturesCount,
           picks: picksCount,
           progress: progressCount,
-          allowedTeams: allowedTeamsCount,
           competitionUsers: deletedCompetitionUsersResult.rows.length
         },
         deletedAt: new Date().toISOString()
@@ -290,7 +274,6 @@ router.post('/', verifyToken, async (req, res) => {
         fixtures_deleted: result.deletionCounts.fixtures,
         picks_deleted: result.deletionCounts.picks,
         progress_records_deleted: result.deletionCounts.progress,
-        allowed_teams_deleted: result.deletionCounts.allowedTeams,
         deleted_at: result.deletedAt
       }
     });

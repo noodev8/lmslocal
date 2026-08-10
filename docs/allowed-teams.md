@@ -231,10 +231,34 @@ ambiguity that produced three rebuild implementations.
 
 ---
 
-## 5. Migration
+## 5. Migration — **complete**
 
-Steps 1–3 are additive and run alongside the existing table. **Step 4 is the irreversible one and
-has to be earned by step 3.**
+All four steps landed in August 2026. `allowed_teams` no longer exists.
+
+**Step 3 was deliberately skipped, and the reason matters.** It was a watching period: deploy, let
+players use the pick screen for a couple of gameweeks, and read the diff log. But the World Cup
+competitions had finished and the new season had not started, so there was no pick traffic to
+observe — waiting would have produced no evidence at all. The pre-season window was the *safer*
+moment to drop the table, not a corner cut. Its place was taken by a full sweep of all 147
+memberships through the real service code plus an end-to-end run of the pick, guard and unselect
+paths against a database with the table already gone.
+
+**Insurance kept**, in two forms, in case a question comes up later:
+
+- `allowed_teams_archive_20260810` — a table copy of all 3,624 rows, still in the database
+- `C:\Users\UserPC\lmslocal-backups\allowed_teams_backup_20260810.csv` — the same rows enriched
+  with competition, user and team names, **outside the repo**: it contains customer email
+  addresses and this repository is public
+
+Neither is a restore path, and that is the point. The table was derived, so if the derivation is
+ever wrong the fix is the derivation, not the rows. `pick` was never touched by any of this, and
+`pick` is where the truth lives.
+
+The original plan is kept below because it names every place the table reached.
+
+---
+
+Steps 1–3 were additive and ran alongside the existing table. **Step 4 was the irreversible one.**
 
 **1. Schema, backward-compatible.** Add `competition_user.teams_reset_round` and
 `idx_pick_comp_user`. Nothing reads either yet.
@@ -279,8 +303,22 @@ seven indexes.
 `admin-set-pick.js:264` · `services/botPool.js:399` · `admin/get-bots.js` (`available_teams`)
 
 **Reported counts that stop existing:** `remove-player`'s `allowed_teams_deleted`,
-`delete-competition.js:148`, `delete-admin-competition.js:128`, `delete-account.js:96`. These are
-in API response payloads — check the admin UI before removing the fields.
+`delete-competition`, `delete-admin-competition`, `delete-account`, `remove-bot-from-competition`.
+These were in API response payloads; nothing rendered them, and the matching TypeScript fields
+were removed from `lmslocal-web/src/lib/api.ts` and `lmslocal-admin/src/lib/api.ts`.
+
+### Two bugs found while doing it
+
+- **`admin-set-pick` wrote picks without `competition_id` or `round_number`.** Harmless while the
+  rule read a separate table; fatal once it is derived from those two columns, because such a pick
+  would be invisible to it and the team could be used twice. It had never bitten only because the
+  UPDATE branch preserves what `set-pick` wrote — a pick *created* by an admin would have been the
+  first. Fixed as part of this work.
+- **`set-pick` enforced the rule twice, and the two halves disagreed.** `TEAM_NOT_ALLOWED` tested
+  `allowed_teams` membership; `TEAM_ALREADY_PICKED` counted the pick history with **no reset
+  boundary**. So even if a reset had put a team back, the second check would still have refused it.
+  The reset could never have worked end to end, whichever rebuild ran. There is now one check,
+  boundary-aware, and `TEAM_ALREADY_PICKED` covers what both used to report.
 
 **Independent of all of it:** drop the four redundant indexes
 (`idx_allowed_teams_comp_user`, `idx_allowed_teams_user`, `idx_allowed_teams_competition`, and one
@@ -322,9 +360,12 @@ Decide these here, not in a route.
 | `services/allowedTeams.js` | **the derivation** — the single definition, and the boundary advance |
 | `routes/get-allowed-teams.js` | the player's list, filtered to teams with a fixture this round |
 | `routes/set-pick.js` | validates a pick against the derivation |
+| `services/botPool.js` `loadAllowedTeams` | the same derivation for bots — no rebuild step |
 | `competition_user.teams_reset_round` | the only stored state |
-| ~~`allowed_teams`~~ | dropped at step 4 |
-| ~~`database.js` `populateAllowedTeams`~~ | deleted at step 4 — a second definition, unreferenced after |
+| ~~`allowed_teams`~~ | **dropped Aug 2026**, with its seven indexes |
+| ~~`database.js` `populateAllowedTeams`~~ | deleted — a second definition, and it had no callers |
+| ~~`fixtureService.js` top-up~~ | deleted — the third definition, the "hand back everything" one |
+| `allowed_teams_archive_20260810` | the archived rows; not a restore path, see §5 |
 
 ---
 

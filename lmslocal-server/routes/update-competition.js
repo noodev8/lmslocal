@@ -51,7 +51,7 @@ Fixture service:
 
 This route does NOT touch fixture_service. Who supplies fixtures and results is decided once, at
 creation (create-competition.js), and switching it mid-competition has unresolved consequences -
-existing rounds, lock times, allowed_teams and the staged batch all assume one source. Until that
+existing rounds, lock times and the staged batch all assume one source. Until that
 is worked through, a change is made directly in the database on request. Any fixture_service in
 the body is ignored rather than refused, so an old client cannot flip it.
 =======================================================================================================================================

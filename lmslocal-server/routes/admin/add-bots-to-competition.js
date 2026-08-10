@@ -126,15 +126,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
           VALUES ($1, $2, 'active', $3, NOW(), $4)
         `, [competition_id, bot.id, competition.lives_per_player, bot.display_name]);
 
-        // Every team is on the table for a new entrant. ON CONFLICT because a bot removed and
-        // re-added may still have rows if a delete ever half-completed.
-        await client.query(`
-          INSERT INTO allowed_teams (competition_id, user_id, team_id)
-          SELECT $1, $2, t.id
-          FROM team t
-          WHERE t.team_list_id = $3 AND t.is_active = true
-          ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-        `, [competition_id, bot.id, competition.team_list_id]);
       }
 
       await client.query(`

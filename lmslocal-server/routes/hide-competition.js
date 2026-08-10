@@ -153,12 +153,6 @@ router.post('/', verifyToken, async (req, res) => {
         `;
         const picksResult = await client.query(picksDeleteQuery, [user_id, competition_id]);
 
-        // 2. Delete allowed teams for this player
-        const allowedTeamsDeleteQuery = `
-          DELETE FROM allowed_teams
-          WHERE user_id = $1 AND competition_id = $2
-        `;
-        const allowedTeamsResult = await client.query(allowedTeamsDeleteQuery, [user_id, competition_id]);
 
         // 3. Delete player progress records
         const progressDeleteQuery = `
@@ -198,7 +192,6 @@ router.post('/', verifyToken, async (req, res) => {
         // Calculate total records removed
         const totalRecordsDeleted =
           (picksResult.rowCount || 0) +
-          (allowedTeamsResult.rowCount || 0) +
           (progressResult.rowCount || 0) +
           (notificationsResult.rowCount || 0) +
           (emailQueueResult.rowCount || 0) +
@@ -219,7 +212,6 @@ router.post('/', verifyToken, async (req, res) => {
           },
           records_deleted: {
             picks: picksResult.rowCount || 0,
-            allowed_teams: allowedTeamsResult.rowCount || 0,
             progress: progressResult.rowCount || 0,
             notifications: notificationsResult.rowCount || 0,
             email_queue: emailQueueResult.rowCount || 0,

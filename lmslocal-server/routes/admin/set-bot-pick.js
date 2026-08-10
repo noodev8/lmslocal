@@ -44,20 +44,20 @@ Return Codes:
 "ROUND_LOCKED"              - The current round has locked
 "NO_FIXTURES"               - The current round has no fixtures
 "TEAM_NOT_IN_ROUND"         - That team is not playing in the current round
-"TEAM_NOT_ALLOWED"          - That team is not in this bot's allowed_teams
+"TEAM_NOT_ALLOWED"          - That team is not available to this bot
 "TEAM_ALREADY_USED"         - no_team_twice is on and this bot has already used that team
 "SERVER_ERROR"              - Database error or unexpected server failure
 "UNAUTHORIZED"              - Missing, invalid, expired, or non-admin token
 "TOKEN_EXPIRED"             - Admin session has expired
 =======================================================================================================================================
 Data Notes:
-- Validation matches set-pick.js exactly: TEAM_NOT_ALLOWED against allowed_teams, then
+- Validation matches set-pick.js: TEAM_NOT_ALLOWED against the derived list, then
   TEAM_ALREADY_USED against previous picks. A bot is not a special case of a player.
 - team is the short name a pick actually stores ("ARS"), taken straight from the fixture. The
   organiser-facing admin-set-pick.js takes a full team name and converts; the Bots screen is
   building its dropdown from fixtures, which carry the short name, so there is nothing to
   convert here.
-- Clearing a pick puts the team back into allowed_teams, so the bot can pick it again later.
+- Clearing a pick frees the team automatically - the pick row was the only record of its use.
   Without that, a cleared pick would quietly cost the bot a team for the rest of the
   competition.
 =======================================================================================================================================
@@ -73,8 +73,7 @@ const {
   loadCurrentRound,
   loadRoundFixtures,
   loadAllowedTeams,
-  loadUsedTeams,
-  loadTeamIdsByShortName
+  loadUsedTeams
 } = require('../../services/botPool');
 const router = express.Router();
 
@@ -131,8 +130,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    const teamIds = await loadTeamIdsByShortName(competition.team_list_id);
-
     // --- Clearing the pick ---------------------------------------------------------------
     if (team === null) {
       await transaction(async (client) => {
@@ -146,17 +143,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
           [round.round_id, user_id]
         );
 
-        // Hand the team back, or the bot silently loses it for good.
-        const clearedTeam = existing.rows[0]?.team;
-        const clearedTeamId = clearedTeam ? teamIds.get(clearedTeam) : null;
-
-        if (competition.no_team_twice && clearedTeamId) {
-          await client.query(`
-            INSERT INTO allowed_teams (competition_id, user_id, team_id)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-          `, [competition_id, user_id, clearedTeamId]);
-        }
+        // The team comes back on its own now: deleting the pick above removes the only record
+        // that it was ever used.
       });
 
       return res.json({
@@ -187,14 +175,13 @@ router.post('/', verifyAdminToken, async (req, res) => {
     /*
     The same two checks set-pick.js runs on a human, in the same order.
 
-    TEAM_NOT_ALLOWED is the allowed_teams membership test (set-pick.js:232). A bot with an empty
-    set is rebuilt inside loadAllowedTeams first, exactly as a real player's is when they open
-    the pick screen.
+    TEAM_NOT_ALLOWED tests the derived list. There is no rebuild step any more - an empty set
+    means the bot has used every team, exactly as it does for a real player.
     */
     const allowed = await loadAllowedTeams(competition_id, competition.team_list_id, [user_id]);
     const allowedForBot = allowed.get(user_id) || new Set();
 
-    // The team the bot is currently on is out of allowed_teams by definition - re-picking it is
+    // The team the bot is currently on is excluded by the derivation - re-picking it is
     // a no-op, not a rule break.
     const currentPick = await query(
       'SELECT team FROM pick WHERE round_id = $1 AND user_id = $2',
@@ -222,39 +209,14 @@ router.post('/', verifyAdminToken, async (req, res) => {
     }
 
     await transaction(async (client) => {
-      const existing = await client.query(
-        'SELECT team FROM pick WHERE round_id = $1 AND user_id = $2',
-        [round.round_id, user_id]
-      );
-
+      // Overwriting the pick is the whole operation: it frees whatever the bot was on before and
+      // records the new team, with no second table to keep in step.
       await client.query(`
         INSERT INTO pick (round_id, user_id, team, fixture_id, competition_id, round_number, set_by_admin, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         ON CONFLICT (round_id, user_id)
         DO UPDATE SET team = $3, fixture_id = $4, set_by_admin = $7, created_at = NOW()
       `, [round.round_id, user_id, teamShort, fixture.fixture_id, competition_id, round.round_number, req.admin.id]);
-
-      if (competition.no_team_twice) {
-        // Give back whatever it was on before, then take the new one.
-        const previousTeam = existing.rows[0]?.team;
-        const previousTeamId = previousTeam && previousTeam !== teamShort ? teamIds.get(previousTeam) : null;
-
-        if (previousTeamId) {
-          await client.query(`
-            INSERT INTO allowed_teams (competition_id, user_id, team_id)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-          `, [competition_id, user_id, previousTeamId]);
-        }
-
-        const teamId = teamIds.get(teamShort);
-        if (teamId) {
-          await client.query(
-            'DELETE FROM allowed_teams WHERE competition_id = $1 AND user_id = $2 AND team_id = $3',
-            [competition_id, user_id, teamId]
-          );
-        }
-      }
     });
 
     return res.json({

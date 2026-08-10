@@ -22,7 +22,6 @@ Success Response (ALWAYS HTTP 200):
     "user_id": 882,                        // integer
     "display_name": "Bot Alice",           // string
     "picks_deleted": 3,                    // integer
-    "allowed_teams_deleted": 20,           // integer
     "progress_deleted": 2                  // integer
   },
   "bots_remaining": 4                      // integer, bots left in this competition
@@ -120,7 +119,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
     }
 
     let picksDeleted = 0;
-    let allowedTeamsDeleted = 0;
     let progressDeleted = 0;
 
     await transaction(async (client) => {
@@ -132,11 +130,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
       `, [user_id, competition_id]);
       picksDeleted = picks.rowCount;
 
-      const allowed = await client.query(
-        'DELETE FROM allowed_teams WHERE competition_id = $1 AND user_id = $2',
-        [competition_id, user_id]
-      );
-      allowedTeamsDeleted = allowed.rowCount;
 
       const progress = await client.query(
         'DELETE FROM player_progress WHERE competition_id = $1 AND player_id = $2',
@@ -173,7 +166,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
         user_id: bot.id,
         display_name: bot.display_name,
         picks_deleted: picksDeleted,
-        allowed_teams_deleted: allowedTeamsDeleted,
         progress_deleted: progressDeleted
       },
       bots_remaining: remaining.rows[0].total

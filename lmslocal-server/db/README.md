@@ -59,7 +59,7 @@ count is what you expect, then run the write.
 
 Because this is the live DB, prefer a targeted WHERE over a broad one, and think about whether
 an API route already owns the table you are about to change — game state (`pick`,
-`player_progress`, `allowed_teams`, `competition_user.lives_remaining`) is written by route
+`player_progress`, `competition_user.lives_remaining`) is written by route
 logic that also writes `audit_log`. A hand-written UPDATE bypasses that.
 
 ### Two accounts to spare when tidying `app_user`
@@ -109,7 +109,7 @@ node db/query.js "SELECT column_name, data_type, is_nullable FROM information_sc
 | `fixture` | fixtures within a round, with `result` |
 | `pick` | one row per player per round — the team they chose |
 | `player_progress` | per-round outcome per player, **including no-pick eliminations** |
-| `allowed_teams` | teams a player may still use (no-team-twice rule) |
+| ~~`allowed_teams`~~ | **dropped Aug 2026** — what a player may still pick is derived from `pick`, with `competition_user.teams_reset_round` as the only stored state. See `docs/allowed-teams.md`. The archived rows are in `allowed_teams_archive_20260810` |
 | `team` / `team_list` | master team list per competition type |
 | `fixture_load` | staging table the fixture service pushes from |
 | `audit_log` | system audit trail — written by route logic, not by hand |

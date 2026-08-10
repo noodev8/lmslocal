@@ -4,7 +4,7 @@ API Route: push-fixtures-to-competition
 =======================================================================================================================================
 Method: POST
 Purpose: Pushes the staged batch in fixture_load to ONE competition: creates or fills its round,
-         inserts the fixtures, backfills allowed_teams for players who have none, queues the
+         inserts the fixtures, queues the
          round notifications and writes the audit row.
 
          This is the per-competition replacement for push-fixtures-to-competitions.js (plural),

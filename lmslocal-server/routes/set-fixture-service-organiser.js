@@ -77,7 +77,7 @@ Data Notes:
 - Opting in does not backfill. The next push gives the competition the earliest gameweek whose
   kickoff clears its earliest_start_date; rounds it missed while opted out stay missed.
 - Opting out is not retroactive either - rounds already pushed stay.
-- Player history survives the switch. The push backfills allowed_teams only for players who have
+- Player history survives the switch. Nothing is backfilled - the no-team-twice rule reads
   no rows at all, so a manually-run competition keeps its no-team-twice state.
 - Pricing: during the launch promotion the service is free, so an opt-in records 0.00 in
   competition.fixture_service_price_paid. Opting out deliberately leaves price_paid and
@@ -97,7 +97,7 @@ Clearing a stalled round:
   they are losing; only a second call carrying clear_stalled_round deletes anything.
 
 - Picks are never deleted. If any exist the round is not clearable at all and the usual refusal
-  stands. That keeps this path free of the allowed_teams and lives restoration it would
+  stands. That keeps this path free of the lives restoration it would
   otherwise have to get right.
 
 - There are no foreign keys on round (checked - none reference it), so nothing in the database

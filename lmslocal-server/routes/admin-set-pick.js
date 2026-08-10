@@ -175,14 +175,8 @@ router.post('/', verifyToken, async (req, res) => {
           WHERE id = $1
         `, [data.pick_id]);
 
-        // Restore the team to allowed_teams if it was previously picked
-        if (data.team_id) {
-          await client.query(`
-            INSERT INTO allowed_teams (competition_id, user_id, team_id)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-          `, [competition_id, user_id, data.team_id]);
-        }
+        // Deleting the pick above is the whole of it - the team is free again because nothing
+        // records it as used any more.
 
         // Log the administrative action
         const auditDetails = `Admin ${admin_id} removed pick "${data.team_name}" (${data.team_short}) for player "${data.player_name}" in Round ${data.current_round_number}`;
@@ -225,6 +219,7 @@ router.post('/', verifyToken, async (req, res) => {
             c.name as competition_name,
             c.organiser_id,
             c.no_team_twice,
+            c.team_list_id,
             -- Get current round info (latest round by round_number)
             r.id as current_round_id,
             r.round_number as current_round_number,
@@ -245,26 +240,35 @@ router.post('/', verifyToken, async (req, res) => {
         ),
         player_data AS (
           -- Get player participation and status info
-          SELECT 
+          SELECT
             cu.user_id,
             cu.status as player_status,
+            cu.teams_reset_round,
             u.display_name as player_name
           FROM competition_user cu
           INNER JOIN app_user u ON cu.user_id = u.id
           WHERE cu.competition_id = $1 AND cu.user_id = $2
         ),
         team_data AS (
-          -- Get team info and verify it's allowed for this player
-          SELECT 
+          -- Get team info, and count how many times this player has used it since their last
+          -- reset. Replaces an allowed_teams membership test - see docs/allowed-teams.md.
+          -- team_list_id is matched because the old join, being built from the competition's own
+          -- list, implicitly refused a team belonging to another one.
+          SELECT
             t.id as team_id,
             t.name as team_name,
             t.short_name as team_short,
-            at.id as allowed_team_id
+            (SELECT COUNT(*)
+               FROM pick p
+              WHERE p.competition_id = $1
+                AND p.user_id        = $2
+                AND p.round_number   > COALESCE((SELECT teams_reset_round FROM player_data), 0)
+                AND p.team           = t.short_name
+            ) as times_used
           FROM team t
-          LEFT JOIN allowed_teams at ON t.id = at.team_id 
-            AND at.competition_id = $1 
-            AND at.user_id = $2
           WHERE t.name = $3
+            AND t.is_active = true
+            AND t.team_list_id = (SELECT team_list_id FROM competition_data)
         ),
         fixture_data AS (
           -- Get fixture for this team in current round
@@ -292,7 +296,7 @@ router.post('/', verifyToken, async (req, res) => {
           td.team_id,
           td.team_name,
           td.team_short,
-          td.allowed_team_id,
+          td.times_used,
           fd.fixture_id,
           epd.existing_pick_id,
           epd.existing_team_short,
@@ -370,8 +374,9 @@ router.post('/', verifyToken, async (req, res) => {
         };
       }
 
-      // Check if team is allowed for this player (hasn't been used before)
-      if (!data.allowed_team_id) {
+      // Check the team has not been used since this player's last reset (docs/allowed-teams.md).
+      // Only meaningful where the competition enforces no-team-twice.
+      if (data.no_team_twice && data.times_used > 0) {
         throw {
           return_code: "TEAM_NOT_ALLOWED",
           message: "Team is not available for this player (may have been used in previous round)"
@@ -392,15 +397,8 @@ router.post('/', verifyToken, async (req, res) => {
       const wasUpdated = !!data.existing_pick_id;
       let pickResult;
 
-      // STEP 1: If updating an existing pick, restore the old team to allowed_teams first
-      // This ensures the player regains access to their previous team choice
-      if (wasUpdated && data.no_team_twice && data.existing_team_id) {
-        await client.query(`
-          INSERT INTO allowed_teams (competition_id, user_id, team_id)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-        `, [competition_id, user_id, data.existing_team_id]);
-      }
+      // STEP 1 used to restore the replaced team to allowed_teams. Overwriting the pick below
+      // frees it on its own now.
 
       // STEP 2: Update or create the pick
       if (wasUpdated) {
@@ -425,30 +423,31 @@ router.post('/', verifyToken, async (req, res) => {
           user_id
         ]);
       } else {
-        // Create new pick record for this player and round
+        // Create new pick record for this player and round.
+        // competition_id and round_number MUST be written here: the no-team-twice rule is derived
+        // from these two columns (docs/allowed-teams.md), so a pick missing them would be
+        // invisible to it and the team could be picked a second time. This route used to omit
+        // both, which was survivable only because the UPDATE branch above preserves whatever
+        // set-pick wrote - a pick created here first would not have been counted at all.
         const insertQuery = `
-          INSERT INTO pick (round_id, user_id, fixture_id, team, set_by_admin, created_at)
-          VALUES ($1, $2, $3, $4, $5, NOW())
+          INSERT INTO pick (round_id, user_id, fixture_id, team, set_by_admin, competition_id, round_number, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
           RETURNING id, team, user_id, fixture_id
         `;
-        
+
         pickResult = await client.query(insertQuery, [
           data.current_round_id,
           user_id,
           data.fixture_id, // May be null if no fixture exists yet
           data.team_short, // Store team short code (e.g., "ARS") for consistency
-          admin_id // Track which admin set this pick
+          admin_id, // Track which admin set this pick
+          competition_id,
+          data.current_round_number
         ]);
       }
 
-      // STEP 3: Remove the newly picked team from allowed_teams (if no_team_twice is enabled)
-      // This ensures consistent game rules - admin picks should have same consequences as player picks
-      if (data.no_team_twice && data.team_id) {
-        await client.query(`
-          DELETE FROM allowed_teams
-          WHERE competition_id = $1 AND user_id = $2 AND team_id = $3
-        `, [competition_id, user_id, data.team_id]);
-      }
+      // STEP 3 used to remove the picked team from allowed_teams. The pick row written above is
+      // now the only record needed.
 
       // Log the administrative action for audit trail and transparency
       // This provides accountability for admin overrides and pick changes

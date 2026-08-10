@@ -52,7 +52,7 @@ Data Notes:
   extra flag - see ROUND_IN_PROGRESS below. Mid-round, it needs override_round_in_progress.
 - Opting out is not retroactive either - rounds already pushed stay, and results already staged
   for them will still be applied while the round exists.
-- Player history survives the switch. The push backfills allowed_teams only for players who have
+- Player history survives the switch. Nothing is backfilled - the no-team-twice rule reads
   no rows at all (services/fixtureService.js), so a manually-run competition keeps its
   no-team-twice state rather than handing used teams back.
 - The switch is not silent to players: the next push queues new_round and pick_reminder

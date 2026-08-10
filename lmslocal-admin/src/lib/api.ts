@@ -429,7 +429,6 @@ export type RemoveBotResponse = ApiResponse & {
     user_id: number;
     display_name: string;
     picks_deleted: number;
-    allowed_teams_deleted: number;
     progress_deleted: number;
   };
   bots_remaining?: number;
@@ -472,7 +471,6 @@ export type DeleteCompetitionResponse = ApiResponse & {
     fixtures_deleted: number;
     picks_deleted: number;
     progress_records_deleted: number;
-    allowed_teams_deleted: number;
     deleted_at: string;
   };
 };

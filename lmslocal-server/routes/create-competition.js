@@ -344,13 +344,6 @@ router.post('/', verifyToken, async (req, res) => {
           competition.lives_per_player
         ]);
 
-        // Populate allowed teams for the organiser (atomic team population)
-        await client.query(`
-          INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
-          SELECT $1, $2, t.id, NOW()
-          FROM team t
-          WHERE t.team_list_id = $3 AND t.is_active = true
-        `, [competition.id, organiser_id, team_list_id]);
       }
 
       // 5. Create audit log entry (same transaction ensures consistency)

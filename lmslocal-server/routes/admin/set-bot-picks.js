@@ -65,8 +65,7 @@ const {
   loadCurrentRound,
   loadRoundFixtures,
   loadAllowedTeams,
-  loadUsedTeams,
-  loadTeamIdsByShortName
+  loadUsedTeams
 } = require('../../services/botPool');
 const router = express.Router();
 
@@ -130,7 +129,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
     bot inside the transaction - previous picks and a team id lookup - which is the N+1 shape
     that gets slow exactly when it matters, on a competition with a full pool of bots in it.
 
-    Both of the checks set-pick.js makes on a human, in the same order: allowed_teams says what
+    Both of the checks set-pick.js makes on a human, in the same order: the derived list says what
     is on the table, previous picks say whether no-team-twice has been spent on it.
     */
     const userIds = toPick.map((b) => b.user_id);
@@ -138,8 +137,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
     const usedTeams = competition.no_team_twice
       ? await loadUsedTeams(competition_id, userIds)
       : new Map();
-
-    const teamIds = await loadTeamIdsByShortName(competition.team_list_id);
 
     let picksMade = 0;
     let skippedNoTeams = 0;
@@ -182,14 +179,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
           DO UPDATE SET team = $3, fixture_id = $4, set_by_admin = $7, created_at = NOW()
         `, [round.round_id, bot.user_id, choice.team, choice.fixture_id, competition_id, round.round_number, req.admin.id]);
 
-        // Keep allowed_teams in step with the pick, the same way a real pick does.
-        const teamId = teamIds.get(choice.team);
-        if (competition.no_team_twice && teamId) {
-          await client.query(
-            'DELETE FROM allowed_teams WHERE competition_id = $1 AND user_id = $2 AND team_id = $3',
-            [competition_id, bot.user_id, teamId]
-          );
-        }
+        // Nothing else to write - the pick row above is the record the rule is derived from.
 
         picksMade++;
       }

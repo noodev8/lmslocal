@@ -23,7 +23,6 @@ Success Response (ALWAYS HTTP 200):
       "competitions_organized": 2,        // integer, number of competitions deleted (as organiser)
       "competition_memberships": 5,       // integer, number of competition memberships deleted
       "picks_made": 20,                   // integer, number of picks deleted
-      "allowed_teams": 40,                // integer, number of allowed team entries deleted
       "progress_records": 15,             // integer, number of progress records deleted
       "audit_logs": 30,                   // integer, number of audit log entries deleted
       "total_records": 112                // integer, total database records removed
@@ -92,8 +91,6 @@ router.post('/', verifyToken, async (req, res) => {
             (SELECT COUNT(*) FROM competition_user WHERE user_id = $1) as competition_memberships,
             -- Count picks made by this user
             (SELECT COUNT(*) FROM pick WHERE user_id = $1) as picks_made,
-            -- Count allowed team entries
-            (SELECT COUNT(*) FROM allowed_teams WHERE user_id = $1) as allowed_teams,
             -- Count progress records
             (SELECT COUNT(*) FROM player_progress WHERE player_id = $1) as progress_records,
             -- Count audit logs for this user
@@ -173,7 +170,6 @@ router.post('/', verifyToken, async (req, res) => {
         competitions_organized: 0,
         competition_memberships: 0,
         picks_made: 0,
-        allowed_teams: 0,
         progress_records: 0,
         audit_logs: 0
       };
@@ -199,8 +195,6 @@ router.post('/', verifyToken, async (req, res) => {
           // Delete all competition memberships
           await client.query('DELETE FROM competition_user WHERE competition_id = $1', [competitionId]);
           
-          // Delete all allowed teams for this competition
-          await client.query('DELETE FROM allowed_teams WHERE competition_id = $1', [competitionId]);
           
           // Delete all player progress for this competition
           await client.query('DELETE FROM player_progress WHERE competition_id = $1', [competitionId]);
@@ -230,8 +224,6 @@ router.post('/', verifyToken, async (req, res) => {
       const deletePicksResult = await client.query('DELETE FROM pick WHERE user_id = $1', [user_id]);
       deletionCounts.picks_made = deletePicksResult.rowCount || 0;
 
-      const deleteAllowedTeamsResult = await client.query('DELETE FROM allowed_teams WHERE user_id = $1', [user_id]);
-      deletionCounts.allowed_teams = deleteAllowedTeamsResult.rowCount || 0;
 
       const deleteCompetitionUserResult = await client.query('DELETE FROM competition_user WHERE user_id = $1', [user_id]);
       deletionCounts.competition_memberships = deleteCompetitionUserResult.rowCount || 0;
@@ -282,7 +274,6 @@ router.post('/', verifyToken, async (req, res) => {
             competitions_organized: deletionCounts.competitions_organized,
             competition_memberships: deletionCounts.competition_memberships,
             picks_made: deletionCounts.picks_made,
-            allowed_teams: deletionCounts.allowed_teams,
             progress_records: deletionCounts.progress_records,
             audit_logs: deletionCounts.audit_logs,
             total_records: totalRecordsDeleted

@@ -39,9 +39,8 @@ Return Codes:
 "PLAYER_ELIMINATED"  // Player status is not 'active' (eliminated from competition)
 "FIXTURE_NOT_FOUND"
 "INVALID_TEAM"
-"TEAM_NOT_ALLOWED"
 "ROUND_LOCKED"
-"TEAM_ALREADY_PICKED"
+"TEAM_ALREADY_PICKED"   // covers what TEAM_NOT_ALLOWED used to report - see docs/allowed-teams.md
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -114,17 +113,25 @@ router.post('/', verifyToken, async (req, res) => {
         -- === USER AUTHORIZATION AND STATUS ===
         cu.status as user_status,                     -- User's status in competition ('active', 'OUT', etc.)
         cu.user_id as is_member,                      -- Non-null if user is competition member
-        at.team_id as is_team_allowed,                -- Non-null if team is in user's allowed teams
-        
+
         -- === EXISTING PICK INFO (FOR CHANGE HANDLING) ===
         existing_pick.team as existing_pick_team,     -- Current pick team short code (if exists)
         existing_pick.id as existing_pick_id,         -- Current pick ID (if exists) 
         existing_team.id as existing_team_id,         -- Current pick team database ID (for restoration)
         existing_team.name as existing_team_full,     -- Current pick full team name (for display)
         
-        -- === PREVIOUS PICK VALIDATION (NO TEAM TWICE RULE) ===
-        prev_picks.pick_count,                        -- Count of times this team was picked before (should be 0)
-        
+        -- === NO TEAM TWICE (DERIVED - see docs/allowed-teams.md) ===
+        -- How many times this player has picked this team SINCE THEIR LAST RESET. The boundary
+        -- is what makes "use them all and they come back" work: without it a reset player is
+        -- offered a team on the pick screen and then refused it here.
+        (SELECT COUNT(*)
+           FROM pick p
+          WHERE p.competition_id = c.id
+            AND p.user_id        = $4
+            AND p.round_number   > cu.teams_reset_round
+            AND p.team           = CASE WHEN $2 = 'home' THEN f.home_team_short ELSE f.away_team_short END
+        ) as pick_count,
+
         -- === AUTHORIZATION FLAGS ===
         CASE WHEN c.organiser_id = $3 THEN true ELSE false END as is_admin,                      -- User is competition organiser
         CASE WHEN $4 = $3 THEN true ELSE false END as is_own_pick,                               -- User is setting own pick
@@ -135,40 +142,23 @@ router.post('/', verifyToken, async (req, res) => {
       INNER JOIN competition c ON r.competition_id = c.id
       
       -- === TEAM DETAILS FOR BOTH HOME AND AWAY ===
-      -- Get full team information for validation and display
+      -- Get full team information for validation and display.
+      -- team_list_id is matched deliberately: the allowed_teams join this replaced was built from
+      -- the competition's own list, so it implicitly refused a team belonging to another one.
       LEFT JOIN team home_team ON home_team.short_name = f.home_team_short AND home_team.is_active = true
+                              AND home_team.team_list_id = c.team_list_id
       LEFT JOIN team away_team ON away_team.short_name = f.away_team_short AND away_team.is_active = true
-      
+                              AND away_team.team_list_id = c.team_list_id
+
       -- === USER COMPETITION MEMBERSHIP ===
-      -- Verify user is member of this competition
+      -- Verify user is member of this competition, and carry their reset boundary
       LEFT JOIN competition_user cu ON c.id = cu.competition_id AND cu.user_id = $4
-      
-      -- === ALLOWED TEAMS CHECK ===
-      -- Check if selected team is in user's allowed teams (admins can override)
-      LEFT JOIN allowed_teams at ON c.id = at.competition_id 
-                                 AND at.user_id = $4 
-                                 AND at.team_id = CASE WHEN $2 = 'home' THEN home_team.id ELSE away_team.id END
-      
+
       -- === EXISTING PICK CHECK (FOR CHANGES) ===
       -- Get user's current pick for this round if it exists
       LEFT JOIN pick existing_pick ON r.id = existing_pick.round_id AND existing_pick.user_id = $4
       LEFT JOIN team existing_team ON existing_team.short_name = existing_pick.team AND existing_team.is_active = true
-      
-      -- === PREVIOUS PICKS VALIDATION (NO TEAM TWICE RULE) ===
-      -- Count how many times user has picked this team before in this competition
-      LEFT JOIN (
-        SELECT p.user_id, p.team, COUNT(*) as pick_count
-        FROM pick p
-        INNER JOIN round prev_r ON p.round_id = prev_r.id
-        WHERE prev_r.competition_id = (SELECT competition_id FROM round WHERE id = (SELECT round_id FROM fixture WHERE id = $1))
-              AND p.user_id = $4
-              AND p.team = CASE WHEN $2 = 'home' 
-                               THEN (SELECT home_team_short FROM fixture WHERE id = $1) 
-                               ELSE (SELECT away_team_short FROM fixture WHERE id = $1) 
-                          END
-        GROUP BY p.user_id, p.team
-      ) prev_picks ON prev_picks.user_id = $4
-      
+
       WHERE f.id = $1  -- Filter to requested fixture only
     `, [fixture_id, team, authenticated_user_id, target_user_id]);
 
@@ -228,14 +218,6 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Check if team is allowed (admin override only applies when setting picks for OTHER users)
-    if (!isAdminOverride && !validation.is_team_allowed) {
-      return res.json({
-        return_code: "TEAM_NOT_ALLOWED",
-        message: "You are not allowed to pick this team"
-      });
-    }
-
     // Check round lock status (applies to everyone including admins)
     if (validation.is_round_locked) {
       return res.json({
@@ -244,7 +226,14 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Check no team twice rule (only if enabled for this competition)
+    // === NO TEAM TWICE ===
+    // One check where there used to be two. TEAM_NOT_ALLOWED tested membership of allowed_teams
+    // and TEAM_ALREADY_PICKED counted the pick history; with the table gone they are the same
+    // question, asked once, of the data that was always the truth.
+    //
+    // Note this is NOT admin-overridable, which preserves the old behaviour exactly: the admin
+    // override only ever bypassed the allowed_teams membership test, never the pick count, so a
+    // duplicate team was refused for everyone either way.
     if (validation.no_team_twice && validation.pick_count > 0) {
       return res.json({
         return_code: "TEAM_ALREADY_PICKED",
@@ -268,26 +257,9 @@ router.post('/', verifyToken, async (req, res) => {
 
       savedPick = pickResult.rows[0]; // Store pick data outside transaction scope
 
-      // Step 2: Handle allowed_teams changes
-      // Use same admin override logic as validation above
-      if (!isAdminOverride) {
-        // If this was a pick change, restore the old team to allowed_teams (only if no_team_twice is enabled)
-        if (validation.existing_team_id && validation.no_team_twice) {
-          await client.query(`
-            INSERT INTO allowed_teams (competition_id, user_id, team_id)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-          `, [competition_id, target_user_id, validation.existing_team_id]);
-        }
-
-        // Remove the newly picked team from allowed_teams (only if no_team_twice is enabled)
-        if (validation.no_team_twice) {
-          await client.query(`
-            DELETE FROM allowed_teams
-            WHERE competition_id = $1 AND user_id = $2 AND team_id = $3
-          `, [competition_id, target_user_id, selected_team_id]);
-        }
-      }
+      // Step 2 used to remove the picked team from allowed_teams and put back the one being
+      // replaced. Nothing to do now: the pick row written above IS the record, so a pick change
+      // frees the old team and blocks the new one with no second write to keep in step.
 
       // Step 3: Add comprehensive audit log for administrative tracking
       const actionType = validation.existing_pick_id ? 'Pick Changed' : 'Pick Made';

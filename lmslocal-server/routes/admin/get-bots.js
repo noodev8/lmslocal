@@ -85,7 +85,7 @@ Return Codes:
 "SERVER_ERROR"              - Database error or unexpected server failure
 =======================================================================================================================================
 Data Notes:
-- available_teams is read from allowed_teams, the same table get-allowed-teams.js serves the
+- available_teams is derived from each bot's picks, the same rule get-allowed-teams.js serves the
   player pick screen from. A bot whose set is empty is rebuilt on the way past, which is what
   get-allowed-teams.js does for a real player - see services/allowedTeams.js.
 - used_teams is the second half of the same picture, counted from pick. set-pick.js checks both
@@ -256,9 +256,9 @@ router.get('/', verifyAdminToken, async (req, res) => {
       `, [competitionId, round ? round.round_id : null, BOT_EMAIL_LIKE]);
 
       /*
-      What each bot may still pick, from allowed_teams - the table the player pick screen reads
-      and the table set-pick.js validates against. Bots sitting on an empty set are rebuilt
-      here, which is the healing a real player gets by opening that screen.
+      What each bot may still pick, derived from its own picks - the same rule the player pick
+      screen reads and set-pick.js validates against. No rebuild step: an empty set now means the
+      bot has genuinely used every team. See docs/allowed-teams.md.
       */
       const allowed = await loadAllowedTeams(
         competitionId,

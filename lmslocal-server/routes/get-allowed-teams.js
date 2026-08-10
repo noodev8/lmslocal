@@ -58,7 +58,7 @@ const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { canManagePlayers } = require('../utils/permissions');
-const { getAllowedTeams, compareWithStoredTable } = require('../services/allowedTeams');
+const { getAllowedTeams } = require('../services/allowedTeams');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -144,9 +144,6 @@ router.post('/', verifyToken, async (req, res) => {
       currentRoundNumber: context.round_number
     });
 
-    // Step 3 of the migration: prove the derivation matches the table still being maintained
-    // beside it. Fire-and-forget - it can log, it can never break this response.
-    compareWithStoredTable(competition_id, target_user_id, teams);
 
     // === RULE 2: WHICH OF THOSE PLAY THIS ROUND ===
     const fixtureResult = await query(`

@@ -88,7 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
         p.fixture_id as pick_fixture_id,              -- Fixture ID for context
         
         -- === TEAM AND FIXTURE INFO ===
-        t.id as team_id,                              -- Team database ID for allowed_teams restoration
+        t.id as team_id,                              -- Team database ID for display
         t.name as team_full_name,                     -- Full team name for display
         f.home_team,                                  -- Home team in fixture (for display)
         f.away_team,                                  -- Away team in fixture (for display)
@@ -183,14 +183,8 @@ router.post('/', verifyToken, async (req, res) => {
         WHERE round_id = $1 AND user_id = $2
       `, [round_id, target_user_id]);
 
-      // Step 2: Restore team to allowed_teams (for all users including admins)
-      if (validation.team_id) {
-        await client.query(`
-          INSERT INTO allowed_teams (competition_id, user_id, team_id)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-        `, [competition_id, target_user_id, validation.team_id]);
-      }
+      // Step 2 used to put the team back into allowed_teams. Deleting the pick above is now the
+      // whole of it - the team is free again because nothing records it as used any more.
 
       // Step 3: Add comprehensive audit log for administrative tracking
       const logDetails = is_admin && !is_own_pick 

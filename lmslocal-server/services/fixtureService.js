@@ -209,7 +209,7 @@ async function getFixturePushCandidates(client, teamListId) {
 
 /**
  * Pushes the staged batch to ONE competition: creates or fills its round, inserts the fixtures,
- * backfills allowed_teams for players who have none, queues notifications, writes the audit row.
+ * queues notifications, writes the audit row.
  *
  * Does not touch fixture_load. The other subscribed competitions still need those rows, so
  * clearing the batch is its own deliberate step (/admin/clear-staged-batch) - the same shape as
@@ -314,36 +314,6 @@ async function pushFixturesToCompetition(client, competitionId) {
     );
   }
 
-  // Only for active players with no allowed_teams rows at all - a competition switched over from
-  // manual keeps its no-team-twice history rather than having it wiped.
-  const teamResetResult = await client.query(
-    `INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
-     SELECT $1, cu.user_id, t.id, NOW()
-     FROM competition_user cu
-     CROSS JOIN team t
-     WHERE cu.competition_id = $1
-       AND cu.status = 'active'
-       AND t.team_list_id = $2
-       AND t.is_active = true
-       AND NOT EXISTS (
-         SELECT 1 FROM allowed_teams at WHERE at.competition_id = $1 AND at.user_id = cu.user_id
-       )
-     RETURNING user_id`,
-    [competitionId, teamListId]
-  );
-
-  if (teamResetResult.rows.length > 0) {
-    const uniqueUserIds = [...new Set(teamResetResult.rows.map((row) => row.user_id))];
-    for (const userId of uniqueUserIds) {
-      const userResult = await client.query('SELECT display_name FROM app_user WHERE id = $1', [userId]);
-      const displayName = userResult.rows[0]?.display_name || `User ${userId}`;
-      await client.query(
-        `INSERT INTO audit_log (competition_id, user_id, action, details)
-         VALUES ($1, $2, 'Teams Auto-Reset', $3)`,
-        [competitionId, userId, `Teams automatically reset for ${displayName} at start of Round ${targetRoundNumber}`]
-      );
-    }
-  }
 
   // NEW_ROUND: one pending notification per user across all competitions, so someone in four
   // competitions gets one nudge rather than four. Needs a device token to be worth queueing.

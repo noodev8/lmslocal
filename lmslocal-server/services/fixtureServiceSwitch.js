@@ -138,7 +138,7 @@ async function checkSafeToEnable(competition, exec = query, options = {}) {
  *   status = SETUP     - the competition was never started
  *   no results         - no fixture has been resulted, so nothing has been decided
  *   no picks           - no player has chosen. Because every path that deletes a pick either
- *                        restores allowed_teams (unselect-pick, admin-set-pick) or deletes the
+  *                        frees the team again (unselect-pick, admin-set-pick) or deletes the
  *                        player outright (remove-player), an empty pick set genuinely means no
  *                        team was ever consumed - there is nothing to give back.
  *   no player_progress - the sharper one. Progress rows are written at result-processing time

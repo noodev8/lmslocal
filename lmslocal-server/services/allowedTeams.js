@@ -15,19 +15,17 @@ Read `docs/allowed-teams.md` before changing any of this, and change the doc fir
 the reasoning, the decisions already closed, and the landmines.
 
 ---------------------------------------------------------------------------------------------------------------------------------------
-MIGRATION STATE: step 2 of 4 (see docs/allowed-teams.md §5)
+THIS FILE IS THE ONLY DEFINITION. There is no `allowed_teams` table any more.
 ---------------------------------------------------------------------------------------------------------------------------------------
-The derivation below is live and is what get-allowed-teams now serves. The `allowed_teams` table
-is still written by the old paths and still read by botPool, so the two run in parallel and
-compareWithStoredTable() reports any disagreement to the log. Nothing has been deleted yet.
+It was dropped in Aug 2026 along with its seven indexes. It had duplicated state `pick` already
+held, and had grown THREE rebuild implementations carrying TWO different definitions: this file
+excluded already-picked teams, while database.js and fixtureService.js handed back every team
+unconditionally. Which one a player got depended on whichever code path noticed their empty set
+first - a rule nobody chose.
 
-resetAllowedTeams() is the old table rebuild, kept only for those remaining callers. It is
-deliberately NOT the definition any more - deriveAllowedTeams() is. Do not add callers to it.
-
-Why the table is going: it duplicated state that `pick` already holds, and it had three separate
-rebuild implementations carrying two different definitions - this file excluded already-picked
-teams, while database.js:143 and fixtureService.js:319 handed back every team unconditionally.
-Which one a player got depended on whichever code path noticed their empty set first.
+If a caller needs to know what a player may pick, call deriveAllowedTeams() or getAllowedTeams().
+Do not reintroduce a stored copy: the drift it caused in production was a stored `team_id` that
+outlived the team row it pointed at, which a derivation from `pick.team` cannot suffer.
 =======================================================================================================================================
 */
 
@@ -139,89 +137,9 @@ async function getAllowedTeams({ competitionId, userId, teamListId, noTeamTwice,
   return { teams, teamsReset, resetRound };
 }
 
-/**
- * Step 3 verification only - compare the derivation against the still-maintained table and log
- * any disagreement. Delete this along with the table at step 4.
- *
- * Never throws. A verification aid must not be able to break the read path it is verifying.
- *
- * @param {number} competitionId
- * @param {number} userId
- * @param {Array<{team_id: number}>} derivedTeams
- */
-async function compareWithStoredTable(competitionId, userId, derivedTeams) {
-  try {
-    const stored = await query(
-      'SELECT team_id FROM allowed_teams WHERE competition_id = $1 AND user_id = $2',
-      [competitionId, userId]
-    );
 
-    const storedIds = new Set(stored.rows.map((r) => r.team_id));
-    const derivedIds = new Set(derivedTeams.map((t) => t.team_id));
-
-    const onlyStored = [...storedIds].filter((id) => !derivedIds.has(id));
-    const onlyDerived = [...derivedIds].filter((id) => !storedIds.has(id));
-
-    if (onlyStored.length > 0 || onlyDerived.length > 0) {
-      console.warn(
-        `[allowed-teams-diff] competition=${competitionId} user=${userId} ` +
-        `stored=${storedIds.size} derived=${derivedIds.size} ` +
-        `only_stored=[${onlyStored.join(',')}] only_derived=[${onlyDerived.join(',')}]`
-      );
-    }
-  } catch (error) {
-    console.error('[allowed-teams-diff] comparison failed:', error.message);
-  }
-}
-
-/**
- * LEGACY - the old `allowed_teams` table rebuild. Retained only for botPool, which still reads
- * the table. Removed at step 4. Do not add callers.
- *
- * Must be called inside a transaction - the delete and insert are one operation, and a failure
- * between them would leave the player with nothing to pick.
- *
- * @param {Object} client - PostgreSQL client within an active transaction
- * @param {number} competitionId
- * @param {number} userId
- * @param {number} teamListId
- * @param {string} reason - what to record on the audit row
- * @returns {Promise<number>} how many teams the player now has
- */
-async function resetAllowedTeams(client, competitionId, userId, teamListId, reason) {
-  // Clear first: a partial set is what got us here, and topping it up would keep whatever is
-  // already wrong about it.
-  await client.query(
-    'DELETE FROM allowed_teams WHERE competition_id = $1 AND user_id = $2',
-    [competitionId, userId]
-  );
-
-  const inserted = await client.query(`
-    INSERT INTO allowed_teams (competition_id, user_id, team_id, created_at)
-    SELECT $1, $2, t.id, NOW()
-    FROM team t
-    WHERE t.team_list_id = $3 AND t.is_active = true
-      AND t.short_name NOT IN (
-        SELECT DISTINCT p.team
-        FROM pick p
-        JOIN round r ON p.round_id = r.id
-        WHERE r.competition_id = $1 AND p.user_id = $2
-          AND p.team IS NOT NULL
-      )
-    ON CONFLICT (competition_id, user_id, team_id) DO NOTHING
-  `, [competitionId, userId, teamListId]);
-
-  await client.query(`
-    INSERT INTO audit_log (competition_id, user_id, action, details, created_at)
-    VALUES ($1, $2, 'Teams Auto-Reset', $3, NOW())
-  `, [competitionId, userId, reason]);
-
-  return inserted.rowCount;
-}
 
 module.exports = {
   deriveAllowedTeams,
   getAllowedTeams,
-  compareWithStoredTable,
-  resetAllowedTeams,
 };
