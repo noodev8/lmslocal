@@ -36,6 +36,12 @@ dist-ssr/
 out/
 *.local
 
+# Marketing exported PDFs/PNGs are build artifacts (sources are the HTML files),
+# but keep the folder itself trackable via its placeholder .gitignore.
+!lmslocal-marketing/out/
+lmslocal-marketing/out/*
+!lmslocal-marketing/out/.gitignore
+
 # Environment variables
 .env
 .env.local
