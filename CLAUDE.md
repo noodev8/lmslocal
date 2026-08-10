@@ -271,7 +271,12 @@ lmslocal-web/
 ## Competition Game Logic
 
 ### Player Rules
-- **Pick System**: One team per round, cannot reuse teams across rounds
+- **Pick System**: One team per round, cannot reuse teams across rounds — until every team has been
+  used, at which point they all come back. What a player may still pick is **derived from their own
+  picks**, not stored; the only stored state is `competition_user.teams_reset_round`. Read
+  `docs/allowed-teams.md` before touching this, and change the doc first. The `allowed_teams` table
+  is being retired — it duplicated state derivable from `pick`, and had **three** rebuild
+  implementations carrying **two** different definitions.
 - **Lock Timing**: Picks lock when all players choose, admin sets time, or 1hr before kickoff
 - **Elimination**: Win = advance, Draw/Loss = elimination, Missed pick = life lost
 - **Results**: Based on regulation time only (90 minutes + stoppage time)
@@ -372,11 +377,15 @@ lmslocal-web/
 ## Database Access & Schema Reference
 
 **Before writing anything to the database, read `docs/testing-rules.md`.** This is the live
-production database and there is no staging copy. The short version: **competition 199**
-(organiser 50, `aandreou25@gmail.com`) is the sandbox and can be changed freely; every other
-competition belongs to a customer and is read-only unless the user names it in that session.
-Check `organiser_id` before any targeted write — 199 and 170 are one keystroke apart and 170 is
-a customer's.
+production database and there is no staging copy. The short version: organiser 50's **nominated
+sandbox competition** (`aandreou25@gmail.com`) can be changed freely; every other competition
+belongs to a customer and is read-only unless the user names it in that session.
+
+**The sandbox is not a fixed id — look it up, never reuse a remembered one.** It rotates as
+Andreas creates and deletes test competitions; competition 199, named throughout the older docs,
+**no longer exists**. `docs/testing-rules.md` is the authority on which one is current (206,
+"Red Barn LMS", as of Aug 2026). Owning it is necessary but not sufficient: organiser 50 also
+owns real competitions. Check `organiser_id` *and* the name before any targeted write.
 
 **Connecting to the database**: `lmslocal-server/db/README.md` is the front door — read it before
 writing SQL. There is **no MCP server** for this project and that is deliberate; use the scripts

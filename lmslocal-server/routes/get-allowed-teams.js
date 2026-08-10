@@ -3,7 +3,8 @@
 API Route: get-allowed-teams
 =======================================================================================================================================
 Method: POST
-Purpose: Retrieves teams that user is allowed to pick in current round with fixture availability validation and automatic reset
+Purpose: Returns the teams a player may still pick in the current round, resetting their list if
+         they have used every team.
 =======================================================================================================================================
 Request Payload:
 {
@@ -21,7 +22,7 @@ Success Response (ALWAYS HTTP 200):
       "short_name": "ARS"                      // string, abbreviated team name for compact UI
     }
   ],
-  "teams_reset": false,                        // boolean, true if teams were automatically reset
+  "teams_reset": false,                        // boolean, true if the list was reset on this read
   "reset_message": null                        // string, message about reset action (null if no reset)
 }
 
@@ -39,25 +40,34 @@ Return Codes:
 "USER_NOT_IN_COMPETITION"
 "SERVER_ERROR"
 =======================================================================================================================================
+Allowed teams are DERIVED, not stored - see docs/allowed-teams.md and services/allowedTeams.js.
+This route composes two separate rules and they must not be confused:
+
+  1. what the player may still pick  - services/allowedTeams.js, from their own pick history
+  2. which of those play this round  - the fixture filter below
+
+Only rule 1 can exhaust. A player holding Arsenal alone, in a round where Arsenal is not playing,
+has NOT run out of teams and must not be reset - doing so would hand back teams they have used.
+The old single-query version tested the two together and would have reset in that case; the
+rebuild it then ran happened to be a no-op, which is the only reason nobody noticed.
+=======================================================================================================================================
 */
 
 const express = require('express');
-const { query, transaction } = require('../database');
+const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { canManagePlayers } = require('../utils/permissions');
-const { resetAllowedTeams } = require('../services/allowedTeams');
+const { getAllowedTeams, compareWithStoredTable } = require('../services/allowedTeams');
 const router = express.Router();
+
 router.post('/', verifyToken, async (req, res) => {
   logApiCall('get-allowed-teams');
-  
+
   try {
-    // Extract request parameters and authenticated user ID
     const { competition_id, user_id: requested_user_id } = req.body;
     const authenticated_user_id = req.user.id;
 
-    // === INPUT VALIDATION ===
-    // Validate competition_id is provided and is a valid integer
     if (!competition_id || !Number.isInteger(competition_id)) {
       return res.json({
         return_code: "VALIDATION_ERROR",
@@ -65,11 +75,9 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Determine target user: use requested user_id if provided (admin feature), otherwise authenticated user
+    // Use requested user_id if provided (admin feature), otherwise the authenticated user
     const target_user_id = requested_user_id || authenticated_user_id;
 
-    // === AUTHORIZATION CHECK FOR VIEWING OTHER PLAYERS' TEAMS ===
-    // If requesting another player's teams, verify permission to manage players
     if (requested_user_id && requested_user_id !== authenticated_user_id) {
       const permission = await canManagePlayers(authenticated_user_id, competition_id);
       if (!permission.authorized) {
@@ -80,192 +88,45 @@ router.post('/', verifyToken, async (req, res) => {
       }
     }
 
-    // === SINGLE COMPREHENSIVE QUERY (ELIMINATES N+1 PROBLEM) ===
-    // This optimized query replaces what used to be 3 separate queries:
-    // 1. Competition organiser check (for admin permissions)
-    // 2. Current round lookup
-    // 3. Allowed teams with fixture availability
-    // Now performs all operations in one efficient query with conditional logic
-    const result = await query(`
-      SELECT 
-        -- === COMPETITION INFO FOR AUTHORIZATION ===
-        c.id as competition_id,           -- Competition identifier for validation
-        c.organiser_id,                   -- Competition organiser (for admin permission check)
-        c.name as competition_name,       -- Competition name for audit purposes
-        
-        -- === CURRENT ROUND INFO ===
-        latest_round.round_id,            -- Current round ID for fixture matching
-        latest_round.round_number,        -- Current round number for display
-        
-        -- === ALLOWED TEAMS WITH FIXTURE AVAILABILITY ===
-        at.team_id,                       -- Team database ID
-        t.name,                           -- Full team name for display
-        t.short_name,                     -- Abbreviated team name for compact UI
-        
-        -- === FIXTURE AVAILABILITY CHECK ===
-        CASE 
-          WHEN f.id IS NOT NULL THEN true -- Team has fixture in current round
-          ELSE false                       -- Team has no fixture (shouldn't be pickable)
-        END as has_fixture
-        
+    // === COMPETITION, MEMBERSHIP AND CURRENT ROUND ===
+    const contextResult = await query(`
+      SELECT
+        c.id AS competition_id,
+        c.team_list_id,
+        c.no_team_twice,
+        cu.user_id AS is_participant,
+        latest_round.round_id,
+        latest_round.round_number
       FROM competition c
-      
-      -- === LATEST ROUND SUBQUERY (PREVENTS N+1) ===
-      -- Gets the most recent round for this competition using window function
+      LEFT JOIN competition_user cu ON c.id = cu.competition_id AND cu.user_id = $2
       LEFT JOIN (
         SELECT r.competition_id,
-               r.id as round_id,                                          -- Round database ID
-               r.round_number,                                            -- Round number for display
-               ROW_NUMBER() OVER (PARTITION BY r.competition_id ORDER BY r.round_number DESC) as rn -- Latest round selector
+               r.id AS round_id,
+               r.round_number,
+               ROW_NUMBER() OVER (PARTITION BY r.competition_id ORDER BY r.round_number DESC) AS rn
         FROM round r
-      ) latest_round ON c.id = latest_round.competition_id AND latest_round.rn = 1 -- Only latest round
-      
-      -- === ALLOWED TEAMS JOIN (TARGET USER SPECIFIC) ===
-      -- Get teams this specific user is allowed to pick
-      LEFT JOIN allowed_teams at ON c.id = at.competition_id AND at.user_id = $2
-      
-      -- === TEAM DETAILS JOIN ===
-      -- Get full team information for display purposes
-      LEFT JOIN team t ON at.team_id = t.id AND t.is_active = true
-      
-      -- === FIXTURE AVAILABILITY JOIN ===
-      -- Check if team has a fixture in the current round (required for picking)
-      LEFT JOIN fixture f ON latest_round.round_id = f.round_id 
-                          AND (f.home_team = t.name OR f.away_team = t.name)
-      
-      WHERE c.id = $1                     -- Filter to requested competition only
-        AND at.team_id IS NOT NULL        -- Only include teams user is allowed to pick
-        AND t.id IS NOT NULL              -- Only include valid active teams
-        AND f.id IS NOT NULL              -- Only include teams with fixtures in current round
-
-      ORDER BY t.name ASC                 -- Alphabetical order for consistent UI
+      ) latest_round ON c.id = latest_round.competition_id AND latest_round.rn = 1
+      WHERE c.id = $1
     `, [competition_id, target_user_id]);
 
-    
-    // === AUTHORIZATION AND AUTO-RESET VALIDATION ===
-    // Check if competition exists and user has permission to access it
-    if (result.rows.length === 0) {
-      // Determine specific error cause with comprehensive validation query
-      const validationResult = await query(`
-        SELECT 
-          c.id as competition_id,
-          c.organiser_id,
-          c.team_list_id,
-          c.name as competition_name,
-          cu.user_id as is_participant,
-          latest_round.round_id,
-          latest_round.round_number
-        FROM competition c
-        LEFT JOIN competition_user cu ON c.id = cu.competition_id AND cu.user_id = $2
-        LEFT JOIN (
-          SELECT r.competition_id,
-                 r.id as round_id,
-                 r.round_number,
-                 ROW_NUMBER() OVER (PARTITION BY r.competition_id ORDER BY r.round_number DESC) as rn
-          FROM round r
-        ) latest_round ON c.id = latest_round.competition_id AND latest_round.rn = 1
-        WHERE c.id = $1
-      `, [competition_id, target_user_id]);
+    if (contextResult.rows.length === 0) {
+      return res.json({
+        return_code: "COMPETITION_NOT_FOUND",
+        message: "Competition not found"
+      });
+    }
 
-      if (validationResult.rows.length === 0) {
-        return res.json({
-          return_code: "COMPETITION_NOT_FOUND",
-          message: "Competition not found"
-        });
-      }
+    const context = contextResult.rows[0];
 
-      const validation = validationResult.rows[0];
+    if (!context.is_participant) {
+      return res.json({
+        return_code: "USER_NOT_IN_COMPETITION",
+        message: "User is not participating in this competition"
+      });
+    }
 
-      // Check if target user is actually in this competition
-      if (!validation.is_participant) {
-        return res.json({
-          return_code: "USER_NOT_IN_COMPETITION",
-          message: "User is not participating in this competition"
-        });
-      }
-
-      // === AUTO-RESET LOGIC ===
-      // User has permission but no allowed teams - trigger automatic reset
-      let teamsReset = false;
-      let resetMessage = null;
-
-      if (validation.team_list_id && validation.round_id) {
-        // The rebuild itself lives in services/allowedTeams.js so the admin bot routes can run
-        // exactly the same one - a bot never opens this screen, so it would otherwise never get
-        // the healing every real player gets here.
-        await transaction(async (client) => {
-          await resetAllowedTeams(
-            client,
-            competition_id,
-            target_user_id,
-            validation.team_list_id,
-            `Player ran out of available teams - automatically reset to all teams in round ${validation.round_number}`
-          );
-        });
-
-        teamsReset = true;
-        resetMessage = "You ran out of teams! All teams have been reset and are now available again.";
-
-        // === RE-FETCH ALLOWED TEAMS AFTER RESET ===
-        // Run the main query again to get the freshly reset teams with fixture availability
-        const resetResult = await query(`
-          SELECT 
-            -- === ALLOWED TEAMS WITH FIXTURE AVAILABILITY (POST-RESET) ===
-            at.team_id,                       -- Team database ID
-            t.name,                           -- Full team name for display
-            t.short_name,                     -- Abbreviated team name for compact UI
-            
-            -- === FIXTURE AVAILABILITY CHECK ===
-            CASE 
-              WHEN f.id IS NOT NULL THEN true -- Team has fixture in current round
-              ELSE false                       -- Team has no fixture (shouldn't be pickable)
-            END as has_fixture
-            
-          FROM competition c
-          
-          -- === LATEST ROUND SUBQUERY (CONSISTENT WITH MAIN QUERY) ===
-          LEFT JOIN (
-            SELECT r.competition_id,
-                   r.id as round_id,
-                   r.round_number,
-                   ROW_NUMBER() OVER (PARTITION BY r.competition_id ORDER BY r.round_number DESC) as rn
-            FROM round r
-          ) latest_round ON c.id = latest_round.competition_id AND latest_round.rn = 1
-          
-          -- === ALLOWED TEAMS JOIN (POST-RESET) ===
-          LEFT JOIN allowed_teams at ON c.id = at.competition_id AND at.user_id = $2
-          
-          -- === TEAM DETAILS JOIN ===
-          LEFT JOIN team t ON at.team_id = t.id AND t.is_active = true
-          
-          -- === FIXTURE AVAILABILITY JOIN ===
-          LEFT JOIN fixture f ON latest_round.round_id = f.round_id 
-                              AND (f.home_team = t.name OR f.away_team = t.name)
-          
-          WHERE c.id = $1
-            AND at.team_id IS NOT NULL        -- Only include teams user is allowed to pick
-            AND t.id IS NOT NULL              -- Only include valid active teams
-            AND f.id IS NOT NULL              -- Only include teams with fixtures in current round
-          
-          ORDER BY t.name ASC                 -- Alphabetical order for consistent UI
-        `, [competition_id, target_user_id]);
-
-        // Transform reset results into API response format
-        const allowedTeams = resetResult.rows.map(row => ({
-          team_id: row.team_id,               // For database operations and pick submission
-          name: row.name,                     // Full team name for detailed displays
-          short_name: row.short_name          // Abbreviated name for space-constrained UI
-        }));
-
-        return res.json({
-          return_code: "SUCCESS",
-          allowed_teams: allowedTeams,        // Freshly reset teams with fixtures
-          teams_reset: teamsReset,            // Indicate reset occurred
-          reset_message: resetMessage         // User-friendly reset notification
-        });
-      }
-
-      // No auto-reset possible (no team list or round) - return empty result
+    // No round yet, or no team list - nothing to offer and nothing to reset against.
+    if (!context.round_id || !context.team_list_id) {
       return res.json({
         return_code: "SUCCESS",
         allowed_teams: [],
@@ -274,25 +135,46 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // === SUCCESS RESPONSE (NORMAL FLOW - NO RESET NEEDED) ===
-    // Transform database results into clean API response format
-    // Only return teams that have fixtures in current round (already filtered in query)
-    const allowedTeams = result.rows.map(row => ({
-      team_id: row.team_id,               // For database operations and pick submission
-      name: row.name,                     // Full team name for detailed displays
-      short_name: row.short_name          // Abbreviated name for space-constrained UI
-    }));
+    // === RULE 1: WHAT THEY MAY STILL PICK ===
+    const { teams, teamsReset } = await getAllowedTeams({
+      competitionId: competition_id,
+      userId: target_user_id,
+      teamListId: context.team_list_id,
+      noTeamTwice: context.no_team_twice,
+      currentRoundNumber: context.round_number
+    });
+
+    // Step 3 of the migration: prove the derivation matches the table still being maintained
+    // beside it. Fire-and-forget - it can log, it can never break this response.
+    compareWithStoredTable(competition_id, target_user_id, teams);
+
+    // === RULE 2: WHICH OF THOSE PLAY THIS ROUND ===
+    const fixtureResult = await query(`
+      SELECT home_team_short AS short_name FROM fixture WHERE round_id = $1
+      UNION
+      SELECT away_team_short FROM fixture WHERE round_id = $1
+    `, [context.round_id]);
+
+    const playingThisRound = new Set(fixtureResult.rows.map((row) => row.short_name));
+
+    const allowedTeams = teams
+      .filter((team) => playingThisRound.has(team.short_name))
+      .map((team) => ({
+        team_id: team.team_id,
+        name: team.name,
+        short_name: team.short_name
+      }));
 
     res.json({
       return_code: "SUCCESS",
-      allowed_teams: allowedTeams,        // Array of pickable teams with current round fixtures
-      teams_reset: false,                 // No reset occurred in normal flow
-      reset_message: null                 // No reset message needed
+      allowed_teams: allowedTeams,
+      teams_reset: teamsReset,
+      reset_message: teamsReset
+        ? "You ran out of teams! All teams have been reset and are now available again."
+        : null
     });
 
   } catch (error) {
-    // === ERROR HANDLING ===
-    // Log detailed error for debugging but return generic message to client for security
     console.error('Get allowed teams error:', error);
     res.json({
       return_code: "SERVER_ERROR",
