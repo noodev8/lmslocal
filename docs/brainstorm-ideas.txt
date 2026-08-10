@@ -1,0 +1,51 @@
+== ALLOWED TEAMS ==
+Having a row of allowed teams for each player should be more economical
+Thinking about a single entry in the player competition with a 20 digit string. 1/0 with 1 being allowed and 0 beig not allowed. e.g 1111111111111111111 all on. 0000000000000000000 all off.
+Need to be absolutely careful that the list of teams corresponds with the position in the string. That needs technical feedback and thought, but probably something to do with the team list as long as we are clear they stay in the same order or have a separate order number linked to them.
+This should save a lot of redundnat rows and retire the allowed teams table. When returning the list to the client, Im expecting the data format to stay the same so the mobile app and web app still works regardless.
+
+
+== PROFILE ==
+Decide if we should have the settings on a web page instead of the app in case they change often
+We want to use it to determine if the user wants/doesnt want different types of emails. Display names for each comeptition and maybe more in future.
+
+
+== COMPETITION DETAILS ==
+Where do we put the organisers image/icon
+Where do we put the descripton for the comeptiton. We currently have it on the dashboard which is OK but should it be able to be hidden and brought back, or just leave it there for the whole game
+
+
+== .gitignore ==
+Found another gitignore file but want only one in the whole repo
+C:\lmslocal\lmslocal-marketing\out
+
+
+== EMAIL and mobile NOTIFICATIONS ==
+Need to review the email/notification summary. Welcome, pick reminder, advert etc etc
+Identify how we manage unsubscribe for which types
+Have at all summarised with the ADMIN tool which helps us see stats and what to send and when. Controlled by admin
+Just need to get structured and organised
+
+
+== ONGOING COMPETITIONS ==
+Look at LMS 501 and think about setting it up for free and without prize money
+Just a competition that anyone can play for fun
+Need to incorporate it in adverts top of funnel
+Need to incorporate it in welcome emails
+Need to decide how to allow guests to opt out of invites to the free comp
+Thinking about re-inviting players who had been knocked out or monthly schedule for the invite for players not already in a comp
+Idea is to gte people usig the app, enjoying it, but wanting more. Wanting to play for money or organisers wanting to use it to genrate funds for their club
+
+
+== GOOGLE LOGIN ==
+Find out how it works and what impact it has on existing email logins
+
+
+
+== REVOLVING COMP ==
+Allow the same code to be used multiple times and find the latest competition.
+Im thinking of taking the CODE when a competitin is locks and moving it to the new competition, and setting the old comp to XXXX
+Our code must then treat any XXXX codes as not found, if it does come to us
+This means we can print a code for a pub on a beer matt and it stays the same and always goes to the next available competition
+This can be handled by the ADMIN tool. We may have some flagship comps with a set code, and the first one is code 1992. The competition name changes but we need to choose a competition and set the fixed code. The code will then look up the fixed code in the existing comp, set it to XXXX and use the new code ver whatever the new comp code was so it acn be used again.
+
