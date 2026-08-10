@@ -165,6 +165,20 @@ ledger.
 
 The organiser is told the price **before** the button, never by pressing it.
 
+**The price gets a screen of its own, first.** Built as a single dialog originally, with the
+price appended at the bottom — and it was unreadable. Below two bulleted lists and a "this cannot
+be undone" line, the charge was the fourth thing on screen and the least likely to be read, which
+is backwards: the delete/preserve lists describe what a reset has always done, while the charge is
+the new fact and the only one that costs money. Andreas's verdict on the first build was *"I
+haven't even read it because it is too busy."*
+
+So a priced reset is two steps — the cost alone, then Continue, then the existing detail and
+type-to-confirm. The detail screen carries a one-line reminder of the figure so it is still
+visible at the moment of commitment. **A free reset has no price step at all** and opens straight
+onto the detail, exactly as before. A refusal (`INSUFFICIENT_CREDITS` or `QUOTE_STALE`) sends the
+organiser back to step one with a fresh number and the confirm box cleared — the figure they
+agreed to is no longer the figure, so it has to be read again.
+
 Current reset UI: `lmslocal-web/src/app/game/[id]/settings/page.tsx:259` (`handleResetCompetition`),
 behind a modal that already requires typing `RESET` to confirm. The type-to-confirm stays.
 
