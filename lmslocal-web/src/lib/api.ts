@@ -481,6 +481,8 @@ export const competitionApi = {
       name: string;
       venue_name: string | null;
       organiser_name: string | null;
+      logo_url: string | null;
+      description: string | null;
       player_count: number;
     };
   }>('/get-competition-by-code', { competition_code }),

@@ -21,6 +21,7 @@ import { userApi, competitionApi, Competition } from '@/lib/api';
 import { logout } from '@/lib/auth';
 import { useAppData } from '@/contexts/AppDataContext';
 import JoinCompetitionModal from '@/components/JoinCompetitionModal';
+import CompetitionLogo from '@/components/CompetitionLogo';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK, TICK } from '@/lib/design';
 import { deriveDashboardRoundState, pickDeadlineText } from '@/lib/roundState';
 
@@ -476,6 +477,14 @@ export default function DashboardPage() {
                       {/* Card Header */}
                       <div className="border-b border-ink/30 p-4 sm:p-6">
                         <div className="mb-3 flex items-start justify-between gap-2">
+                          {/* Small here on purpose. In a list of three competitions the badge's
+                              only job is to tell them apart at a glance; the join page is where
+                              it is asked to prove the competition is real. */}
+                          <CompetitionLogo
+                            name={competition.name}
+                            logoUrl={competition.logo_url}
+                            size={40}
+                          />
                           <div className="min-w-0 flex-1">
                             {editingNameId === competition.id ? (
                               <div className="flex items-center gap-2">

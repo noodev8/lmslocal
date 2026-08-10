@@ -11,8 +11,9 @@ Purpose: Public lookup of a competition from its invite code, so the /join/[code
          them whether the code is even real means they do all the work and then hit a dead end.
 
          Returns only what is already printed on the organiser's promotional material: the
-         competition name, the venue, the organiser's display name and how many are playing. No
-         player names, no contact details, no invite code echoed back.
+         competition name, the venue, the organiser's display name, the badge and blurb they wrote
+         for exactly this purpose, and how many are playing. No player names, no contact details,
+         no invite code echoed back.
 
          AND ONLY WHEN THE COMPETITION IS OPEN TO NEW PLAYERS. A competition that has started, and
          one that does not exist, produce the same COMPETITION_NOT_FOUND with no detail whatsoever
@@ -54,6 +55,8 @@ Returned only when the competition is open to new players. There is no "closed" 
     "name": "Premier League LMS",      // string, competition name
     "venue_name": "The Crown & Anchor",// string|null, venue if the organiser set one
     "organiser_name": "Dave R.",       // string|null, organiser display name
+    "logo_url": "https://...",         // string|null, competition badge if the organiser set one
+    "description": "£5 in, winner...", // string|null, the organiser's own blurb
     "player_count": 24                 // integer, players who have joined so far
   }
 }
@@ -111,6 +114,8 @@ router.post('/', async (req, res) => {
         c.id                        AS competition_id,
         c.name                      AS competition_name,
         c.venue_name,
+        c.logo_url,
+        c.description,
         c.organiser_id              AS competition_organiser_id,
         u.display_name              AS organiser_name,
         u.paid_credit               AS organiser_credits,
@@ -130,7 +135,7 @@ router.post('/', async (req, res) => {
       -- but the field is free to hold REDBARN25 later and matching must stay
       -- case-insensitive. idx_competition_invite_code indexes this exact expression.
       WHERE UPPER(c.invite_code) = $1
-      GROUP BY c.id, c.name, c.venue_name, c.organiser_id, u.display_name, u.paid_credit
+      GROUP BY c.id, c.name, c.venue_name, c.logo_url, c.description, c.organiser_id, u.display_name, u.paid_credit
       LIMIT 1
     `;
 
@@ -202,6 +207,11 @@ router.post('/', async (req, res) => {
         name: data.competition_name,
         venue_name: data.venue_name || null,
         organiser_name: data.organiser_name || null,
+        // Both are the organiser's own promotional material, written to be shown to exactly this
+        // player at exactly this moment. They only ever ride on SUCCESS, so a closed competition
+        // still gives up nothing about itself.
+        logo_url: data.logo_url || null,
+        description: data.description || null,
         player_count: Number(data.player_count) || 0
       }
     });

@@ -13,7 +13,8 @@ import {
   UserIcon,
   MegaphoneIcon,
   CalendarIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi, playerActionApi, fixtureApi, userApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
@@ -89,6 +90,11 @@ export default function UnifiedGameDashboard() {
     status?: string;
   } | null>(null);
   const [, setLoadingRound] = useState(true);
+  // Whether the organiser's blurb is open, once the competition is under way and it has collapsed.
+  // Deliberately component state and nothing more: a dismissed-flag per player per competition
+  // would be a table and a migration for one line of text, and its failure mode is a player
+  // permanently hiding the prize money and then asking the organiser what the prize is.
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [pickStats, setPickStats] = useState<{
     players_with_picks: number;
     total_active_players: number;
@@ -1379,10 +1385,21 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Competition Description */}
-        {competition.description && (
+        {/*
+          The organiser's blurb, before there is a round: open, above the tiles, because there is
+          almost nothing else on the screen yet and a player who has just arrived is still working
+          out what they have joined. Once round one exists it collapses and moves below the tiles —
+          see the other half of this, further down.
+
+          It changes by competition state rather than by player preference. Nobody sees both forms
+          in one session, so the move is not something a player experiences as the thing jumping
+          about.
+        */}
+        {competition.description && !currentRoundInfo && (
           <div className={`${PANEL} p-5 text-center`}>
-            <p className="text-[15px] text-ink-fade">{competition.description}</p>
+            <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink-fade">
+              {competition.description}
+            </p>
           </div>
         )}
 
@@ -1494,6 +1511,37 @@ export default function UnifiedGameDashboard() {
               <TrophyIcon className="h-6 w-6 text-ink" />
               <span className={`${LABEL} text-ink`}>Standings</span>
             </Link>
+          </div>
+        )}
+
+        {/*
+          The same blurb once the competition is under way: one line, below the tiles, opened on
+          demand. Readership of it falls off a cliff after joining, so it must not push Pick and
+          Standings down the screen for the few visits that want it — but it is also where
+          organisers put the entry fee and the prize, so it can never be more than one tap away.
+          That is why this collapses rather than offering a dismiss: a player who permanently hid
+          the prize money would end up asking the organiser what the prize was.
+
+          Open state is component-local on purpose. A per-player dismissed flag would be a table
+          and a migration for one line of text.
+        */}
+        {competition.description && currentRoundInfo && (
+          <div className={PANEL}>
+            <button
+              onClick={() => setDescriptionOpen(!descriptionOpen)}
+              aria-expanded={descriptionOpen}
+              className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-stock"
+            >
+              <span className={`${LABEL} text-ink-fade`}>About this competition</span>
+              <ChevronDownIcon
+                className={`h-4 w-4 flex-shrink-0 text-ink-fade transition-transform ${descriptionOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {descriptionOpen && (
+              <p className="whitespace-pre-line border-t border-ink/30 p-5 text-[15px] leading-relaxed text-ink-fade">
+                {competition.description}
+              </p>
+            )}
           </div>
         )}
 

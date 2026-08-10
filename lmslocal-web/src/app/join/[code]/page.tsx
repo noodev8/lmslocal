@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { authApi, userApi, competitionApi, cacheUtils } from '@/lib/api';
 import { setAuthData } from '@/lib/auth';
 import { LABEL, EYEBROW } from '@/lib/design';
+import CompetitionLogo from '@/components/CompetitionLogo';
 
 /**
  * The join page. A player arrives here with a code — from the landing page strip, a poster, a
@@ -26,6 +27,8 @@ type Competition = {
   name: string;
   venue_name: string | null;
   organiser_name: string | null;
+  logo_url: string | null;
+  description: string | null;
   player_count: number;
 };
 
@@ -374,10 +377,30 @@ export default function JoinPage() {
   // ---------------------------------------------------------------- ready
   return shell(
     <div>
-      <p className={`${EYEBROW} text-overprint`}>You have been invited</p>
+      {/*
+        The badge goes above the name, at the largest size it appears anywhere. This is the one
+        moment it does real work: someone has typed a code off a beer mat and is about to hand
+        over an email address, and the pub's own crest is what tells them they are in the right
+        place. Everywhere else it is only there to tell competitions apart in a list.
+      */}
+      <CompetitionLogo name={competition.name} logoUrl={competition.logo_url} size={72} />
+
+      <p className={`${EYEBROW} mt-5 text-overprint`}>You have been invited</p>
       <h1 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
         {competition.name}
       </h1>
+
+      {/*
+        The organiser's blurb, in full and expanded — no disclosure to open. Readership of this
+        text peaks here and never recovers, and it is where organisers put the entry fee and the
+        prize, which is exactly what someone deciding whether to join needs to see without asking.
+        Once the competition is under way /game/[id] collapses it instead.
+      */}
+      {competition.description && (
+        <p className="mt-6 max-w-lg whitespace-pre-line text-xl leading-relaxed text-ink">
+          {competition.description}
+        </p>
+      )}
 
       <dl className="mt-7 border-y border-ink/30">
         {competition.venue_name && (
