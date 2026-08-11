@@ -1,18 +1,3 @@
-== PROFILE ==
-Decide if we should have the settings on a web page instead of the app in case they change often
-We want to use it to determine if the user wants/doesnt want different types of emails. Display names for each comeptition and maybe more in future.
-
-
-== COMPETITION DETAILS ==
-Where do we put the organisers image/icon
-Where do we put the descripton for the comeptiton. We currently have it on the dashboard which is OK but should it be able to be hidden and brought back, or just leave it there for the whole game
-
-
-== .gitignore ==
-Found another gitignore file but want only one in the whole repo
-C:\lmslocal\lmslocal-marketing\out
-
-
 == EMAIL and mobile NOTIFICATIONS ==
 Need to review the email/notification summary. Welcome, pick reminder, advert etc etc
 Identify how we manage unsubscribe for which types

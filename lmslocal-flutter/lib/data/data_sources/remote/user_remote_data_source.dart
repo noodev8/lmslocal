@@ -67,58 +67,6 @@ class UserRemoteDataSource {
     }
   }
 
-  /// Get email notification preferences
-  /// Throws ServerFailure or AuthFailure on error
-  Future<Map<String, dynamic>> getEmailPreferences() async {
-    try {
-      final response = await _apiClient.post(
-        '/get-email-preferences',
-        data: {},
-      );
-
-      final data = response.data as Map<String, dynamic>;
-      final returnCode = data['return_code'] as String;
-
-      if (returnCode == AppConstants.successCode) {
-        return data;
-      } else {
-        final message = data['message'] as String? ?? 'Failed to get email preferences';
-        throw AuthFailure(message, code: returnCode);
-      }
-    } catch (e) {
-      if (e is Failure) rethrow;
-      throw ServerFailure('Failed to get email preferences: ${e.toString()}');
-    }
-  }
-
-  /// Update email notification preferences (batch)
-  /// Throws ServerFailure or AuthFailure on error
-  Future<Map<String, dynamic>> updateEmailPreferencesBatch({
-    required List<Map<String, dynamic>> updates,
-  }) async {
-    try {
-      final response = await _apiClient.post(
-        '/update-email-preferences-batch',
-        data: {
-          'updates': updates,
-        },
-      );
-
-      final data = response.data as Map<String, dynamic>;
-      final returnCode = data['return_code'] as String;
-
-      if (returnCode == AppConstants.successCode) {
-        return data;
-      } else {
-        final message = data['message'] as String? ?? 'Failed to update email preferences';
-        throw AuthFailure(message, code: returnCode);
-      }
-    } catch (e) {
-      if (e is Failure) rethrow;
-      throw ServerFailure('Failed to update email preferences: ${e.toString()}');
-    }
-  }
-
   /// Delete user account
   /// Requires exact confirmation string "DELETE_MY_ACCOUNT"
   /// Throws ServerFailure or AuthFailure on error

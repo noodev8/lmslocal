@@ -12,7 +12,9 @@ import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 /// Profile page
-/// Shows user information with editable display name, notifications, password change, and logout
+/// Shows user information with editable display name, password change, and logout.
+/// Email preferences deliberately live only on the unsubscribe page reached from an
+/// email footer - one place to change them, no login required.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -43,12 +45,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _showNewPassword = false;
   bool _showConfirmPassword = false;
 
-  // TODO: Email preferences temporarily disabled - not currently used
-  // Map<String, dynamic>? _emailPreferences;
-  // bool _isLoadingPreferences = false;
-  // bool _isSavingPreferences = false;
-  // final Map<String, bool> _pendingPreferenceChanges = {};
-
   // App version
   String _appVersion = '';
 
@@ -61,9 +57,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
     // Initialize auth repository
     _authRepository = context.read<AuthRepository>();
-
-    // TODO: Email preferences temporarily disabled
-    // _loadEmailPreferences();
 
     // Load app version
     _loadAppVersion();
@@ -85,27 +78,6 @@ class _ProfilePageState extends State<ProfilePage> {
     _confirmPasswordController.dispose();
     super.dispose();
   }
-
-  // TODO: Email preferences temporarily disabled
-  /*
-  Future<void> _loadEmailPreferences() async {
-    setState(() => _isLoadingPreferences = true);
-    try {
-      final result = await _userDataSource.getEmailPreferences();
-      setState(() {
-        _emailPreferences = result['preferences'];
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load notification preferences: $e')),
-        );
-      }
-    } finally {
-      setState(() => _isLoadingPreferences = false);
-    }
-  }
-  */
 
   Future<void> _updateDisplayName(String currentName) async {
     final newName = _displayNameController.text.trim();
@@ -318,65 +290,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // TODO: Email preferences temporarily disabled
-  /*
-  Future<void> _saveEmailPreferences() async {
-    if (_pendingPreferenceChanges.isEmpty) return;
-
-    setState(() => _isSavingPreferences = true);
-    try {
-      final updates = <Map<String, dynamic>>[];
-
-      _pendingPreferenceChanges.forEach((key, value) {
-        if (key == 'global_all') {
-          updates.add({'competition_id': 0, 'email_type': 'all', 'enabled': value});
-        } else if (key == 'global_pick_reminder') {
-          updates.add({'competition_id': 0, 'email_type': 'pick_reminder', 'enabled': value});
-        } else if (key == 'global_results') {
-          updates.add({'competition_id': 0, 'email_type': 'results', 'enabled': value});
-        } else if (key.startsWith('comp_')) {
-          final compId = int.parse(key.split('_')[1]);
-          updates.add({'competition_id': compId, 'email_type': null, 'enabled': value});
-        }
-      });
-
-      await _userDataSource.updateEmailPreferencesBatch(updates: updates);
-
-      if (mounted) {
-        setState(() {
-          _isSavingPreferences = false;
-          _pendingPreferenceChanges.clear();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Notification preferences updated'),
-            backgroundColor: GameTheme.accentGreen,
-          ),
-        );
-        // Reload preferences to get fresh state
-        await _loadEmailPreferences();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isSavingPreferences = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update preferences: $e')),
-        );
-      }
-    }
-  }
-
-  void _toggleEmailPreference(String key, bool currentValue) {
-    setState(() {
-      _pendingPreferenceChanges[key] = !currentValue;
-    });
-  }
-
-  bool _getPreferenceValue(String key, bool defaultValue) {
-    return _pendingPreferenceChanges[key] ?? defaultValue;
-  }
-  */
-
   void _showDeleteAccountDialog() {
     final confirmController = TextEditingController();
 
@@ -524,12 +437,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 // Competition Display Names Card
                 _buildCompetitionNamesCard(user),
                 const SizedBox(height: 12),
-
-                // TODO: Notifications feature temporarily hidden - not currently used
-                // Uncomment when ready to re-enable notifications
-                // // Notifications Card
-                // _buildNotificationsCard(),
-                // const SizedBox(height: 12),
 
                 // Change Password Card
                 _buildChangePasswordCard(),
@@ -904,137 +811,6 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-
-  // TODO: Notifications feature temporarily hidden - not currently used
-  // Uncomment _buildNotificationsCard when ready to re-enable
-  /*
-  Widget _buildNotificationsCard() {
-    final global = _emailPreferences?['global'] as Map<String, dynamic>?;
-    final competitionSpecific = _emailPreferences?['competition_specific'] as List?;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: GameTheme.cardBackground,
-        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-        border: Border.all(color: GameTheme.border),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          leading: Icon(Icons.notifications, color: GameTheme.glowCyan),
-          title: Text('Notifications', style: TextStyle(color: GameTheme.textPrimary)),
-          subtitle: Text('Manage your preferences', style: TextStyle(color: GameTheme.textMuted)),
-          iconColor: GameTheme.textMuted,
-          collapsedIconColor: GameTheme.textMuted,
-          children: [
-            if (_isLoadingPreferences)
-              Padding(
-                padding: const EdgeInsets.all(AppConstants.paddingLarge),
-                child: Center(child: CircularProgressIndicator(color: GameTheme.glowCyan)),
-              )
-            else if (global != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingMedium),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'Global Settings',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: GameTheme.textPrimary,
-                        ),
-                      ),
-                    ),
-                    // All Emails
-                    SwitchListTile(
-                      title: Text('All Email Notifications', style: TextStyle(color: GameTheme.textPrimary)),
-                      subtitle: Text('Master switch for all emails', style: TextStyle(color: GameTheme.textMuted)),
-                      value: _getPreferenceValue('global_all', global['all_emails'] ?? true),
-                      onChanged: (value) => _toggleEmailPreference('global_all', global['all_emails'] ?? true),
-                      activeTrackColor: GameTheme.glowCyan,
-                    ),
-                    // Pick Reminders
-                    SwitchListTile(
-                      title: Text('Pick Reminders', style: TextStyle(color: GameTheme.textPrimary)),
-                      value: _getPreferenceValue('global_pick_reminder', global['pick_reminder'] ?? true),
-                      onChanged: (value) => _toggleEmailPreference('global_pick_reminder', global['pick_reminder'] ?? true),
-                      activeTrackColor: GameTheme.glowCyan,
-                    ),
-                    // Results
-                    SwitchListTile(
-                      title: Text('Results Notifications', style: TextStyle(color: GameTheme.textPrimary)),
-                      value: _getPreferenceValue('global_results', global['results'] ?? true),
-                      onChanged: (value) => _toggleEmailPreference('global_results', global['results'] ?? true),
-                      activeTrackColor: GameTheme.glowCyan,
-                    ),
-
-                    // Per-competition
-                    if (competitionSpecific != null && competitionSpecific.isNotEmpty) ...[
-                      Divider(color: GameTheme.border),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'Enable competition emails for:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: GameTheme.textPrimary,
-                          ),
-                        ),
-                      ),
-                      ...competitionSpecific.map((comp) {
-                        final compId = comp['competition_id'] as int;
-                        final compName = comp['personal_name'] ?? comp['competition_name'] ?? 'Competition $compId';
-                        final allEmails = comp['all_emails'] ?? true;
-
-                        return SwitchListTile(
-                          title: Text(compName, style: TextStyle(color: GameTheme.textPrimary)),
-                          value: _getPreferenceValue('comp_$compId', allEmails),
-                          onChanged: (value) => _toggleEmailPreference('comp_$compId', allEmails),
-                          activeTrackColor: GameTheme.glowCyan,
-                        );
-                      }),
-                    ],
-
-                    // Save button
-                    if (_pendingPreferenceChanges.isNotEmpty) ...[
-                      Divider(color: GameTheme.border),
-                      Padding(
-                        padding: const EdgeInsets.all(AppConstants.paddingMedium),
-                        child: ElevatedButton(
-                          onPressed: _isSavingPreferences ? null : _saveEmailPreferences,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: GameTheme.glowCyan,
-                            foregroundColor: GameTheme.background,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: _isSavingPreferences
-                              ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(GameTheme.background),
-                                  ),
-                                )
-                              : const Text('Update Notifications'),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-  */
 
   Widget _buildChangePasswordCard() {
     return Container(

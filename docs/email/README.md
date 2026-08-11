@@ -218,6 +218,14 @@ when inspected. No unsubscribe link had ever actually been sent, so there was no
 The page shows the account's email address as a header, then what just happened, then the
 toggles.
 
+**This page is the only place preferences are edited.** The duplicate panels on the web profile
+screen and the Flutter profile page were removed in Aug 2026: three UIs over one set of rows,
+two of them behind a login that a person reacting to an unwanted email has no reason to go
+through. `/get-email-preferences` and `/update-email-preferences-batch` are still registered and
+still work — `lmslocal-web`'s `api.ts` keeps its wrappers — but no screen calls them. Don't
+rebuild a settings panel on top of them; extend the unsubscribe page instead, where a new group
+in `GROUPS` appears as a row with no UI change at all.
+
 ### Deliverability
 
 Every comms send carries both:
