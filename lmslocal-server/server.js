@@ -273,9 +273,22 @@ const allowedOrigins = process.env.CLIENT_URL
   : [];
 
 // Function to check if origin is allowed
-const isOriginAllowed = (origin) => {
+const isOriginAllowed = (origin, req) => {
   if (!origin) return true; // Allow requests with no origin
   if (allowedOrigins.includes(origin)) return true;
+
+  /*
+  Same origin as this server. Not every page here is an API: /unsubscribe renders HTML with a form
+  that POSTs back to /unsubscribe/save, and a browser sends an Origin header on that POST even
+  though it is same-origin. Without this the server rejects its own form as cross-origin, which is
+  what happened to the unsubscribe Save button in production - the page loaded, the toggles moved,
+  and saving failed with "Not allowed by CORS".
+
+  Compared against the request's own Host rather than a configured URL, so it stays correct in
+  every environment without another env var to keep in step.
+  */
+  const host = req?.headers?.host;
+  if (host && (origin === `https://${host}` || origin === `http://${host}`)) return true;
 
   // Allow any local network IP on port 3000 (for mobile browser access)
   const localNetworkPattern = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):3000$/;
@@ -284,18 +297,25 @@ const isOriginAllowed = (origin) => {
   return false;
 };
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (isOriginAllowed(origin)) {
-      return callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma']
+/*
+The delegate form of cors(), rather than a plain options object, because deciding whether an
+origin is allowed needs the request: same-origin is only recognisable by comparing against this
+request's own Host. See isOriginAllowed above.
+*/
+app.use(cors((req, callback) => {
+  const origin = req.headers.origin;
+
+  if (!isOriginAllowed(origin, req)) {
+    console.log('CORS blocked origin:', origin, 'host:', req.headers.host, 'path:', req.path);
+    return callback(new Error('Not allowed by CORS'));
+  }
+
+  callback(null, {
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma']
+  });
 }));
 
 // Special webhook route with raw body parsing (MUST be before express.json())
