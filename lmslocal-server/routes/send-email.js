@@ -43,7 +43,7 @@ Machine-invoked. Requires the X-Service-Token header, applied at mount time in s
 See middleware/service-auth.js.
 */
 const { logApiCall } = require('../utils/apiLogger');
-const { sendPickReminderEmail, sendRoundOverEmail, sendWelcomeCompetitionEmail, sendHintEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
+const { sendPickReminderEmail, sendRoundOverEmail, sendWelcomeCompetitionEmail, sendHintEmail, sendBroadcastEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
 const router = express.Router();
 
 /*
@@ -155,6 +155,11 @@ router.post('/', async (req, res) => {
           // adding here as well as to the catalog; there is no pending row under the old
           // sendOrganiserTipEmail shape, so nothing queued can reach the wrong renderer.
           emailResult = await sendHintEmail(userEmail, templateData);
+        } else if (emailRecord.email_type === 'broadcast_admin') {
+          // A broadcast queues everyone and sends only up to its cap, so the remainder arrives
+          // here on later runs. Without this branch those rows would sit pending until they aged
+          // past the freshness floor and were silently dropped.
+          emailResult = await sendBroadcastEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'competition_announcement') {
           emailResult = await sendCompetitionAnnouncementEmail(userEmail, templateData);
         } else {

@@ -2210,6 +2210,133 @@ const sendHintEmail = async (email, templateData, options = {}) => {
 };
 
 /**
+ * Escape text destined for an HTML email.
+ *
+ * Every other template here interpolates values that came from our own database - team names,
+ * round numbers - and escaping them would be noise. A broadcast interpolates a sentence somebody
+ * typed into a form, so an unescaped `<` is at best a mangled email and at worst markup the
+ * operator did not intend to send.
+ */
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+/**
+ * Build an admin broadcast without sending it.
+ *
+ * Outline row: All | Info | Broadcast from Admin. The operator writes the subject and the message;
+ * everything else is the usual chrome plus the unsubscribe footer, which matters more here than
+ * anywhere else - this is the one email nobody asked for.
+ *
+ * Blank lines become paragraphs and single newlines become line breaks, so a message typed into a
+ * textarea arrives looking like what was typed. There is no other formatting: no markdown, no
+ * HTML pass-through. See escapeHtml.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/broadcast.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildBroadcastEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    subject,
+    message,
+    competition_id,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const paragraphs = String(message || '')
+    .split(/\n\s*\n/)
+    .map((block) => escapeHtml(block.trim()).replace(/\n/g, '<br>'))
+    .filter(Boolean);
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${escapeHtml(subject)}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${escapeHtml(user_display_name)},</h2>
+
+            ${paragraphs.map((p) => `<p style="color: #334155; font-size: 15px; margin: 0 0 16px 0; line-height: 1.5;">${p}</p>`).join('')}
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+${subject}
+
+Hi ${user_display_name},
+
+${message}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject,
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'broadcast_admin' },
+      // Only present for a competition-scoped broadcast; deliver() reads it for per-competition mutes.
+      ...(competition_id ? [{ name: 'competition_id', value: String(competition_id) }] : [])
+    ]
+  };
+};
+
+/**
+ * Send an admin broadcast.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/broadcast.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendBroadcastEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildBroadcastEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send broadcast email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
  * Send results email after round completion
  * @param {string} email - User's email address
  * @param {object} templateData - Email template data including round results
@@ -3136,6 +3263,8 @@ module.exports = {
   sendRoundOverEmail,
   buildHintEmail,
   sendHintEmail,
+  buildBroadcastEmail,
+  sendBroadcastEmail,
   sendResultsEmail,
   sendOrganiserTipEmail,
   sendOnboardingNotification,

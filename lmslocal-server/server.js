@@ -148,6 +148,8 @@ const setBotPickRoute = require('./routes/admin/set-bot-pick');
 const getEmailTargetsRoute = require('./routes/admin/get-email-targets');
 const previewEmailRoute = require('./routes/admin/preview-email');
 const adminSendEmailsRoute = require('./routes/admin/send-emails');
+const adminBroadcastAudienceRoute = require('./routes/admin/broadcast-audience');
+const adminSendBroadcastRoute = require('./routes/admin/send-broadcast');
 
 // Organizer Fixture Management Routes (for manual competitions - fixture_service = false)
 const organizerAddFixturesRoute = require('./routes/organizer-add-fixtures');
@@ -519,6 +521,14 @@ gate, matching the rest of the /admin namespace.
 app.use('/admin/get-email-targets', getEmailTargetsRoute);
 app.use('/admin/preview-email', previewEmailRoute);
 app.use('/admin/send-emails', adminSendEmailsRoute);
+
+/*
+Broadcast has its own routes rather than joining the catalog: it carries operator-written text and
+can reach every account, so it needs an audience count, a confirmation and a send cap that would be
+noise on the eleven template emails. See routes/admin/send-broadcast.js.
+*/
+app.use('/admin/broadcast-audience', adminBroadcastAudienceRoute);
+app.use('/admin/send-broadcast', adminSendBroadcastRoute);
 
 // Organizer Fixture Management API Routes (manual competitions only - fixture_service = false)
 app.use('/organizer-add-fixtures', organizerAddFixturesRoute);

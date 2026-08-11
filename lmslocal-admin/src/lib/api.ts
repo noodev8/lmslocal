@@ -548,6 +548,30 @@ export type SendEmailsResponse = ApiResponse & {
   sent_to?: string | null;
 };
 
+export type BroadcastAudience = 'all' | 'competition';
+
+export type BroadcastAudienceResponse = ApiResponse & {
+  /* Who would actually be emailed, after opt-outs. */
+  recipient_count?: number;
+  /* The same population before opt-outs. Shown alongside so the gap is visible. */
+  total_count?: number;
+  opted_out_count?: number;
+  /* How many go out in one press; the rest queue for later runs. */
+  send_cap?: number;
+  sample?: { user_id: number; display_name: string; email: string }[];
+};
+
+export type SendBroadcastResponse = ApiResponse & {
+  test_mode?: boolean;
+  recipient_count?: number;
+  queued_count?: number;
+  sent_count?: number;
+  failed_count?: number;
+  /* Queued but not sent in this press - waiting on a later run of /send-email. */
+  pending_count?: number;
+  sent_to?: string | null;
+};
+
 // ======================================================================================
 // API calls
 // ======================================================================================
@@ -774,6 +798,48 @@ export const adminApi = {
       email_type: emailType,
       competition_id: competitionId,
       test_mode: testMode,
+    });
+    return response.data;
+  },
+
+  // ====================================================================================
+  // Broadcast
+  //
+  // Its own pair of routes rather than the catalog's: a broadcast carries text somebody typed and
+  // can reach every account, so it has an audience count and a confirmation the template emails
+  // do not need. See routes/admin/send-broadcast.js.
+  // ====================================================================================
+
+  broadcastAudience: async (
+    audience: BroadcastAudience,
+    competitionId: number | null
+  ): Promise<BroadcastAudienceResponse> => {
+    const response = await api.post<BroadcastAudienceResponse>('/admin/broadcast-audience', {
+      audience,
+      competition_id: competitionId,
+    });
+    return response.data;
+  },
+
+  /*
+  confirmCount is the number the operator was actually looking at when they pressed send. The
+  server refuses if the audience has moved since - see COUNT_CHANGED. Ignored in test mode.
+  */
+  sendBroadcast: async (params: {
+    audience: BroadcastAudience;
+    competitionId: number | null;
+    subject: string;
+    message: string;
+    testMode: boolean;
+    confirmCount: number | null;
+  }): Promise<SendBroadcastResponse> => {
+    const response = await api.post<SendBroadcastResponse>('/admin/send-broadcast', {
+      audience: params.audience,
+      competition_id: params.competitionId,
+      subject: params.subject,
+      message: params.message,
+      test_mode: params.testMode,
+      confirm_count: params.confirmCount,
     });
     return response.data;
   },

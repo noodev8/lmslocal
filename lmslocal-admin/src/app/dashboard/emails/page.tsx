@@ -28,12 +28,14 @@ for why queuing during a test would break the real send that follows.
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ArrowPathIcon,
   BeakerIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   EyeIcon,
+  MegaphoneIcon,
   PaperAirplaneIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
@@ -99,7 +101,9 @@ const OUTLINE: OutlineEmail[] = [
   { key: 'join_lms', consumer: 'All', section: 'Info', name: 'Welcome Join LMS', wired: true, scoped: false, note: 'New signups only' },
   // BROADCAST block on the outline. Neither is built; both are already mapped to the info group
   // in emailPreference.js so that neither can be built without an opt-out.
-  { key: 'broadcast_admin', consumer: 'All', section: 'Info', name: 'Broadcast from Admin', wired: false, scoped: false, note: 'Broadcast' },
+  // Wired, but not from this screen - it has its own, since the message is typed rather than
+  // derived. The Broadcast button in the header is the way in; there is no Preview here.
+  { key: 'broadcast_admin', consumer: 'All', section: 'Info', name: 'Broadcast from Admin', wired: false, scoped: false, note: 'Its own screen →' },
   { key: 'broadcast_organiser', consumer: 'Game Members', section: 'Info', name: 'Broadcast from Organiser', wired: false, scoped: true, note: 'Broadcast' },
 ];
 
@@ -438,6 +442,15 @@ export default function EmailsPage() {
   return (
     <div className="min-h-screen">
       <AdminHeader>
+        {/* Broadcast has its own screen: it carries typed text and needs an audience count and a
+            confirmation before sending, which would be noise on every row here. */}
+        <Link
+          href="/dashboard/emails/broadcast"
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10"
+        >
+          <MegaphoneIcon className="h-4 w-4" />
+          <span className="hidden sm:inline">Broadcast</span>
+        </Link>
         <button
           onClick={refreshCounts}
           disabled={loading}

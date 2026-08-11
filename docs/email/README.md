@@ -428,6 +428,49 @@ unwired. A hint that teaches a feature which does not exist is worse than no hin
 
 Group `info`, which both keys already mapped to.
 
+## Broadcast from Admin — the rules (built 2026-08-11)
+
+`services/broadcast.js`, screen at `lmslocal-admin` → Emails → **Broadcast**, routes
+`/admin/broadcast-audience` and `/admin/send-broadcast`.
+
+**Deliberately not in `emailCatalog.js`.** Every other email derives both its recipients and its
+words from the data, which is what makes a one-click send safe. This one carries a sentence
+somebody typed and can reach every account on the platform. The catalog's shape is
+`findCandidates()` with no arguments; bending it to carry operator text would have put a free-text
+blast behind the same button as a pick reminder. Its outline row is therefore marked unwired on
+the Emails screen, with a link across to its own.
+
+Two audiences: **all** (every account with a real email) and **competition** (one competition's
+members). Both minus opt-outs, applied in the query *and* again at `deliver()` — belt and braces,
+because this is the email where ignoring an unsubscribe would be least defensible: nothing about
+it is transactional and nobody asked for it.
+
+Three guards the template emails do not have:
+
+1. **The number, before the button.** The audience is counted and shown — after opt-outs, beside
+   the raw total — before anything can be sent. "I thought it was going to about thirty people" is
+   only preventable in advance.
+2. **A confirmation carrying that number.** The live send passes back the count the operator was
+   looking at and the server refuses on a mismatch (`COUNT_CHANGED`). Somebody joining between the
+   count and the press is normal; a send bigger than the one reviewed is not.
+3. **A send cap** (`BROADCAST_SEND_CAP`, default 80). Resend allows 100 a day and there are 216
+   accounts, so "send to all" *cannot* complete in one press however it is written. **Everyone is
+   queued, the cap is sent now, the rest drain via `/send-email`** on later runs — the pending
+   rows are the record of who is still owed it. Sending 80 and failing 136 would leave no record
+   at all.
+
+**Operator text is escaped** (`escapeHtml` in `emailService.js`) — the only template here that
+needs it, since every other one interpolates our own data. Blank lines become paragraphs, single
+newlines become line breaks. No HTML, no markdown.
+
+A live send clears the compose box and resets test mode, so a second press cannot repeat a
+broadcast blind.
+
+**Broadcast from Organiser is not built** — same outline block, different problem: it needs
+organiser auth, per-competition rate limiting, and a decision about what an organiser may say to
+players who joined for one competition. It is already mapped to the `info` group so it cannot be
+built into an opt-out hole.
+
 ## `services/emailCatalog.js` — which emails are wired
 
 The three admin routes each used to carry `if (email_type !== 'pick_reminder')` and import that
