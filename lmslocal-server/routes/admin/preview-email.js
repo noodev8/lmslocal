@@ -6,18 +6,21 @@ Method: POST
 Purpose: Show the operator exactly who an email would go to and what it would look like, without
          sending or queuing anything.
 
-The recipient list comes from the same services/pickReminder.findCandidates the send uses, and
-the HTML from the same buildPickReminderEmail. Nothing here re-implements either, so a preview
-showing three recipients cannot be followed by a send that mails five.
+The recipient list and the HTML both come from services/emailCatalog.js - the same findCandidates
+and the same build function the send uses. Nothing here re-implements either, so a preview showing
+three recipients cannot be followed by a send that mails five.
 
-The rendered sample is built for the FIRST candidate. Every recipient gets different fixtures
-struck through and a different name, so there is no single "the" email - the preview is a
-representative one, and the response says whose it is.
+The rendered sample is built for the FIRST candidate. Every recipient gets a different name, and
+a pick reminder has different fixtures struck through, so there is no single "the" email - the
+preview is a representative one, and the response says whose it is.
+
+competition_id is required only for competition-scoped emails. The platform-wide ones (Join LMS,
+News) have no competition, and the admin screen's picker does not apply to them.
 =======================================================================================================================================
 Request Payload:
 {
   "email_type": "pick_reminder",       // string, required - which outline email
-  "competition_id": 210                // integer, required - competition to preview against
+  "competition_id": 210                // integer, required for scoped emails, ignored otherwise
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -29,7 +32,7 @@ Success Response (ALWAYS HTTP 200):
       "user_id": 862,                  // integer
       "email": "player@example.com",   // string
       "display_name": "Brookfield",    // string
-      "round_number": 1                // integer, which round they are being reminded about
+      "round_number": 1                // integer or null, only meaningful for round-based emails
     }
   ],
   "truncated": false,                  // boolean, true if more recipients than listed
@@ -58,8 +61,7 @@ Return Codes:
 
 const express = require('express');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { findCandidates, buildTemplateData } = require('../../services/pickReminder');
-const { buildPickReminderEmail } = require('../../services/emailService');
+const { entryFor } = require('../../services/emailCatalog');
 const { logApiCall } = require('../../utils/apiLogger');
 
 const router = express.Router();
@@ -73,21 +75,25 @@ router.post('/', verifyAdminToken, async (req, res) => {
   try {
     const { email_type, competition_id } = req.body;
 
-    if (!competition_id || !Number.isInteger(competition_id)) {
+    const entry = entryFor(email_type);
+
+    if (!entry) {
+      return res.json({
+        return_code: 'UNSUPPORTED_EMAIL_TYPE',
+        message: `${email_type || 'That email'} is not wired up yet.`
+      });
+    }
+
+    if (entry.scoped && (!competition_id || !Number.isInteger(competition_id))) {
       return res.json({
         return_code: 'VALIDATION_ERROR',
         message: 'competition_id is required and must be an integer'
       });
     }
 
-    if (email_type !== 'pick_reminder') {
-      return res.json({
-        return_code: 'UNSUPPORTED_EMAIL_TYPE',
-        message: `${email_type || 'That email'} is not wired up yet. Only pick_reminder can be previewed.`
-      });
-    }
-
-    const candidates = await findCandidates({ competition_id });
+    const candidates = await entry.service.findCandidates(
+      entry.scoped ? { competition_id } : {}
+    );
 
     // Nobody qualifies. Still a success - the screen shows a count of zero and disables send.
     if (candidates.length === 0) {
@@ -106,8 +112,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
     on a preview.
     */
     const first = candidates[0];
-    const templateData = await buildTemplateData(first);
-    const built = buildPickReminderEmail(first.user_email, templateData);
+    const templateData = await entry.service.buildTemplateData(first);
+    const built = entry.build(first.user_email, templateData);
 
     return res.json({
       return_code: 'SUCCESS',
@@ -116,7 +122,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
         user_id: c.user_id,
         email: c.user_email,
         display_name: c.user_display_name,
-        round_number: c.round_number
+        // Present only on round-based emails; null on the platform-wide ones.
+        round_number: c.round_number ?? null
       })),
       truncated: candidates.length > MAX_LISTED,
       sample: {

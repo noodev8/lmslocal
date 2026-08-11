@@ -10,9 +10,13 @@ The spine is docs/email/email-outline.xlsx - the same rows in the same order, in
 not built yet. Showing the gaps costs one greyed row each and means the screen doubles as a map
 of what is left to do, rather than quietly omitting anything with no code behind it.
 
-Only pick_reminder is wired end to end so far. Rows with wired: false render greyed with no
-Preview button, and the server refuses them anyway with UNSUPPORTED_EMAIL_TYPE - the screen is
-not the only thing stopping a send.
+Two emails are wired end to end so far: pick_reminder and join_lms. Rows with wired: false render
+greyed with no Preview button, and the server refuses them anyway with UNSUPPORTED_EMAIL_TYPE -
+the screen is not the only thing stopping a send. The server's own list is
+services/emailCatalog.js; `wired` here has to be kept in step with it by hand.
+
+Platform-wide rows (scoped: false) ignore the competition picker entirely. Their panel says so,
+and passes no competition_id at all rather than a meaningless one.
 
 TEST MODE defaults to on at every page load and is deliberately not persisted. A sticky "off"
 surviving a refresh is how the whole user base gets mailed by accident. In test mode the server
@@ -56,7 +60,7 @@ interface OutlineEmail {
   section: Section;
   /** The EMAIL column from the outline, verbatim. */
   name: string;
-  /** Built AND reachable from this screen. Only pick_reminder so far. */
+  /** Built AND reachable from this screen. Mirrors services/emailCatalog.js. */
   wired: boolean;
   /** Whether recipients depend on the selected competition. */
   scoped: boolean;
@@ -81,7 +85,7 @@ const OUTLINE: OutlineEmail[] = [
   { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', wired: false, scoped: true },
   { key: 'promote_competition', consumer: 'Organiser', section: 'Tips', name: 'Promote competition', wired: false, scoped: true, note: 'Deferred' },
   { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Tips', name: 'Result set mid round', wired: false, scoped: true, note: 'Built, not wired here' },
-  { key: 'join_lms', consumer: 'All', section: 'Welcome', name: 'Join LMS', wired: false, scoped: false },
+  { key: 'join_lms', consumer: 'All', section: 'Welcome', name: 'Join LMS', wired: true, scoped: false, note: 'New signups only' },
   { key: 'official_game_invite', consumer: 'All', section: 'Info', name: 'Official game invite', wired: false, scoped: false, note: 'Was competition_announcement' },
   { key: 'news', consumer: 'All', section: 'Info', name: 'News', wired: false, scoped: false },
 ];
@@ -130,7 +134,8 @@ function SendPanel({
   onSent,
 }: {
   email: OutlineEmail;
-  competition: AdminCompetition;
+  /* Null for platform-wide emails, which have no competition and never send one to the server. */
+  competition: AdminCompetition | null;
   testMode: boolean;
   onClose: () => void;
   onSent: () => void;
@@ -142,6 +147,9 @@ function SendPanel({
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
+  /* Scoped emails send the selected competition; platform-wide ones send nothing. */
+  const scopeId = email.scoped ? competition?.id ?? null : null;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -149,7 +157,7 @@ function SendPanel({
       setLoading(true);
       setError('');
       try {
-        const res = await adminApi.previewEmail(email.key, competition.id);
+        const res = await adminApi.previewEmail(email.key, scopeId);
         if (cancelled) return;
 
         if (res.return_code === 'SUCCESS') {
@@ -167,7 +175,7 @@ function SendPanel({
     return () => {
       cancelled = true;
     };
-  }, [email.key, competition.id]);
+  }, [email.key, scopeId]);
 
   const count = preview?.recipient_count ?? 0;
   const recipients: EmailRecipient[] = preview?.recipients ?? [];
@@ -176,7 +184,7 @@ function SendPanel({
     setSending(true);
     setError('');
     try {
-      const res = await adminApi.sendEmails(email.key, competition.id, testMode);
+      const res = await adminApi.sendEmails(email.key, scopeId, testMode);
 
       if (res.return_code === 'SUCCESS') {
         setResult(res.message || 'Done');
@@ -200,7 +208,8 @@ function SendPanel({
           <div>
             <h2 className="font-semibold text-slate-900">{email.name}</h2>
             <p className="text-sm text-slate-500">
-              {email.consumer} · {email.section} · {competition.name}
+              {email.consumer} · {email.section} ·{' '}
+              {email.scoped ? competition?.name : 'Everyone on the platform'}
             </p>
           </div>
           <button
@@ -227,7 +236,11 @@ function SendPanel({
                   <p className="text-sm font-medium text-slate-900">
                     {count.toLocaleString()} recipient{count === 1 ? '' : 's'}
                   </p>
-                  <p className="text-xs text-slate-500">Eligible after preferences and opt-outs</p>
+                  <p className="text-xs text-slate-500">
+                    {email.scoped
+                      ? 'Eligible after preferences and opt-outs'
+                      : 'Across the whole platform, after preferences and opt-outs'}
+                  </p>
                 </div>
                 {count > 0 && (
                   <button
@@ -552,7 +565,7 @@ export default function EmailsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {email.wired && competition && (
+                        {email.wired && (competition || !email.scoped) && (
                           <button
                             onClick={() => setOpen(email)}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"
@@ -571,7 +584,7 @@ export default function EmailsPage() {
         </section>
       </main>
 
-      {open && competition && (
+      {open && (competition || !open.scoped) && (
         <SendPanel
           email={open}
           competition={competition}

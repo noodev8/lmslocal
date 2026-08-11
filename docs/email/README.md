@@ -52,7 +52,7 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 ## Tier 2: Comms — the outline mapped
 
 14 rows, after removing the duplicate and folding "Game started" into "Round Over".
-**Three built, one half-built, ten to build.**
+**Four built, one half-built, nine to build.**
 
 ### Built
 
@@ -61,6 +61,9 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 | Player | Welcome | Join Comp | `welcome` | — | — |
 | Player | Game | Pick reminder | `pick_reminder` | Y | ✅ |
 | Organiser | Tips | Result set mid round | `update_scores_mid_round_tip` | — | — |
+| All | Welcome | Join LMS | `join_lms` | — | — |
+
+Only `pick_reminder` and `join_lms` are reachable from the admin screen; the other two predate it.
 
 ### Half-built
 
@@ -83,12 +86,11 @@ round ends, results go out, the next round opens. One notification covers both, 
 | Organiser | Game | Result reminder | — |
 | Organiser | Game | Fixture reminder | — |
 | Organiser | Tips | Promote competition | — |
-| All | Welcome | Join LMS | — |
 | All | Info | Official game invite | — |
 | All | Info | News | — |
 
-Six of the ten are organiser-facing. Everything built so far except the mid-round tip is
-player-facing, so organiser comms is the whole gap.
+Six of the nine are organiser-facing. Everything built so far except the mid-round tip is
+player- or platform-facing, so organiser comms is the whole gap.
 
 **Deferred:** the Promote-page feature — an organiser writing free text to their own participants
 — is **not in this scope** and will be addressed later. `Organiser | Tips | Promote competition`
@@ -126,6 +128,46 @@ nothing with this route but the queue.
 
 ---
 
+## Join LMS — the rules (built 2026-08-11)
+
+`services/joinLms.js`. The email a person gets once, when they first have an LMS Local account.
+
+- **Not the same as `welcome`** (Player | Welcome | Join Comp), which fires per competition
+  joined. This one is per account, and its group is `platform.welcome`.
+- **`register.js` triggers nothing.** Sending is operator-driven from the admin screen like
+  everything else, so registration never depends on Resend being up and every send can be
+  previewed and test-sent first.
+- **One template for both audiences.** People register either by joining someone's competition or
+  by creating their own, and which door they came through says little about what they do next — a
+  player who joins a pub competition often runs the next one. So it explains the game once and
+  offers both doors, rather than branching on a signal that goes stale in a week.
+- **No backfill.** `CUTOFF` in the service is a fixed timestamp — `2026-08-11T13:00:00Z`, just
+  after the newest account at the time of writing (12:14 UTC) — so none of the 244 accounts that
+  already existed can ever qualify. Note the Z: `db/query.js` prints local time (BST, an hour
+  ahead), and the first value set here was copied off that output, landing an hour in the future
+  and excluding a real signup. A fixed date rather than a rolling window on purpose: the rule is
+  "only people who sign up from now on", and a rolling window would quietly start mailing anyone
+  missed during a fortnight's silence.
+- **Once ever**, per user: candidacy excludes anyone with a `join_lms` row in `email_queue`,
+  whatever its status.
+- **No competition.** `competition_id` is left NULL on both the queue and the tracking row — not
+  0, which is `email_preference`'s sentinel for a global preference.
+
+## `services/emailCatalog.js` — which emails are wired
+
+The three admin routes each used to carry `if (email_type !== 'pick_reminder')` and import that
+service directly, so a second email meant the same edit in three places and any one missed would
+be a screen offering a send the server refused.
+
+The catalog is now the one list. Each entry names the service (`findCandidates`,
+`buildTemplateData`, `queueCandidate`), the build function, the send function, and whether the
+email is **`scoped`** — competition-scoped or platform-wide. `scoped` is what the routes ask
+before insisting on a `competition_id`, and what the admin screen asks before showing the
+competition picker's name in the panel.
+
+`OUTLINE` in `lmslocal-admin` carries a `wired` flag that mirrors this file and is kept in step by
+hand; the server refusing an unwired type is what actually stops a send.
+
 ## Wiring the next email
 
 Pick reminder is the worked example — copy its shape. For each new email, in this order:
@@ -153,9 +195,11 @@ Pick reminder is the worked example — copy its shape. For each new email, in t
    `sendXEmail()` calling `deliver()` with it. The admin preview renders the real template, so a
    sender that builds and sends in one function cannot be previewed.
 6. **Use `buildEmailFooter(unsubscribeUrl)`** and spread `unsubscribe.headers` into the send.
-7. **Add the type** to `preview-email.js` and `send-emails.js` (both currently refuse anything
-   but `pick_reminder`), and flip `wired: true` on its row in the admin screen's `OUTLINE`.
-8. **Test on competition 210** with test mode on, then check `email_queue` is still empty for it.
+7. **Add one entry to `services/emailCatalog.js`**, with `scoped` set correctly, and flip
+   `wired: true` on its row in the admin screen's `OUTLINE`. The three admin routes read the
+   catalog and need no edit.
+8. **Test with test mode on**, then check `email_queue` is still empty for it. Ask Andreas which
+   competition to test a scoped email against — never reuse an id from this doc.
 
 **Do not** add a stored copy of eligibility, a second unsubscribe mechanism, or a template that
 builds its own footer. Each of those has already been removed once.
@@ -246,6 +290,11 @@ dispatches on `email_queue.email_type` via a hardcoded if/else in `routes/send-e
 unlisted type throws `Unknown email type`. Five types exist: `welcome`, `pick_reminder`,
 `results`, `competition_announcement`, `update_scores_mid_round_tip`.
 
+`join_lms` is deliberately **not** among them. The admin screen queues and sends in one pass, so a
+`join_lms` row is never left pending for `/send-email` to drain; there is no `load-join-lms`
+route and adding the type there would be dead code. Anything wired through the catalog from here
+on works the same way.
+
 **Direct** — the account/transactional tier, straight out of `emailService.js`.
 
 **Push** — a separate queue: `mobile_notification_queue` → `process-mobile-notifications.js` →
@@ -273,16 +322,17 @@ build the recipient list, the admin screen shows it, `/send-email` drains it on 
 
 ### What is built (2026-08-11)
 
-`lmslocal-admin` → **Emails** (`/dashboard/emails`). Wired end to end for **pick reminder only**;
-every other row renders greyed, and the server refuses it with `UNSUPPORTED_EMAIL_TYPE` — the
-screen is not the only thing stopping a send.
+`lmslocal-admin` → **Emails** (`/dashboard/emails`). Wired end to end for **pick reminder and
+Join LMS**; every other row renders greyed, and the server refuses it with
+`UNSUPPORTED_EMAIL_TYPE` — the screen is not the only thing stopping a send.
 
 | Piece | Where |
 |---|---|
-| Eligibility, one definition | `services/pickReminder.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
+| Which emails are wired | `services/emailCatalog.js` — service, template and `scoped` per type |
+| Eligibility, one definition | `services/pickReminder.js`, `services/joinLms.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
 | Opt-outs, one definition | `services/emailPreference.js` — `notOptedOutSql`, used inside the candidate query |
 | Unsubscribe | `routes/unsubscribe.js` (GET, one-click POST, save) |
-| Template, build split from send | `services/emailService.js` — `buildPickReminderEmail` |
+| Template, build split from send | `services/emailService.js` — `buildPickReminderEmail`, `buildJoinLmsEmail` |
 | Single delivery choke point | `services/emailService.js` — `deliver(emailData, { testMode })` |
 | Counts | `POST /admin/get-email-targets` |
 | Recipients + rendered sample | `POST /admin/preview-email` |
@@ -332,7 +382,8 @@ A one-line description per row on the outline would help step 4 — Andreas to a
 4. **`EMAIL_VERIFICATION_URL` is a LAN address in local `.env`** (`http://192.168.1.102:3015`),
    and it is what builds every unsubscribe link. Fine for testing; it must be the public server
    URL in production or the links in sent mail will be unreachable.
-5. **The remaining templates have no unsubscribe footer.** Only pick reminder does. Each one
+5. **The remaining templates have no unsubscribe footer.** Only pick reminder and Join LMS do.
+   Each one
    needs the footer and the two headers as it gets wired — the group is already defined for all
    fourteen in `EMAIL_GROUPS`.
 

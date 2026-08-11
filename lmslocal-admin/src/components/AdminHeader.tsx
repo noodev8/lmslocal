@@ -21,6 +21,7 @@ of its own, so it survives adding pages and stays visible on a phone.
 =======================================================================================================================================
 */
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -50,7 +51,18 @@ export default function AdminHeader({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const admin = getAdmin();
+  /*
+  Read in an effect, not during render. getAdmin() goes to localStorage, which does not exist on
+  the server: rendering it directly meant the server produced no address line and the client
+  produced one, which is a hydration mismatch on every admin page. The first paint is therefore
+  briefly without the address, which is the correct trade - it is a label, not content anyone
+  waits for.
+  */
+  const [admin, setAdmin] = useState<ReturnType<typeof getAdmin>>(null);
+
+  useEffect(() => {
+    setAdmin(getAdmin());
+  }, []);
 
   const handleSignOut = () => {
     clearSession();

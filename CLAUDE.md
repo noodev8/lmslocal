@@ -27,7 +27,11 @@ This is a full-stack application with two main components:
     query's exclusion with `notOptedOutSql()`; never hand-write it. Preferences group by
     **consumer × section**, and **an absent row means subscribed**.
   - `services/pickReminder.js` — the worked example: one definition of eligibility, used by the
-    batch route, the admin preview and the send. Copy this shape for each new email.
+    batch route, the admin preview and the send. Copy this shape for each new email;
+    `services/joinLms.js` is the second one built to it.
+  - `services/emailCatalog.js` — **which emails are wired, in one list.** The three admin routes
+    read it; adding an email is one entry, not three edits. `scoped` says whether the email needs
+    a competition at all.
   - Unsubscribe is an **opaque token on `app_user`**, not a JWT — the old one was signed with
     `JWT_SECRET`, so killing a leaked link meant logging out every user.
   - Operator-driven from `lmslocal-admin` → Emails. There is no scheduler by design.

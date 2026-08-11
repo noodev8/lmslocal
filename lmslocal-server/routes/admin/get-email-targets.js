@@ -3,24 +3,28 @@
 API Route: admin/get-email-targets
 =======================================================================================================================================
 Method: POST
-Purpose: Recipient counts for each email on the outline, for one competition. Drives the counts
-         column on the admin Emails screen.
+Purpose: Recipient counts for each wired email on the outline. Drives the counts column on the
+         admin Emails screen.
 
-Only pick_reminder is wired so far. Every other row returns a null count rather than a zero:
+Which emails are wired comes from services/emailCatalog.js, so this route never needs editing
+when one is added. Unwired rows are simply absent from `counts` rather than reported as zero:
 "we cannot work this out yet" and "nobody qualifies" mean very different things to whoever is
-about to press send, and showing 0 for both would be a lie about the second.
+about to press send, and 0 would be a lie about the second.
+
+competition_id is required because most emails are competition-scoped, but the platform-wide ones
+(Join LMS, News) ignore it - their counts are the same whatever is selected in the picker.
 =======================================================================================================================================
 Request Payload:
 {
-  "competition_id": 210                // integer, required - competition to count against
+  "competition_id": 210                // integer, required - competition to count scoped emails against
 }
 
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "counts": {
-    "pick_reminder": 3,                // integer or null, null = not wired up yet
-    "welcome": null
+    "pick_reminder": 3,                // integer, one key per wired email; absent = not wired
+    "join_lms": 12
   }
 }
 
@@ -41,7 +45,7 @@ Return Codes:
 
 const express = require('express');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { findCandidates } = require('../../services/pickReminder');
+const { CATALOG } = require('../../services/emailCatalog');
 const { logApiCall } = require('../../utils/apiLogger');
 
 const router = express.Router();
@@ -59,13 +63,22 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    const pickReminderCandidates = await findCandidates({ competition_id });
+    /*
+    Sequential rather than Promise.all. These are the heavier queries on the platform - the pick
+    reminder candidate query joins four tables across every round - and the screen loads them on
+    every competition change. One at a time keeps a page load off the connection pool's limit.
+    */
+    const counts = {};
+    for (const [emailType, entry] of Object.entries(CATALOG)) {
+      const candidates = await entry.service.findCandidates(
+        entry.scoped ? { competition_id } : {}
+      );
+      counts[emailType] = candidates.length;
+    }
 
     return res.json({
       return_code: 'SUCCESS',
-      counts: {
-        pick_reminder: pickReminderCandidates.length
-      }
+      counts
     });
 
   } catch (error) {

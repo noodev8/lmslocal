@@ -523,7 +523,8 @@ export interface EmailRecipient {
   user_id: number;
   email: string;
   display_name: string;
-  round_number: number;
+  /* Only meaningful on round-based emails. Null on the platform-wide ones. */
+  round_number: number | null;
 }
 
 export type PreviewEmailResponse = ApiResponse & {
@@ -747,7 +748,12 @@ export const adminApi = {
     return response.data;
   },
 
-  previewEmail: async (emailType: string, competitionId: number): Promise<PreviewEmailResponse> => {
+  /*
+  competitionId is null for platform-wide emails (Join LMS, News), which have no competition. The
+  server decides which of the two an email type is - see services/emailCatalog.js - so a null here
+  on a scoped email still comes back as a VALIDATION_ERROR rather than a send to everybody.
+  */
+  previewEmail: async (emailType: string, competitionId: number | null): Promise<PreviewEmailResponse> => {
     const response = await api.post<PreviewEmailResponse>('/admin/preview-email', {
       email_type: emailType,
       competition_id: competitionId,
@@ -761,7 +767,7 @@ export const adminApi = {
   */
   sendEmails: async (
     emailType: string,
-    competitionId: number,
+    competitionId: number | null,
     testMode: boolean
   ): Promise<SendEmailsResponse> => {
     const response = await api.post<SendEmailsResponse>('/admin/send-emails', {

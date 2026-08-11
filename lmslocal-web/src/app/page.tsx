@@ -177,7 +177,7 @@ export default function LandingPage() {
       <header className="border-b border-ink/30">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <Wordmark />
-          <nav className="flex items-center gap-5 sm:gap-7">
+          <nav className="flex items-center gap-3 sm:gap-7">
             <Link href="/pricing" className={`${LABEL} text-ink-fade transition-colors hover:text-ink`}>
               Pricing
             </Link>
@@ -187,11 +187,21 @@ export default function LandingPage() {
             >
               Help
             </Link>
+            {/*
+            Signed out, the button names both doors. A lone "Sign in" reads as a door someone with
+            no account cannot open, when registering is one link away behind it. It still goes to
+            /login, which offers "Create one".
+
+            The "/ Register" half is dropped below sm rather than shrunk: the wordmark and Pricing
+            already fill a 360px header, and the full label pushes the row into overflow. Sign in
+            is the half that must survive, because a returning user has nowhere else to go from
+            here - someone without an account still has the two big CTAs further down the page.
+            */}
             <Link
               href={isLoggedIn ? '/dashboard' : '/login'}
-              className={`${LABEL} rounded-sm border border-ink px-3.5 py-2 text-ink transition-colors hover:bg-ink hover:text-stock-lit`}
+              className={`${LABEL} whitespace-nowrap rounded-sm border border-ink px-3 py-2 text-ink transition-colors hover:bg-ink hover:text-stock-lit sm:px-3.5`}
             >
-              {isLoggedIn ? 'Dashboard' : 'Sign in'}
+              {isLoggedIn ? 'Dashboard' : <>Sign in<span className="hidden sm:inline"> / Register</span></>}
             </Link>
           </nav>
         </div>

@@ -8,6 +8,12 @@ Purpose: Handle email sending for verification and password reset using Resend A
 
 const { Resend } = require('resend');
 
+/*
+The subject lives with the service that queues the email, not here, because the tracking row is
+written there before the template is built and the two have to say the same thing.
+*/
+const { SUBJECT: JOIN_LMS_SUBJECT } = require('./joinLms');
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Where a test send is redirected. Overridable so this is not a hardcoded personal address.
@@ -752,6 +758,183 @@ const sendPickReminderEmail = async (email, templateData, options = {}) => {
     return readSendResult(result);
   } catch (error) {
     console.error('Failed to send pick reminder email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Build the Join LMS welcome without sending it.
+ *
+ * Outline row: All | Welcome | Join LMS. Sent once, when someone first has an LMS Local account.
+ *
+ * One template for both audiences, which is a decision rather than a shortcut. A person registers
+ * either by joining someone's competition or by creating their own, and which door they came
+ * through says little about what they will do next - a player who joins a pub competition often
+ * runs the next one. So the email explains the game once and offers both doors, rather than
+ * branching on a signal that goes stale within a week.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/joinLms.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildJoinLmsEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    email_tracking_id,
+    /*
+    Built by services/joinLms.js from the recipient's own token. Absent only if the account
+    somehow has no token, in which case the footer link and the headers are omitted rather than
+    rendering a link that would 404.
+    */
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const base = process.env.PLAYER_FRONTEND_URL;
+  const joinUrl = `${base}/join?email_id=${email_tracking_id}`;
+  const createUrl = `${base}/competition/create?email_id=${email_tracking_id}`;
+  const howToPlayUrl = `${base}/help/how-to-play`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to LMS Local</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">Last Man Standing Competitions</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              Welcome to LMS Local. Your account is ready.
+            </p>
+
+            <!-- How the game works -->
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 30px 0;">
+              <p style="margin: 0 0 12px 0; color: #0f172a; font-size: 15px; font-weight: 600;">How Last Man Standing works</p>
+              <p style="margin: 0 0 10px 0; color: #475569; font-size: 14px;">
+                Each round, pick one team you think will win. Win and you go through. Draw or lose and you are out.
+              </p>
+              <p style="margin: 0; color: #475569; font-size: 14px;">
+                The catch: you cannot pick the same team twice until you have used them all. Last one standing wins.
+              </p>
+            </div>
+
+            <!-- Two doors -->
+            <p style="color: #334155; font-size: 16px; margin: 0 0 20px 0; line-height: 1.5;">
+              There are two ways to use LMS Local, and plenty of people do both.
+            </p>
+
+            <div style="margin: 0 0 20px 0;">
+              <a href="${joinUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Join a competition
+              </a>
+              <p style="color: #64748b; font-size: 13px; margin: 8px 0 0 0; text-align: center;">
+                Got a code from your pub, workplace or club? Enter it here.
+              </p>
+            </div>
+
+            <div style="margin: 0 0 30px 0;">
+              <a href="${createUrl}"
+                 style="display: block; background-color: #ffffff; color: #475569; padding: 15px 32px; text-decoration: none; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Run your own competition
+              </a>
+              <p style="color: #64748b; font-size: 13px; margin: 8px 0 0 0; text-align: center;">
+                Set one up for your regulars. Fixtures and results are handled for you.
+              </p>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              New to the game? <a href="${howToPlayUrl}" style="color: #2563eb;">How to play</a> covers it in a couple of minutes.
+            </p>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+Welcome to LMS Local
+
+Hi ${user_display_name},
+
+Welcome to LMS Local. Your account is ready.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HOW LAST MAN STANDING WORKS
+
+Each round, pick one team you think will win. Win and you go through.
+Draw or lose and you are out.
+
+The catch: you cannot pick the same team twice until you have used them
+all. Last one standing wins.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+There are two ways to use LMS Local, and plenty of people do both.
+
+JOIN A COMPETITION
+Got a code from your pub, workplace or club? Enter it here:
+${joinUrl}
+
+RUN YOUR OWN COMPETITION
+Set one up for your regulars. Fixtures and results are handled for you:
+${createUrl}
+
+New to the game? How to play covers it in a couple of minutes:
+${howToPlayUrl}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: JOIN_LMS_SUBJECT,
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [{ name: 'email_type', value: 'join_lms' }]
+  };
+};
+
+/**
+ * Send the Join LMS welcome.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/joinLms.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendJoinLmsEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildJoinLmsEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send join LMS email:', error);
     return {
       success: false,
       error: error.message
@@ -1638,6 +1821,8 @@ module.exports = {
   sendPaymentConfirmationEmail,
   buildPickReminderEmail,
   sendPickReminderEmail,
+  buildJoinLmsEmail,
+  sendJoinLmsEmail,
   sendResultsEmail,
   sendWelcomeCompetitionEmail,
   sendOrganiserTipEmail,

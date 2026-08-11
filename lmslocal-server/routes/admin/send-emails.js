@@ -3,8 +3,12 @@
 API Route: admin/send-emails
 =======================================================================================================================================
 Method: POST
-Purpose: Send one outline email to everyone who qualifies for it in one competition, from the
-         admin Emails screen. Operator-driven - there is no schedule behind this.
+Purpose: Send one outline email to everyone who qualifies for it, from the admin Emails screen.
+         Operator-driven - there is no schedule behind this.
+
+Which emails can be sent, and the service and template behind each, come from
+services/emailCatalog.js. Competition-scoped emails go out one competition at a time;
+platform-wide ones (Join LMS, News) have no competition and ignore the picker.
 
 Two modes, and they are deliberately not the same code path:
 
@@ -24,7 +28,7 @@ outcome rather than a live send to the whole competition.
 Request Payload:
 {
   "email_type": "pick_reminder",       // string, required - which outline email
-  "competition_id": 210,               // integer, required
+  "competition_id": 210,               // integer, required for scoped emails, ignored otherwise
   "test_mode": true                    // boolean, optional - defaults to true
 }
 
@@ -59,8 +63,7 @@ Return Codes:
 const express = require('express');
 const { query } = require('../../database');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { findCandidates, buildTemplateData, queueCandidate } = require('../../services/pickReminder');
-const { sendPickReminderEmail } = require('../../services/emailService');
+const { entryFor } = require('../../services/emailCatalog');
 const { logApiCall } = require('../../utils/apiLogger');
 
 const router = express.Router();
@@ -71,24 +74,28 @@ router.post('/', verifyAdminToken, async (req, res) => {
   try {
     const { email_type, competition_id, test_mode } = req.body;
 
-    if (!competition_id || !Number.isInteger(competition_id)) {
+    const entry = entryFor(email_type);
+
+    if (!entry) {
+      return res.json({
+        return_code: 'UNSUPPORTED_EMAIL_TYPE',
+        message: `${email_type || 'That email'} is not wired up yet.`
+      });
+    }
+
+    if (entry.scoped && (!competition_id || !Number.isInteger(competition_id))) {
       return res.json({
         return_code: 'VALIDATION_ERROR',
         message: 'competition_id is required and must be an integer'
       });
     }
 
-    if (email_type !== 'pick_reminder') {
-      return res.json({
-        return_code: 'UNSUPPORTED_EMAIL_TYPE',
-        message: `${email_type || 'That email'} is not wired up yet. Only pick_reminder can be sent.`
-      });
-    }
-
     // Absent means test. Only an explicit false goes live.
     const testMode = test_mode !== false;
 
-    const candidates = await findCandidates({ competition_id });
+    const candidates = await entry.service.findCandidates(
+      entry.scoped ? { competition_id } : {}
+    );
 
     if (candidates.length === 0) {
       return res.json({
@@ -106,9 +113,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // ===============================================================================
     if (testMode) {
       const first = candidates[0];
-      const templateData = await buildTemplateData(first);
+      const templateData = await entry.service.buildTemplateData(first);
 
-      const result = await sendPickReminderEmail(first.user_email, templateData, { testMode: true });
+      const result = await entry.send(first.user_email, templateData, { testMode: true });
 
       if (!result.success) {
         console.error('admin/send-emails test send failed:', result.error);
@@ -141,14 +148,14 @@ router.post('/', verifyAdminToken, async (req, res) => {
     let failedCount = 0;
 
     for (const candidate of candidates) {
-      const queued = await queueCandidate(candidate);
+      const queued = await entry.service.queueCandidate(candidate);
 
       if (!queued.success) {
         failedCount++;
         continue;
       }
 
-      const result = await sendPickReminderEmail(
+      const result = await entry.send(
         candidate.user_email,
         queued.template_data,
         { testMode: false }
