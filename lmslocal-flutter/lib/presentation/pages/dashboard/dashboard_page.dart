@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1362,6 +1363,15 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
 
+                // The code someone needs to join. Only while joining is still
+                // open — codes are permanent, so showing one after round 1
+                // locks would invite sharing that leads to a dead end.
+                if (competition.inviteCode != null &&
+                    _joiningOpen(competition)) ...[
+                  const SizedBox(height: 16),
+                  _buildInviteCode(competition.inviteCode!),
+                ],
+
                 // Action button
                 const SizedBox(height: 16),
                 // A tint of an ink is never the answer — moss at 20% and ink at
@@ -1388,6 +1398,67 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Whether anyone can still join, computed the way the web game screen
+  /// computes it (round 1's lock time, never `status`, which lags behind it —
+  /// docs/player-onboarding.md §4.2).
+  bool _joiningOpen(Competition competition) {
+    if (competition.currentRound < 1) return true; // no rounds yet
+    if (competition.currentRound > 1) return false;
+    final lockTime = competition.currentRoundLockTime;
+    if (lockTime == null) return true;
+    return lockTime.isAfter(DateTime.now());
+  }
+
+  Widget _buildInviteCode(String code) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: code));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invite code copied'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border.all(color: CouponTheme.ink.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'PLAYER INVITE CODE',
+                    style: CouponTheme.label,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    code,
+                    style: CouponTheme.dataText.copyWith(
+                      fontSize: 20,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.copy_outlined,
+              size: 18,
+              color: CouponTheme.inkFade,
+            ),
+          ],
         ),
       ),
     );
