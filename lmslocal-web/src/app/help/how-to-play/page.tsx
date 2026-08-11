@@ -30,7 +30,8 @@ export default function HowToPlayPage() {
           </div>
 
           <p>
-            <strong>LMS Local twist:</strong> Organisers can customize rules with multiple lives.
+            <strong>LMS Local twist:</strong> Organisers can give every player a life, so one bad
+            week does not end their competition.
           </p>
         </div>
       </div>
@@ -63,7 +64,7 @@ export default function HowToPlayPage() {
         <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">Lives System</h2>
         <p className="text-[17px] leading-relaxed text-ink mb-6">Your organiser sets how many lives each player gets at the start:</p>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="border border-ink/30 bg-stock-lit p-6 text-center">
             <div className="text-2xl mb-2">💀</div>
             <h3 className="font-semibold text-ink mb-2">0 Lives</h3>
@@ -74,12 +75,6 @@ export default function HowToPlayPage() {
             <div className="text-2xl mb-2">❤️</div>
             <h3 className="font-semibold text-ink mb-2">1 Life</h3>
             <p className="text-[15px] text-ink-fade">One second chance</p>
-          </div>
-
-          <div className="border border-ink/30 bg-stock-lit p-6 text-center">
-            <div className="text-2xl mb-2">❤️❤️</div>
-            <h3 className="font-semibold text-ink mb-2">2 Lives</h3>
-            <p className="text-[15px] text-ink-fade">Maximum forgiveness</p>
           </div>
         </div>
       </div>
