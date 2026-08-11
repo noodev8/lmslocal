@@ -28,6 +28,7 @@ import {
   pickDeadlineText,
   lockDeadlineText,
   isStartGateVisible,
+  joiningOpen as isJoiningOpen,
   startBlockedText,
   formatRoundStart,
   roundTileLabel,
@@ -130,16 +131,11 @@ export default function UnifiedGameDashboard() {
 
   const joinUrl = competition?.invite_code ? buildJoinUrl(competition.invite_code) : '';
 
-  // Whether anyone can still join, computed the way the join gate itself computes it - round 1's
-  // lock time, never competition.status, which lags behind it (docs/player-onboarding.md §4.2).
-  // Codes are permanent now, so their presence no longer implies an open competition and this
-  // card would otherwise invite sharing that only leads to a dead end.
-  const joiningOpen = useMemo(() => {
-    if (!currentRoundInfo) return true; // no rounds yet - the competition has not started
-    if (currentRoundInfo.round_number > 1) return false;
-    if (!currentRoundInfo.lock_time) return true;
-    return new Date(currentRoundInfo.lock_time).getTime() > Date.now();
-  }, [currentRoundInfo]);
+  const joiningOpen = useMemo(() => isJoiningOpen({
+    currentRound: currentRoundInfo?.round_number,
+    currentRoundLockTime: currentRoundInfo?.lock_time,
+    now: new Date(),
+  }), [currentRoundInfo]);
 
   // The start gate. `startsAt` is the kickoff their first round would actually get, answered by
   // the same rules the push uses - so it is fetched rather than guessed here.

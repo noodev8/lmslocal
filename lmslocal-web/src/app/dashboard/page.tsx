@@ -23,7 +23,7 @@ import { useAppData } from '@/contexts/AppDataContext';
 import JoinCompetitionModal from '@/components/JoinCompetitionModal';
 import CompetitionLogo from '@/components/CompetitionLogo';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK, TICK } from '@/lib/design';
-import { deriveDashboardRoundState, pickDeadlineText } from '@/lib/roundState';
+import { deriveDashboardRoundState, joiningOpen, pickDeadlineText } from '@/lib/roundState';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -623,7 +623,11 @@ export default function DashboardPage() {
                       </div>
 
                       {/* Card Body */}
-                      {competition.invite_code && (
+                      {competition.invite_code && joiningOpen({
+                        currentRound: competition.current_round,
+                        currentRoundLockTime: competition.current_round_lock_time,
+                        now: new Date(),
+                      }) && (
                         <div className="flex-1 p-4 sm:p-6">
                           <div className="border border-ink/30 p-3">
                             <p className={`${LABEL} mb-1 text-ink-fade`}>Player invite code</p>

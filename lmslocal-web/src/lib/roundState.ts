@@ -170,6 +170,28 @@ export function deriveDashboardRoundState(input: {
   });
 }
 
+/**
+ * Whether anyone can still join — round 1's lock time, never `competition.status`, which lags
+ * behind it (docs/player-onboarding.md §4.2).
+ *
+ * Codes are permanent, so a code's presence no longer implies an open competition: showing one
+ * past the lock invites sharing that only leads to a dead end. One definition because three
+ * surfaces ask the question — the game screen's invite panel, the dashboard card, and the Flutter
+ * dashboard card, which carries its own copy of these same four lines.
+ */
+export function joiningOpen(input: {
+  currentRound: number | null | undefined;
+  currentRoundLockTime: string | null | undefined;
+  now: Date;
+}): boolean {
+  const round = input.currentRound ?? 0;
+  if (round < 1) return true; // no rounds yet - the competition has not started
+  if (round > 1) return false;
+  const lockTime = parseTimestamp(input.currentRoundLockTime ?? null);
+  if (!lockTime) return true;
+  return lockTime.getTime() > input.now.getTime();
+}
+
 function parseTimestamp(value: string | null): Date | null {
   if (!value) return null;
   const parsed = new Date(value);

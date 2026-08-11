@@ -1403,9 +1403,11 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  /// Whether anyone can still join, computed the way the web game screen
-  /// computes it (round 1's lock time, never `status`, which lags behind it —
-  /// docs/player-onboarding.md §4.2).
+  /// Whether anyone can still join — round 1's lock time, never `status`,
+  /// which lags behind it (docs/player-onboarding.md §4.2).
+  ///
+  /// The Dart half of `joiningOpen` in lmslocal-web/src/lib/roundState.ts;
+  /// keep the two in step.
   bool _joiningOpen(Competition competition) {
     if (competition.currentRound < 1) return true; // no rounds yet
     if (competition.currentRound > 1) return false;
