@@ -43,7 +43,7 @@ Machine-invoked. Requires the X-Service-Token header, applied at mount time in s
 See middleware/service-auth.js.
 */
 const { logApiCall } = require('../utils/apiLogger');
-const { sendPickReminderEmail, sendRoundOverEmail, sendWelcomeCompetitionEmail, sendOrganiserTipEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
+const { sendPickReminderEmail, sendRoundOverEmail, sendWelcomeCompetitionEmail, sendHintEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
 const router = express.Router();
 
 /*
@@ -150,8 +150,11 @@ router.post('/', async (req, res) => {
           emailResult = await sendRoundOverEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'welcome') {
           emailResult = await sendWelcomeCompetitionEmail(userEmail, templateData);
-        } else if (emailRecord.email_type === 'update_scores_mid_round_tip') {
-          emailResult = await sendOrganiserTipEmail(templateData);
+        } else if (emailRecord.email_type === 'update_scores_mid_round_tip' || emailRecord.email_type === 'promote_competition') {
+          // Hints, all rendered by one builder - see services/hints.js. New hint types need
+          // adding here as well as to the catalog; there is no pending row under the old
+          // sendOrganiserTipEmail shape, so nothing queued can reach the wrong renderer.
+          emailResult = await sendHintEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'competition_announcement') {
           emailResult = await sendCompetitionAnnouncementEmail(userEmail, templateData);
         } else {

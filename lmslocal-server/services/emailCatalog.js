@@ -28,6 +28,7 @@ const fixtureReminder = require('./fixtureReminder');
 const resultReminder = require('./resultReminder');
 const gameComplete = require('./gameComplete');
 const roundOver = require('./roundOver');
+const hints = require('./hints');
 const {
   buildPickReminderEmail,
   sendPickReminderEmail,
@@ -46,7 +47,9 @@ const {
   buildGameCompleteEmail,
   sendGameCompleteEmail,
   buildRoundOverEmail,
-  sendRoundOverEmail
+  sendRoundOverEmail,
+  buildHintEmail,
+  sendHintEmail
 } = require('./emailService');
 
 /*
@@ -129,6 +132,28 @@ const CATALOG = {
     service: roundOver,
     build: buildRoundOverEmail,
     send: sendRoundOverEmail
+  },
+
+  /*
+  Hints. One entry each so the admin screen can send them independently and email_type stays
+  meaningful per hint, but all of them share one builder and one service - the hints differ only
+  in their words, which live in services/hints.js. A third hint is an entry there plus two lines
+  here, not a new service and a new template.
+
+  Unscoped: a hint is about an organiser rather than a competition, and the service picks which of
+  their competitions to name.
+  */
+  promote_competition: {
+    scoped: false,
+    service: hints.serviceFor('promote_competition'),
+    build: buildHintEmail,
+    send: sendHintEmail
+  },
+  update_scores_mid_round_tip: {
+    scoped: false,
+    service: hints.serviceFor('update_scores_mid_round_tip'),
+    build: buildHintEmail,
+    send: sendHintEmail
   }
 };
 

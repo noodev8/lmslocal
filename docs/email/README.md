@@ -387,6 +387,47 @@ for. The clean resolution is for Game complete to skip anyone who was in the fin
 exists to reach the long-since-eliminated — but that is a change to a built email and wants
 deciding rather than assuming.
 
+## Hints — the rules (built 2026-08-11)
+
+`services/hints.js`. Occasional training for organisers: one feature, one email, a few days apart.
+Two on the outline today (`Hint - Promote competition`, `Hint - Result set mid round`) and the
+list is expected to grow and shrink as Andreas edits the workbook.
+
+**That expectation is the design.** Hints are a **list in one file**, not an email each. A hint is
+an entry with a day offset, an applicability rule and its copy; the query, the template, the
+queueing and the guards are shared. Adding a third hint is one entry — not a new service, a new
+template and three edits. Removing one is deleting it.
+
+Each hint still gets its **own catalog entry and outline row**, so the admin screen can send them
+independently and `email_queue.email_type` stays meaningful per hint. The entries are thin: both
+point at the same builder, and `hints.serviceFor(key)` supplies the eligibility.
+
+**Trigger: days since the competition was created** — 3 for Promote, 7 for the mid-round hint.
+Simple and predictable, which is what training wants. Four guards:
+
+1. **Once per organiser per hint, ever — not per competition.** Somebody running four
+   competitions would otherwise be taught the same lesson four times. A hint teaches the person.
+   When several competitions qualify, the oldest is the one named.
+2. **One hint per organiser per week** (`HINT_SPACING_DAYS`). With two hints and offsets of 3 and
+   7 this rarely bites; with six it would, and it is far easier to put in now than to retrofit
+   after somebody gets three in a morning.
+3. **`Hint - Result set mid round` is `fixture_service = false` only.** An automated competition
+   rejects organiser result entry outright (`AUTOMATED_COMPETITION`), so the hint would teach a
+   button that organiser does not have — the same trap Game Start reminder avoids from the other
+   side.
+4. **…and only once they have a round with fixtures.** At day 7 a great many competitions are
+   still in SETUP, and "enter results as matches finish" means nothing with no fixtures. So it is
+   day 7 *or later*, whenever they are actually ready.
+
+Promote needs no state guard: an organiser with no players is exactly who should hear about it.
+
+**What Promote may claim.** `/game/[id]/promote` is real and carries WhatsApp message templates,
+Facebook/Instagram image generation, a QR code and a copyable join link — the hint names those.
+It must **not** mention broadcasting to members: that is `Broadcast from Organiser`, still
+unwired. A hint that teaches a feature which does not exist is worse than no hint.
+
+Group `info`, which both keys already mapped to.
+
 ## `services/emailCatalog.js` — which emails are wired
 
 The three admin routes each used to carry `if (email_type !== 'pick_reminder')` and import that

@@ -20,6 +20,7 @@ const { subjectFor: fixtureReminderSubjectFor } = require('./fixtureReminder');
 const { subjectFor: resultReminderSubjectFor } = require('./resultReminder');
 const { subjectFor: gameCompleteSubjectFor } = require('./gameComplete');
 const { subjectFor: roundOverSubjectFor } = require('./roundOver');
+const { subjectFor: hintSubjectFor } = require('./hints');
 const { isOptedOut } = require('./emailPreference');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -2079,6 +2080,136 @@ const sendRoundOverEmail = async (email, templateData, options = {}) => {
 };
 
 /**
+ * Build any hint email without sending it.
+ *
+ * Outline rows: Organiser | Info | Hint - *. ONE builder for every hint, not one per hint - the
+ * hints differ only in their words, and those live in services/hints.js where the list is edited.
+ * A new hint is an entry there and needs nothing here.
+ *
+ * The copy arrives already resolved on templateData (heading, body, cta), stored at queue time, so
+ * a queued hint renders as it was written even if the list changes before it is sent.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/hints.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildHintEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    hint_key,
+    heading,
+    body,
+    cta_label,
+    cta_path,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+  const paragraphs = Array.isArray(body) ? body : [String(body)];
+  const ctaUrl = `${process.env.PLAYER_FRONTEND_URL}${cta_path}?email_id=${email_tracking_id}`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${heading}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <p style="color: #0f172a; font-size: 17px; font-weight: 600; margin: 0 0 16px 0;">${heading}</p>
+
+            ${paragraphs.map((p) => `<p style="color: #334155; font-size: 15px; margin: 0 0 16px 0; line-height: 1.5;">${p}</p>`).join('')}
+
+            <!-- Call to Action Button -->
+            <div style="margin: 24px 0;">
+              <a href="${ctaUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                ${cta_label}
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              These are occasional tips for organisers — a handful in total, not a series.
+            </p>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+${heading}
+
+Hi ${user_display_name},
+
+${paragraphs.join('\n\n')}
+
+${cta_label}:
+${ctaUrl}
+
+These are occasional tips for organisers - a handful in total, not a series.
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: hintSubjectFor(hint_key),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: hint_key },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send a hint.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/hints.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendHintEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildHintEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send hint email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
  * Send results email after round completion
  * @param {string} email - User's email address
  * @param {object} templateData - Email template data including round results
@@ -3003,6 +3134,8 @@ module.exports = {
   sendGameCompleteEmail,
   buildRoundOverEmail,
   sendRoundOverEmail,
+  buildHintEmail,
+  sendHintEmail,
   sendResultsEmail,
   sendOrganiserTipEmail,
   sendOnboardingNotification,
