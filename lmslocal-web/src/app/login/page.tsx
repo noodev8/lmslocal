@@ -9,6 +9,19 @@ import { setAuthData } from '@/lib/auth';
 import AuthShell, { authInput, authButton, Notice, AuthLink } from '@/components/public/AuthShell';
 import { LABEL } from '@/lib/design';
 
+/*
+Where to land after signing in. Pages that need a session send the one they were on as `returnTo`,
+so an emailed link opened on a signed-out device still reaches what it pointed at instead of
+dumping the organiser on the dashboard to find it themselves.
+
+Only a path on this site is accepted - it must start with a single slash. Anything else, including
+a protocol-relative "//evil.example" that a browser reads as another host, falls back to the
+dashboard. Without that check this parameter is an open redirect, and it arrives in a link we
+email, which is exactly the shape phishing wants.
+*/
+const safeReturnTo = (value: string | null): string =>
+  value && value.startsWith('/') && !value.startsWith('//') ? value : '/dashboard';
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,7 +60,7 @@ function LoginForm() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setAuthData(response.data.token as string, response.data.user as any);
         window.dispatchEvent(new CustomEvent('auth-success'));
-        router.push('/dashboard');
+        router.push(safeReturnTo(searchParams.get('returnTo')));
       } else {
         setError(
           response.data.return_code === 'INVALID_CREDENTIALS'
