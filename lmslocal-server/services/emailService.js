@@ -795,7 +795,13 @@ const buildJoinLmsEmail = (email, templateData) => {
   const footer = buildEmailFooter(unsubscribe?.url || null);
 
   const base = process.env.PLAYER_FRONTEND_URL;
-  const joinUrl = `${base}/join?email_id=${email_tracking_id}`;
+  /*
+  The landing page, not /join - there is no bare /join page, only /join/[code], and linking to it
+  404s. The landing page carries a sticky "Got a code?" bar at the very top which takes the code
+  and forwards to /join/[code], and it works signed in or signed out, which a link out of an email
+  has to.
+  */
+  const joinUrl = `${base}/?email_id=${email_tracking_id}`;
   const createUrl = `${base}/competition/create?email_id=${email_tracking_id}`;
   const howToPlayUrl = `${base}/help/how-to-play`;
 
