@@ -16,7 +16,21 @@ This is a full-stack application with two main components:
 - **Port**: 3015
 - **Authentication**: JWT tokens with bcrypt password hashing
 - **Token Policy**: Keep JWT tokens simple and consistent - only include user identification fields (user_id, email, display_name). Any additional data should be fetched from database when needed.
-- **Email**: Resend service for transactional emails
+- **Email**: Resend. **Read `docs/email/README.md` before touching anything that sends email**,
+  and change the doc first. `docs/email/email-outline.xlsx` is the authoritative list of what we
+  send; the README maps it onto the code and carries a step-by-step for wiring the next one.
+  The short version:
+  - `services/emailService.js` — **`deliver()` is the single exit point**, with test mode as a
+    parameter. Do not call `resend.emails.send` directly; seven senders once did, which is why a
+    banner reading `ALL EMAILS REDIRECTED` was true of only five of them.
+  - `services/emailPreference.js` — the one definition of opt-outs. Compose the candidate
+    query's exclusion with `notOptedOutSql()`; never hand-write it. Preferences group by
+    **consumer × section**, and **an absent row means subscribed**.
+  - `services/pickReminder.js` — the worked example: one definition of eligibility, used by the
+    batch route, the admin preview and the send. Copy this shape for each new email.
+  - Unsubscribe is an **opaque token on `app_user`**, not a JWT — the old one was signed with
+    `JWT_SECRET`, so killing a leaked link meant logging out every user.
+  - Operator-driven from `lmslocal-admin` → Emails. There is no scheduler by design.
 - **Security**: Helmet, CORS, rate limiting, input validation
 - **Dependency override**: `package.json` pins `uuid` to `^11.1.1` via `overrides`. It is a
   transitive dep of `gaxios`/`teeny-request` under `firebase-admin`, which still resolve to
@@ -216,7 +230,9 @@ lmslocal-server/
 ├── database.js            # PostgreSQL pool and query utilities  
 ├── routes/                 # API endpoints (42 single-function routes)
 ├── middleware/verifyToken.js  # JWT verification middleware
-└── services/emailService.js   # Resend email integration
+├── services/emailService.js   # Resend integration, deliver(), shared footer
+├── services/emailPreference.js # Opt-out groups, unsubscribe tokens
+└── services/pickReminder.js   # Pick reminder eligibility and template data
 
 lmslocal-web/
 ├── src/app/               # Next.js App Router pages and layouts

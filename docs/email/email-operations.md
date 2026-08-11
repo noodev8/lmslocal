@@ -115,6 +115,39 @@ main().catch(console.error);
 
 Always dry run first.
 
+## The shared footer
+
+`buildEmailFooter(unsubscribeUrl)` in `emailService.js` returns `{ html, text }` for the block
+every email ends with:
+
+```
+LMS Local - Last Man Standing Competitions
+Unsubscribe                                 <- blue, omitted when no URL is passed
+Noodev8 Ltd, company number 16222537
+3 Cumberland Place, Welshpool, SY21 7SB
+```
+
+Shared rather than pasted into each template because it carries the legal identification — UK
+PECR wants marketing mail to identify the sender and give a valid address. Fourteen copies would
+mean fourteen places to miss when a detail changes, and the one that got missed would be the one
+still sending.
+
+Pass `null` for transactional mail: a password reset is not unsubscribable, so it gets the
+company block without the link.
+
+The company details are duplicated in `lmslocal-web/src/components/public/PublicFooter.tsx` with
+nothing keeping the two in step. Change both.
+
+## Who a reply reaches
+
+`EMAIL_FROM` must be on the Resend-verified domain (`email.noodev8.com`), so it is a noreply
+address. `EMAIL_REPLY_TO` needs no verification and is where replies actually land
+(`lmslocal8@gmail.com`).
+
+`deliver()` fills in `reply_to` on every send, but **only when the caller has not set one** — the
+contact form deliberately replies to whoever wrote in. Without this, a player answering "I can't
+see my fixtures" reaches nobody, often without even a bounce.
+
 ## Recipient SQL
 
 Active players who haven't picked in a round that's still open:
@@ -169,7 +202,9 @@ pages use (`docs/design-system.md`). Whether emails migrate is an open question.
 
 | File | Purpose |
 |---|---|
-| `services/emailService.js` | All senders and templates. Test redirect at line 19. |
+| `services/emailService.js` | All senders and templates. `deliver()` is the single exit point; `buildEmailFooter()` the shared footer. |
+| `services/emailPreference.js` | Groups, opt-out SQL, unsubscribe tokens |
+| `services/pickReminder.js` | Who gets a pick reminder, and its template data |
 | `routes/send-email.js` | Drains `email_queue`, dispatches by `email_type` |
 | `routes/load-pick-reminder.js` | Queues pick reminders |
 | `routes/load-results-email.js` | Queues results emails |

@@ -126,7 +126,41 @@ nothing with this route but the queue.
 
 ---
 
-## Unsubscribe: grouped by SECTION
+## Wiring the next email
+
+Pick reminder is the worked example — copy its shape. For each new email, in this order:
+
+1. **Agree the rules first.** Who gets it, on what trigger, what it says. Nothing in this
+   document specifies an individual email; that is the per-email conversation, and it comes
+   before any code.
+2. **A service beside `services/pickReminder.js`** exporting `findCandidates({ competition_id })`
+   and `buildTemplateData(candidate)`. Eligibility goes here and **nowhere else** — the preview
+   and the send must read the same definition or the screen will offer a count the send
+   contradicts.
+3. **Compose the opt-out clause**, never hand-write it:
+   ```js
+   AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$2' })}
+   ```
+   with `groupFor('<email_type>')` as the bind value. The group is already defined for all
+   fourteen emails in `EMAIL_GROUPS`.
+4. **Put the unsubscribe link in the template data** at queue time, so a queued email still
+   renders correctly if sent later:
+   ```js
+   const token = await getOrCreateToken(user_id);
+   const unsubscribe = token ? unsubscribeLinks(token, groupFor('<email_type>')) : null;
+   ```
+5. **Split build from send** in `emailService.js` — `buildXEmail()` returning the payload,
+   `sendXEmail()` calling `deliver()` with it. The admin preview renders the real template, so a
+   sender that builds and sends in one function cannot be previewed.
+6. **Use `buildEmailFooter(unsubscribeUrl)`** and spread `unsubscribe.headers` into the send.
+7. **Add the type** to `preview-email.js` and `send-emails.js` (both currently refuse anything
+   but `pick_reminder`), and flip `wired: true` on its row in the admin screen's `OUTLINE`.
+8. **Test on competition 210** with test mode on, then check `email_queue` is still empty for it.
+
+**Do not** add a stored copy of eligibility, a second unsubscribe mechanism, or a template that
+builds its own footer. Each of those has already been removed once.
+
+## Unsubscribe: grouped by CONSUMER × SECTION
 
 **Built 2026-08-11.** `services/emailPreference.js` is the one definition — group keys, labels,
 the opt-out SQL, and the token helpers.
