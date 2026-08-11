@@ -108,7 +108,6 @@ const getRoundStatisticsRoute = require('./routes/get-round-statistics');
 // Email Routes
 const loadPickReminderRoute = require('./routes/load-pick-reminder');
 const loadResultsEmailRoute = require('./routes/load-results-email');
-const loadWelcomeCompetitionRoute = require('./routes/load-welcome-competition');
 const loadCompetitionAnnouncementRoute = require('./routes/load-competition-announcement');
 const sendEmailRoute = require('./routes/send-email');
 const syncCompetitionStatusRoute = require('./routes/sync-competition-status');
@@ -425,7 +424,6 @@ carries its own signed JWT in the query string.
 */
 app.use('/load-pick-reminder', verifyServiceToken, loadPickReminderRoute);
 app.use('/load-results-email', verifyServiceToken, loadResultsEmailRoute);
-app.use('/load-welcome-competition', verifyServiceToken, loadWelcomeCompetitionRoute);
 app.use('/load-competition-announcement', verifyServiceToken, loadCompetitionAnnouncementRoute);
 app.use('/send-email', verifyServiceToken, sendEmailRoute);
 app.use('/get-email-preferences', getEmailPreferencesRoute);

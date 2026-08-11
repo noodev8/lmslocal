@@ -306,95 +306,13 @@ router.post('/', verifyToken, async (req, res) => {
       };
     });
 
-    // Queue welcome email for new members (async, don't block response)
-    if (transactionResult.return_code === "SUCCESS" && !transactionResult.already_member) {
-      // Queue welcome email directly to database (fire and forget)
-      setImmediate(async () => {
-        try {
-          const emailTrackingId = `welcome_${user_id}_${transactionResult.competition.id}_${Date.now()}`;
-
-          // Get user and competition data for email
-          const emailDataResult = await query(`
-            SELECT
-              u.email as user_email,
-              u.display_name as user_display_name,
-              c.name as competition_name,
-              c.lives_per_player,
-              c.no_team_twice,
-              org.display_name as organiser_name,
-              (
-                SELECT MIN(r.lock_time)
-                FROM round r
-                WHERE r.competition_id = c.id
-                AND r.lock_time > NOW()
-              ) as next_round_lock_time,
-              (
-                SELECT r.round_number
-                FROM round r
-                WHERE r.competition_id = c.id
-                AND r.lock_time > NOW()
-                ORDER BY r.round_number ASC
-                LIMIT 1
-              ) as next_round_number
-            FROM app_user u
-            INNER JOIN competition c ON c.id = $2
-            LEFT JOIN app_user org ON org.id = c.organiser_id
-            WHERE u.id = $1
-              AND u.email IS NOT NULL
-              AND u.email != ''
-              AND u.email NOT LIKE '%@lms-guest.com'
-          `, [user_id, transactionResult.competition.id]);
-
-          if (emailDataResult.rows.length === 0) {
-            return; // No valid email, skip silently
-          }
-
-          const emailData = emailDataResult.rows[0];
-
-          const templateData = {
-            email_tracking_id: emailTrackingId,
-            user_email: emailData.user_email,
-            user_display_name: emailData.user_display_name,
-            competition_name: emailData.competition_name,
-            organiser_name: emailData.organiser_name || 'Competition Organiser',
-            lives_per_player: emailData.lives_per_player,
-            no_team_twice: emailData.no_team_twice,
-            next_round_number: emailData.next_round_number,
-            next_round_lock_time: emailData.next_round_lock_time,
-            competition_id: transactionResult.competition.id,
-            user_id
-          };
-
-          // Queue email (scheduled for next day)
-          await query(`
-            INSERT INTO email_queue (
-              user_id, competition_id, round_id, email_type,
-              scheduled_send_at, template_data, status, attempts
-            ) VALUES (
-              $1, $2, NULL, 'welcome', NOW() + INTERVAL '1 day', $3, 'pending', 0
-            )
-          `, [user_id, transactionResult.competition.id, JSON.stringify(templateData)]);
-
-          // Create tracking record
-          await query(`
-            INSERT INTO email_tracking (
-              email_id, user_id, competition_id, email_type, subject
-            ) VALUES (
-              $1, $2, $3, 'welcome', $4
-            )
-          `, [
-            emailTrackingId,
-            user_id,
-            transactionResult.competition.id,
-            `Welcome to ${emailData.competition_name}!`
-          ]);
-
-        } catch (error) {
-          // Log but don't fail the join operation if welcome email fails
-          console.error('Failed to queue welcome email:', error.message);
-        }
-      });
-    }
+    /*
+    The welcome email is NOT queued here. Joining used to write an email_queue row inline in a
+    setImmediate, a second copy of the eligibility rules that already lived in
+    load-welcome-competition.js - and nothing ever drained either, so nine rows sat pending for
+    up to six days before being deleted. Who gets welcomed is now derived live in
+    services/joinComp.js and sent from the admin Emails screen, like every other comms email.
+    */
 
     // Return transaction result with HTTP 200 status as per API standards
     return res.json(transactionResult);

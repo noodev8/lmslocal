@@ -14,6 +14,7 @@ written there before the template is built and the two have to say the same thin
 */
 const { SUBJECT: JOIN_LMS_SUBJECT } = require('./joinLms');
 const { subjectFor: createdCompSubjectFor } = require('./createdComp');
+const { subjectFor: joinCompSubjectFor } = require('./joinComp');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -1314,161 +1315,191 @@ const sendResultsEmail = async (email, templateData) => {
 };
 
 /**
- * Send welcome email when user joins a competition
- * @param {string} email - User's email address
- * @param {object} templateData - Email template data including competition details
+ * Build the Join Comp welcome without sending it.
+ *
+ * Outline row: Player | Welcome | Join Comp. One per membership, when someone joins a competition.
+ *
+ * Content carried over from the sender this replaces - the rules of the competition they have
+ * actually joined, which vary by competition, plus the next deadline if a round is open. What it
+ * gains is the unsubscribe footer and headers every comms email now needs, and a send that goes
+ * through deliver(): the old one called resend.emails.send directly, so test mode never applied
+ * to it.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/joinComp.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
-const sendWelcomeCompetitionEmail = async (email, templateData) => {
-  try {
-    // Extract template data for easier access
-    const {
-      user_display_name,
-      competition_name,
-      lives_per_player,
-      no_team_twice,
-      next_round_number,
-      next_round_lock_time,
-      competition_id,
-      email_tracking_id
-    } = templateData;
+const buildWelcomeCompetitionEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    organizer_name,
+    lives_per_player,
+    no_team_twice,
+    next_round_number,
+    next_round_lock_time,
+    competition_id,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
 
-    // Format next round lock time if available
-    let nextRoundInfo = '';
-    if (next_round_number && next_round_lock_time) {
-      const lockDate = new Date(next_round_lock_time);
-      const formattedDate = lockDate.toLocaleDateString('en-GB', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      nextRoundInfo = `<p style="color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;">
-        <strong>Round ${next_round_number}</strong> opens now! Make your pick before <strong>${formattedDate}</strong>.
-      </p>`;
-    }
+  const footer = buildEmailFooter(unsubscribe?.url || null);
 
-    // Build competition rules summary
-    const rulesHtml = `
-      <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
-        <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">Competition Rules</h3>
-        <ul style="margin: 0; padding-left: 20px; color: #334155; font-size: 15px; line-height: 1.6;">
-          <li>You start with <strong>${lives_per_player} ${lives_per_player === 1 ? 'life' : 'lives'}</strong></li>
-          <li>${no_team_twice ? 'You <strong>cannot pick the same team twice</strong>' : 'You <strong>can pick any team</strong> multiple times'}</li>
-          <li>Win = Advance | Draw = Lose a life | Loss = Elimination</li>
-          <li>Make your picks before each round locks!</li>
-        </ul>
-      </div>
-    `;
+  // Only shown when a round is actually open. Joining between rounds is normal.
+  let nextRoundHtml = '';
+  let nextRoundText = '';
+  if (next_round_number && next_round_lock_time) {
+    const formattedDate = new Date(next_round_lock_time).toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    nextRoundHtml = `
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              <strong>Round ${next_round_number}</strong> is open. Make your pick before <strong>${formattedDate}</strong>.
+            </p>`;
+    nextRoundText = `\nRound ${next_round_number} is open. Make your pick before ${formattedDate}.\n`;
+  }
 
-    // Build the view competition URL
-    const viewCompetitionUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}?email_id=${email_tracking_id}`;
+  /*
+  0 lives is the knockout format and is the common setting, but "you start with 0 lives" reads as
+  a bug rather than a rule. Say what it means instead.
+  */
+  const livesLine = lives_per_player === 0
+    ? 'One wrong pick and you are out - there are no second chances in this one'
+    : `You start with <strong>${lives_per_player} ${lives_per_player === 1 ? 'life' : 'lives'}</strong>, so a wrong pick does not end it straight away`;
+  const livesLineText = lives_per_player === 0
+    ? 'One wrong pick and you are out - there are no second chances in this one'
+    : `You start with ${lives_per_player} ${lives_per_player === 1 ? 'life' : 'lives'}, so a wrong pick does not end it straight away`;
+  const teamRule = no_team_twice
+    ? 'You cannot pick the same team twice'
+    : 'You can pick any team more than once';
 
-    // HTML email content
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Welcome to ${competition_name}</title>
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+  const viewCompetitionUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}?email_id=${email_tracking_id}`;
 
-            <!-- Header -->
-            <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Welcome to LMS Local! 🎉</h1>
-              <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to ${competition_name}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              You are in <strong>${competition_name}</strong>, organised by ${organizer_name}.
+            </p>
+${nextRoundHtml}
+            <!-- The rules of THIS competition, which vary -->
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">How this one is set up</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #334155; font-size: 15px; line-height: 1.6;">
+                <li>Win and you go through. Draw or lose and you do not.</li>
+                <li>${livesLine}</li>
+                <li>${teamRule}</li>
+                <li>Missing the deadline counts the same as losing</li>
+              </ul>
             </div>
 
-            <!-- Main Content -->
-            <div style="padding: 40px 30px;">
+            <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">How to play</h3>
+            <p style="color: #334155; font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
+              1. <strong>Look at the fixtures</strong> for the round<br>
+              2. <strong>Pick one team</strong> you think will win<br>
+              3. <strong>Wait for the results</strong><br>
+              4. <strong>Be the last one standing</strong>
+            </p>
 
-              <!-- Greeting -->
-              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
-
-              <!-- Welcome Message -->
-              <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
-                You've successfully joined <strong>${competition_name}</strong>! Get ready for an exciting Last Man Standing competition.
-              </p>
-
-              ${nextRoundInfo}
-
-              <!-- Rules Box -->
-              ${rulesHtml}
-
-              <!-- How to Play -->
-              <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">How to Play</h3>
-              <p style="color: #334155; font-size: 15px; margin: 0 0 12px 0; line-height: 1.5;">
-                1. <strong>View fixtures</strong> for the upcoming round<br>
-                2. <strong>Pick a team</strong> you think will win<br>
-                3. <strong>Wait for results</strong> after matches complete<br>
-                4. <strong>Survive to the end</strong> to be crowned champion!
-              </p>
-
-              <!-- Call to Action Button -->
-              <div style="margin: 40px 0;">
-                <a href="${viewCompetitionUrl}"
-                   style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
-                  Make Your First Pick
-                </a>
-              </div>
-
-            </div>
-
-            <!-- Footer -->
-            <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-              <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-                LMS Local - Last Man Standing Competitions
-              </p>
+            <!-- Call to Action Button -->
+            <div style="margin: 40px 0;">
+              <a href="${viewCompetitionUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                ${next_round_number ? 'Make your first pick' : 'View your competition'}
+              </a>
             </div>
 
           </div>
-        </body>
-      </html>
-    `;
 
-    // Plain text fallback
-    const textContent = `
-      Welcome to ${competition_name}!
+          ${footer.html}
 
-      Hi ${user_display_name},
+        </div>
+      </body>
+    </html>
+  `;
 
-      You've successfully joined ${competition_name}! Get ready for an exciting Last Man Standing competition.
+  const textContent = `
+Welcome to ${competition_name}
 
-      ${next_round_number ? `Round ${next_round_number} is open - make your pick now!` : ''}
+Hi ${user_display_name},
 
-      COMPETITION RULES:
-      - You start with ${lives_per_player} ${lives_per_player === 1 ? 'life' : 'lives'}
-      - ${no_team_twice ? 'You cannot pick the same team twice' : 'You can pick any team multiple times'}
-      - Win = Advance | Draw = Lose a life | Loss = Elimination
-      - Make your picks before each round locks!
+You are in ${competition_name}, organised by ${organizer_name}.
+${nextRoundText}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      HOW TO PLAY:
-      1. View fixtures for the upcoming round
-      2. Pick a team you think will win
-      3. Wait for results after matches complete
-      4. Survive to the end to be crowned champion!
+HOW THIS ONE IS SET UP
 
-      Make your first pick: ${viewCompetitionUrl}
+  - Win and you go through. Draw or lose and you do not.
+  - ${livesLineText}
+  - ${teamRule}
+  - Missing the deadline counts the same as losing
 
-      ---
-      LMS Local - Last Man Standing Competitions
-    `;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    // Send email via Resend
-    const result = await resend.emails.send({
-      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
-      to: [email],
-      subject: `Welcome to ${competition_name}!`,
-      html: htmlContent,
-      text: textContent,
-    });
+HOW TO PLAY
 
+  1. Look at the fixtures for the round
+  2. Pick one team you think will win
+  3. Wait for the results
+  4. Be the last one standing
+
+${next_round_number ? 'Make your first pick:' : 'View your competition:'}
+${viewCompetitionUrl}
+
+${footer.text}
+  `;
+
+  return {
+    from: `${organizer_name} via LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: joinCompSubjectFor(competition_name),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'welcome' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send the Join Comp welcome.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/joinComp.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendWelcomeCompetitionEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildWelcomeCompetitionEmail(email, templateData), options);
     return readSendResult(result);
-
   } catch (error) {
     console.error('Failed to send welcome email:', error);
     return {
@@ -2009,6 +2040,7 @@ module.exports = {
   sendJoinLmsEmail,
   buildCreatedCompEmail,
   sendCreatedCompEmail,
+  buildWelcomeCompetitionEmail,
   sendResultsEmail,
   sendWelcomeCompetitionEmail,
   sendOrganiserTipEmail,

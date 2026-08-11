@@ -64,8 +64,7 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 | All | Welcome | Join LMS | `join_lms` | — | — |
 | Organiser | Welcome | Created Comp | `created_comp` | — | — |
 
-`pick_reminder`, `join_lms` and `created_comp` are reachable from the admin screen; the other two
-predate it.
+All except `update_scores_mid_round_tip` are reachable from the admin screen.
 
 ### Half-built
 
@@ -173,6 +172,43 @@ admin picker chooses which one and there is exactly one recipient per press.
   email; "you have created a competition" about one set up in June is a bad email.
 - **Once per competition**, ever — candidacy excludes any competition with a `created_comp` row in
   `email_queue`, whatever its status.
+
+## Join Comp — the rules (rewired 2026-08-11)
+
+`services/joinComp.js`, `email_type` still **`welcome`** — that key is what `EMAIL_GROUPS` maps to
+`player.welcome` and what 244 historical `email_tracking` rows are recorded under.
+
+**What was there before, and why none of it survived.** Two implementations, neither of which ever
+delivered anything:
+
+- `join-competition-by-code.js` queued a row inline at join time, fire-and-forget in a
+  `setImmediate`, scheduled `+1 day`.
+- `load-welcome-competition.js` did the same job again with its own hand-written opt-out check,
+  using the legacy per-email `welcome` preference key instead of the `player.welcome` group.
+  **Nothing had ever called it** — registered in `server.js`, zero callers.
+
+Nothing drained either queue. **Nine rows sat pending**, the oldest six days old, and were deleted
+along with their `email_tracking` rows rather than sent. Both paths are now gone: the inline block
+is removed from the join route (a comment stands in its place saying why), and
+`load-welcome-competition.js` and its two `server.js` lines are deleted.
+
+The rules now:
+
+- **Derived live**, like the rest: active membership, joined since `CUTOFF`
+  (`2026-08-11T17:03:00Z`), real email, no `welcome` row for that member and competition, not
+  opted out of `player.welcome`.
+- **The organiser is excluded** when they join their own competition as a player. They created it;
+  `created_comp` is their email.
+- **No backfill** — otherwise every existing member of every competition becomes a candidate the
+  moment it is wired.
+- **Content carried over** from the old template: the rules of the competition actually joined
+  (lives, the no-repeat-teams setting) plus the next deadline when a round is open. `0 lives` now
+  renders as "one wrong pick and you are out" rather than "you start with 0 lives".
+- **It now goes through `deliver()`.** The old sender called `resend.emails.send` directly, so test
+  mode never applied to it — one of the seven described at the top of this file.
+
+`email_tracking.sent_at` **defaults to insert time**, so it does not mean "was sent". That is why
+the nine deleted rows all carried a timestamp despite never being delivered.
 
 ## `services/emailCatalog.js` — which emails are wired
 
@@ -344,13 +380,13 @@ build the recipient list, the admin screen shows it, `/send-email` drains it on 
 ### What is built (2026-08-11)
 
 `lmslocal-admin` → **Emails** (`/dashboard/emails`). Wired end to end for **pick reminder, Join
-LMS and Created Comp**; every other row renders greyed, and the server refuses it with
+LMS, Created Comp and Join Comp**; every other row renders greyed, and the server refuses it with
 `UNSUPPORTED_EMAIL_TYPE` — the screen is not the only thing stopping a send.
 
 | Piece | Where |
 |---|---|
 | Which emails are wired | `services/emailCatalog.js` — service, template and `scoped` per type |
-| Eligibility, one definition | `services/pickReminder.js`, `joinLms.js`, `createdComp.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
+| Eligibility, one definition | `services/pickReminder.js`, `joinLms.js`, `createdComp.js`, `joinComp.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
 | Opt-outs, one definition | `services/emailPreference.js` — `notOptedOutSql`, used inside the candidate query |
 | Unsubscribe | `routes/unsubscribe.js` (GET, one-click POST, save) |
 | Template, build split from send | `services/emailService.js` — `buildPickReminderEmail`, `buildJoinLmsEmail` |
@@ -397,9 +433,11 @@ A one-line description per row on the outline would help step 4 — Andreas to a
    `resend.emails.send` directly and were never redirected, so the three live player emails had
    always been reaching real inboxes despite the comment reading `ALL EMAILS REDIRECTED`. There
    is now one choke point, `deliver()`, and test mode is a per-send parameter.
-3. **8 `welcome` emails have been pending in `email_queue` since 2026-08-10.** Not a design
-   problem now that sending is deliberately manual, but the admin screen needs to surface stale
-   pending rows rather than let them sit unseen.
+3. ~~8 `welcome` emails pending in `email_queue`.~~ **Resolved 2026-08-11.** It was nine by then,
+   the oldest six days old. Deleted with their tracking rows when Join Comp was rewired — see that
+   section. Nothing queues without sending any more, so the backlog cannot rebuild; the admin
+   screen still has no view of stale pending rows, which only matters if something starts queuing
+   ahead of a send again.
 4. **`EMAIL_VERIFICATION_URL` is a LAN address in local `.env`** (`http://192.168.1.102:3015`),
    and it is what builds every unsubscribe link. Fine for testing; it must be the public server
    URL in production or the links in sent mail will be unreachable.

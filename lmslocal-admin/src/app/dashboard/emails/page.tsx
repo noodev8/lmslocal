@@ -75,7 +75,7 @@ interface OutlineEmail {
 decisions recorded in docs/email/README.md.
 */
 const OUTLINE: OutlineEmail[] = [
-  { key: 'welcome', consumer: 'Player', section: 'Welcome', name: 'Join Comp', wired: false, scoped: true, note: 'Built, not wired here' },
+  { key: 'welcome', consumer: 'Player', section: 'Welcome', name: 'Join Comp', wired: true, scoped: true, note: 'New joins only' },
   { key: 'results', consumer: 'Player', section: 'Game', name: 'Round Over', wired: false, scoped: true, push: true, note: 'Built, not wired here' },
   { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', wired: true, scoped: true, push: true },
   { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', wired: false, scoped: true },
