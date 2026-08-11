@@ -9,6 +9,8 @@ import {
 import { roundApi, fixtureApi, playerActionApi, userApi } from '@/lib/api';
 import { withCache, apiCache } from '@/lib/cache';
 import { useAppData } from '@/contexts/AppDataContext';
+import { useCompetitionGate } from '@/hooks/useCompetitionGate';
+import CompetitionUnavailable from '@/components/CompetitionUnavailable';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
@@ -28,11 +30,10 @@ export default function PickPage() {
   const competitionId = params.id as string;
 
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading, refreshData } = useAppData();
+  const { loading: contextLoading, refreshData } = useAppData();
   const { showToast, toasts, removeToast } = useToast();
 
-  // Find the specific competition
-  const competition = competitions?.find(c => c.id.toString() === competitionId);
+  const { competition, unavailable } = useCompetitionGate(competitionId);
 
   interface Round {
     id: number;
@@ -118,12 +119,8 @@ export default function PickPage() {
       return;
     }
 
-    // Check authentication
-    const token = localStorage.getItem('jwt_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
+    // No auth check here: useCompetitionGate owns it, and it carries the destination through the
+    // sign-in. This used to push a bare /login, winning the race and losing where they were going.
 
     const initializeData = async () => {
       if (!competition || contextLoading) return;
@@ -281,6 +278,8 @@ export default function PickPage() {
   const roundNumber = currentRound?.round_number;
   const lockTime = currentRound?.lock_time;
   const lockDate = lockTime ? new Date(lockTime) : null;
+
+  if (unavailable) return <CompetitionUnavailable />;
 
   if (loading || contextLoading || !pickDataLoaded) {
     return (

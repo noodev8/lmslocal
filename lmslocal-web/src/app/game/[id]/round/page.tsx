@@ -13,7 +13,8 @@ import Link from 'next/link';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { organizerApi, teamApi, competitionApi, OrganizerFixtureWithResult } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
-import { isAuthenticated } from '@/lib/auth';
+import { useCompetitionGate } from '@/hooks/useCompetitionGate';
+import CompetitionUnavailable from '@/components/CompetitionUnavailable';
 import { cacheUtils } from '@/lib/cache';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
 import {
@@ -34,24 +35,8 @@ export default function RoundPage() {
   const params = useParams();
   const competitionId = params.id as string;
 
-  const { competitions, loading: contextLoading, refreshCompetitions } = useAppData();
-  const competition = useMemo(
-    () => competitions?.find((c) => c.id.toString() === competitionId),
-    [competitions, competitionId]
-  );
-
-  /*
-  Whether this screen has resolved to "nothing to show", as opposed to not having loaded yet. It
-  used to make no distinction: `if (!competition) return <Loading/>` ran forever whenever the id
-  wasn't in the context list, and that list is empty in three ordinary cases - signed out, signed
-  in as someone else, and a competition since deleted.
-
-  The first is the one that reached real organisers. Every competition email links straight here,
-  and opening one on a device without a session left them on a spinner with no error, no timeout
-  and nothing to press: with no token in localStorage AppDataContext never calls the API at all,
-  so no UNAUTHORIZED ever comes back and none of the expiry handling fires.
-  */
-  const [resolvedEmpty, setResolvedEmpty] = useState(false);
+  const { refreshCompetitions } = useAppData();
+  const { competition, unavailable } = useCompetitionGate(competitionId);
 
   const [hasRound, setHasRound] = useState(false);
   const [roundNumber, setRoundNumber] = useState<number | null>(null);
@@ -141,28 +126,6 @@ export default function RoundPage() {
   useEffect(() => {
     if (competition) loadRound();
   }, [competition, loadRound]);
-
-  /*
-  Runs in an effect rather than during render because it reads localStorage and can navigate,
-  neither of which a render may do. `competitions === null` means the context never fetched -
-  which for a signed-out visitor is the normal resting state, not a failure.
-  */
-  useEffect(() => {
-    if (competition || contextLoading) {
-      setResolvedEmpty(false);
-      return;
-    }
-
-    if (competitions === null && !isAuthenticated()) {
-      // Their session is gone but the link still says where they were going, so come back to it
-      // after signing in rather than dropping them on the dashboard.
-      const returnTo = `${window.location.pathname}${window.location.search}`;
-      router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
-      return;
-    }
-
-    setResolvedEmpty(true);
-  }, [competition, competitions, contextLoading, router]);
 
   // Only the automated first-round phase has anywhere to show this, and only once they are ready
   // is there a date to show.
@@ -318,33 +281,12 @@ export default function RoundPage() {
     }
   };
 
-  if (!competition) {
-    if (!resolvedEmpty) {
-      return (
-        <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
-          <p className={EYEBROW}>Loading&hellip;</p>
-        </div>
-      );
-    }
+  if (unavailable) return <CompetitionUnavailable />;
 
-    /* Deliberately vague about which of the three cases this is: from here they all look the
-       same, and guessing out loud ("someone deleted it") would be wrong more often than right.
-       What matters is that there is somewhere to press. */
+  if (!competition) {
     return (
-      <div className="min-h-screen bg-stock font-body text-ink">
-        <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-          <p className={EYEBROW}>Competition</p>
-          <h1 className={`${HEADING} mt-1 text-3xl`}>We can&rsquo;t show this one</h1>
-          <div className={`${PANEL} mt-5 p-6`}>
-            <p className="text-[15px] text-ink-fade">
-              It isn&rsquo;t on this account. It may belong to a different sign-in, or it may have
-              been removed.
-            </p>
-            <Link href="/dashboard" className={`${BTN_PRIMARY} mt-4 inline-flex px-6 py-3 text-base`}>
-              Go to your competitions
-            </Link>
-          </div>
-        </main>
+      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
+        <p className={EYEBROW}>Loading&hellip;</p>
       </div>
     );
   }

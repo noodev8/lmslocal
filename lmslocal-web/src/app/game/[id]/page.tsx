@@ -18,6 +18,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayerApi, promoteApi, teamApi, playerActionApi, fixtureApi, userApi } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
+import { useCompetitionGate } from '@/hooks/useCompetitionGate';
+import CompetitionUnavailable from '@/components/CompetitionUnavailable';
 import { getCurrentUser } from '@/lib/auth';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -73,12 +75,8 @@ export default function UnifiedGameDashboard() {
   const competitionId = params.id as string;
 
   // Use AppDataProvider context for competitions data
-  const { competitions, loading: contextLoading, refreshCompetitions } = useAppData();
-
-  // Memoize the specific competition to prevent unnecessary re-renders
-  const competition = useMemo(() => {
-    return competitions?.find(c => c.id.toString() === competitionId);
-  }, [competitions, competitionId]);
+  const { loading: contextLoading, refreshCompetitions } = useAppData();
+  const { competition, unavailable } = useCompetitionGate(competitionId);
 
   const [currentRoundInfo, setCurrentRoundInfo] = useState<{
     id: number;
@@ -171,8 +169,9 @@ export default function UnifiedGameDashboard() {
   const [unpickedPlayers, setUnpickedPlayers] = useState<Array<{ user_id: number; display_name: string }>>([]);
   const [loadingUnpicked, setLoadingUnpicked] = useState(false);
 
-  // Simple loading based on context availability
-  const loading = contextLoading || !competition;
+  // `unavailable` has to break the spin: without it this is true forever whenever the competition
+  // is not in the list, which is what made the "Competition not found" branch below unreachable.
+  const loading = contextLoading || (!competition && !unavailable);
 
   // Prevent duplicate API calls using refs
   const roundLoadedRef = useRef(false);
@@ -497,12 +496,8 @@ export default function UnifiedGameDashboard() {
   };
 
   useEffect(() => {
-    // Simple auth check
-    const token = localStorage.getItem('jwt_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
+    // No auth check here: useCompetitionGate owns it, and it carries the destination through the
+    // sign-in. This used to push a bare /login, winning the race and losing where they were going.
 
     // Load data only if we have the competition
     if (competition) {
@@ -797,18 +792,7 @@ export default function UnifiedGameDashboard() {
     );
   }
 
-  if (!competition) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-stock font-body text-ink">
-        <div className="text-center">
-          <h1 className={`${HEADING} text-3xl`}>Competition not found</h1>
-          <Link href="/dashboard" className={`${LABEL} mt-4 inline-block text-ink-fade underline decoration-dotted underline-offset-4 transition-colors hover:text-ink`}>
-            Return to dashboard
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  if (!competition) return <CompetitionUnavailable />;
 
   const contactLine = [
     competition.address_line_1,
