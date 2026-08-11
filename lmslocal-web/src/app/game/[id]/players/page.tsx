@@ -124,8 +124,11 @@ export default function CompetitionPlayersPage() {
     };
 
     // Handle auth expiration
-    const handleAuthExpired = () => {
-      if (!controller.signal.aborted) {
+    const handleAuthExpired = (event: Event) => {
+      // Only a real expiry belongs on /login. A deliberate sign-out raises the same event
+      // and routes itself home, and this handler used to drag it to /login instead.
+      const expired = (event as CustomEvent<{ expired?: boolean }>).detail?.expired;
+      if (expired && !controller.signal.aborted) {
         router.push('/login');
       }
     };

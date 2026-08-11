@@ -46,26 +46,44 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+/**
+ * Tear down the session locally and tell the app the token is gone.
+ *
+ * The `expired` detail separates this from a deliberate sign-out, which raises the
+ * same event: an expiry has to land the user on /login, a sign-out on the home page.
+ */
+const handleAuthExpiry = () => {
+  // Only access localStorage on client-side to avoid hydration issues
+  if (typeof window === 'undefined') return;
+
+  localStorage.removeItem('jwt_token');
+  localStorage.removeItem('user');
+
+  // Clear all cache when auth expires - simple and safe
+  apiCache.clear();
+
+  window.dispatchEvent(new CustomEvent('auth-expired', { detail: { expired: true } }));
+};
+
 // Response interceptor to handle token expiration AND detailed error logging
 api.interceptors.response.use(
   (response) => {
+    // The server answers HTTP 200 to everything and puts the outcome in return_code
+    // (see CLAUDE.md), so an expired token arrives here, not in the error handler below —
+    // which left the 401 branch unreachable for every route behind verifyToken. Without
+    // this, a session that expired while the page sat open produced only that screen's own
+    // failure text, and every retry failed the same way with no way back to a sign-in.
+    if (response.data?.return_code === 'UNAUTHORIZED') {
+      handleAuthExpiry();
+    }
     return response;
   },
   (error) => {
     // Handle authentication errors
     if (error.response?.status === 401) {
-      // Only access localStorage on client-side to avoid hydration issues
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('user');
-        
-        // Clear all cache when auth expires - simple and safe
-        apiCache.clear();
-        
-        window.dispatchEvent(new CustomEvent('auth-expired'));
-      }
+      handleAuthExpiry();
     }
-    
+
     return Promise.reject(error);
   }
 );

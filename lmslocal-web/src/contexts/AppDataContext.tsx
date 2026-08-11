@@ -336,12 +336,20 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
 
   // Listen for auth state changes
   useEffect(() => {
-    const handleAuthExpired = () => {
+    const handleAuthExpired = (event: Event) => {
       setUser(null);
       setCompetitions(null);
       setLatestRoundStats(null);
       setBlockedJoins(null);
       setLoading(false);
+
+      // An expired token needs a sign-in; a deliberate sign-out raises the same event but
+      // routes itself home, so only the `expired` flag redirects. /join/[code] handles its
+      // own expiry in place, so leave it — and every other public page — be.
+      const expired = (event as CustomEvent<{ expired?: boolean }>).detail?.expired;
+      if (expired && typeof window !== 'undefined' && !isPublicPath(window.location.pathname)) {
+        window.location.href = '/login';
+      }
     };
 
     const handleAuthSuccess = async () => {
