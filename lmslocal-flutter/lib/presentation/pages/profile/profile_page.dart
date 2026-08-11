@@ -836,15 +836,17 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      // Buttons — Wrap rather than Row so the three of them fall
+                      // onto a second line instead of overflowing a narrow dialog
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 8,
+                        runSpacing: 4,
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
                             child: const Text('Cancel'),
                           ),
-                          const SizedBox(width: 8),
                           TextButton(
                             onPressed: () async {
                               await _handleResetToGlobal(user);
@@ -855,7 +857,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             },
                             child: const Text('Reset'),
                           ),
-                          const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () async {
                               await _handleSaveCompetitionName(user);
