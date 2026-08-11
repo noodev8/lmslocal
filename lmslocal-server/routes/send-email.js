@@ -43,7 +43,7 @@ Machine-invoked. Requires the X-Service-Token header, applied at mount time in s
 See middleware/service-auth.js.
 */
 const { logApiCall } = require('../utils/apiLogger');
-const { sendPickReminderEmail, sendResultsEmail, sendWelcomeCompetitionEmail, sendOrganiserTipEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
+const { sendPickReminderEmail, sendRoundOverEmail, sendWelcomeCompetitionEmail, sendOrganiserTipEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
 const router = express.Router();
 
 /*
@@ -143,7 +143,11 @@ router.post('/', async (req, res) => {
         if (emailRecord.email_type === 'pick_reminder') {
           emailResult = await sendPickReminderEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'results') {
-          emailResult = await sendResultsEmail(userEmail, templateData);
+          // Round Over, now built to the catalog shape in services/roundOver.js. The old
+          // sendResultsEmail template took a different template_data and is no longer reachable
+          // from here; there were no pending 'results' rows when this changed, so nothing queued
+          // under the old shape can arrive at the new sender.
+          emailResult = await sendRoundOverEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'welcome') {
           emailResult = await sendWelcomeCompetitionEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'update_scores_mid_round_tip') {

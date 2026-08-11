@@ -74,6 +74,26 @@ const EMAIL_GROUPS = {
   join_lms: GROUPS.INFO,
   promote_competition: GROUPS.INFO,
   update_scores_mid_round_tip: GROUPS.INFO,
+
+  /*
+  Broadcasts, from the outline's BROADCAST block. Mapped before either is built, deliberately: an
+  email type absent from here has no group, and no group means deliver() treats it as
+  transactional and never suppresses it. That is the right default for password resets and the
+  wrong one for a broadcast, so the mapping must not wait for the feature.
+  */
+  broadcast_admin: GROUPS.INFO,
+  broadcast_organiser: GROUPS.INFO,
+
+  /*
+  competition_announcement is the live platform-wide blast route (routes/send-email.js). It was
+  missing from this map entirely, which meant deliver() read it as transactional and would have
+  sent it to people who had unsubscribed - the single worst email on the platform to get that
+  wrong, since it goes to everyone who is not already in the named competition.
+
+  official_game_invite and news came off the outline when BROADCAST replaced them. Their mappings
+  stay: an entry nobody uses costs nothing, and a missing one is a hole.
+  */
+  competition_announcement: GROUPS.INFO,
   official_game_invite: GROUPS.INFO,
   news: GROUPS.INFO
 };

@@ -19,6 +19,7 @@ const { subjectFor: gameStartSubjectFor } = require('./gameStartReminder');
 const { subjectFor: fixtureReminderSubjectFor } = require('./fixtureReminder');
 const { subjectFor: resultReminderSubjectFor } = require('./resultReminder');
 const { subjectFor: gameCompleteSubjectFor } = require('./gameComplete');
+const { subjectFor: roundOverSubjectFor } = require('./roundOver');
 const { isOptedOut } = require('./emailPreference');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -1842,6 +1843,242 @@ const sendGameCompleteEmail = async (email, templateData, options = {}) => {
 };
 
 /**
+ * Build the Round Over email without sending it.
+ *
+ * Outline row: Player | Game | Round Over. The weekly email, sent only once the next round's
+ * fixtures exist - see services/roundOver.js for why that is the whole design.
+ *
+ * Three blocks, in the order a player cares about them: what happened to ME, what happened to
+ * everyone else, and what I do next. The last block is either the next round or the ending; a
+ * competition cannot be both.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/roundOver.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildRoundOverEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    round_number,
+    chosen_team,
+    outcome,
+    missed_pick,
+    survived,
+    lives_remaining,
+    survivors_count,
+    out_this_round_count,
+    survivors_sample,
+    out_this_round_sample,
+    competition_complete,
+    winner_names,
+    is_draw,
+    next_round_number,
+    next_deadline,
+    next_fixtures,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  /*
+  Block 1 - the recipient's own round, which is the only part of this email they are guaranteed to
+  read. Four outcomes, and they are not the same sentence with a word swapped: surviving on a lost
+  life is good news and bad news at once, and a missed pick needs naming as a missed pick rather
+  than dressed up as a defeat.
+  */
+  let yourResult;
+  if (missed_pick && survived) {
+    yourResult = `You did not get a pick in for Round ${round_number}. That cost you a life — you have ${lives_remaining} left, and you are still in.`;
+  } else if (missed_pick) {
+    yourResult = `You did not get a pick in for Round ${round_number}, and that is you out.`;
+  } else if (String(outcome).toUpperCase() === 'WIN' && competition_complete) {
+    // No next round to be through to. What it actually won them is the ending block's business,
+    // since only that knows whether this was an outright win or a share.
+    yourResult = `You picked ${chosen_team} and they won — and that is the last round.`;
+  } else if (String(outcome).toUpperCase() === 'WIN') {
+    yourResult = `You picked ${chosen_team} and they won. You are through to the next round.`;
+  } else if (survived) {
+    yourResult = `You picked ${chosen_team} and they did not win. That cost you a life — you have ${lives_remaining} left, and you are still in.`;
+  } else {
+    yourResult = `You picked ${chosen_team} and they did not win. That is you out of ${competition_name}.`;
+  }
+
+  // Block 2 - the round at large. Counts exact, names sampled; see SAMPLE_SIZE in roundOver.js.
+  const roundLines = [];
+  roundLines.push(`${survivors_count} ${survivors_count === 1 ? 'player is' : 'players are'} still in.`);
+  if (out_this_round_count > 0) {
+    roundLines.push(`${out_this_round_count} went out this round${out_this_round_sample ? `, including ${out_this_round_sample}` : ''}.`);
+  }
+  if (survivors_sample && !competition_complete) {
+    roundLines.push(`Still standing: ${survivors_sample}${survivors_count > 5 ? ' and others' : ''}.`);
+  }
+
+  /*
+  Block 3 - what happens next, which is either the next round or the ending. The deadline is the
+  next round's lock time and is the single most actionable line in the email, so it is stated in
+  full rather than as "soon".
+  */
+  const deadlineText = next_deadline
+    ? new Date(next_deadline).toLocaleDateString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+      })
+    : null;
+
+  const fixtureLines = (next_fixtures || []).map((f) => `${f.home} v ${f.away}`);
+
+  let nextHeading;
+  let nextBody;
+  if (competition_complete) {
+    if (is_draw) {
+      nextHeading = 'That is the end of it';
+      nextBody = winner_names
+        ? `${competition_name} finishes with ${survivors_count} players still standing, so the win is shared between ${winner_names}.`
+        : `Everybody still standing went out in the same round, so ${competition_name} finishes without a winner.`;
+    } else {
+      nextHeading = `${winner_names} wins`;
+      nextBody = `That is ${competition_name} settled after ${round_number} ${round_number === 1 ? 'round' : 'rounds'}.`;
+    }
+  } else {
+    nextHeading = `Round ${next_round_number}`;
+    nextBody = deadlineText
+      ? `Picks close ${deadlineText}.`
+      : 'Fixtures are up now.';
+  }
+
+  const actionUrl = competition_complete
+    ? `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/standings?email_id=${email_tracking_id}`
+    : `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/pick?email_id=${email_tracking_id}`;
+
+  const buttonLabel = competition_complete
+    ? 'See the final table'
+    : survived
+    ? `Make your Round ${next_round_number} pick`
+    : 'See how it finishes';
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${competition_name} — Round ${round_number} results</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name} — Round ${round_number}</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <!-- Block 1: your own result -->
+            <div style="background: ${survived ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${survived ? '#16a34a' : '#dc2626'}; padding: 20px; margin: 0 0 24px 0;">
+              <p style="margin: 0; color: #0f172a; font-size: 16px;">${yourResult}</p>
+            </div>
+
+            <!-- Block 2: the round -->
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              ${roundLines.map((line) => `<p style="margin: 0 0 8px 0; color: #475569; font-size: 15px;">${line}</p>`).join('')}
+            </div>
+
+            <!-- Block 3: what next -->
+            <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 17px; font-weight: 600;">${nextHeading}</h3>
+            <p style="color: #334155; font-size: 15px; margin: 0 0 ${fixtureLines.length ? '12' : '24'}px 0;">${nextBody}</p>
+
+            ${fixtureLines.length ? `
+            <ul style="margin: 0 0 24px 0; padding-left: 20px; color: #334155; font-size: 15px;">
+              ${fixtureLines.map((line) => `<li style="margin: 0 0 4px 0;">${line}</li>`).join('')}
+            </ul>
+            ` : ''}
+
+            <!-- Call to Action Button -->
+            <div style="margin: 0 0 24px 0;">
+              <a href="${actionUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                ${buttonLabel}
+              </a>
+            </div>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+${competition_name} - Round ${round_number} results
+
+Hi ${user_display_name},
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${yourResult}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${roundLines.join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${nextHeading.toUpperCase()}
+
+${nextBody}
+${fixtureLines.length ? '\n' + fixtureLines.map((l) => `  ${l}`).join('\n') + '\n' : ''}
+${buttonLabel}:
+${actionUrl}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: roundOverSubjectFor(competition_name, round_number),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'results' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send the Round Over email.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/roundOver.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendRoundOverEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildRoundOverEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send round over email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
  * Send results email after round completion
  * @param {string} email - User's email address
  * @param {object} templateData - Email template data including round results
@@ -2764,6 +3001,8 @@ module.exports = {
   sendResultReminderEmail,
   buildGameCompleteEmail,
   sendGameCompleteEmail,
+  buildRoundOverEmail,
+  sendRoundOverEmail,
   sendResultsEmail,
   sendOrganiserTipEmail,
   sendOnboardingNotification,

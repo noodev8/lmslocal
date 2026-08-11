@@ -51,7 +51,9 @@ import {
 // The outline
 // ======================================================================================
 
-type Consumer = 'Player' | 'Organiser' | 'All';
+// 'Game Members' arrived with the BROADCAST block: an organiser broadcasting to their own
+// competition, which is neither "every player on the platform" nor a role.
+type Consumer = 'Player' | 'Organiser' | 'All' | 'Game Members';
 // The outline has exactly two sections since 2026-08-11, and they are also the two unsubscribe
 // groups. Welcome and Tips were folded into Info.
 type Section = 'Game' | 'Info';
@@ -84,20 +86,21 @@ operator reads the list ("which of these does a player get?"), and it is a colum
 this table mirrors; it just no longer decides anything.
 */
 const OUTLINE: OutlineEmail[] = [
-  { key: 'results', consumer: 'Player', section: 'Game', name: 'Round Over', wired: false, scoped: true, push: true, note: 'Built, not wired here' },
+  { key: 'results', consumer: 'Player', section: 'Game', name: 'Round Over', wired: true, scoped: true, push: true, note: 'Round settled + next fixtures in' },
   { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', wired: true, scoped: true, push: true },
   { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', wired: true, scoped: true, note: 'Everyone who took part, once' },
-  { key: 'game_started', consumer: 'Player', section: 'Game', name: 'Game started', wired: false, scoped: true, push: true, note: 'Push only, no email' },
   { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', wired: true, scoped: false, note: 'Stuck 14+ days, round waiting' },
   { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', wired: true, scoped: false, note: 'Round played 36h+, unsettled' },
   { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', wired: true, scoped: false, note: 'Last round settled 3+ days' },
-  { key: 'official_game_invite', consumer: 'All', section: 'Info', name: 'Official game invite', wired: false, scoped: false, note: 'Was competition_announcement' },
-  { key: 'promote_competition', consumer: 'Organiser', section: 'Info', name: 'Promote competition', wired: false, scoped: true, note: 'Deferred' },
-  { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Info', name: 'Result set mid round', wired: false, scoped: true, note: 'Built, not wired here' },
-  { key: 'news', consumer: 'All', section: 'Info', name: 'News', wired: false, scoped: false },
+  { key: 'promote_competition', consumer: 'Organiser', section: 'Info', name: 'Hint - Promote competition', wired: false, scoped: true, note: 'Deferred' },
+  { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Info', name: 'Hint - Result set mid round', wired: false, scoped: true, note: 'Built, not wired here' },
   { key: 'welcome', consumer: 'Player', section: 'Info', name: 'Welcome Join Comp', wired: true, scoped: true, note: 'New joins only' },
   { key: 'created_comp', consumer: 'Organiser', section: 'Info', name: 'Welcome Created Comp', wired: true, scoped: true, note: 'New competitions only' },
   { key: 'join_lms', consumer: 'All', section: 'Info', name: 'Welcome Join LMS', wired: true, scoped: false, note: 'New signups only' },
+  // BROADCAST block on the outline. Neither is built; both are already mapped to the info group
+  // in emailPreference.js so that neither can be built without an opt-out.
+  { key: 'broadcast_admin', consumer: 'All', section: 'Info', name: 'Broadcast from Admin', wired: false, scoped: false, note: 'Broadcast' },
+  { key: 'broadcast_organiser', consumer: 'Game Members', section: 'Info', name: 'Broadcast from Organiser', wired: false, scoped: true, note: 'Broadcast' },
 ];
 
 // ======================================================================================

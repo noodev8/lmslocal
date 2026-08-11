@@ -347,6 +347,46 @@ round they went out in: that needs `player_progress`, which carries more rows th
 reasons documented in `db/README.md`, and a wrong round number in a results email is worse than
 no round number.
 
+## Round Over — the rules (built 2026-08-11)
+
+`services/roundOver.js`, `email_type` still `results`. The one email every player gets every week,
+and the reason the others exist.
+
+**It is not ready when the round ends. It is ready when the round ends AND the next round's
+fixtures are in** — or when the competition has finished. Andreas's rule, and the right one: a
+"round over" email with nothing to do next is a dead end, and the player would have to come back
+later anyway. Waiting means one email that both settles the last round and opens the next.
+
+Ready when the highest **fully processed** round (fixtures exist, all `processed`) is followed by
+either:
+
+- a round `N+1` that **has fixtures** — the competition continues, or
+- competition status **COMPLETE** — somebody won, or nobody did
+
+**Recipients are read from `player_progress`**, one row per player per round, which is exactly
+"who was in this round". Players eliminated in an earlier round fall out naturally and are not
+told about a round they had no part in. `NO-PICK` is a real row there (`chosen_team = 'NO-PICK'`,
+outcome `LOSE`), so somebody who forgot to pick is still told what it cost them.
+
+**Three things in every send**, per Andreas's spec:
+
+1. **The recipient's own result first** — their team, whether it won, and whether they are still
+   in. Taken from their `player_progress` row for the outcome and `competition_user.status` for
+   whether they survived it, because those are different questions: a player with a life left
+   loses and stays in.
+2. **A sample of who is in and who is out**, not the full list — a 100-player competition would
+   otherwise send a 100-line email. Counts are exact, names are capped at five a side.
+3. **What happens next**: the next round's fixtures and the deadline, or — if the competition is
+   over — who won, or that it ended with nobody left.
+
+Once per player per round (`email_queue.round_id` carries the round), group `game`.
+
+**Known overlap, flagged not fixed.** For the final round this and **Game complete** both announce
+the winner, so a player who reached the end gets two emails saying the same thing. Both were asked
+for. The clean resolution is for Game complete to skip anyone who was in the final round — it
+exists to reach the long-since-eliminated — but that is a change to a built email and wants
+deciding rather than assuming.
+
 ## `services/emailCatalog.js` — which emails are wired
 
 The three admin routes each used to carry `if (email_type !== 'pick_reminder')` and import that

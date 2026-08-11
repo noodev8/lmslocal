@@ -1,0 +1,319 @@
+/*
+=======================================================================================================================================
+Round Over Service
+=======================================================================================================================================
+Purpose: The one definition of who is told a round has been settled, and what they are told.
+         Outline row: Player | Game | Round Over. email_type stays 'results'.
+
+The email every player gets every week, and the one the rest of the system exists to support.
+
+READINESS IS THE WHOLE DESIGN. It is not ready when a round ends; it is ready when a round ends AND
+the next round's fixtures are in. A "round over" email with nothing to do next is a dead end - the
+player reads who went out, has nowhere to go, and has to come back later anyway. Waiting turns two
+half-emails into one that settles the last round and opens the next in the same breath.
+
+Ready when the highest FULLY PROCESSED round is followed by either:
+  - a round N+1 that has fixtures - the competition continues, or
+  - competition status COMPLETE - somebody won, or nobody did
+
+Anything else and the competition is mid-flight: results outstanding, or settled with no next
+round staged yet. Both are somebody else's email (resultReminder, fixtureReminder).
+
+RECIPIENTS COME FROM player_progress, one row per player per round, which is exactly "who was in
+this round". A player eliminated in round 3 has no row for round 5 and is not told about a round
+they had no part in - that falls out of the data rather than needing a rule. NO-PICK is a real row
+there (chosen_team = 'NO-PICK', outcome LOSE), so somebody who forgot to pick is still told what
+it cost.
+
+Two different questions, deliberately answered from two places:
+  - "did your team win?"    -> player_progress.outcome for this round
+  - "are you still in?"     -> competition_user.status
+A player with a life left loses and stays in, so one cannot be derived from the other.
+
+Counts are exact and names are sampled. A 100-player competition cannot send a 100-line email, and
+the names are there to make it feel like a competition rather than a report - five a side is
+plenty for that.
+=======================================================================================================================================
+*/
+
+const { query } = require('../database');
+const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+
+const EMAIL_TYPE = 'results';
+
+// How many names are listed each way. Counts are always exact; this caps only the sample.
+const SAMPLE_SIZE = 5;
+
+/**
+ * The subject line. A function because it carries the competition name and round, and the tracking
+ * row is written before the template is built - the two have to say the same thing.
+ */
+const subjectFor = (competitionName, roundNumber) => `${competitionName} — Round ${roundNumber} results`;
+
+/**
+ * Find every player who should be told a round is settled.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.competition_id] - restrict to one competition. Omit to scan them all.
+ * @returns {Promise<Array>} candidate rows, each carrying everything buildTemplateData needs
+ */
+async function findCandidates(opts = {}) {
+  const { competition_id = null } = opts;
+
+  const result = await query(`
+    SELECT
+      pp.player_id           AS user_id,
+      u.email                AS user_email,
+      u.display_name         AS user_display_name,
+      c.id                   AS competition_id,
+      c.name                 AS competition_name,
+      UPPER(c.status)         AS competition_status,
+
+      last_round.id          AS round_id,
+      last_round.round_number,
+
+      -- This player's own round: what they picked and how it went.
+      pp.chosen_team,
+      pp.outcome,
+      cu.status              AS player_status,
+      cu.lives_remaining,
+
+      -- The shape of the competition after this round. Constant per competition, so these are
+      -- subqueries rather than a per-recipient lookup - see the N+1 rule in CLAUDE.md.
+      (
+        SELECT COUNT(*) FROM competition_user s
+        WHERE s.competition_id = c.id AND s.status = 'active'
+      ) AS survivors_count,
+      (
+        SELECT COUNT(*) FROM player_progress pp2
+        INNER JOIN competition_user cu2
+          ON cu2.competition_id = c.id AND cu2.user_id = pp2.player_id
+        WHERE pp2.round_id = last_round.id
+          AND pp2.outcome = 'LOSE'
+          AND cu2.status = 'out'
+      ) AS out_this_round_count,
+      (
+        SELECT string_agg(x.display_name, ', ')
+        FROM (
+          SELECT su.display_name
+          FROM competition_user s
+          INNER JOIN app_user su ON su.id = s.user_id
+          WHERE s.competition_id = c.id AND s.status = 'active'
+          ORDER BY su.display_name
+          LIMIT ${SAMPLE_SIZE}
+        ) x
+      ) AS survivors_sample,
+      (
+        SELECT string_agg(x.display_name, ', ')
+        FROM (
+          SELECT ou.display_name
+          FROM player_progress pp3
+          INNER JOIN competition_user cu3
+            ON cu3.competition_id = c.id AND cu3.user_id = pp3.player_id
+          INNER JOIN app_user ou ON ou.id = pp3.player_id
+          WHERE pp3.round_id = last_round.id
+            AND pp3.outcome = 'LOSE'
+            AND cu3.status = 'out'
+          ORDER BY ou.display_name
+          LIMIT ${SAMPLE_SIZE}
+        ) x
+      ) AS out_this_round_sample,
+
+      -- What happens next. Null throughout when the competition has finished.
+      next_round.round_number AS next_round_number,
+      next_round.lock_time    AS next_deadline,
+      (
+        SELECT json_agg(json_build_object(
+                 'home', f.home_team,
+                 'away', f.away_team,
+                 'kickoff', f.kickoff_time
+               ) ORDER BY f.kickoff_time, f.id)
+        FROM fixture f WHERE f.round_id = next_round.id
+      ) AS next_fixtures
+
+    FROM competition c
+
+    /*
+    The highest round that is genuinely settled: it has fixtures and every one of them has been
+    processed. LATERAL so the fixture aggregate is computed for that round alone.
+    */
+    INNER JOIN LATERAL (
+      SELECT r.id, r.round_number
+      FROM round r
+      WHERE r.competition_id = c.id
+        AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
+        AND NOT EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id AND f.processed IS NULL)
+      ORDER BY r.round_number DESC
+      LIMIT 1
+    ) last_round ON true
+
+    /*
+    The next round, and only if it carries fixtures. LEFT JOIN because a finished competition has
+    no next round and still qualifies - the readiness test below is what enforces the rule.
+    */
+    LEFT JOIN LATERAL (
+      SELECT r.id, r.round_number, r.lock_time
+      FROM round r
+      WHERE r.competition_id = c.id
+        AND r.round_number = last_round.round_number + 1
+        AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
+      LIMIT 1
+    ) next_round ON true
+
+    -- Who was in that round. This is the recipient list.
+    INNER JOIN player_progress pp
+      ON pp.round_id = last_round.id
+
+    INNER JOIN competition_user cu
+      ON cu.competition_id = c.id
+      AND cu.user_id = pp.player_id
+
+    INNER JOIN app_user u
+      ON u.id = pp.player_id
+      AND u.email IS NOT NULL
+      AND u.email != ''
+      AND u.email NOT LIKE '%@lms-guest.com'
+
+    WHERE
+      -- The readiness rule: next round staged, or the competition is over.
+      (next_round.id IS NOT NULL OR UPPER(c.status) = 'COMPLETE')
+
+      -- Once per player per round.
+      AND NOT EXISTS (
+        SELECT 1 FROM email_queue eq
+        WHERE eq.user_id = u.id
+          AND eq.competition_id = c.id
+          AND eq.round_id = last_round.id
+          AND eq.email_type = '${EMAIL_TYPE}'
+      )
+
+      -- Opt-outs, defined once in services/emailPreference.js
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$2' })}
+
+      -- Optional competition filter. Passing NULL leaves every competition in.
+      AND ($1::int IS NULL OR c.id = $1)
+
+    ORDER BY c.id, u.id
+  `, [competition_id, groupFor(EMAIL_TYPE)]);
+
+  return result.rows;
+}
+
+/**
+ * Build the template data one email needs.
+ *
+ * @param {object} candidate - a row from findCandidates
+ * @returns {Promise<object>} template data, stored on email_queue.template_data
+ */
+async function buildTemplateData(candidate) {
+  const {
+    user_id,
+    user_email,
+    user_display_name,
+    competition_id,
+    competition_name,
+    competition_status,
+    round_id,
+    round_number,
+    chosen_team,
+    outcome,
+    player_status,
+    lives_remaining,
+    survivors_count,
+    out_this_round_count,
+    survivors_sample,
+    out_this_round_sample,
+    next_round_number,
+    next_deadline,
+    next_fixtures
+  } = candidate;
+
+  const token = await getOrCreateToken(user_id);
+  const unsubscribe = token ? unsubscribeLinks(token, groupFor(EMAIL_TYPE)) : null;
+
+  const survivors = Number(survivors_count) || 0;
+  const isComplete = competition_status === 'COMPLETE';
+
+  return {
+    email_tracking_id: `${EMAIL_TYPE}_${competition_id}_${round_id}_${user_id}_${Date.now()}`,
+    unsubscribe,
+    user_email,
+    user_display_name,
+    competition_id,
+    competition_name,
+    round_id,
+    round_number: Number(round_number),
+
+    // The recipient's own round. 'NO-PICK' is a real value here, not a missing one.
+    chosen_team,
+    outcome,
+    missed_pick: chosen_team === 'NO-PICK',
+    survived: player_status === 'active',
+    lives_remaining: Number(lives_remaining) || 0,
+
+    survivors_count: survivors,
+    out_this_round_count: Number(out_this_round_count) || 0,
+    survivors_sample: survivors_sample || null,
+    out_this_round_sample: out_this_round_sample || null,
+
+    /*
+    The ending, when there is one. A COMPLETE competition with one survivor has a winner; with
+    none, everybody left went out together and there is no winner to name. Same three-way split as
+    services/gameComplete.js, and for the same reason - it is what the data can actually say.
+    */
+    competition_complete: isComplete,
+    winner_names: isComplete ? survivors_sample : null,
+    is_draw: isComplete && survivors !== 1,
+
+    // What happens next. All null when the competition has finished.
+    next_round_number: next_round_number ? Number(next_round_number) : null,
+    next_deadline: next_deadline || null,
+    next_fixtures: next_fixtures || [],
+
+    user_id
+  };
+}
+
+/**
+ * Queue one email, and open its tracking row.
+ *
+ * @param {object} candidate - a row from findCandidates
+ * @returns {Promise<{success: boolean, queue_id?: number, template_data?: object, error?: string}>}
+ */
+async function queueCandidate(candidate) {
+  try {
+    const templateData = await buildTemplateData(candidate);
+
+    const queueResult = await query(`
+      INSERT INTO email_queue (
+        user_id, competition_id, round_id, email_type,
+        scheduled_send_at, template_data, status, attempts
+      ) VALUES ($1, $2, $3, '${EMAIL_TYPE}', NOW(), $4, 'pending', 0)
+      RETURNING id
+    `, [candidate.user_id, candidate.competition_id, candidate.round_id, JSON.stringify(templateData)]);
+
+    await query(`
+      INSERT INTO email_tracking (email_id, user_id, competition_id, email_type, subject)
+      VALUES ($1, $2, $3, '${EMAIL_TYPE}', $4)
+    `, [
+      templateData.email_tracking_id,
+      candidate.user_id,
+      candidate.competition_id,
+      subjectFor(templateData.competition_name, templateData.round_number)
+    ]);
+
+    return { success: true, queue_id: queueResult.rows[0].id, template_data: templateData };
+  } catch (error) {
+    console.error('roundOver.queueCandidate failed:', { competition_id: candidate.competition_id, user_id: candidate.user_id, error: error.message });
+    return { success: false, error: error.message };
+  }
+}
+
+module.exports = {
+  EMAIL_TYPE,
+  SAMPLE_SIZE,
+  subjectFor,
+  findCandidates,
+  buildTemplateData,
+  queueCandidate
+};

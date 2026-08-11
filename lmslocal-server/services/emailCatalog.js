@@ -27,6 +27,7 @@ const gameStartReminder = require('./gameStartReminder');
 const fixtureReminder = require('./fixtureReminder');
 const resultReminder = require('./resultReminder');
 const gameComplete = require('./gameComplete');
+const roundOver = require('./roundOver');
 const {
   buildPickReminderEmail,
   sendPickReminderEmail,
@@ -43,7 +44,9 @@ const {
   buildResultReminderEmail,
   sendResultReminderEmail,
   buildGameCompleteEmail,
-  sendGameCompleteEmail
+  sendGameCompleteEmail,
+  buildRoundOverEmail,
+  sendRoundOverEmail
 } = require('./emailService');
 
 /*
@@ -116,6 +119,16 @@ const CATALOG = {
     service: gameComplete,
     build: buildGameCompleteEmail,
     send: sendGameCompleteEmail
+  },
+  /*
+  Round Over. The key stays 'results' - it is what email_queue rows, the tracking table and the
+  admin OUTLINE already use, and renaming it would orphan the history for a tidier word.
+  */
+  results: {
+    scoped: true,
+    service: roundOver,
+    build: buildRoundOverEmail,
+    send: sendRoundOverEmail
   }
 };
 
