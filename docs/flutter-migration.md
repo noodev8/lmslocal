@@ -48,20 +48,38 @@ The two failure modes to watch for are silent, and neither shows an error the us
 `flutter_secure_storage` failing to read existing tokens (everyone is logged out) and a Firebase
 bump breaking push. **A forced re-login is accepted** rather than engineered around.
 
-### The version gate is gone
+### The version gate: removed, then put back
 
-The app used to call `/check-app-version` on the splash screen and, if the installed version was
-below `app_version.minimum_version`, show a dialog the user could not dismiss. That has been
-removed at the client's request — it was never used in anger, and letting the stores update
-whenever they can is the simpler behaviour. `UpdateRequiredException` went with it; it was declared
-and caught but never actually thrown.
+The app calls `/check-app-version` on the splash screen before anything else touches the API, and
+if the installed version is below `app_version.minimum_version` it shows a dialog the user cannot
+dismiss, offering only a button to the store. This was dropped in `d3f4186` on the grounds that it
+had never been used in anger, and reinstated on **11 Aug 2026** after a 1.2.9 install failed on
+startup with a bare "Server Error" and had to be updated by hand. An old build that the server can
+no longer talk to should say so, not crash.
 
-**Do not delete the server route or the `app_version` table.** Every 1.2.9 install still in the
-wild calls `/check-app-version` on every launch. The row stays at `1.1.1` so those clients keep
-getting `update_required: false`; removing the route would make them fail that call on startup.
-The table becomes dead only once no old installs remain, which is not something we can observe.
+**One version number, one outcome.** There is no "recommended" tier and no soft nudge: below
+`minimum_version` is a hard stop, at or above it the app opens. That keeps the operational
+question to a single decision — is this build still serviceable — and the gate only earns its
+keep if that row is actually bumped at the moment a breaking server change ships.
 
-`package_info_plus` stays a dependency — the profile screen still shows the app version.
+**It fails open.** A network error, a timeout, a non-`SUCCESS` `return_code` — all let the user
+through. A gate that blocks when it cannot reach the server converts a backend blip into an app
+nobody can open, which is a worse outage than the stale build it guards against.
+
+**`app_version.minimum_version` is at `2.0.0` on both platforms**, deliberately. It used to sit at
+`1.1.1` so that 1.2.9 installs — which have their own copy of this gate — kept getting
+`update_required: false`. Raising it to `2.0.0` is what now pushes those stragglers to the store
+instead of letting them fail. Do not lower it: it is the only lever there is over installs too old
+to receive anything else.
+
+**Do not delete the server route or the `app_version` table.** Both the 1.2.9 gate and this one
+depend on it.
+
+`UpdateRequiredException` did not come back. It was declared in `failures.dart` and caught in the
+dashboard, but nothing ever threw it; the splash screen holds the decision on its own.
+
+`package_info_plus` supplies the installed version to the check, and the profile screen still
+shows it.
 
 ---
 
