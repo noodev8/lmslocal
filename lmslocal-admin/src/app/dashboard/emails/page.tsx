@@ -81,7 +81,7 @@ const OUTLINE: OutlineEmail[] = [
   { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', wired: false, scoped: true },
   { key: 'organiser_game_invite', consumer: 'Player', section: 'Game', name: 'Organiser Game Invite', wired: false, scoped: true, push: true },
   { key: 'created_comp', consumer: 'Organiser', section: 'Welcome', name: 'Created Comp', wired: true, scoped: true, note: 'New competitions only' },
-  { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', wired: false, scoped: true },
+  { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', wired: true, scoped: false, note: 'Stuck 14+ days, round waiting' },
   { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', wired: false, scoped: true },
   { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', wired: false, scoped: true },
   { key: 'promote_competition', consumer: 'Organiser', section: 'Tips', name: 'Promote competition', wired: false, scoped: true, note: 'Deferred' },

@@ -15,6 +15,7 @@ written there before the template is built and the two have to say the same thin
 const { SUBJECT: JOIN_LMS_SUBJECT } = require('./joinLms');
 const { subjectFor: createdCompSubjectFor } = require('./createdComp');
 const { subjectFor: joinCompSubjectFor } = require('./joinComp');
+const { subjectFor: gameStartSubjectFor } = require('./gameStartReminder');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -1128,6 +1129,176 @@ const sendCreatedCompEmail = async (email, templateData, options = {}) => {
 };
 
 /**
+ * Build the Game Start reminder without sending it.
+ *
+ * Outline row: Organiser | Game | Game Start reminder. Goes to an organiser whose competition
+ * could start today - a round is staged and waiting - but who has never pressed Ready.
+ *
+ * The whole email hangs on one button, so it says what pressing it does and when the round would
+ * be. services/gameStartReminder.js guarantees the offer is real: nobody receives this unless
+ * pressing Ready right now would actually produce a round.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/gameStartReminder.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildGameStartReminderEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    invite_code,
+    starts_at,
+    fixture_count,
+    player_count,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const startDate = starts_at
+    ? new Date(starts_at).toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    : null;
+
+  /*
+  An organiser with nobody signed up has a different problem from one with a competition full of
+  people waiting on them, and telling the first to press Ready would start a competition with no
+  players in it. Same email, one honest line either way.
+  */
+  const playersLine = player_count === 0
+    ? 'Nobody has joined yet, so it may be worth sharing your code first - the code is below.'
+    : `${player_count} player${player_count === 1 ? ' has' : 's have'} joined and ${player_count === 1 ? 'is' : 'are'} waiting on you.`;
+
+  const readyUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/round?email_id=${email_tracking_id}`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${competition_name} is ready to start</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              <strong>${competition_name}</strong> has not started yet, and there is a round waiting for it.
+            </p>
+
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              ${startDate ? `<p style="margin: 0 0 12px 0; color: #0f172a; font-size: 15px;"><strong>Round 1 would be ${startDate}</strong>${fixture_count ? `, ${fixture_count} ${fixture_count === 1 ? 'match' : 'matches'}` : ''}</p>` : ''}
+              <p style="margin: 0; color: #475569; font-size: 14px;">${playersLine}</p>
+            </div>
+
+            <p style="color: #334155; font-size: 15px; margin: 0 0 30px 0; line-height: 1.5;">
+              Nothing is sent to your players until you press <strong>Ready</strong>. That is deliberate - we will
+              not start a competition on your behalf - but it does mean this one is waiting on you.
+            </p>
+
+            <!-- Call to Action Button -->
+            <div style="margin: 0 0 24px 0;">
+              <a href="${readyUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Open your competition
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              Still gathering players? Your code is <strong>${invite_code}</strong>. There is no rush - the
+              competition will keep until you are ready.
+            </p>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+${competition_name} is ready to start
+
+Hi ${user_display_name},
+
+${competition_name} has not started yet, and there is a round waiting for it.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${startDate ? `\nROUND 1 WOULD BE: ${startDate}${fixture_count ? ` (${fixture_count} ${fixture_count === 1 ? 'match' : 'matches'})` : ''}\n` : ''}
+${playersLine}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Nothing is sent to your players until you press Ready. That is deliberate - we
+will not start a competition on your behalf - but it does mean this one is
+waiting on you.
+
+Open your competition:
+${readyUrl}
+
+Still gathering players? Your code is ${invite_code}. There is no rush - the
+competition will keep until you are ready.
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: gameStartSubjectFor(competition_name),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'game_start_reminder' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send the Game Start reminder.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/gameStartReminder.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendGameStartReminderEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildGameStartReminderEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send game start reminder email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
  * Send results email after round completion
  * @param {string} email - User's email address
  * @param {object} templateData - Email template data including round results
@@ -2041,8 +2212,10 @@ module.exports = {
   buildCreatedCompEmail,
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,
-  sendResultsEmail,
   sendWelcomeCompetitionEmail,
+  buildGameStartReminderEmail,
+  sendGameStartReminderEmail,
+  sendResultsEmail,
   sendOrganiserTipEmail,
   sendOnboardingNotification,
   sendOnboardingConfirmation,

@@ -23,6 +23,7 @@ const pickReminder = require('./pickReminder');
 const joinLms = require('./joinLms');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
+const gameStartReminder = require('./gameStartReminder');
 const {
   buildPickReminderEmail,
   sendPickReminderEmail,
@@ -31,7 +32,9 @@ const {
   buildCreatedCompEmail,
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,
-  sendWelcomeCompetitionEmail
+  sendWelcomeCompetitionEmail,
+  buildGameStartReminderEmail,
+  sendGameStartReminderEmail
 } = require('./emailService');
 
 /*
@@ -63,6 +66,17 @@ const CATALOG = {
     service: joinComp,
     build: buildWelcomeCompetitionEmail,
     send: sendWelcomeCompetitionEmail
+  },
+  /*
+  Platform-wide, unlike the other reminders. "Which organisers are stuck?" is not a question about
+  one competition, and the operator wants the list rather than to hunt for it a competition at a
+  time.
+  */
+  game_start_reminder: {
+    scoped: false,
+    service: gameStartReminder,
+    build: buildGameStartReminderEmail,
+    send: sendGameStartReminderEmail
   }
 };
 

@@ -52,7 +52,7 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 ## Tier 2: Comms — the outline mapped
 
 14 rows, after removing the duplicate and folding "Game started" into "Round Over".
-**Five built, one half-built, eight to build.**
+**Six built, one half-built, seven to build.**
 
 ### Built
 
@@ -63,6 +63,7 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 | Organiser | Tips | Result set mid round | `update_scores_mid_round_tip` | — | — |
 | All | Welcome | Join LMS | `join_lms` | — | — |
 | Organiser | Welcome | Created Comp | `created_comp` | — | — |
+| Organiser | Game | Game Start reminder | `game_start_reminder` | — | — |
 
 All except `update_scores_mid_round_tip` are reachable from the admin screen.
 
@@ -82,14 +83,13 @@ round ends, results go out, the next round opens. One notification covers both, 
 |---|---|---|---|
 | Player | Game | Game complete | — |
 | Player | Game | Organiser Game Invite | Y |
-| Organiser | Game | Game Start reminder | — |
 | Organiser | Game | Result reminder | — |
 | Organiser | Game | Fixture reminder | — |
 | Organiser | Tips | Promote competition | — |
 | All | Info | Official game invite | — |
 | All | Info | News | — |
 
-Five of the eight are organiser-facing. Everything built so far except the mid-round tip is
+Four of the seven are organiser-facing. Everything built so far except the mid-round tip is
 player- or platform-facing, so organiser comms is the whole gap.
 
 **Deferred:** the Promote-page feature — an organiser writing free text to their own participants
@@ -209,6 +209,43 @@ The rules now:
 
 `email_tracking.sent_at` **defaults to insert time**, so it does not mean "was sent". That is why
 the nine deleted rows all carried a timestamp despite never being delivered.
+
+## Game Start reminder — the rules (built 2026-08-11)
+
+`services/gameStartReminder.js`. Goes to an organiser whose fixture-service competition could
+start today but who has never pressed Ready. **Platform-wide** (`scoped: false`) — "who is stuck?"
+is not a question about one competition, and the operator wants the list rather than hunting for
+it a competition at a time.
+
+Two stages. SQL narrows to competitions that are plausibly stuck:
+
+- `fixture_service = true` — **only those have a Ready button.** An organiser-managed competition
+  would be told to press something that does not exist; "you have not added fixtures yet" is a
+  different email.
+- not COMPLETE, **no rounds at all** (this is only ever about a first round), `ready_at IS NULL`
+- created at least **`REMINDER_AFTER_DAYS` (14)** ago — a competition made yesterday is left alone
+  to gather players
+- nothing sent for it in the last **`COOLDOWN_DAYS` (7)**
+- organiser has a real email and has not opted out of `organiser.game`
+
+Then each survivor goes through **`getCompetitionStartOutlook`** — the same function behind the
+organiser's own start card — and only `can_start: true` qualifies.
+
+That last stage is the point. `evaluateCompetition`'s first-round path returns `NOT_READY`
+**before** it checks the gameweek, kickoff and 48-hour lead-time rules, so `ready_at IS NULL` on
+its own would happily chase an organiser toward a button that would then refuse them. Reusing the
+outlook means **nobody is reminded unless pressing Ready right now would actually produce a
+round**, and the email can name the date rather than nag.
+
+**A cooldown, not once-ever.** Unlike the other four this is a nudge: an organiser who ignored the
+first one is exactly the organiser worth reminding again. Re-eligible seven days after the last
+attempt, sent or failed.
+
+**No CUTOFF.** Eligibility is live state — a round is available and unclaimed today — so there is
+no history to backfill.
+
+Copy branches on player count: an organiser with nobody signed up is told to share their code
+first, since pressing Ready would otherwise start a competition with no players in it.
 
 ## `services/emailCatalog.js` — which emails are wired
 
@@ -380,13 +417,13 @@ build the recipient list, the admin screen shows it, `/send-email` drains it on 
 ### What is built (2026-08-11)
 
 `lmslocal-admin` → **Emails** (`/dashboard/emails`). Wired end to end for **pick reminder, Join
-LMS, Created Comp and Join Comp**; every other row renders greyed, and the server refuses it with
+LMS, Created Comp, Join Comp and Game Start reminder**; every other row renders greyed, and the server refuses it with
 `UNSUPPORTED_EMAIL_TYPE` — the screen is not the only thing stopping a send.
 
 | Piece | Where |
 |---|---|
 | Which emails are wired | `services/emailCatalog.js` — service, template and `scoped` per type |
-| Eligibility, one definition | `services/pickReminder.js`, `joinLms.js`, `createdComp.js`, `joinComp.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
+| Eligibility, one definition | `services/pickReminder.js`, `joinLms.js`, `createdComp.js`, `joinComp.js`, `gameStartReminder.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
 | Opt-outs, one definition | `services/emailPreference.js` — `notOptedOutSql`, used inside the candidate query |
 | Unsubscribe | `routes/unsubscribe.js` (GET, one-click POST, save) |
 | Template, build split from send | `services/emailService.js` — `buildPickReminderEmail`, `buildJoinLmsEmail` |
