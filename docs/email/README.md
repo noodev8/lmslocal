@@ -684,6 +684,153 @@ plus a footer link in the template. The header serves the mail client's button, 
 the person — both, not either. Wired into pick reminder; rolls into each remaining template as it
 gets wired.
 
+## Digests — one email when several competitions qualify
+
+**Agreed 2026-08-12. Not built.** Everything below is the design to build against, not a
+description of the code.
+
+Every player email is scoped to one competition, so somebody in four competitions gets four of
+each. Nothing in the system currently notices. Live competitions only, real emails, guests
+excluded, as at 2026-08-12:
+
+| Live comps | Players |
+|---|---|
+| 1 | 46 |
+| 3 | 1 |
+| 4 | 1 |
+
+Two people. And 14 organisers with one live competition, one with three. Small, but it is the
+engaged player who gets spammed hardest — the pub regular in every competition going — and it
+only grows with the platform.
+
+### Which emails digest
+
+The test is not "is this email competition-scoped" — nearly all of them are. It is **does it fire
+on a clock that ticks for every competition at once**.
+
+| Email | Digests | Why |
+|---|---|---|
+| `pick_reminder` | ✅ | Fixtures come from the same gameweek. Four competitions, four reminders, one afternoon. |
+| `results` (Round Over) | ✅ | The same, every Sunday evening. |
+| `result_reminder` | ✅ | Organiser-side: their competitions share a settle cycle. |
+| `fixture_reminder` | ✅ | Same. |
+| `game_start_reminder` | ❌ | The 7-day cooldown already spaces it, and it only ever concerns a first round. Revisit if an organiser with several new competitions complains. |
+| `welcome` (Join Comp) | ❌ | A join is an event. Nobody joins four competitions in one minute. |
+| `created_comp` | ❌ | Same. |
+| `game_complete` | ❌ | Once ever per competition. Two finishing the same day is coincidence, not a pattern. |
+| Hints | ❌ | **Already solved**, and the precedent for all of this: once per organiser per hint, never per competition. |
+| `join_lms` | ❌ | Per account. There is only ever one. |
+
+**Threshold: two or more.** One candidate sends today's email unchanged. The standalone is the
+better email when there is one thing to say, and it is what almost everybody will always get.
+
+**Same email type only.** A digest never mixes `pick_reminder` with `results`. They fire at
+different moments — before a deadline, after results are in — and merging them means deciding
+*when* the combined email goes, which is a worse question than either answers on its own. Round
+Over already carries its own competition's next deadline, so the two are sequential rather than
+simultaneous within a competition anyway.
+
+### Sending goes all-competitions-at-once
+
+**Decision: one press covers every competition for an email type** (the alternative considered
+and rejected was keeping the per-competition press and forming the digest later, at drain time).
+The reason is where this is heading: the operator will not click through competitions one at a
+time forever, and **a cron is this model with a timer instead of a finger**. Building the
+per-competition variant first would mean dismantling it.
+
+The services are already shaped for it. `pickReminder.findCandidates` takes `competition_id` as
+optional — "omit to scan them all". Nothing in the eligibility layer is per-competition. The
+constraint is a single guard repeated in three routes:
+
+```javascript
+// routes/admin/send-emails.js
+if (entry.scoped && (!competition_id || !Number.isInteger(competition_id))) {
+```
+
+So `scoped` changes meaning: from **must name a competition** to **may name one, to narrow it**.
+The admin picker becomes a filter for testing and previewing, not the unit of operation.
+
+### Grouping happens at QUEUE time, not send time
+
+This is the one decision that is easy to get wrong and expensive to unpick.
+
+One press over every competition cannot send synchronously — the Resend allowance, HTTP timeouts,
+hundreds of recipients. `broadcast.js` already met this and its answer is the right one: queue
+everyone, send the cap now, let the rest drain. Under a cron it is more true, not less. **So this
+model has a pending window too**, and a digest assembled from "whatever is pending right now"
+breaks on it:
+
+> A send cap falling in the middle of somebody's four rows gives them a two-section digest today
+> and another two-section digest tomorrow. Same person, two emails — exactly what the feature
+> exists to prevent.
+
+Therefore:
+
+1. Candidate-finding runs **once, across all competitions**.
+2. Before writing to `email_queue`, candidates are grouped by **`(user_id, email_type)`**. Any
+   group of two or more gets a shared **`digest_key`** stamped on every row. One nullable column
+   on `email_queue`; **null means send this on its own**, so the single-candidate path stays
+   byte-identical to today.
+3. The drain selects **a whole group at a time and treats it as indivisible**.
+4. The send cap counts **digests, not rows** — one person's four competitions cost one send. That
+   is the point of the feature, and it stretches the daily allowance as a side effect.
+5. Marking sent writes the same message id across every row in the group.
+
+The per-row guards are untouched by all of this. `email_queue` still holds one row per player per
+competition per round, which is what makes `round_id`, the once-ever checks and the cooldowns
+work; a digest that queued a single row would silently break every one of them.
+
+**Who gets a digest is decided once and recorded.** Nothing downstream re-derives it. A drain that
+regrouped would be a second definition of the same rule, which is the mistake this document has
+had to undo three times already.
+
+### What a digest looks like
+
+**A digest section is not the standalone email mechanically shrunk.** Each email declares its own
+section content, and it is much shorter. Round Over proves why: five names a side across four
+competitions is unreadable, so in digest mode the survivor and casualty lists become **counts
+only, no names**.
+
+**Sections are ordered by urgency — soonest deadline first**, not by competition id. The reader
+scans the first section and stops.
+
+Pick reminder:
+
+> **Subject:** 3 picks to make — first closes Saturday 2pm
+> One line naming the soonest deadline, because it is the only urgent fact. Then per competition:
+> name, round number, deadline, one button. Nothing else.
+
+Round Over:
+
+> **Subject:** Still in 2 of your 3 competitions
+> Per competition: their team, won or lost, still in or out, and either the next deadline or who
+> won. Counts of who survived. No names.
+
+Organiser reminders:
+
+> **Subject:** 3 competitions need results
+> Barely a digest — a list, one line and one link each.
+
+### What this changes on the admin screen
+
+- The competition picker stops being required and becomes optional narrowing.
+- Counts become **two numbers, recipients and emails**. They will differ once digests form, and
+  the gap between them is the feature working.
+- Preview must be able to render a digest, which needs a recipient who actually has one — today
+  that is the two players in three and four live competitions.
+
+### Build order
+
+1. This section. ✅
+2. `digest_key` on `email_queue`; grouping in the queue step.
+3. Drain by group; cap counts digests.
+4. Digest section rendering for `pick_reminder` and `results`.
+5. Relax the three route guards; screen shows both counts.
+6. Organiser reminders — the easiest of the four.
+
+The cron then sits on top and presses the same button on a schedule. Nothing above is shaped
+around the operator being a person.
+
 ## How sending works
 
 **Queued** — a `load-*` route writes to `email_queue`; `POST /send-email` drains pending rows and
@@ -713,6 +860,9 @@ templates are inline HTML in `emailService.js`.
 **Decision (2026-08-11): there is no scheduler in this scope.** Sending is an operator action on
 a new screen in `lmslocal-admin`: see what is queued, pick or preview, press send. Volume is
 managed by the person at the screen, not by a cron with throttling logic.
+
+Still true today, but no longer the end state: a cron over all competitions is the intended
+destination, and "Digests" above is written so nothing depends on the operator being a person.
 
 That makes the **100/day Resend limit an operational matter rather than a design constraint**, and
 it goes away when we move to a paid Resend tier. Nothing in the architecture should be shaped
