@@ -305,6 +305,23 @@ request's own Host. See isOriginAllowed above.
 app.use(cors((req, callback) => {
   const origin = req.headers.origin;
 
+  /*
+  /unsubscribe is a server-rendered HTML page whose Save button is an ordinary form submission,
+  not fetch/XHR. A form POST is a navigation: the browser sends it regardless of CORS and renders
+  whatever comes back, so there is nothing here for CORS to protect and no header the response
+  needs. It only ever broke because this delegate *rejects* a disallowed origin rather than merely
+  omitting the headers.
+
+  The same-origin rule below was the first attempt at this and was not enough: it compares Origin
+  against req.headers.host, which behind a reverse proxy is whatever the proxy chose to forward -
+  the loopback address unless nginx is configured to pass the original Host. That made the fix
+  depend on proxy config in a way nothing in this repo can see or check. Exempting the path does
+  not.
+  */
+  if (req.path === '/unsubscribe' || req.path.startsWith('/unsubscribe/')) {
+    return callback(null, { origin: false });
+  }
+
   if (!isOriginAllowed(origin, req)) {
     console.log('CORS blocked origin:', origin, 'host:', req.headers.host, 'path:', req.path);
     return callback(new Error('Not allowed by CORS'));

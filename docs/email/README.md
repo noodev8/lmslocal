@@ -356,6 +356,21 @@ when inspected. No unsubscribe link had ever actually been sent, so there was no
 The page shows the account's email address as a header, then what just happened, then the
 toggles.
 
+**`/unsubscribe` is exempt from CORS, deliberately** (`server.js`, in the `cors()` delegate). The
+Save button is an ordinary HTML form POST — a navigation, which the browser sends regardless of
+CORS and renders whatever comes back. There is nothing for CORS to protect and no header the
+response needs. It only ever broke because that delegate *rejects* an origin it doesn't recognise
+instead of just omitting the headers, so Save failed in production with `Not allowed by CORS`
+while the page itself loaded fine.
+
+The first fix was a same-origin rule comparing `Origin` against `req.headers.host`, and it did not
+work: behind the production reverse proxy `Host` is whatever nginx forwards — the loopback address
+unless it is explicitly configured to pass the original. That made the fix depend on proxy config
+nothing in this repo can see. The path exemption doesn't. The same-origin rule is still there and
+still useful for other routes; it is just no longer what keeps unsubscribe working.
+
+If you add another server-rendered page with a form, it needs the same exemption.
+
 **This page is the only place preferences are edited.** The duplicate panels on the web profile
 screen and the Flutter profile page were removed in Aug 2026: three UIs over one set of rows,
 two of them behind a login that a person reacting to an unwanted email has no reason to go
