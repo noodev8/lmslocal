@@ -107,10 +107,27 @@ const errorPage = (heading, message) =>
 /**
  * The preferences page: what just happened, then a toggle for every group.
  */
-function preferencesPage(user, prefs, justUnsubscribed) {
+function preferencesPage(user, prefs, justUnsubscribed, saved = false) {
+  /*
+  Saving re-renders this same page, so without a banner the only evidence anything happened is
+  that the toggles kept their new positions - which is exactly what a page that silently failed
+  would also show. It says what is now off rather than just "saved", because that is the thing
+  the person came here to change and the one they would otherwise reload to check.
+  */
+  const off = Object.values(GROUPS).filter((key) => !prefs.groups[key]);
+  const savedBanner = !prefs.all
+    ? `<div class="done"><strong>Preferences saved</strong>
+       You are unsubscribed from everything. You will still get account emails such as password resets.</div>`
+    : off.length === 0
+    ? `<div class="done"><strong>Preferences saved</strong>You are subscribed to everything below.</div>`
+    : `<div class="done"><strong>Preferences saved</strong>
+       You will no longer get: ${off.map((key) => esc(GROUP_LABELS[key].label)).join(', ')}.</div>`;
+
   const done = justUnsubscribed
     ? `<div class="done"><strong>Unsubscribed from ${esc(GROUP_LABELS[justUnsubscribed].label)}</strong>
        ${esc(GROUP_LABELS[justUnsubscribed].blurb)}</div>`
+    : saved
+    ? savedBanner
     : '';
 
   /*
@@ -266,7 +283,7 @@ router.post('/save', async (req, res) => {
     await setPreference(user.id, ALL, !kill_all);
 
     const prefs = await getPreferences(user.id);
-    return res.send(preferencesPage({ ...user, unsubscribe_token: token }, prefs, null));
+    return res.send(preferencesPage({ ...user, unsubscribe_token: token }, prefs, null, true));
   } catch (error) {
     console.error('unsubscribe save error:', { error: error.message, stack: error.stack });
     return res.send(

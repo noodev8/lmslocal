@@ -356,6 +356,12 @@ when inspected. No unsubscribe link had ever actually been sent, so there was no
 The page shows the account's email address as a header, then what just happened, then the
 toggles.
 
+**Saving names what is now switched off**, rather than just saying "saved". Saving re-renders the
+same page, so without a banner the only evidence of success is that the toggles kept their new
+positions — which is exactly what a silent failure would also look like. The banner has three
+forms: unsubscribed from everything, subscribed to everything, or the list of groups that will no
+longer arrive.
+
 **`/unsubscribe` is exempt from CORS, deliberately** (`server.js`, in the `cors()` delegate). The
 Save button is an ordinary HTML form POST — a navigation, which the browser sends regardless of
 CORS and renders whatever comes back. There is nothing for CORS to protect and no header the
