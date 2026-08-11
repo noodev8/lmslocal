@@ -41,51 +41,64 @@ Deliberately dotted rather than underscored so a group key can never be confused
 legacy per-email types ('pick_reminder', 'results') at a glance in the database.
 */
 const GROUPS = {
-  PLAYER_WELCOME: 'player.welcome',
-  PLAYER_GAME: 'player.game',
-  ORGANISER_WELCOME: 'organiser.welcome',
-  ORGANISER_GAME: 'organiser.game',
-  ORGANISER_TIPS: 'organiser.tips',
-  PLATFORM_WELCOME: 'platform.welcome',
-  PLATFORM_INFO: 'platform.info'
+  GAME: 'game',
+  INFO: 'info'
 };
 
 /*
-Which group each email on the outline belongs to. Keys match email_queue.email_type.
+The two groups are the SECTION column of docs/email/email-outline.xlsx and nothing else.
 
-Pick reminder sits in PLAYER_GAME with no exemption, which is a decision rather than an
-oversight: switching Game off stops the reminder that keeps a player from missing a pick and
-losing a life. The unsubscribe page says so in as many words; it does not override the choice.
+This replaced a CONSUMER x SECTION model of seven groups (player.game, organiser.tips,
+platform.welcome and so on) on 2026-08-11, at Andreas's decision, when the outline itself was cut
+to two sections. The cost is known and accepted: somebody who both organises and plays has one
+switch covering both, so turning Game off silences their pick reminders and their fixture
+reminders together. The gain is a page a person reads in five seconds and an outline that matches
+the code exactly.
+
+Any row still holding one of the old dotted keys is dead - getPreferences only looks for these
+two - so the change needs its migration run against email_preference. See docs/email/README.md.
 */
 const EMAIL_GROUPS = {
-  welcome: GROUPS.PLAYER_WELCOME,
-  results: GROUPS.PLAYER_GAME,
-  pick_reminder: GROUPS.PLAYER_GAME,
-  game_complete: GROUPS.PLAYER_GAME,
-  organiser_game_invite: GROUPS.PLAYER_GAME,
-  created_comp: GROUPS.ORGANISER_WELCOME,
-  game_start_reminder: GROUPS.ORGANISER_GAME,
-  result_reminder: GROUPS.ORGANISER_GAME,
-  fixture_reminder: GROUPS.ORGANISER_GAME,
-  promote_competition: GROUPS.ORGANISER_TIPS,
-  update_scores_mid_round_tip: GROUPS.ORGANISER_TIPS,
-  join_lms: GROUPS.PLATFORM_WELCOME,
-  official_game_invite: GROUPS.PLATFORM_INFO,
-  news: GROUPS.PLATFORM_INFO
+  // Section: Game
+  results: GROUPS.GAME,
+  pick_reminder: GROUPS.GAME,
+  game_complete: GROUPS.GAME,
+  game_start_reminder: GROUPS.GAME,
+  result_reminder: GROUPS.GAME,
+  fixture_reminder: GROUPS.GAME,
+
+  // Section: Info - which now carries the welcome emails, the outline having dropped Welcome as
+  // a section of its own.
+  welcome: GROUPS.INFO,
+  created_comp: GROUPS.INFO,
+  join_lms: GROUPS.INFO,
+  promote_competition: GROUPS.INFO,
+  update_scores_mid_round_tip: GROUPS.INFO,
+  official_game_invite: GROUPS.INFO,
+  news: GROUPS.INFO
 };
 
 /*
-How each group is described to a human, on the unsubscribe page and in profile settings.
-Consumer is carried separately so the page can group the toggles the way the outline does.
+How each group is described to a human, on the unsubscribe page.
+
+No consumer field any more: with two groups there is nothing to divide the page into, and a
+"Player" or "Organiser" tag beside a switch that covers both roles would have been a lie.
+
+Pick reminder sits in Game with no exemption, which is a decision rather than an oversight:
+switching Game off stops the reminder that keeps a player from missing a pick and losing a life.
+The unsubscribe page says so in as many words; it does not override the choice.
 */
 const GROUP_LABELS = {
-  [GROUPS.PLAYER_WELCOME]: { consumer: 'Player', section: 'Welcome', label: 'Joining a competition', blurb: 'Confirmation when you join a competition.' },
-  [GROUPS.PLAYER_GAME]: { consumer: 'Player', section: 'Game', label: 'Game updates', blurb: 'Pick reminders, round results and game progress.' },
-  [GROUPS.ORGANISER_WELCOME]: { consumer: 'Organiser', section: 'Welcome', label: 'Setting up a competition', blurb: 'Confirmation when you create a competition.' },
-  [GROUPS.ORGANISER_GAME]: { consumer: 'Organiser', section: 'Game', label: 'Running your competition', blurb: 'Reminders to add fixtures, set results and start rounds.' },
-  [GROUPS.ORGANISER_TIPS]: { consumer: 'Organiser', section: 'Tips', label: 'Tips and suggestions', blurb: 'Occasional advice on getting the most from your competition.' },
-  [GROUPS.PLATFORM_WELCOME]: { consumer: 'All', section: 'Welcome', label: 'Welcome to LMS Local', blurb: 'Getting started when you first sign up.' },
-  [GROUPS.PLATFORM_INFO]: { consumer: 'All', section: 'Info', label: 'News and invites', blurb: 'New competitions to join, and occasional platform news.' }
+  [GROUPS.GAME]: {
+    section: 'Game',
+    label: 'Game',
+    blurb: 'Pick reminders, results, and reminders about running a competition you organise.'
+  },
+  [GROUPS.INFO]: {
+    section: 'Info',
+    label: 'Info',
+    blurb: 'Welcome emails, new competitions to join, and occasional news.'
+  }
 };
 
 /**
@@ -138,6 +151,54 @@ function notOptedOutSql({ userColumn, competitionColumn, groupParam }) {
         AND ep.enabled = false
     )
   `;
+}
+
+/**
+ * Is this address opted out of this email, right now?
+ *
+ * The runtime twin of notOptedOutSql, and deliberately the same three exclusions in the same
+ * order. That one filters a candidate list at queue time; this one is the check at the moment of
+ * sending, which is the only place that can be authoritative:
+ *
+ *   - a queued email can sit for days, and the person may unsubscribe in between
+ *   - the legacy senders (results, competition_announcement, update_scores_mid_round_tip) queue
+ *     rows without ever consulting a candidate query
+ *   - /send-email drains whatever is in email_queue and asks nothing
+ *
+ * Looked up by email address rather than user id because that is all deliver() has. An address
+ * with no account cannot have a preference, so it is never suppressed - that covers the contact
+ * form and anything else addressed to a non-user.
+ *
+ * @param {string} email - recipient address
+ * @param {string} emailType - email_type or group key; unknown types are never suppressed
+ * @param {number|null} [competitionId] - to honour a per-competition mute when known
+ * @returns {Promise<boolean>} true if this email must not be sent
+ */
+async function isOptedOut(email, emailType, competitionId = null) {
+  const group = groupFor(emailType);
+
+  /*
+  No group means no opt-out exists for it, which is exactly the transactional mail - password
+  resets, verification, the contact form. Those must always go out; the unsubscribe page promises
+  as much in so many words.
+  */
+  if (!email || !group) return false;
+
+  const result = await query(
+    `SELECT ep.email_type, ep.competition_id, ep.enabled
+     FROM app_user u
+     INNER JOIN email_preference ep ON ep.user_id = u.id
+     WHERE LOWER(u.email) = LOWER($1)
+       AND ep.enabled = false
+       AND (
+         (ep.competition_id = 0 AND ep.email_type IN ($2, $3))
+         OR ($4::int IS NOT NULL AND ep.competition_id = $4 AND ep.email_type IS NULL)
+       )
+     LIMIT 1`,
+    [email, ALL, group, competitionId]
+  );
+
+  return result.rows.length > 0;
 }
 
 /**
@@ -271,6 +332,7 @@ module.exports = {
   EMAIL_GROUPS,
   groupFor,
   notOptedOutSql,
+  isOptedOut,
   getPreferences,
   setPreference,
   findUserByToken,

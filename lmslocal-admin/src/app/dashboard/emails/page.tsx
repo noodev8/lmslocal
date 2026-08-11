@@ -52,7 +52,9 @@ import {
 // ======================================================================================
 
 type Consumer = 'Player' | 'Organiser' | 'All';
-type Section = 'Welcome' | 'Game' | 'Info' | 'Tips';
+// The outline has exactly two sections since 2026-08-11, and they are also the two unsubscribe
+// groups. Welcome and Tips were folded into Info.
+type Section = 'Game' | 'Info';
 
 interface OutlineEmail {
   /** Matches email_queue.email_type once built. */
@@ -71,24 +73,31 @@ interface OutlineEmail {
 }
 
 /*
-"Game started" is folded into "Round Over" and the duplicate Join Comp row dropped, per the
-decisions recorded in docs/email/README.md.
+Row for row from docs/email/email-outline.xlsx, which is the authoritative list, in its order.
+
+Rewritten 2026-08-11 when the outline was cut to two sections. What changed: Welcome disappeared
+as a section and its three emails moved to Info, "Organiser Game Invite" came off the outline
+entirely, and "Game started" is back as its own row - push only, with no email behind it.
+
+CONSUMER survives here even though the unsubscribe groups no longer use it. It is still how an
+operator reads the list ("which of these does a player get?"), and it is a column of the outline
+this table mirrors; it just no longer decides anything.
 */
 const OUTLINE: OutlineEmail[] = [
-  { key: 'welcome', consumer: 'Player', section: 'Welcome', name: 'Join Comp', wired: true, scoped: true, note: 'New joins only' },
   { key: 'results', consumer: 'Player', section: 'Game', name: 'Round Over', wired: false, scoped: true, push: true, note: 'Built, not wired here' },
   { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', wired: true, scoped: true, push: true },
-  { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', wired: false, scoped: true },
-  { key: 'organiser_game_invite', consumer: 'Player', section: 'Game', name: 'Organiser Game Invite', wired: false, scoped: true, push: true },
-  { key: 'created_comp', consumer: 'Organiser', section: 'Welcome', name: 'Created Comp', wired: true, scoped: true, note: 'New competitions only' },
+  { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', wired: true, scoped: true, note: 'Everyone who took part, once' },
+  { key: 'game_started', consumer: 'Player', section: 'Game', name: 'Game started', wired: false, scoped: true, push: true, note: 'Push only, no email' },
   { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', wired: true, scoped: false, note: 'Stuck 14+ days, round waiting' },
-  { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', wired: false, scoped: true },
-  { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', wired: false, scoped: true },
-  { key: 'promote_competition', consumer: 'Organiser', section: 'Tips', name: 'Promote competition', wired: false, scoped: true, note: 'Deferred' },
-  { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Tips', name: 'Result set mid round', wired: false, scoped: true, note: 'Built, not wired here' },
-  { key: 'join_lms', consumer: 'All', section: 'Welcome', name: 'Join LMS', wired: true, scoped: false, note: 'New signups only' },
+  { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', wired: true, scoped: false, note: 'Round played 36h+, unsettled' },
+  { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', wired: true, scoped: false, note: 'Last round settled 3+ days' },
   { key: 'official_game_invite', consumer: 'All', section: 'Info', name: 'Official game invite', wired: false, scoped: false, note: 'Was competition_announcement' },
+  { key: 'promote_competition', consumer: 'Organiser', section: 'Info', name: 'Promote competition', wired: false, scoped: true, note: 'Deferred' },
+  { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Info', name: 'Result set mid round', wired: false, scoped: true, note: 'Built, not wired here' },
   { key: 'news', consumer: 'All', section: 'Info', name: 'News', wired: false, scoped: false },
+  { key: 'welcome', consumer: 'Player', section: 'Info', name: 'Welcome Join Comp', wired: true, scoped: true, note: 'New joins only' },
+  { key: 'created_comp', consumer: 'Organiser', section: 'Info', name: 'Welcome Created Comp', wired: true, scoped: true, note: 'New competitions only' },
+  { key: 'join_lms', consumer: 'All', section: 'Info', name: 'Welcome Join LMS', wired: true, scoped: false, note: 'New signups only' },
 ];
 
 // ======================================================================================
@@ -111,14 +120,12 @@ function StatusPill({ wired }: { wired: boolean }) {
 
 function SectionTag({ section }: { section: Section }) {
   /*
-  Section is half the unsubscribe key (with Consumer), so it earns a visual identity - what a
-  recipient can switch off is the group, not the individual email.
+  Section IS the unsubscribe group now, not half of it, so it earns a visual identity: this tag
+  is what a recipient can switch off, and every email carrying it goes silent together.
   */
   const tone: Record<Section, string> = {
-    Welcome: 'bg-sky-50 text-sky-700',
     Game: 'bg-indigo-50 text-indigo-700',
     Info: 'bg-amber-50 text-amber-700',
-    Tips: 'bg-violet-50 text-violet-700',
   };
   return <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${tone[section]}`}>{section}</span>;
 }

@@ -16,6 +16,8 @@ Success Response (ALWAYS HTTP 200):
   "message": "Emails processed successfully",
   "sent_count": 5,                     // integer, number of emails sent successfully
   "failed_count": 1,                   // integer, number of emails that failed
+  "suppressed_count": 0,               // integer, held back because the recipient has unsubscribed
+                                       //          since the row was queued; marked 'suppressed'
   "skipped_stale": 0                   // integer, pending emails older than the freshness floor,
                                        //          left unsent and still visible in email_queue
 }
@@ -114,6 +116,9 @@ router.post('/', async (req, res) => {
     // Track success and failure counts
     let sentCount = 0;
     let failedCount = 0;
+    // Held back because the recipient unsubscribed after the row was queued. Counted separately
+    // so a run that suppresses half its batch does not read as a run that failed half of it.
+    let suppressedCount = 0;
 
     // Process each pending email
     for (const emailRecord of pendingEmails) {
@@ -149,7 +154,23 @@ router.post('/', async (req, res) => {
           throw new Error(`Unknown email type: ${emailRecord.email_type}`);
         }
 
-        if (emailResult.success) {
+        /*
+        deliver() refused this one because the person has unsubscribed since it was queued. Its
+        own status, not 'sent' and not 'failed': 'sent' would record a message id of null against
+        an email nobody received, and 'failed' would have this row retried on every run against
+        their explicit wish.
+        */
+        if (emailResult.suppressed) {
+          await query(`
+            UPDATE email_queue
+            SET status = 'suppressed',
+                error_message = $1
+            WHERE id = $2
+          `, [emailResult.error, queueId]);
+
+          suppressedCount++;
+
+        } else if (emailResult.success) {
           // Email sent successfully - update queue status to 'sent'
           await query(`
             UPDATE email_queue
@@ -201,9 +222,11 @@ router.post('/', async (req, res) => {
     return res.json({
       return_code: "SUCCESS",
       message: `Processed ${pendingEmails.length} emails: ${sentCount} sent, ${failedCount} failed`
+        + (suppressedCount > 0 ? `, ${suppressedCount} suppressed (unsubscribed)` : '')
         + (staleCount > 0 ? `. ${staleCount} skipped as older than ${MAX_AGE_DAYS} days.` : ''),
       sent_count: sentCount,
       failed_count: failedCount,
+      suppressed_count: suppressedCount,
       skipped_stale: staleCount
     });
 

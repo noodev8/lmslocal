@@ -81,10 +81,7 @@ round ends, results go out, the next round opens. One notification covers both, 
 
 | Consumer | Section | Email | Push wanted |
 |---|---|---|---|
-| Player | Game | Game complete | — |
 | Player | Game | Organiser Game Invite | Y |
-| Organiser | Game | Result reminder | — |
-| Organiser | Game | Fixture reminder | — |
 | Organiser | Tips | Promote competition | — |
 | All | Info | Official game invite | — |
 | All | Info | News | — |
@@ -247,6 +244,109 @@ no history to backfill.
 Copy branches on player count: an organiser with nobody signed up is told to share their code
 first, since pressing Ready would otherwise start a competition with no players in it.
 
+## Fixture reminder — the rules (built 2026-08-11)
+
+`services/fixtureReminder.js`. The mirror of Game Start reminder, for the other half of the
+platform: an organiser who supplies their own fixtures, whose last round is settled, and who has
+not put up the next one. **Platform-wide** (`scoped: false`), same reasoning — the operator wants
+the list of who is holding their players up.
+
+- **`fixture_service = false`, and this is the whole point.** An automated competition is *sent*
+  its fixtures; telling that organiser to add some would be asking for work we do ourselves. Game
+  Start reminder takes `fixture_service = true` and these two never overlap.
+- **The last round is settled** — it has fixtures and every one of them has `processed` set. A
+  round with an unprocessed fixture is waiting on *results*, which is Result reminder's job, not
+  this one.
+- **Nothing newer exists.** Eligibility is read off the highest `round_number`, so an organiser who
+  has already added round N+1 is not chased for it.
+- settled at least **`REMINDER_AFTER_DAYS` (3)** ago — long enough not to land the same evening
+  they entered the results
+- competition not COMPLETE, and **at least two active players**. The second is a belt-and-braces
+  check: `process-results` sets COMPLETE when a winner emerges, so a one-player competition should
+  never reach here, and if it does it is finished whatever the status column says.
+- nothing sent for it in the last **`COOLDOWN_DAYS` (7)**
+- organiser has a real email and has not opted out of `organiser.game`
+
+**A cooldown, not once-ever**, and **no CUTOFF** — both for the same reasons as Game Start
+reminder, which see.
+
+**Known gap, deliberately out of scope.** A manual competition that has *never* had a round is
+chased by nothing: Game Start reminder is automated-only, and this one keys off a settled previous
+round. That organiser created a competition and left it empty, which is worth chasing, but it is a
+different trigger and different copy. Andreas scoped this build to "after a previous round".
+
+## Result reminder — the rules (built 2026-08-11)
+
+`services/resultReminder.js`. The other half of the organiser-managed cycle: the matches have been
+played and the round has not been settled, so the competition is frozen. **Platform-wide**
+(`scoped: false`), same reasoning as the other two.
+
+Where Fixture reminder waits for a round to be *settled*, this one waits for a round to be
+*played and not settled*. The two are mutually exclusive on the same round by construction — one
+needs `unprocessed_count = 0`, the other `> 0` — so a competition can never be chased for both at
+once.
+
+- **`fixture_service = false`.** Results for an automated competition arrive with the next push;
+  its organiser has nothing to enter.
+- **The latest round has at least one unprocessed fixture**, and **every kickoff in it is at least
+  `REMINDER_AFTER_HOURS` (36) in the past**. Kickoff rather than lock time: a result cannot exist
+  until the match has been played, and 36 hours clears a Saturday 3pm round by Sunday evening
+  without chasing anyone mid-gameweek.
+- competition not COMPLETE, and **at least two active players** — see Fixture reminder for why.
+- nothing sent for it in the last **`COOLDOWN_DAYS` (7)**
+- organiser has a real email and has not opted out of `organiser.game`
+
+**The copy branches on how far they got**, because two different organisers land here:
+
+| State | What the email says |
+|---|---|
+| No results entered | "N results still to go in" |
+| Some entered | "N of M in" |
+| All entered, none processed | "They just need processing" — the work is done, one button remains |
+
+That last case is worth the branch. `RESULTS_READY` is a real phase in the round state machine
+(`docs/round-state-machine.md`) and an organiser sitting in it has done everything except press
+the button; telling them to "add your results" would be wrong and would read as if we had not
+looked.
+
+**A cooldown, not once-ever**, and **no CUTOFF** — as with the other two reminders.
+
+## Game complete — the rules (built 2026-08-11)
+
+`services/gameComplete.js`. Goes to **everyone who took part** in a competition that has finished,
+winners and eliminated alike. **Scoped** (`scoped: true`) — unlike the three organiser reminders
+this is about one named competition, so the operator picks it.
+
+- competition status is **COMPLETE**
+- every `competition_user` row with a real email, **whatever their status**. Somebody knocked out
+  in round 2 still wants to know who won.
+- **once ever, per player per competition** — a lifecycle email, not a nudge, so there is no
+  cooldown. The queue check is on user + competition + type.
+- `@lms-guest.com` addresses are excluded, which is what keeps guests and bots out
+- has not opted out of `player.game`
+
+**The outcome is derived, not stored.** Survivors are `competition_user.status = 'active'` when
+the competition is COMPLETE, and the count decides which of three emails this is:
+
+| Survivors | Outcome |
+|---|---|
+| 1 | A winner, named |
+| 0 | **Nobody left** — everyone went out in the same round. Real: competition 161 finished with all 21 players `out`. |
+| 2+ | Shared between the survivors, all named |
+
+The zero case is why "either a winner or a draw" is the right framing and a winner-shaped template
+alone would have been wrong.
+
+**Organisers are ordinary players here.** An organiser's `competition_user` row is a real playing
+row — 168's organiser survived and won with 6 picks, 161's went out with 2 — so `active` means
+survivor with no special-casing, and an organiser who wins is named like anyone else.
+
+The copy branches again on **whether the recipient is one of the survivors**, so the same send is
+"you won", "you shared it", or "{name} won it" as appropriate. It does not tell a player which
+round they went out in: that needs `player_progress`, which carries more rows than `pick` for
+reasons documented in `db/README.md`, and a wrong round number in a results email is worse than
+no round number.
+
 ## `services/emailCatalog.js` — which emails are wired
 
 The three admin routes each used to carry `if (email_type !== 'pick_reminder')` and import that
@@ -298,26 +398,34 @@ Pick reminder is the worked example — copy its shape. For each new email, in t
 **Do not** add a stored copy of eligibility, a second unsubscribe mechanism, or a template that
 builds its own footer. Each of those has already been removed once.
 
-## Unsubscribe: grouped by CONSUMER × SECTION
+## Unsubscribe: grouped by SECTION
 
-**Built 2026-08-11.** `services/emailPreference.js` is the one definition — group keys, labels,
-the opt-out SQL, and the token helpers.
+**Built 2026-08-11, regrouped the same day.** `services/emailPreference.js` is the one definition
+— group keys, labels, the opt-out SQL and the runtime check, and the token helpers.
 
-Preferences are keyed on **SECTION × CONSUMER**, not on individual emails. Section alone would
-put a player's Pick reminder and an organiser's Fixture reminder behind one switch; they are
-unrelated things that happen to share a section.
+Preferences are keyed on **SECTION alone**: two groups, `game` and `info`, matching the two
+sections the outline was cut to. A person sees two switches plus the kill switch.
 
 | Group key | Emails in the group |
 |---|---|
-| `player.welcome` | Join Comp |
-| `player.game` | Round Over, Pick reminder, Game complete, Organiser Game Invite |
-| `organiser.welcome` | Created Comp |
-| `organiser.game` | Game Start reminder, Result reminder, Fixture reminder |
-| `organiser.tips` | Promote competition, Result set mid round |
-| `platform.welcome` | Join LMS |
-| `platform.info` | Official game invite, News |
+| `game` | Round Over, Pick reminder, Game complete, Game Start reminder, Result reminder, Fixture reminder |
+| `info` | Welcome Join Comp, Welcome Created Comp, Welcome Join LMS, Promote competition, Result set mid round, Official game invite, News |
 
 Plus `all`, the global kill switch, which overrides everything.
+
+**This replaced a seven-group CONSUMER × SECTION model** (`player.game`, `organiser.tips`,
+`platform.welcome` …), at Andreas's decision, when the outline itself lost its Welcome and Tips
+sections. The cost was known and accepted and is worth restating rather than rediscovering:
+**somebody who both organises and plays now has one switch for both roles**, so turning Game off
+stops their pick reminders and their fixture reminders together. That was the argument for the old
+model. The argument against it was a page nobody reads and a group key that no column of the
+outline corresponded to.
+
+**The regroup needs its migration run**: `db/migrate-email-preference-groups.sql`. Old dotted keys
+are invisible to `getPreferences`, and an invisible row means the default applies — and the default
+is *subscribed*. Skipping it silently resubscribes everyone who had opted out. The merge rule is
+**off wins**: someone with `player.game` off and `organiser.game` on ends up with `game` off,
+because restoring mail somebody switched off is the outcome worth being careful about.
 
 Stored on the existing table, no schema change: `email_preference.email_type` holds the group key,
 `competition_id = 0` for a global preference, a real id to mute one competition entirely.
@@ -326,12 +434,35 @@ Stored on the existing table, no schema change: `email_preference.email_type` ho
   opt-in default would have stopped every email at once. Rows are written only on an explicit
   choice.
 - **Transactional never consults this.** A password reset suppressed because someone muted game
-  updates is a broken product, not a respected preference.
-- **Pick reminder sits in `player.game` with no exemption.** Switching Game off stops it, and
-  that costs a life when a pick is then missed. The unsubscribe page says so plainly and honours
-  the choice anyway.
-- **Migration done.** The three legacy rows were all `enabled = true` — nobody had opted out of
-  anything — so `pick_reminder` and `results` were dropped as no-ops and `all` kept.
+  updates is a broken product, not a respected preference. Mechanically: an email with no entry in
+  `EMAIL_GROUPS` has no group, and no group means never suppressed.
+- **Pick reminder sits in `game` with no exemption.** Switching Game off stops it, and that costs
+  a life when a pick is then missed. The unsubscribe page says so plainly and honours the choice
+  anyway.
+
+### The opt-out is enforced at `deliver()`, not only in the candidate queries
+
+`notOptedOutSql` filters at **queue** time. `isOptedOut` — its runtime twin, same three exclusions
+in the same order — is checked inside `deliver()`, at **send** time, which is the only place that
+can be authoritative. Three ways someone unsubscribed could otherwise still be emailed, all of
+them real:
+
+- a queued row waits days before `/send-email` drains it, and they unsubscribe in between
+- the legacy senders (`results`, `competition_announcement`, `update_scores_mid_round_tip`) queue
+  rows **without consulting any candidate query** — `results` is Round Over, a live player email
+- anything new that sends directly, which is exactly what happened the last time a rule lived in
+  the callers instead of at the exit
+
+Recipient and type come off the payload itself (`to`, and the `email_type` tag), so no sender
+passes anything and a sender that forgets is not a hole.
+
+A suppressed send is **neither sent nor failed**: `deliver()` returns `{ suppressed: true }`,
+`readSendResult` surfaces it, and `/send-email` marks the row `suppressed` and counts it in
+`suppressed_count`. Marking it sent would put a null message id against an email nobody received;
+marking it failed would retry it forever against an explicit wish.
+
+It applies in test mode too — test mode is for seeing what a send would do, and not sending is
+part of what it would do.
 
 ### Unsubscribe
 

@@ -136,7 +136,7 @@ function preferencesPage(user, prefs, justUnsubscribed, saved = false) {
   result emails will not have guessed that.
   */
   const warn =
-    justUnsubscribed === GROUPS.PLAYER_GAME
+    justUnsubscribed === GROUPS.GAME
       ? `<div class="warn">That includes <strong>pick reminders</strong>. Without them it is easy to
          miss a pick, and a missed pick costs a life. You can switch them back on below.</div>`
       : '';
@@ -148,7 +148,7 @@ function preferencesPage(user, prefs, justUnsubscribed, saved = false) {
       return `<div class="row">
         <input type="checkbox" id="${key}" name="groups" value="${key}"${on ? ' checked' : ''}>
         <div>
-          <label for="${key}">${esc(meta.label)}<span class="tag">${esc(meta.consumer)} · ${esc(meta.section)}</span></label>
+          <label for="${key}">${esc(meta.label)}</label>
           <p>${esc(meta.blurb)}</p>
         </div>
       </div>`;

@@ -16,6 +16,10 @@ const { SUBJECT: JOIN_LMS_SUBJECT } = require('./joinLms');
 const { subjectFor: createdCompSubjectFor } = require('./createdComp');
 const { subjectFor: joinCompSubjectFor } = require('./joinComp');
 const { subjectFor: gameStartSubjectFor } = require('./gameStartReminder');
+const { subjectFor: fixtureReminderSubjectFor } = require('./fixtureReminder');
+const { subjectFor: resultReminderSubjectFor } = require('./resultReminder');
+const { subjectFor: gameCompleteSubjectFor } = require('./gameComplete');
+const { isOptedOut } = require('./emailPreference');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -41,6 +45,37 @@ const TEST_RECIPIENT = process.env.EMAIL_TEST_RECIPIENT || 'aandreou25@gmail.com
  */
 const deliver = async (emailData, options = {}) => {
   const { testMode = false, testRecipient = TEST_RECIPIENT } = options;
+
+  /*
+  The opt-out check, here and not in the callers.
+
+  Every candidate query already excludes people who have unsubscribed, but that is a decision made
+  at QUEUE time and this is a promise about SEND time. Three ways an unsubscribed person could
+  still be emailed without this:
+
+    - a queued email waits days before /send-email drains it, and they unsubscribe in between
+    - the legacy senders (results, competition_announcement, update_scores_mid_round_tip) queue
+      rows without consulting any candidate query
+    - anything new that sends directly, which is what happened last time a rule lived in the
+      callers rather than at the exit
+
+  Recipient and email type come off the payload itself - `to` and the email_type tag - so no
+  caller has to pass anything, and a sender that forgets is not a hole. A payload with no
+  email_type tag is treated as transactional and always sent; that is the right default for
+  password resets and verification, and it means this can never silently swallow account mail.
+
+  Deliberately applied in test mode too. Test mode is for seeing what a send would do, and an
+  opted-out recipient is part of what it would do.
+  */
+  const recipient = Array.isArray(emailData.to) ? emailData.to[0] : emailData.to;
+  const emailType = emailData.tags?.find((t) => t.name === 'email_type')?.value || null;
+  const taggedCompetition = emailData.tags?.find((t) => t.name === 'competition_id')?.value;
+  const competitionId = taggedCompetition ? Number(taggedCompetition) : null;
+
+  if (emailType && (await isOptedOut(recipient, emailType, competitionId))) {
+    console.log('Suppressed - recipient opted out:', { email_type: emailType, competition_id: competitionId });
+    return { suppressed: true, reason: 'opted_out' };
+  }
 
   /*
   Everything goes out from a noreply address, so without this a reply lands nowhere - a player
@@ -136,6 +171,16 @@ ${COMPANY.address}`;
  * as sent, with a null message id, and nobody could tell the difference afterwards.
  */
 const readSendResult = (result) => {
+  /*
+  deliver() refused to send because the recipient has unsubscribed. Neither a success nor a
+  failure: nothing went wrong, and nothing was sent. Callers that record an outcome must treat it
+  as its own thing - marking it sent would put a message id of null against an email nobody got,
+  and marking it failed would have the queue retry it forever against someone's explicit wish.
+  */
+  if (result?.suppressed) {
+    return { success: false, suppressed: true, error: 'Recipient has unsubscribed from this email' };
+  }
+
   if (result?.error) {
     const message = result.error.message || result.error.name || String(result.error);
     return { success: false, error: message };
@@ -1299,6 +1344,504 @@ const sendGameStartReminderEmail = async (email, templateData, options = {}) => 
 };
 
 /**
+ * Build the Fixture reminder without sending it.
+ *
+ * Outline row: Organiser | Game | Fixture reminder. Goes to an organiser who supplies their own
+ * fixtures, whose last round is settled, and who has not put the next one up.
+ *
+ * The tone is the difference between this and the game start reminder. That one chases a
+ * competition nobody is waiting on yet; this one has players sitting on a finished round with
+ * nothing to pick, so it says how many, and it says what the next round is by number.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/fixtureReminder.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildFixtureReminderEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    last_round_number,
+    next_round_number,
+    settled_at,
+    active_player_count,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const settledDate = settled_at
+    ? new Date(settled_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+    : null;
+
+  const playersLine = `${active_player_count} player${active_player_count === 1 ? '' : 's'} ${active_player_count === 1 ? 'is' : 'are'} still in and waiting for Round ${next_round_number}.`;
+
+  // Straight to the fixture entry form rather than the round screen. They already know what is
+  // outstanding - the email just told them - so the click that helps is the one that starts typing.
+  const fixturesUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/organizer-fixtures?email_id=${email_tracking_id}`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${competition_name} is waiting on the next round</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              Round ${last_round_number} of <strong>${competition_name}</strong> is settled${settledDate ? ` — you processed it on ${settledDate}` : ''}.
+              Round ${next_round_number} needs its fixtures before anyone can pick.
+            </p>
+
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              <p style="margin: 0; color: #0f172a; font-size: 15px;">${playersLine}</p>
+            </div>
+
+            <p style="color: #334155; font-size: 15px; margin: 0 0 30px 0; line-height: 1.5;">
+              You add the fixtures for this competition yourself, so nothing appears until you put
+              them in. It takes a minute — pick the matches, and your players can pick straight away.
+            </p>
+
+            <!-- Call to Action Button -->
+            <div style="margin: 0 0 24px 0;">
+              <a href="${fixturesUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Add Round ${next_round_number} fixtures
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              Finished with this competition? You can leave it — we will stop reminding you once it
+              is marked complete.
+            </p>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+${competition_name} is waiting on the next round
+
+Hi ${user_display_name},
+
+Round ${last_round_number} of ${competition_name} is settled${settledDate ? ` - you processed it on ${settledDate}` : ''}.
+Round ${next_round_number} needs its fixtures before anyone can pick.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${playersLine}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You add the fixtures for this competition yourself, so nothing appears until you
+put them in. It takes a minute - pick the matches, and your players can pick
+straight away.
+
+Add Round ${next_round_number} fixtures:
+${fixturesUrl}
+
+Finished with this competition? You can leave it - we will stop reminding you
+once it is marked complete.
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: fixtureReminderSubjectFor(competition_name),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'fixture_reminder' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send the Fixture reminder.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/fixtureReminder.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendFixtureReminderEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildFixtureReminderEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send fixture reminder email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Build the Result reminder without sending it.
+ *
+ * Outline row: Organiser | Game | Result reminder. Goes to an organiser whose latest round has
+ * been played and not settled - the competition is frozen until they act.
+ *
+ * The copy branches on how far they got. An organiser who has typed every result and not pressed
+ * Process is one button from done, and telling them to "add your results" would read as if we had
+ * not looked. See services/resultReminder.js for where awaiting_processing comes from.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/resultReminder.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildResultReminderEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    round_number,
+    fixture_count,
+    results_entered,
+    results_outstanding,
+    awaiting_processing,
+    last_kickoff,
+    active_player_count,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const playedDate = last_kickoff
+    ? new Date(last_kickoff).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+    : null;
+
+  // Three organisers land here: nothing typed in, part way, and done-but-not-processed.
+  const progressLine = awaiting_processing
+    ? `All ${fixture_count} ${fixture_count === 1 ? 'result is' : 'results are'} in — they just need processing.`
+    : results_entered > 0
+    ? `${results_entered} of ${fixture_count} results are in, ${results_outstanding} still to go.`
+    : `${fixture_count} ${fixture_count === 1 ? 'result' : 'results'} still to go in.`;
+
+  const actionLine = awaiting_processing
+    ? 'One button settles the round, works out who is through, and opens the next one.'
+    : 'Entering them settles the round, works out who is through, and opens the next one.';
+
+  const buttonLabel = awaiting_processing ? `Process Round ${round_number}` : `Enter Round ${round_number} results`;
+
+  // The round screen, which is where results are both entered and processed - one screen for the
+  // whole job, whichever half of it is outstanding. See docs/round-state-machine.md.
+  const roundUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/round?email_id=${email_tracking_id}`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${competition_name} is waiting on results</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              Round ${round_number} of <strong>${competition_name}</strong> has been played${playedDate ? ` — the last match was ${playedDate}` : ''},
+              and it has not been settled yet.
+            </p>
+
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              <p style="margin: 0 0 12px 0; color: #0f172a; font-size: 15px;"><strong>${progressLine}</strong></p>
+              <p style="margin: 0; color: #475569; font-size: 14px;">
+                ${active_player_count} player${active_player_count === 1 ? '' : 's'} ${active_player_count === 1 ? 'is' : 'are'} waiting to find out if they are through.
+              </p>
+            </div>
+
+            <p style="color: #334155; font-size: 15px; margin: 0 0 30px 0; line-height: 1.5;">
+              ${actionLine} Until then nobody is eliminated and the next round cannot open.
+            </p>
+
+            <!-- Call to Action Button -->
+            <div style="margin: 0 0 24px 0;">
+              <a href="${roundUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                ${buttonLabel}
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              Results are on regulation time — 90 minutes plus stoppage — so extra time and
+              penalties do not count.
+            </p>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+${competition_name} is waiting on results
+
+Hi ${user_display_name},
+
+Round ${round_number} of ${competition_name} has been played${playedDate ? ` - the last match was ${playedDate}` : ''},
+and it has not been settled yet.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${progressLine}
+
+${active_player_count} player${active_player_count === 1 ? '' : 's'} ${active_player_count === 1 ? 'is' : 'are'} waiting to find out if they are through.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${actionLine} Until then nobody is eliminated and the next round
+cannot open.
+
+${buttonLabel}:
+${roundUrl}
+
+Results are on regulation time - 90 minutes plus stoppage - so extra time and
+penalties do not count.
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: resultReminderSubjectFor(competition_name),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'result_reminder' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send the Result reminder.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/resultReminder.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendResultReminderEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildResultReminderEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send result reminder email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Build the Game Complete email without sending it.
+ *
+ * Outline row: Player | Game | Game complete. Goes to everyone who took part once a competition
+ * has finished - winners and eliminated alike.
+ *
+ * Three endings, not one: a winner, a share, or nobody left. The last is real rather than
+ * defensive - a competition can eliminate its whole remaining field in a single round - and it is
+ * the reason this template does not simply congratulate somebody. See services/gameComplete.js.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/gameComplete.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildGameCompleteEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    survivor_count,
+    winner_names,
+    recipient_survived,
+    player_count,
+    rounds_played,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  /*
+  The headline and the line under it, by ending. Written out rather than assembled from fragments
+  because "you won" and "nobody won" are different sentences, not one sentence with a variable in
+  it, and the shared case has to work for the winner and for everyone else.
+  */
+  let headline;
+  let outcomeLine;
+
+  if (survivor_count === 0) {
+    headline = 'No winner this time';
+    outcomeLine = `Everybody still standing went out in the same round, so ${competition_name} finishes without a winner. It happens — and it is a hard way to end.`;
+  } else if (survivor_count === 1) {
+    headline = recipient_survived ? 'You won' : `${winner_names} won`;
+    outcomeLine = recipient_survived
+      ? `You are the last one standing in ${competition_name}. Out of ${player_count} ${player_count === 1 ? 'player' : 'players'}, you are the one who made it.`
+      : `${winner_names} is the last one standing in ${competition_name}, out of ${player_count} ${player_count === 1 ? 'player' : 'players'}.`;
+  } else {
+    headline = recipient_survived ? 'You shared the win' : 'It ends in a draw';
+    outcomeLine = recipient_survived
+      ? `${competition_name} ends with ${survivor_count} of you still standing, so the win is shared: ${winner_names}.`
+      : `${competition_name} ends with ${survivor_count} players still standing, so the win is shared between ${winner_names}.`;
+  }
+
+  const standingsUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/standings?email_id=${email_tracking_id}`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${competition_name} has finished</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 18px; font-weight: 600;">${headline}</p>
+              <p style="margin: 0; color: #475569; font-size: 15px;">${outcomeLine}</p>
+            </div>
+
+            <p style="color: #334155; font-size: 15px; margin: 0 0 30px 0; line-height: 1.5;">
+              That is ${competition_name} done${rounds_played ? ` after ${rounds_played} ${rounds_played === 1 ? 'round' : 'rounds'}` : ''}.
+              Thanks for playing.
+            </p>
+
+            <!-- Call to Action Button -->
+            <div style="margin: 0 0 24px 0;">
+              <a href="${standingsUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                See the final table
+              </a>
+            </div>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+${competition_name} has finished
+
+Hi ${user_display_name},
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${headline.toUpperCase()}
+
+${outcomeLine}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+That is ${competition_name} done${rounds_played ? ` after ${rounds_played} ${rounds_played === 1 ? 'round' : 'rounds'}` : ''}. Thanks for playing.
+
+See the final table:
+${standingsUrl}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: gameCompleteSubjectFor(competition_name),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'game_complete' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send the Game Complete email.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/gameComplete.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendGameCompleteEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildGameCompleteEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send game complete email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
  * Send results email after round completion
  * @param {string} email - User's email address
  * @param {object} templateData - Email template data including round results
@@ -2215,6 +2758,12 @@ module.exports = {
   sendWelcomeCompetitionEmail,
   buildGameStartReminderEmail,
   sendGameStartReminderEmail,
+  buildFixtureReminderEmail,
+  sendFixtureReminderEmail,
+  buildResultReminderEmail,
+  sendResultReminderEmail,
+  buildGameCompleteEmail,
+  sendGameCompleteEmail,
   sendResultsEmail,
   sendOrganiserTipEmail,
   sendOnboardingNotification,

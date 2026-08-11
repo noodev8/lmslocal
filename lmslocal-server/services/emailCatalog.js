@@ -24,6 +24,9 @@ const joinLms = require('./joinLms');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
 const gameStartReminder = require('./gameStartReminder');
+const fixtureReminder = require('./fixtureReminder');
+const resultReminder = require('./resultReminder');
+const gameComplete = require('./gameComplete');
 const {
   buildPickReminderEmail,
   sendPickReminderEmail,
@@ -34,7 +37,13 @@ const {
   buildWelcomeCompetitionEmail,
   sendWelcomeCompetitionEmail,
   buildGameStartReminderEmail,
-  sendGameStartReminderEmail
+  sendGameStartReminderEmail,
+  buildFixtureReminderEmail,
+  sendFixtureReminderEmail,
+  buildResultReminderEmail,
+  sendResultReminderEmail,
+  buildGameCompleteEmail,
+  sendGameCompleteEmail
 } = require('./emailService');
 
 /*
@@ -77,6 +86,36 @@ const CATALOG = {
     service: gameStartReminder,
     build: buildGameStartReminderEmail,
     send: sendGameStartReminderEmail
+  },
+  /*
+  Platform-wide for the same reason as game_start_reminder, and the exact mirror of it: that one
+  takes fixture_service = true, this one false, so no competition can ever be a candidate for both.
+  */
+  fixture_reminder: {
+    scoped: false,
+    service: fixtureReminder,
+    build: buildFixtureReminderEmail,
+    send: sendFixtureReminderEmail
+  },
+  /*
+  The other half of fixture_reminder: that one needs the latest round settled, this one needs it
+  played and unsettled, so the same round can never qualify for both.
+  */
+  result_reminder: {
+    scoped: false,
+    service: resultReminder,
+    build: buildResultReminderEmail,
+    send: sendResultReminderEmail
+  },
+  /*
+  Scoped, unlike the three reminders above it: this is about one named competition and everybody
+  in it, so the operator picks the competition rather than being handed a platform-wide list.
+  */
+  game_complete: {
+    scoped: true,
+    service: gameComplete,
+    build: buildGameCompleteEmail,
+    send: sendGameCompleteEmail
   }
 };
 
