@@ -21,11 +21,14 @@ than harmless - a preview scoped to a competition nobody in the list belongs to.
 
 const pickReminder = require('./pickReminder');
 const joinLms = require('./joinLms');
+const createdComp = require('./createdComp');
 const {
   buildPickReminderEmail,
   sendPickReminderEmail,
   buildJoinLmsEmail,
-  sendJoinLmsEmail
+  sendJoinLmsEmail,
+  buildCreatedCompEmail,
+  sendCreatedCompEmail
 } = require('./emailService');
 
 /*
@@ -45,6 +48,12 @@ const CATALOG = {
     service: joinLms,
     build: buildJoinLmsEmail,
     send: sendJoinLmsEmail
+  },
+  created_comp: {
+    scoped: true,
+    service: createdComp,
+    build: buildCreatedCompEmail,
+    send: sendCreatedCompEmail
   }
 };
 

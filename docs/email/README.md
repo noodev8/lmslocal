@@ -52,7 +52,7 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 ## Tier 2: Comms — the outline mapped
 
 14 rows, after removing the duplicate and folding "Game started" into "Round Over".
-**Four built, one half-built, nine to build.**
+**Five built, one half-built, eight to build.**
 
 ### Built
 
@@ -62,8 +62,10 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 | Player | Game | Pick reminder | `pick_reminder` | Y | ✅ |
 | Organiser | Tips | Result set mid round | `update_scores_mid_round_tip` | — | — |
 | All | Welcome | Join LMS | `join_lms` | — | — |
+| Organiser | Welcome | Created Comp | `created_comp` | — | — |
 
-Only `pick_reminder` and `join_lms` are reachable from the admin screen; the other two predate it.
+`pick_reminder`, `join_lms` and `created_comp` are reachable from the admin screen; the other two
+predate it.
 
 ### Half-built
 
@@ -81,7 +83,6 @@ round ends, results go out, the next round opens. One notification covers both, 
 |---|---|---|---|
 | Player | Game | Game complete | — |
 | Player | Game | Organiser Game Invite | Y |
-| Organiser | Welcome | Created Comp | — |
 | Organiser | Game | Game Start reminder | — |
 | Organiser | Game | Result reminder | — |
 | Organiser | Game | Fixture reminder | — |
@@ -89,7 +90,7 @@ round ends, results go out, the next round opens. One notification covers both, 
 | All | Info | Official game invite | — |
 | All | Info | News | — |
 
-Six of the nine are organiser-facing. Everything built so far except the mid-round tip is
+Five of the eight are organiser-facing. Everything built so far except the mid-round tip is
 player- or platform-facing, so organiser comms is the whole gap.
 
 **Deferred:** the Promote-page feature — an organiser writing free text to their own participants
@@ -152,6 +153,26 @@ nothing with this route but the queue.
   whatever its status.
 - **No competition.** `competition_id` is left NULL on both the queue and the tracking row — not
   0, which is `email_preference`'s sentinel for a global preference.
+
+## Created Comp — the rules (built 2026-08-11)
+
+`services/createdComp.js`. One per competition, to whoever created it. Competition-scoped, so the
+admin picker chooses which one and there is exactly one recipient per press.
+
+- **`create-competition.js` triggers nothing** — operator-driven from the admin screen, same as
+  the rest.
+- **It is not the confirmation screen again.** The organiser saw that seconds earlier. This
+  email's job is to be findable in an inbox a week later, when they are in the pub trying to get
+  people in — so the invite code and join link are the content, framed as the thing to forward.
+- **Branches on `fixture_service`.** Those competitions get a line about pressing **Ready**,
+  because nothing is pushed to them until it is and the organiser would otherwise wait for a round
+  that never comes. Organiser-managed competitions have no such button and are not told to press
+  it. The column is fixed at creation, so the branch cannot go stale between queueing and sending.
+- **No backfill.** `CUTOFF` is `2026-08-11T16:45:00Z`, just after the newest competition at the
+  time of writing (2026-08-10 21:55 UTC). 18 competitions existed and none had ever had this
+  email; "you have created a competition" about one set up in June is a bad email.
+- **Once per competition**, ever — candidacy excludes any competition with a `created_comp` row in
+  `email_queue`, whatever its status.
 
 ## `services/emailCatalog.js` — which emails are wired
 
@@ -322,14 +343,14 @@ build the recipient list, the admin screen shows it, `/send-email` drains it on 
 
 ### What is built (2026-08-11)
 
-`lmslocal-admin` → **Emails** (`/dashboard/emails`). Wired end to end for **pick reminder and
-Join LMS**; every other row renders greyed, and the server refuses it with
+`lmslocal-admin` → **Emails** (`/dashboard/emails`). Wired end to end for **pick reminder, Join
+LMS and Created Comp**; every other row renders greyed, and the server refuses it with
 `UNSUPPORTED_EMAIL_TYPE` — the screen is not the only thing stopping a send.
 
 | Piece | Where |
 |---|---|
 | Which emails are wired | `services/emailCatalog.js` — service, template and `scoped` per type |
-| Eligibility, one definition | `services/pickReminder.js`, `services/joinLms.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
+| Eligibility, one definition | `services/pickReminder.js`, `joinLms.js`, `createdComp.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
 | Opt-outs, one definition | `services/emailPreference.js` — `notOptedOutSql`, used inside the candidate query |
 | Unsubscribe | `routes/unsubscribe.js` (GET, one-click POST, save) |
 | Template, build split from send | `services/emailService.js` — `buildPickReminderEmail`, `buildJoinLmsEmail` |

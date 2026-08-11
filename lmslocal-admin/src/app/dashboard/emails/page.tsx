@@ -10,7 +10,8 @@ The spine is docs/email/email-outline.xlsx - the same rows in the same order, in
 not built yet. Showing the gaps costs one greyed row each and means the screen doubles as a map
 of what is left to do, rather than quietly omitting anything with no code behind it.
 
-Two emails are wired end to end so far: pick_reminder and join_lms. Rows with wired: false render
+Three emails are wired end to end so far: pick_reminder, join_lms and created_comp. Rows with
+wired: false render
 greyed with no Preview button, and the server refuses them anyway with UNSUPPORTED_EMAIL_TYPE -
 the screen is not the only thing stopping a send. The server's own list is
 services/emailCatalog.js; `wired` here has to be kept in step with it by hand.
@@ -79,7 +80,7 @@ const OUTLINE: OutlineEmail[] = [
   { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', wired: true, scoped: true, push: true },
   { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', wired: false, scoped: true },
   { key: 'organiser_game_invite', consumer: 'Player', section: 'Game', name: 'Organiser Game Invite', wired: false, scoped: true, push: true },
-  { key: 'created_comp', consumer: 'Organiser', section: 'Welcome', name: 'Created Comp', wired: false, scoped: true },
+  { key: 'created_comp', consumer: 'Organiser', section: 'Welcome', name: 'Created Comp', wired: true, scoped: true, note: 'New competitions only' },
   { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', wired: false, scoped: true },
   { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', wired: false, scoped: true },
   { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', wired: false, scoped: true },
