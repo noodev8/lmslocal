@@ -6,15 +6,11 @@ Admin Emails
 =======================================================================================================================================
 Purpose: One place to see every email on the outline, preview who it would go to, and send it.
 
-The spine is docs/email/email-outline.xlsx - the same rows in the same order, including the ones
-not built yet. Showing the gaps costs one greyed row each and means the screen doubles as a map
-of what is left to do, rather than quietly omitting anything with no code behind it.
-
-Three emails are wired end to end so far: pick_reminder, join_lms and created_comp. Rows with
-wired: false render
-greyed with no Preview button, and the server refuses them anyway with UNSUPPORTED_EMAIL_TYPE -
-the screen is not the only thing stopping a send. The server's own list is
-services/emailCatalog.js; `wired` here has to be kept in step with it by hand.
+The spine is docs/email/email-outline.xlsx - the same rows in the same order. Every row here is
+now built end to end, which is why there is no status column: it said "Ready" eleven times. A row
+whose service is missing would be refused by the server with UNSUPPORTED_EMAIL_TYPE rather than
+half-sent, so this table does not have to police that. The server's own list is
+services/emailCatalog.js - add an email there and add its row here.
 
 Platform-wide rows (scoped: false) ignore the competition picker entirely. Their panel says so,
 and passes no competition_id at all rather than a meaningless one.
@@ -53,9 +49,7 @@ import {
 // The outline
 // ======================================================================================
 
-// 'Game Members' arrived with the BROADCAST block: an organiser broadcasting to their own
-// competition, which is neither "every player on the platform" nor a role.
-type Consumer = 'Player' | 'Organiser' | 'All' | 'Game Members';
+type Consumer = 'Player' | 'Organiser' | 'All';
 // The outline has exactly two sections since 2026-08-11, and they are also the two unsubscribe
 // groups. Welcome and Tips were folded into Info.
 type Section = 'Game' | 'Info';
@@ -67,8 +61,6 @@ interface OutlineEmail {
   section: Section;
   /** The EMAIL column from the outline, verbatim. */
   name: string;
-  /** Built AND reachable from this screen. Mirrors services/emailCatalog.js. */
-  wired: boolean;
   /** Whether recipients depend on the selected competition. */
   scoped: boolean;
   /** Marked Y in the outline's MOBILE NOTIFICATION column. */
@@ -88,42 +80,26 @@ operator reads the list ("which of these does a player get?"), and it is a colum
 this table mirrors; it just no longer decides anything.
 */
 const OUTLINE: OutlineEmail[] = [
-  { key: 'results', consumer: 'Player', section: 'Game', name: 'Round Over', wired: true, scoped: true, push: true, note: 'Round settled + next fixtures in' },
-  { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', wired: true, scoped: true, push: true },
-  { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', wired: true, scoped: true, note: 'Everyone who took part, once' },
-  { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', wired: true, scoped: false, note: 'Stuck 14+ days, round waiting' },
-  { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', wired: true, scoped: false, note: 'Round played 36h+, unsettled' },
-  { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', wired: true, scoped: false, note: 'Last round settled 3+ days' },
-  { key: 'promote_competition', consumer: 'Organiser', section: 'Info', name: 'Hint - Promote competition', wired: true, scoped: false, note: '3 days after creating, once ever' },
-  { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Info', name: 'Hint - Result set mid round', wired: true, scoped: false, note: '7 days, manual comps with fixtures' },
-  { key: 'welcome', consumer: 'Player', section: 'Info', name: 'Welcome Join Comp', wired: true, scoped: true, note: 'New joins only' },
-  { key: 'created_comp', consumer: 'Organiser', section: 'Info', name: 'Welcome Created Comp', wired: true, scoped: true, note: 'New competitions only' },
-  { key: 'join_lms', consumer: 'All', section: 'Info', name: 'Welcome Join LMS', wired: true, scoped: false, note: 'New signups only' },
-  // BROADCAST block on the outline. Neither is built; both are already mapped to the info group
-  // in emailPreference.js so that neither can be built without an opt-out.
-  // Wired, but not from this screen - it has its own, since the message is typed rather than
-  // derived. The Broadcast button in the header is the way in; there is no Preview here.
-  { key: 'broadcast_admin', consumer: 'All', section: 'Info', name: 'Broadcast from Admin', wired: false, scoped: false, note: 'Its own screen →' },
-  { key: 'broadcast_organiser', consumer: 'Game Members', section: 'Info', name: 'Broadcast from Organiser', wired: false, scoped: true, note: 'Broadcast' },
+  { key: 'results', consumer: 'Player', section: 'Game', name: 'Round Over', scoped: true, push: true, note: 'Round settled + next fixtures in' },
+  { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', scoped: true, push: true },
+  { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', scoped: true, note: 'Everyone who took part, once' },
+  { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', scoped: false, note: 'Stuck 14+ days, round waiting' },
+  { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', scoped: false, note: 'Round played 36h+, unsettled' },
+  { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', scoped: false, note: 'Last round settled 3+ days' },
+  { key: 'promote_competition', consumer: 'Organiser', section: 'Info', name: 'Hint - Promote competition', scoped: false, note: '3 days after creating, once ever' },
+  { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Info', name: 'Hint - Result set mid round', scoped: false, note: '7 days, manual comps with fixtures' },
+  { key: 'welcome', consumer: 'Player', section: 'Info', name: 'Welcome Join Comp', scoped: true, note: 'New joins only' },
+  { key: 'created_comp', consumer: 'Organiser', section: 'Info', name: 'Welcome Created Comp', scoped: true, note: 'New competitions only' },
+  { key: 'join_lms', consumer: 'All', section: 'Info', name: 'Welcome Join LMS', scoped: false, note: 'New signups only' },
+  // The outline's BROADCAST block is deliberately absent from this table. Broadcast from Admin
+  // lives on its own screen - the message is typed rather than derived, so there is nothing here
+  // to preview or count, and the header button is the way in. Broadcast from Organiser was
+  // dropped, not deferred - see docs/email/README.md. Do not re-add either row.
 ];
 
 // ======================================================================================
 // Small presentational pieces
 // ======================================================================================
-
-function StatusPill({ wired }: { wired: boolean }) {
-  return wired ? (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-      Ready
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-      Not wired
-    </span>
-  );
-}
 
 function SectionTag({ section }: { section: Section }) {
   /*
@@ -544,7 +520,6 @@ export default function EmailsPage() {
                   <th className="px-4 py-3 font-semibold">Consumer</th>
                   <th className="px-4 py-3 font-semibold">Section</th>
                   <th className="px-4 py-3 font-semibold">Email</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 text-right font-semibold">Recipients</th>
                   <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
@@ -554,18 +529,13 @@ export default function EmailsPage() {
                   // undefined means the server did not work this one out - not the same as zero.
                   const count = counts[email.key];
                   return (
-                    <tr
-                      key={email.key}
-                      className={`transition ${email.wired ? 'hover:bg-slate-50' : 'bg-slate-50/40'}`}
-                    >
+                    <tr key={email.key} className="transition hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-600">{email.consumer}</td>
                       <td className="px-4 py-3">
                         <SectionTag section={email.section} />
                       </td>
                       <td className="px-4 py-3">
-                        <span className={email.wired ? 'font-medium text-slate-900' : 'text-slate-400'}>
-                          {email.name}
-                        </span>
+                        <span className="font-medium text-slate-900">{email.name}</span>
                         {email.push && (
                           <span
                             className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
@@ -575,9 +545,6 @@ export default function EmailsPage() {
                           </span>
                         )}
                         {email.note && <span className="ml-2 text-xs italic text-slate-400">{email.note}</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusPill wired={email.wired} />
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-slate-600">
                         {typeof count === 'number' ? (
@@ -589,7 +556,7 @@ export default function EmailsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {email.wired && (competition || !email.scoped) && (
+                        {(competition || !email.scoped) && (
                           <button
                             onClick={() => setOpen(email)}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"

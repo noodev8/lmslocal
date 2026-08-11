@@ -89,9 +89,8 @@ round ends, results go out, the next round opens. One notification covers both, 
 Four of the seven are organiser-facing. Everything built so far except the mid-round tip is
 player- or platform-facing, so organiser comms is the whole gap.
 
-**Deferred:** the Promote-page feature — an organiser writing free text to their own participants
-— is **not in this scope** and will be addressed later. `Organiser | Tips | Promote competition`
-stays on the outline untouched for now.
+**Dropped:** an organiser writing free text to their own participants is **not being built as an
+email** — see "Broadcast from Organiser" below for the reasoning.
 
 ---
 
@@ -423,8 +422,9 @@ Promote needs no state guard: an organiser with no players is exactly who should
 
 **What Promote may claim.** `/game/[id]/promote` is real and carries WhatsApp message templates,
 Facebook/Instagram image generation, a QR code and a copyable join link — the hint names those.
-It must **not** mention broadcasting to members: that is `Broadcast from Organiser`, still
-unwired. A hint that teaches a feature which does not exist is worse than no hint.
+It must **not** mention broadcasting to members: `Broadcast from Organiser` was dropped (see
+below) and there is no dashboard notice either. A hint that teaches a feature which does not exist
+is worse than no hint.
 
 Group `info`, which both keys already mapped to.
 
@@ -466,10 +466,41 @@ newlines become line breaks. No HTML, no markdown.
 A live send clears the compose box and resets test mode, so a second press cannot repeat a
 broadcast blind.
 
-**Broadcast from Organiser is not built** — same outline block, different problem: it needs
-organiser auth, per-competition rate limiting, and a decision about what an organiser may say to
-players who joined for one competition. It is already mapped to the `info` group so it cannot be
-built into an opt-out hole.
+## Broadcast from Organiser — dropped (2026-08-11)
+
+**Not being built as an email, and not deferred either — decided against.** Andreas's call, and
+the reasoning is worth keeping so it does not get re-proposed:
+
+**Email is for reaching someone who is not looking.** A player in a live competition already comes
+back every week, and already gets Round Over, Pick reminder and Game complete. The messages we
+send are adequate. Anything else an organiser wants to say can wait on the screen the player is
+going to open anyway.
+
+**And the cost was never the compose box.** Free text from a customer, sent from our domain, to
+people who joined for a competition rather than for him, brings all of:
+
+- **Rate limiting in three separate senses** — a per-competition cap so players are not pestered;
+  a share of the 100/day Resend allowance, which organiser sends would spend in competition with
+  the pick reminders that have a deadline attached; and the drain problem below.
+- **Latency we cannot honour.** `broadcast.js` queues everyone and sends `SEND_CAP` now, the rest
+  waiting for an operator to press `/send-email`. That is fine for us — we know when we will next
+  look. An organiser told "sent" while forty of their eighty players get it on Thursday is a
+  broken promise, and "we're starting Saturday" is exactly the message this would carry.
+- **Reputation and complaints landing on us**, not on the organiser whose words they are.
+- **An opt-out at the wrong grain.** It was mapped to `info`, so a player tired of one chatty
+  organiser would have to mute welcome mail and hints platform-wide to stop him.
+
+**What takes its place, if anything does: a notice on the competition dashboard.** Organiser types
+it, players see it when they next open the game, expanded until they minimise it. No deliverability
+risk, no send budget, no unsubscribe obligation, and it only reaches people who already joined.
+**Not built, not scheduled** — and if it is, `competition.description` is the wrong field to reuse:
+13 of 19 competitions have one and near enough every one is entry fee, prize split or rules, it is
+rendered on the join page as the sales pitch, and it is deliberately collapsed once a round is live.
+A message needs to be loud exactly when a description should be quiet, and overwriting the pitch to
+say "no game this week" loses the pitch.
+
+The `broadcast_organiser` key stays mapped to `info` in `EMAIL_GROUPS` — an entry nobody uses costs
+nothing, and a missing one is a hole if anyone ever revives this.
 
 ## `services/emailCatalog.js` — which emails are wired
 

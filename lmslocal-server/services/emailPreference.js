@@ -76,13 +76,14 @@ const EMAIL_GROUPS = {
   update_scores_mid_round_tip: GROUPS.INFO,
 
   /*
-  Broadcasts, from the outline's BROADCAST block. Mapped before either is built, deliberately: an
-  email type absent from here has no group, and no group means deliver() treats it as
-  transactional and never suppresses it. That is the right default for password resets and the
-  wrong one for a broadcast, so the mapping must not wait for the feature.
+  Broadcast from Admin. An email type absent from here has no group, and no group means deliver()
+  treats it as transactional and never suppresses it. That is the right default for password
+  resets and the wrong one for a broadcast.
+
+  broadcast_organiser was dropped rather than built (docs/email/README.md), so its mapping went
+  with it - if it is ever revived, add the mapping back in the same commit as the sender.
   */
   broadcast_admin: GROUPS.INFO,
-  broadcast_organiser: GROUPS.INFO,
 
   /*
   competition_announcement is the live platform-wide blast route (routes/send-email.js). It was

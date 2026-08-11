@@ -52,8 +52,9 @@ const HINTS = {
     heading: 'There is a page that writes your invites for you',
     /*
     Everything named here exists on /game/[id]/promote today. Deliberately does NOT mention
-    broadcasting a message to members: that is Broadcast from Organiser, which is not built, and a
-    hint teaching a feature that does not exist is worse than no hint at all.
+    broadcasting a message to members: Broadcast from Organiser was dropped rather than deferred
+    (docs/email/README.md), so there is nothing to teach, and a hint teaching a feature that does
+    not exist is worse than no hint at all.
     */
     body: [
       'Getting people to join is the hardest part of running a competition, and it is the part we can actually help with.',
