@@ -507,6 +507,47 @@ export const getAdmin = (): AdminUser | null => {
 };
 
 // ======================================================================================
+// Emails
+// ======================================================================================
+
+/*
+Counts are keyed by the outline's email key. A key can be absent, or present and null, when the
+server cannot work that email out yet - which is not the same as nobody qualifying. The screen
+shows a dash for one and a zero for the other.
+*/
+export type EmailTargetsResponse = ApiResponse & {
+  counts?: Record<string, number | null>;
+};
+
+export interface EmailRecipient {
+  user_id: number;
+  email: string;
+  display_name: string;
+  round_number: number;
+}
+
+export type PreviewEmailResponse = ApiResponse & {
+  recipient_count?: number;
+  recipients?: EmailRecipient[];
+  truncated?: boolean;
+  /* Rendered from the real template for the first recipient. Null when nobody qualifies. */
+  sample?: {
+    for_email: string;
+    subject: string;
+    html: string;
+  } | null;
+};
+
+export type SendEmailsResponse = ApiResponse & {
+  test_mode?: boolean;
+  sent_count?: number;
+  failed_count?: number;
+  candidate_count?: number;
+  /* Set in test mode only - where the single copy actually went. */
+  sent_to?: string | null;
+};
+
+// ======================================================================================
 // API calls
 // ======================================================================================
 
@@ -691,6 +732,42 @@ export const adminApi = {
       competition_id: competitionId,
       user_id: userId,
       team,
+    });
+    return response.data;
+  },
+
+  // ====================================================================================
+  // Emails
+  // ====================================================================================
+
+  getEmailTargets: async (competitionId: number): Promise<EmailTargetsResponse> => {
+    const response = await api.post<EmailTargetsResponse>('/admin/get-email-targets', {
+      competition_id: competitionId,
+    });
+    return response.data;
+  },
+
+  previewEmail: async (emailType: string, competitionId: number): Promise<PreviewEmailResponse> => {
+    const response = await api.post<PreviewEmailResponse>('/admin/preview-email', {
+      email_type: emailType,
+      competition_id: competitionId,
+    });
+    return response.data;
+  },
+
+  /*
+  testMode is sent explicitly every time rather than relying on the server default. The default
+  is the safe one, but a send is the last place to depend on an omission meaning what you hoped.
+  */
+  sendEmails: async (
+    emailType: string,
+    competitionId: number,
+    testMode: boolean
+  ): Promise<SendEmailsResponse> => {
+    const response = await api.post<SendEmailsResponse>('/admin/send-emails', {
+      email_type: emailType,
+      competition_id: competitionId,
+      test_mode: testMode,
     });
     return response.data;
   },

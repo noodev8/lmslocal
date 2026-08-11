@@ -146,6 +146,9 @@ const addBotsToCompetitionRoute = require('./routes/admin/add-bots-to-competitio
 const removeBotFromCompetitionRoute = require('./routes/admin/remove-bot-from-competition');
 const setBotPicksRoute = require('./routes/admin/set-bot-picks');
 const setBotPickRoute = require('./routes/admin/set-bot-pick');
+const getEmailTargetsRoute = require('./routes/admin/get-email-targets');
+const previewEmailRoute = require('./routes/admin/preview-email');
+const adminSendEmailsRoute = require('./routes/admin/send-emails');
 
 // Organizer Fixture Management Routes (for manual competitions - fixture_service = false)
 const organizerAddFixturesRoute = require('./routes/organizer-add-fixtures');
@@ -474,6 +477,13 @@ app.use('/admin/add-bots-to-competition', addBotsToCompetitionRoute);
 app.use('/admin/remove-bot-from-competition', removeBotFromCompetitionRoute);
 app.use('/admin/set-bot-picks', setBotPicksRoute);
 app.use('/admin/set-bot-pick', setBotPickRoute);
+/*
+Emails screen. Each route carries verifyAdminToken itself rather than relying on a mount-time
+gate, matching the rest of the /admin namespace.
+*/
+app.use('/admin/get-email-targets', getEmailTargetsRoute);
+app.use('/admin/preview-email', previewEmailRoute);
+app.use('/admin/send-emails', adminSendEmailsRoute);
 
 // Organizer Fixture Management API Routes (manual competitions only - fixture_service = false)
 app.use('/organizer-add-fixtures', organizerAddFixturesRoute);

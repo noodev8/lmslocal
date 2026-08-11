@@ -16,17 +16,29 @@ Success Response:
   "preferences": {
     "global": {
       "all_emails": true,              // boolean, master switch for all emails
-      "pick_reminder": true,           // boolean, pick reminder emails across all competitions
-      "welcome": true,                 // boolean, welcome emails
-      "results": true                  // boolean, results emails
+      "groups": {                      // object, one boolean per consumer x section group
+        "player.welcome": true,
+        "player.game": true,
+        "organiser.welcome": true,
+        "organiser.game": true,
+        "organiser.tips": true,
+        "platform.welcome": true,
+        "platform.info": true
+      },
+      "group_labels": {                // object, how to describe each group to a person
+        "player.game": {
+          "consumer": "Player",        // string
+          "section": "Game",           // string
+          "label": "Game updates",     // string
+          "blurb": "Pick reminders, round results and game progress."
+        }
+      }
     },
     "competition_specific": [          // array, competition-level overrides (if competition_id provided)
       {
         "competition_id": 91,
         "competition_name": "Crown Pub LMS",
-        "all_emails": true,            // boolean, mute entire competition
-        "pick_reminder": true,
-        "results": true
+        "all_emails": true             // boolean, mute entire competition
       }
     ]
   }
@@ -48,6 +60,7 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { getPreferences, GROUP_LABELS } = require('../services/emailPreference');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
@@ -59,34 +72,22 @@ router.post('/', verifyToken, async (req, res) => {
     const user_id = req.user.id;
     const { competition_id } = req.body;
 
-    // === GET GLOBAL PREFERENCES ===
-    // Query all global preferences (competition_id = 0) for this user
-    const globalPrefsResult = await query(`
-      SELECT
-        email_type,
-        enabled
-      FROM email_preference
-      WHERE user_id = $1
-        AND competition_id = 0
-      ORDER BY email_type
-    `, [user_id]);
+    /*
+    === GET GLOBAL PREFERENCES ===
+    Read through services/emailPreference.js so this screen and the unsubscribe page agree on
+    what the groups are and what an absent row means. The old shape here was one key per email
+    type (pick_reminder, results, welcome), which no longer matches how anything is stored:
+    preferences are grouped by consumer x section, and the two legacy per-email rows were
+    migrated away on 2026-08-11.
+    */
+    const prefs = await getPreferences(user_id);
 
-    // Build global preferences object with defaults (opt-out model = all true by default)
     const globalPrefs = {
-      all_emails: true,
-      pick_reminder: true,
-      welcome: true,
-      results: true
+      all_emails: prefs.all,
+      groups: prefs.groups,
+      // Labels travel with the values so the client does not hardcode a second copy of them.
+      group_labels: GROUP_LABELS
     };
-
-    // Override with any saved preferences
-    globalPrefsResult.rows.forEach(pref => {
-      if (pref.email_type === 'all') {
-        globalPrefs.all_emails = pref.enabled;
-      } else if (pref.email_type) {
-        globalPrefs[pref.email_type] = pref.enabled;
-      }
-    });
 
     // === GET COMPETITION-SPECIFIC PREFERENCES (if requested) ===
     let competitionSpecific = [];

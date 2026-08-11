@@ -1,0 +1,585 @@
+'use client';
+
+/*
+=======================================================================================================================================
+Admin Emails
+=======================================================================================================================================
+Purpose: One place to see every email on the outline, preview who it would go to, and send it.
+
+The spine is docs/email/email-outline.xlsx - the same rows in the same order, including the ones
+not built yet. Showing the gaps costs one greyed row each and means the screen doubles as a map
+of what is left to do, rather than quietly omitting anything with no code behind it.
+
+Only pick_reminder is wired end to end so far. Rows with wired: false render greyed with no
+Preview button, and the server refuses them anyway with UNSUPPORTED_EMAIL_TYPE - the screen is
+not the only thing stopping a send.
+
+TEST MODE defaults to on at every page load and is deliberately not persisted. A sticky "off"
+surviving a refresh is how the whole user base gets mailed by accident. In test mode the server
+sends exactly one copy to the test address and queues nothing; see routes/admin/send-emails.js
+for why queuing during a test would break the real send that follows.
+=======================================================================================================================================
+*/
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowPathIcon,
+  BeakerIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  PaperAirplaneIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import AdminHeader from '@/components/AdminHeader';
+import {
+  adminApi,
+  getToken,
+  apiBaseUrl,
+  AdminCompetition,
+  EmailRecipient,
+  PreviewEmailResponse,
+} from '@/lib/api';
+
+// ======================================================================================
+// The outline
+// ======================================================================================
+
+type Consumer = 'Player' | 'Organiser' | 'All';
+type Section = 'Welcome' | 'Game' | 'Info' | 'Tips';
+
+interface OutlineEmail {
+  /** Matches email_queue.email_type once built. */
+  key: string;
+  consumer: Consumer;
+  section: Section;
+  /** The EMAIL column from the outline, verbatim. */
+  name: string;
+  /** Built AND reachable from this screen. Only pick_reminder so far. */
+  wired: boolean;
+  /** Whether recipients depend on the selected competition. */
+  scoped: boolean;
+  /** Marked Y in the outline's MOBILE NOTIFICATION column. */
+  push?: boolean;
+  note?: string;
+}
+
+/*
+"Game started" is folded into "Round Over" and the duplicate Join Comp row dropped, per the
+decisions recorded in docs/email/README.md.
+*/
+const OUTLINE: OutlineEmail[] = [
+  { key: 'welcome', consumer: 'Player', section: 'Welcome', name: 'Join Comp', wired: false, scoped: true, note: 'Built, not wired here' },
+  { key: 'results', consumer: 'Player', section: 'Game', name: 'Round Over', wired: false, scoped: true, push: true, note: 'Built, not wired here' },
+  { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', wired: true, scoped: true, push: true },
+  { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', wired: false, scoped: true },
+  { key: 'organiser_game_invite', consumer: 'Player', section: 'Game', name: 'Organiser Game Invite', wired: false, scoped: true, push: true },
+  { key: 'created_comp', consumer: 'Organiser', section: 'Welcome', name: 'Created Comp', wired: false, scoped: true },
+  { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', wired: false, scoped: true },
+  { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', wired: false, scoped: true },
+  { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', wired: false, scoped: true },
+  { key: 'promote_competition', consumer: 'Organiser', section: 'Tips', name: 'Promote competition', wired: false, scoped: true, note: 'Deferred' },
+  { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Tips', name: 'Result set mid round', wired: false, scoped: true, note: 'Built, not wired here' },
+  { key: 'join_lms', consumer: 'All', section: 'Welcome', name: 'Join LMS', wired: false, scoped: false },
+  { key: 'official_game_invite', consumer: 'All', section: 'Info', name: 'Official game invite', wired: false, scoped: false, note: 'Was competition_announcement' },
+  { key: 'news', consumer: 'All', section: 'Info', name: 'News', wired: false, scoped: false },
+];
+
+// ======================================================================================
+// Small presentational pieces
+// ======================================================================================
+
+function StatusPill({ wired }: { wired: boolean }) {
+  return wired ? (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      Ready
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+      Not wired
+    </span>
+  );
+}
+
+function SectionTag({ section }: { section: Section }) {
+  /*
+  Section is half the unsubscribe key (with Consumer), so it earns a visual identity - what a
+  recipient can switch off is the group, not the individual email.
+  */
+  const tone: Record<Section, string> = {
+    Welcome: 'bg-sky-50 text-sky-700',
+    Game: 'bg-indigo-50 text-indigo-700',
+    Info: 'bg-amber-50 text-amber-700',
+    Tips: 'bg-violet-50 text-violet-700',
+  };
+  return <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${tone[section]}`}>{section}</span>;
+}
+
+// ======================================================================================
+// Send panel
+// ======================================================================================
+
+function SendPanel({
+  email,
+  competition,
+  testMode,
+  onClose,
+  onSent,
+}: {
+  email: OutlineEmail;
+  competition: AdminCompetition;
+  testMode: boolean;
+  onClose: () => void;
+  onSent: () => void;
+}) {
+  const [preview, setPreview] = useState<PreviewEmailResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showList, setShowList] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await adminApi.previewEmail(email.key, competition.id);
+        if (cancelled) return;
+
+        if (res.return_code === 'SUCCESS') {
+          setPreview(res);
+        } else if (res.return_code !== 'UNAUTHORIZED' && res.return_code !== 'TOKEN_EXPIRED') {
+          setError(res.message || 'Could not build the preview');
+        }
+      } catch {
+        if (!cancelled) setError(`Could not reach ${apiBaseUrl}`);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [email.key, competition.id]);
+
+  const count = preview?.recipient_count ?? 0;
+  const recipients: EmailRecipient[] = preview?.recipients ?? [];
+
+  const handleSend = async () => {
+    setSending(true);
+    setError('');
+    try {
+      const res = await adminApi.sendEmails(email.key, competition.id, testMode);
+
+      if (res.return_code === 'SUCCESS') {
+        setResult(res.message || 'Done');
+        onSent();
+      } else if (res.return_code === 'NO_RECIPIENTS') {
+        setResult(res.message || 'Nobody qualifies');
+      } else if (res.return_code !== 'UNAUTHORIZED' && res.return_code !== 'TOKEN_EXPIRED') {
+        setError(res.message || 'Send failed');
+      }
+    } catch {
+      setError(`Could not reach ${apiBaseUrl}`);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center">
+      <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+          <div>
+            <h2 className="font-semibold text-slate-900">{email.name}</h2>
+            <p className="text-sm text-slate-500">
+              {email.consumer} · {email.section} · {competition.name}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Close"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+          )}
+
+          {loading ? (
+            <p className="py-8 text-center text-sm text-slate-400">Working out recipients…</p>
+          ) : (
+            <>
+              {/* Recipients */}
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {count.toLocaleString()} recipient{count === 1 ? '' : 's'}
+                  </p>
+                  <p className="text-xs text-slate-500">Eligible after preferences and opt-outs</p>
+                </div>
+                {count > 0 && (
+                  <button
+                    onClick={() => setShowList((v) => !v)}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"
+                  >
+                    {showList ? 'Hide list' : 'View list'}
+                  </button>
+                )}
+              </div>
+
+              {showList && recipients.length > 0 && (
+                <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200">
+                  <ul className="divide-y divide-slate-100 text-sm">
+                    {recipients.map((r) => (
+                      <li key={r.user_id} className="flex justify-between gap-3 px-4 py-2">
+                        <span className="text-slate-700">{r.display_name}</span>
+                        <span className="text-slate-500">{r.email}</span>
+                      </li>
+                    ))}
+                    {preview?.truncated && (
+                      <li className="px-4 py-2 text-xs italic text-slate-400">
+                        First {recipients.length} shown of {count.toLocaleString()}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {/* The real rendered template */}
+              {preview?.sample ? (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Preview — {preview.sample.for_email}&apos;s copy
+                  </p>
+                  <p className="mb-2 text-sm text-slate-700">
+                    <span className="text-slate-400">Subject: </span>
+                    {preview.sample.subject}
+                  </p>
+                  {/*
+                  Sandboxed so the email's own markup cannot reach this page. srcDoc rather than a
+                  src, because the HTML only exists in this response.
+                  */}
+                  <iframe
+                    title="Email preview"
+                    srcDoc={preview.sample.html}
+                    sandbox=""
+                    className="h-96 w-full rounded-lg border border-slate-200 bg-white"
+                  />
+                </div>
+              ) : (
+                !loading && (
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                    Nobody qualifies for this email right now, so there is nothing to preview.
+                  </p>
+                )
+              )}
+
+              {/* The summary line. Last thing read before the button. */}
+              {count > 0 &&
+                (testMode ? (
+                  <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                    <BeakerIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                    <div className="text-sm">
+                      <p className="font-medium text-amber-900">Test mode — 1 email to the test address</p>
+                      <p className="text-amber-700">
+                        {count.toLocaleString()} real recipient{count === 1 ? '' : 's'} untouched, and nothing queued.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                    <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+                    <div className="text-sm">
+                      <p className="font-medium text-red-900">
+                        Live send — {count.toLocaleString()} real recipient{count === 1 ? '' : 's'}
+                      </p>
+                      <p className="text-red-700">This goes to actual people. There is no undo.</p>
+                    </div>
+                  </div>
+                ))}
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          {result && (
+            <span className="mr-auto flex items-center gap-1.5 text-sm text-emerald-700">
+              <CheckCircleIcon className="h-4 w-4" />
+              {result}
+            </span>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+          >
+            Close
+          </button>
+          <button
+            onClick={handleSend}
+            disabled={loading || sending || count === 0}
+            className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              testMode ? 'bg-slate-700 hover:bg-slate-800' : 'bg-red-600 hover:bg-red-700'
+            }`}
+          >
+            <PaperAirplaneIcon className="h-4 w-4" />
+            {sending ? 'Sending…' : testMode ? 'Send test' : 'Send live'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ======================================================================================
+// Page
+// ======================================================================================
+
+export default function EmailsPage() {
+  const router = useRouter();
+
+  /* Not persisted and not read from storage - see the header. Every page load starts armed. */
+  const [testMode, setTestMode] = useState(true);
+
+  const [competitions, setCompetitions] = useState<AdminCompetition[]>([]);
+  const [competitionId, setCompetitionId] = useState<number | null>(null);
+  const [counts, setCounts] = useState<Record<string, number | null>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [open, setOpen] = useState<OutlineEmail | null>(null);
+
+  const competition = useMemo(
+    () => competitions.find((c) => c.id === competitionId) ?? null,
+    [competitions, competitionId]
+  );
+
+  const loadCompetitions = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await adminApi.getCompetitions();
+      if (res.return_code === 'SUCCESS' && res.competitions) {
+        setCompetitions(res.competitions);
+        setCompetitionId((current) => current ?? res.competitions?.[0]?.id ?? null);
+      } else if (res.return_code !== 'UNAUTHORIZED' && res.return_code !== 'TOKEN_EXPIRED') {
+        setError(res.message || 'Could not load competitions');
+      }
+    } catch {
+      setError(`Could not reach ${apiBaseUrl}. The server may be down.`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadCounts = useCallback(async (id: number) => {
+    try {
+      const res = await adminApi.getEmailTargets(id);
+      if (res.return_code === 'SUCCESS' && res.counts) {
+        setCounts(res.counts);
+      } else {
+        setCounts({});
+      }
+    } catch {
+      setCounts({});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!getToken()) {
+      router.replace('/login');
+      return;
+    }
+    loadCompetitions();
+  }, [router, loadCompetitions]);
+
+  useEffect(() => {
+    if (competitionId !== null) loadCounts(competitionId);
+  }, [competitionId, loadCounts]);
+
+  const refreshCounts = () => {
+    if (competitionId !== null) loadCounts(competitionId);
+  };
+
+  return (
+    <div className="min-h-screen">
+      <AdminHeader>
+        <button
+          onClick={refreshCounts}
+          disabled={loading}
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
+        >
+          <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+      </AdminHeader>
+
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        )}
+
+        {/* Mode bar */}
+        <div
+          className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
+            testMode ? 'border-amber-200 bg-amber-50' : 'border-red-300 bg-red-50'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {testMode ? (
+              <BeakerIcon className="h-5 w-5 shrink-0 text-amber-600" />
+            ) : (
+              <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-red-600" />
+            )}
+            <div className="text-sm">
+              {testMode ? (
+                <>
+                  <p className="font-medium text-amber-900">Test mode on</p>
+                  <p className="text-amber-700">
+                    One copy goes to the test address. Nothing is queued and no player is touched.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-red-900">Live sending</p>
+                  <p className="text-red-700">Emails go to real people. Resets to test on refresh.</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setTestMode((v) => !v)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              testMode
+                ? 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-50'
+                : 'bg-red-600 text-white hover:bg-red-700'
+            }`}
+          >
+            {testMode ? 'Switch to live' : 'Back to test'}
+          </button>
+        </div>
+
+        {/* Competition picker */}
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="competition" className="text-sm font-medium text-slate-700">
+            Competition
+          </label>
+          <select
+            id="competition"
+            value={competitionId ?? ''}
+            onChange={(e) => setCompetitionId(Number(e.target.value))}
+            disabled={competitions.length === 0}
+            className="max-w-xs rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 disabled:opacity-50"
+          >
+            {competitions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} (#{c.id})
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-slate-400">
+            Applies to competition-scoped emails. Platform-wide rows ignore it.
+          </span>
+        </div>
+
+        {/* The outline */}
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <h2 className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+            Emails
+          </h2>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3 font-semibold">Consumer</th>
+                  <th className="px-4 py-3 font-semibold">Section</th>
+                  <th className="px-4 py-3 font-semibold">Email</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 text-right font-semibold">Recipients</th>
+                  <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {OUTLINE.map((email) => {
+                  // undefined means the server did not work this one out - not the same as zero.
+                  const count = counts[email.key];
+                  return (
+                    <tr
+                      key={email.key}
+                      className={`transition ${email.wired ? 'hover:bg-slate-50' : 'bg-slate-50/40'}`}
+                    >
+                      <td className="px-4 py-3 text-slate-600">{email.consumer}</td>
+                      <td className="px-4 py-3">
+                        <SectionTag section={email.section} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={email.wired ? 'font-medium text-slate-900' : 'text-slate-400'}>
+                          {email.name}
+                        </span>
+                        {email.push && (
+                          <span
+                            className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
+                            title="Marked for mobile notification on the outline"
+                          >
+                            push
+                          </span>
+                        )}
+                        {email.note && <span className="ml-2 text-xs italic text-slate-400">{email.note}</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusPill wired={email.wired} />
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-600">
+                        {typeof count === 'number' ? (
+                          count.toLocaleString()
+                        ) : (
+                          <span className="text-slate-300" title="Not worked out yet">
+                            —
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {email.wired && competition && (
+                          <button
+                            onClick={() => setOpen(email)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                            Preview
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      {open && competition && (
+        <SendPanel
+          email={open}
+          competition={competition}
+          testMode={testMode}
+          onClose={() => setOpen(null)}
+          onSent={refreshCounts}
+        />
+      )}
+    </div>
+  );
+}

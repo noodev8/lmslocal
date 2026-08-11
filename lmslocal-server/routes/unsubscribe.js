@@ -2,251 +2,276 @@
 =======================================================================================================================================
 API Route: unsubscribe
 =======================================================================================================================================
-Method: GET
-Purpose: One-click email unsubscribe via link in emails. Decodes JWT token, saves preference to email_preference table,
-         and returns a simple HTML confirmation page. No login required (same pattern as verify-email.js).
-=======================================================================================================================================
-Request Parameters (Query String):
-{
-  "token": "eyJhbGciOi..."                  // string, required - JWT unsubscribe token from email link
-}
+Purpose: Let someone change what email they receive, from a link in an email, without logging in.
 
-Success Response (ALWAYS HTTP 200 - HTML Page):
-- User-friendly HTML page confirming unsubscribe from competition announcements
-- Preference saved to email_preference table
+Three entry points on one router:
 
-Error Response (ALWAYS HTTP 200 - HTML Page):
-- User-friendly HTML error page for invalid/missing token
+  GET  /unsubscribe?token=&group=   a person clicking the footer link. Acts on `group` straight
+                                    away, then renders the confirmation with toggles.
+  POST /unsubscribe?token=&group=   the mail client's own unsubscribe button (RFC 8058). Acts and
+                                    returns 200 with no page - nothing renders it.
+  POST /unsubscribe/save            the toggle form on that page. Sets every group at once.
+
+The GET acts before it renders rather than presenting a form to submit. One-click has to complete
+without further interaction, and Gmail and Yahoo have required that of bulk senders since Feb
+2024; a page that only offers toggles and waits does not satisfy it. The toggles are there to
+refine or reverse the decision afterwards, including switching the group back on.
+
+No login, by design - an unsubscribe link that demands a password is one people report as spam
+instead. Identity comes from app_user.unsubscribe_token: opaque, random, permanent and revocable
+on its own. It replaced a JWT signed with JWT_SECRET, the player login secret, which meant the
+only way to invalidate a leaked unsubscribe link was to log every user out.
+
+GET is an exception to the POST-only rule, as with verify-email: email links must be clickable.
 =======================================================================================================================================
-Response Types:
-"SUCCESS_PAGE"              - Successfully unsubscribed
-"INVALID_TOKEN_PAGE"        - Token missing, invalid, or wrong purpose
-"SERVER_ERROR_PAGE"         - Database error or unexpected server failure
-=======================================================================================================================================
-Note: This is a GET route exception to the "all routes use POST" rule, same as verify-email.js.
-      Email links must be clickable without JS/forms.
+Return Codes: none - every response is an HTML page or, for one-click, plain text.
 =======================================================================================================================================
 */
 
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const { query } = require('../database');
+const {
+  ALL,
+  GROUPS,
+  GROUP_LABELS,
+  groupFor,
+  getPreferences,
+  setPreference,
+  findUserByToken
+} = require('../services/emailPreference');
 const { logApiCall } = require('../utils/apiLogger');
+
 const router = express.Router();
 
-// Environment-aware frontend URL generator (same pattern as verify-email.js)
-// Returns appropriate frontend URL based on environment configuration
 const getFrontendUrl = () => {
   if (process.env.CLIENT_URL) {
-    // CLIENT_URL may contain comma-separated URLs, use the first one
-    const urls = process.env.CLIENT_URL.split(',').map(url => url.trim());
+    const urls = process.env.CLIENT_URL.split(',').map((url) => url.trim());
     return urls[0] || 'http://localhost:3000';
   }
   return 'http://localhost:3000';
 };
 
-// HTML template generator for consistent page styling (same pattern as verify-email.js)
-const generateHtmlPage = (title, heading, message, buttonText, buttonLink, isSuccess = false) => {
-  const headingClass = isSuccess ? 'success' : 'error';
-  const checkmark = isSuccess ? '<div class="checkmark"></div>' : '';
+// Escape anything that came from the database before it goes into HTML.
+const esc = (s) =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${title} - LMS Local</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-          }
-          .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-          }
-          .success { color: #059669; }
-          .error { color: #dc2626; }
-          .checkmark {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: #059669;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .checkmark::after {
-            content: '\\2713';
-            color: white;
-            font-size: 30px;
-            font-weight: bold;
-          }
-          .button {
-            display: inline-block;
-            background: #2563eb;
-            color: white;
-            padding: 15px 30px;
-            text-decoration: none;
-            border-radius: 8px;
-            margin-top: 25px;
-            font-weight: bold;
-            transition: background-color 0.2s;
-          }
-          .button:hover { background: #1d4ed8; }
-          h1 { color: #2563eb; margin-bottom: 10px; }
-          h2 { color: #1f2937; margin-bottom: 15px; }
-          p { color: #6b7280; line-height: 1.6; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>LMS Local</h1>
-          ${checkmark}
-          <h2 class="${headingClass}">${heading}</h2>
-          ${message}
-          <a href="${buttonLink}" class="button">${buttonText}</a>
+const PAGE_CSS = `
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+         background: #f8fafc; margin: 0; padding: 24px; color: #0f172a; }
+  .card { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.08); overflow: hidden; }
+  .head { background: #1e293b; padding: 24px; text-align: center; }
+  .head h1 { color: #fff; margin: 0; font-size: 20px; }
+  .head p { color: #cbd5e1; margin: 6px 0 0; font-size: 13px; word-break: break-all; }
+  .body { padding: 24px; }
+  .done { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;
+          padding: 14px 16px; border-radius: 8px; margin: 0 0 20px; }
+  .done strong { display: block; margin-bottom: 3px; }
+  .warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+          padding: 12px 16px; border-radius: 8px; margin: 0 0 20px; font-size: 14px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
+       color: #64748b; margin: 0 0 12px; }
+  .row { display: flex; gap: 12px; padding: 12px 0; border-top: 1px solid #f1f5f9; }
+  .row:first-of-type { border-top: none; }
+  .row label { font-weight: 500; cursor: pointer; }
+  .row p { margin: 2px 0 0; font-size: 13px; color: #64748b; }
+  .tag { font-size: 11px; color: #64748b; background: #f1f5f9;
+         padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+  input[type=checkbox] { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; }
+  .kill { border-top: 1px solid #e2e8f0; margin-top: 16px; padding-top: 16px; }
+  button { background: #1e293b; color: #fff; border: 0; border-radius: 8px;
+           padding: 12px 20px; font-size: 15px; font-weight: 500; cursor: pointer;
+           margin-top: 20px; width: 100%; }
+  button:hover { background: #0f172a; }
+  .link { display: block; text-align: center; margin-top: 16px; font-size: 13px; color: #64748b; }
+`;
+
+const shell = (title, inner, subtitle) => `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)} - LMS Local</title><style>${PAGE_CSS}</style></head>
+<body><div class="card">
+  <div class="head"><h1>LMS Local</h1>${subtitle ? `<p>${esc(subtitle)}</p>` : ''}</div>
+  <div class="body">${inner}</div>
+</div></body></html>`;
+
+const errorPage = (heading, message) =>
+  shell(
+    heading,
+    `<div class="warn"><strong>${esc(heading)}</strong><br>${esc(message)}</div>
+     <a class="link" href="${getFrontendUrl()}">Go to LMS Local</a>`
+  );
+
+/**
+ * The preferences page: what just happened, then a toggle for every group.
+ */
+function preferencesPage(user, prefs, justUnsubscribed) {
+  const done = justUnsubscribed
+    ? `<div class="done"><strong>Unsubscribed from ${esc(GROUP_LABELS[justUnsubscribed].label)}</strong>
+       ${esc(GROUP_LABELS[justUnsubscribed].blurb)}</div>`
+    : '';
+
+  /*
+  Pick reminders live in player.game, so switching Game off stops them. Said plainly rather than
+  quietly honoured - missing a pick costs a life, and someone turning off "game updates" to stop
+  result emails will not have guessed that.
+  */
+  const warn =
+    justUnsubscribed === GROUPS.PLAYER_GAME
+      ? `<div class="warn">That includes <strong>pick reminders</strong>. Without them it is easy to
+         miss a pick, and a missed pick costs a life. You can switch them back on below.</div>`
+      : '';
+
+  const rows = Object.values(GROUPS)
+    .map((key) => {
+      const meta = GROUP_LABELS[key];
+      const on = prefs.groups[key];
+      return `<div class="row">
+        <input type="checkbox" id="${key}" name="groups" value="${key}"${on ? ' checked' : ''}>
+        <div>
+          <label for="${key}">${esc(meta.label)}<span class="tag">${esc(meta.consumer)} · ${esc(meta.section)}</span></label>
+          <p>${esc(meta.blurb)}</p>
         </div>
-      </body>
-    </html>
-  `;
-};
+      </div>`;
+    })
+    .join('');
 
-// GET endpoint - unsubscribe via email link click (no login required)
+  const inner = `
+    ${done}
+    ${warn}
+    <form method="POST" action="/unsubscribe/save">
+      <input type="hidden" name="token" value="${esc(user.unsubscribe_token)}">
+      <h2>What you receive</h2>
+      ${rows}
+      <div class="kill">
+        <div class="row">
+          <input type="checkbox" id="killall" name="kill_all" value="1"${prefs.all ? '' : ' checked'}>
+          <div>
+            <label for="killall">Unsubscribe from everything</label>
+            <p>Stops all of the above. You will still get account emails such as password resets.</p>
+          </div>
+        </div>
+      </div>
+      <button type="submit">Save preferences</button>
+    </form>
+    <a class="link" href="${getFrontendUrl()}">Go to LMS Local</a>
+  `;
+
+  return shell('Email preferences', inner, user.email);
+}
+
+/**
+ * Shared by GET and the one-click POST: identify the user and act on the group.
+ * @returns {Promise<{user: object, prefs: object, acted: string|null}|null>} null if the token is bad
+ */
+async function applyUnsubscribe(token, groupParam) {
+  const user = await findUserByToken(token);
+  if (!user) return null;
+
+  // Accept a group key or a legacy per-email type, so a link cannot break on naming.
+  const group = groupFor(groupParam);
+
+  if (group) {
+    await setPreference(user.id, group, false);
+  }
+
+  const prefs = await getPreferences(user.id);
+  return { user: { ...user, unsubscribe_token: token }, prefs, acted: group };
+}
+
+// ======================================================================================
+// GET - a person clicking the link in an email
+// ======================================================================================
 router.get('/', async (req, res) => {
   logApiCall('unsubscribe');
 
   try {
-    const { token } = req.query;
-    const frontendUrl = getFrontendUrl();
+    const { token, group } = req.query;
 
-    // === STEP 1: Validate token is present ===
-    if (!token || typeof token !== 'string' || token.trim().length === 0) {
-      return res.send(generateHtmlPage(
-        'Invalid Link',
-        'Invalid Unsubscribe Link',
-        '<p>The unsubscribe link is invalid or missing the token.</p><p>Please check your email for the correct unsubscribe link.</p>',
-        'Go to LMS Local',
-        `${frontendUrl}`
-      ));
-    }
-
-    // === STEP 2: Decode and verify JWT token ===
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (jwtError) {
-      // JWT verification failed (invalid signature, malformed, etc.)
-      console.error('Unsubscribe JWT verification failed:', jwtError.message);
-      return res.send(generateHtmlPage(
-        'Invalid Token',
-        'Invalid Unsubscribe Link',
-        '<p>This unsubscribe link is invalid or has been tampered with.</p><p>Please use the unsubscribe link from a recent email.</p>',
-        'Go to LMS Local',
-        `${frontendUrl}`
-      ));
-    }
-
-    // === STEP 3: Validate token purpose ===
-    // Ensure the token was created for unsubscribe, not some other purpose
-    if (decoded.purpose !== 'unsubscribe') {
-      return res.send(generateHtmlPage(
-        'Invalid Token',
-        'Invalid Unsubscribe Link',
-        '<p>This link is not a valid unsubscribe link.</p>',
-        'Go to LMS Local',
-        `${frontendUrl}`
-      ));
-    }
-
-    // Extract fields from decoded token
-    const { user_id, email_type } = decoded;
-
-    // Validate required fields exist in token
-    if (!user_id || !email_type) {
-      return res.send(generateHtmlPage(
-        'Invalid Token',
-        'Invalid Unsubscribe Link',
-        '<p>This unsubscribe link is missing required information.</p>',
-        'Go to LMS Local',
-        `${frontendUrl}`
-      ));
-    }
-
-    // === STEP 4: Upsert email preference ===
-    // Set enabled=false for this email_type at the global level (competition_id=0)
-    // Check if preference already exists
-    const existingPref = await query(`
-      SELECT id
-      FROM email_preference
-      WHERE user_id = $1
-        AND competition_id = 0
-        AND email_type = $2
-    `, [user_id, email_type]);
-
-    if (existingPref.rows.length > 0) {
-      // Update existing preference to disabled
-      await query(`
-        UPDATE email_preference
-        SET enabled = false,
-            updated_at = NOW()
-        WHERE user_id = $1
-          AND competition_id = 0
-          AND email_type = $2
-      `, [user_id, email_type]);
-    } else {
-      // Insert new preference as disabled
-      await query(`
-        INSERT INTO email_preference (
-          user_id,
-          competition_id,
-          email_type,
-          enabled,
-          updated_at
-        ) VALUES (
-          $1, 0, $2, false, NOW()
+    const result = await applyUnsubscribe(token, group);
+    if (!result) {
+      return res.send(
+        errorPage(
+          'Link not recognised',
+          'This unsubscribe link is invalid or has expired. Use the link from a recent email, or change your preferences in your profile.'
         )
-      `, [user_id, email_type]);
+      );
     }
 
-    // === STEP 5: Return success HTML page ===
-    // Format email_type for display (e.g., 'competition_announcement' -> 'competition announcements')
-    const displayEmailType = email_type.replace(/_/g, ' ') + 's';
-
-    return res.send(generateHtmlPage(
-      'Unsubscribed',
-      'Successfully Unsubscribed',
-      `<p>You have been unsubscribed from <strong>${displayEmailType}</strong>.</p><p>You will no longer receive these emails from LMS Local.</p><p style="color: #9ca3af; font-size: 13px; margin-top: 20px;">If you change your mind, you can re-enable notifications in your profile settings.</p>`,
-      'Go to LMS Local',
-      `${frontendUrl}`,
-      true // isSuccess
-    ));
-
+    return res.send(preferencesPage(result.user, result.prefs, result.acted));
   } catch (error) {
-    console.error('Error in unsubscribe:', {
-      error: error.message,
-      stack: error.stack,
-      token_present: !!req.query?.token
-    });
+    console.error('unsubscribe GET error:', { error: error.message, stack: error.stack });
+    return res.send(
+      errorPage('Something went wrong', 'We could not update your preferences. Please try again.')
+    );
+  }
+});
 
-    const frontendUrl = getFrontendUrl();
-    return res.send(generateHtmlPage(
-      'Unsubscribe Error',
-      'Something Went Wrong',
-      '<p>An error occurred while processing your unsubscribe request.</p><p>Please try again or contact support if the problem persists.</p>',
-      'Go to LMS Local',
-      `${frontendUrl}`
-    ));
+// ======================================================================================
+// POST - the mail client's own unsubscribe button (RFC 8058 one-click)
+// ======================================================================================
+router.post('/', async (req, res) => {
+  logApiCall('unsubscribe-one-click');
+
+  try {
+    const token = req.query.token || req.body?.token;
+    const group = req.query.group || req.body?.group;
+
+    const result = await applyUnsubscribe(token, group);
+
+    /*
+    Always 200, even for an unknown token. The caller is a mail provider, not a person: a 4xx
+    here is reported back to the sender as a failing unsubscribe endpoint and counts against
+    deliverability, and there is nothing the provider could do about a bad token anyway.
+    */
+    if (!result) {
+      console.warn('unsubscribe one-click: token not recognised');
+    }
+
+    return res.status(200).type('text/plain').send('OK');
+  } catch (error) {
+    console.error('unsubscribe POST error:', { error: error.message });
+    return res.status(200).type('text/plain').send('OK');
+  }
+});
+
+// ======================================================================================
+// POST /save - the toggle form on the preferences page
+// ======================================================================================
+router.post('/save', async (req, res) => {
+  logApiCall('unsubscribe-save');
+
+  try {
+    const { token, kill_all } = req.body || {};
+
+    const user = await findUserByToken(token);
+    if (!user) {
+      return res.send(errorPage('Link not recognised', 'This link is invalid or has expired.'));
+    }
+
+    /*
+    An unchecked checkbox submits nothing at all, so absence is the signal for "off". Express
+    gives a single checked box as a string and several as an array; normalise before comparing.
+    */
+    const raw = req.body?.groups;
+    const checked = new Set(Array.isArray(raw) ? raw : raw ? [raw] : []);
+
+    for (const key of Object.values(GROUPS)) {
+      await setPreference(user.id, key, checked.has(key));
+    }
+
+    // The kill switch is inverted: ticking "unsubscribe from everything" disables 'all'.
+    await setPreference(user.id, ALL, !kill_all);
+
+    const prefs = await getPreferences(user.id);
+    return res.send(preferencesPage({ ...user, unsubscribe_token: token }, prefs, null));
+  } catch (error) {
+    console.error('unsubscribe save error:', { error: error.message, stack: error.stack });
+    return res.send(
+      errorPage('Something went wrong', 'We could not save your preferences. Please try again.')
+    );
   }
 });
 

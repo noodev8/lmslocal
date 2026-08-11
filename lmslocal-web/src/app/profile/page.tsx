@@ -124,36 +124,26 @@ export default function ProfilePage() {
     const newPrefs: EmailPreferences = JSON.parse(JSON.stringify(updatedPrefs));
 
     if (competition_id === 0) {
-      // Global preference
       if (email_type === 'all') {
         const newAllValue = !currentValue;
         newPrefs.global.all_emails = newAllValue;
 
-        // When turning OFF "all emails", turn off all sub-preferences too
+        // Turning the master switch off silences the competition mutes too, so the screen does
+        // not show a competition as "on" while nothing can reach it.
         if (!newAllValue) {
-          newPrefs.global.pick_reminder = false;
-          newPrefs.global.results = false;
           newPrefs.competition_specific.forEach(comp => {
             comp.all_emails = false;
           });
         } else {
-          // When turning ON "all emails", turn on competition toggles (but leave sub-preferences as they were)
           newPrefs.competition_specific.forEach(comp => {
             comp.all_emails = true;
           });
         }
-      } else if (email_type === 'pick_reminder') {
-        const newValue = !currentValue;
-        newPrefs.global.pick_reminder = newValue;
-        // If turning ON a sub-preference, automatically turn ON "all emails" too
-        if (newValue) {
-          newPrefs.global.all_emails = true;
-        }
-      } else if (email_type === 'results') {
-        const newValue = !currentValue;
-        newPrefs.global.results = newValue;
-        // If turning ON a sub-preference, automatically turn ON "all emails" too
-        if (newValue) {
+      } else if (email_type) {
+        // A group toggle. Switching one back on implies wanting email at all, so the master
+        // switch follows - otherwise the toggle appears to do nothing.
+        newPrefs.global.groups[email_type] = !currentValue;
+        if (!currentValue) {
           newPrefs.global.all_emails = true;
         }
       }
@@ -181,10 +171,11 @@ export default function ProfilePage() {
       // Collect all changes to send
       const updates = [];
 
-      // Global preferences
+      // Global preferences: the master switch, then every group the server told us about.
       updates.push({ competition_id: 0, email_type: 'all', enabled: emailPrefsChanged.global.all_emails });
-      updates.push({ competition_id: 0, email_type: 'pick_reminder', enabled: emailPrefsChanged.global.pick_reminder });
-      updates.push({ competition_id: 0, email_type: 'results', enabled: emailPrefsChanged.global.results });
+      for (const [key, enabled] of Object.entries(emailPrefsChanged.global.groups)) {
+        updates.push({ competition_id: 0, email_type: key, enabled });
+      }
 
       // Competition-specific preferences
       for (const comp of emailPrefsChanged.competition_specific) {
@@ -573,43 +564,33 @@ export default function ProfilePage() {
                         </button>
                       </div>
 
-                      {/* Pick Reminder Toggle */}
-                      <div className="flex items-center justify-between py-2">
-                        <div className="flex items-center ml-8">
-                          <p className="text-sm text-slate-700">Pick Reminders</p>
-                        </div>
-                        <button
-                          onClick={() => toggleEmailPreference(0, 'pick_reminder', displayPrefs.global.pick_reminder)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            displayPrefs.global.pick_reminder ? 'bg-slate-600' : 'bg-slate-300'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              displayPrefs.global.pick_reminder ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
-
-                      {/* Results Toggle */}
-                      <div className="flex items-center justify-between py-2">
-                        <div className="flex items-center ml-8">
-                          <p className="text-sm text-slate-700">Results Notifications</p>
-                        </div>
-                        <button
-                          onClick={() => toggleEmailPreference(0, 'results', displayPrefs.global.results)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            displayPrefs.global.results ? 'bg-slate-600' : 'bg-slate-300'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              displayPrefs.global.results ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
+                      {/*
+                      One toggle per group, driven entirely by what the server sent. Adding a
+                      group on the server adds a row here with no change to this file.
+                      */}
+                      {Object.entries(displayPrefs.global.groups || {}).map(([key, enabled]) => {
+                        const meta = displayPrefs.global.group_labels?.[key];
+                        return (
+                          <div key={key} className="flex items-center justify-between py-2">
+                            <div className="ml-8 mr-3">
+                              <p className="text-sm text-slate-700">{meta?.label || key}</p>
+                              {meta?.blurb && <p className="text-xs text-slate-500">{meta.blurb}</p>}
+                            </div>
+                            <button
+                              onClick={() => toggleEmailPreference(0, key, enabled)}
+                              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                                enabled ? 'bg-slate-600' : 'bg-slate-300'
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                  enabled ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 

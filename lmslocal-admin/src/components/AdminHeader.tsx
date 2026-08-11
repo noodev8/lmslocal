@@ -36,6 +36,7 @@ const NAV = [
   { href: '/dashboard/organisers', label: 'Organisers' },
   { href: '/dashboard/fixtures', label: 'Fixtures' },
   { href: '/dashboard/bots', label: 'Bots' },
+  { href: '/dashboard/emails', label: 'Emails' },
 ];
 
 export default function AdminHeader({

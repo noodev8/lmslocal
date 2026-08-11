@@ -762,21 +762,33 @@ export const adminApi = {
 };
 
 // User profile
-// Email preference interfaces
+/*
+Email preferences are grouped by consumer x section from docs/email/email-outline.xlsx, not by
+individual email - what someone switches off is "game updates", never "Round Over specifically".
+The group keys and their labels come from the server (services/emailPreference.js) rather than
+being listed here, so adding a group does not need a matching change in this file.
+*/
+export interface EmailGroupLabel {
+  consumer: string;
+  section: string;
+  label: string;
+  blurb: string;
+}
+
 export interface EmailPreferences {
   global: {
+    /* Master switch. False means nothing at all, whatever the groups say. */
     all_emails: boolean;
-    pick_reminder: boolean;
-    welcome: boolean;
-    results: boolean;
+    /* Keyed by group, e.g. "player.game". True means subscribed. */
+    groups: Record<string, boolean>;
+    group_labels: Record<string, EmailGroupLabel>;
   };
   competition_specific: Array<{
     competition_id: number;
     competition_name: string;
     personal_name: string | null;
+    /* Mute this competition entirely - a separate axis from the groups. */
     all_emails: boolean;
-    pick_reminder: boolean;
-    results: boolean;
   }>;
 }
 

@@ -62,72 +62,29 @@ This matters here: the handler takes user_id, round_id and competition_id straig
 request body, so without that gate anyone could queue email to arbitrary users.
 See middleware/service-auth.js.
 */
+const { findCandidates, buildTemplateData } = require('../services/pickReminder');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
 // === INTERNAL HELPER FUNCTION: QUEUE EMAIL ===
 // This function prepares template data and queues email to database (does NOT send)
+//
+// The template data itself is built by services/pickReminder.js, which is also what the admin
+// screen's preview and send use. Keeping the shape in one place means a change to what a pick
+// reminder contains cannot land in one path and not the other.
 async function queueEmailInternal(params) {
   const {
     user_id,
     round_id,
     competition_id,
-    user_email,
-    user_display_name,
     competition_name,
     organizer_name,
-    round_number,
-    lock_time
+    round_number
   } = params;
 
   try {
-    // Get fixtures for this round to include in template data
-    const fixturesResult = await query(`
-      SELECT
-        id,
-        home_team,
-        away_team,
-        home_team_short,
-        away_team_short,
-        kickoff_time
-      FROM fixture
-      WHERE round_id = $1
-      ORDER BY kickoff_time ASC
-    `, [round_id]);
-
-    const fixtures = fixturesResult.rows;
-
-    // Get teams already used by this user in previous rounds
-    const teamsUsedResult = await query(`
-      SELECT DISTINCT p.team
-      FROM pick p
-      INNER JOIN round prev_r ON prev_r.id = p.round_id
-      WHERE p.user_id = $1
-        AND prev_r.competition_id = $2
-        AND prev_r.round_number < $3
-      ORDER BY p.team
-    `, [user_id, competition_id, round_number]);
-
-    const teamsUsed = teamsUsedResult.rows.map(row => row.team);
-
-    // Generate unique tracking ID for this email
-    const emailTrackingId = `pick_reminder_${user_id}_${competition_id}_${round_id}_${Date.now()}`;
-
-    // Prepare template data that will be used when email is sent
-    const templateData = {
-      email_tracking_id: emailTrackingId,
-      user_email,
-      user_display_name,
-      competition_name,
-      organizer_name: organizer_name || 'Competition Organizer',
-      round_number,
-      lock_time,
-      fixtures,
-      teams_used: teamsUsed,
-      competition_id,
-      round_id,
-      user_id
-    };
+    const templateData = await buildTemplateData(params);
+    const emailTrackingId = templateData.email_tracking_id;
 
     // Insert email into queue with 'pending' status
     // The send-email API will process this later
@@ -192,102 +149,13 @@ router.post('/', async (req, res) => {
     // ========================================
     if (!user_id && !round_id && !competition_id) {
 
-      // === ONE EFFICIENT SQL QUERY WITH ALL 17 VALIDATION CHECKS ===
-      // This query finds all users who need a pick reminder email
-      const candidatesResult = await query(`
-        SELECT
-          cu.user_id,
-          u.email as user_email,
-          u.display_name as user_display_name,
-          c.id as competition_id,
-          c.name as competition_name,
-          r.id as round_id,
-          r.round_number,
-          r.lock_time,
-          org.display_name as organizer_name
+      /*
+      Eligibility lives in services/pickReminder.js. It used to be a 90-line query inlined here,
+      which meant the admin screen could not ask "who would this reach" without either calling
+      this route or writing a second copy of the rules.
+      */
+      const candidates = await findCandidates();
 
-        FROM competition c
-
-        -- CHECK 1: Competition status is NOT complete.
-        -- Compared case-insensitively: competition.status holds 'COMPLETE' in upper case, so the
-        -- old lower-case literal never matched and this guard passed every finished competition
-        -- straight through.
-        INNER JOIN round r
-          ON r.competition_id = c.id
-          AND UPPER(c.status) != 'COMPLETE'
-
-        -- CHECK 2-5: Round timing and fixtures
-        INNER JOIN competition_user cu
-          ON cu.competition_id = c.id
-          AND cu.status = 'active'  -- CHECK 9: User is not eliminated
-
-        -- CHECK 6-7: User exists and has valid email (not guest)
-        INNER JOIN app_user u
-          ON u.id = cu.user_id
-          AND u.email IS NOT NULL
-          AND u.email != ''
-          AND u.email NOT LIKE '%@lms-guest.com'
-
-        -- Get organizer name for email template
-        LEFT JOIN app_user org
-          ON org.id = c.organiser_id
-
-        -- CHECK 10: User has NOT already picked
-        LEFT JOIN pick p
-          ON p.user_id = u.id
-          AND p.round_id = r.id
-
-        WHERE p.id IS NULL  -- No pick exists
-          AND r.lock_time IS NOT NULL  -- CHECK 2: Lock time is set
-          AND r.lock_time > NOW()  -- CHECK 3: Lock time is in future
-          AND r.lock_time <= NOW() + INTERVAL '3 days'  -- CHECK 4: Within 3 days
-          AND r.lock_time >= NOW() - INTERVAL '3 days'  -- SAFETY: Don't send reminders for old rounds
-          AND EXISTS (  -- CHECK 5: Round has fixtures
-            SELECT 1
-            FROM fixture f
-            WHERE f.round_id = r.id
-          )
-          -- CHECK 11: Not already sent/queued
-          AND NOT EXISTS (
-            SELECT 1
-            FROM email_queue eq
-            WHERE eq.user_id = u.id
-              AND eq.competition_id = c.id
-              AND eq.round_id = r.id
-              AND eq.email_type = 'pick_reminder'
-          )
-          -- CHECK 12: Global "all emails" preference is ON (user hasn't disabled)
-          AND NOT EXISTS (
-            SELECT 1
-            FROM email_preference ep
-            WHERE ep.user_id = u.id
-              AND ep.competition_id = 0
-              AND ep.email_type = 'all'
-              AND ep.enabled = false
-          )
-          -- CHECK 13: Global "pick_reminder" preference is ON
-          AND NOT EXISTS (
-            SELECT 1
-            FROM email_preference ep
-            WHERE ep.user_id = u.id
-              AND ep.competition_id = 0
-              AND ep.email_type = 'pick_reminder'
-              AND ep.enabled = false
-          )
-          -- CHECK 14: Competition-specific override allows emails
-          AND NOT EXISTS (
-            SELECT 1
-            FROM email_preference ep
-            WHERE ep.user_id = u.id
-              AND ep.competition_id = c.id
-              AND ep.email_type IS NULL
-              AND ep.enabled = false
-          )
-
-        ORDER BY c.id, r.round_number, u.id
-      `);
-
-      const candidates = candidatesResult.rows;
 
       // If no candidates found, return success with zero count
       if (candidates.length === 0) {

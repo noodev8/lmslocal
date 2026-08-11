@@ -45,6 +45,7 @@ Return Codes:
 const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { ALL, GROUPS } = require('../services/emailPreference');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
@@ -66,8 +67,15 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    // Validate each preference object
-    const validEmailTypes = ['all', 'pick_reminder', 'welcome', 'results', 'competition_announcement', null];
+    /*
+    Validate each preference object.
+
+    Accepted values are the seven consumer x section group keys, plus 'all' for the global kill
+    switch and null for "mute this whole competition". The old per-email types (pick_reminder,
+    results, welcome) are gone: preferences are grouped now, and accepting them here would write
+    rows that nothing reads - a toggle that silently does nothing is worse than a rejected one.
+    */
+    const validEmailTypes = [ALL, ...Object.values(GROUPS), null];
 
     for (let i = 0; i < preferences.length; i++) {
       const pref = preferences[i];
@@ -89,7 +97,7 @@ router.post('/', verifyToken, async (req, res) => {
       if (pref.email_type !== null && !validEmailTypes.includes(pref.email_type)) {
         return res.json({
           return_code: "VALIDATION_ERROR",
-          message: `preferences[${i}].email_type must be 'all', 'pick_reminder', 'welcome', 'results', or null`
+          message: `preferences[${i}].email_type must be null, '${ALL}', or one of: ${Object.values(GROUPS).join(', ')}`
         });
       }
 

@@ -10,16 +10,112 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ===========================================================================================================
-// ⚠️ TESTING OVERRIDE - ALL EMAILS REDIRECTED TO TEST EMAIL
-// ===========================================================================================================
-// PRODUCTION: Comment out line 20 below
-// ===========================================================================================================
-const sendEmail = async (emailData) => {
-  emailData.to = ['aandreou25@gmail.com']; // ⚠️ COMMENT OUT THIS LINE FOR PRODUCTION
-  return await resend.emails.send(emailData);
+// Where a test send is redirected. Overridable so this is not a hardcoded personal address.
+const TEST_RECIPIENT = process.env.EMAIL_TEST_RECIPIENT || 'aandreou25@gmail.com';
+
+/**
+ * The single point every email leaves through.
+ *
+ * This replaces a hardcoded `emailData.to = [...]` that sat in a wrapper called by only five of
+ * the twelve senders. The other seven - including pick reminder, results and welcome - called
+ * resend.emails.send directly and so were never redirected at all, despite the comment claiming
+ * ALL EMAILS. Anyone reading that line reasonably concluded nothing could reach a real inbox;
+ * three of the live player emails always could.
+ *
+ * Test mode is now a parameter rather than a line to comment out, so it can be driven from the
+ * admin screen per send, and there is one place to check rather than twelve.
+ *
+ * @param {object} emailData - payload for resend.emails.send
+ * @param {object} [options]
+ * @param {boolean} [options.testMode] - redirect to the test address instead of the real one
+ * @param {string} [options.testRecipient] - override the test address
+ */
+const deliver = async (emailData, options = {}) => {
+  const { testMode = false, testRecipient = TEST_RECIPIENT } = options;
+
+  /*
+  Everything goes out from a noreply address, so without this a reply lands nowhere - a player
+  answering "I can't see my fixtures" would get silence, and often not even a bounce. Set here
+  rather than in each template so no sender can forget it.
+
+  Only filled in when the caller has not set its own: the contact form deliberately replies to
+  the person who wrote in, not to us.
+  */
+  const replyTo = process.env.EMAIL_REPLY_TO;
+  if (replyTo && !emailData.reply_to) {
+    emailData = { ...emailData, reply_to: replyTo };
+  }
+
+  if (!testMode) {
+    return await resend.emails.send(emailData);
+  }
+
+  /*
+  Subject is prefixed as well as the recipient swapped. Test copies of an email land in the same
+  inbox as real ones for whoever is testing, and without the marker there is no way to tell a
+  redirected send from a genuine one after the fact.
+  */
+  return await resend.emails.send({
+    ...emailData,
+    to: [testRecipient],
+    subject: `[TEST] ${emailData.subject}`
+  });
 };
-// ===========================================================================================================
+
+/*
+Kept so the senders that already read as sendEmail(...) do not all have to change. New code
+should call deliver directly.
+*/
+const sendEmail = async (emailData, options = {}) => deliver(emailData, options);
+
+/*
+Who operates the service. UK PECR requires marketing mail to identify the sender and give a
+valid address, and the same details are on every signed-out page for the same reason - see
+lmslocal-web/src/components/public/PublicFooter.tsx. Kept in step with that file by hand;
+there is no shared source between the server and the web app.
+*/
+const COMPANY = {
+  name: 'Noodev8 Ltd',
+  number: '16222537',
+  address: '3 Cumberland Place, Welshpool, SY21 7SB'
+};
+
+/**
+ * The footer every email ends with: who we are, and how to stop receiving this.
+ *
+ * Shared rather than pasted into each template because it carries the legal identification -
+ * fourteen copies would mean fourteen places to miss when the company details change, and the
+ * one that got missed would be the one still sending.
+ *
+ * @param {string|null} unsubscribeUrl - omit for transactional mail, which is not unsubscribable
+ * @returns {{html: string, text: string}}
+ */
+const buildEmailFooter = (unsubscribeUrl = null) => {
+  const html = `
+    <div style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0;">
+      <p style="color: #94a3b8; font-size: 12px; margin: 0 0 4px 0;">
+        LMS Local - Last Man Standing Competitions
+      </p>
+      ${unsubscribeUrl ? `
+      <p style="font-size: 12px; margin: 0 0 12px 0;">
+        <a href="${unsubscribeUrl}" style="color: #2563eb; text-decoration: underline;">Unsubscribe</a>
+      </p>
+      ` : ''}
+      <p style="color: #cbd5e1; font-size: 11px; line-height: 1.5; margin: 0;">
+        ${COMPANY.name}, company number ${COMPANY.number}<br>
+        ${COMPANY.address}
+      </p>
+    </div>
+  `;
+
+  const text = `---
+LMS Local - Last Man Standing Competitions
+${unsubscribeUrl ? `\nUnsubscribe: ${unsubscribeUrl}\n` : ''}
+${COMPANY.name}, company number ${COMPANY.number}
+${COMPANY.address}`;
+
+  return { html, text };
+};
 
 /**
  * Normalise a Resend response into a result the callers can trust.
@@ -442,8 +538,19 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
  * @param {object} templateData - All data needed for email template
  * @returns {Object} Result object with success status
  */
-const sendPickReminderEmail = async (email, templateData) => {
-  try {
+/**
+ * Build the pick reminder email without sending it.
+ *
+ * Split out from sendPickReminderEmail so the admin screen can show the operator exactly what
+ * would go out. A preview rendered from a second copy of the markup would drift from the real
+ * thing the first time either was edited, which makes the preview worse than none at all.
+ *
+ * @param {string} email - recipient, shown in the plain-text footer
+ * @param {object} templateData - as built by services/pickReminder.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildPickReminderEmail = (email, templateData) => {
+  {
     // Extract template data for easier access
     const {
       user_display_name,
@@ -455,8 +562,17 @@ const sendPickReminderEmail = async (email, templateData) => {
       teams_used,
       competition_id,
       round_id,
-      email_tracking_id
+      email_tracking_id,
+      /*
+      Built by services/pickReminder.js from the recipient's own token. Absent only if the
+      account somehow has no token, in which case the footer link and the headers are simply
+      omitted rather than rendering a link that would 404.
+      */
+      unsubscribe
     } = templateData;
+
+    const unsubscribeUrl = unsubscribe?.url || null;
+    const footer = buildEmailFooter(unsubscribeUrl);
 
     // Format lock time to readable format
     const lockDate = new Date(lock_time);
@@ -548,15 +664,7 @@ const sendPickReminderEmail = async (email, templateData) => {
 
             </div>
 
-            <!-- Footer -->
-            <div style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0;">
-              <p style="color: #94a3b8; font-size: 12px; margin: 0 0 4px 0;">
-                LMS Local - Last Man Standing Competitions
-              </p>
-              <p style="color: #cbd5e1; font-size: 11px; margin: 0;">
-                ${email}
-              </p>
-            </div>
+            ${footer.html}
 
           </div>
         </body>
@@ -605,13 +713,10 @@ ${makePickUrl}
 Good luck,
 ${organizer_name}
 
----
-LMS Local - Last Man Standing Competitions
-${email}
+${footer.text}
     `;
 
-    // Send email via Resend
-    const result = await resend.emails.send({
+    return {
       from: `${organizer_name} via LMS Local <${process.env.EMAIL_FROM}>`,
       to: [email],
       subject: `${organizer_name} (${competition_name}): Pick reminder for Round ${round_number}`,
@@ -619,19 +724,32 @@ ${email}
       text: textContent,
       headers: {
         'X-Entity-Ref-ID': email_tracking_id, // For webhook correlation
+        /*
+        List-Unsubscribe drives the mail client's own unsubscribe button, which is what Gmail
+        and Yahoo have required of bulk senders since Feb 2024. The footer link serves the
+        person; this serves the client. Both, not either.
+        */
+        ...(unsubscribe?.headers || {})
       },
       tags: [
         { name: 'email_type', value: 'pick_reminder' },
         { name: 'competition_id', value: String(competition_id) },
         { name: 'round_id', value: String(round_id) }
       ]
-    });
+    };
+  }
+};
 
-    // Resend returns { data: { id: '...' }, error: null } format
-    const resendMessageId = result?.data?.id || result?.id || 'unknown';
-
+/**
+ * Send a pick reminder.
+ * @param {string} email - User's email address
+ * @param {object} templateData - Email template data
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendPickReminderEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildPickReminderEmail(email, templateData), options);
     return readSendResult(result);
-
   } catch (error) {
     console.error('Failed to send pick reminder email:', error);
     return {
@@ -1518,6 +1636,7 @@ module.exports = {
   sendPasswordResetEmail,
   sendPlayerMagicLink,
   sendPaymentConfirmationEmail,
+  buildPickReminderEmail,
   sendPickReminderEmail,
   sendResultsEmail,
   sendWelcomeCompetitionEmail,
