@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -70,6 +70,11 @@ export default function CompetitionSettings() {
   // Track if competition has started (derived from invite_code presence)
   const [hasStarted, setHasStarted] = useState(false);
 
+  // Guards the form-populating effect below so a background competitions refresh (e.g. the one
+  // handleSave triggers after saving) can't stomp over an in-progress edit by re-running with a
+  // new `competition` object reference. Only re-populate when we switch to a different competition.
+  const initializedForIdRef = useRef<string | null>(null);
+
   // Who supplies fixtures and results is fixed at creation. Switching mid-competition has
   // knock-on effects on rounds, lock times and the staged batch that are not settled yet, so
   // it is changed in the database on request rather than offered here.
@@ -97,22 +102,27 @@ export default function CompetitionSettings() {
 
         if (competition && competition.is_organiser) {
 
-          // Initialize form with competition data
-          setFormData({
-            name: competition.name || '',
-            description: competition.description || '',
-            logo_url: competition.logo_url || '',
-            venue_name: competition.venue_name || '',
-            address_line_1: competition.address_line_1 || '',
-            address_line_2: competition.address_line_2 || '',
-            city: competition.city || '',
-            postcode: competition.postcode || '',
-            phone: competition.phone || '',
-            email: competition.email || '',
-            lives_per_player: competition.lives_per_player || 0,
-            no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
-            prize_structure: competition.prize_structure || '',
-          });
+          // Only populate the form the first time we see this competition - a later refresh
+          // (e.g. triggered by our own save) must not overwrite an in-progress edit.
+          if (initializedForIdRef.current !== competitionId) {
+            initializedForIdRef.current = competitionId;
+
+            setFormData({
+              name: competition.name || '',
+              description: competition.description || '',
+              logo_url: competition.logo_url || '',
+              venue_name: competition.venue_name || '',
+              address_line_1: competition.address_line_1 || '',
+              address_line_2: competition.address_line_2 || '',
+              city: competition.city || '',
+              postcode: competition.postcode || '',
+              phone: competition.phone || '',
+              email: competition.email || '',
+              lives_per_player: competition.lives_per_player || 0,
+              no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
+              prize_structure: competition.prize_structure || '',
+            });
+          }
 
           // Check if competition has started (no invite code means started)
           setHasStarted(!competition.invite_code);
@@ -181,47 +191,24 @@ export default function CompetitionSettings() {
         competition_id: competition.id,
       };
 
-      // Only include fields that have values
+      // Name is required, so only send it when non-empty - the backend rejects a blank one.
       if (formData.name.trim()) {
         updateData.name = formData.name.trim();
       }
 
-      // Always include description (allow clearing it by sending empty string)
-      updateData.description = formData.description.trim() || '';
-
-      if (formData.venue_name.trim()) {
-        updateData.venue_name = formData.venue_name.trim();
-      }
-
-      // Include address and contact fields if provided
-      if (formData.address_line_1.trim()) {
-        updateData.address_line_1 = formData.address_line_1.trim();
-      }
-
-      if (formData.address_line_2.trim()) {
-        updateData.address_line_2 = formData.address_line_2.trim();
-      }
-
-      if (formData.city.trim()) {
-        updateData.city = formData.city.trim();
-      }
-
-      if (formData.postcode.trim()) {
-        updateData.postcode = formData.postcode.trim();
-      }
-
-      if (formData.phone.trim()) {
-        updateData.phone = formData.phone.trim();
-      }
-
-      if (formData.email.trim()) {
-        updateData.email = formData.email.trim();
-      }
-
-      // Prize structure
-      if (formData.prize_structure.trim()) {
-        updateData.prize_structure = formData.prize_structure.trim();
-      }
+      // Every optional text field is sent unconditionally, including when empty. Omitting a
+      // field means "leave it alone" to update-competition, so a field that was only sent when
+      // non-empty could be changed but never cleared - emptying it silently restored the old
+      // value on the next load. The backend maps '' to NULL.
+      updateData.description = formData.description.trim();
+      updateData.venue_name = formData.venue_name.trim();
+      updateData.address_line_1 = formData.address_line_1.trim();
+      updateData.address_line_2 = formData.address_line_2.trim();
+      updateData.city = formData.city.trim();
+      updateData.postcode = formData.postcode.trim();
+      updateData.phone = formData.phone.trim();
+      updateData.email = formData.email.trim();
+      updateData.prize_structure = formData.prize_structure.trim();
 
       // Always include logo_url to allow clearing it (send empty string to clear)
       updateData.logo_url = formData.logo_url.trim();
