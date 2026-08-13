@@ -31,6 +31,21 @@
   .guides .guide-safe {
     outline: 1px dashed rgba(28, 38, 32, 0.4);
   }
+
+  /* In bleed mode (see _shared/bleed.js) the sheet edge is no longer the trim
+     edge — it is 3mm of artwork the guillotine removes. So the red dashes move
+     inwards to the line that actually gets cut. --bleed is set by the script. */
+  .guides.bleed .guide-trim {
+    position: relative;
+    outline: none;
+  }
+  .guides.bleed .guide-trim::after {
+    content: '';
+    position: absolute;
+    inset: var(--bleed, 3mm);
+    outline: 1px dashed rgba(200, 52, 30, 0.7);
+    pointer-events: none;
+  }
 }
 
 @media print {
