@@ -36,11 +36,9 @@ dist-ssr/
 out/
 *.local
 
-# Marketing exported PDFs/PNGs are build artifacts (sources are the HTML files),
-# but keep the folder itself trackable via its placeholder .gitignore.
-!lmslocal-marketing/out/
-lmslocal-marketing/out/*
-!lmslocal-marketing/out/.gitignore
+# Marketing exported PDFs/PNGs are build artifacts — the sources are the HTML files, and
+# make-pdf.js recreates out/ when it runs. Already covered by the generic `out/` rule above,
+# so it needs no placeholder file to keep the directory alive.
 
 # Superseded marketing artwork, kept locally in case a design is wanted back.
 lmslocal-marketing/assets/archive/
