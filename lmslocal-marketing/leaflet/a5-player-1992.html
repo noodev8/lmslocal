@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — A5 join leaflet, code 1992</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <link rel="stylesheet" href="../_shared/print.css" />
+    <style>
+      @page {
+        size: 148mm 210mm;
+        margin: 0;
+      }
+      .sheet {
+        width: 148mm;
+        height: 210mm;
+        overflow: hidden;
+      }
+      .safe {
+        padding: 7mm;
+      }
+      /* Keep the white pad around the QR — it is the quiet zone scanners need. */
+      .qr {
+        image-rendering: pixelated;
+      }
+    </style>
+  </head>
+
+  <body class="guides">
+    <!--
+      One-off: competition code 1992, for a club noticeboard. The QR
+      (assets/join-qr.png) resolves to lmslocal.co.uk/join/1992, so it and the
+      printed code have to change together. Copy this file for another
+      competition; a5-player.html is the generic version.
+    -->
+
+    <p class="screen-only max-w-[148mm] font-body text-sm text-white">
+      <strong>Ctrl+P → Save as PDF</strong> · paper A5 · margins <strong>None</strong> ·
+      <strong>Background graphics ticked</strong>. Dashed guides are screen-only.
+    </p>
+
+    <div class="sheet guide-trim bg-stock text-ink">
+      <div class="safe guide-safe flex h-full flex-col">
+        <!-- Masthead ------------------------------------------------------ -->
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex items-center gap-2">
+            <!-- Inline SVG, not a PNG: it stays vector through print-to-PDF, so
+                 it is as sharp as the type at any size the printer runs. -->
+            <svg viewBox="0 0 100 100" class="h-[8mm] w-[8mm] shrink-0" aria-hidden="true">
+              <defs>
+                <clipPath id="ball">
+                  <circle cx="50" cy="50" r="46" />
+                </clipPath>
+              </defs>
+              <g clip-path="url(#ball)" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round">
+                <polygon points="50.00,35.00 64.27,45.36 58.82,62.14 41.18,62.14 35.73,45.36" />
+                <polygon points="81.15,7.12 85.15,19.42 74.69,27.02 64.23,19.42 68.22,7.12" />
+                <polygon points="100.41,66.38 89.94,73.98 79.48,66.38 83.48,54.08 96.41,54.08" />
+                <polygon points="50.00,103.00 39.54,95.40 43.53,83.10 56.47,83.10 60.46,95.40" />
+                <polygon points="-0.41,66.38 3.59,54.08 16.52,54.08 20.52,66.38 10.06,73.98" />
+                <polygon points="18.85,7.12 31.78,7.12 35.77,19.42 25.31,27.02 14.85,19.42" />
+              </g>
+              <g
+                clip-path="url(#ball)"
+                stroke="currentColor"
+                stroke-width="4"
+                stroke-linecap="round"
+              >
+                <line x1="50.00" y1="35.00" x2="50.00" y2="4.00" />
+                <line x1="64.27" y1="45.36" x2="93.75" y2="35.79" />
+                <line x1="58.82" y1="62.14" x2="77.04" y2="87.21" />
+                <line x1="41.18" y1="62.14" x2="22.96" y2="87.21" />
+                <line x1="35.73" y1="45.36" x2="6.25" y2="35.79" />
+              </g>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="6" />
+            </svg>
+            <p class="font-body text-[8pt] font-medium uppercase tracking-[0.22em] text-overprint">
+              Football · Premier League 2026/27
+            </p>
+          </div>
+          <img
+            src="../assets/icon.png"
+            alt=""
+            class="-mt-1 h-[15mm] w-[15mm] shrink-0 border border-ink object-cover"
+          />
+        </div>
+
+        <h1 class="mt-2 font-display text-[54pt] font-extrabold uppercase leading-[0.82]">
+          Last man<br />standing
+        </h1>
+
+        <p class="mt-4 max-w-[105mm] font-body text-[11pt] leading-[1.45] text-ink-fade">
+          Pick one football team a week to win. Get it wrong and you are out. Whoever is left
+          standing takes it.
+        </p>
+
+        <div class="mt-4 h-px w-full shrink-0 bg-ink/25"></div>
+
+        <!-- The rules, as plainly as the game itself. -->
+        <div class="mt-4 shrink-0">
+          <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            How it works
+          </p>
+          <ul class="mt-2.5 space-y-[7px] font-body text-[10.5pt] leading-[1.35]">
+            <li class="flex gap-3">
+              <span class="w-[7mm] shrink-0 font-display text-[14pt] font-extrabold">1</span>
+              <span class="text-ink-fade">One team a round. Win and you go through.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[7mm] shrink-0 font-display text-[14pt] font-extrabold">2</span>
+              <span class="text-ink-fade">Draw or lose and you are out.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[7mm] shrink-0 font-display text-[14pt] font-extrabold">3</span>
+              <span class="text-ink-fade"
+                >Same team twice is not allowed — once it is gone, it is gone.</span
+              >
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[7mm] shrink-0 font-display text-[14pt] font-extrabold">4</span>
+              <span class="text-ink-fade">No pick by kick-off, no life. Simple as that.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Join box -->
+        <div class="mt-5 flex flex-1 flex-col justify-center bg-stock-lit px-4 py-4">
+          <div class="flex gap-4">
+            <div class="shrink-0">
+              <div class="bg-white p-[2mm]">
+                <img src="../assets/join-qr.png" alt="" class="qr h-[35mm] w-[35mm]" />
+              </div>
+              <p
+                class="mt-2 text-center font-body text-[7.5pt] font-medium uppercase tracking-[0.16em] text-overprint"
+              >
+                Scan to join
+              </p>
+            </div>
+
+            <div class="min-w-0 flex-1">
+              <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+                Getting in
+              </p>
+              <ol class="mt-2 space-y-[7px] font-body text-[10pt] leading-[1.35] text-ink-fade">
+                <li class="flex gap-2">
+                  <span class="w-[4mm] shrink-0 font-semibold text-ink">1</span>
+                  <span>Point your camera at the code.</span>
+                </li>
+                <li class="flex gap-2">
+                  <span class="w-[4mm] shrink-0 font-semibold text-ink">2</span>
+                  <span
+                    >Or open
+                    <span class="font-semibold text-ink">lmslocal.co.uk/join/1992</span></span
+                  >
+                </li>
+                <li class="flex gap-2">
+                  <span class="w-[4mm] shrink-0 font-semibold text-ink">3</span>
+                  <span>If it asks for a code —</span>
+                </li>
+              </ol>
+              <p class="mt-2 font-data text-[30pt] font-bold leading-none tracking-[0.12em]">1992</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Sign-off ------------------------------------------------------- -->
+        <div class="mt-auto shrink-0 pt-4">
+          <div class="flex items-end justify-between gap-4">
+            <p class="font-body text-[9pt] leading-snug text-ink-fade">
+              Free to play. New games started most weeks.<br />App Store and Google Play.
+            </p>
+
+            <div class="text-right">
+              <p class="font-display text-[20pt] font-extrabold uppercase leading-none">lmslocal</p>
+              <p class="mt-1 font-body text-[9pt] tracking-wide text-ink-fade">lmslocal.co.uk</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -56,10 +56,15 @@
     break-after: auto;
   }
 
-  .screen-only,
+  .screen-only {
+    display: none !important;
+  }
+
+  /* Guide classes sit ON the sheet and the safe area, not on separate overlay
+     elements — hiding them hides the leaflet. The outlines are drawn only under
+     @media screen, so belt-and-braces here is clearing the outline, never the box. */
   .guide-trim,
   .guide-safe {
-    display: none !important;
     outline: none !important;
   }
 }
