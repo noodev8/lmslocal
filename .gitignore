@@ -42,6 +42,9 @@ out/
 lmslocal-marketing/out/*
 !lmslocal-marketing/out/.gitignore
 
+# Superseded marketing artwork, kept locally in case a design is wanted back.
+lmslocal-marketing/assets/archive/
+
 # Environment variables
 .env
 .env.local
