@@ -14,6 +14,7 @@ and is reachable by URL, so a half-finished leaflet would be live on the interne
 ## Layout
 
 ```
+make-pdf.js         Build a print-ready PDF from a leaflet. Start here.
 _shared/brand.js    Tailwind token config + Google Fonts. Load on every page.
 _shared/print.css   Print rules, screen preview desk, trim/safe guides. Leaflets only.
 _shared/bleed.js    `?bleed` print-shop mode: sheet +3mm per side. Leaflets only.
@@ -30,39 +31,51 @@ Exports are git-ignored on purpose: the artwork source is the HTML, which is alr
 it regenerates in Chrome in two minutes on any machine. The exception is `press/` — a file a
 printer has run is a record, and a reprint has to match it.
 
-## Making a leaflet (PDF, not a screenshot)
+## Making a PDF
 
-A screenshot is ~96dpi and prints visibly soft. Print-to-PDF keeps text as vectors, so it stays
-sharp at whatever resolution the printer runs, and print shops accept the PDF directly.
+```bash
+cd lmslocal-marketing
+node make-pdf.js a5-player-1992          # for a print shop
+node make-pdf.js a5-player-1992 --home   # to print on your own printer
+```
 
-1. Open the HTML in Chrome.
-2. `Ctrl+P` → Destination **Save as PDF**.
-3. Paper size = the sheet's size (A5 for `a5-test.html`), Margins = **None**.
-4. More settings → **Background graphics** ticked. Without it Chrome drops every fill and you
-   get black text on white paper instead of the tinted stock.
-5. **Headers and footers** unticked, or Chrome stamps the URL and the date onto the sheet.
-6. Save into `out/`.
+The file lands in `out/`. The print-shop one is ready to upload as-is. Run it with no arguments
+to list the leaflets.
 
-The fonts load from Google's CDN at print time, so check the finished PDF is actually set in
-Big Shoulders and Instrument Sans — a flaky connection silently gives you a leaflet in Arial.
-In Acrobat that is File → Properties → Fonts.
+**Use the script rather than Ctrl+P.** Printing by hand needs four dialog settings right and
+gets two things wrong that do not show up until the leaflets are printed:
+
+- Opening a leaflet as a `file://` page **silently loses two of the three brand fonts** and
+  Chrome substitutes Arial. The sheet still looks fine, so it passes the eye. The script serves
+  the folder over http instead, where the fonts load correctly.
+- Print shops **reject live fonts** and want the text as outlines — vector shapes instead of
+  characters. Vistaprint rejects the file outright. Chrome's dialog cannot do this; the script
+  runs the finished PDF through Ghostscript's `-dNoOutputFonts`.
+
+The script needs Chrome and, for the print-shop version,
+[Ghostscript](https://ghostscript.com/releases/gsdnld.html). It finds both itself.
+
+Whatever produced it, **check the QR scans** by pointing a phone at the finished PDF on screen.
+It is the one element where a silent failure costs the whole print run.
 
 Dashed guides on screen mark the trim edge (red) and the safe area (dark). They are screen-only.
 
-## Sending one to a print shop
+## What the print-shop version does differently
 
-Add `?bleed` to the URL — `a5-club.html?bleed`. `_shared/bleed.js` grows the sheet by 3mm on
-every side with the artwork running into the extra, so the guillotine has something to cut into:
-at exact trim size, the ±1mm drift that is normal in trimming leaves a white sliver down an edge
-of an edge-to-edge design. The layout does not move, and the red dashes shift to the line that
-gets cut. Print it with the same dialog settings as above.
+It uses the `?bleed` variant — `_shared/bleed.js` grows the sheet 3mm on every side with the
+artwork running into the extra, so the guillotine has something to cut into. At exact trim size,
+the ±1mm drift that is normal in trimming leaves a white sliver down an edge of an edge-to-edge
+design. The layout does not move, and on screen the red dashes shift to the line that gets cut.
 
 The handoff is "**154 × 216mm, 3mm bleed, trims to A5**". No crop marks — there is no room for
 them inside 3mm, and print shops impose their own.
 
-It is opt-in rather than the default because the two files are for two different machines: an
-office printer handed a 154 × 216mm page scales it to fit A4 and adds a margin, which loses the
-edge-to-edge ground the design depends on. Print the plain file yourself, send the `?bleed` one.
+Bleed is not the default because the two files are for different machines: an office printer
+handed a 154 × 216mm page scales it to fit A4 and adds a margin, which loses the edge-to-edge
+ground the design depends on. That is what `--home` is for.
+
+You can still open `a5-club.html?bleed` in a browser to *look* at the bleed version. Just do not
+print from there — see above.
 
 Chrome exports RGB. A digital press takes that happily; if the shop is running litho they will
 want CMYK, and `overprint` (`#C8341E`) is a saturated RGB red that dulls noticeably in the
