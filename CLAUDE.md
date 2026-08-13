@@ -79,6 +79,23 @@ This is a full-stack application with two main components:
   screen. It also carries the copy rules: "you" always means the organiser, no invented
   testimonials, never state opt-in features as universal.
 
+### Marketing artwork (lmslocal-marketing/)
+- **What**: leaflets and social tiles — anything that ends up a PDF or PNG rather than a page on
+  the site. Plain HTML + the Tailwind CDN, **no build step and no `package.json`**. Not imported
+  by any app; deleting it would not affect a deploy.
+- **Read `lmslocal-marketing/README.md` before touching it**, and change the doc first.
+- **Never print by hand.** `node make-pdf.js <leaflet>` is the only supported route, because two
+  failures here are invisible until the leaflets are printed: a leaflet opened as a `file://`
+  page **silently falls back to Arial** for two of the three brand fonts, and print shops
+  **reject live fonts** and want text as outlines. The script serves over http and runs
+  Ghostscript to fix both. Add `--home` for a copy to print on your own printer.
+- **Bleed**: `?bleed` (`_shared/bleed.js`) grows the sheet 3mm per side for the guillotine. The
+  print-shop build uses it automatically. Handoff is "154 × 216mm, 3mm bleed, trims to A5".
+- **`out/` is scratch and git-ignored; `press/` is tracked** and holds only PDFs a printer
+  actually ran, because a reprint has to match the original.
+- Brand tokens in `_shared/brand.js` **duplicate `lmslocal-web/tailwind.config.js`** — change
+  both together. Artwork follows `docs/design-system.md`.
+
 ## Development Commands
 
 ### Server (lmslocal-server/)

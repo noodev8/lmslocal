@@ -5,8 +5,12 @@ rather than a page on the site.
 
 **This folder is not part of any app.** It has no `package.json`, no build step, no
 `node_modules`, and nothing here is imported by `lmslocal-web`, `lmslocal-admin` or the server.
-Deleting it would not affect a single deploy. Open the HTML files directly in Chrome
-(`file:///C:/lmslocal/lmslocal-marketing/...`) — no dev server needed.
+Deleting it would not affect a single deploy.
+
+You can open the HTML files straight in Chrome to look at them. **Do not print from there** —
+a leaflet opened as a `file://` page silently loses two of the three brand fonts and Chrome
+substitutes Arial, which looks close enough to pass unnoticed all the way to the print shop.
+Use `make-pdf.js` for anything you intend to print.
 
 It is kept out of `lmslocal-web/public/` on purpose: anything under `public/` ships with the site
 and is reachable by URL, so a half-finished leaflet would be live on the internet.
@@ -21,14 +25,16 @@ _shared/bleed.js    `?bleed` print-shop mode: sheet +3mm per side. Leaflets only
 _shared/social.css  Fixed-size canvas + screenshot desk. Social tiles only.
 leaflet/            Print artwork. a5-test.html is the pipeline reference.
                     a5-landlord (pubs), a5-club (clubs), a5-workplace (offices),
-                    a5-player (players).
+                    a5-player (players). a5-player-1992 is a one-off for a single
+                    competition code — copy that pattern per competition, and the
+                    printed code and its QR in assets/ must change together.
 social/             Fixed-size tiles for Facebook etc. See social/README.md.
 out/                Exported PDFs and PNGs. Git-ignored — scratch.
 press/              PDFs actually sent to a printer. Tracked. See press/README.md.
 ```
 
 Exports are git-ignored on purpose: the artwork source is the HTML, which is already tracked, and
-it regenerates in Chrome in two minutes on any machine. The exception is `press/` — a file a
+`make-pdf.js` regenerates the PDF on any machine in seconds. The exception is `press/` — a file a
 printer has run is a record, and a reprint has to match it.
 
 ## Making a PDF
