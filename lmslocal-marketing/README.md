@@ -16,13 +16,19 @@ and is reachable by URL, so a half-finished leaflet would be live on the interne
 ```
 _shared/brand.js    Tailwind token config + Google Fonts. Load on every page.
 _shared/print.css   Print rules, screen preview desk, trim/safe guides. Leaflets only.
+_shared/bleed.js    `?bleed` print-shop mode: sheet +3mm per side. Leaflets only.
 _shared/social.css  Fixed-size canvas + screenshot desk. Social tiles only.
 leaflet/            Print artwork. a5-test.html is the pipeline reference.
                     a5-landlord (pubs), a5-club (clubs), a5-workplace (offices),
                     a5-player (players).
 social/             Fixed-size tiles for Facebook etc. See social/README.md.
-out/                Exported PDFs and PNGs. Git-ignored.
+out/                Exported PDFs and PNGs. Git-ignored — scratch.
+press/              PDFs actually sent to a printer. Tracked. See press/README.md.
 ```
+
+Exports are git-ignored on purpose: the artwork source is the HTML, which is already tracked, and
+it regenerates in Chrome in two minutes on any machine. The exception is `press/` — a file a
+printer has run is a record, and a reprint has to match it.
 
 ## Making a leaflet (PDF, not a screenshot)
 
@@ -34,11 +40,33 @@ sharp at whatever resolution the printer runs, and print shops accept the PDF di
 3. Paper size = the sheet's size (A5 for `a5-test.html`), Margins = **None**.
 4. More settings → **Background graphics** ticked. Without it Chrome drops every fill and you
    get black text on white paper instead of the tinted stock.
-5. Save into `out/`.
+5. **Headers and footers** unticked, or Chrome stamps the URL and the date onto the sheet.
+6. Save into `out/`.
 
-Dashed guides on screen mark the trim edge (red) and the 5mm safe area (dark). They are
-`display: none` in print. If a print shop asks for bleed, say so — the sheet needs rebuilding
-3mm larger on each side with the background running into it.
+The fonts load from Google's CDN at print time, so check the finished PDF is actually set in
+Big Shoulders and Instrument Sans — a flaky connection silently gives you a leaflet in Arial.
+In Acrobat that is File → Properties → Fonts.
+
+Dashed guides on screen mark the trim edge (red) and the safe area (dark). They are screen-only.
+
+## Sending one to a print shop
+
+Add `?bleed` to the URL — `a5-club.html?bleed`. `_shared/bleed.js` grows the sheet by 3mm on
+every side with the artwork running into the extra, so the guillotine has something to cut into:
+at exact trim size, the ±1mm drift that is normal in trimming leaves a white sliver down an edge
+of an edge-to-edge design. The layout does not move, and the red dashes shift to the line that
+gets cut. Print it with the same dialog settings as above.
+
+The handoff is "**154 × 216mm, 3mm bleed, trims to A5**". No crop marks — there is no room for
+them inside 3mm, and print shops impose their own.
+
+It is opt-in rather than the default because the two files are for two different machines: an
+office printer handed a 154 × 216mm page scales it to fit A4 and adds a margin, which loses the
+edge-to-edge ground the design depends on. Print the plain file yourself, send the `?bleed` one.
+
+Chrome exports RGB. A digital press takes that happily; if the shop is running litho they will
+want CMYK, and `overprint` (`#C8341E`) is a saturated RGB red that dulls noticeably in the
+conversion — worth asking which before approving a proof.
 
 ## Making a social tile (screenshot is fine here)
 
