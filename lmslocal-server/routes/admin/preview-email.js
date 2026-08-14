@@ -14,13 +14,15 @@ The rendered sample is built for the FIRST candidate. Every recipient gets a dif
 a pick reminder has different fixtures struck through, so there is no single "the" email - the
 preview is a representative one, and the response says whose it is.
 
-competition_id is required only for competition-scoped emails. The platform-wide ones (Join LMS,
-News) have no competition, and the admin screen's picker does not apply to them.
+competition_id is OPTIONAL everywhere. On a scoped email it narrows the preview to one competition;
+omitted, the preview spans all of them, which is how the focus card answers "who is waiting for
+this email" rather than "who is waiting in the competition I happened to pick". Platform-wide
+emails (Join LMS, News) have no competition and ignore it either way.
 =======================================================================================================================================
 Request Payload:
 {
   "email_type": "pick_reminder",       // string, required - which outline email
-  "competition_id": 210                // integer, required for scoped emails, ignored otherwise
+  "competition_id": 210                // integer, optional - narrows scoped emails; null = all
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -84,16 +86,21 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    if (entry.scoped && (!competition_id || !Number.isInteger(competition_id))) {
+    if (competition_id !== undefined && competition_id !== null && !Number.isInteger(competition_id)) {
       return res.json({
         return_code: 'VALIDATION_ERROR',
-        message: 'competition_id is required and must be an integer'
+        message: 'competition_id must be an integer when given'
       });
     }
 
-    const candidates = await entry.service.findCandidates(
-      entry.scoped ? { competition_id } : {}
-    );
+    /*
+    competition_id is optional now, for scoped emails too: omitting it previews across every
+    competition. `scoped` says whether the picker applies at all, not that a value is required -
+    every scoped service already carries `AND ($n::int IS NULL OR c.id = $n)` for exactly this.
+    */
+    const scopeId = entry.scoped && Number.isInteger(competition_id) ? competition_id : null;
+
+    const candidates = await entry.service.findCandidates(scopeId ? { competition_id: scopeId } : {});
 
     // Nobody qualifies. Still a success - the screen shows a count of zero and disables send.
     if (candidates.length === 0) {
@@ -122,6 +129,13 @@ router.post('/', verifyAdminToken, async (req, res) => {
         user_id: c.user_id,
         email: c.user_email,
         display_name: c.user_display_name,
+        /*
+        The competition is what makes a recipient identifiable when the preview spans all of them:
+        the same person legitimately appears once per competition they joined, and mark-as-sent
+        matches on the PAIR for that reason.
+        */
+        competition_id: c.competition_id ?? null,
+        competition_name: c.competition_name ?? null,
         // Present only on round-based emails; null on the platform-wide ones.
         round_number: c.round_number ?? null
       })),

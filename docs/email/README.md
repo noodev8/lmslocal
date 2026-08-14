@@ -206,7 +206,9 @@ The rules now:
 - **The organiser is excluded** when they join their own competition as a player. They created it;
   `created_comp` is their email.
 - **No backfill** — otherwise every existing member of every competition becomes a candidate the
-  moment it is wired.
+  moment it is wired. **`CUTOFF` is being retired** (2026-08-14): the 35 members it hides become
+  `skipped` rows instead, so the count on the screen has nothing invisible behind it. See
+  "Mark as sent" under Sending, which carries the order the swap has to happen in.
 - **Content carried over** from the old template: the rules of the competition actually joined
   (lives, the no-repeat-teams setting) plus the next deadline when a round is open. `0 lives` now
   renders as "one wrong pick and you are out" rather than "you start with 0 lives".
@@ -746,6 +748,207 @@ List-Unsubscribe-Post: List-Unsubscribe=One-Click
 plus a footer link in the template. The header serves the mail client's button, the footer serves
 the person — both, not either. Wired into pick reminder; rolls into each remaining template as it
 gets wired.
+
+## Sending: the whole platform, the two counts, send or skip
+
+**Agreed and built 2026-08-14, except where marked deferred below.**
+
+It exists because the screen could only answer "how many people are waiting for a welcome in
+*this* competition". Nobody runs the platform one competition at a time, and the destination is a
+cron, which cannot pick one either. This is the last piece that assumes the operator is a person
+holding a mouse.
+
+### One email at a time, and the focus card
+
+**Andreas's rule, and it shapes the screen.** Emails are taken up one at a time: rules agreed,
+numbers looked at properly, backlog dealt with, and only then the next. The mechanism is a
+`focus: true` flag on a row in the admin screen's `OUTLINE`, which promotes it to a card above the
+table. **`welcome` is the one in focus** as of 2026-08-14.
+
+The card is the only place that counts across every competition and the only place that offers
+Mark as sent. The rest of the table stays per-competition and preview-only. That is deliberate
+rather than unfinished: a screen offering a platform-wide send on twelve emails at once is exactly
+what "be careful for now" rules out. Bringing the next email up is one flag.
+
+### `scoped` changes meaning
+
+From **must name a competition** to **may name one, to narrow it**. The services are already
+built for it — all six scoped ones (`pick_reminder`, `created_comp`, `welcome`, `share_reminder`,
+`game_complete`, `results`) carry `AND ($n::int IS NULL OR c.id = $n)` and document
+"omit to scan them all". The only thing stopping it is one guard repeated in three routes:
+
+```javascript
+if (entry.scoped && (!competition_id || !Number.isInteger(competition_id))) {
+```
+
+That guard goes. `competition_id` becomes optional everywhere; null means every competition.
+`scoped` stays in the catalog because it still answers a real question — whether the picker
+applies to this email at all — it just no longer forces a value.
+
+**The picker defaults to All** and is a filter for previewing and testing, not the unit of
+operation.
+
+### Two counts, not one
+
+`get-email-targets` returns a pair per email type:
+
+| | |
+|---|---|
+| `waiting` | candidates from `findCandidates` — people who qualify and have no queue row |
+| `pending` | rows already in `email_queue` with status `pending` — queued by an earlier press, not yet sent |
+
+They are different questions and a single number hides the second. `pending` is only ever
+non-zero because of the send cap below, and a non-zero `pending` that nobody drains is exactly the
+failure the nine stale `welcome` rows were. The screen shows it as a column so it cannot go
+unnoticed again.
+
+Scoped rows also report `competitions` — how many distinct competitions the waiting recipients
+span — because "14 waiting across 5 competitions" is the answer the operator actually wants and a
+bare 14 invites the question.
+
+### One press: drain, then send, up to a cap — DEFERRED
+
+**Designed, not built.** With CUTOFF retired and its backlog marked as sent there is no volume to
+cap: the largest number the screen has ever shown is 3. Building a drain against no backlog would
+be untested code guarding nothing. It goes in when a count first approaches the Resend allowance,
+and the design below is what it should be built to.
+
+`send-emails` should do three things in order, and the order matters:
+
+1. **Drain first.** Pending rows for this type and scope are sent from their stored
+   `template_data` via the catalog's `send`. Anything left over from a capped press goes before
+   anything new, or a busy week starves the oldest rows forever.
+2. **Queue every remaining candidate.** All of them, whatever the cap. The queue row is the
+   record that somebody is owed this email; sending 80 and dropping 136 on the floor would leave
+   no record at all. This is `broadcast.js`'s answer and it was the right one.
+3. **Send up to `EMAIL_SEND_CAP`** (default 80), counted across the drain and the new rows
+   together. The rest stay `pending` and go on the next press.
+
+This is what makes the cap safe rather than lossy, and it is why `pending` is **already** on the
+screen and in `get-email-targets` — the count is built and shown now, in amber, so that a queue
+that starts filling is visible from the day it starts rather than the day someone goes looking.
+Nine stale `welcome` rows once sat unnoticed for six days precisely because nothing displayed
+them.
+
+When it is built it also retires `routes/send-email.js`: that route dispatches on a hardcoded
+if/else over five types and a sixth is dead code the day it is added, whereas draining through the
+catalog needs no edit per email.
+
+**Test mode is untouched.** It still builds one email for the first candidate, sends it to the
+test address and writes nothing — no drain, no queue, no cap. Queuing during a test would make
+every one of those candidates permanently ineligible for the real send that follows.
+
+### Mark as sent — a fourth status
+
+`email_queue.status` gains **`skipped`**: a row written for a candidate who was *deliberately not
+emailed*. No message was built, no `email_tracking` row is opened — tracking is a record of a
+message, and there was none.
+
+**It needs no change to any eligibility query.** Every once-ever guard is already
+`NOT EXISTS (... AND eq.email_type = X)` with no status condition, and every cooldown reads the
+latest row whatever its status. A `skipped` row is therefore excluded from candidacy the moment it
+is written, by rules that already exist.
+
+**Why a new value rather than `sent` or `suppressed`:**
+
+| Status | Means |
+|---|---|
+| `sent` | Resend accepted it. Writing this would be a lie, and would leave a null message id against an email somebody is recorded as having received. |
+| `suppressed` | `deliver()` refused it — **the recipient's** decision, an unsubscribe. |
+| `skipped` | **The operator's** decision. Nothing was attempted. |
+
+Keeping the last two apart is what lets the question "did we skip these, or did they unsubscribe?"
+have an answer. There is no check constraint on the column, so the value costs nothing.
+
+**What it means for cooldown emails is weaker, and that is correct.** For a once-ever email
+(`welcome`, `created_comp`, `join_lms`, `game_complete`, hints) a skip is permanent. For the three
+reminders on a `COOLDOWN_DAYS` window it counts as an attempt and defers them one cooldown, the
+same as a failed send. That is the honest reading of "we decided not to chase this organiser
+today" and no special case is wanted.
+
+**This replaces `CUTOFF`, and `joinComp`'s is being retired** (decision 2026-08-14). Five services
+carry a hardcoded timestamp because there was no other way to stop a newly wired email mailing
+everybody who already qualified. That is the same job as a skip, done by a different means: by
+join date, in code, permanently, and invisibly — nothing on the screen says it is there.
+
+Two mechanisms for one rule is what this document has had to undo three times. So for `welcome`
+the constant goes and its backlog becomes data. Measured before the change: **3 waiting with
+CUTOFF, 38 without**, so its only live effect was hiding **35 members across 8 competitions** who
+joined between Nov 2025 and 6 Aug 2026. Nobody who joins from here on is affected either way,
+which is what makes the swap safe.
+
+**The order matters and is not optional:**
+
+1. Deal with the 3 genuinely-waiting people first — send or mark.
+2. *Then* delete `CUTOFF` from `joinComp.js`.
+3. The card now shows exactly the 35. Mark all as sent, in one press.
+
+Done the other way round, the 3 and the 35 arrive in one undifferentiated list of 38 and the
+operator has to pick 3 out of it by hand.
+
+The four remaining constants (`joinLms`, `createdComp`, and the two the hints share) stay for now —
+each wants its own look at the numbers, on its own turn in the focus card. The next email wired
+needs no constant at all: wire it, look at the count, mark the backlog as sent.
+
+**Two grains, both on the send panel:**
+
+- **Bulk** — one button, everyone currently waiting for this email at the current scope. This is
+  the one that gets used.
+- **Per recipient** — the recipient list gets checkboxes, so a run of test accounts can be marked
+  off and the rest sent. Limited to the recipients actually shown: `preview-email` truncates its
+  list, and offering ticks over a list that is not the whole set would mislead. Bulk covers the
+  whole set.
+
+Route: `POST /admin/mark-emails-sent`, taking `email_type`, optional `competition_id`, optional
+`user_ids`, and `expected_count`.
+
+### One shared skip helper, not a fourth function per service
+
+`services/emailSkip.js`, exporting `markSkipped(emailType, candidates)`. It writes the queue rows
+directly and no service is edited — so a new email inherits skipping from its catalog entry alone,
+which is the whole point of the catalog.
+
+It can do that because the convention is already uniform: every `queueCandidate` on the platform
+inserts `(candidate.user_id, candidate.competition_id, candidate.round_id)`, with the last two
+NULL where they do not apply. **The skip row must carry the identical triple** — a skip written
+against a different `competition_id` than the guard checks would silently fail to take, and the
+count would not move.
+
+**One exception to watch:** `hints.js` takes its `email_type` from `candidate.hint_key`, not from
+the catalog key. They happen to be equal today (`serviceFor('promote_competition')` yields
+candidates whose `hint_key` is `promote_competition`), but the helper should prefer
+`candidate.hint_key || emailType` rather than rely on that.
+
+**The helper recounts afterwards and reports what is left.** `markSkipped` re-runs
+`findCandidates` and returns `still_waiting`; if it is not zero after a bulk mark, an identifier
+mismatch is showing itself immediately instead of a week later.
+
+### The count is the guard
+
+Both the live send and the bulk mark carry `expected_count` — the number the operator was looking
+at when they pressed — and the server recounts and refuses on a mismatch with **`COUNT_CHANGED`**.
+Somebody joining between the preview and the press is normal; an action bigger than the one
+reviewed is not. Exactly `broadcast.js`'s rule, and for the same reason: "I thought it was going to
+about thirty people" is only preventable in advance.
+
+The screen asks the operator to **type the number** before a live send or a bulk mark. Test sends
+and per-recipient marks do not: one is harmless and the other is already an explicit list.
+
+### What was built
+
+| | |
+|---|---|
+| ✅ | `scoped` guard dropped in all three admin routes; `competition_id` optional throughout |
+| ✅ | `get-email-targets` returns `waiting` / `pending` / `competitions`, and takes an `email_types` filter so the card reads one email without a pass over the catalog |
+| ✅ | `skipped` status, `services/emailSkip.js`, `POST /admin/mark-emails-sent`, both grains |
+| ✅ | `expected_count` / `COUNT_CHANGED` on live send and bulk mark; type-to-confirm on the screen |
+| ✅ | Focus card, `welcome` in focus |
+| ⏸ | Drain-then-send with `EMAIL_SEND_CAP`; retiring `routes/send-email.js` — deferred, see above |
+| ⏸ | `CUTOFF` removal from `joinComp.js` — sequenced behind dealing with the 3 waiting |
+
+**The cron then presses these same routes on a timer.** Nothing here is shaped around the operator
+being a person, which is the test each step had to pass. Digests below are the next layer and are
+independent of this one — they change what gets *queued*, not how it is sent.
 
 ## Digests — one email when several competitions qualify
 

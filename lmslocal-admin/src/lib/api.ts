@@ -568,21 +568,43 @@ export const getAdmin = (): AdminUser | null => {
 // ======================================================================================
 
 /*
-Counts are keyed by the outline's email key. A key can be absent, or present and null, when the
-server cannot work that email out yet - which is not the same as nobody qualifying. The screen
-shows a dash for one and a zero for the other.
+Counts are keyed by the outline's email key. A key can be absent when the server cannot work that
+email out yet - which is not the same as nobody qualifying. The screen shows a dash for one and a
+zero for the other.
 */
+export interface EmailCount {
+  /* Qualify right now, with no queue row. */
+  waiting: number;
+  /* Already queued and never sent. Only ever non-zero if something queued without sending. */
+  pending: number;
+  /* Competitions the waiting recipients span. Zero on platform-wide emails, which have none. */
+  competitions: number;
+}
+
 export type EmailTargetsResponse = ApiResponse & {
-  counts?: Record<string, number | null>;
+  counts?: Record<string, EmailCount>;
 };
 
 export interface EmailRecipient {
   user_id: number;
   email: string;
   display_name: string;
+  /* Identity is the user AND the competition: the same person appears once per competition they
+     joined when a scoped email is previewed across all of them. */
+  competition_id: number | null;
+  competition_name: string | null;
   /* Only meaningful on round-based emails. Null on the platform-wide ones. */
   round_number: number | null;
 }
+
+export type MarkEmailsSentResponse = ApiResponse & {
+  marked?: number;
+  /* Fresh count after marking. Anything but zero after a bulk mark means the skip rows did not
+     match the service's own guard - see services/emailSkip.js. */
+  still_waiting?: number;
+  expected_count?: number;
+  actual_count?: number;
+};
 
 export type PreviewEmailResponse = ApiResponse & {
   recipient_count?: number;
@@ -880,17 +902,26 @@ export const adminApi = {
   // Emails
   // ====================================================================================
 
-  getEmailTargets: async (competitionId: number): Promise<EmailTargetsResponse> => {
+  /*
+  competitionId null counts scoped emails across every competition, which is what the focus card
+  wants. emailTypes narrows which emails are worked out at all, so the card can read one number
+  without triggering a pass over the whole catalog.
+  */
+  getEmailTargets: async (
+    competitionId: number | null,
+    emailTypes?: string[]
+  ): Promise<EmailTargetsResponse> => {
     const response = await api.post<EmailTargetsResponse>('/admin/get-email-targets', {
       competition_id: competitionId,
+      email_types: emailTypes,
     });
     return response.data;
   },
 
   /*
-  competitionId is null for platform-wide emails (Join LMS, News), which have no competition. The
-  server decides which of the two an email type is - see services/emailCatalog.js - so a null here
-  on a scoped email still comes back as a VALIDATION_ERROR rather than a send to everybody.
+  competitionId is null for platform-wide emails (Join LMS, News), and now also for a scoped email
+  being previewed across every competition. The server decides which of those an email type is -
+  see services/emailCatalog.js.
   */
   previewEmail: async (emailType: string, competitionId: number | null): Promise<PreviewEmailResponse> => {
     const response = await api.post<PreviewEmailResponse>('/admin/preview-email', {
@@ -907,12 +938,40 @@ export const adminApi = {
   sendEmails: async (
     emailType: string,
     competitionId: number | null,
-    testMode: boolean
+    testMode: boolean,
+    /* The count the operator was looking at. A live send is refused with COUNT_CHANGED if it has
+       moved since - ignored in test mode, which sends one email whatever the count is. */
+    expectedCount?: number
   ): Promise<SendEmailsResponse> => {
     const response = await api.post<SendEmailsResponse>('/admin/send-emails', {
       email_type: emailType,
       competition_id: competitionId,
       test_mode: testMode,
+      expected_count: expectedCount,
+    });
+    return response.data;
+  },
+
+  /*
+  Mark people as dealt with without emailing them - a 'skipped' row on email_queue, which every
+  once-ever guard already excludes. Two grains: pass recipients to mark only those, or omit it and
+  pass expectedCount to mark everyone waiting.
+  */
+  markEmailsSent: async (
+    emailType: string,
+    competitionId: number | null,
+    opts: {
+      recipients?: { user_id: number; competition_id: number | null }[];
+      expectedCount?: number;
+      reason?: string;
+    }
+  ): Promise<MarkEmailsSentResponse> => {
+    const response = await api.post<MarkEmailsSentResponse>('/admin/mark-emails-sent', {
+      email_type: emailType,
+      competition_id: competitionId,
+      recipients: opts.recipients,
+      expected_count: opts.expectedCount,
+      reason: opts.reason,
     });
     return response.data;
   },

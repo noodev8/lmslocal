@@ -7,8 +7,11 @@ Purpose: Send one outline email to everyone who qualifies for it, from the admin
          Operator-driven - there is no schedule behind this.
 
 Which emails can be sent, and the service and template behind each, come from
-services/emailCatalog.js. Competition-scoped emails go out one competition at a time;
-platform-wide ones (Join LMS, News) have no competition and ignore the picker.
+services/emailCatalog.js.
+
+competition_id is OPTIONAL, including on scoped emails: omit it and the send covers everyone who
+qualifies anywhere. `scoped` means the picker APPLIES to this email, not that a value is required.
+That is deliberate - the destination is a cron, which cannot pick a competition either.
 
 Two modes, and they are deliberately not the same code path:
 
@@ -28,8 +31,9 @@ outcome rather than a live send to the whole competition.
 Request Payload:
 {
   "email_type": "pick_reminder",       // string, required - which outline email
-  "competition_id": 210,               // integer, required for scoped emails, ignored otherwise
-  "test_mode": true                    // boolean, optional - defaults to true
+  "competition_id": 210,               // integer, optional - narrows scoped emails; null = all
+  "test_mode": true,                   // boolean, optional - defaults to true
+  "expected_count": 3                  // integer, optional - refuses a live send if it has moved
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -52,6 +56,7 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "NO_RECIPIENTS"
+"COUNT_CHANGED"
 "VALIDATION_ERROR"
 "UNSUPPORTED_EMAIL_TYPE"
 "UNAUTHORIZED"
@@ -72,7 +77,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('admin/send-emails');
 
   try {
-    const { email_type, competition_id, test_mode } = req.body;
+    const { email_type, competition_id, test_mode, expected_count } = req.body;
 
     const entry = entryFor(email_type);
 
@@ -83,19 +88,40 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    if (entry.scoped && (!competition_id || !Number.isInteger(competition_id))) {
+    if (competition_id !== undefined && competition_id !== null && !Number.isInteger(competition_id)) {
       return res.json({
         return_code: 'VALIDATION_ERROR',
-        message: 'competition_id is required and must be an integer'
+        message: 'competition_id must be an integer when given'
       });
     }
+
+    /*
+    Optional now, for scoped emails too: omitting it sends to everyone who qualifies anywhere.
+    `scoped` says whether the picker applies, not that a value is required. This is the shape a
+    cron needs - it cannot pick a competition either.
+    */
+    const scopeId = entry.scoped && Number.isInteger(competition_id) ? competition_id : null;
 
     // Absent means test. Only an explicit false goes live.
     const testMode = test_mode !== false;
 
-    const candidates = await entry.service.findCandidates(
-      entry.scoped ? { competition_id } : {}
-    );
+    const candidates = await entry.service.findCandidates(scopeId ? { competition_id: scopeId } : {});
+
+    /*
+    The count is the guard on a live send: the number the operator was looking at has to still be
+    the number. Somebody joining between the preview and the press is normal; a send bigger than
+    the one reviewed is not. Same rule as broadcast.js and as mark-emails-sent.
+
+    Test mode is exempt - it sends one email to the test address whatever the count is.
+    */
+    if (!testMode && Number.isInteger(expected_count) && expected_count !== candidates.length) {
+      return res.json({
+        return_code: 'COUNT_CHANGED',
+        message: `${expected_count} ${expected_count === 1 ? 'was' : 'were'} on screen but ${candidates.length} qualify now. Refresh and look again.`,
+        expected_count,
+        actual_count: candidates.length
+      });
+    }
 
     if (candidates.length === 0) {
       return res.json({

@@ -156,6 +156,7 @@ const setBotPickRoute = require('./routes/admin/set-bot-pick');
 const getEmailTargetsRoute = require('./routes/admin/get-email-targets');
 const previewEmailRoute = require('./routes/admin/preview-email');
 const adminSendEmailsRoute = require('./routes/admin/send-emails');
+const adminMarkEmailsSentRoute = require('./routes/admin/mark-emails-sent');
 const adminBroadcastAudienceRoute = require('./routes/admin/broadcast-audience');
 const adminSendBroadcastRoute = require('./routes/admin/send-broadcast');
 
@@ -535,6 +536,7 @@ gate, matching the rest of the /admin namespace.
 app.use('/admin/get-email-targets', getEmailTargetsRoute);
 app.use('/admin/preview-email', previewEmailRoute);
 app.use('/admin/send-emails', adminSendEmailsRoute);
+app.use('/admin/mark-emails-sent', adminMarkEmailsSentRoute);
 
 /*
 Broadcast has its own routes rather than joining the catalog: it carries operator-written text and
