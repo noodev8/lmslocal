@@ -1,6 +1,6 @@
 'use client';
 
-import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
+import { EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
