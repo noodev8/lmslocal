@@ -37,6 +37,7 @@ import {
   roundTileTarget,
 } from '@/lib/roundState';
 import { buildInviteMessage, buildJoinUrl } from '@/lib/templates';
+import { formatLockTime } from '@/components/StartDateChooser';
 import { cacheUtils } from '@/lib/cache';
 import { cachePrefixes } from '@/lib/cacheKeys';
 
@@ -1069,6 +1070,20 @@ export default function UnifiedGameDashboard() {
             <div className="text-center">
               <p className={EYEBROW}>Setup</p>
               <p className={`${HEADING} mt-1 text-2xl`}>Invite players</p>
+
+              {/* The deadline, said out loud, on the screen where recruiting actually happens.
+                  Joining closes when the round locks - everyone has to start together, or a late
+                  joiner would face opponents who had already burned teams. Nothing used to say
+                  so, which is why an organiser could spend a week recruiting without knowing
+                  there was a clock on it. */}
+              {currentRoundInfo?.lock_time && (
+                <p className="mt-2 text-[13px] text-ink-fade">
+                  Players can join until{' '}
+                  <span className="text-ink">{formatLockTime(currentRoundInfo.lock_time)}</span>,
+                  when Round {currentRoundInfo.round_number} locks. After that the competition is
+                  closed.
+                </p>
+              )}
             </div>
 
             {/* The link comes first and the code second: a player sent a link never has to type

@@ -306,6 +306,71 @@ async function loadBlockForStart(client, blockId, teamListId) {
   return { ok: true, block, fixtures: itemsResult.rows, lockTime };
 }
 
+/**
+ * Build a competition's round 1 from a calendar block, fixtures and all.
+ *
+ * The one implementation, shared by create-competition and reset-competition. A reset empties a
+ * competition back to nothing, which is the same problem as creating one: an empty screen, and
+ * players who have to be told when it starts. Both therefore ask the same question and build the
+ * round the same way.
+ *
+ * Caller must be inside a transaction - this writes a round and its fixtures and they must
+ * arrive together.
+ *
+ * @throws {Error} `START_BLOCK_UNAVAILABLE: message` or `START_BLOCK_TOO_SOON: message`
+ * @returns {Promise<{roundId: number, label: string, lockTime: string, fixtureCount: number}>}
+ */
+async function createRoundFromBlock(client, competitionId, teamListId, blockId) {
+  // Re-checked here, not trusted from the form: the block could have been promoted, edited or
+  // deleted since the options were loaded, and the id arrives from a browser.
+  const start = await loadBlockForStart(client, blockId, teamListId);
+  if (!start.ok) {
+    throw new Error(`${start.code}: ${start.message}`);
+  }
+
+  const roundResult = await client.query(`
+    INSERT INTO round (competition_id, round_number, lock_time, source_block_id, created_at)
+    VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP)
+    RETURNING id
+  `, [competitionId, start.lockTime, blockId]);
+
+  const roundId = roundResult.rows[0].id;
+
+  // Full team names are resolved now rather than at push time, because these fixtures are shown
+  // to players from this moment on - that is the whole point of creating the round early.
+  const teamsResult = await client.query(
+    `SELECT short_name, name FROM team WHERE team_list_id = $1 AND is_active = true`,
+    [teamListId]
+  );
+  const teamNames = {};
+  teamsResult.rows.forEach((team) => { teamNames[team.short_name] = team.name; });
+
+  for (const fixture of start.fixtures) {
+    await client.query(`
+      INSERT INTO fixture (
+        round_id, competition_id, home_team, away_team,
+        home_team_short, away_team_short, kickoff_time, round_number, created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 1, CURRENT_TIMESTAMP)
+    `, [
+      roundId,
+      competitionId,
+      teamNames[fixture.home_team_short] || fixture.home_team_short,
+      teamNames[fixture.away_team_short] || fixture.away_team_short,
+      fixture.home_team_short,
+      fixture.away_team_short,
+      fixture.kickoff_time
+    ]);
+  }
+
+  return {
+    roundId,
+    label: start.block.label,
+    lockTime: start.lockTime,
+    fixtureCount: start.fixtures.length
+  };
+}
+
 module.exports = {
   LABEL_MAX,
   START_LEAD_TIME_HOURS,
@@ -314,5 +379,6 @@ module.exports = {
   loadBlocks,
   loadBlockContext,
   getStartOptions,
-  loadBlockForStart
+  loadBlockForStart,
+  createRoundFromBlock
 };

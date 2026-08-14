@@ -350,6 +350,19 @@ export interface CreateCompetitionRequest {
   no_team_twice: boolean;
   organiser_joins_as_player: boolean;
   fixture_service?: boolean;
+  /* Which round 1 the competition starts on, from getStartOptions. Fixture-service competitions
+     only. Omitted when the calendar has nothing to offer, which falls back to the Ready button. */
+  start_block_id?: number;
+}
+
+/* One date a competition can start on. Deliberately carries no fixtures: the organiser is
+   choosing WHEN they start, not which matches they get. See docs/competition-start.md. */
+export interface StartOption {
+  block_id: number;
+  label: string;
+  /* When round 1 locks - which is also when joining closes, the thing to put in front of them. */
+  lock_time: string;
+  fixture_count: number;
 }
 
 export interface UpdateCompetitionRequest {
@@ -386,6 +399,9 @@ export interface UpdateCompetitionResponse {
 
 export interface ResetCompetitionRequest {
   competition_id: number;
+  /* Which block the rebuilt round 1 comes from. A reset competition is an empty screen just like
+     a new one, so it asks the same question. Omitted falls back to the Ready button. */
+  start_block_id?: number;
   // The price the organiser was shown. The server refuses with QUOTE_STALE rather than charging
   // more than this, so a player joining mid-confirmation cannot produce a surprise debit.
   quoted_cost?: number;
@@ -515,7 +531,21 @@ export const competitionApi = {
     is_member?: boolean;
     competition_id?: number | null;
   }>('/get-join-status', { competition_code }),
-  create: (data: CreateCompetitionRequest) => api.post<{ return_code: string; message?: string; competition?: Competition; competition_id?: string }>('/create-competition', data),
+  create: (data: CreateCompetitionRequest) => api.post<{ return_code: string; message?: string; competition?: Competition & { start_block_label?: string | null }; competition_id?: string }>('/create-competition', data),
+
+  // The dates a new competition can start on, for the create wizard and the reset dialog.
+  //
+  // Not cached. A block can be staged or edited by an operator at any moment, and an option that
+  // has gone stale fails at submit with START_BLOCK_UNAVAILABLE - a poor way to find out.
+  getStartOptions: (team_list_id: number) =>
+    api.get<{
+      return_code: string;
+      message?: string;
+      options?: StartOption[];
+      /* Which to preselect - the second of three. A week is enough to recruit; longer loses
+         attention. Null when nothing is available. */
+      recommended_block_id?: number | null;
+    }>('/get-competition-start-options', { params: { team_list_id } }),
   getStatus: (competition_id: number) => withCache(
     `competition-status-${competition_id}`,
     30 * 60 * 1000, // 30 minutes cache - status rarely changes during admin work

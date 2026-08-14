@@ -9,7 +9,8 @@ import {
   XMarkIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, ResetQuoteResponse, DeleteCompetitionRequest } from '@/lib/api';
+import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, ResetQuoteResponse, DeleteCompetitionRequest, StartOption } from '@/lib/api';
+import StartDateChooser from '@/components/StartDateChooser';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -41,6 +42,10 @@ export default function CompetitionSettings() {
   const [resetStep, setResetStep] = useState<'price' | 'detail'>('price');
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [resetQuoteError, setResetQuoteError] = useState<string | null>(null);
+
+  // The start date for the round 1 a reset rebuilds. Null is legitimate - the calendar may have
+  // nothing far enough ahead - and the reset then falls back to waiting on Ready.
+  const [resetStartOption, setResetStartOption] = useState<StartOption | null>(null);
 
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -299,6 +304,9 @@ export default function CompetitionSettings() {
         competition_id: competition.id,
         // The figure they actually saw. The server refuses rather than charging above it.
         ...(resetQuote ? { quoted_cost: resetQuote.cost } : {}),
+        // The date they picked for the new round 1. Omitted when the calendar had nothing to
+        // offer, which puts the competition back to waiting on Ready instead.
+        ...(resetStartOption ? { start_block_id: resetStartOption.block_id } : {}),
       };
 
       const response = await competitionApi.reset(resetData);
@@ -1050,14 +1058,22 @@ export default function CompetitionSettings() {
                     </p>
                   )}
 
-                  {/* A reset empties the competition back to nothing, so it goes back to waiting on
-                      the organiser - otherwise it would be open to the very next batch of fixtures
-                      with no warning to anyone. */}
+                  {/* A reset empties the competition back to nothing, which is the same situation
+                      as creating one: an empty screen that players are about to be invited into.
+                      So it asks the same question, with the same three dates - and the new round 1
+                      is built the moment the reset goes through. See docs/competition-start.md.
+
+                      The chooser handles having nothing to offer, in which case start_block_id is
+                      omitted below and the competition falls back to waiting on Ready. */}
                   {competition?.fixture_service === true && (
-                    <p className="mt-4 border border-ink/30 p-3 text-[13px] text-ink-fade">
-                      Your competition will go back to waiting. Press Ready again when you want the
-                      next set of matches.
-                    </p>
+                    <div className="mt-4">
+                      <StartDateChooser
+                        teamListId={competition.team_list_id}
+                        value={resetStartOption}
+                        onChange={setResetStartOption}
+                        disabled={resetting}
+                      />
+                    </div>
                   )}
 
                   <div className="mt-4">

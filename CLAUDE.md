@@ -411,11 +411,18 @@ lmslocal-web/
   When the block is pushed, `pushFixturesToCompetition` **reconciles** that round rather than
   creating a second one, re-points picks by team, and clears `source_block_id`.
 
-  **The `ready_at` gate is deliberately still there.** The design doc proposed deleting it; that
-  would hand live competitions still waiting on the Ready button a round nobody chose. The old
-  rules are skipped for any competition that already has a round, which block-started ones always
-  do. **Steps 4–6 are not built** — nothing in `lmslocal-web` calls any of this yet, so in
-  practice every competition still goes down the Ready path.
+  `reset-competition` asks the same question and rebuilds round 1 the same way — both go through
+  `createRoundFromBlock`, and the organiser-facing chooser is one component,
+  `lmslocal-web/src/components/StartDateChooser.tsx`.
+
+  **The `ready_at` gate is deliberately still there, permanently.** It is not a legacy — it is the
+  fallback for manual competitions, team lists with no calendar, a calendar with nothing far
+  enough ahead, and the competitions already on it. The old rules are skipped for any competition
+  that already has a round, which block-started ones always do, so the two run side by side. The
+  Ready card hides itself: `isStartGateVisible` needs `phase === 'NO_ROUND'`.
+
+  **Step 5 (email) is not built** — the welcome email still sells the Ready button, and
+  `gameStartReminder` still chases it.
 - **The model**: only one staged batch at a time per team list — `fixture_load` itself is the
   pending batch. `add-staged-fixtures` refuses a new one while it's non-empty; a batch clears
   when the admin presses **Clear staged batch** (`/admin/clear-staged-batch`), which is a

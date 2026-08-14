@@ -47,6 +47,8 @@ Return Codes:
 "UNAUTHORIZED"
 "INSUFFICIENT_CREDITS"
 "QUOTE_STALE"
+"START_BLOCK_UNAVAILABLE"    - The chosen start date was promoted, edited or deleted since the dialog loaded
+"START_BLOCK_TOO_SOON"       - The chosen start date is now inside the lead time
 "SERVER_ERROR"
 =======================================================================================================================================
 What a reset costs:
@@ -66,9 +68,20 @@ refusing a cheaper reset would be obstructive. Omitting quoted_cost skips the ch
 =======================================================================================================================================
 Starting again:
 
-A reset empties the competition back to nothing, so it goes back to waiting on the organiser:
-ready_at is cleared and they press Ready again when they want the next set of matches. Without
-that, an emptied competition would be open to the very next staged batch with nobody told.
+A reset empties the competition back to nothing, which is the same problem as creating one: an
+empty screen, and players who need telling when it starts. So it asks the same question - pass
+start_block_id and round 1 is rebuilt from that calendar block there and then, exactly as
+create-competition does. See docs/competition-start.md.
+
+Without a start_block_id it falls back to the older behaviour: ready_at is cleared and the
+organiser presses Ready again when they want the next set of matches. That path is still needed
+for competitions on team lists with no calendar, and when the calendar has nothing far enough
+ahead to offer.
+
+ready_at is cleared either way. With a block it is simply irrelevant - the competition has a
+round, so the fixture service's Ready gate never applies to it (services/fixtureService.js).
+Without one, clearing it is what stops an emptied competition taking the very next staged batch
+with nobody told.
 
 fixture_service itself is deliberately untouched - who supplies the fixtures does not change
 because the competition was emptied.
@@ -80,6 +93,7 @@ const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { calculateResetCost } = require('../services/resetCost');
+const { createRoundFromBlock } = require('../services/fixtureBlock');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -88,8 +102,11 @@ router.post('/', verifyToken, async (req, res) => {
   
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id, quoted_cost } = req.body;
+    const { competition_id, quoted_cost, start_block_id } = req.body;
     const user_id = req.user.id;
+
+    // Which calendar block the new round 1 comes from. Optional - see the header.
+    const startBlockId = Number.isInteger(start_block_id) ? start_block_id : null;
 
     // === INPUT VALIDATION ===
     // Validate required competition_id parameter
@@ -254,6 +271,17 @@ router.post('/', verifyToken, async (req, res) => {
 
       const updatedCompetition = updatedCompetitionResult.rows[0];
 
+      // 6b. Give it round 1 back straight away, from the block the organiser chose. Same
+      //     definition create-competition uses - a reset competition and a new one are the same
+      //     thing from a player's point of view, and both need something on the screen.
+      let startBlockLabel = null;
+      if (competition.fixture_service === true && startBlockId !== null) {
+        const start = await createRoundFromBlock(
+          client, competition_id, competition.team_list_id, startBlockId
+        );
+        startBlockLabel = start.label;
+      }
+
       // 7. Reset all player states for the fresh competition (payment status, lives, join date)
       //
       // teams_reset_round goes back to 0 with them. It is a ROUND NUMBER - the boundary after
@@ -289,7 +317,11 @@ router.post('/', verifyToken, async (req, res) => {
           ? `Used ${cost} ${cost === 1 ? 'place' : 'places'}, leaving ${creditsRemaining}`
           : 'Used no places (within free allowance)',
         `Repopulated allowed teams for all players`,
-        ...(competition.fixture_service === true ? ['Start put back on hold until the organiser presses Ready'] : [])
+        ...(competition.fixture_service === true
+          ? [startBlockLabel
+              ? `Round 1 rebuilt from calendar block "${startBlockLabel}"`
+              : 'Start put back on hold until the organiser presses Ready']
+          : [])
       ].join(', ');
 
       await client.query(`
@@ -304,6 +336,7 @@ router.post('/', verifyToken, async (req, res) => {
       // Return reset operation results for response
       return {
         competition: updatedCompetition,
+        startBlockLabel,
         playersAffected: playersAffected,
         creditsUsed: cost,
         creditsRemaining: creditsRemaining,
@@ -329,7 +362,9 @@ router.post('/', verifyToken, async (req, res) => {
         status: result.competition.status,                           // Reset status (LOCKED)
         invite_code: result.competition.invite_code,                // Unchanged - the competition keeps it
         reset_at: result.competition.created_at,                    // When the reset occurred
-        players_affected: result.playersAffected                   // Number of players affected
+        players_affected: result.playersAffected,                  // Number of players affected
+        // Non-null means round 1 already exists again, with fixtures, locking on this date.
+        start_block_label: result.startBlockLabel
       }
     });
 
@@ -347,6 +382,17 @@ router.post('/', verifyToken, async (req, res) => {
         message: error.message,
         ...(error.required !== undefined && { required: error.required }),
         ...(error.balance !== undefined && { balance: error.balance })
+      });
+    }
+
+    // The chosen start date stopped being usable between loading the dialog and confirming it.
+    // Nothing has been deleted and nothing charged - the whole reset is one transaction - so the
+    // organiser can simply pick another date and try again.
+    if (error.message.startsWith('START_BLOCK_UNAVAILABLE:') || error.message.startsWith('START_BLOCK_TOO_SOON:')) {
+      const [code, ...rest] = error.message.split(': ');
+      return res.json({
+        return_code: code,
+        message: rest.join(': ')
       });
     }
 

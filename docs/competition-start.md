@@ -1,14 +1,17 @@
 # How a competition starts
 
-**Status: steps 1–3 built (§10). Steps 4–6 are not.** The server side is done: the calendar
-exists, creation binds round 1 to a chosen block, and the push reconciles it. **Nothing in the web
-app calls it yet** — until step 4, no organiser is offered a start date, so every competition
-still goes down the `ready_at` path and everything in §8 is still present and still live. Read
-this before changing competition creation, the fixture service's first-round path, or the Ready
-button. Change this doc first.
+**Status: steps 1–4 built (§10). Steps 5–6 (email, docs sweep) are not.** The flow works end to
+end: an organiser creating a fixture-service competition is offered three dates, round 1 exists
+immediately, and the push reconciles it when the block is staged. Reset asks the same question.
 
-This replaces the `ready_at` / "I'm Ready" model. That model is described here only where it helps
-explain what is being removed; `CLAUDE.md` is the record of how it works today.
+**The `ready_at` path is still live and still needed** — for manual competitions, for team lists
+with no calendar, for an empty calendar, and for the competitions already sitting on it. Nothing
+in §8 has been removed. Read this before changing competition creation, the fixture service's
+first-round path, or the Ready button. Change this doc first.
+
+This is the new path a competition takes to its first round. It **runs alongside** the
+`ready_at` / "I'm Ready" model rather than having replaced it — see §6 for why both are still
+here, and `CLAUDE.md` for the record of how the old one works.
 
 ---
 
@@ -250,29 +253,46 @@ one-off backlog of getting two or three gameweeks in front of us at the start.
 
 Admin token on all of them (`middleware/admin-auth.js`), standard header format, always HTTP 200.
 
-## 8. What is removed — and what is kept
+## 8. What was kept — and what the Ready path is still for
 
-**Kept, deliberately:**
+**Nothing was removed.** The original design proposed deleting all of the below. That turned out
+to be wrong, and the reason is worth keeping: `ready_at` is not a legacy of the old model, it is
+the fallback for every case the calendar cannot cover.
 
-- **`competition.ready_at` stays in the database.** Nothing will read or write it. It is not
-  dropped because this is the live production database with no staging copy, and a column drop is
-  irreversible. It joins `competition.earliest_start_date` as a dead column.
-- **`ready_at` stays in the `/get-user-dashboard` response** (`get-user-dashboard.js:144,460`).
-  The Flutter app does not reference it — verified — but leaving a field in a response costs
-  nothing and removing one is the kind of change that breaks a client nobody remembered.
+Still live, still needed:
 
-**Removed:**
+| kept | why it is still reachable |
+|---|---|
+| `competition.ready_at` | the gate for any competition with no round — see §6 |
+| `POST /set-competition-ready` | the button that sets it |
+| `/get-competition-start-outlook` | feeds the Ready card's "when would this start?" |
+| `services/gameStartReminder.js` | chases organisers sitting on the button |
+| The Ready card, `isStartGateVisible` in `roundState.ts` | shows on `phase === 'NO_ROUND'` |
 
-- `POST /set-competition-ready` — unregister in `server.js`, `.delete` the file per the existing
-  convention for retired routes.
-- `services/gameStartReminder.js` and its `emailCatalog.js` entry — the email chases a button that
-  no longer exists. Retire the catalog entry rather than repointing it; a replacement is §9.
-- The Ready card on `/game/[id]/round` and its state in `src/lib/roundState.ts`. Update
-  `docs/round-state-machine.md` in the same change.
-- `/get-competition-start-outlook` — the card it fed is gone. The dashboard reads round 1's
-  `lock_time` directly, because round 1 now exists.
-- `reset-competition.js`'s clearing of `ready_at`. **A reset must instead re-run the §5 choice** —
-  an emptied competition has no round 1 and no start date, so the organiser picks a block again.
+Four routes still reach that state:
+
+1. **Manual competitions** (`fixture_service = false`) — no calendar applies at all.
+2. **Team lists with no calendar keyed** — nothing to offer.
+3. **A calendar with nothing far enough ahead** — every block inside the lead time.
+4. **The competitions already on it** when this shipped.
+
+Only (4) ever empties. So the Ready path is permanent unless the calendar is guaranteed non-empty
+for every fixture-service team list, which is an operator promise, not a code change.
+
+**The Ready card needed no change to hide itself.** `isStartGateVisible` requires
+`phase === 'NO_ROUND'`, and a block-started competition has a round from the moment it exists — so
+the card is absent for new competitions and present for the old ones, with nothing added to say so.
+
+**Reset — built, and it does both.** `reset-competition` takes `start_block_id` and rebuilds
+round 1 through the same `createRoundFromBlock` that creation uses, so an emptied competition gets
+its fixtures straight back rather than dropping to an empty screen. `ready_at` is still cleared:
+with a block it is simply irrelevant (the competition has a round, so the gate never applies), and
+without one it is what stops an emptied competition taking the next staged batch with nobody told.
+**Reset — built, and it does both.** `reset-competition` takes `start_block_id` and rebuilds
+round 1 through the same `createRoundFromBlock` that creation uses, so an emptied competition gets
+its fixtures straight back rather than dropping to an empty screen. `ready_at` is still cleared:
+with a block it is simply irrelevant (the competition has a round, so the gate never applies), and
+without one it is what stops an emptied competition taking the next staged batch with nobody told.
 
 ## 9. Copy and email
 
@@ -314,7 +334,17 @@ Each step is deployable on its own; nothing is user-visible until step 4.
    *grown* between keying and confirmation, and `reset-competition` on a block-started
    competition (it clears `ready_at` and deletes rounds, so the competition falls back to the
    Ready path rather than re-asking for a start date — §8 wants it re-asked).
-4. Web: create-competition start options; Ready card out; dashboard and join copy.
+4. ~~Web: create-competition start options; Ready card out; dashboard and join copy.~~ **Done** —
+   `components/StartDateChooser.tsx` (shared by the create wizard and the reset dialog),
+   `competitionApi.getStartOptions`, the start step in `/competition/create`, the join deadline on
+   the Invite players panel, and `start_block_id` on `reset-competition`.
+
+   **The Ready card needed no change.** `isStartGateVisible` already requires `phase ===
+   'NO_ROUND'`, and a block-started competition has a round from creation — so the card removes
+   itself for new competitions and stays for the old ones, which is exactly right.
+
+   **Not verified in a browser.** Types, lint and both production builds pass, and the server
+   paths are tested, but nobody has clicked through the wizard or the reset dialog.
 5. Email: welcome rewrite, `gameStartReminder` retired, share nudge added.
 6. Docs: `CLAUDE.md`'s fixture-service section, `docs/round-state-machine.md`.
 

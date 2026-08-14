@@ -72,7 +72,7 @@ Return Codes:
 const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
-const { loadBlockForStart } = require('../services/fixtureBlock');
+const { createRoundFromBlock } = require('../services/fixtureBlock');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -383,50 +383,8 @@ router.post('/', verifyToken, async (req, res) => {
       let startBlockLabel = null;
 
       if (wantsFixtureService && startBlockId !== null) {
-        const start = await loadBlockForStart(client, startBlockId, team_list_id);
-
-        // Re-checked here, not trusted from the form: the block could have been promoted, edited
-        // or deleted since the options were loaded, and the id arrives from a browser.
-        if (!start.ok) {
-          throw new Error(`${start.code}: ${start.message}`);
-        }
-
-        const roundResult = await client.query(`
-          INSERT INTO round (competition_id, round_number, lock_time, source_block_id, created_at)
-          VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP)
-          RETURNING id
-        `, [competition.id, start.lockTime, startBlockId]);
-
-        const roundId = roundResult.rows[0].id;
-
-        // Full team names are resolved now rather than at push time, because these fixtures are
-        // shown to players from this moment on.
-        const teamsResult = await client.query(
-          `SELECT short_name, name FROM team WHERE team_list_id = $1 AND is_active = true`,
-          [team_list_id]
-        );
-        const teamNames = {};
-        teamsResult.rows.forEach((team) => { teamNames[team.short_name] = team.name; });
-
-        for (const fixture of start.fixtures) {
-          await client.query(`
-            INSERT INTO fixture (
-              round_id, competition_id, home_team, away_team,
-              home_team_short, away_team_short, kickoff_time, round_number, created_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, 1, CURRENT_TIMESTAMP)
-          `, [
-            roundId,
-            competition.id,
-            teamNames[fixture.home_team_short] || fixture.home_team_short,
-            teamNames[fixture.away_team_short] || fixture.away_team_short,
-            fixture.home_team_short,
-            fixture.away_team_short,
-            fixture.kickoff_time
-          ]);
-        }
-
-        startBlockLabel = start.block.label;
+        const start = await createRoundFromBlock(client, competition.id, team_list_id, startBlockId);
+        startBlockLabel = start.label;
 
         await client.query(`
           INSERT INTO audit_log (competition_id, user_id, action, details)
@@ -434,7 +392,7 @@ router.post('/', verifyToken, async (req, res) => {
         `, [
           competition.id,
           organiser_id,
-          `Round 1 created from calendar block "${start.block.label}" with ${start.fixtures.length} fixtures, locking ${start.lockTime}`
+          `Round 1 created from calendar block "${start.label}" with ${start.fixtureCount} fixtures, locking ${start.lockTime}`
         ]);
 
       } else if (wantsFixtureService) {

@@ -12,9 +12,10 @@ import {
   HeartIcon,
   CalendarDaysIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, teamApi, cacheUtils, CreateCompetitionRequest } from '@/lib/api';
+import { competitionApi, teamApi, cacheUtils, CreateCompetitionRequest, StartOption } from '@/lib/api';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
+import StartDateChooser, { formatLockTime } from '@/components/StartDateChooser';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
 
 const INPUT = 'block w-full rounded-sm border border-ink bg-transparent px-3 py-2.5 text-[15px] text-ink placeholder-ink-fade/60 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
@@ -72,6 +73,11 @@ export default function CreateCompetitionPage() {
   // it fires no change event at all, leaving the value untouched.
   const [useFixtureService, setUseFixtureService] = useState(true);
 
+  // Which calendar block round 1 comes from. Null is a legitimate state, not an unanswered
+  // question: the calendar can have nothing far enough ahead, and the competition is still
+  // created - it falls back to the Ready button.
+  const [startOption, setStartOption] = useState<StartOption | null>(null);
+
   // The fixture service only pushes to team lists we stage fixtures for, so the offer is hidden
   // entirely on lists it does not cover rather than shown and then rejected on submit.
   const selectedTeamList = teamLists.find(tl => tl.id === watchedValues.team_list_id);
@@ -112,7 +118,10 @@ export default function CreateCompetitionPage() {
         lives_per_player: data.lives_per_player,
         no_team_twice: data.no_team_twice,
         organiser_joins_as_player: data.organiser_joins_as_player,
-        fixture_service: usingFixtureService
+        fixture_service: usingFixtureService,
+        // Only when there is one to send. Omitted, the server falls back to the Ready button
+        // rather than refusing, so an empty calendar never blocks a competition being created.
+        ...(usingFixtureService && startOption ? { start_block_id: startOption.block_id } : {})
       };
 
       // Add optional text fields if provided
@@ -433,33 +442,33 @@ export default function CreateCompetitionPage() {
                   </div>
                 )}
 
-                {/* No start date is asked for. The organiser presses Ready on their round screen
-                    when they have invited everyone, and the first round follows - see
-                    docs/round-state-machine.md. Asking here meant guessing a date before anyone
-                    had been invited, and implying we knew when the next fixtures were.
+                {/* The start date. Asked here, up front, because a competition with no round is
+                    an empty screen - and the week the organiser spends recruiting is exactly the
+                    week their recruits are looking at it. Joining closes when round 1 locks, so
+                    that week is the only window there is. See docs/competition-start.md.
+
                     Sits under the fixtures/results choice because the answer depends on it, and
                     stays put either way rather than appearing and shunting the fields below. */}
-                <div className="border border-ink/30 p-4">
-                  <p className={`${LABEL} mb-1 flex items-center gap-1.5 text-ink-fade`}>
-                    <CalendarDaysIcon className="h-4 w-4" />
-                    Starting
-                  </p>
-                  <p className="text-[13px] text-ink-fade">
-                    {usingFixtureService ? (
-                      <>
-                        Nothing starts until you say so. Once the competition exists, invite your
-                        players and press Ready &mdash; your first round is the next set of matches
-                        after that.
-                      </>
-                    ) : (
-                      <>
-                        Nothing starts until you say so. Once the competition exists, invite your
-                        players, then add your first round&apos;s matches when you&apos;re ready to
-                        begin.
-                      </>
-                    )}
-                  </p>
-                </div>
+                {usingFixtureService ? (
+                  <StartDateChooser
+                    teamListId={watchedValues.team_list_id}
+                    value={startOption}
+                    onChange={setStartOption}
+                    disabled={loading}
+                  />
+                ) : (
+                  <div className="border border-ink/30 p-4">
+                    <p className={`${LABEL} mb-1 flex items-center gap-1.5 text-ink-fade`}>
+                      <CalendarDaysIcon className="h-4 w-4" />
+                      Starting
+                    </p>
+                    <p className="text-[13px] text-ink-fade">
+                      Nothing starts until you say so. Once the competition exists, invite your
+                      players, then add your first round&apos;s matches when you&apos;re ready to
+                      begin.
+                    </p>
+                  </div>
+                )}
 
                 {/* Lives per player */}
                 <div>
@@ -576,6 +585,12 @@ export default function CreateCompetitionPage() {
                         </dd>
                       </div>
                     )}
+                    {usingFixtureService && startOption && (
+                      <div className="flex justify-between gap-3 py-2">
+                        <dt className="flex-shrink-0 text-ink-fade">Round 1 kicks off</dt>
+                        <dd className="text-right text-ink">{formatLockTime(startOption.lock_time)}</dd>
+                      </div>
+                    )}
                     <div className="flex justify-between gap-3 py-2">
                       <dt className="text-ink-fade">You&apos;re playing</dt>
                       <dd className="text-right text-ink">
@@ -598,7 +613,19 @@ export default function CreateCompetitionPage() {
                         ) : (
                           <li>Start by creating rounds and adding matches</li>
                         )}
-                        <li>Your competition starts locked - unlock it when ready!</li>
+                        {usingFixtureService && startOption ? (
+                          <>
+                            <li>
+                              Round 1 is already there &mdash; anyone you invite can pick straight away
+                            </li>
+                            <li>
+                              Get your players in before {formatLockTime(startOption.lock_time)}, when
+                              picks lock and joining closes
+                            </li>
+                          </>
+                        ) : (
+                          <li>Your competition starts locked - unlock it when ready!</li>
+                        )}
                       </ul>
                     </div>
                   </div>
