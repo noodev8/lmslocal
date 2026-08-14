@@ -36,6 +36,24 @@ const { query } = require('../database');
 const LABEL_MAX = 60;
 
 /**
+ * How soon a block may be offered as a competition's start.
+ *
+ * This replaces the 48 hours the old Ready button needed. That existed because Ready was a
+ * standing order with no date attached: an organiser pressing it on Friday could be handed
+ * Saturday's matches before they had told anybody. Choosing a dated block up front removes the
+ * surprise - the date is picked deliberately and every player sees it the moment they join - so
+ * all that is left is enough time to actually get a pick in.
+ *
+ * One hour, because three friends deciding on a Saturday morning to play that afternoon is a
+ * real thing we should not be in the way of.
+ */
+const START_LEAD_TIME_HOURS = 1;
+const START_LEAD_TIME_MS = START_LEAD_TIME_HOURS * 60 * 60 * 1000;
+
+/** How many start dates a new organiser is offered. Three is a decision; a calendar is homework. */
+const MAX_START_OPTIONS = 3;
+
+/**
  * Check a set of home/away pairs against a team list.
  *
  * @param {number} teamListId
@@ -188,4 +206,113 @@ async function loadBlockContext(blockId) {
   };
 }
 
-module.exports = { LABEL_MAX, validateFixtures, loadBlocks, loadBlockContext };
+/**
+ * The blocks a new competition on this team list could start on, soonest first.
+ *
+ * Three conditions, and each one is a rule that would otherwise bite later:
+ *   - not yet promoted. A staged block is going out now; a competition created against it would
+ *     race the push.
+ *   - opens_gameweek. A real gameweek staged as several blocks must not start anybody on its
+ *     Sunday slice, or their round 1 is two matches while everyone else plays ten.
+ *   - lock time beyond the lead time. Below that there is not enough time to make a pick.
+ *
+ * Deliberately returns no fixtures. The organiser is choosing WHEN their competition starts, not
+ * which matches are in it - showing ten fixtures invites them to shop between gameweeks, a choice
+ * they have no basis to make. The players see the fixtures, on the pick screen.
+ *
+ * @param {object} client - a transaction client, or the shared query helper's caller
+ * @param {number} teamListId
+ * @returns {Promise<Array<{id, label, lock_time, fixture_count}>>} up to MAX_START_OPTIONS
+ */
+async function getStartOptions(client, teamListId) {
+  const result = await client.query(`
+    SELECT
+      b.id,
+      b.label,
+      MIN(i.kickoff_time) AS lock_time,
+      COUNT(i.id) AS fixture_count
+    FROM fixture_block b
+    JOIN fixture_block_item i ON i.block_id = b.id
+    WHERE b.team_list_id = $1
+      AND b.staged_at IS NULL
+      AND b.opens_gameweek = true
+    GROUP BY b.id
+    HAVING MIN(i.kickoff_time) > NOW() + ($2 || ' hours')::interval
+    ORDER BY lock_time
+    LIMIT $3
+  `, [teamListId, START_LEAD_TIME_HOURS, MAX_START_OPTIONS]);
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    label: row.label,
+    lock_time: row.lock_time,
+    fixture_count: parseInt(row.fixture_count, 10)
+  }));
+}
+
+/**
+ * Re-check one chosen block at the moment a competition is created, and hand back its fixtures.
+ *
+ * Separate from getStartOptions because the two answer different questions. That one asks "what
+ * could be offered", minutes ago, to build a form. This asks "is this exact block still a legal
+ * start, right now" - the block could have been promoted, edited or deleted in between, and the
+ * id arrives from a browser either way.
+ *
+ * @returns {Promise<{ok: true, block: object, fixtures: Array, lockTime: string}
+ *                 | {ok: false, code: string, message: string}>}
+ */
+async function loadBlockForStart(client, blockId, teamListId) {
+  const blockResult = await client.query(
+    `SELECT id, team_list_id, label, opens_gameweek, staged_at FROM fixture_block WHERE id = $1`,
+    [blockId]
+  );
+
+  if (blockResult.rows.length === 0) {
+    return { ok: false, code: 'START_BLOCK_UNAVAILABLE', message: 'That start date is no longer available. Choose another.' };
+  }
+
+  const block = blockResult.rows[0];
+
+  // Wrong team list would give the competition fixtures full of teams its players cannot pick.
+  if (block.team_list_id !== teamListId) {
+    return { ok: false, code: 'START_BLOCK_UNAVAILABLE', message: 'That start date is not available for this team list.' };
+  }
+
+  if (block.staged_at !== null || block.opens_gameweek !== true) {
+    return { ok: false, code: 'START_BLOCK_UNAVAILABLE', message: 'That start date is no longer available. Choose another.' };
+  }
+
+  const itemsResult = await client.query(
+    `SELECT home_team_short, away_team_short, kickoff_time
+     FROM fixture_block_item WHERE block_id = $1 ORDER BY kickoff_time`,
+    [blockId]
+  );
+
+  if (itemsResult.rows.length === 0) {
+    return { ok: false, code: 'START_BLOCK_UNAVAILABLE', message: 'That start date has no fixtures. Choose another.' };
+  }
+
+  // Ordered by kickoff, so the first row carries the lock time.
+  const lockTime = itemsResult.rows[0].kickoff_time;
+
+  if (new Date(lockTime).getTime() - Date.now() < START_LEAD_TIME_MS) {
+    return {
+      ok: false,
+      code: 'START_BLOCK_TOO_SOON',
+      message: `That round kicks off too soon to start a competition on. Pick a later date.`
+    };
+  }
+
+  return { ok: true, block, fixtures: itemsResult.rows, lockTime };
+}
+
+module.exports = {
+  LABEL_MAX,
+  START_LEAD_TIME_HOURS,
+  MAX_START_OPTIONS,
+  validateFixtures,
+  loadBlocks,
+  loadBlockContext,
+  getStartOptions,
+  loadBlockForStart
+};

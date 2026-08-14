@@ -157,8 +157,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
       for (const item of itemsResult.rows) {
         await client.query(`
           INSERT INTO fixture_load
-            (team_list_id, league, home_team_short, away_team_short, kickoff_time, opens_gameweek)
-          VALUES ($1, $2, $3, $4, $5, $6)
+            (team_list_id, league, home_team_short, away_team_short, kickoff_time, opens_gameweek,
+             source_block_id)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
         `, [
           context.team_list_id,
           context.team_list_name,       // league - the list's own name, as add-staged-fixtures does
@@ -167,7 +168,10 @@ router.post('/', verifyAdminToken, async (req, res) => {
           item.kickoff_time,
           // Carried from the block rather than re-asked. Whoever keyed the block already
           // answered this, and answering it twice invites the two disagreeing.
-          context.opens_gameweek
+          context.opens_gameweek,
+          // What lets the push find the provisional rounds already created against this block
+          // and reconcile them, instead of giving those competitions a second round 1.
+          block_id
         ]);
       }
 

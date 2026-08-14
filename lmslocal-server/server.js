@@ -36,6 +36,7 @@ const removePlayerRoute = require('./routes/remove-player');
 const updateCompetitionRoute = require('./routes/update-competition');
 const setCompetitionReadyRoute = require('./routes/set-competition-ready');
 const getCompetitionStartOutlookRoute = require('./routes/get-competition-start-outlook');
+const getCompetitionStartOptionsRoute = require('./routes/get-competition-start-options');
 // const setFixtureServiceOrganiserRoute = require('./routes/set-fixture-service-organiser'); // unregistered, see below
 const resetCompetitionRoute = require('./routes/reset-competition');
 const getResetQuoteRoute = require('./routes/get-reset-quote');
@@ -380,6 +381,7 @@ app.use('/remove-player', removePlayerRoute);
 app.use('/update-competition', updateCompetitionRoute);
 app.use('/set-competition-ready', setCompetitionReadyRoute);
 app.use('/get-competition-start-outlook', getCompetitionStartOutlookRoute);
+app.use('/get-competition-start-options', getCompetitionStartOptionsRoute);
 // UNREGISTERED: organisers cannot switch the fixture service themselves for now - the settings
 // screen no longer offers it, so this would be a live endpoint with nothing driving it. The file
 // is kept as the reference implementation for when the switch is worked through properly.

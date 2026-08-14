@@ -402,8 +402,20 @@ lmslocal-web/
   batch — is unchanged. Routes: `/admin/get-fixture-blocks`, `add-fixture-block`,
   `update-fixture-block`, `delete-fixture-block`, `promote-fixture-block`. Team validation is
   shared with `add-staged-fixtures` via `services/fixtureBlock.js`, so a block cannot pass when
-  keyed and fail when promoted. **Steps 3–6 of that doc are not built**: competition creation does
-  not bind round 1 to a block yet, so `ready_at` and the Ready button are still live.
+  keyed and fail when promoted.
+
+  **A competition created against a block has round 1 from the moment it exists** — real fixtures,
+  a real lock time, provisional until the block is promoted. `create-competition` takes
+  `start_block_id`, offered by `/get-competition-start-options` (up to three dates, no fixtures —
+  the organiser picks *when*, not *which*). `START_LEAD_TIME_HOURS = 1` in `fixtureBlock.js`.
+  When the block is pushed, `pushFixturesToCompetition` **reconciles** that round rather than
+  creating a second one, re-points picks by team, and clears `source_block_id`.
+
+  **The `ready_at` gate is deliberately still there.** The design doc proposed deleting it; that
+  would hand live competitions still waiting on the Ready button a round nobody chose. The old
+  rules are skipped for any competition that already has a round, which block-started ones always
+  do. **Steps 4–6 are not built** — nothing in `lmslocal-web` calls any of this yet, so in
+  practice every competition still goes down the Ready path.
 - **The model**: only one staged batch at a time per team list — `fixture_load` itself is the
   pending batch. `add-staged-fixtures` refuses a new one while it's non-empty; a batch clears
   when the admin presses **Clear staged batch** (`/admin/clear-staged-batch`), which is a

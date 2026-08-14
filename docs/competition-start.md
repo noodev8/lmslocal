@@ -1,10 +1,11 @@
 # How a competition starts
 
-**Status: steps 1 and 2 built (§10). Steps 3–6 are not.** The calendar exists and blocks can be
-keyed and staged, but nothing reads them yet: competition creation still does not bind round 1 to
-a block, so `ready_at` and the "I'm Ready" button remain live and everything in §8 is still
-present. Read this before changing competition creation, the fixture service's first-round path,
-or the Ready button. Change this doc first.
+**Status: steps 1–3 built (§10). Steps 4–6 are not.** The server side is done: the calendar
+exists, creation binds round 1 to a chosen block, and the push reconciles it. **Nothing in the web
+app calls it yet** — until step 4, no organiser is offered a start date, so every competition
+still goes down the `ready_at` path and everything in §8 is still present and still live. Read
+this before changing competition creation, the fixture service's first-round path, or the Ready
+button. Change this doc first.
 
 This replaces the `ready_at` / "I'm Ready" model. That model is described here only where it helps
 explain what is being removed; `CLAUDE.md` is the record of how it works today.
@@ -148,15 +149,16 @@ on the pick screen, which already works.
 Default to the second option where three are offered; the middle of the menu otherwise. A week is
 enough to recruit and longer loses attention.
 
-### `START_LEAD_TIME_HOURS = 2`
+### `START_LEAD_TIME_HOURS = 1`
 
-Replaces `FIRST_ROUND_LEAD_TIME_HOURS = 48`.
+Lives in `services/fixtureBlock.js`. It governs which blocks may be *offered*, and does not
+replace `FIRST_ROUND_LEAD_TIME_HOURS = 48` — see §6, that still governs the old path.
 
 48 hours existed to stop someone pressing Ready on Friday and being handed Saturday's matches
-before telling anyone. That risk is gone: the start date is now chosen up front and shown to
-every player from the moment they join, so nobody is surprised by it.
+before telling anyone. That risk is gone for a block-started competition: the date is chosen up
+front and shown to every player from the moment they join, so nobody is surprised by it.
 
-Two hours is what remains — enough to get a pick in, and no more. Three friends who decide on a
+One hour is what remains — enough to get a pick in, and no more. Three friends who decide on a
 Saturday morning to play that afternoon should be able to.
 
 ### On creation
@@ -182,24 +184,35 @@ results — so the mid-competition gap between rounds stays, filled by the push 
 That asymmetry is deliberate: the gap only hurts at the start, when a player has no reason yet to
 trust that anything is coming.
 
-**The first-round gate collapses.** `evaluateCompetition`'s three first-round conditions all go:
+**The first-round gate does NOT collapse — this is a deliberate change from the original design.**
+It proposed deleting `ready_at`, `opens_gameweek` and the 48-hour rule from `evaluateCompetition`
+outright. That would have been wrong: live competitions were still waiting on the Ready button
+when this was built (207 among them), and removing the gate would have handed their organisers a
+round 1 they never asked for, closing joining on a date nobody had chosen.
 
-| condition | why it goes |
-|---|---|
-| `ready_at IS NOT NULL` | the start decision is made at creation |
-| `opens_gameweek` on the batch | the calendar knows; the organiser only picks from block starts |
-| now + 48h | replaced by the create-time lead check |
+So the two models run side by side. The rules are simply **skipped for a competition that already
+has a round**, which every block-started competition does from the moment it is created. They go
+when the last `ready_at` competition has started, and not before.
 
-The remaining floor — the batch's earliest kickoff must be in the future — stays for all rounds.
+**Push becomes reconcile for a bound round.** `pushFixturesToCompetition` gains one case: if the
+competition has a round whose `source_block_id` matches the block that produced this batch and
+which has no results yet, **update it** rather than create — refresh `lock_time`, replace its
+`fixture` rows, and report `round_action: 'reconciled'`.
 
-**Push becomes reconcile for a bound round.** `pushFixturesToCompetition` currently inserts a
-round or reuses an empty one. It gains one case: if the competition's round 1 has
-`source_block_id` equal to the block that produced this batch, **update it** rather than create —
-refresh `lock_time` from the confirmed kickoffs and replace its `fixture` rows. The update path
-already half exists (`fixtureService.js:282` updates `lock_time` on an existing round).
+Finding that block needs `fixture_load.source_block_id`, stamped by promote
+(`db/migrations/2026-08-14-fixture-load-source-block.sql`). Matching on team and kickoff instead
+would fail in exactly the case that matters — a kickoff that moved.
 
-Existing picks are left alone. A pick on a team whose fixture has moved out of the block is the
-manual case in §3.
+Two things the reconcile must do that are easy to miss:
+
+- **Re-point the picks.** `push-results-to-competition.js:268` resolves a pick by
+  `p.fixture_id`, so replacing the fixture rows orphans every pick made during the provisional
+  week — and an unmatched pick reads as a *missed* one, costing a life. Picks are cleared and
+  re-matched on `pick.team`, the only identity that survives a re-key. A pick whose team is no
+  longer playing keeps `fixture_id NULL`: that is the postponement case from §3, and NULL is the
+  honest record of it.
+- **Clear `source_block_id` afterwards.** The round is no longer provisional once confirmed
+  fixtures are in. Left set, a second push would reconcile it again instead of being refused.
 
 ## 7. Admin: the calendar screen
 
@@ -291,8 +304,16 @@ Each step is deployable on its own; nothing is user-visible until step 4.
    verified in a rolled-back transaction, but a live batch was staged at the time so the route's
    success path has not run for real), and **COMPETITIONS_BOUND** on delete, which cannot fire
    until step 3 creates a round with `source_block_id` set.
-3. Server: creation binds round 1; `START_LEAD_TIME_HOURS = 2`; the push's reconcile case;
-   first-round gate removed.
+3. ~~Server: creation binds round 1; the push's reconcile case.~~ **Done** —
+   `START_LEAD_TIME_HOURS = 1`, `getStartOptions` / `loadBlockForStart` in
+   `services/fixtureBlock.js`, `GET /get-competition-start-options`, `create-competition`'s
+   `start_block_id`, and the reconcile branch in `services/fixtureService.js`. The first-round
+   gate was **kept**, not removed — see §6.
+
+   Untested until step 4 puts real data through it: a reconcile where the block's fixture set has
+   *grown* between keying and confirmation, and `reset-competition` on a block-started
+   competition (it clears `ready_at` and deletes rounds, so the competition falls back to the
+   Ready path rather than re-asking for a start date — §8 wants it re-asked).
 4. Web: create-competition start options; Ready card out; dashboard and join copy.
 5. Email: welcome rewrite, `gameStartReminder` retired, share nudge added.
 6. Docs: `CLAUDE.md`'s fixture-service section, `docs/round-state-machine.md`.

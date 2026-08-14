@@ -32,6 +32,21 @@ Purpose: Decides which competitions may receive the staged batch, and pushes it 
 const FIRST_ROUND_LEAD_TIME_HOURS = 48;
 const FIRST_ROUND_LEAD_TIME_MS = FIRST_ROUND_LEAD_TIME_HOURS * 60 * 60 * 1000;
 
+/*
+ * NOTE ON THE TWO STARTING MODELS - see docs/competition-start.md.
+ *
+ * A competition created against a calendar block already HAS round 1: real fixtures, a real lock
+ * time, from the moment it was created. It never reaches the ready_at / lead time / opens_gameweek
+ * rules below, because those only apply to a competition with no round at all. What it needs
+ * instead is RECONCILIATION - when its block is finally promoted and pushed, that provisional
+ * round is refreshed from the confirmed batch rather than a second one being created.
+ *
+ * The rules below are therefore NOT dead. They still govern every competition created the old
+ * way, and there are live ones waiting on the Ready button right now. Collapsing them, as the
+ * design doc originally proposed, would hand those organisers a round they never asked for.
+ * They go when the last ready_at competition has started, and not before.
+ */
+
 /**
  * Why a competition can't take the batch right now. These reach the admin screen as-is, so they
  * are written to be read by a person deciding what to do next, not parsed.
@@ -50,7 +65,7 @@ const BLOCKED = {
  * Everything the eligibility rules need about one competition, and what the push needs after.
  * Loaded for a single competition or for a whole team list by the two callers below.
  */
-async function loadCompetitionRoundState(client, competitionId) {
+async function loadCompetitionRoundState(client, competitionId, stagedBlockId = null) {
   const latestRoundResult = await client.query(
     `SELECT MAX(round_number) AS latest_round FROM round WHERE competition_id = $1`,
     [competitionId]
@@ -59,7 +74,35 @@ async function loadCompetitionRoundState(client, competitionId) {
 
   if (!latestRound) {
     // No rounds at all - the competition's first round.
-    return { needsNewRound: true, roundNumber: null, roundState: 'no_round' };
+    return { needsNewRound: true, roundNumber: null, roundState: 'no_round', provisionalRoundId: null };
+  }
+
+  // A round created from the very block now being pushed is provisional: it holds calendar
+  // fixtures that this batch is the confirmed version of. It looks like 'round_in_progress'
+  // - fixtures, no results - which would otherwise block the push and leave those players on
+  // whatever was keyed weeks ago.
+  if (stagedBlockId !== null) {
+    const provisionalResult = await client.query(
+      `SELECT r.id, r.round_number
+       FROM round r
+       WHERE r.competition_id = $1
+         AND r.source_block_id = $2
+         AND NOT EXISTS (
+           SELECT 1 FROM fixture f WHERE f.round_id = r.id AND f.result IS NOT NULL
+         )
+       ORDER BY r.round_number DESC
+       LIMIT 1`,
+      [competitionId, stagedBlockId]
+    );
+
+    if (provisionalResult.rows.length > 0) {
+      return {
+        needsNewRound: false,
+        roundNumber: provisionalResult.rows[0].round_number,
+        roundState: 'provisional_round',
+        provisionalRoundId: provisionalResult.rows[0].id
+      };
+    }
   }
 
   const fixtureCheckResult = await client.query(
@@ -74,9 +117,9 @@ async function loadCompetitionRoundState(client, competitionId) {
   const withResults = parseInt(fixtureCheckResult.rows[0].with_results);
 
   // A round that exists but holds no fixtures is one waiting to be filled, not a new round.
-  if (total === 0) return { needsNewRound: false, roundNumber: latestRound, roundState: 'blank_round' };
-  if (withResults === total) return { needsNewRound: true, roundNumber: latestRound, roundState: 'round_complete' };
-  return { needsNewRound: null, roundNumber: latestRound, roundState: 'round_in_progress' };
+  if (total === 0) return { needsNewRound: false, roundNumber: latestRound, roundState: 'blank_round', provisionalRoundId: null };
+  if (withResults === total) return { needsNewRound: true, roundNumber: latestRound, roundState: 'round_complete', provisionalRoundId: null };
+  return { needsNewRound: null, roundNumber: latestRound, roundState: 'round_in_progress', provisionalRoundId: null };
 }
 
 /**
@@ -100,9 +143,15 @@ function evaluateCompetition(competition, roundState, stagedFixtures, now = new 
     return { ...base, eligible: false, reason: BLOCKED.NO_STAGED_BATCH };
   }
 
+  // A provisional round is this batch's own earlier, unconfirmed self. It skips the first-round
+  // rules entirely - the start date was chosen deliberately at creation and the players have been
+  // looking at it ever since, so there is nothing left to protect them from. It still has to clear
+  // the kickoff floor below, because a batch that has already started is no use to anyone.
+  const isProvisional = roundState.roundState === 'provisional_round';
+
   // Everything below this point is about a competition's FIRST round. Once it has one, the
   // organiser is already in the rhythm and the only floor left is "not already kicked off".
-  const isFirstRound = !roundState.roundNumber;
+  const isFirstRound = !isProvisional && !roundState.roundNumber;
 
   if (isFirstRound) {
     // The organiser says when they are ready, rather than guessing a date at creation. Until
@@ -144,13 +193,24 @@ function evaluateCompetition(competition, roundState, stagedFixtures, now = new 
 async function loadStagedBatch(client, teamListId) {
   const result = await client.query(
     `SELECT fixture_id, team_list_id, league, home_team_short, away_team_short, kickoff_time,
-            opens_gameweek
+            opens_gameweek, source_block_id
      FROM fixture_load
      WHERE team_list_id = $1
      ORDER BY kickoff_time`,
     [teamListId]
   );
   return result.rows;
+}
+
+/**
+ * The calendar block a staged batch was promoted from, or null for one keyed by hand.
+ *
+ * Read from the rows rather than passed around, because every caller already has the batch. A
+ * batch is one block by construction - promote-fixture-block writes the whole thing in one
+ * transaction - so the first row speaks for all of them.
+ */
+function stagedBlockId(stagedFixtures) {
+  return stagedFixtures.length > 0 ? (stagedFixtures[0].source_block_id ?? null) : null;
 }
 
 /**
@@ -178,11 +238,12 @@ async function getFixturePushCandidates(client, teamListId) {
   );
 
   const stagedFixtures = await loadStagedBatch(client, teamListId);
+  const blockId = stagedBlockId(stagedFixtures);
   const now = new Date();
   const candidates = [];
 
   for (const competition of competitionsResult.rows) {
-    const roundState = await loadCompetitionRoundState(client, competition.id);
+    const roundState = await loadCompetitionRoundState(client, competition.id, blockId);
     const verdict = evaluateCompetition(competition, roundState, stagedFixtures, now);
 
     candidates.push({
@@ -231,7 +292,9 @@ async function pushFixturesToCompetition(client, competitionId) {
   if (competition.fixture_service !== true) throw new Error('NOT_SUBSCRIBED');
 
   const stagedFixtures = await loadStagedBatch(client, competition.team_list_id);
-  const roundState = await loadCompetitionRoundState(client, competitionId);
+  const roundState = await loadCompetitionRoundState(
+    client, competitionId, stagedBlockId(stagedFixtures)
+  );
   const verdict = evaluateCompetition(competition, roundState, stagedFixtures);
 
   // Re-checked here rather than trusted from the screen: the list may have been loaded minutes
@@ -256,7 +319,39 @@ async function pushFixturesToCompetition(client, competitionId) {
   let targetRoundNumber;
   let roundAction;
 
-  if (roundState.needsNewRound) {
+  if (roundState.provisionalRoundId) {
+    // Reconcile: this round already holds the calendar's provisional version of these fixtures,
+    // and its players have been looking at them since the competition was created. Replace them
+    // with the confirmed batch and move the lock time to match.
+    //
+    // Fixtures are deleted and re-inserted rather than updated in place. A moved kickoff is the
+    // easy case; a fixture dropped or added between keying and confirmation is the one that
+    // matters, and there is no stable identity to match on across that.
+    //
+    // Picks are deliberately left alone. A pick on a team still in the batch is unaffected; a
+    // pick on a team whose fixture has gone is the manual case in docs/competition-start.md,
+    // which is operator-fixed by hand for now. Deleting picks here would silently throw away a
+    // player's choice on every reconcile, which is far worse than the rare orphan.
+    targetRoundId = roundState.provisionalRoundId;
+    targetRoundNumber = roundState.roundNumber;
+    roundAction = 'reconciled';
+
+    await client.query(`DELETE FROM fixture WHERE round_id = $1`, [targetRoundId]);
+
+    // Existing picks point at the fixture rows just deleted, and push-results-to-competition
+    // resolves a pick by p.fixture_id. Left as they were, every player who picked before their
+    // round was confirmed would go unmatched when results came in - read as a missed pick, and
+    // charged a life for it. Cleared here and re-pointed after the new fixtures are in.
+    await client.query(`UPDATE pick SET fixture_id = NULL WHERE round_id = $1`, [targetRoundId]);
+
+    // source_block_id is cleared with the same statement that moves the lock time: once the
+    // confirmed batch is in, this round is no longer provisional and must not be reconciled a
+    // second time. Leaving it set made a repeat push look like another confirmation.
+    await client.query(
+      `UPDATE round SET lock_time = $1, source_block_id = NULL WHERE id = $2`,
+      [earliestKickoff, targetRoundId]
+    );
+  } else if (roundState.needsNewRound) {
     const newRoundResult = await client.query(
       `INSERT INTO round (competition_id, round_number, lock_time, created_at)
        SELECT $1, COALESCE(MAX(r.round_number), 0) + 1, $2, CURRENT_TIMESTAMP
@@ -314,6 +409,23 @@ async function pushFixturesToCompetition(client, competitionId) {
     );
   }
 
+  if (roundAction === 'reconciled') {
+    // Re-point the picks cleared above at the confirmed fixtures, matched on the team the player
+    // actually chose - the only identity that survives a fixture being re-keyed.
+    //
+    // A pick whose team is no longer playing this round keeps fixture_id NULL. That is the
+    // postponement case docs/competition-start.md leaves to the operator by hand; NULL is the
+    // honest record of it, and every reader of pick.fixture_id LEFT JOINs.
+    await client.query(
+      `UPDATE pick p
+       SET fixture_id = f.id
+       FROM fixture f
+       WHERE p.round_id = $1
+         AND f.round_id = $1
+         AND (f.home_team_short = p.team OR f.away_team_short = p.team)`,
+      [targetRoundId]
+    );
+  }
 
   // NEW_ROUND: one pending notification per user across all competitions, so someone in four
   // competitions gets one nudge rather than four. Needs a device token to be worth queueing.
@@ -401,7 +513,9 @@ async function getCompetitionStartOutlook(client, competitionId) {
   const competition = competitionResult.rows[0];
 
   const stagedFixtures = await loadStagedBatch(client, competition.team_list_id);
-  const roundState = await loadCompetitionRoundState(client, competitionId);
+  const roundState = await loadCompetitionRoundState(
+    client, competitionId, stagedBlockId(stagedFixtures)
+  );
   const verdict = evaluateCompetition(
     { ...competition, ready_at: competition.ready_at || new Date() },
     roundState,

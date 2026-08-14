@@ -23,7 +23,11 @@ Request Payload:
   "lives_per_player": 0,                       // integer, optional - 0 (knockout) or 1 (default: 0)
   "no_team_twice": true,                       // boolean, optional - Prevent team reuse (default: true)
   "organiser_joins_as_player": true,           // boolean, optional - Add organiser as player (default: false)
-  "fixture_service": true                      // boolean, optional - Subscribe to the automated fixture service (default: false)
+  "fixture_service": true,                     // boolean, optional - Subscribe to the automated fixture service (default: false)
+  "start_block_id": 7                          // integer, optional - which calendar block round 1
+                                               //   comes from, chosen from /get-competition-start-options.
+                                               //   Fixture-service competitions only; omitting it
+                                               //   falls back to the older Ready-button flow.
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -42,7 +46,9 @@ Success Response (ALWAYS HTTP 200):
     "invite_code": "45678",                    // string, 5-digit invite code. Competitions
                                                // created before this change keep their 4 digits.
     "created_at": "2025-01-01T12:00:00.000Z",  // string, ISO datetime when created
-    "organiser_id": 456                        // integer, organiser user ID
+    "organiser_id": 456,                       // integer, organiser user ID
+    "start_block_label": "Sat 29 Aug"          // string or null - non-null means round 1 already
+                                               //   exists, with fixtures, locking on this date
   }
 }
 
@@ -56,6 +62,8 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"
 "FIXTURE_SERVICE_UNAVAILABLE" - Fixture service requested for a team list we do not stage fixtures for
+"START_BLOCK_UNAVAILABLE"    - The chosen start date was promoted, edited or deleted since the form loaded
+"START_BLOCK_TOO_SOON"       - The chosen start date is now inside the lead time
 "UNAUTHORIZED"
 "SERVER_ERROR"
 =======================================================================================================================================
@@ -64,12 +72,17 @@ Return Codes:
 const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { loadBlockForStart } = require('../services/fixtureBlock');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, fixture_service } = req.body;
+    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, fixture_service, start_block_id } = req.body;
     const organiser_id = req.user.id;
+
+    // Which calendar block round 1 comes from. Optional: an older client will not send it, and
+    // the calendar can legitimately have nothing to offer - both fall back to the Ready button.
+    const startBlockId = Number.isInteger(start_block_id) ? start_block_id : null;
 
     // Basic validation
     if (!name || !name.trim()) {
@@ -357,18 +370,85 @@ router.post('/', verifyToken, async (req, res) => {
         `Created competition "${competition.name}" with ${competition.lives_per_player} lives per player, joined ${participationStatus}`
       ]);
 
-      // 7. Give this competition its first round straight away, if a staged batch is eligible.
-      //    Named competition, not a sweep: this used to call the all-competitions push, so
-      //    creating one competition could create rounds in every other subscriber as a side
-      //    effect. Nothing here should touch anyone else's competition.
-      if (fixture_service === true) {
+      // 7. Give this competition its round 1 NOW, from the calendar block the organiser chose.
+      //
+      //    This is the point of the whole thing (docs/competition-start.md). A competition with
+      //    no round is an empty screen, and the week its organiser spends recruiting is exactly
+      //    the week their recruits are looking at it - joining closes when round 1 locks, so that
+      //    week is the only window there is. Round 1 exists before the organiser has even seen
+      //    their dashboard, and every player who joins can pick immediately.
+      //
+      //    The fixtures are provisional: keyed by hand weeks ahead, and confirmed when the block
+      //    is promoted and pushed, which reconciles this round rather than creating another.
+      let startBlockLabel = null;
+
+      if (wantsFixtureService && startBlockId !== null) {
+        const start = await loadBlockForStart(client, startBlockId, team_list_id);
+
+        // Re-checked here, not trusted from the form: the block could have been promoted, edited
+        // or deleted since the options were loaded, and the id arrives from a browser.
+        if (!start.ok) {
+          throw new Error(`${start.code}: ${start.message}`);
+        }
+
+        const roundResult = await client.query(`
+          INSERT INTO round (competition_id, round_number, lock_time, source_block_id, created_at)
+          VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP)
+          RETURNING id
+        `, [competition.id, start.lockTime, startBlockId]);
+
+        const roundId = roundResult.rows[0].id;
+
+        // Full team names are resolved now rather than at push time, because these fixtures are
+        // shown to players from this moment on.
+        const teamsResult = await client.query(
+          `SELECT short_name, name FROM team WHERE team_list_id = $1 AND is_active = true`,
+          [team_list_id]
+        );
+        const teamNames = {};
+        teamsResult.rows.forEach((team) => { teamNames[team.short_name] = team.name; });
+
+        for (const fixture of start.fixtures) {
+          await client.query(`
+            INSERT INTO fixture (
+              round_id, competition_id, home_team, away_team,
+              home_team_short, away_team_short, kickoff_time, round_number, created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 1, CURRENT_TIMESTAMP)
+          `, [
+            roundId,
+            competition.id,
+            teamNames[fixture.home_team_short] || fixture.home_team_short,
+            teamNames[fixture.away_team_short] || fixture.away_team_short,
+            fixture.home_team_short,
+            fixture.away_team_short,
+            fixture.kickoff_time
+          ]);
+        }
+
+        startBlockLabel = start.block.label;
+
+        await client.query(`
+          INSERT INTO audit_log (competition_id, user_id, action, details)
+          VALUES ($1, $2, 'Round Created', $3)
+        `, [
+          competition.id,
+          organiser_id,
+          `Round 1 created from calendar block "${start.block.label}" with ${start.fixtures.length} fixtures, locking ${start.lockTime}`
+        ]);
+
+      } else if (wantsFixtureService) {
+        // No start date chosen - the calendar had nothing to offer, or the caller is an older
+        // client. Falls back to the previous behaviour: take the staged batch if one happens to
+        // be eligible, otherwise wait for the organiser to press Ready.
+        //
+        // Named competition, not a sweep: this used to call the all-competitions push, so
+        // creating one competition could create rounds in every other subscriber as a side effect.
         const { pushFixturesToCompetition } = require('../services/fixtureService');
         try {
           await pushFixturesToCompetition(client, competition.id);
         } catch (error) {
-          // Not eligible yet is the normal case, not a failure - a competition told to start next
-          // week has nothing to take until then, and the 48h lead time deliberately holds back a
-          // batch kicking off too soon. The organiser gets their round on the admin's next push.
+          // Not eligible yet is the normal case, not a failure.
           if (error.message !== 'NOT_ELIGIBLE') {
             throw error;
           }
@@ -378,7 +458,8 @@ router.post('/', verifyToken, async (req, res) => {
       // Return competition data for response
       return {
         competition,
-        team_list_name: teamListResult.rows[0].name
+        team_list_name: teamListResult.rows[0].name,
+        start_block_label: startBlockLabel
       };
     });
 
@@ -397,7 +478,10 @@ router.post('/', verifyToken, async (req, res) => {
         fixture_service: result.competition.fixture_service,
         invite_code: result.competition.invite_code,
         created_at: result.competition.created_at,
-        organiser_id: result.competition.organiser_id
+        organiser_id: result.competition.organiser_id,
+        // Non-null means round 1 exists already and this is when it locks - what the confirmation
+        // screen and the welcome email tell the organiser and every player who joins.
+        start_block_label: result.start_block_label
       }
     });
 
@@ -409,6 +493,17 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "FIXTURE_SERVICE_UNAVAILABLE",
         message: "The fixture service does not cover this team list yet. Choose another list, or enter your own fixtures."
+      });
+    }
+
+    // The chosen start date stopped being usable between loading the form and submitting it.
+    // Its own return codes rather than VALIDATION_ERROR, because the fix is "pick another date"
+    // and the frontend has to reload the options to offer them.
+    if (error.message.startsWith('START_BLOCK_UNAVAILABLE:') || error.message.startsWith('START_BLOCK_TOO_SOON:')) {
+      const [code, ...rest] = error.message.split(': ');
+      return res.json({
+        return_code: code,
+        message: rest.join(': ')
       });
     }
 
