@@ -74,6 +74,19 @@ async function findCandidates(opts = {}) {
         SELECT COUNT(*) FROM competition_user s
         WHERE s.competition_id = c.id AND s.status = 'active'
       ) AS survivor_count,
+
+      /*
+      When it actually finished - the moment the last result was processed, not the last round's
+      lock time, because a round locks when picking closes and can sit unsettled for days after.
+      Not used by the template: it drives the "waiting since" column on the admin screen, which is
+      how the operator tells a competition that ended yesterday from one that ended in the spring.
+      */
+      (
+        SELECT MAX(f.processed)
+        FROM fixture f
+        INNER JOIN round r ON r.id = f.round_id
+        WHERE r.competition_id = c.id
+      ) AS finished_at,
       (
         SELECT string_agg(su.display_name, ', ' ORDER BY su.display_name)
         FROM competition_user s

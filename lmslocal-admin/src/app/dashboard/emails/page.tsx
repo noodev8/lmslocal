@@ -102,9 +102,30 @@ operator reads the list ("which of these does a player get?"), and it is a colum
 this table mirrors; it just no longer decides anything.
 */
 const OUTLINE: OutlineEmail[] = [
-  { key: 'results', consumer: 'Player', section: 'Game', name: 'Round Over', scoped: true, push: true, note: 'Round settled + next fixtures in' },
+  {
+    key: 'results',
+    consumer: 'Player',
+    section: 'Game',
+    name: 'Round Over',
+    scoped: true,
+    push: true,
+    note: 'Round settled + next fixtures in',
+    focus: true,
+    blurb:
+      'The one email every player gets every week. Their own result first, then who is still in, then what happens next. Not ready when the round ends — ready when the round ends AND the next round’s fixtures are in, or the competition has finished, so it is never a dead end.',
+  },
   { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', scoped: true, push: true },
-  { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', scoped: true, note: 'Everyone who took part, once' },
+  {
+    key: 'game_complete',
+    consumer: 'Player',
+    section: 'Game',
+    name: 'Game complete',
+    scoped: true,
+    note: 'Everyone who took part, once',
+    focus: true,
+    blurb:
+      'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all.',
+  },
   { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', scoped: false, note: 'Stuck 14+ days, round waiting' },
   { key: 'share_reminder', consumer: 'Organiser', section: 'Game', name: 'Share reminder', scoped: true, note: 'Round 1 locks in 48h - joining closes' },
   {

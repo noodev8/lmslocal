@@ -12,12 +12,24 @@ the next round's fixtures are in. A "round over" email with nothing to do next i
 player reads who went out, has nowhere to go, and has to come back later anyway. Waiting turns two
 half-emails into one that settles the last round and opens the next in the same breath.
 
-Ready when the highest FULLY PROCESSED round is followed by either:
-  - a round N+1 that has fixtures - the competition continues, or
-  - competition status COMPLETE - somebody won, or nobody did
+Ready when the highest FULLY PROCESSED round is followed by a round N+1 that has fixtures.
 
-Anything else and the competition is mid-flight: results outstanding, or settled with no next
-round staged yet. Both are somebody else's email (resultReminder, fixtureReminder).
+Anything else is somebody else's email. Results outstanding -> resultReminder. Settled with no
+next round staged -> fixtureReminder. Competition finished -> gameComplete.
+
+THAT LAST ONE USED TO BE THIS EMAIL TOO, and it was a mistake (fixed 2026-08-14). A second arm
+here read "or competition status COMPLETE", so the final round being processed fired BOTH this and
+gameComplete - one event, two emails, both announcing the same winner to anyone who reached the
+end. gameComplete now owns a competition ending outright, for everybody who took part rather than
+just the finalists, and this email owns "a round ended and the next one is open".
+
+The fix was to remove a rule rather than add one: the alternative considered was gameComplete
+excluding final-round players, which would have meant one email reaching into player_progress to
+work out who it was NOT for.
+
+The cost, accepted: a final-round player is no longer told their own last pick and how it went.
+They get gameComplete, which names the winner and says whether they survived, but not "your team
+lost". They watched that match; the winner is the part they need.
 
 RECIPIENTS COME FROM player_progress, one row per player per round, which is exactly "who was in
 this round". A player eliminated in round 3 has no row for round 5 and is not told about a round
@@ -71,6 +83,7 @@ async function findCandidates(opts = {}) {
 
       last_round.id          AS round_id,
       last_round.round_number,
+      last_round.settled_at,
 
       -- This player's own round: what they picked and how it went.
       pp.chosen_team,
@@ -138,7 +151,15 @@ async function findCandidates(opts = {}) {
     processed. LATERAL so the fixture aggregate is computed for that round alone.
     */
     INNER JOIN LATERAL (
-      SELECT r.id, r.round_number
+      SELECT
+        r.id,
+        r.round_number,
+        /*
+        When this round was settled. Not used by the template: it drives the "waiting since"
+        column on the admin screen, which is how the operator tells a round that finished last
+        night from one that finished in the spring.
+        */
+        (SELECT MAX(f2.processed) FROM fixture f2 WHERE f2.round_id = r.id) AS settled_at
       FROM round r
       WHERE r.competition_id = c.id
         AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
@@ -175,8 +196,19 @@ async function findCandidates(opts = {}) {
       AND u.email NOT LIKE '%@lms-guest.com'
 
     WHERE
-      -- The readiness rule: next round staged, or the competition is over.
-      (next_round.id IS NOT NULL OR UPPER(c.status) = 'COMPLETE')
+      /*
+      The readiness rule, and now the ONLY arm of it: the next round is staged.
+
+      There used to be a second arm - "or the competition is COMPLETE" - and it was the entire
+      overlap with game_complete. Both emails fired on the same event, the final round being
+      processed, so a player who reached the end got two messages announcing the same winner.
+      Removed 2026-08-14; game_complete is the email for a competition ending, for everybody who
+      took part.
+
+      Dropping it also makes this service's founding rule true by construction rather than by a
+      branch: "never a dead end" now holds because a next round is the only thing that qualifies.
+      */
+      next_round.id IS NOT NULL
 
       -- Once per player per round.
       AND NOT EXISTS (
@@ -232,6 +264,15 @@ async function buildTemplateData(candidate) {
   const unsubscribe = token ? unsubscribeLinks(token, groupFor(EMAIL_TYPE)) : null;
 
   const survivors = Number(survivors_count) || 0;
+
+  /*
+  Always false now, and kept only so the template's shape does not change under it. A candidate
+  must have a next round staged to get here (see findCandidates), and a COMPLETE competition has
+  none - so the "who won" branch below is unreachable. gameComplete owns a competition ending.
+
+  Left in rather than ripped out because the template reads these three keys and a missing key
+  renders differently from a false one. Remove them together when that template is next touched.
+  */
   const isComplete = competition_status === 'COMPLETE';
 
   return {

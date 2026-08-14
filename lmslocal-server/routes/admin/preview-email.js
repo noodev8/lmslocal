@@ -161,7 +161,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
         collide today - each candidate row carries exactly one of these - and a service adding a
         new trigger column just adds itself to this list.
         */
-        since: c.settled_at ?? c.last_kickoff ?? c.joined_at ?? c.created_at ?? null,
+        since: c.settled_at ?? c.last_kickoff ?? c.finished_at ?? c.joined_at ?? c.created_at ?? null,
         // Present only on round-based emails; null on the platform-wide ones.
         round_number: c.round_number ?? null
       })),
