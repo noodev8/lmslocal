@@ -63,6 +63,7 @@ export default function StartDateChooser({
   value,
   onChange,
   disabled = false,
+  compact = false,
 }: {
   teamListId: number | undefined;
   /* The chosen option, or null for "none available" / not yet loaded. The whole option rather
@@ -70,6 +71,10 @@ export default function StartDateChooser({
   value: StartOption | null;
   onChange: (option: StartOption | null) => void;
   disabled?: boolean;
+  /* Drops the framing - heading, intro, surrounding box - for a caller that supplies its own,
+     like the reset dialog where this is a step with a title of its own. The dates and the
+     deadline line are the same either way; only the packaging goes. */
+  compact?: boolean;
 }) {
   const [options, setOptions] = useState<StartOption[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -116,11 +121,13 @@ export default function StartDateChooser({
   const chosen = value;
 
   return (
-    <div className="border border-ink/30 p-4">
-      <p className={`${LABEL} mb-1 flex items-center gap-1.5 text-ink-fade`}>
-        <CalendarDaysIcon className="h-4 w-4" />
-        When does it start?
-      </p>
+    <div className={compact ? '' : 'border border-ink/30 p-4'}>
+      {!compact && (
+        <p className={`${LABEL} mb-1 flex items-center gap-1.5 text-ink-fade`}>
+          <CalendarDaysIcon className="h-4 w-4" />
+          When does it start?
+        </p>
+      )}
 
       {options === null ? (
         <p className="text-[13px] text-ink-fade">Loading dates&hellip;</p>
@@ -132,10 +139,12 @@ export default function StartDateChooser({
         </p>
       ) : (
         <>
-          <p className="mb-3 text-[13px] text-ink-fade">
-            Your first round is ready and waiting the moment your competition exists, so anyone you
-            invite can make their pick straight away.
-          </p>
+          {!compact && (
+            <p className="mb-3 text-[13px] text-ink-fade">
+              Your first round is ready and waiting the moment your competition exists, so anyone you
+              invite can make their pick straight away.
+            </p>
+          )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {options.map((option) => {
@@ -171,8 +180,7 @@ export default function StartDateChooser({
               burned teams - so joining closes when round 1 locks. */}
           {chosen && (
             <p className="mt-3 border-t border-ink/30 pt-3 text-[13px] text-ink-fade">
-              That gives you <span className="text-ink">{daysUntil(chosen.lock_time)}</span> to get
-              players in. They can join right up until kick-off on{' '}
+              Players can join until{' '}
               <span className="text-ink">{formatLockTime(chosen.lock_time)}</span> — after that the
               competition is closed and everyone plays the same rounds.
             </p>

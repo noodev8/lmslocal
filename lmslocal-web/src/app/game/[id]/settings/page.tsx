@@ -10,7 +10,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, ResetQuoteResponse, DeleteCompetitionRequest, StartOption } from '@/lib/api';
-import StartDateChooser from '@/components/StartDateChooser';
+import StartDateChooser, { daysUntil } from '@/components/StartDateChooser';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -39,7 +39,7 @@ export default function CompetitionSettings() {
   const [resetting, setResetting] = useState(false);
   const [resetQuote, setResetQuote] = useState<ResetQuoteResponse | null>(null);
   // 'price' is the cost on its own; 'detail' is what a reset does plus type-to-confirm.
-  const [resetStep, setResetStep] = useState<'price' | 'detail'>('price');
+  const [resetStep, setResetStep] = useState<'price' | 'start' | 'detail'>('price');
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [resetQuoteError, setResetQuoteError] = useState<string | null>(null);
 
@@ -369,7 +369,25 @@ export default function CompetitionSettings() {
     setResetQuote(null);
     setResetQuoteError(null);
     setResetStep('price');
+    // The chooser re-fetches and re-preselects when it next mounts, so a stale pick cannot be
+    // carried into a dialog opened days later.
+    setResetStartOption(null);
   };
+
+  /*
+   * Escape closes it, like every other dialog a person has ever used. Not while a reset is
+   * running: abandoning the dialog mid-transaction would leave the organiser with no idea
+   * whether their competition had been wiped.
+   */
+  useEffect(() => {
+    if (!showResetModal) return;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !resetting) handleCloseResetModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showResetModal, resetting]);
 
   /*
    * Whether the price gets its own screen before the detail.
@@ -384,7 +402,43 @@ export default function CompetitionSettings() {
    * INSUFFICIENT_CREDITS and deleting nothing - a better failure than an organiser unable to
    * reset their own competition because one read-only call did not answer.
    */
-  const showPriceStep = resetStep === 'price' && !!resetQuote && resetQuote.cost > 0;
+  /*
+   * The start date gets its own screen rather than sitting under the delete/preserve lists.
+   *
+   * Two reasons. It is a different question - everything else in this dialog is about destroying
+   * what is there, and this is the one decision about what comes next - and putting it inline made
+   * the dialog taller than the viewport, which pushed Cancel off the bottom of the screen. An
+   * organiser having second thoughts could not act on them.
+   *
+   * Only for competitions we supply fixtures to. A manual organiser sets their own lock times and
+   * has no calendar to choose from, so the step would be an empty screen and an extra click.
+   */
+  const needsStartStep = competition?.fixture_service === true;
+
+  /*
+   * Which screen is actually on show. Derived rather than tracked, because two of the three are
+   * skippable and a stored value would have to be kept in step with both conditions - the bug
+   * being that a free reset (no price screen) used to fall straight past everything to the
+   * confirmation.
+   *
+   * The price screen appears only when there is a price. A free reset, or one whose quote could
+   * not be fetched, skips it: the price is authoritatively recalculated inside the reset
+   * transaction, so the worst case is the server refusing with INSUFFICIENT_CREDITS and deleting
+   * nothing - a better failure than an organiser unable to reset because one read-only call did
+   * not answer.
+   */
+  const resetScreen: 'loading' | 'price' | 'start' | 'detail' = (() => {
+    if (quoteLoading) return 'loading';
+    if (resetStep === 'price') {
+      if (resetQuote && resetQuote.cost > 0) return 'price';
+      return needsStartStep ? 'start' : 'detail';
+    }
+    if (resetStep === 'start') return needsStartStep ? 'start' : 'detail';
+    return 'detail';
+  })();
+
+  /* Where "next" goes from the price screen, so the skip is decided in one place. */
+  const stepAfterPrice: 'start' | 'detail' = needsStartStep ? 'start' : 'detail';
 
   const handleDeleteCompetition = async () => {
     if (!competition) return;
@@ -914,13 +968,34 @@ export default function CompetitionSettings() {
         exactly as it did before this change.
       */}
       {showResetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
-          <div className={`${PANEL} w-full max-w-md`}>
+        /* Backdrop closes, unless a reset is actually running - a click that abandoned the dialog
+           mid-transaction would leave the organiser with no idea whether it went through. */
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
+          onClick={() => { if (!resetting) handleCloseResetModal(); }}
+        >
+          {/* max-h + flex column is what keeps the footer buttons on screen. Before this the
+              dialog grew with its content, and on a laptop the Cancel button sat below the fold
+              with no way to reach it - an organiser having second thoughts was stuck. */}
+          <div
+            className={`${PANEL} relative flex max-h-[90vh] w-full max-w-md flex-col`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* An explicit way out, always in the same place whichever screen is showing. */}
+            <button
+              type="button"
+              onClick={handleCloseResetModal}
+              disabled={resetting}
+              aria-label="Close"
+              className="absolute right-3 top-3 rounded-sm p-1 text-ink-fade transition-colors hover:text-ink disabled:opacity-40"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
 
             {/* Step 0: waiting on the quote. Deliberately does NOT render the detail underneath -
                 showing the busy screen first and then replacing it with the price would train the
                 organiser to click past the thing we most want them to read. */}
-            {quoteLoading && (
+            {resetScreen === 'loading' && (
               <div className="p-6">
                 <p className={EYEBROW}>Confirm</p>
                 <h3 className={`${HEADING} mt-1 text-2xl`}>Reset competition?</h3>
@@ -929,9 +1004,9 @@ export default function CompetitionSettings() {
             )}
 
             {/* Step 1: the price, on its own. */}
-            {!quoteLoading && showPriceStep && resetQuote && (
+            {resetScreen === 'price' && resetQuote && (
               <>
-                <div className="p-6">
+                <div className="overflow-y-auto p-6">
                   <p className={EYEBROW}>Before you start again</p>
                   <h3 className={`${HEADING} mt-1 text-2xl`}>
                     {resetQuote.affordable
@@ -1000,7 +1075,7 @@ export default function CompetitionSettings() {
                   {resetQuote.affordable && (
                     <button
                       type="button"
-                      onClick={() => setResetStep('detail')}
+                      onClick={() => setResetStep(stepAfterPrice)}
                       className={`${BTN_PRIMARY} flex-1 py-2 text-base`}
                     >
                       Agree
@@ -1010,11 +1085,54 @@ export default function CompetitionSettings() {
               </>
             )}
 
-            {/* Step 2: what a reset does, and the type-to-confirm. Unchanged from before, minus
-                the price - which has already been read by the time anyone gets here. */}
-            {!quoteLoading && !showPriceStep && (
+            {/* Step 2: when it starts again. Its own screen because it is the one question in
+                this dialog about what comes NEXT rather than what is being destroyed - and
+                because inline it made the dialog taller than the viewport. */}
+            {resetScreen === 'start' && (
               <>
-                <div className="p-6">
+                <div className="overflow-y-auto p-6">
+                  <p className={EYEBROW}>Starting again</p>
+                  <h3 className={`${HEADING} mt-1 text-2xl`}>When does it restart?</h3>
+                  <p className="mt-2 text-[13px] text-ink-fade">
+                    Your players stay in. Round 1 is rebuilt on the date you pick, so there is
+                    something for them to do the moment the reset goes through.
+                  </p>
+
+                  <div className="mt-4">
+                    <StartDateChooser
+                      teamListId={competition?.team_list_id}
+                      value={resetStartOption}
+                      onChange={setResetStartOption}
+                      disabled={resetting}
+                      compact
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-ink/30 p-4 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={handleCloseResetModal}
+                    className={`${BTN_OUTLINE} flex-1 justify-center py-2`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResetStep('detail')}
+                    className={`${BTN_PRIMARY} flex-1 py-2 text-base`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 3: what a reset does, and the type-to-confirm. Unchanged from before, minus
+                the price - which has already been read by the time anyone gets here. */}
+            {resetScreen === 'detail' && (
+              <>
+                <div className="overflow-y-auto p-6">
                   <p className={EYEBROW}>Confirm</p>
                   <h3 className={`${HEADING} mt-1 text-2xl`}>Reset competition?</h3>
 
@@ -1058,21 +1176,30 @@ export default function CompetitionSettings() {
                     </p>
                   )}
 
-                  {/* A reset empties the competition back to nothing, which is the same situation
-                      as creating one: an empty screen that players are about to be invited into.
-                      So it asks the same question, with the same three dates - and the new round 1
-                      is built the moment the reset goes through. See docs/competition-start.md.
-
-                      The chooser handles having nothing to offer, in which case start_block_id is
-                      omitted below and the competition falls back to waiting on Ready. */}
-                  {competition?.fixture_service === true && (
-                    <div className="mt-4">
-                      <StartDateChooser
-                        teamListId={competition.team_list_id}
-                        value={resetStartOption}
-                        onChange={setResetStartOption}
+                  {/* The date, as one line rather than the chooser again - it was answered on the
+                      previous screen and this one is about committing to the deletion. Still
+                      shown, because it is the thing that will be true afterwards and the
+                      organiser should not have to remember what they picked. Back re-opens it. */}
+                  {needsStartStep && (
+                    <div className="mt-4 flex items-center justify-between gap-3 border border-ink/30 p-3">
+                      <p className="text-[13px] text-ink-fade">
+                        {resetStartOption ? (
+                          <>
+                            Restarts <span className="text-ink">{resetStartOption.label}</span>,{' '}
+                            {daysUntil(resetStartOption.lock_time)}
+                          </>
+                        ) : (
+                          <>Restarts when the next matches are in</>
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setResetStep('start')}
                         disabled={resetting}
-                      />
+                        className={`${LABEL} shrink-0 text-ink-fade underline underline-offset-2 transition-colors hover:text-ink disabled:opacity-50`}
+                      >
+                        Change
+                      </button>
                     </div>
                   )}
 
