@@ -427,8 +427,9 @@ lmslocal-web/
   that already has a round, which block-started ones always do, so the two run side by side. The
   Ready card hides itself: `isStartGateVisible` needs `phase === 'NO_ROUND'`.
 
-  **Step 5 (email) is not built** — the welcome email still sells the Ready button, and
-  `gameStartReminder` still chases it.
+  Emails follow it: `created_comp` names the start date instead of the Ready button when round 1
+  exists, and `services/shareReminder.js` warns the organiser 48h before joining closes. See
+  `docs/email/README.md`.
 - **The model**: only one staged batch at a time per team list — `fixture_load` itself is the
   pending batch. `add-staged-fixtures` refuses a new one while it's non-empty; a batch clears
   when the admin presses **Clear staged batch** (`/admin/clear-staged-batch`), which is a

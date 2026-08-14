@@ -1,8 +1,9 @@
 # How a competition starts
 
-**Status: steps 1–4 built (§10). Steps 5–6 (email, docs sweep) are not.** The flow works end to
-end: an organiser creating a fixture-service competition is offered three dates, round 1 exists
-immediately, and the push reconciles it when the block is staged. Reset asks the same question.
+**Status: built, all six steps (§10).** An organiser creating a fixture-service competition is
+offered three dates — including the batch already staged — round 1 exists immediately, and the
+push reconciles it. Reset asks the same question. The emails say the date instead of naming a
+button. What has *not* happened is a browser click-through: see §10 for exactly what is untested.
 
 **The `ready_at` path is still live and still needed** — for manual competitions, for team lists
 with no calendar, for an empty calendar, and for the competitions already sitting on it. Nothing
@@ -359,8 +360,19 @@ Each step is deployable on its own; nothing is user-visible until step 4.
 
    **Not verified in a browser.** Types, lint and both production builds pass, and the server
    paths are tested, but nobody has clicked through the wizard or the reset dialog.
-5. Email: welcome rewrite, `gameStartReminder` retired, share nudge added.
-6. Docs: `CLAUDE.md`'s fixture-service section, `docs/round-state-machine.md`.
+5. ~~Email: welcome rewrite, `gameStartReminder` retired, share nudge added.~~ **Done** —
+   `created_comp` branches on whether round 1 exists, `services/shareReminder.js` is new.
+   `gameStartReminder` was **not** retired: it chases competitions with no rounds, which a
+   block-started one never is, so it excludes them already. See `docs/email/README.md`.
+
+   Outstanding: `share_reminder` needs a row on `email-outline.xlsx`, and its rules were written
+   alongside the code rather than agreed first — treat that README section as a proposal.
+6. ~~Docs: `CLAUDE.md`'s fixture-service section, `docs/round-state-machine.md`.~~ **Done.**
+
+**All six steps built.** What is left is not in this plan: nobody has clicked through the wizard or
+the reset dialog in a browser, `add-staged-fixtures`' new block-creating path has not run for real
+(a batch was staged when it was written, so the route refuses), and a reconcile where the fixture
+set has *grown* between keying and confirmation is untested.
 
 Flutter needs no change at any step. It does not read `ready_at`, and a competition that has a
 round 1 on day one is a competition it already knows how to display.

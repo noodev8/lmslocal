@@ -23,6 +23,30 @@ and got the same thing twice.
 
 One tile, one page, content follows the clock.
 
+## `NO_ROUND` is now the exception, not the start
+
+**Read `docs/competition-start.md` alongside this.** When this document was written, every
+automated competition began at `NO_ROUND` and stayed there until its organiser pressed **Ready**.
+That is no longer the normal path.
+
+A fixture-service competition is now created against a **calendar block** — the organiser picks a
+start date in the create wizard, and round 1 is built in the same transaction. It therefore enters
+the machine at `OPEN`, with fixtures and a lock time, and **never visits `NO_ROUND` at all**.
+
+The Ready gate below is intact and still correct, but it is now the **fallback**, reached by four
+routes:
+
+1. organiser-managed competitions (`fixture_service = false`)
+2. team lists with no calendar keyed
+3. a calendar with nothing far enough ahead to offer
+4. competitions created before this changed
+
+It hides itself with no extra rule: `isStartGateVisible` already requires `phase === 'NO_ROUND'`,
+and a block-started competition is never in it.
+
+So everything in §5 about Ready still applies — to a competition that reaches `NO_ROUND`. What has
+changed is how many do.
+
 ---
 
 ## 1. Inputs
@@ -36,7 +60,7 @@ Everything the machine needs, and nowhere it gets it from beyond this list:
 | `lockTime` | same route, `round_start_time` (which is `round.lock_time`) | may be null |
 | `fixtures[]` | same route, each with `result` and `processed` | |
 | `automated` | `competition.fixture_service === true` | from `AppDataContext` |
-| `readyToStart` | `competition.ready_at !== null` | organiser has pressed Ready; only ever read in `NO_ROUND`, and only when `automated` |
+| `readyToStart` | `competition.ready_at !== null` | organiser has pressed Ready; only ever read in `NO_ROUND`, and only when `automated`. A competition started from a calendar block never reaches `NO_ROUND`, so this input goes unread for most of them — see the note above |
 | `competitionComplete` | `competition.is_complete` | |
 | `now` | injected, not read from the global clock | so phases are testable |
 | `canManageFixtures` | `is_organiser || manage_fixtures` | permission, **not** a phase input |
@@ -126,6 +150,14 @@ worth launching and one that makes the organiser look careless.
 
 Collapsed by default because the date answers the question for most organisers, and a ten-line
 list sitting above **Yes, start my competition** buries the button the card exists for.
+
+**The create wizard deliberately does the opposite and shows no fixtures at all**, which looks
+inconsistent until you see what each is asking. Here the organiser is accepting or refusing **one
+named batch**, so whether it is a full gameweek or the two matches at the end of one is the whole
+question. There they are choosing **between dates**, and every option is guaranteed to open a
+gameweek (`opens_gameweek`), so the leftovers case cannot arise — listing ten fixtures would only
+invite them to shop between gameweeks on grounds they have no basis to judge. See
+`docs/competition-start.md` §5.
 
 It is a **preview, not a promise**. The staged batch can be cleared and replaced before the
 organiser presses, so the copy around the list must not commit us to those teams — the same rule
@@ -286,15 +318,28 @@ on the screen they check most often. The Round tile carries the state from then 
 matches"), and the round screen still carries the date for anyone who goes looking. `isStartGateVisible`
 covers both faces because the round screen uses both; the dashboard adds `&& !readyToStart`.
 
-Everything about that choice follows from a rule we could not otherwise keep: **we never claim to
+Everything about that choice followed from a rule we could not otherwise keep: **we never claim to
 know when the next fixtures are.** Asking at creation how many weeks to wait made the organiser
 guess, could not be corrected afterwards, and implied a fixture list we hadn't seen. Pressing
 Ready is an act, not a prediction, and it cannot be wrong.
 
+**That rule still holds, and the calendar is how it is now kept.** `docs/competition-start.md`
+does ask at creation — but it offers **dates that already have fixtures behind them**, keyed by
+hand, rather than asking the organiser to guess a number of weeks. We are not predicting; we are
+showing what exists. So the objection was never to asking, it was to asking a question we could
+not answer, and Ready was the right answer while that was true.
+
+What Ready cost, and why the calendar replaced it where it can: a competition with no round is an
+empty screen, and the week an organiser spends recruiting is exactly the week their recruits are
+looking at it. Joining closes when round 1 locks, so that week is the only window there is.
+
 `NO_ROUND` is only ever reachable before a competition's first round — once round 1 exists the
-between-rounds phase is `COMPLETE` — so the Ready gate has exactly one moment to apply. A reset
-clears `ready_at` and puts the competition back in it, deliberately: an emptied competition that
-stayed ready would take the very next batch with nobody told.
+between-rounds phase is `COMPLETE` — so the Ready gate has exactly one moment to apply. **A reset
+now asks the start-date question again** rather than dropping back here: `reset-competition` takes
+a `start_block_id` and rebuilds round 1 through the same code creation uses, so an emptied
+competition gets its fixtures straight back. It still clears `ready_at` either way — with a block
+that is simply irrelevant, and without one it is what stops an emptied competition taking the very
+next batch with nobody told.
 
 **The date is shown before the button, not after it.** `/get-competition-start-outlook` evaluates
 the competition *as though it were already ready*, so the card can name the actual kickoff the

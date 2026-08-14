@@ -156,11 +156,10 @@ export default function StartDateChooser({
                     {daysUntil(option.lock_time)}
                   </p>
                   <p className={`${LABEL} mt-1`}>{option.label}</p>
+                  {/* No match count. It is 10 nearly every time, so it distinguishes nothing
+                      between the options and just adds a line to read. */}
                   <p className={`mt-1 text-[12px] ${selected ? 'text-stock/85' : 'text-ink-fade'}`}>
                     {formatLockTime(option.lock_time)}
-                  </p>
-                  <p className={`mt-1 text-[12px] ${selected ? 'text-stock/70' : 'text-ink-fade'}`}>
-                    {option.fixture_count} matches
                   </p>
                 </button>
               );
