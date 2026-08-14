@@ -176,8 +176,35 @@ const OUTLINE: OutlineEmail[] = [
     blurb:
       'For an organiser who supplies their own fixtures: their last round is settled, three days have passed and the next round is not up, so their players are waiting. A nudge rather than a one-off — re-eligible seven days after the last attempt, so marking it as sent defers it rather than ending it.',
   },
-  { key: 'promote_competition', consumer: 'Organiser', section: 'Info', name: 'Hint - Promote competition', scoped: false, note: '3 days after creating, once ever' },
-  { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Info', name: 'Hint - Result set mid round', scoped: false, note: '7 days, manual comps with fixtures' },
+  /*
+  The two hints share one service, one template and one builder - they differ only in their words
+  (services/hints.js). Separate rows so each can be sent independently and email_type stays
+  meaningful per hint. Unscoped because a hint teaches the ORGANISER, once ever, however many
+  competitions they run - but each candidate still names the competition it picked, which is why
+  the panel shows that column on recipient data rather than on `scoped`.
+  */
+  {
+    key: 'promote_competition',
+    consumer: 'Organiser',
+    section: 'Info',
+    name: 'Hint - Promote competition',
+    scoped: false,
+    note: '3 days after creating, once ever',
+    focus: true,
+    blurb:
+      'Points an organiser at /game/[id]/promote — WhatsApp templates, social images, a QR code and the join link. Once per organiser ever, not per competition, and no more than one hint a week. Sent 3 days after creating, so it lands while they are still recruiting.',
+  },
+  {
+    key: 'update_scores_mid_round_tip',
+    consumer: 'Organiser',
+    section: 'Info',
+    name: 'Hint - Result set mid round',
+    scoped: false,
+    note: '7 days, manual comps with fixtures',
+    focus: true,
+    blurb:
+      'Teaches entering results as matches finish rather than all at once. Organiser-managed competitions only — an automated one rejects organiser result entry outright, so the hint would be teaching a button they do not have.',
+  },
   {
     key: 'welcome',
     consumer: 'Player',
@@ -455,6 +482,13 @@ function SendPanel({
 
   const allSelected = recipients.length > 0 && selected.size === recipients.length;
 
+  /*
+  Show the competition column when the recipients actually carry one, rather than when the email
+  is `scoped`. The two are not the same: a hint is per-organiser (scoped: false) but still names
+  one of their competitions, and keying off scoped hid exactly the thing that says which.
+  */
+  const showCompetition = recipients.some((r) => r.competition_name);
+
   const toggle = (r: EmailRecipient) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -590,7 +624,7 @@ function SendPanel({
                           <th className="w-8 px-3 py-2"></th>
                           <th className="px-3 py-2 font-semibold">Name</th>
                           <th className="px-3 py-2 font-semibold">Email</th>
-                          {email.scoped && <th className="px-3 py-2 font-semibold">Competition</th>}
+                          {showCompetition && <th className="px-3 py-2 font-semibold">Competition</th>}
                           {/* "When", not "Waiting since": some emails hang off something still
                               to come, and this column reads both ways. */}
                           <th className="px-3 py-2 font-semibold">When</th>
@@ -612,7 +646,7 @@ function SendPanel({
                             </td>
                             <td className="px-3 py-2 text-slate-800">{r.display_name}</td>
                             <td className="px-3 py-2 text-slate-500">{r.email}</td>
-                            {email.scoped && (
+                            {showCompetition && (
                               <td className="px-3 py-2 text-slate-500">{r.competition_name ?? '—'}</td>
                             )}
                             {/* The judgement this screen exists for: a join from yesterday is a
