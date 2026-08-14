@@ -24,6 +24,7 @@ const joinLms = require('./joinLms');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
 const gameStartReminder = require('./gameStartReminder');
+const shareReminder = require('./shareReminder');
 const fixtureReminder = require('./fixtureReminder');
 const resultReminder = require('./resultReminder');
 const gameComplete = require('./gameComplete');
@@ -38,6 +39,8 @@ const {
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,
   sendWelcomeCompetitionEmail,
+  buildShareReminderEmail,
+  sendShareReminderEmail,
   buildGameStartReminderEmail,
   sendGameStartReminderEmail,
   buildFixtureReminderEmail,
@@ -92,6 +95,17 @@ const CATALOG = {
     service: gameStartReminder,
     build: buildGameStartReminderEmail,
     send: sendGameStartReminderEmail
+  },
+  /*
+  Scoped, unlike the three organiser reminders around it: this names one competition and the exact
+  time its doors close, so the operator picks which. It cannot overlap game_start_reminder above -
+  that one needs a competition with no rounds, this one needs round 1 to exist and be about to lock.
+  */
+  share_reminder: {
+    scoped: true,
+    service: shareReminder,
+    build: buildShareReminderEmail,
+    send: sendShareReminderEmail
   },
   /*
   Platform-wide for the same reason as game_start_reminder, and the exact mirror of it: that one

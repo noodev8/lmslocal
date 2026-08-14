@@ -64,6 +64,7 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 | All | Welcome | Join LMS | `join_lms` | — | — |
 | Organiser | Welcome | Created Comp | `created_comp` | — | — |
 | Organiser | Game | Game Start reminder | `game_start_reminder` | — | — |
+| Organiser | Game | Share reminder | `share_reminder` | — | — |
 
 All except `update_scores_mid_round_tip` are reachable from the admin screen.
 
@@ -159,10 +160,19 @@ admin picker chooses which one and there is exactly one recipient per press.
 - **It is not the confirmation screen again.** The organiser saw that seconds earlier. This
   email's job is to be findable in an inbox a week later, when they are in the pub trying to get
   people in — so the invite code and join link are the content, framed as the thing to forward.
-- **Branches on `fixture_service`.** Those competitions get a line about pressing **Ready**,
-  because nothing is pushed to them until it is and the organiser would otherwise wait for a round
-  that never comes. Organiser-managed competitions have no such button and are not told to press
-  it. The column is fixed at creation, so the branch cannot go stale between queueing and sending.
+- **Branches on whether round 1 already exists** (rewritten 2026-08-14, see
+  `docs/competition-start.md`). Three outcomes, in this order:
+
+  | Competition | What the email says |
+  |---|---|
+  | Round 1 exists | **When it kicks off, and that joining closes then.** The organiser chose the date minutes ago; this is the copy of it they can find later. |
+  | `fixture_service`, no round | Press **Ready** — the old copy, still correct for a competition waiting on the button |
+  | Organiser-managed, no round | Nothing. They have no button to press and no date yet. |
+
+  The start date is resolved at **queue** time from round 1's `lock_time`. A provisional lock can
+  move if the block's kickoffs are confirmed differently, so a row left pending for days could name
+  a stale time — in practice the admin screen queues and sends in one pass, and the alternative
+  (resolving at send time) would break the preview, which renders from stored `template_data`.
 - **No backfill.** `CUTOFF` is `2026-08-11T16:45:00Z`, just after the newest competition at the
   time of writing (2026-08-10 21:55 UTC). 18 competitions existed and none had ever had this
   email; "you have created a competition" about one set up in June is a bad email.
@@ -242,6 +252,55 @@ no history to backfill.
 
 Copy branches on player count: an organiser with nobody signed up is told to share their code
 first, since pressing Ready would otherwise start a competition with no players in it.
+
+## Share reminder — the rules (built 2026-08-14)
+
+`services/shareReminder.js`, `email_type` **`share_reminder`**. Goes to an organiser whose
+**round 1 is about to lock**, because that is also the moment **joining closes**.
+
+**Not on `email-outline.xlsx` yet — add a row for it.** It exists because
+`docs/competition-start.md` changed what a new competition looks like: round 1 now exists from
+creation, so an organiser has a real, dated deadline from day one, and nothing was telling them
+about it. Its rules are written here rather than agreed in advance of the code, which is the wrong
+way round per "Wiring the next email" — so treat this section as a proposal to correct rather than
+a record of a decision.
+
+- **Round 1 only** (`round_number = 1`). This is not a pick nudge — `pick_reminder` does that every
+  round. It is about the join deadline, and `join-competition-by-code.js:134-151` closes joining
+  once round 1 locks. That happens once per competition, ever.
+- **Locking within `REMINDER_BEFORE_HOURS` (48)** and not yet locked. Two days is enough to get a
+  message out and short enough that "last chance" is true.
+- **Both fixture models.** Unlike the three organiser reminders this does *not* branch on
+  `fixture_service`. The join deadline is a game rule, not a fixtures one, and it bites identically
+  whoever supplied the matches.
+- competition not COMPLETE, organiser has a real email, not opted out of `game`.
+- **Once per competition, ever** — queue check on competition + type, no cooldown. Round 1 locks
+  once; a second one would be a nudge about a deadline that had passed.
+- **No CUTOFF.** Eligibility is a lock time inside the next 48 hours, so nothing historical can
+  qualify however long this sits unsent. Nothing to backfill and nothing to exclude.
+
+**Copy branches on player count**, which is the whole reason to send it:
+
+| Players | What it says |
+|---|---|
+| 0–1 | Nobody has joined. Share the link now or the competition starts empty. |
+| 2+ | N in so far. Anyone not in by kick-off misses this one. |
+
+Scoped (`scoped: true`) — it names one competition and its deadline, so the operator picks it.
+
+## Game Start reminder — still live, and not replaced
+
+`docs/competition-start.md` originally proposed retiring this when the calendar shipped. **It was
+not retired, and should not be.** It chases competitions with **no rounds at all** and
+`ready_at IS NULL`, and a competition started from a calendar block has a round from the moment it
+is created — so those are excluded by the existing SQL with no change needed.
+
+What still reaches that state, and therefore still needs this email: organiser-managed
+competitions, team lists with no calendar keyed, a calendar with nothing far enough ahead, and the
+competitions already sitting on the Ready button. See `docs/competition-start.md` §8.
+
+Share reminder is **not** its replacement. They cannot overlap: this one requires no rounds, that
+one requires round 1 to exist and be about to lock.
 
 ## Fixture reminder — the rules (built 2026-08-11)
 
@@ -514,8 +573,10 @@ email is **`scoped`** — competition-scoped or platform-wide. `scoped` is what 
 before insisting on a `competition_id`, and what the admin screen asks before showing the
 competition picker's name in the panel.
 
-`OUTLINE` in `lmslocal-admin` carries a `wired` flag that mirrors this file and is kept in step by
-hand; the server refusing an unwired type is what actually stops a send.
+`OUTLINE` in `lmslocal-admin` mirrors `email-outline.xlsx` row for row and is kept in step by hand.
+It **no longer carries a `wired` flag** — the catalog is the only answer to that question, and the
+server refusing an unwired type is what actually stops a send. A new email still needs its row
+added there or it will not appear on the screen.
 
 ## Wiring the next email
 
@@ -563,7 +624,7 @@ sections the outline was cut to. A person sees two switches plus the kill switch
 
 | Group key | Emails in the group |
 |---|---|
-| `game` | Round Over, Pick reminder, Game complete, Game Start reminder, Result reminder, Fixture reminder |
+| `game` | Round Over, Pick reminder, Game complete, Game Start reminder, Share reminder, Result reminder, Fixture reminder |
 | `info` | Welcome Join Comp, Welcome Created Comp, Welcome Join LMS, Promote competition, Result set mid round, Official game invite, News |
 
 Plus `all`, the global kill switch, which overrides everything.
@@ -880,7 +941,7 @@ LMS, Created Comp, Join Comp and Game Start reminder**; every other row renders 
 | Piece | Where |
 |---|---|
 | Which emails are wired | `services/emailCatalog.js` — service, template and `scoped` per type |
-| Eligibility, one definition | `services/pickReminder.js`, `joinLms.js`, `createdComp.js`, `joinComp.js`, `gameStartReminder.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
+| Eligibility, one definition | `services/pickReminder.js`, `joinLms.js`, `createdComp.js`, `joinComp.js`, `gameStartReminder.js`, `shareReminder.js` — `findCandidates`, `buildTemplateData`, `queueCandidate` |
 | Opt-outs, one definition | `services/emailPreference.js` — `notOptedOutSql`, used inside the candidate query |
 | Unsubscribe | `routes/unsubscribe.js` (GET, one-click POST, save) |
 | Template, build split from send | `services/emailService.js` — `buildPickReminderEmail`, `buildJoinLmsEmail` |

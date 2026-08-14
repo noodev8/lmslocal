@@ -14,6 +14,7 @@ written there before the template is built and the two have to say the same thin
 */
 const { SUBJECT: JOIN_LMS_SUBJECT } = require('./joinLms');
 const { subjectFor: createdCompSubjectFor } = require('./createdComp');
+const { subjectFor: shareReminderSubjectFor } = require('./shareReminder');
 const { subjectFor: joinCompSubjectFor } = require('./joinComp');
 const { subjectFor: gameStartSubjectFor } = require('./gameStartReminder');
 const { subjectFor: fixtureReminderSubjectFor } = require('./fixtureReminder');
@@ -136,6 +137,27 @@ const COMPANY = {
  * @param {string|null} unsubscribeUrl - omit for transactional mail, which is not unsubscribable
  * @returns {{html: string, text: string}}
  */
+/**
+ * A deadline, written the way an organiser reads it: "Friday 28 August, 8:00 pm".
+ *
+ * Europe/London explicitly. The older templates format without a timeZone, which reads the
+ * server's - fine on a UK box and an hour out on anything else. A kick-off time named an hour
+ * wrong in an email about a deadline is the kind of error nobody reports and everybody acts on.
+ *
+ * @param {string|Date} value - an ISO timestamp or Date
+ * @returns {string}
+ */
+const formatUkDateTime = (value) =>
+  new Date(value).toLocaleString('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+
 const buildEmailFooter = (unsubscribeUrl = null) => {
   const html = `
     <div style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0;">
@@ -1017,6 +1039,7 @@ const buildCreatedCompEmail = (email, templateData) => {
     competition_id,
     invite_code,
     fixture_service,
+    starts_at,
     email_tracking_id,
     unsubscribe
   } = templateData;
@@ -1028,12 +1051,25 @@ const buildCreatedCompEmail = (email, templateData) => {
   const manageUrl = `${base}/game/${competition_id}?email_id=${email_tracking_id}`;
 
   /*
-  Only fixture-service competitions have a Ready button, and nothing is pushed to them until it is
-  pressed - so for those organisers this is the step between "set up" and "actually running", and
-  omitting it leaves them waiting for a round that will never arrive. Organiser-managed
-  competitions have no such button and would be told to press something that does not exist.
+  Three shapes, and which one applies is decided by whether round 1 exists yet - see
+  docs/competition-start.md.
+
+  1. Round 1 exists (the normal case now): lead with the date. The organiser picked it minutes
+     ago on the create screen, and this is the copy of it they can find a week later. It carries
+     the join deadline because that is the same moment and nothing else tells them.
+  2. Fixture service, no round: the old copy. Still correct for a competition waiting on Ready.
+  3. Organiser-managed, no round: nothing. No button to press and no date to give.
   */
-  const readyHtml = fixture_service ? `
+  const startsHtml = starts_at ? `
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 30px 0;">
+              <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px; font-weight: 600;">Round 1 kicks off ${formatUkDateTime(starts_at)}</p>
+              <p style="margin: 0; color: #475569; font-size: 14px;">
+                Your first round is already set up, so anyone who joins can make their pick straight away.
+                <strong>Players can join right up to kick-off</strong> - after that the competition is closed
+                and everyone plays the same rounds.
+              </p>
+            </div>
+  ` : fixture_service ? `
             <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 30px 0;">
               <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px; font-weight: 600;">One more step, when you are ready</p>
               <p style="margin: 0; color: #475569; font-size: 14px;">
@@ -1043,7 +1079,15 @@ const buildCreatedCompEmail = (email, templateData) => {
             </div>
   ` : '';
 
-  const readyText = fixture_service ? `
+  const startsText = starts_at ? `
+ROUND 1 KICKS OFF ${formatUkDateTime(starts_at).toUpperCase()}
+
+Your first round is already set up, so anyone who joins can make their pick
+straight away. Players can join right up to kick-off - after that the
+competition is closed and everyone plays the same rounds.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+` : fixture_service ? `
 ONE MORE STEP, WHEN YOU ARE READY
 
 Once you have players in, open your competition and press Ready. That is what
@@ -1094,7 +1138,7 @@ that takes.
               it can join - they do not need anything from you first.
             </p>
 
-            ${readyHtml}
+            ${startsHtml}
 
             <!-- Call to Action Button -->
             <div style="margin: 0 0 30px 0;">
@@ -1132,7 +1176,7 @@ ${joinUrl}
 Forward this email, put the code behind the bar, or post the link in your
 group chat. Anyone with it can join - they do not need anything from you
 first.
-${readyText}
+${startsText}
 Manage your competition:
 ${manageUrl}
 
@@ -1168,6 +1212,162 @@ const sendCreatedCompEmail = async (email, templateData, options = {}) => {
     return readSendResult(result);
   } catch (error) {
     console.error('Failed to send created comp email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Build the Share reminder without sending it.
+ *
+ * Outline row: Organiser | Game | Share reminder. Goes to an organiser whose round 1 is about to
+ * lock - which is also when joining closes, and that is the fact the whole email exists to carry.
+ *
+ * The copy branches on how many players are in, because the two situations want different things
+ * said: a competition with nobody in it is about to start empty, and one with a dozen is simply
+ * closing its doors.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/shareReminder.js
+ */
+const buildShareReminderEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    invite_code,
+    starts_at,
+    player_count,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const base = process.env.PLAYER_FRONTEND_URL;
+  const joinUrl = `${base}/join/${invite_code}`;
+  const manageUrl = `${base}/game/${competition_id}?email_id=${email_tracking_id}`;
+  const deadline = formatUkDateTime(starts_at);
+
+  /*
+  Two players is the boundary, not one: the organiser's own playing row counts in player_count, so
+  a competition with only them in it reads as 1 and is still empty in every sense that matters.
+  */
+  const empty = player_count < 2;
+
+  const headline = empty
+    ? 'Nobody has joined yet'
+    : `${player_count} ${player_count === 1 ? 'player is' : 'players are'} in so far`;
+
+  const body = empty
+    ? `Your competition starts ${deadline} whether anyone has joined or not. Now is the moment to get your link out.`
+    : `Anyone who has not joined by ${deadline} misses this competition - everyone has to start together, so the doors close when round 1 does.`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${competition_name} starts soon</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px; font-weight: 600;">Round 1 kicks off ${deadline}</p>
+              <p style="margin: 0; color: #475569; font-size: 14px;">${headline}. ${body}</p>
+            </div>
+
+            <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 24px; margin: 0 0 24px 0; text-align: center;">
+              <p style="margin: 0 0 10px 0; color: #64748b; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Your competition code</p>
+              <p style="margin: 0 0 18px 0; color: #0f172a; font-size: 32px; font-weight: 700; letter-spacing: 3px;">${invite_code}</p>
+              <p style="margin: 0; color: #475569; font-size: 14px;">
+                Or send them this link:<br>
+                <a href="${joinUrl}" style="color: #2563eb; word-break: break-all;">${joinUrl}</a>
+              </p>
+            </div>
+
+            <div style="margin: 0 0 30px 0;">
+              <a href="${manageUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Open your competition
+              </a>
+            </div>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const textContent = `
+${competition_name} starts soon
+
+Hi ${user_display_name},
+
+ROUND 1 KICKS OFF ${deadline.toUpperCase()}
+
+${headline}. ${body}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+YOUR COMPETITION CODE: ${invite_code}
+
+Or send them this link:
+${joinUrl}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Open your competition:
+${manageUrl}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: shareReminderSubjectFor(competition_name),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'share_reminder' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send the Share reminder.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/shareReminder.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendShareReminderEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildShareReminderEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send share reminder email:', error);
     return {
       success: false,
       error: error.message
@@ -3251,6 +3451,8 @@ module.exports = {
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,
   sendWelcomeCompetitionEmail,
+  buildShareReminderEmail,
+  sendShareReminderEmail,
   buildGameStartReminderEmail,
   sendGameStartReminderEmail,
   buildFixtureReminderEmail,

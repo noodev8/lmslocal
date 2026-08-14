@@ -64,6 +64,7 @@ const EMAIL_GROUPS = {
   pick_reminder: GROUPS.GAME,
   game_complete: GROUPS.GAME,
   game_start_reminder: GROUPS.GAME,
+  share_reminder: GROUPS.GAME,
   result_reminder: GROUPS.GAME,
   fixture_reminder: GROUPS.GAME,
 

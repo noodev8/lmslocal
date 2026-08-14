@@ -84,6 +84,7 @@ const OUTLINE: OutlineEmail[] = [
   { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', scoped: true, push: true },
   { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', scoped: true, note: 'Everyone who took part, once' },
   { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', scoped: false, note: 'Stuck 14+ days, round waiting' },
+  { key: 'share_reminder', consumer: 'Organiser', section: 'Game', name: 'Share reminder', scoped: true, note: 'Round 1 locks in 48h - joining closes' },
   { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', scoped: false, note: 'Round played 36h+, unsettled' },
   { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', scoped: false, note: 'Last round settled 3+ days' },
   { key: 'promote_competition', consumer: 'Organiser', section: 'Info', name: 'Hint - Promote competition', scoped: false, note: '3 days after creating, once ever' },

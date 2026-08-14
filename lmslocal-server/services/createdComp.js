@@ -17,6 +17,11 @@ The eligibility rules, all in findCandidates below:
   - no created_comp already queued for this competition, whatever its status
   - not opted out of organiser.welcome, per services/emailPreference.js
 
+The email branches on whether round 1 already exists (see docs/email/README.md). It normally does:
+a fixture-service competition is created against a calendar block and gets its first round in the
+same transaction, so the date - and the fact that joining closes on it - is the lead. Only a
+competition still waiting on the Ready button gets the older "press Ready" copy.
+
 What the email is FOR (decision, 2026-08-11): it arrives seconds after the organiser has seen the
 same confirmation on screen, so repeating that screen would waste it. Its job is to be findable in
 an inbox a week later, when they are standing in the pub trying to get people in - so the invite
@@ -70,7 +75,18 @@ async function findCandidates(opts = {}) {
       c.name                 AS competition_name,
       c.invite_code,
       c.fixture_service,
-      c.created_at
+      c.created_at,
+
+      /*
+      Round 1's deadline, when there is one. A competition created against a calendar block has
+      round 1 from the moment it exists (docs/competition-start.md), so this is normally set and
+      the email leads with the date instead of telling them to press Ready.
+
+      Round 1 specifically, not the earliest open round: this email is about the start, and the
+      lock time that matters is the one joining closes on.
+      */
+      (SELECT r.lock_time FROM round r
+        WHERE r.competition_id = c.id AND r.round_number = 1) AS starts_at
 
     FROM competition c
 
@@ -113,7 +129,8 @@ async function buildTemplateData(candidate) {
     competition_id,
     competition_name,
     invite_code,
-    fixture_service
+    fixture_service,
+    starts_at
   } = candidate;
 
   /*
@@ -135,8 +152,18 @@ async function buildTemplateData(candidate) {
     Whether to include the "press Ready" step. Only fixture-service competitions have that button,
     and the column is fixed at creation (update-competition ignores it - see CLAUDE.md), so this
     cannot go stale between queueing and sending.
+
+    Only reached when starts_at is null. A competition that already has round 1 does not need
+    Ready at all - the gate in services/fixtureService.js is skipped once a round exists - so
+    telling that organiser to press it would send them looking for a button that is not there.
     */
     fixture_service: !!fixture_service,
+    /*
+    When round 1 kicks off, which is also when joining closes. Resolved at queue time like
+    everything else here, so the stored template_data renders on its own later. A provisional
+    lock can move when the block is confirmed; see docs/email/README.md for why that is accepted.
+    */
+    starts_at: starts_at || null,
     user_id
   };
 }
