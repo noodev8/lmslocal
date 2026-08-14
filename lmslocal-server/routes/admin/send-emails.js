@@ -13,6 +13,10 @@ competition_id is OPTIONAL, including on scoped emails: omit it and the send cov
 qualifies anywhere. `scoped` means the picker APPLIES to this email, not that a value is required.
 That is deliberate - the destination is a cron, which cannot pick a competition either.
 
+`recipients` narrows a send to named people, intersected with the live candidates rather than
+replacing them. It exists so a ticked row means the same thing to this route as it does to
+mark-emails-sent; the cron passes none and behaves exactly as before.
+
 Two modes, and they are deliberately not the same code path:
 
   test_mode true  - builds ONE email for the first candidate and sends it to the test address.
@@ -33,7 +37,10 @@ Request Payload:
   "email_type": "pick_reminder",       // string, required - which outline email
   "competition_id": 210,               // integer, optional - narrows scoped emails; null = all
   "test_mode": true,                   // boolean, optional - defaults to true
-  "expected_count": 3                  // integer, optional - refuses a live send if it has moved
+  "expected_count": 3,                 // integer, optional - refuses a live send if it has moved
+  "recipients": [                      // array, optional - send to only these, omit for everyone
+    { "user_id": 41, "competition_id": 172 }
+  ]
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -77,7 +84,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('admin/send-emails');
 
   try {
-    const { email_type, competition_id, test_mode, expected_count } = req.body;
+    const { email_type, competition_id, test_mode, expected_count, recipients } = req.body;
 
     const entry = entryFor(email_type);
 
@@ -108,13 +115,39 @@ router.post('/', verifyAdminToken, async (req, res) => {
     const candidates = await entry.service.findCandidates(scopeId ? { competition_id: scopeId } : {});
 
     /*
-    The count is the guard on a live send: the number the operator was looking at has to still be
-    the number. Somebody joining between the preview and the press is normal; a send bigger than
-    the one reviewed is not. Same rule as broadcast.js and as mark-emails-sent.
+    Optional narrowing to specific people, matched on user_id AND competition_id - the same pair
+    mark-emails-sent uses, because the same person legitimately appears once per competition when
+    a scoped email is scanned across all of them.
 
-    Test mode is exempt - it sends one email to the test address whatever the count is.
+    This exists so that ticking a row means the SAME thing for both buttons on the screen. Before
+    it, Send ignored the ticks while Mark honoured them, silently, under one shared column of
+    checkboxes - so marking one person and sending to the rest worked in one order and emailed
+    everybody in the other.
+
+    Filtering AFTER findCandidates rather than instead of it is what keeps that safe: eligibility
+    is still derived here, so a stale tick for somebody who has since been sent to, unsubscribed
+    or been marked cannot put them back in. The list can only ever narrow the qualifying set.
+
+    The cron passes nothing and is unaffected - its contract stays "send this email to whoever
+    qualifies".
     */
-    if (!testMode && Number.isInteger(expected_count) && expected_count !== candidates.length) {
+    let targets = candidates;
+
+    if (Array.isArray(recipients) && recipients.length > 0) {
+      const wanted = new Set(recipients.map((r) => `${r.user_id}:${r.competition_id ?? 'null'}`));
+      targets = candidates.filter((c) => wanted.has(`${c.user_id}:${c.competition_id ?? 'null'}`));
+    }
+
+    /*
+    The count is the guard on a live send to EVERYONE: the number the operator was looking at has
+    to still be the number. Somebody joining between the preview and the press is normal; a send
+    bigger than the one reviewed is not. Same rule as broadcast.js and as mark-emails-sent.
+
+    Skipped when an explicit list was given - that list is its own statement of who, and it has
+    already been intersected with the live candidates above. Test mode is exempt too: it sends one
+    email to the test address whatever the count is.
+    */
+    if (!testMode && !Array.isArray(recipients) && Number.isInteger(expected_count) && expected_count !== candidates.length) {
       return res.json({
         return_code: 'COUNT_CHANGED',
         message: `${expected_count} ${expected_count === 1 ? 'was' : 'were'} on screen but ${candidates.length} qualify now. Refresh and look again.`,
@@ -123,10 +156,12 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    if (candidates.length === 0) {
+    if (targets.length === 0) {
       return res.json({
         return_code: 'NO_RECIPIENTS',
-        message: 'Nobody currently qualifies for this email.',
+        message: candidates.length === 0
+          ? 'Nobody currently qualifies for this email.'
+          : 'None of those recipients still qualify. Refresh and look again.',
         candidate_count: 0,
         sent_count: 0,
         failed_count: 0,
@@ -138,7 +173,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // TEST MODE - one email, to the test address, nothing written
     // ===============================================================================
     if (testMode) {
-      const first = candidates[0];
+      const first = targets[0];
       const templateData = await entry.service.buildTemplateData(first);
 
       const result = await entry.send(first.user_email, templateData, { testMode: true });
@@ -148,7 +183,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
         return res.json({
           return_code: 'SUCCESS',
           test_mode: true,
-          candidate_count: candidates.length,
+          candidate_count: targets.length,
           sent_count: 0,
           failed_count: 1,
           sent_to: null,
@@ -159,11 +194,11 @@ router.post('/', verifyAdminToken, async (req, res) => {
       return res.json({
         return_code: 'SUCCESS',
         test_mode: true,
-        candidate_count: candidates.length,
+        candidate_count: targets.length,
         sent_count: 1,
         failed_count: 0,
         sent_to: process.env.EMAIL_TEST_RECIPIENT || 'aandreou25@gmail.com',
-        message: `Test copy of ${first.user_display_name}'s email sent. ${candidates.length} real recipient${candidates.length === 1 ? '' : 's'} untouched.`
+        message: `Test copy of ${first.user_display_name}'s email sent. ${targets.length} real recipient${targets.length === 1 ? '' : 's'} untouched.`
       });
     }
 
@@ -173,7 +208,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
     let sentCount = 0;
     let failedCount = 0;
 
-    for (const candidate of candidates) {
+    for (const candidate of targets) {
       const queued = await entry.service.queueCandidate(candidate);
 
       if (!queued.success) {
@@ -215,11 +250,11 @@ router.post('/', verifyAdminToken, async (req, res) => {
     return res.json({
       return_code: 'SUCCESS',
       test_mode: false,
-      candidate_count: candidates.length,
+      candidate_count: targets.length,
       sent_count: sentCount,
       failed_count: failedCount,
       sent_to: null,
-      message: `Sent ${sentCount} of ${candidates.length}${failedCount > 0 ? `, ${failedCount} failed` : ''}.`
+      message: `Sent ${sentCount} of ${targets.length}${failedCount > 0 ? `, ${failedCount} failed` : ''}.`
     });
 
   } catch (error) {

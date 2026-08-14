@@ -14,14 +14,13 @@ about to press send, and 0 would be a lie about the second.
 THREE NUMBERS, NOT ONE
 
   waiting        candidates from findCandidates - people who qualify and have no queue row
-  pending        rows already on email_queue with status 'pending', queued but never sent
+  sent_recently  actually delivered in the last SENT_WINDOW_DAYS days
   competitions   how many distinct competitions the waiting recipients span
 
-They are different questions and a single number hides the last two. `pending` matters because an
-undrained queue is invisible otherwise, which is exactly what the nine stale `welcome` rows were -
-queued by a route nothing ever drained, the oldest six days old when they were found.
-`competitions` is there because "14 waiting across 5 competitions" is the answer the operator
-actually wants, and a bare 14 only invites the question.
+They are different questions and a single number hides the other two. `competitions` is there
+because "14 waiting across 5 competitions" is the answer the operator actually wants, and a bare
+14 only invites the question. `sent_recently` answers the other half - whether an email with a
+count of zero is finished or has simply never gone out.
 
 competition_id is now OPTIONAL. Omitting it counts scoped emails across the whole platform, which
 is the only way to answer "how many people are waiting for this email" rather than "how many in
@@ -44,7 +43,7 @@ Success Response (ALWAYS HTTP 200):
   "counts": {
     "welcome": {
       "waiting": 3,                    // integer, qualify now
-      "pending": 0,                    // integer, queued and unsent
+      "sent_recently": 1,              // integer, delivered in the last 30 days
       "competitions": 2                // integer, competitions the waiting span; 0 when unscoped
     }
   }
@@ -73,6 +72,12 @@ const { logApiCall } = require('../../utils/apiLogger');
 
 const router = express.Router();
 
+/*
+How far back "sent" looks. Thirty days is enough to answer "is this email actually going out" -
+which is the question - without turning the card into a history page.
+*/
+const SENT_WINDOW_DAYS = 30;
+
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('admin/get-email-targets');
 
@@ -100,20 +105,26 @@ router.post('/', verifyAdminToken, async (req, res) => {
     );
 
     /*
-    Pending rows in one query rather than one per email. They are a plain count off email_queue,
-    so there is no reason to pay a round trip per catalog entry for them.
+    What actually went out, in one query rather than one per email - it is a plain count off
+    email_queue, so there is no reason to pay a round trip per catalog entry.
+
+    status = 'sent' AND sent_at, not email_tracking. email_tracking.sent_at DEFAULTS to insert
+    time, so it is set on rows that were never delivered - which is how nine stale pending rows
+    all carried a timestamp. email_queue.status is the only column that means "Resend took it".
+
+    'skipped' rows are excluded by the status check, which is the point of them being a separate
+    status: marking somebody as sent must not show up here as an email they received.
     */
-    const pendingRows = await query(`
-      SELECT email_type, COUNT(*)::int AS pending
+    const sentRows = await query(`
+      SELECT email_type, COUNT(*)::int AS sent
       FROM email_queue
-      WHERE status = 'pending'
+      WHERE status = 'sent'
+        AND sent_at >= NOW() - ($2 || ' days')::interval
         AND ($1::int IS NULL OR competition_id = $1)
       GROUP BY email_type
-    `, [scopeId]);
+    `, [scopeId, String(SENT_WINDOW_DAYS)]);
 
-    const pendingByType = Object.fromEntries(
-      pendingRows.rows.map((r) => [r.email_type, r.pending])
-    );
+    const sentByType = Object.fromEntries(sentRows.rows.map((r) => [r.email_type, r.sent]));
 
     /*
     Sequential rather than Promise.all. These are the heavier queries on the platform - the pick
@@ -129,7 +140,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
       counts[emailType] = {
         waiting: candidates.length,
-        pending: pendingByType[emailType] || 0,
+        sent_recently: sentByType[emailType] || 0,
         // Meaningless on platform-wide emails, which carry no competition at all.
         competitions: entry.scoped
           ? new Set(candidates.map((c) => c.competition_id)).size

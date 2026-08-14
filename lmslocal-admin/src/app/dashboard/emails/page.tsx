@@ -12,17 +12,25 @@ is missing would be refused by the server with UNSUPPORTED_EMAIL_TYPE rather tha
 this table does not have to police that. The server's own list is services/emailCatalog.js - add
 an email there and add its row here.
 
-THE FOCUS CARD, AND WHY ONE EMAIL AT A TIME
+A CARD PER EMAIL, ADDED AS EACH IS TAKEN UP
 
-Emails are being taken one at a time: its rules are agreed, its numbers are looked at properly,
-its backlog is dealt with, and only then does the next one come up. The card at the top is
-whichever email that currently is. It is the only place that counts across EVERY competition and
-the only place that offers Mark as sent.
+Emails are being taken one at a time: rules agreed, numbers looked at properly, backlog dealt
+with. Each one that has been through that gets its own card above the table - counted across
+EVERY competition, and the only place that offers Send and Mark as sent. Two so far, the two
+welcomes.
 
-Setting `focus: true` on an OUTLINE row is all it takes to bring the next email up here. The rest
-of the table stays as it is - per competition, preview only - which is deliberate: a screen that
-offered a platform-wide send on twelve emails at once is exactly what "I'm being careful for now"
-rules out.
+Setting `focus: true` on an OUTLINE row is all it takes to add the next - and it MOVES the email
+rather than copying it: the table below holds only what has not been taken up yet, so it reads as
+the to-do list and empties as cards appear. An email is in exactly one place.
+
+What is left in the table stays per competition and preview only, which is deliberate: a screen
+offering a platform-wide send on a dozen emails whose rules nobody has been through is exactly
+what "I'm being careful for now" rules out.
+
+Cards count ON REQUEST, one card at a time. Every number here is a live query - roughly 25ms each,
+but against the whole platform - and the operator comes to this screen for one email. Counting all
+of them on mount spends the work before knowing which one is wanted, so a card shows "Not counted
+yet" until Count is pressed, and Refresh re-runs only that card.
 
 TEST MODE defaults to on at every page load and is deliberately not persisted. A sticky "off"
 surviving a refresh is how the whole user base gets mailed by accident. In test mode the server
@@ -77,11 +85,12 @@ interface OutlineEmail {
   push?: boolean;
   note?: string;
   /**
-   * The email currently being worked on. Gets its own card, counted across every competition,
-   * with send and mark-as-sent. One at a time, on purpose - see the header.
+   * Gets its own card above the table: counted across every competition, with send and
+   * mark-as-sent. An email earns a card once its rules and its backlog have actually been gone
+   * through - the table row alone is per-competition and preview-only.
    */
   focus?: boolean;
-  /** Shown on the focus card only. What this email is, in a sentence. */
+  /** Shown on the card only. What this email is, in a sentence. */
   blurb?: string;
 }
 
@@ -113,7 +122,17 @@ const OUTLINE: OutlineEmail[] = [
     blurb:
       'What a player gets after joining someone else’s competition. Once per membership, ever. The organiser is excluded — they get Welcome Created Comp instead.',
   },
-  { key: 'created_comp', consumer: 'Organiser', section: 'Info', name: 'Welcome Created Comp', scoped: true, note: 'New competitions only' },
+  {
+    key: 'created_comp',
+    consumer: 'Organiser',
+    section: 'Info',
+    name: 'Welcome Created Comp',
+    scoped: true,
+    note: 'New competitions only',
+    focus: true,
+    blurb:
+      'What an organiser gets after creating a competition — the invite code and join link, framed as the thing to forward. One recipient per competition, once ever. Not the confirmation screen again: this one has to be findable in an inbox a week later.',
+  },
   { key: 'join_lms', consumer: 'All', section: 'Info', name: 'Welcome Join LMS', scoped: false, note: 'New signups only' },
   // The outline's BROADCAST block is deliberately absent from this table. Broadcast from Admin
   // lives on its own screen - the message is typed rather than derived, so there is nothing here
@@ -121,11 +140,36 @@ const OUTLINE: OutlineEmail[] = [
   // dropped, not deferred - see docs/email/README.md. Do not re-add either row.
 ];
 
+/*
+An email is in exactly one place: a card once it has been taken up, the table until then. The
+table is therefore the to-do list - what is left to work through - and it empties as cards appear.
+*/
 const FOCUS = OUTLINE.filter((e) => e.focus);
+const REMAINING = OUTLINE.filter((e) => !e.focus);
 
 /** Identity of a candidate is the user AND the competition, never the user alone. */
 const keyOf = (r: { user_id: number; competition_id: number | null }) =>
   `${r.user_id}:${r.competition_id ?? 'null'}`;
+
+/*
+How long this person has been waiting. Relative rather than a date because the decision is about
+age - "2 days" reads as send and "7 months" reads as mark-as-sent, where two ISO dates need
+working out. The exact date is in the title attribute for when it matters.
+*/
+function ago(iso: string | null): string {
+  if (!iso) return '—';
+  /*
+  Hours below two days, not days. Flooring to days made everything under 24h read as "today",
+  which is wrong for somebody who joined last night and is the age that matters most here.
+  */
+  const hours = Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000);
+  if (hours < 1) return 'just now';
+  if (hours < 48) return `${hours} hours`;
+  const days = Math.floor(hours / 24);
+  if (days < 31) return `${days} days`;
+  const months = Math.floor(days / 30);
+  return months < 12 ? `${months} month${months === 1 ? '' : 's'}` : `${Math.floor(days / 365)}y+`;
+}
 
 // ======================================================================================
 // Small presentational pieces
@@ -155,6 +199,109 @@ function Stat({ value, label, tone }: { value: number; label: string; tone?: 'pl
 }
 
 // ======================================================================================
+// Focus card
+// ======================================================================================
+
+/*
+Each card fetches its OWN counts and nothing else - get-email-targets takes an email_types filter
+for exactly this. Refreshing one card is one candidate query, not a pass over the catalog, so
+looking at one email does not pay for eleven others.
+
+Nothing loads until Count is pressed. The counts are live queries against the whole platform and
+the operator opens this screen for one email at a time; loading all of them on mount spends the
+work before knowing which one is wanted.
+*/
+function FocusCard({
+  email,
+  onOpen,
+  /* Bumped by the page after a send or a mark, so the card that was acted on re-counts itself. */
+  reloadToken,
+}: {
+  email: OutlineEmail;
+  onOpen: () => void;
+  reloadToken: number;
+}) {
+  const [count, setCount] = useState<EmailCount | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await adminApi.getEmailTargets(null, [email.key]);
+      if (res.return_code === 'SUCCESS' && res.counts?.[email.key]) {
+        setCount(res.counts[email.key]);
+      } else if (res.return_code !== 'UNAUTHORIZED' && res.return_code !== 'TOKEN_EXPIRED') {
+        setError(res.message || 'Could not count');
+      }
+    } catch {
+      setError(`Could not reach ${apiBaseUrl}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [email.key]);
+
+  /* Only ever after an action on this card. A zero token is the initial state and loads nothing. */
+  useEffect(() => {
+    if (reloadToken > 0) load();
+  }, [reloadToken, load]);
+
+  return (
+    <section className="rounded-xl border-2 border-indigo-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-6 px-5 py-4">
+        <div className="max-w-lg">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-slate-900">{email.name}</h3>
+            <SectionTag section={email.section} />
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">{email.key}</code>
+          </div>
+          {email.blurb && <p className="mt-1.5 text-sm text-slate-600">{email.blurb}</p>}
+          {error && <p className="mt-1.5 text-sm text-red-700">{error}</p>}
+        </div>
+
+        <div className="flex items-start gap-8">
+          {count ? (
+            <>
+              <Stat value={count.waiting} label="waiting" />
+              {email.scoped && (
+                <Stat value={count.competitions} label={count.competitions === 1 ? 'competition' : 'competitions'} />
+              )}
+              {/* Without this, an email showing zero waiting is ambiguous: caught up, or never
+                  sending at all. */}
+              <Stat value={count.sent_recently} label="sent" />
+            </>
+          ) : (
+            <p className="pt-2 text-sm text-slate-400">{loading ? 'Counting…' : 'Not counted yet'}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3">
+        <p className="text-xs text-slate-500">Counted across every competition, not the one picked below.</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+          >
+            <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {count ? 'Refresh' : 'Count'}
+          </button>
+          <button
+            onClick={onOpen}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-slate-900"
+          >
+            <EyeIcon className="h-4 w-4" />
+            Review, send or mark as sent
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ======================================================================================
 // Send panel
 // ======================================================================================
 
@@ -178,12 +325,9 @@ function SendPanel({
   const [preview, setPreview] = useState<PreviewEmailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showList, setShowList] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  /* Typed back before anything irreversible. Cleared on every reload so it cannot go stale. */
-  const [confirmValue, setConfirmValue] = useState('');
 
   /*
   Scoped emails send the selected competition, unless the focus card opened this - then they send
@@ -195,7 +339,6 @@ function SendPanel({
     setLoading(true);
     setError('');
     setSelected(new Set());
-    setConfirmValue('');
     try {
       const res = await adminApi.previewEmail(email.key, scopeId);
       if (res.return_code === 'SUCCESS') {
@@ -217,11 +360,7 @@ function SendPanel({
   const count = preview?.recipient_count ?? 0;
   const recipients: EmailRecipient[] = useMemo(() => preview?.recipients ?? [], [preview]);
 
-  /*
-  Both irreversible actions are gated on typing the number back. The two share one input because
-  they share one number - what is being confirmed is the size of the thing about to happen.
-  */
-  const confirmed = confirmValue.trim() !== '' && Number(confirmValue) === count;
+  const allSelected = recipients.length > 0 && selected.size === recipients.length;
 
   const toggle = (r: EmailRecipient) => {
     setSelected((prev) => {
@@ -250,9 +389,25 @@ function SendPanel({
     }
   };
 
+  /*
+  NOTHING happens without a tick. Every action on this panel - test, live, mark - acts on the
+  ticked rows and nothing else, and all three are dead until at least one is ticked.
+
+  The alternative, an untTicked panel meaning "everyone", put the most far-reaching action behind
+  the least deliberate gesture: open a card, press a button, and the whole qualifying set goes.
+  Select all is one click away when everyone really is the intent.
+
+  The SERVER still accepts a send with no list and treats it as everyone - that is the cron's
+  contract, and it must not depend on somebody having ticked a box.
+  */
+  const chosen = recipients.filter((r) => selected.has(keyOf(r)));
+  const nothingChosen = chosen.length === 0;
+  const chosenPayload = chosen.map((r) => ({ user_id: r.user_id, competition_id: r.competition_id }));
+
   const handleSend = () =>
     run(async () => {
-      const res = await adminApi.sendEmails(email.key, scopeId, testMode, testMode ? undefined : count);
+      // Always an explicit list, so expected_count has nothing to guard here.
+      const res = await adminApi.sendEmails(email.key, scopeId, testMode, undefined, chosenPayload);
 
       if (res.return_code === 'SUCCESS') return res.message || 'Done';
       if (res.return_code === 'NO_RECIPIENTS') return res.message || 'Nobody qualifies';
@@ -262,15 +417,11 @@ function SendPanel({
       return null;
     });
 
-  const handleMark = (onlySelected: boolean) =>
+  const handleMark = () =>
     run(async () => {
-      const chosen = recipients.filter((r) => selected.has(keyOf(r)));
       const res = await adminApi.markEmailsSent(email.key, scopeId, {
-        recipients: onlySelected
-          ? chosen.map((r) => ({ user_id: r.user_id, competition_id: r.competition_id }))
-          : undefined,
-        expectedCount: onlySelected ? undefined : count,
-        reason: onlySelected ? 'Marked individually from the admin Emails screen' : undefined,
+        recipients: chosenPayload,
+        reason: 'Marked from the admin Emails screen',
       });
 
       if (res.return_code === 'SUCCESS') return res.message || 'Marked';
@@ -315,101 +466,103 @@ function SendPanel({
             <p className="py-8 text-center text-sm text-slate-400">Working out recipients…</p>
           ) : (
             <>
-              {/* Recipients */}
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    {count.toLocaleString()} recipient{count === 1 ? '' : 's'}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {scopeAll && email.scoped
-                      ? 'Across every competition, after preferences and opt-outs'
-                      : email.scoped
-                        ? 'Eligible after preferences and opt-outs'
-                        : 'Across the whole platform, after preferences and opt-outs'}
-                  </p>
-                </div>
-                {count > 0 && (
-                  <button
-                    onClick={() => setShowList((v) => !v)}
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"
-                  >
-                    {showList ? 'Hide list' : 'View list'}
-                  </button>
-                )}
-              </div>
+              {/*
+              The list IS the screen. What is being checked here is who qualifies and whether
+              they look right - the template was signed off once and is not re-read every time.
+              So it opens expanded, with no toggle in front of it.
+              */}
+              {count === 0 ? (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                  Nobody qualifies for this email right now.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm text-slate-600">
+                      <span className="font-medium text-slate-900">{count.toLocaleString()}</span>{' '}
+                      {count === 1 ? 'person' : 'people'} waiting, after preferences and opt-outs
+                    </p>
+                    <button
+                      onClick={() => setSelected(allSelected ? new Set() : new Set(recipients.map(keyOf)))}
+                      className="text-sm text-slate-500 underline-offset-2 hover:underline"
+                    >
+                      {allSelected ? 'Clear selection' : 'Select all'}
+                    </button>
+                  </div>
 
-              {showList && recipients.length > 0 && (
-                <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-200">
-                  <ul className="divide-y divide-slate-100 text-sm">
-                    {recipients.map((r) => (
-                      <li key={keyOf(r)} className="flex items-center gap-3 px-4 py-2">
-                        {/* Ticking is how a run of test accounts gets marked off without touching
-                            the real players in the same list. */}
-                        <input
-                          type="checkbox"
-                          checked={selected.has(keyOf(r))}
-                          onChange={() => toggle(r)}
-                          className="h-4 w-4 shrink-0 rounded border-slate-300"
-                          aria-label={`Select ${r.display_name}`}
-                        />
-                        <span className="flex-1 text-slate-700">{r.display_name}</span>
-                        {scopeAll && r.competition_name && (
-                          <span className="shrink-0 text-xs text-slate-400">{r.competition_name}</span>
-                        )}
-                        <span className="shrink-0 text-slate-500">{r.email}</span>
-                      </li>
-                    ))}
+                  <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-200">
+                    <table className="w-full text-left text-sm">
+                      <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="w-8 px-3 py-2"></th>
+                          <th className="px-3 py-2 font-semibold">Name</th>
+                          <th className="px-3 py-2 font-semibold">Email</th>
+                          {email.scoped && <th className="px-3 py-2 font-semibold">Competition</th>}
+                          <th className="px-3 py-2 font-semibold">Waiting since</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {recipients.map((r) => (
+                          <tr key={keyOf(r)} className={selected.has(keyOf(r)) ? 'bg-slate-50' : ''}>
+                            <td className="px-3 py-2">
+                              {/* Ticking is how a run of test accounts gets marked off without
+                                  touching the real players in the same list. */}
+                              <input
+                                type="checkbox"
+                                checked={selected.has(keyOf(r))}
+                                onChange={() => toggle(r)}
+                                className="h-4 w-4 rounded border-slate-300"
+                                aria-label={`Select ${r.display_name}`}
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-slate-800">{r.display_name}</td>
+                            <td className="px-3 py-2 text-slate-500">{r.email}</td>
+                            {email.scoped && (
+                              <td className="px-3 py-2 text-slate-500">{r.competition_name ?? '—'}</td>
+                            )}
+                            {/* The judgement this screen exists for: a join from yesterday is a
+                                send, one from January is a mark-as-sent. */}
+                            <td
+                              className="px-3 py-2 whitespace-nowrap text-slate-500"
+                              title={r.since ? new Date(r.since).toLocaleString() : undefined}
+                            >
+                              {ago(r.since)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                     {preview?.truncated && (
                       /* Ticking only reaches what is listed, so say so rather than let the bulk
                          button and the checkboxes look like they cover the same set. */
-                      <li className="px-4 py-2 text-xs italic text-slate-400">
+                      <p className="border-t border-slate-100 px-3 py-2 text-xs italic text-slate-400">
                         First {recipients.length} shown of {count.toLocaleString()}. Ticking applies to
                         these; “mark all” covers every one of the {count.toLocaleString()}.
-                      </li>
+                      </p>
                     )}
-                  </ul>
-                </div>
-              )}
-
-              {/* The real rendered template */}
-              {preview?.sample ? (
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Preview — {preview.sample.for_email}&apos;s copy
-                  </p>
-                  <p className="mb-2 text-sm text-slate-700">
-                    <span className="text-slate-400">Subject: </span>
-                    {preview.sample.subject}
-                  </p>
-                  {/*
-                  Sandboxed so the email's own markup cannot reach this page. srcDoc rather than a
-                  src, because the HTML only exists in this response.
-                  */}
-                  <iframe
-                    title="Email preview"
-                    srcDoc={preview.sample.html}
-                    sandbox=""
-                    className="h-96 w-full rounded-lg border border-slate-200 bg-white"
-                  />
-                </div>
-              ) : (
-                !loading && (
-                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                    Nobody qualifies for this email right now, so there is nothing to preview.
-                  </p>
-                )
+                  </div>
+                </>
               )}
 
               {/* The summary line. Last thing read before the button. */}
+              {/* Nothing ticked is the resting state, so say what to do rather than warn about a
+                  send that cannot happen. */}
+              {count > 0 && nothingChosen && (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  Tick the people you want. Nothing sends or gets marked until you do.
+                </p>
+              )}
+
               {count > 0 &&
+                !nothingChosen &&
                 (testMode ? (
                   <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                     <BeakerIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                     <div className="text-sm">
                       <p className="font-medium text-amber-900">Test mode — 1 email to the test address</p>
                       <p className="text-amber-700">
-                        {count.toLocaleString()} real recipient{count === 1 ? '' : 's'} untouched, and nothing queued.
+                        Built from {chosen[0]?.display_name}&apos;s data. Nobody real is touched and nothing is
+                        queued.
                       </p>
                     </div>
                   </div>
@@ -418,32 +571,21 @@ function SendPanel({
                     <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
                     <div className="text-sm">
                       <p className="font-medium text-red-900">
-                        Live send — {count.toLocaleString()} real recipient{count === 1 ? '' : 's'}
+                        Live send — {chosen.length.toLocaleString()} ticked recipient
+                        {chosen.length === 1 ? '' : 's'}
                       </p>
                       <p className="text-red-700">This goes to actual people. There is no undo.</p>
                     </div>
                   </div>
                 ))}
 
-              {/* Type-to-confirm. Gates the live send and the bulk mark; the ticked-list mark and
-                  the test send are their own confirmation and do not need it. */}
-              {count > 0 && (!testMode || email.focus) && (
-                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 px-4 py-3">
-                  <label htmlFor="confirm" className="text-sm text-slate-700">
-                    Type <span className="font-semibold tabular-nums">{count}</span> to confirm a live send or
-                    marking them all:
-                  </label>
-                  <input
-                    id="confirm"
-                    value={confirmValue}
-                    onChange={(e) => setConfirmValue(e.target.value)}
-                    inputMode="numeric"
-                    className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm tabular-nums"
-                    placeholder="—"
-                  />
-                  {confirmed && <CheckCircleIcon className="h-5 w-5 text-emerald-600" />}
-                </div>
-              )}
+              {/*
+              No type-to-confirm. Switching to live is itself the deliberate act, the red panel
+              above states the number, and a second gate on the same screen only reads as noise.
+              The count is still sent as expected_count and the server still refuses a send that
+              has grown since - the guard that matters is the one against a stale number, not
+              against the operator.
+              */}
             </>
           )}
         </div>
@@ -466,28 +608,26 @@ function SendPanel({
               have actually been gone through. */}
           {email.focus && count > 0 && (
             <button
-              onClick={() => handleMark(selected.size > 0)}
-              disabled={busy || (selected.size === 0 && !confirmed)}
-              title={
-                selected.size > 0
-                  ? `Mark the ${selected.size} ticked as sent`
-                  : `Mark all ${count} as sent without emailing anyone`
-              }
+              onClick={handleMark}
+              disabled={busy || nothingChosen}
+              title="Mark the ticked rows as sent without emailing anyone"
               className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {selected.size > 0 ? `Mark ${selected.size} selected as sent` : `Mark all ${count} as sent`}
+              Mark {chosen.length} as sent
             </button>
           )}
 
           <button
             onClick={handleSend}
-            disabled={loading || busy || count === 0 || (!testMode && !confirmed)}
+            disabled={loading || busy || nothingChosen}
             className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40 ${
               testMode ? 'bg-slate-700 hover:bg-slate-800' : 'bg-red-600 hover:bg-red-700'
             }`}
           >
             <PaperAirplaneIcon className="h-4 w-4" />
-            {busy ? 'Working…' : testMode ? 'Send test' : 'Send live'}
+            {/* Always names the number it is about to send to, so "all" versus "the ticked ones"
+                is never something the operator has to remember. */}
+            {busy ? 'Working…' : testMode ? 'Send test' : `Send live to ${chosen.length}`}
           </button>
         </div>
       </div>
@@ -509,9 +649,9 @@ export default function EmailsPage() {
   const [competitionId, setCompetitionId] = useState<number | null>(null);
   /* Per the picked competition, for the table. */
   const [counts, setCounts] = useState<Record<string, EmailCount>>({});
-  /* Across every competition, for the focus card. Deliberately a separate call and a separate
-     number - the table's is "in this competition" and the card's is "anywhere". */
-  const [focusCounts, setFocusCounts] = useState<Record<string, EmailCount>>({});
+  /* Bumped per email after a send or a mark. Each card watches its own entry and re-counts, so
+     acting on one card does not re-query the others. */
+  const [reloadTokens, setReloadTokens] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<{ email: OutlineEmail; scopeAll: boolean } | null>(null);
@@ -541,20 +681,11 @@ export default function EmailsPage() {
 
   const loadCounts = useCallback(async (id: number) => {
     try {
-      const res = await adminApi.getEmailTargets(id);
+      // Only what the table still shows - the carded emails count themselves, on request.
+      const res = await adminApi.getEmailTargets(id, REMAINING.map((e) => e.key));
       setCounts(res.return_code === 'SUCCESS' && res.counts ? res.counts : {});
     } catch {
       setCounts({});
-    }
-  }, []);
-
-  const loadFocusCounts = useCallback(async () => {
-    if (FOCUS.length === 0) return;
-    try {
-      const res = await adminApi.getEmailTargets(null, FOCUS.map((e) => e.key));
-      setFocusCounts(res.return_code === 'SUCCESS' && res.counts ? res.counts : {});
-    } catch {
-      setFocusCounts({});
     }
   }, []);
 
@@ -564,8 +695,7 @@ export default function EmailsPage() {
       return;
     }
     loadCompetitions();
-    loadFocusCounts();
-  }, [router, loadCompetitions, loadFocusCounts]);
+  }, [router, loadCompetitions]);
 
   useEffect(() => {
     if (competitionId !== null) loadCounts(competitionId);
@@ -573,8 +703,11 @@ export default function EmailsPage() {
 
   const refreshCounts = () => {
     if (competitionId !== null) loadCounts(competitionId);
-    loadFocusCounts();
   };
+
+  /* Only the card that was acted on. A send from one card cannot change another's count. */
+  const refreshCard = (key: string) =>
+    setReloadTokens((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
 
   return (
     <div className="min-h-screen">
@@ -645,57 +778,16 @@ export default function EmailsPage() {
         </div>
 
         {/* ============================================================================
-            Focus card - the email being worked on right now
+            One card per email taken up so far. Each counts itself, on request.
             ============================================================================ */}
-        {FOCUS.map((email) => {
-          const c = focusCounts[email.key];
-          return (
-            <section key={email.key} className="rounded-xl border-2 border-indigo-200 bg-white shadow-sm">
-              <h2 className="flex items-center gap-2 rounded-t-lg border-b border-indigo-100 bg-indigo-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                Working on now
-              </h2>
-
-              <div className="flex flex-wrap items-start justify-between gap-6 px-5 py-4">
-                <div className="max-w-lg">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-slate-900">{email.name}</h3>
-                    <SectionTag section={email.section} />
-                    <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">{email.key}</code>
-                  </div>
-                  {email.blurb && <p className="mt-1.5 text-sm text-slate-600">{email.blurb}</p>}
-                </div>
-
-                <div className="flex items-start gap-8">
-                  {c ? (
-                    <>
-                      <Stat value={c.waiting} label="waiting" />
-                      {email.scoped && <Stat value={c.competitions} label={c.competitions === 1 ? 'competition' : 'competitions'} />}
-                      {/* Only ever non-zero if something queued without sending. Amber so it is
-                          not mistaken for a normal number - nine stale rows once sat unnoticed. */}
-                      <Stat value={c.pending} label="pending" tone="warn" />
-                    </>
-                  ) : (
-                    <p className="text-sm text-slate-400">Counting…</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3">
-                <p className="text-xs text-slate-500">
-                  Counted across every competition, not the one picked below.
-                </p>
-                <button
-                  onClick={() => setOpen({ email, scopeAll: true })}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-slate-900"
-                >
-                  <EyeIcon className="h-4 w-4" />
-                  Review, send or mark as sent
-                </button>
-              </div>
-            </section>
-          );
-        })}
+        {FOCUS.map((email) => (
+          <FocusCard
+            key={email.key}
+            email={email}
+            reloadToken={reloadTokens[email.key] ?? 0}
+            onOpen={() => setOpen({ email, scopeAll: true })}
+          />
+        ))}
 
         {/* Competition picker */}
         <div className="flex flex-wrap items-center gap-3">
@@ -724,7 +816,7 @@ export default function EmailsPage() {
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <h2 className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-            Emails
+            Still to work through
           </h2>
 
           <div className="overflow-x-auto">
@@ -739,22 +831,17 @@ export default function EmailsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {OUTLINE.map((email) => {
+                {REMAINING.map((email) => {
                   // undefined means the server did not work this one out - not the same as zero.
                   const c = counts[email.key];
                   return (
-                    <tr key={email.key} className={`transition hover:bg-slate-50 ${email.focus ? 'bg-indigo-50/40' : ''}`}>
+                    <tr key={email.key} className="transition hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-600">{email.consumer}</td>
                       <td className="px-4 py-3">
                         <SectionTag section={email.section} />
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-medium text-slate-900">{email.name}</span>
-                        {email.focus && (
-                          <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-700">
-                            in focus
-                          </span>
-                        )}
                         {email.push && (
                           <span
                             className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500"
@@ -767,14 +854,7 @@ export default function EmailsPage() {
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-slate-600">
                         {c ? (
-                          <>
-                            {c.waiting.toLocaleString()}
-                            {c.pending > 0 && (
-                              <span className="ml-1.5 text-xs text-amber-700" title="Queued and not yet sent">
-                                +{c.pending} pending
-                              </span>
-                            )}
-                          </>
+                          c.waiting.toLocaleString()
                         ) : (
                           <span className="text-slate-300" title="Not worked out yet">
                             —
@@ -808,7 +888,7 @@ export default function EmailsPage() {
           scopeAll={open.scopeAll}
           testMode={testMode}
           onClose={() => setOpen(null)}
-          onChanged={refreshCounts}
+          onChanged={() => (open.scopeAll ? refreshCard(open.email.key) : refreshCounts())}
         />
       )}
     </div>

@@ -758,17 +758,49 @@ It exists because the screen could only answer "how many people are waiting for 
 cron, which cannot pick one either. This is the last piece that assumes the operator is a person
 holding a mouse.
 
-### One email at a time, and the focus card
+### One email at a time, and a card each
 
 **Andreas's rule, and it shapes the screen.** Emails are taken up one at a time: rules agreed,
-numbers looked at properly, backlog dealt with, and only then the next. The mechanism is a
-`focus: true` flag on a row in the admin screen's `OUTLINE`, which promotes it to a card above the
-table. **`welcome` is the one in focus** as of 2026-08-14.
+numbers looked at properly, backlog dealt with, and only then the next. Each one that has been
+through that gets **its own card** above the table — `focus: true` on its row in the admin screen's
+`OUTLINE`. **`welcome` and `created_comp` have cards** as of 2026-08-14.
 
-The card is the only place that counts across every competition and the only place that offers
-Mark as sent. The rest of the table stays per-competition and preview-only. That is deliberate
-rather than unfinished: a screen offering a platform-wide send on twelve emails at once is exactly
-what "be careful for now" rules out. Bringing the next email up is one flag.
+The flag **moves** an email rather than copying it: the table below holds only what has not been
+taken up, so it reads as the to-do list and empties as cards appear. An email is in exactly one
+place, and the screen therefore says where things stand without anyone having to remember.
+
+Cards are the only place that counts across every competition and the only place that sends or
+marks. What is left in the table stays per-competition and preview-only — deliberate rather than
+unfinished: a screen offering a platform-wide send on a dozen emails whose rules nobody has been
+through is exactly what "be careful for now" rules out.
+
+**Cards count on request, one at a time.** Every number is a live query — ~25ms each, but across
+the whole platform — and the operator comes to this screen for one email. A card shows "Not counted
+yet" until Count is pressed, and Refresh re-runs only that card. Measured 2026-08-14: a candidate
+query is ~24ms, dominated by round-trip latency rather than work, and **unscoped is not slower than
+scoped** (323ms vs 394ms for all twelve), which is what made dropping the competition filter safe.
+
+The thing that will bite first, when volume arrives: the route counts by **fetching every candidate
+row** and taking its length. Fine at 27 rows; at ten times the players it is building hundreds of
+rows to show a number. The fix is a `countCandidates` sharing one SQL body with `findCandidates` —
+worth resisting early, because one definition of eligibility is what stops the screen offering a
+count the send contradicts.
+
+### The panel is the recipient list
+
+**What gets checked here is who qualifies, not what the email says.** The panel opens on the list —
+expanded, no toggle — with name, address, competition and **how long they have been waiting**.
+That last column is the whole judgement: a join from yesterday is a send, one from January is a
+mark-as-sent. It reads whichever column the service triggers on (`joined_at`, `created_at`), so it
+needs no per-email code.
+
+**The rendered template is gone from it** (`include_sample: false`, so the server does not even
+build it). A signed-off template re-rendered on every open is work nobody reads, and it was
+occupying most of the panel while the list sat hidden behind a "View list" button. A test send is
+how you look at the email again.
+
+The list caps at `MAX_LISTED` (50) with the count still exact above it. Ticking reaches only what
+is shown, and the panel says so.
 
 ### `scoped` changes meaning
 
@@ -795,12 +827,17 @@ operation.
 | | |
 |---|---|
 | `waiting` | candidates from `findCandidates` — people who qualify and have no queue row |
-| `pending` | rows already in `email_queue` with status `pending` — queued by an earlier press, not yet sent |
+| `sent_recently` | delivered in the last `SENT_WINDOW_DAYS` (30), read off `email_queue.status = 'sent'` |
 
-They are different questions and a single number hides the second. `pending` is only ever
-non-zero because of the send cap below, and a non-zero `pending` that nobody drains is exactly the
-failure the nine stale `welcome` rows were. The screen shows it as a column so it cannot go
-unnoticed again.
+`sent_recently` is what makes a zero legible: without it, "0 waiting" could equally mean caught up
+or never sending at all. It reads `email_queue`, **not `email_tracking`**, whose `sent_at` defaults
+to insert time and is therefore stamped on mail that never went — which is how nine stale rows all
+carried a timestamp. `skipped` rows are excluded by the status check, so marking somebody as sent
+never reads back as an email they received.
+
+A `pending` count was built alongside these and then removed: it can only be non-zero once the
+send cap below exists, and until then a permanent zero sat next to the real number inviting the
+question of what it meant. It comes back with the cap.
 
 Scoped rows also report `competitions` — how many distinct competitions the waiting recipients
 span — because "14 waiting across 5 competitions" is the answer the operator actually wants and a
@@ -890,17 +927,14 @@ The four remaining constants (`joinLms`, `createdComp`, and the two the hints sh
 each wants its own look at the numbers, on its own turn in the focus card. The next email wired
 needs no constant at all: wire it, look at the count, mark the backlog as sent.
 
-**Two grains, both on the send panel:**
-
-- **Bulk** — one button, everyone currently waiting for this email at the current scope. This is
-  the one that gets used.
-- **Per recipient** — the recipient list gets checkboxes, so a run of test accounts can be marked
-  off and the rest sent. Limited to the recipients actually shown: `preview-email` truncates its
-  list, and offering ticks over a list that is not the whole set would mislead. Bulk covers the
-  whole set.
-
 Route: `POST /admin/mark-emails-sent`, taking `email_type`, optional `competition_id`, optional
-`user_ids`, and `expected_count`.
+`recipients`, and `expected_count`. Omitting `recipients` marks everyone waiting and requires
+`expected_count`; passing it marks only those, matched on the **pair** `(user_id, competition_id)`
+— never `user_id` alone, since the same person legitimately appears once per competition when a
+scoped email is scanned across all of them.
+
+**The screen only ever passes a list.** Both grains exist on the route because the cron will want
+the bulk one, but the panel requires a tick before anything at all happens — see below.
 
 ### One shared skip helper, not a fourth function per service
 
@@ -923,26 +957,55 @@ candidates whose `hint_key` is `promote_competition`), but the helper should pre
 `findCandidates` and returns `still_waiting`; if it is not zero after a bulk mark, an identifier
 mismatch is showing itself immediately instead of a week later.
 
-### The count is the guard
+### Nothing happens without a tick
 
-Both the live send and the bulk mark carry `expected_count` — the number the operator was looking
-at when they pressed — and the server recounts and refuses on a mismatch with **`COUNT_CHANGED`**.
-Somebody joining between the preview and the press is normal; an action bigger than the one
-reviewed is not. Exactly `broadcast.js`'s rule, and for the same reason: "I thought it was going to
-about thirty people" is only preventable in advance.
+**The panel's rule, and the one that replaced typing the number back.** Every action on it — send
+test, send live, mark as sent — acts on the ticked rows and nothing else, and all three are dead
+until at least one row is ticked. Select all is one click when everyone genuinely is the intent.
 
-The screen asks the operator to **type the number** before a live send or a bulk mark. Test sends
-and per-recipient marks do not: one is harmless and the other is already an explicit list.
+A type-to-confirm box was built first and removed the same day: switching to live is already a
+deliberate act, the red panel already states the number, and a second gate on the same screen read
+as noise rather than care. The gesture that needed to be deliberate was **choosing who**, not
+retyping a total.
+
+An untTicked panel meaning "everyone" was the version that made this necessary. It put the most
+far-reaching action behind the least deliberate gesture — open a card, press a button, the whole
+qualifying set goes — and it produced a genuinely dangerous asymmetry while it existed: **Send
+ignored the ticks while Mark honoured them**, silently, under one shared column of checkboxes. So
+"mark one, send to the rest" worked in one order and emailed everybody in the other. Both buttons
+now read the ticks the same way, and the send button always names the number it is about to send
+to.
+
+**`recipients` on a send narrows, it does not replace.** `send-emails` still runs `findCandidates`
+and intersects the list with it, so a stale tick for somebody since sent to, unsubscribed or marked
+cannot put them back in. The list can only shrink the qualifying set.
+
+### The count is still the guard, for the caller that sends no list
+
+`expected_count` — the number the operator was looking at when they pressed — makes the server
+recount and refuse on a mismatch with **`COUNT_CHANGED`**. Somebody joining between the preview and
+the press is normal; an action bigger than the one reviewed is not. Exactly `broadcast.js`'s rule,
+and for the same reason: "I thought it was going to about thirty people" is only preventable in
+advance.
+
+It applies to a **send-everyone** call, which today means the cron rather than the screen: an
+explicit list is its own statement of who, and has already been intersected with the live
+candidates. Test mode is exempt — it sends one email to the test address whatever the count is.
+
+**The routes deliberately still accept a call with no list and treat it as everyone.** That is the
+cron's contract and it must not come to depend on somebody having ticked a box. "Must be ticked" is
+the screen's rule, not the route's.
 
 ### What was built
 
 | | |
 |---|---|
 | ✅ | `scoped` guard dropped in all three admin routes; `competition_id` optional throughout |
-| ✅ | `get-email-targets` returns `waiting` / `pending` / `competitions`, and takes an `email_types` filter so the card reads one email without a pass over the catalog |
+| ✅ | `get-email-targets` returns `waiting` / `sent_recently` / `competitions`, and takes an `email_types` filter so a card reads one email without a pass over the catalog |
 | ✅ | `skipped` status, `services/emailSkip.js`, `POST /admin/mark-emails-sent`, both grains |
-| ✅ | `expected_count` / `COUNT_CHANGED` on live send and bulk mark; type-to-confirm on the screen |
-| ✅ | Focus card, `welcome` in focus |
+| ✅ | `expected_count` / `COUNT_CHANGED` on a send with no list; `recipients` narrowing on `send-emails` so ticks mean one thing |
+| ✅ | A card per email, counting on request; `welcome` and `created_comp` have theirs |
+| ✅ | Panel rebuilt around the recipient list — names, competition, waiting-since; no rendered template |
 | ⏸ | Drain-then-send with `EMAIL_SEND_CAP`; retiring `routes/send-email.js` — deferred, see above |
 | ⏸ | `CUTOFF` removal from `joinComp.js` — sequenced behind dealing with the 3 waiting |
 

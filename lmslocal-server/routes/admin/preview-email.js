@@ -75,7 +75,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('admin/preview-email');
 
   try {
-    const { email_type, competition_id } = req.body;
+    const { email_type, competition_id, include_sample } = req.body;
 
     const entry = entryFor(email_type);
 
@@ -117,10 +117,22 @@ router.post('/', verifyAdminToken, async (req, res) => {
     Build the sample from real data rather than a fixture. buildTemplateData writes nothing -
     it only reads the round's fixtures and the player's own past picks - so this is safe to run
     on a preview.
+
+    Skipped when include_sample is false, which is what the admin screen asks for: once a
+    template has been signed off, re-rendering it on every preview is work nobody looks at, and
+    a test send is the way to see it again. The recipient list is the thing being checked.
     */
-    const first = candidates[0];
-    const templateData = await entry.service.buildTemplateData(first);
-    const built = entry.build(first.user_email, templateData);
+    let sample = null;
+    if (include_sample !== false) {
+      const first = candidates[0];
+      const templateData = await entry.service.buildTemplateData(first);
+      const built = entry.build(first.user_email, templateData);
+      sample = {
+        for_email: first.user_email,
+        subject: built.subject,
+        html: built.html
+      };
+    }
 
     return res.json({
       return_code: 'SUCCESS',
@@ -136,15 +148,18 @@ router.post('/', verifyAdminToken, async (req, res) => {
         */
         competition_id: c.competition_id ?? null,
         competition_name: c.competition_name ?? null,
+        /*
+        When this candidate became one - a join for a welcome, a creation for created_comp. It is
+        how the operator tells a fresh candidate from a backlog left over from before the email
+        existed, which is the whole judgement behind send-versus-mark. Services name the column
+        for their own trigger, so take whichever is present.
+        */
+        since: c.joined_at ?? c.created_at ?? null,
         // Present only on round-based emails; null on the platform-wide ones.
         round_number: c.round_number ?? null
       })),
       truncated: candidates.length > MAX_LISTED,
-      sample: {
-        for_email: first.user_email,
-        subject: built.subject,
-        html: built.html
-      }
+      sample
     });
 
   } catch (error) {

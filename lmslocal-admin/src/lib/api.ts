@@ -575,8 +575,9 @@ zero for the other.
 export interface EmailCount {
   /* Qualify right now, with no queue row. */
   waiting: number;
-  /* Already queued and never sent. Only ever non-zero if something queued without sending. */
-  pending: number;
+  /* Actually delivered in the last 30 days. Excludes 'skipped' - marking somebody as sent must
+     not read back as an email they received. */
+  sent_recently: number;
   /* Competitions the waiting recipients span. Zero on platform-wide emails, which have none. */
   competitions: number;
 }
@@ -593,6 +594,8 @@ export interface EmailRecipient {
      joined when a scoped email is previewed across all of them. */
   competition_id: number | null;
   competition_name: string | null;
+  /* When they became a candidate - joined, or created. How a fresh one is told from a backlog. */
+  since: string | null;
   /* Only meaningful on round-based emails. Null on the platform-wide ones. */
   round_number: number | null;
 }
@@ -923,10 +926,17 @@ export const adminApi = {
   being previewed across every competition. The server decides which of those an email type is -
   see services/emailCatalog.js.
   */
-  previewEmail: async (emailType: string, competitionId: number | null): Promise<PreviewEmailResponse> => {
+  previewEmail: async (
+    emailType: string,
+    competitionId: number | null,
+    /* The rendered HTML. Off from the screen - a signed-off template re-rendered on every preview
+       is work nobody reads, and a test send is how you look at it again. */
+    includeSample = false
+  ): Promise<PreviewEmailResponse> => {
     const response = await api.post<PreviewEmailResponse>('/admin/preview-email', {
       email_type: emailType,
       competition_id: competitionId,
+      include_sample: includeSample,
     });
     return response.data;
   },
@@ -939,15 +949,19 @@ export const adminApi = {
     emailType: string,
     competitionId: number | null,
     testMode: boolean,
-    /* The count the operator was looking at. A live send is refused with COUNT_CHANGED if it has
-       moved since - ignored in test mode, which sends one email whatever the count is. */
-    expectedCount?: number
+    /* The count the operator was looking at. A live send to everyone is refused with
+       COUNT_CHANGED if it has moved since - ignored in test mode and when recipients are named. */
+    expectedCount?: number,
+    /* Send to only these, intersected server-side with who still qualifies. Ticked rows mean the
+       same here as they do for markEmailsSent. */
+    recipients?: { user_id: number; competition_id: number | null }[]
   ): Promise<SendEmailsResponse> => {
     const response = await api.post<SendEmailsResponse>('/admin/send-emails', {
       email_type: emailType,
       competition_id: competitionId,
       test_mode: testMode,
       expected_count: expectedCount,
+      recipients,
     });
     return response.data;
   },
