@@ -114,7 +114,18 @@ const OUTLINE: OutlineEmail[] = [
     blurb:
       'The one email every player gets every week. Their own result first, then who is still in, then what happens next. Not ready when the round ends — ready when the round ends AND the next round’s fixtures are in, or the competition has finished, so it is never a dead end.',
   },
-  { key: 'pick_reminder', consumer: 'Player', section: 'Game', name: 'Pick reminder', scoped: true, push: true },
+  {
+    key: 'pick_reminder',
+    consumer: 'Player',
+    section: 'Game',
+    name: 'Pick reminder',
+    scoped: true,
+    push: true,
+    note: 'Round locks within 3 days, no pick made',
+    focus: true,
+    blurb:
+      'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Once per player per round. The When column is their countdown, not an elapsed time.',
+  },
   {
     key: 'game_complete',
     consumer: 'Player',
@@ -127,7 +138,22 @@ const OUTLINE: OutlineEmail[] = [
       'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all.',
   },
   { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', scoped: false, note: 'Stuck 14+ days, round waiting' },
-  { key: 'share_reminder', consumer: 'Organiser', section: 'Game', name: 'Share reminder', scoped: true, note: 'Round 1 locks in 48h - joining closes' },
+  /*
+  Share reminder is deliberately absent. Decided against 2026-08-14, after the numbers: every
+  organiser plays in their own competition, so "1 player" means nobody joined - and of the four in
+  that state, two had created the competition days earlier and knew exactly when it started, while
+  the two who might have forgotten had had seven weeks to recruit and hadn't. Late joining also
+  turns out to happen anyway: 46% of all joins landed inside the final 48 hours across four
+  competitions that ran before this email existed.
+
+  It also pointed at the wrong remedy - "share your link" is the thing least likely to work with
+  two days left, where moving the start date would. And it is the only email with an expiring
+  window, so it demanded an operator at the screen on a particular evening.
+
+  The moment is real; email is the wrong channel for it. A notice on the organiser's own dashboard
+  reaches the disengaged organiser this was aimed at, with no send window. See docs/email/README.md.
+  Service and template are still on disk, unwired.
+  */
   {
     key: 'result_reminder',
     consumer: 'Organiser',
@@ -203,23 +229,39 @@ const keyOf = (r: { user_id: number; competition_id: number | null }) =>
   `${r.user_id}:${r.competition_id ?? 'null'}`;
 
 /*
-How long this person has been waiting. Relative rather than a date because the decision is about
-age - "2 days" reads as send and "7 months" reads as mark-as-sent, where two ISO dates need
-working out. The exact date is in the title attribute for when it matters.
+The moment this email hangs off, relative to now. Relative rather than a date because the decision
+is about distance - "2 days ago" reads as send, "7 months ago" reads as mark-as-sent, and "in 31
+hours" reads as urgent, where three ISO dates all need working out. The exact timestamp is in the
+title attribute for when it matters.
+
+BOTH DIRECTIONS, because not every email hangs off something that has already happened. Most look
+backwards - a join, a round settling, the last kickoff - but share_reminder hangs off a lock time
+that has NOT arrived yet, and a backwards-only version rendered that as "just now" from a negative
+number. Silently wrong on the one email whose whole point is a countdown.
 */
-function ago(iso: string | null): string {
+function relativeTime(iso: string | null): string {
   if (!iso) return '—';
+  const ms = Date.now() - new Date(iso).getTime();
+  const future = ms < 0;
   /*
   Hours below two days, not days. Flooring to days made everything under 24h read as "today",
-  which is wrong for somebody who joined last night and is the age that matters most here.
+  which is wrong for somebody who joined last night and is the distance that matters most here.
   */
-  const hours = Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000);
-  if (hours < 1) return 'just now';
-  if (hours < 48) return `${hours} hours`;
-  const days = Math.floor(hours / 24);
-  if (days < 31) return `${days} days`;
-  const months = Math.floor(days / 30);
-  return months < 12 ? `${months} month${months === 1 ? '' : 's'}` : `${Math.floor(days / 365)}y+`;
+  const hours = Math.floor(Math.abs(ms) / 3_600_000);
+
+  let span: string;
+  if (hours < 1) return future ? 'within the hour' : 'just now';
+  else if (hours < 48) span = `${hours} hours`;
+  else {
+    const days = Math.floor(hours / 24);
+    if (days < 31) span = `${days} days`;
+    else {
+      const months = Math.floor(days / 30);
+      span = months < 12 ? `${months} month${months === 1 ? '' : 's'}` : `${Math.floor(days / 365)}y+`;
+    }
+  }
+
+  return future ? `in ${span}` : `${span} ago`;
 }
 
 // ======================================================================================
@@ -549,7 +591,9 @@ function SendPanel({
                           <th className="px-3 py-2 font-semibold">Name</th>
                           <th className="px-3 py-2 font-semibold">Email</th>
                           {email.scoped && <th className="px-3 py-2 font-semibold">Competition</th>}
-                          <th className="px-3 py-2 font-semibold">Waiting since</th>
+                          {/* "When", not "Waiting since": some emails hang off something still
+                              to come, and this column reads both ways. */}
+                          <th className="px-3 py-2 font-semibold">When</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -572,12 +616,13 @@ function SendPanel({
                               <td className="px-3 py-2 text-slate-500">{r.competition_name ?? '—'}</td>
                             )}
                             {/* The judgement this screen exists for: a join from yesterday is a
-                                send, one from January is a mark-as-sent. */}
+                                send, one from January is a mark-as-sent, and a deadline in 31
+                                hours is a send now. */}
                             <td
                               className="px-3 py-2 whitespace-nowrap text-slate-500"
                               title={r.since ? new Date(r.since).toLocaleString() : undefined}
                             >
-                              {ago(r.since)}
+                              {relativeTime(r.since)}
                             </td>
                           </tr>
                         ))}

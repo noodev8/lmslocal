@@ -157,11 +157,16 @@ router.post('/', verifyAdminToken, async (req, res) => {
         Each is the clock the organiser's players are actually watching: not when we noticed, but
         when the thing they are waiting on happened.
 
+        lock_time (pick_reminder) and starts_at point FORWARD - a deadline that has not arrived.
+        The screen renders those as "in 31 hours" rather than an elapsed time; see relativeTime()
+        there, which reads both directions for this reason. On a pick reminder that countdown is
+        the single most useful thing on the row: it is how long the player has left.
+
         Services name the column for their own trigger, so take whichever is present. They do not
         collide today - each candidate row carries exactly one of these - and a service adding a
         new trigger column just adds itself to this list.
         */
-        since: c.settled_at ?? c.last_kickoff ?? c.finished_at ?? c.joined_at ?? c.created_at ?? null,
+        since: c.settled_at ?? c.last_kickoff ?? c.finished_at ?? c.lock_time ?? c.starts_at ?? c.joined_at ?? c.created_at ?? null,
         // Present only on round-based emails; null on the platform-wide ones.
         round_number: c.round_number ?? null
       })),

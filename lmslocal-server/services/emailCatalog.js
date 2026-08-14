@@ -24,7 +24,7 @@ const joinLms = require('./joinLms');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
 const gameStartReminder = require('./gameStartReminder');
-const shareReminder = require('./shareReminder');
+// shareReminder is not imported: it is unwired on purpose - see the note where its entry was.
 const fixtureReminder = require('./fixtureReminder');
 const resultReminder = require('./resultReminder');
 const gameComplete = require('./gameComplete');
@@ -39,8 +39,6 @@ const {
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,
   sendWelcomeCompetitionEmail,
-  buildShareReminderEmail,
-  sendShareReminderEmail,
   buildGameStartReminderEmail,
   sendGameStartReminderEmail,
   buildFixtureReminderEmail,
@@ -97,16 +95,27 @@ const CATALOG = {
     send: sendGameStartReminderEmail
   },
   /*
-  Scoped, unlike the three organiser reminders around it: this names one competition and the exact
-  time its doors close, so the operator picks which. It cannot overlap game_start_reminder above -
-  that one needs a competition with no rounds, this one needs round 1 to exist and be about to lock.
+  share_reminder is UNWIRED, decided 2026-08-14. Not a gap - it was built, measured and dropped.
+
+  It would have told an organiser that round 1 locks in 48 hours and joining closes with it. The
+  numbers killed it: every organiser plays in their own competition, so a player_count of 1 means
+  nobody joined - and of the four competitions in that state, two had been created days earlier by
+  organisers who knew exactly when they started, while the two who might plausibly have forgotten
+  had already had seven weeks. Late joining happens without prompting anyway - 46% of all joins
+  landed inside the final 48 hours across four competitions that ran before this email existed.
+
+  It also pointed at the wrong remedy: with two days left, "share your link" is the action least
+  likely to work, where moving the start date would. And it was the only email with an EXPIRING
+  window, so it required an operator at the screen on one particular evening or it was pointless.
+
+  The moment is real - a competition about to start with nobody in it - but email is the wrong
+  channel, because the organiser who needs it is the disengaged one. A notice on their own
+  dashboard reaches them with no send window. See docs/email/README.md.
+
+  services/shareReminder.js and its template stay on disk with their rules intact. Re-wiring is
+  this entry back; do not rebuild it from scratch.
   */
-  share_reminder: {
-    scoped: true,
-    service: shareReminder,
-    build: buildShareReminderEmail,
-    send: sendShareReminderEmail
-  },
+
   /*
   Platform-wide for the same reason as game_start_reminder, and the exact mirror of it: that one
   takes fixture_service = true, this one false, so no competition can ever be a candidate for both.
