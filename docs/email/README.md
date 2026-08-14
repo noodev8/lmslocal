@@ -5,6 +5,12 @@ list onto what actually exists in the code. `email-operations.md` covers how to 
 
 **If the outline and this README disagree, the outline wins** — update this file to match.
 
+**This file is not updated on every change** (2026-08-14). It was written while the design was
+being settled and "change the doc first" was the right discipline; the shape is agreed now. It
+records **decisions and traps** — why something is the way it is, and what would be re-discovered
+the hard way otherwise. It does not track button labels, counts or wording. Ask before adding to
+it, and expect it to lag the code in small ways by design.
+
 ---
 
 ## Two tiers, and only one is in scope
@@ -206,9 +212,9 @@ The rules now:
 - **The organiser is excluded** when they join their own competition as a player. They created it;
   `created_comp` is their email.
 - **No backfill** — otherwise every existing member of every competition becomes a candidate the
-  moment it is wired. **`CUTOFF` is being retired** (2026-08-14): the 35 members it hides become
-  `skipped` rows instead, so the count on the screen has nothing invisible behind it. See
-  "Mark as sent" under Sending, which carries the order the swap has to happen in.
+  moment it is wired. **`CUTOFF` was retired 2026-08-14**: 104 memberships became `skipped` rows
+  instead, so the count on the screen has nothing invisible behind it. See "Mark as sent" under
+  Sending.
 - **Content carried over** from the old template: the rules of the competition actually joined
   (lives, the no-repeat-teams setting) plus the next deadline when a round is open. `0 lives` now
   renders as "one wrong pick and you are out" rather than "you start with 0 lives".
@@ -914,18 +920,30 @@ CUTOFF, 38 without**, so its only live effect was hiding **35 members across 8 c
 joined between Nov 2025 and 6 Aug 2026. Nobody who joins from here on is affected either way,
 which is what makes the swap safe.
 
-**The order matters and is not optional:**
+**Done 2026-08-14. All three constants are gone** — `joinLms`, `joinComp`, `createdComp` — and
+each service's no-backfill rule is now the single once-ever `NOT EXISTS` clause it already had.
+337 `skipped` rows replaced them, written by two scripts kept in `lmslocal-server/db/`:
 
-1. Deal with the 3 genuinely-waiting people first — send or mark.
-2. *Then* delete `CUTOFF` from `joinComp.js`.
-3. The card now shows exactly the 35. Mark all as sent, in one press.
+| Script | Rows | Replaces |
+|---|---|---|
+| `mark-join-lms-backlog-skipped.sql` | 216 | every account created before 11 Aug |
+| `mark-comp-welcome-backlogs-skipped.sql` | 104 + 16 | memberships joined, competitions created, before 11 Aug |
 
-Done the other way round, the 3 and the 35 arrive in one undifferentiated list of 38 and the
-operator has to pick 3 out of it by hand.
+Verified after each: all three still return **0 waiting** with no date filter anywhere, which is
+what proves the rows carry the rule the constants used to.
 
-The four remaining constants (`joinLms`, `createdComp`, and the two the hints share) stay for now —
-each wants its own look at the numbers, on its own turn in the focus card. The next email wired
-needs no constant at all: wire it, look at the count, mark the backlog as sent.
+**Both scripts cast a wider net than candidacy, deliberately.** They ignore opt-outs, and the
+welcome one ignores `competition_user.status` — 104 memberships rather than the 35 then eligible.
+A preference can be reversed and a status can be set back to active from the admin tool, and
+either would resurrect a months-old welcome. "Nobody who was already here" has to hold whatever
+anyone does later, so the write-off covers people who are not candidates today.
+
+**Sequencing, which mattered and would again.** The 3 genuinely-waiting welcomes were sent first,
+*then* the constant came out, *then* the backlog was marked. Reversed, the 3 and the 104 arrive as
+one undifferentiated list and somebody has to pick 3 out of it by hand.
+
+The next email wired needs no constant at all: wire it, look at the count, mark the backlog as
+sent.
 
 Route: `POST /admin/mark-emails-sent`, taking `email_type`, optional `competition_id`, optional
 `recipients`, and `expected_count`. Omitting `recipients` marks everyone waiting and requires
@@ -1007,7 +1025,7 @@ the screen's rule, not the route's.
 | ✅ | A card per email, counting on request; `welcome` and `created_comp` have theirs |
 | ✅ | Panel rebuilt around the recipient list — names, competition, waiting-since; no rendered template |
 | ⏸ | Drain-then-send with `EMAIL_SEND_CAP`; retiring `routes/send-email.js` — deferred, see above |
-| ⏸ | `CUTOFF` removal from `joinComp.js` — sequenced behind dealing with the 3 waiting |
+| ✅ | `CUTOFF` retired from all three welcome services, backlogs written off as `skipped` rows |
 
 **The cron then presses these same routes on a timer.** Nothing here is shaped around the operator
 being a person, which is the test each step had to pass. Digests below are the next layer and are

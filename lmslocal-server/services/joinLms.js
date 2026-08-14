@@ -14,7 +14,6 @@ screen, like every other comms email - see docs/email/README.md, "Sending is man
 therefore never depends on Resend being up, and every send can be previewed and test-sent first.
 
 The eligibility rules, all in findCandidates below:
-  - account created on or after CUTOFF (see the note on that constant)
   - real email (guest and bot accounts both use @lms-guest.com and are excluded by the same test)
   - has never been queued a join_lms email, sent or otherwise
   - not opted out of platform.welcome, per services/emailPreference.js
@@ -30,22 +29,25 @@ const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require
 const EMAIL_TYPE = 'join_lms';
 
 /*
-No backfill. Decision, 2026-08-11.
+No backfill - and it is now DATA rather than a date in code. Retired 2026-08-14.
 
-244 accounts existed when this was built and none of them had ever had a welcome email. Without a
-cutoff the first live press would have welcomed people who signed up months ago - a bad email on
-its own terms, and two and a half days of the 100/day Resend limit spent saying it.
+The rule has not changed: nobody who already had an account when this email was built ever gets
+it. A welcome to somebody who signed up in September 2025 is a bad email on its own terms.
 
-A fixed timestamp rather than a rolling window, because the rule is "only people who sign up from
-now on", not "only recent signups". A rolling window would quietly start mailing anyone we missed
-during a fortnight's outage; this cannot. It is set just after the newest account at the time of
-writing (12:14 UTC), so nobody who already existed can qualify however long this sits unsent.
+What changed is how that is enforced. There was a CUTOFF constant here ('2026-08-11T13:00:00Z')
+excluding anyone created before it. It did the same job as marking somebody as sent, by a
+different means - by date, permanently, and invisibly: nothing on the admin screen said it was
+there, so the count shown had a filter behind it that nobody could see. Two mechanisms for one
+rule is exactly the duplication this codebase has had to unpick three times.
 
-The Z matters. db/query.js prints timestamps in local time - British Summer Time, an hour ahead -
-so a value copied straight off that output lands an hour in the FUTURE and silently excludes
-everyone who signs up in between. That is what the first attempt did.
+So the 216 accounts it was hiding were written off explicitly instead
+(db/mark-join-lms-backlog-skipped.sql, run once), and the once-ever guard below - which already
+excluded any user with a join_lms row whatever its status - now does the whole job on its own.
+The number on the card is the truth with nothing behind it.
+
+Deliberately not filtered by opt-out when those rows were written: an opt-out suppresses today
+but can be reversed tomorrow, and "nobody who already existed" has to hold regardless.
 */
-const CUTOFF = '2026-08-11T13:00:00Z';
 
 /*
 The subject, a constant because the tracking row is written before the template is built and the
@@ -77,9 +79,9 @@ async function findCandidates() {
       -- Covers guests and bots in one test; every bot address ends this way by construction
       -- (see services/botPool.js), which is what already keeps player email away from them.
       AND u.email NOT LIKE '%@lms-guest.com'
-      AND u.created_at >= $1::timestamptz
-      -- Once only, ever. Covers sent and failed rows too, so pressing send twice does not
-      -- welcome the same person twice.
+      -- Once only, ever. Covers sent, failed AND skipped rows, so pressing send twice does not
+      -- welcome the same person twice - and so the 216 pre-existing accounts marked as sent in
+      -- Aug 2026 can never come back. This one clause is the whole no-backfill rule now.
       AND NOT EXISTS (
         SELECT 1 FROM email_queue eq
         WHERE eq.user_id = u.id
@@ -87,10 +89,10 @@ async function findCandidates() {
       )
       -- Opt-outs, defined once in services/emailPreference.js. There is no competition to mute
       -- here, so the per-competition arm of that test is passed a NULL it can never match.
-      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'NULL::int', groupParam: '$2' })}
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'NULL::int', groupParam: '$1' })}
 
     ORDER BY u.created_at, u.id
-  `, [CUTOFF, groupFor(EMAIL_TYPE)]);
+  `, [groupFor(EMAIL_TYPE)]);
 
   return result.rows;
 }
@@ -159,7 +161,6 @@ async function queueCandidate(candidate) {
 
 module.exports = {
   EMAIL_TYPE,
-  CUTOFF,
   SUBJECT,
   findCandidates,
   buildTemplateData,

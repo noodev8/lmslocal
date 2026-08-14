@@ -18,7 +18,6 @@ than sent - a welcome to a competition someone joined last week is worse than no
 
 Eligibility is now derived here, live, and the queue row is written at send time like every other
 comms email. The rules, all in findCandidates below:
-  - member joined on or after CUTOFF
   - membership is active
   - not the organiser of the competition they joined (they get created_comp instead)
   - real email (guest and bot accounts both use @lms-guest.com)
@@ -38,14 +37,22 @@ orphan all of that to no benefit.
 const EMAIL_TYPE = 'welcome';
 
 /*
-No backfill, the same decision as Join LMS and Created Comp. Every existing member of every
-competition would otherwise become a candidate the moment this was wired - dozens per competition,
-all of them welcomed to something they joined weeks ago.
+No backfill - and it is now DATA rather than a date in code. Retired 2026-08-14, with Join LMS
+and Created Comp.
 
-Set to the moment of wiring. The Z matters: db/query.js prints local time, BST, an hour ahead, and
-a value copied off that output lands an hour in the future. That has already happened once.
+The rule is unchanged: nobody who joined before this email was wired ever gets it. A welcome to a
+competition somebody joined in January is worse than no welcome.
+
+What changed is the enforcement. A CUTOFF constant here ('2026-08-11T17:03:00Z') excluded anyone
+who joined before it - the same job as marking somebody as sent, done by date, permanently, and
+invisibly, so the count on the admin card had a filter behind it nobody could see.
+
+The 104 memberships it was hiding were written off explicitly instead
+(db/mark-comp-welcome-backlogs-skipped.sql, run once), and the once-ever guard below does the
+whole job on its own. 104 rather than the 35 then eligible, deliberately: opt-outs can be
+reversed and competition_user.status can be set back to active from the admin tool, and either
+would resurrect a months-old welcome. The net is cast wider than candidacy on purpose.
 */
-const CUTOFF = '2026-08-11T17:03:00Z';
 
 /**
  * The subject line. A function because it carries the competition name, and the tracking row is
@@ -106,9 +113,9 @@ async function findCandidates(opts = {}) {
       ON org.id = c.organiser_id
 
     WHERE cu.status = 'active'
-      AND cu.joined_at >= $1::timestamptz
-      -- Once per membership, ever. Covers sent and failed rows too, so pressing send twice does
-      -- not welcome the same player twice.
+      -- Once per membership, ever. Covers sent, failed AND skipped rows, so pressing send twice
+      -- does not welcome the same player twice - and so the 104 memberships marked as sent in
+      -- Aug 2026 can never come back. This one clause is the whole no-backfill rule now.
       AND NOT EXISTS (
         SELECT 1 FROM email_queue eq
         WHERE eq.user_id = cu.user_id
@@ -116,12 +123,12 @@ async function findCandidates(opts = {}) {
           AND eq.email_type = '${EMAIL_TYPE}'
       )
       -- Opt-outs, defined once in services/emailPreference.js
-      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$2' })}
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$1' })}
       -- Optional competition filter. Passing NULL leaves every competition in.
-      AND ($3::int IS NULL OR c.id = $3)
+      AND ($2::int IS NULL OR c.id = $2)
 
     ORDER BY cu.joined_at, cu.user_id
-  `, [CUTOFF, groupFor(EMAIL_TYPE), competition_id]);
+  `, [groupFor(EMAIL_TYPE), competition_id]);
 
   return result.rows;
 }
@@ -210,7 +217,6 @@ async function queueCandidate(candidate) {
 
 module.exports = {
   EMAIL_TYPE,
-  CUTOFF,
   subjectFor,
   findCandidates,
   buildTemplateData,

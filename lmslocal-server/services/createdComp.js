@@ -12,7 +12,6 @@ Nothing in routes/create-competition.js triggers this. Sending is operator-drive
 Emails screen like every other comms email; see docs/email/README.md.
 
 The eligibility rules, all in findCandidates below:
-  - competition created on or after CUTOFF (see the note on that constant)
   - organiser has a real email (guest and bot accounts both use @lms-guest.com)
   - no created_comp already queued for this competition, whatever its status
   - not opted out of organiser.welcome, per services/emailPreference.js
@@ -35,18 +34,21 @@ const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require
 const EMAIL_TYPE = 'created_comp';
 
 /*
-No backfill. Same decision as Join LMS, and for the same reason: 18 competitions existed when this
-was built and none had ever had this email. "You have created a competition" about one set up in
-June is a bad email whoever receives it.
+No backfill - and it is now DATA rather than a date in code. Retired 2026-08-14, with Join LMS
+and Join Comp.
 
-Set just after the newest competition at the time of writing (2026-08-10 21:55 UTC), so nothing
-that already existed can qualify however long this sits unsent.
+The rule is unchanged: no competition that already existed when this was wired ever gets it.
+"You have created a competition" about one set up in June is a bad email whoever receives it.
 
-The Z matters - db/query.js prints local time, BST, an hour ahead. A value copied straight off
-that output lands an hour in the future and silently excludes real signups. That has already
-happened once, on services/joinLms.js.
+What changed is the enforcement. A CUTOFF constant here ('2026-08-11T16:45:00Z') excluded anything
+created before it - the same job as marking as sent, done by date, permanently, and invisibly, so
+the count on the admin card had a filter behind it nobody could see.
+
+The 16 competitions it was hiding were written off explicitly instead
+(db/mark-comp-welcome-backlogs-skipped.sql, run once), and the once-ever guard below does the
+whole job on its own. Written regardless of opt-out, since a preference reversed later would
+otherwise resurrect a months-old email.
 */
-const CUTOFF = '2026-08-11T16:45:00Z';
 
 /*
 The subject is a constant because the tracking row is written before the template is built and the
@@ -96,21 +98,21 @@ async function findCandidates(opts = {}) {
       AND u.email != ''
       AND u.email NOT LIKE '%@lms-guest.com'
 
-    WHERE c.created_at >= $1::timestamptz
-      -- Once per competition, ever. Covers sent and failed rows too, so pressing send twice does
-      -- not congratulate the same organiser twice.
-      AND NOT EXISTS (
+    -- Once per competition, ever. Covers sent, failed AND skipped rows, so pressing send twice
+    -- does not congratulate the same organiser twice - and so the 16 competitions marked as sent
+    -- in Aug 2026 can never come back. This one clause is the whole no-backfill rule now.
+    WHERE NOT EXISTS (
         SELECT 1 FROM email_queue eq
         WHERE eq.competition_id = c.id
           AND eq.email_type = '${EMAIL_TYPE}'
       )
       -- Opt-outs, defined once in services/emailPreference.js
-      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$2' })}
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$1' })}
       -- Optional competition filter. Passing NULL leaves every competition in.
-      AND ($3::int IS NULL OR c.id = $3)
+      AND ($2::int IS NULL OR c.id = $2)
 
     ORDER BY c.created_at, c.id
-  `, [CUTOFF, groupFor(EMAIL_TYPE), competition_id]);
+  `, [groupFor(EMAIL_TYPE), competition_id]);
 
   return result.rows;
 }
@@ -205,7 +207,6 @@ async function queueCandidate(candidate) {
 
 module.exports = {
   EMAIL_TYPE,
-  CUTOFF,
   subjectFor,
   findCandidates,
   buildTemplateData,

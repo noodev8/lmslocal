@@ -36,8 +36,8 @@ Unlike gameStartReminder there is no second evaluation stage. "Would pressing Re
 round?" needed the staged batch and could not be expressed in SQL; "is the last round settled and
 is there nothing after it?" is entirely in these tables.
 
-There is no CUTOFF, as with the other reminders: eligibility is live state - fixtures are owed
-today - so there is no history to backfill.
+Nothing guards a backfill here, as with the other reminders: eligibility is live state - fixtures
+are owed today - so no history can accumulate for this to work through.
 =======================================================================================================================================
 */
 

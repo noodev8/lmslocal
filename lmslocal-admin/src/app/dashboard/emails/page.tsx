@@ -133,7 +133,17 @@ const OUTLINE: OutlineEmail[] = [
     blurb:
       'What an organiser gets after creating a competition — the invite code and join link, framed as the thing to forward. One recipient per competition, once ever. Not the confirmation screen again: this one has to be findable in an inbox a week later.',
   },
-  { key: 'join_lms', consumer: 'All', section: 'Info', name: 'Welcome Join LMS', scoped: false, note: 'New signups only' },
+  {
+    key: 'join_lms',
+    consumer: 'All',
+    section: 'Info',
+    name: 'Welcome Join LMS',
+    scoped: false,
+    note: 'New signups only',
+    focus: true,
+    blurb:
+      'What anyone gets once, when they first have an LMS Local account — however they arrived. No competition attached, so it explains the game and offers both doors rather than guessing whether they came to play or to organise.',
+  },
   // The outline's BROADCAST block is deliberately absent from this table. Broadcast from Admin
   // lives on its own screen - the message is typed rather than derived, so there is nothing here
   // to preview or count, and the header button is the way in. Broadcast from Organiser was

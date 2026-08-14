@@ -16,9 +16,14 @@ This is a full-stack application with two main components:
 - **Port**: 3015
 - **Authentication**: JWT tokens with bcrypt password hashing
 - **Token Policy**: Keep JWT tokens simple and consistent - only include user identification fields (user_id, email, display_name). Any additional data should be fetched from database when needed.
-- **Email**: Resend. **Read `docs/email/README.md` before touching anything that sends email**,
-  and change the doc first. `docs/email/email-outline.xlsx` is the authoritative list of what we
-  send; the README maps it onto the code and carries a step-by-step for wiring the next one.
+- **Email**: Resend. **Read `docs/email/README.md` before touching anything that sends email.**
+  `docs/email/email-outline.xlsx` is the authoritative list of what we send; the README maps it
+  onto the code and carries a step-by-step for wiring the next one.
+  - **Do not update the README as a matter of course** (rule set 2026-08-14). It was written
+    while the design was being settled, when "change the doc first" was the right discipline. The
+    shape is agreed now, and a doc edit on every tweak is noise that buries the decisions worth
+    keeping. **Ask, and update it when Andreas agrees** — a real decision, a rule that changed, a
+    trap someone would otherwise re-discover. Not a button label or a count that moved.
   The short version:
   - `services/emailService.js` — **`deliver()` is the single exit point**, with test mode as a
     parameter. Do not call `resend.emails.send` directly; seven senders once did, which is why a

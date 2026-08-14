@@ -37,9 +37,13 @@ be noise, and they would have forgotten by the time it mattered.
 const REMINDER_BEFORE_HOURS = 48;
 
 /*
-No CUTOFF, unlike the welcome emails. Eligibility is "round 1 locks inside the next 48 hours",
-which nothing historical can satisfy however long this sits unsent - a competition that started
-last month has a lock time in the past. There is no backfill to guard against.
+Nothing guards a backfill here, and nothing needs to. Eligibility is "round 1 locks inside the
+next 48 hours", which nothing historical can satisfy however long this sits unsent - a competition
+that started last month has a lock time in the past.
+
+The three welcome emails needed the opposite: everyone who already existed qualified the moment
+they were wired, so their backlogs were written off as 'skipped' rows in Aug 2026 (see
+db/mark-join-lms-backlog-skipped.sql). A live-state email never accumulates one.
 */
 
 /*

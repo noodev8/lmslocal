@@ -27,7 +27,7 @@ The guards, and why each exists:
   APPLICABILITY, per hint. The mid-round hint is meaningless - actively wrong - for an automated
   competition, whose organiser never enters a result at all.
 
-There is no CUTOFF and no cooldown beyond the above: a hint is sent once and never again.
+There is no backfill guard and no cooldown beyond the above: a hint is sent once and never again.
 =======================================================================================================================================
 */
 

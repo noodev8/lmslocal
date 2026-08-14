@@ -31,8 +31,9 @@ the competition as if Ready had been pressed. Reason: the first-round path in ev
 returns NOT_READY before it checks the gameweek, kickoff and 48-hour lead-time rules, so
 "ready_at IS NULL" alone would happily chase an organiser toward a button that would refuse them.
 
-There is no CUTOFF here, unlike the other emails. Eligibility is live state - a round is available
-and unclaimed today - so there is no history to backfill.
+Nothing guards a backfill here, and nothing needs to. Eligibility is live state - a round is
+available and unclaimed today - so no history can accumulate for this to work through. The three
+welcome emails were the opposite case and had theirs written off as 'skipped' rows in Aug 2026.
 =======================================================================================================================================
 */
 
