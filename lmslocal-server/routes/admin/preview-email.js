@@ -149,12 +149,19 @@ router.post('/', verifyAdminToken, async (req, res) => {
         competition_id: c.competition_id ?? null,
         competition_name: c.competition_name ?? null,
         /*
-        When this candidate became one - a join for a welcome, a creation for created_comp. It is
-        how the operator tells a fresh candidate from a backlog left over from before the email
-        existed, which is the whole judgement behind send-versus-mark. Services name the column
-        for their own trigger, so take whichever is present.
+        When this candidate became one - a join for a welcome, a creation for created_comp, the
+        moment a round settled for fixture_reminder, the last kickoff for result_reminder. It is
+        how the operator tells a fresh candidate from one that has been waiting, which is the
+        judgement behind send-versus-mark and behind whether a nudge is overdue.
+
+        Each is the clock the organiser's players are actually watching: not when we noticed, but
+        when the thing they are waiting on happened.
+
+        Services name the column for their own trigger, so take whichever is present. They do not
+        collide today - each candidate row carries exactly one of these - and a service adding a
+        new trigger column just adds itself to this list.
         */
-        since: c.joined_at ?? c.created_at ?? null,
+        since: c.settled_at ?? c.last_kickoff ?? c.joined_at ?? c.created_at ?? null,
         // Present only on round-based emails; null on the platform-wide ones.
         round_number: c.round_number ?? null
       })),

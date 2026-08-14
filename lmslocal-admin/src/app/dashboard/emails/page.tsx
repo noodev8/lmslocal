@@ -107,8 +107,28 @@ const OUTLINE: OutlineEmail[] = [
   { key: 'game_complete', consumer: 'Player', section: 'Game', name: 'Game complete', scoped: true, note: 'Everyone who took part, once' },
   { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', scoped: false, note: 'Stuck 14+ days, round waiting' },
   { key: 'share_reminder', consumer: 'Organiser', section: 'Game', name: 'Share reminder', scoped: true, note: 'Round 1 locks in 48h - joining closes' },
-  { key: 'result_reminder', consumer: 'Organiser', section: 'Game', name: 'Result reminder', scoped: false, note: 'Round played 36h+, unsettled' },
-  { key: 'fixture_reminder', consumer: 'Organiser', section: 'Game', name: 'Fixture reminder', scoped: false, note: 'Last round settled 3+ days' },
+  {
+    key: 'result_reminder',
+    consumer: 'Organiser',
+    section: 'Game',
+    name: 'Result reminder',
+    scoped: false,
+    note: 'Round played 36h+, unsettled',
+    focus: true,
+    blurb:
+      'The matches have been played and the round has not been settled, so the competition is frozen and nobody can move. Copy branches on how far they got — nothing entered, some entered, or all entered and just needing processing. A nudge, so marking it as sent defers it seven days rather than ending it.',
+  },
+  {
+    key: 'fixture_reminder',
+    consumer: 'Organiser',
+    section: 'Game',
+    name: 'Fixture reminder',
+    scoped: false,
+    note: 'Last round settled 3+ days',
+    focus: true,
+    blurb:
+      'For an organiser who supplies their own fixtures: their last round is settled, three days have passed and the next round is not up, so their players are waiting. A nudge rather than a one-off — re-eligible seven days after the last attempt, so marking it as sent defers it rather than ending it.',
+  },
   { key: 'promote_competition', consumer: 'Organiser', section: 'Info', name: 'Hint - Promote competition', scoped: false, note: '3 days after creating, once ever' },
   { key: 'update_scores_mid_round_tip', consumer: 'Organiser', section: 'Info', name: 'Hint - Result set mid round', scoped: false, note: '7 days, manual comps with fixtures' },
   {
