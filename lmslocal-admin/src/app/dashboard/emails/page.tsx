@@ -838,8 +838,19 @@ export default function EmailsPage() {
     if (competitionId !== null) loadCounts(competitionId);
   }, [competitionId, loadCounts]);
 
+  /*
+  Count everything. Ten cards is ten candidate queries at roughly 24ms each - about a quarter of a
+  second, and the same total work as pressing every card's own button. Cheap enough that arriving
+  at the screen and counting the lot is the normal way in; the per-card button is what stops an
+  action on one card paying for the other nine.
+  */
   const refreshCounts = () => {
-    if (competitionId !== null) loadCounts(competitionId);
+    if (REMAINING.length > 0 && competitionId !== null) loadCounts(competitionId);
+    setReloadTokens((prev) => {
+      const next = { ...prev };
+      for (const e of FOCUS) next[e.key] = (next[e.key] ?? 0) + 1;
+      return next;
+    });
   };
 
   /* Only the card that was acted on. A send from one card cannot change another's count. */
@@ -864,7 +875,7 @@ export default function EmailsPage() {
           className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
         >
           <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">Refresh</span>
+          <span className="hidden sm:inline">Count all</span>
         </button>
       </AdminHeader>
 
@@ -926,6 +937,14 @@ export default function EmailsPage() {
           />
         ))}
 
+        {/*
+        The picker and the table below only exist for emails that have not been taken up yet.
+        Every email now has a card, so REMAINING is empty and both disappear - rather than leaving
+        a dropdown that narrows nothing above a table with only headers in it. They come back on
+        their own if an email is ever added to the outline without a card.
+        */}
+        {REMAINING.length > 0 && (
+          <>
         {/* Competition picker */}
         <div className="flex flex-wrap items-center gap-3">
           <label htmlFor="competition" className="text-sm font-medium text-slate-700">
@@ -1016,6 +1035,8 @@ export default function EmailsPage() {
             </table>
           </div>
         </section>
+          </>
+        )}
       </main>
 
       {open && (competition || !open.email.scoped || open.scopeAll) && (
