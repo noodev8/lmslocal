@@ -258,12 +258,14 @@ first, since pressing Ready would otherwise start a competition with no players 
 `services/shareReminder.js`, `email_type` **`share_reminder`**. Goes to an organiser whose
 **round 1 is about to lock**, because that is also the moment **joining closes**.
 
-**Not on `email-outline.xlsx` yet — add a row for it.** It exists because
-`docs/competition-start.md` changed what a new competition looks like: round 1 now exists from
-creation, so an organiser has a real, dated deadline from day one, and nothing was telling them
-about it. Its rules are written here rather than agreed in advance of the code, which is the wrong
-way round per "Wiring the next email" — so treat this section as a proposal to correct rather than
-a record of a decision.
+It exists because `docs/competition-start.md` changed what a new competition looks like: round 1
+now exists from creation, so an organiser has a real, dated deadline from day one, and nothing was
+telling them about it.
+
+**Its rules were written alongside the code rather than agreed in advance**, which is the wrong way
+round per "Wiring the next email" below. The outline row was added afterwards (2026-08-14), so this
+section is now a record rather than a proposal — but it was ratified, not agreed first, and the
+next email should not follow this order.
 
 - **Round 1 only** (`round_number = 1`). This is not a pick nudge — `pick_reminder` does that every
   round. It is about the join deadline, and `join-competition-by-code.js:134-151` closes joining

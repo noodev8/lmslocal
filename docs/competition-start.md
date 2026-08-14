@@ -365,8 +365,8 @@ Each step is deployable on its own; nothing is user-visible until step 4.
    `gameStartReminder` was **not** retired: it chases competitions with no rounds, which a
    block-started one never is, so it excludes them already. See `docs/email/README.md`.
 
-   Outstanding: `share_reminder` needs a row on `email-outline.xlsx`, and its rules were written
-   alongside the code rather than agreed first — treat that README section as a proposal.
+   `share_reminder`'s outline row was added on 2026-08-14, after the fact — see
+   `docs/email/README.md` for why that order was wrong.
 6. ~~Docs: `CLAUDE.md`'s fixture-service section, `docs/round-state-machine.md`.~~ **Done.**
 
 **All six steps built.** What is left is not in this plan: nobody has clicked through the wizard or

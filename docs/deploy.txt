@@ -17,12 +17,11 @@ npm ci --omit=dev
 pm2 restart lmslocal_prod
 
 
-
-
 == lmslocal
 -- Vercel
 cd /lmslocal
 vercel --prod
+
 
 == App Stores
 223344
