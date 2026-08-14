@@ -252,6 +252,63 @@ export type AddFixturesResponse = ApiResponse & {
   team_list_name?: string;
 };
 
+/* ---- Fixture calendar ---------------------------------------------------------------------
+   A block is a future round's fixtures, keyed weeks ahead and held alongside others - which is
+   what fixture_load cannot do, since it may only hold the one batch going out. Promoting a block
+   copies it into fixture_load, and everything downstream of that is unchanged.
+   See docs/competition-start.md. */
+
+export interface BlockFixture {
+  id: number;
+  home_team_short: string;
+  away_team_short: string;
+  home_team_name: string;
+  away_team_name: string;
+  kickoff_time: string;
+}
+
+export interface FixtureBlock {
+  id: number;
+  /* What an organiser is shown when picking a start date, e.g. 'Sat 29 Aug'. */
+  label: string;
+  /* Only a block that starts a gameweek may be a competition's first round. */
+  opens_gameweek: boolean;
+  /* Set once promoted into fixture_load. Non-null means frozen - no more editing or deleting. */
+  staged_at: string | null;
+  created_at: string;
+  /* MIN kickoff across the block's fixtures - the lock time its round will get. Null if empty. */
+  lock_time: string | null;
+  /* Competitions whose first round came from this block. Above zero blocks deletion. */
+  competition_count: number;
+  fixtures: BlockFixture[];
+}
+
+/* One fixture as entered in the calendar UI, before it is saved. Unlike a staged batch, each
+   carries its own kickoff - a Saturday block holds a real 12:30 and a real 15:00. */
+export interface BlockFixtureInput {
+  home_team_short: string;
+  away_team_short: string;
+  kickoff_time: string;
+}
+
+export type FixtureBlocksResponse = ApiResponse & {
+  blocks?: FixtureBlock[];
+  /* True when fixture_load already holds a batch for this list, so nothing can be promoted. */
+  pending_batch?: boolean;
+};
+
+export type SaveFixtureBlockResponse = ApiResponse & {
+  block_id?: number;
+  fixtures_added?: number;
+};
+
+export type PromoteFixtureBlockResponse = ApiResponse & {
+  block_id?: number;
+  fixtures_staged?: number;
+  team_list_id?: number;
+  lock_time?: string;
+};
+
 export type StagedResultsResponse = ApiResponse & {
   fixtures?: StagedFixture[];
   total_fixtures?: number;
@@ -659,6 +716,64 @@ export const adminApi = {
     const response = await api.post<SetStagedResultResponse>('/admin/set-staged-result', {
       fixture_id: fixtureId,
       result,
+    });
+    return response.data;
+  },
+
+  // ---- Fixture calendar ------------------------------------------------------------------
+
+  // Blocks are the forward calendar. Several may exist at once for a team list - that is the
+  // whole point, and the reason they are not in fixture_load, which holds only what is going out.
+  getFixtureBlocks: async (teamListId: number): Promise<FixtureBlocksResponse> => {
+    const response = await api.get<FixtureBlocksResponse>('/admin/get-fixture-blocks', {
+      params: { team_list_id: teamListId },
+    });
+    return response.data;
+  },
+
+  addFixtureBlock: async (
+    teamListId: number,
+    label: string,
+    fixtures: BlockFixtureInput[],
+    opensGameweek: boolean
+  ): Promise<SaveFixtureBlockResponse> => {
+    const response = await api.post<SaveFixtureBlockResponse>('/admin/add-fixture-block', {
+      team_list_id: teamListId,
+      label,
+      fixtures,
+      opens_gameweek: opensGameweek,
+    });
+    return response.data;
+  },
+
+  // Fixtures are replaced wholesale, not merged - editing a block is re-keying it.
+  updateFixtureBlock: async (
+    blockId: number,
+    label: string,
+    fixtures: BlockFixtureInput[],
+    opensGameweek: boolean
+  ): Promise<SaveFixtureBlockResponse> => {
+    const response = await api.post<SaveFixtureBlockResponse>('/admin/update-fixture-block', {
+      block_id: blockId,
+      label,
+      fixtures,
+      opens_gameweek: opensGameweek,
+    });
+    return response.data;
+  },
+
+  deleteFixtureBlock: async (blockId: number): Promise<ApiResponse> => {
+    const response = await api.post<ApiResponse>('/admin/delete-fixture-block', {
+      block_id: blockId,
+    });
+    return response.data;
+  },
+
+  // The handover into the existing flow: after this, push per competition on the fixtures
+  // screen and then clear the batch, exactly as before.
+  promoteFixtureBlock: async (blockId: number): Promise<PromoteFixtureBlockResponse> => {
+    const response = await api.post<PromoteFixtureBlockResponse>('/admin/promote-fixture-block', {
+      block_id: blockId,
     });
     return response.data;
   },

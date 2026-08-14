@@ -24,8 +24,10 @@ round with its own deadline - which is what every round in the database currentl
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ArrowPathIcon,
+  CalendarDaysIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
@@ -1367,6 +1369,15 @@ export default function FixturesPage() {
   return (
     <div className="min-h-screen">
       <AdminHeader title="Fixtures" backHref="/dashboard">
+        {/* The forward calendar. Blocks are keyed there weeks ahead and staged into this screen
+            when their kickoffs are confirmed - see docs/competition-start.md. */}
+        <Link
+          href="/dashboard/fixtures/calendar"
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10"
+        >
+          <CalendarDaysIcon className="h-4 w-4" />
+          <span className="hidden sm:inline">Calendar</span>
+        </Link>
         <button
           onClick={load}
           disabled={loading}

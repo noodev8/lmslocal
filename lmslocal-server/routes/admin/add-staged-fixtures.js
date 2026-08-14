@@ -73,6 +73,7 @@ const express = require('express');
 const { query, transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
+const { validateFixtures } = require('../../services/fixtureBlock');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
@@ -142,45 +143,11 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // ========================================
     // STEP 3: Every code must be a real team in this list, used at most once
     // ========================================
-    const teamsResult = await query(
-      'SELECT short_name FROM team WHERE team_list_id = $1 AND is_active = true',
-      [team_list_id]
-    );
-    const validShortNames = new Set(teamsResult.rows.map((row) => row.short_name));
-
-    const seen = new Set();
-    for (let i = 0; i < fixtures.length; i++) {
-      const { home_team_short: home, away_team_short: away } = fixtures[i] || {};
-
-      if (!home || !away) {
-        return res.json({
-          return_code: 'VALIDATION_ERROR',
-          message: `Fixture ${i + 1} is missing a home or away team`
-        });
-      }
-
-      if (home === away) {
-        return res.json({
-          return_code: 'VALIDATION_ERROR',
-          message: `Fixture ${i + 1} has ${home} playing itself`
-        });
-      }
-
-      for (const code of [home, away]) {
-        if (!validShortNames.has(code)) {
-          return res.json({
-            return_code: 'VALIDATION_ERROR',
-            message: `"${code}" is not a team in ${teamList.name}`
-          });
-        }
-        if (seen.has(code)) {
-          return res.json({
-            return_code: 'VALIDATION_ERROR',
-            message: `${code} appears more than once in this batch`
-          });
-        }
-        seen.add(code);
-      }
+    // Shared with the calendar blocks (services/fixtureBlock.js) so a block cannot pass
+    // validation when it is keyed and then fail it when it is promoted into this table.
+    const check = await validateFixtures(team_list_id, fixtures, teamList.name);
+    if (!check.ok) {
+      return res.json({ return_code: 'VALIDATION_ERROR', message: check.message });
     }
 
     // ========================================

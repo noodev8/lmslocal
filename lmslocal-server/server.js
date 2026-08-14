@@ -136,6 +136,13 @@ const deleteAdminCompetitionRoute = require('./routes/admin/delete-admin-competi
 const impersonateOrganiserRoute = require('./routes/admin/impersonate-organiser');
 const getFixtureTeamListsRoute = require('./routes/admin/get-fixture-team-lists');
 const addStagedFixturesRoute = require('./routes/admin/add-staged-fixtures');
+// The forward fixture calendar - blocks keyed weeks ahead, promoted into the staging table above
+// when their kickoffs are confirmed. See docs/competition-start.md.
+const getFixtureBlocksRoute = require('./routes/admin/get-fixture-blocks');
+const addFixtureBlockRoute = require('./routes/admin/add-fixture-block');
+const updateFixtureBlockRoute = require('./routes/admin/update-fixture-block');
+const deleteFixtureBlockRoute = require('./routes/admin/delete-fixture-block');
+const promoteFixtureBlockRoute = require('./routes/admin/promote-fixture-block');
 const getStagedResultsRoute = require('./routes/admin/get-staged-results');
 const setStagedResultRoute = require('./routes/admin/set-staged-result');
 const setFixtureServiceRoute = require('./routes/admin/set-fixture-service');
@@ -500,6 +507,11 @@ app.use('/admin/delete-admin-competition', deleteAdminCompetitionRoute);
 app.use('/admin/impersonate-organiser', impersonateOrganiserRoute);
 app.use('/admin/get-fixture-team-lists', getFixtureTeamListsRoute);
 app.use('/admin/add-staged-fixtures', addStagedFixturesRoute);
+app.use('/admin/get-fixture-blocks', getFixtureBlocksRoute);
+app.use('/admin/add-fixture-block', addFixtureBlockRoute);
+app.use('/admin/update-fixture-block', updateFixtureBlockRoute);
+app.use('/admin/delete-fixture-block', deleteFixtureBlockRoute);
+app.use('/admin/promote-fixture-block', promoteFixtureBlockRoute);
 app.use('/admin/get-staged-results', getStagedResultsRoute);
 app.use('/admin/set-staged-result', setStagedResultRoute);
 app.use('/admin/set-fixture-service', setFixtureServiceRoute);

@@ -51,7 +51,8 @@ This is a full-stack application with two main components:
   (`JWT_ADMIN_SECRET`), a `scope: "admin"` claim, and a live `app_user.is_admin` check
 - **Rule**: never add an admin bypass to an existing player route; admin gets its own routes
 - **Screens**: `/dashboard` (read-only platform snapshot, the landing page),
-  `/dashboard/competitions`, `/dashboard/organisers`, `/dashboard/fixtures`, `/dashboard/bots`
+  `/dashboard/competitions`, `/dashboard/organisers`, `/dashboard/fixtures`,
+  `/dashboard/fixtures/calendar`, `/dashboard/bots`
 - **Bots**: placeholder players for seeding a competition. **A bot is never chargeable** — it costs
   no credit and takes no free place, in every counting query, via the shared definition in
   `services/botPool.js`. They are still confined to organisers listed there, but for a product
@@ -391,6 +392,18 @@ lmslocal-web/
   Who supplies fixtures (`fixture_service`) is **fixed at creation**. `update-competition` ignores
   it, the settings screen does not offer it, and `set-fixture-service-organiser` is unregistered in
   `server.js` — change it in the database on request. A reset preserves it.
+- **The forward calendar** (`fixture_block` / `fixture_block_item`, `/dashboard/fixtures/calendar`)
+  — **read `docs/competition-start.md` before touching it**, and change the doc first.
+  `fixture_load` was doing two jobs: the calendar of what is coming AND the batch going out now.
+  Its one-batch-at-a-time rule is right for the second and made the first impossible, which is why
+  a new competition sat empty while its organiser recruited. Blocks are the calendar: several at
+  once, provisional, editable, keyed by hand weeks ahead. **Stage** copies one into `fixture_load`
+  (`/admin/promote-fixture-block`) and everything downstream — push per competition, clear the
+  batch — is unchanged. Routes: `/admin/get-fixture-blocks`, `add-fixture-block`,
+  `update-fixture-block`, `delete-fixture-block`, `promote-fixture-block`. Team validation is
+  shared with `add-staged-fixtures` via `services/fixtureBlock.js`, so a block cannot pass when
+  keyed and fail when promoted. **Steps 3–6 of that doc are not built**: competition creation does
+  not bind round 1 to a block yet, so `ready_at` and the Ready button are still live.
 - **The model**: only one staged batch at a time per team list — `fixture_load` itself is the
   pending batch. `add-staged-fixtures` refuses a new one while it's non-empty; a batch clears
   when the admin presses **Clear staged batch** (`/admin/clear-staged-batch`), which is a
