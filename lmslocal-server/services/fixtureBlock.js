@@ -54,6 +54,41 @@ const START_LEAD_TIME_MS = START_LEAD_TIME_HOURS * 60 * 60 * 1000;
 const MAX_START_OPTIONS = 3;
 
 /**
+ * How close the soonest option may be and still be the DEFAULT.
+ *
+ * Distinct from START_LEAD_TIME_HOURS, which decides what is offered at all. An organiser who
+ * deliberately picks a round starting tonight should be able to; one who accepts whatever was
+ * preselected should not find they have two hours to get everybody in. So the soonest date is
+ * offered, and defaulted to, unless it is inside this - then the default moves out one.
+ */
+const DEFAULT_MIN_HOURS = 48;
+
+/*
+Whether a block may still be offered as a start date.
+
+Two kinds qualify, and this is why hand-staged batches now get a block of their own
+(routes/admin/add-staged-fixtures.js):
+
+  - not yet promoted - a future calendar block, the ordinary case
+  - promoted, still sitting in fixture_load, and no results entered against it. That is the batch
+    going out right now, and it is the SOONEST round a new competition could join. Leaving it out
+    meant an organiser was offered dates two and three weeks away while a round starting this
+    Friday was already staged and invisible to them.
+
+A batch with any result entered is excluded: that round is being played, and a competition created
+onto it would receive a round that arrived already decided.
+*/
+const OFFERABLE_BLOCK_SQL = `(
+  b.staged_at IS NULL
+  OR (
+    EXISTS (SELECT 1 FROM fixture_load fl WHERE fl.source_block_id = b.id)
+    AND NOT EXISTS (
+      SELECT 1 FROM fixture_load fl WHERE fl.source_block_id = b.id AND fl.home_score IS NOT NULL
+    )
+  )
+)`;
+
+/**
  * Check a set of home/away pairs against a team list.
  *
  * @param {number} teamListId
@@ -210,8 +245,8 @@ async function loadBlockContext(blockId) {
  * The blocks a new competition on this team list could start on, soonest first.
  *
  * Three conditions, and each one is a rule that would otherwise bite later:
- *   - not yet promoted. A staged block is going out now; a competition created against it would
- *     race the push.
+ *   - offerable (see OFFERABLE_BLOCK_SQL) - a future calendar block, or the batch staged right
+ *     now with no results against it, which is the soonest round anybody could join.
  *   - opens_gameweek. A real gameweek staged as several blocks must not start anybody on its
  *     Sunday slice, or their round 1 is two matches while everyone else plays ten.
  *   - lock time beyond the lead time. Below that there is not enough time to make a pick.
@@ -222,20 +257,21 @@ async function loadBlockContext(blockId) {
  *
  * @param {object} client - a transaction client, or the shared query helper's caller
  * @param {number} teamListId
- * @returns {Promise<Array<{id, label, lock_time, fixture_count}>>} up to MAX_START_OPTIONS
+ * @returns {Promise<Array<{id, label, lock_time, fixture_count, staged}>>} up to MAX_START_OPTIONS
  */
 async function getStartOptions(client, teamListId) {
   const result = await client.query(`
     SELECT
       b.id,
       b.label,
+      b.staged_at IS NOT NULL AS staged,
       MIN(i.kickoff_time) AS lock_time,
       COUNT(i.id) AS fixture_count
     FROM fixture_block b
     JOIN fixture_block_item i ON i.block_id = b.id
     WHERE b.team_list_id = $1
-      AND b.staged_at IS NULL
       AND b.opens_gameweek = true
+      AND ${OFFERABLE_BLOCK_SQL}
     GROUP BY b.id
     HAVING MIN(i.kickoff_time) > NOW() + ($2 || ' hours')::interval
     ORDER BY lock_time
@@ -246,8 +282,32 @@ async function getStartOptions(client, teamListId) {
     id: row.id,
     label: row.label,
     lock_time: row.lock_time,
-    fixture_count: parseInt(row.fixture_count, 10)
+    fixture_count: parseInt(row.fixture_count, 10),
+    // True for the batch already staged - its fixtures are confirmed rather than provisional.
+    staged: row.staged
   }));
+}
+
+/**
+ * Which option to preselect.
+ *
+ * **The soonest, unless it is inside DEFAULT_MIN_HOURS** - then the next one out. An organiser who
+ * accepts the default should always have a couple of days to get people in; one who deliberately
+ * picks tonight's round still can, because every option remains selectable.
+ *
+ * Falls back to the last option when every one is inside the window, since that is the most notice
+ * available. Null for an empty list.
+ *
+ * @param {Array<{id, lock_time}>} options - as returned by getStartOptions, soonest first
+ * @returns {number|null} block id to preselect
+ */
+function recommendedFrom(options, now = new Date()) {
+  if (!options || options.length === 0) return null;
+
+  const floor = now.getTime() + DEFAULT_MIN_HOURS * 60 * 60 * 1000;
+  const comfortable = options.find((option) => new Date(option.lock_time).getTime() >= floor);
+
+  return (comfortable ?? options[options.length - 1]).id;
 }
 
 /**
@@ -263,7 +323,9 @@ async function getStartOptions(client, teamListId) {
  */
 async function loadBlockForStart(client, blockId, teamListId) {
   const blockResult = await client.query(
-    `SELECT id, team_list_id, label, opens_gameweek, staged_at FROM fixture_block WHERE id = $1`,
+    `SELECT b.id, b.team_list_id, b.label, b.opens_gameweek, b.staged_at,
+            ${OFFERABLE_BLOCK_SQL} AS offerable
+     FROM fixture_block b WHERE b.id = $1`,
     [blockId]
   );
 
@@ -278,7 +340,9 @@ async function loadBlockForStart(client, blockId, teamListId) {
     return { ok: false, code: 'START_BLOCK_UNAVAILABLE', message: 'That start date is not available for this team list.' };
   }
 
-  if (block.staged_at !== null || block.opens_gameweek !== true) {
+  // Same rule getStartOptions offers on, so a date that was on the form is still a legal answer.
+  // It stops being one once the batch is resulted or cleared, which is what this re-check catches.
+  if (block.offerable !== true || block.opens_gameweek !== true) {
     return { ok: false, code: 'START_BLOCK_UNAVAILABLE', message: 'That start date is no longer available. Choose another.' };
   }
 
@@ -374,7 +438,9 @@ async function createRoundFromBlock(client, competitionId, teamListId, blockId) 
 module.exports = {
   LABEL_MAX,
   START_LEAD_TIME_HOURS,
+  DEFAULT_MIN_HOURS,
   MAX_START_OPTIONS,
+  recommendedFrom,
   validateFixtures,
   loadBlocks,
   loadBlockContext,

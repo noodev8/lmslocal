@@ -41,6 +41,23 @@ export function formatLockTime(iso: string): string {
   });
 }
 
+/*
+How long they have to recruit, which is the number the choice actually turns on. A date alone
+makes the organiser count on their fingers, and "Fri 28 Aug" reads the same whether it is
+tomorrow or a fortnight off.
+
+Counted in calendar days rather than 24-hour blocks: an organiser choosing a Friday round on a
+Wednesday thinks "two days", not "one and a half".
+*/
+export function daysUntil(iso: string, now: Date = new Date()): string {
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(new Date(iso)) - startOfDay(now)) / 86400000);
+
+  if (days <= 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  return `in ${days} days`;
+}
+
 export default function StartDateChooser({
   teamListId,
   value,
@@ -133,8 +150,13 @@ export default function StartDateChooser({
                     selected ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 hover:border-ink'
                   }`}
                 >
-                  <p className={`${LABEL} mb-1`}>{option.label}</p>
-                  <p className={`text-[12px] ${selected ? 'text-stock/85' : 'text-ink-fade'}`}>
+                  {/* The gap first and largest: it is the number the choice turns on, and a date
+                      on its own reads the same whether it is tomorrow or a fortnight away. */}
+                  <p className={`font-display text-lg leading-tight ${selected ? 'text-stock-lit' : 'text-ink'}`}>
+                    {daysUntil(option.lock_time)}
+                  </p>
+                  <p className={`${LABEL} mt-1`}>{option.label}</p>
+                  <p className={`mt-1 text-[12px] ${selected ? 'text-stock/85' : 'text-ink-fade'}`}>
                     {formatLockTime(option.lock_time)}
                   </p>
                   <p className={`mt-1 text-[12px] ${selected ? 'text-stock/70' : 'text-ink-fade'}`}>
@@ -150,8 +172,9 @@ export default function StartDateChooser({
               burned teams - so joining closes when round 1 locks. */}
           {chosen && (
             <p className="mt-3 border-t border-ink/30 pt-3 text-[13px] text-ink-fade">
-              Players can join right up until kick-off on{' '}
-              <span className="text-ink">{formatLockTime(chosen.lock_time)}</span>. After that the
+              That gives you <span className="text-ink">{daysUntil(chosen.lock_time)}</span> to get
+              players in. They can join right up until kick-off on{' '}
+              <span className="text-ink">{formatLockTime(chosen.lock_time)}</span> — after that the
               competition is closed and everyone plays the same rounds.
             </p>
           )}

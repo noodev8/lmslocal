@@ -407,7 +407,13 @@ lmslocal-web/
   **A competition created against a block has round 1 from the moment it exists** — real fixtures,
   a real lock time, provisional until the block is promoted. `create-competition` takes
   `start_block_id`, offered by `/get-competition-start-options` (up to three dates, no fixtures —
-  the organiser picks *when*, not *which*). `START_LEAD_TIME_HOURS = 1` in `fixtureBlock.js`.
+  the organiser picks *when*, not *which*, and each is shown as "in N days"). Two thresholds in
+  `fixtureBlock.js`: `START_LEAD_TIME_HOURS = 1` decides what is offered, `DEFAULT_MIN_HOURS = 48`
+  decides what is preselected — the soonest option unless it locks inside 48h.
+
+  **`add-staged-fixtures` creates a `fixture_block` for every batch it stages**, so the batch
+  going out now is itself a start option — usually the soonest one — and the push can reconcile
+  onto it. There is one kind of thing, not "blocks and also batches".
   When the block is pushed, `pushFixturesToCompetition` **reconciles** that round rather than
   creating a second one, re-points picks by team, and clears `source_block_id`.
 

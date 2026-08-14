@@ -131,26 +131,40 @@ across the fixtures.
 
 Fixture-service competitions only. `fixture_service = false` is untouched.
 
-**Offer:** up to three blocks for the competition's `team_list_id`, ordered by lock time, where:
+**Offer:** up to three blocks for the competition's `team_list_id`, soonest first, where:
 
-- `staged_at IS NULL` — not already pushed out
+- **offerable** — either not yet promoted, or the batch **currently staged with no results
+  entered**. That second case matters: the staged batch is normally the *soonest* round anybody
+  could join, and leaving it out offered dates a fortnight away while a round starting this week
+  sat in `fixture_load` invisible to the wizard. It is why `add-staged-fixtures` now creates a
+  `fixture_block` for every batch it stages (`OFFERABLE_BLOCK_SQL` in `services/fixtureBlock.js`).
+- `opens_gameweek`
 - lock time > `now() + START_LEAD_TIME_HOURS`
 
 ```
 When does it start?
 
-  ( ) Sat 22 Aug          ( •) Sat 29 Aug          ( ) Sat 5 Sep
-                          recommended — a week
-                          to get your players in
+  ( •) in 7 days          ( ) in 14 days          ( ) in 21 days
+       Fri 21 Aug              Fri 28 Aug              Fri 4 Sept
+       Fri 21 Aug, 8:00pm      Fri 28 Aug, 8:00pm      Fri 4 Sept, 8:00pm
+       10 matches              10 matches              10 matches
 ```
+
+**The gap comes first and largest.** "Fri 28 Aug" reads the same whether it is tomorrow or a
+fortnight off, and the number the organiser is actually choosing on is how long they have to
+recruit. Counted in calendar days, not 24-hour blocks — choosing a Friday round on a Wednesday is
+"in 2 days", not "in 1".
+
+**Default: the soonest, unless it locks within `DEFAULT_MIN_HOURS` (48)** — then the next one out,
+falling back to the latest if every option is inside the window. Distinct from
+`START_LEAD_TIME_HOURS`, which decides what is *offered*: somebody who deliberately wants tonight's
+round can still pick it, but somebody who accepts the preselection always gets a couple of days.
+One definition, `recommendedFrom()`, so the create wizard and the reset dialog cannot disagree.
 
 **The organiser sees the date, not the fixtures.** Ten fixtures invites them to shop between
 gameweeks — a choice they have no basis to make, and one that quietly makes them feel responsible
 for the matches. They are choosing when their competition starts. The *player* sees the fixtures,
 on the pick screen, which already works.
-
-Default to the second option where three are offered; the middle of the menu otherwise. A week is
-enough to recruit and longer loses attention.
 
 ### `START_LEAD_TIME_HOURS = 1`
 

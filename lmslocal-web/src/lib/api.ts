@@ -363,6 +363,8 @@ export interface StartOption {
   /* When round 1 locks - which is also when joining closes, the thing to put in front of them. */
   lock_time: string;
   fixture_count: number;
+  /* True for the batch already staged and going out - normally the soonest date on offer. */
+  staged?: boolean;
 }
 
 export interface UpdateCompetitionRequest {

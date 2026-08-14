@@ -76,6 +76,22 @@ const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { validateFixtures } = require('../../services/fixtureBlock');
 const router = express.Router();
 
+/*
+The name an organiser sees when this batch is offered as a start date, e.g. "Fri 21 Aug". Derived
+from the kickoff rather than asked for: this form has no label field and adding one would ask
+whoever stages fixtures to name something they never see.
+
+Europe/London explicitly - a Friday 20:00 kickoff is stored as 19:00 UTC, and a server outside the
+UK would otherwise label it Friday or Thursday depending on where it happened to be running.
+*/
+const labelForKickoff = (kickoffTime) =>
+  new Date(kickoffTime).toLocaleDateString('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  });
+
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('add-staged-fixtures');
 
@@ -151,21 +167,51 @@ router.post('/', verifyAdminToken, async (req, res) => {
     }
 
     // ========================================
-    // STEP 4: Insert the batch
+    // STEP 4: Insert the batch, and record it as a block
     // ========================================
+    /*
+    A batch staged by hand gets a fixture_block of its own, created already-staged. It is not a
+    calendar entry - nobody will ever promote it - but it gives the batch an identity, and two
+    things need one:
+
+      - a NEW COMPETITION can start on it. This batch is normally the soonest round anyone could
+        join, and before this it was invisible to the create wizard, which offered dates a
+        fortnight out while a round starting this week sat here (services/fixtureBlock.js).
+      - the push can then RECONCILE that competition's round 1 rather than create a second one,
+        which it finds through fixture_load.source_block_id.
+
+    Doing it here rather than special-casing "batches with no block" everywhere downstream means
+    there is one kind of thing, not two. See docs/competition-start.md.
+    */
     await transaction(async (client) => {
+      const blockResult = await client.query(`
+        INSERT INTO fixture_block (team_list_id, label, opens_gameweek, staged_at)
+        VALUES ($1, $2, $3, NOW())
+        RETURNING id
+      `, [team_list_id, labelForKickoff(kickoff_time), opensGameweek]);
+
+      const blockId = blockResult.rows[0].id;
+
       for (const fixture of fixtures) {
         await client.query(`
+          INSERT INTO fixture_block_item
+            (block_id, home_team_short, away_team_short, kickoff_time)
+          VALUES ($1, $2, $3, $4)
+        `, [blockId, fixture.home_team_short, fixture.away_team_short, kickoff_time]);
+
+        await client.query(`
           INSERT INTO fixture_load
-            (team_list_id, league, home_team_short, away_team_short, kickoff_time, opens_gameweek)
-          VALUES ($1, $2, $3, $4, $5, $6)
+            (team_list_id, league, home_team_short, away_team_short, kickoff_time, opens_gameweek,
+             source_block_id)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
         `, [
           team_list_id,
           teamList.name,                // league - the list's own name, not a hardcoded string
           fixture.home_team_short,
           fixture.away_team_short,
           kickoff_time,
-          opensGameweek
+          opensGameweek,
+          blockId
         ]);
       }
     });

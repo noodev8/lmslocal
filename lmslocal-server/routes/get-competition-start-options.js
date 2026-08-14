@@ -21,7 +21,9 @@ Success Response (ALWAYS HTTP 200):
       "block_id": 7,                         // integer, pass back as create-competition's start_block_id
       "label": "Sat 29 Aug",                 // string, what to show
       "lock_time": "2026-08-29T14:00:00Z",   // string, when round 1 locks and joining closes
-      "fixture_count": 10                    // integer, how many matches are in round 1
+      "fixture_count": 10,                   // integer, how many matches are in round 1
+      "staged": false                        // boolean, true = fixtures already confirmed and
+                                             //   going out now, so this is the soonest start
     }
   ],
   "recommended_block_id": 12                 // integer or null - which to preselect
@@ -45,9 +47,14 @@ Data Notes:
   they have no basis to make, and would quietly make them feel responsible for the matches. Their
   players see the fixtures, on the pick screen.
 
-- recommended_block_id is the SECOND option when three are offered, otherwise the last one. A week
-  is enough to recruit and much longer loses attention, so the middle of the menu is the honest
-  default rather than the soonest.
+- The list includes the batch **already staged**, not just future calendar blocks - it is normally
+  the soonest round anybody could join, and leaving it out offered dates a fortnight away while a
+  round starting this week sat waiting. See services/fixtureBlock.js.
+
+- recommended_block_id is the **soonest** option, unless that one locks within DEFAULT_MIN_HOURS
+  (48) - then the next one out. Somebody who accepts the default always gets a couple of days to
+  recruit; somebody who deliberately wants tonight's round can still pick it, because every option
+  stays selectable.
 
 - An empty options array is a legitimate answer, not an error: the calendar has nothing far enough
   ahead. The wizard should still let the competition be created - it falls back to the older Ready
@@ -63,7 +70,7 @@ const express = require('express');
 const { query } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
 const { verifyToken } = require('../middleware/auth');
-const { getStartOptions } = require('../services/fixtureBlock');
+const { getStartOptions, recommendedFrom } = require('../services/fixtureBlock');
 const router = express.Router();
 
 router.get('/', verifyToken, async (req, res) => {
@@ -89,11 +96,12 @@ router.get('/', verifyToken, async (req, res) => {
         block_id: option.id,
         label: option.label,
         lock_time: option.lock_time,
-        fixture_count: option.fixture_count
+        fixture_count: option.fixture_count,
+        staged: option.staged
       })),
-      recommended_block_id: options.length >= 2
-        ? options[1].id
-        : (options[0]?.id ?? null)
+      // One definition, in the service, so the create wizard and the reset dialog cannot
+      // preselect different dates from the same list.
+      recommended_block_id: recommendedFrom(options)
     });
 
   } catch (error) {
