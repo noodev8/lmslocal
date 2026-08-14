@@ -23,7 +23,7 @@ const pickReminder = require('./pickReminder');
 const joinLms = require('./joinLms');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
-const gameStartReminder = require('./gameStartReminder');
+// gameStartReminder is not imported: unwired on purpose - see the note where its entry was.
 // shareReminder is not imported: it is unwired on purpose - see the note where its entry was.
 const fixtureReminder = require('./fixtureReminder');
 const resultReminder = require('./resultReminder');
@@ -39,8 +39,6 @@ const {
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,
   sendWelcomeCompetitionEmail,
-  buildGameStartReminderEmail,
-  sendGameStartReminderEmail,
   buildFixtureReminderEmail,
   sendFixtureReminderEmail,
   buildResultReminderEmail,
@@ -84,16 +82,24 @@ const CATALOG = {
     send: sendWelcomeCompetitionEmail
   },
   /*
-  Platform-wide, unlike the other reminders. "Which organisers are stuck?" is not a question about
-  one competition, and the operator wants the list rather than to hunt for it a competition at a
-  time.
+  game_start_reminder is UNWIRED, decided 2026-08-14 - the second email dropped that day, and for
+  the same reason as share_reminder.
+
+  It chased an organiser whose fixture-service competition could start today but who had never
+  pressed Ready. The state still exists: competition 207 was created on 8 Aug with no start block,
+  so it has no rounds and no ready_at, and it would have qualified on 22 Aug once past the 14-day
+  threshold. This is not being dropped because the case vanished.
+
+  It is being dropped because email is the wrong instrument for it. An organiser who has not
+  pressed a button in a fortnight is disengaged, and email is what disengaged people ignore - the
+  same argument that retired share_reminder. A notice on their own dashboard reaches them where
+  they would actually see it, with no send window and no operator.
+
+  services/gameStartReminder.js and its template stay on disk. Note what is worth keeping if it is
+  ever revived: it ran candidates through getCompetitionStartOutlook, the same function behind the
+  organiser's own start card, so nobody was ever chased toward a button that would then refuse
+  them. That guard took a bug to discover; do not rebuild without it.
   */
-  game_start_reminder: {
-    scoped: false,
-    service: gameStartReminder,
-    build: buildGameStartReminderEmail,
-    send: sendGameStartReminderEmail
-  },
   /*
   share_reminder is UNWIRED, decided 2026-08-14. Not a gap - it was built, measured and dropped.
 

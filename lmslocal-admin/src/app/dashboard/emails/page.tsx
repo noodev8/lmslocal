@@ -137,7 +137,14 @@ const OUTLINE: OutlineEmail[] = [
     blurb:
       'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all.',
   },
-  { key: 'game_start_reminder', consumer: 'Organiser', section: 'Game', name: 'Game Start reminder', scoped: false, note: 'Stuck 14+ days, round waiting' },
+  /*
+  Game Start reminder is deliberately absent, dropped 2026-08-14 alongside Share reminder and for
+  the same reason. It chased an organiser who had never pressed Ready on a competition that could
+  start today. The state still occurs - 207 was created with no start block and would have
+  qualified - but an organiser who has not pressed a button in a fortnight is disengaged, and
+  email is what disengaged people ignore. A dashboard notice reaches them where they are looking.
+  Service and template remain on disk, unwired. See services/emailCatalog.js.
+  */
   /*
   Share reminder is deliberately absent. Decided against 2026-08-14, after the numbers: every
   organiser plays in their own competition, so "1 player" means nobody joined - and of the four in
