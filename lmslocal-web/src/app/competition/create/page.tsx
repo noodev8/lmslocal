@@ -172,15 +172,19 @@ export default function CreateCompetitionPage() {
         } else {
           router.push('/dashboard');
         }
+        // Deliberately stays loading. router.push resolves long before the next
+        // screen paints, so releasing the button here flips it from a spinner
+        // back to "Create competition" while the user is still looking at this
+        // page — it reads as though nothing happened, on the one action they
+        // must not press twice. Only the failure paths below re-enable it.
         return;
-      } else {
-        setError(response.data.message || 'Failed to create competition');
       }
+
+      setError(response.data.message || 'Failed to create competition');
+      setLoading(false);
     } catch (err: unknown) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setError((err as any)?.response?.data?.message || 'An error occurred. Please try again.');
-    } finally {
-      // Only set loading to false on error - success keeps loading state until navigation
       setLoading(false);
     }
   };
