@@ -187,10 +187,21 @@ if (!fs.existsSync(path.dirname(dest))) {
 
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lms-chrome-'));
 
+/*
+ * Two roots. /app-public/* serves lmslocal-web/public/ so the tiles can use the
+ * app's own logo.png rather than a copy kept here — the copy in assets/ has a
+ * cream square baked in where the app's is cut out to the roundel, and two
+ * versions of a logo drift the moment one is touched.
+ */
+const APP_PUBLIC = path.resolve(ROOT, '../lmslocal-web/public');
+const APP_PREFIX = '/app-public/';
+
 const server = http.createServer((req, res) => {
   const rel = decodeURIComponent(req.url.split('?')[0]);
-  const file = path.join(ROOT, rel);
-  if (!file.startsWith(ROOT)) return res.writeHead(403).end();
+  const fromApp = rel.startsWith(APP_PREFIX);
+  const base = fromApp ? APP_PUBLIC : ROOT;
+  const file = path.join(base, fromApp ? rel.slice(APP_PREFIX.length) : rel);
+  if (!file.startsWith(base)) return res.writeHead(403).end();
   fs.readFile(file, (err, buf) => {
     if (err) return res.writeHead(404).end('not found');
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });

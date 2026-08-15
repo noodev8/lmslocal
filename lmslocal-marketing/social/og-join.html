@@ -33,11 +33,15 @@
       file exists is that the site-wide preview was selling the platform to
       organisers on a link sent to players.
 
-      The survival sheet carries the same names, teams and round as
-      leaflet/a5-landlord.html and the story tile. It is illustrative artwork,
-      not a claim — the honesty rules bite on figures and testimonials, and there
-      are none here. Someone who meets the game twice should not have to learn it
-      twice, so if these names change they change everywhere.
+      The badge is the app's own /logo.png, served over /app-public/ by
+      make-png.js rather than copied in here — assets/LMS-Local-Logo.png is the
+      same mark with a cream square baked in, which would show as a pale block
+      against the stock ground.
+
+      An earlier version used the survival sheet instead. It explained the game
+      better and looked like nothing else we ship; the badge is what people
+      already recognise as us, which matters more on a preview the size of a
+      thumbnail.
     -->
 
     <p class="screen-only max-w-[1200px] font-body text-sm text-white">
@@ -47,67 +51,36 @@
     </p>
 
     <div class="tile bg-stock font-body text-ink">
-      <div class="flex h-full gap-[56px] p-[64px]">
-        <!-- Left: what the game is ----------------------------------------- -->
+      <div class="flex h-full items-center gap-[64px] p-[72px]">
+        <!-- The badge. Fixed size and shrink-0: at thumbnail size it is the only
+             element anyone will actually recognise, so it must not be what gives
+             way when the copy grows. -->
+        <img
+          src="/app-public/logo.png"
+          alt="LMS Local"
+          class="h-[380px] w-[380px] shrink-0"
+        />
+
         <div class="flex min-w-0 flex-1 flex-col">
           <p class="text-[21px] font-medium uppercase tracking-[0.22em] text-overprint">
             You have been invited
           </p>
 
-          <h1 class="mt-[26px] font-display text-[104px] font-extrabold uppercase leading-[0.84]">
+          <h1 class="mt-[22px] font-display text-[92px] font-extrabold uppercase leading-[0.84]">
             Last man<br />standing
           </h1>
 
           <!-- 2px rather than a hairline: at 1200px wide a 1px rule survives the
                render but not the compression every chat app puts on a preview. -->
-          <div class="mt-[34px] h-[2px] w-full shrink-0 bg-ink/25"></div>
+          <div class="mt-[30px] h-[2px] w-full shrink-0 bg-ink/25"></div>
 
-          <p class="mt-[30px] text-[27px] leading-[1.4] text-ink-fade">
+          <p class="mt-[26px] text-[27px] leading-[1.4] text-ink-fade">
             Pick one team each round. Win and you go through. Draw or lose and you are out.
           </p>
 
-          <div class="mt-auto shrink-0 pt-[28px]">
-            <p class="font-display text-[40px] font-extrabold uppercase leading-none tracking-[0.1em]">
-              lmslocal
-            </p>
-            <p class="mt-[8px] text-[21px] font-medium tracking-wide text-ink-fade">
-              lmslocal.co.uk
-            </p>
-          </div>
-        </div>
-
-        <!-- Right: the sheet it replaces ----------------------------------- -->
-        <div class="flex w-[430px] shrink-0 flex-col justify-center">
-          <div class="bg-stock-lit px-[36px] py-[32px]">
-            <div class="flex items-baseline justify-between">
-              <p class="text-[17px] font-medium uppercase tracking-[0.18em] text-ink-fade">
-                Round 4
-              </p>
-              <p class="text-[17px] font-medium uppercase tracking-[0.18em] text-ink-fade">
-                9 left in
-              </p>
-            </div>
-            <!-- font-data because these read as filled in by hand — the one
-                 thing on the tile a person would have written. -->
-            <dl class="mt-[20px] font-data text-[25px] leading-tight">
-              <div class="flex justify-between border-b border-ink/15 py-[11px]">
-                <dt>Dave M.</dt>
-                <dd>Arsenal</dd>
-              </div>
-              <div class="flex justify-between border-b border-ink/15 py-[11px]">
-                <dt>Sarah K.</dt>
-                <dd>Brighton</dd>
-              </div>
-              <div class="flex justify-between border-b border-ink/15 py-[11px] text-overprint">
-                <dt class="line-through">Tom B.</dt>
-                <dd class="line-through">Leeds</dd>
-              </div>
-              <div class="flex justify-between py-[11px]">
-                <dt>Priya N.</dt>
-                <dd>Newcastle</dd>
-              </div>
-            </dl>
-          </div>
+          <p class="mt-[26px] text-[22px] font-medium tracking-wide text-ink-fade">
+            lmslocal.co.uk
+          </p>
         </div>
       </div>
     </div>
