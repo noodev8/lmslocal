@@ -67,10 +67,10 @@ doc first** (except the email README, see below):
 - React Hook Form for forms, `@heroicons/react` for icons. `@/*` maps to `./src/*`
 - **Design system**: `docs/design-system.md` — the "pools coupon" language (tinted stock, two
   inks, signage caps, typewriter for filled-in data). Class constants in `src/lib/design.ts`,
-  colour/font tokens in `tailwind.config.js`, shared chrome in `src/components/public/`. **Every
-  signed-out page is built to it** (landing, join, pricing, terms, privacy, help, the three auth
-  pages); everything behind the sign-in door, plus `lmslocal-admin`, is still on the older
-  slate/emerald defaults. §10 covers migrating a screen. It also carries the copy rules: "you"
+  colour/font tokens in `tailwind.config.js`, shared chrome in `src/components/public/`. Every
+  signed-out page is built to it, as are the dashboard, the game screens, competition setup and
+  billing; **`/profile` and `lmslocal-admin` are not**. `grep -rl "@/lib/design" src/app` is the
+  honest answer. §10 covers migrating a screen. It also carries the copy rules: "you"
   always means the organiser, no invented testimonials, never state opt-in features as universal.
 
 ### Admin tool (lmslocal-admin/)

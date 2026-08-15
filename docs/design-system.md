@@ -5,12 +5,16 @@ written up so it can be extended to pricing, contact, help and eventually the ga
 
 **Status:** every page a signed-out visitor can reach is built to this system — the landing page,
 `/join/[code]`, pricing, terms, privacy, the six help pages, and sign in / create account / forgot
-password. The boundary sits at the sign-in door.
+password.
 
-Everything behind it — the dashboard, the game screens, competition setup, billing — and all of
-`lmslocal-admin` is still on the older slate/emerald defaults. That is a known, deliberate
-inconsistency rather than an oversight; see [Migrating a screen](#migrating-a-screen) and
-[§8](#8-extending-to-the-game-screens) before crossing it.
+Behind the sign-in door, the dashboard, the game screens (`/game/[id]/*`), competition setup and
+billing are on it too. **`/profile` and all of `lmslocal-admin` are not** — they remain on the
+older slate/emerald defaults. See [Migrating a screen](#migrating-a-screen) and
+[§8](#8-extending-to-the-game-screens) before doing another.
+
+A migrated screen imports its classes from `lmslocal-web/src/lib/design.ts`, so
+`grep -rl "@/lib/design" src/app` is the honest answer to what is done — this paragraph is a
+summary of that and will drift from it.
 
 **Shared chrome** lives in `lmslocal-web/src/components/public/`:
 
