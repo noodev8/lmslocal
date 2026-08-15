@@ -40,7 +40,7 @@ type SortKey =
 type SortDirection = 'asc' | 'desc';
 
 // 'all' is everyone; the rest narrow to a group worth contacting for a different reason.
-type Filter = 'all' | 'paying' | 'running' | 'new' | 'dormant';
+type Filter = 'all' | 'empty' | 'quiet' | 'paying';
 
 /*
 Andreas's own test accounts, hidden from this screen. They are real accounts doing real things -
@@ -56,9 +56,41 @@ so removing an address from the list is the whole of it.
 */
 const HIDDEN_ORGANISER_EMAILS = ['brookfieldcomfort@gmail.com', 'lmslocal8@gmail.com'];
 
-const NEW_WITHIN_DAYS = 30;
-// An organiser whose competitions have seen no pick this long is worth a nudge, not a sale.
-const DORMANT_AFTER_DAYS = 30;
+/*
+THE TILES ARE WORKLISTS, NOT STATISTICS.
+
+Every one of them has to answer "who should I contact, and why". Three were dropped when that
+became the test:
+
+  Running          organisers with an ACTIVE competition. competition.status only moves SETUP ->
+                   ACTIVE as a side effect of somebody loading /get-user-dashboard after round 1
+                   locks, so it sat at 0 for the whole pre-season with 14 competitions in SETUP.
+                   "What is running" is the competitions screen's question anyway.
+  Gone quiet (old) required competitions_active > 0, so it could only ever read 0 while Running
+                   did. Two tiles wired to the same unreliable column. Replaced below with a
+                   version that reads the organiser's own last session, which is always true.
+  New              signed up in the last 30 days. Four of its six were already in "No players",
+                   and "Last seen" carries recency in the table - a second near-copy of the same
+                   people is not a second thing to do.
+
+An organiser who has not opened the site in a month. Reads last_active_at rather than their
+players' picks: a competition can tick along on autopilot while its organiser has gone, which is
+exactly the person worth an email - two of the three this finds today are paying customers.
+*/
+const QUIET_AFTER_DAYS = 30;
+
+const isQuiet = (o: AdminOrganiser): boolean => {
+  const age = daysSince(o.last_active_at);
+  return age === null || age > QUIET_AFTER_DAYS;
+};
+
+/*
+Created a competition and recruited nobody. The most actionable group on the platform: they got
+far enough to set something up and then stalled at the one step we can actually help with.
+
+players_total already excludes bots and the organiser themselves, so 0 means what it says.
+*/
+const isEmpty = (o: AdminOrganiser): boolean => o.competitions_total > 0 && o.players_total === 0;
 
 const COLUMNS: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: 'name', label: 'Organiser' },
@@ -297,18 +329,10 @@ function OrganisersList() {
     switch (filter) {
       case 'paying':
         return o.spend_12m > 0;
-      case 'running':
-        return o.competitions_active > 0;
-      case 'new': {
-        const age = daysSince(o.signed_up_at);
-        return age !== null && age <= NEW_WITHIN_DAYS;
-      }
-      case 'dormant': {
-        // Someone still running a competition that nobody has picked in for a month.
-        if (o.competitions_active === 0) return false;
-        const age = daysSince(o.last_player_activity);
-        return age === null || age > DORMANT_AFTER_DAYS;
-      }
+      case 'empty':
+        return isEmpty(o);
+      case 'quiet':
+        return isQuiet(o);
       default:
         return true;
     }
@@ -336,29 +360,14 @@ function OrganisersList() {
   }, [organisers, search, matchesFilter, sortKey, sortDirection]);
 
   // Tile counts always reflect everyone, so they stay a stable reference point while filtering.
-  const counts = useMemo(() => {
-    const isNew = (o: AdminOrganiser) => {
-      const age = daysSince(o.signed_up_at);
-      return age !== null && age <= NEW_WITHIN_DAYS;
-    };
-    const isDormant = (o: AdminOrganiser) => {
-      if (o.competitions_active === 0) return false;
-      const age = daysSince(o.last_player_activity);
-      return age === null || age > DORMANT_AFTER_DAYS;
-    };
-    return {
+  const counts = useMemo(
+    () => ({
       total: organisers.length,
+      empty: organisers.filter(isEmpty).length,
+      quiet: organisers.filter(isQuiet).length,
       paying: organisers.filter((o) => o.spend_12m > 0).length,
-      running: organisers.filter((o) => o.competitions_active > 0).length,
-      new: organisers.filter(isNew).length,
-      dormant: organisers.filter(isDormant).length,
-    };
-  }, [organisers]);
-
-  // Whatever is on screen right now, ready to paste into a mail client's Bcc field.
-  const visibleEmails = useMemo(
-    () => filtered.map((o) => o.email).filter((e): e is string => !!e).join(', '),
-    [filtered]
+    }),
+    [organisers]
   );
 
   return (
@@ -381,56 +390,54 @@ function OrganisersList() {
           </div>
         )}
 
+        {/* Four, in the order they are worth acting on: everyone, then the two lists with
+            something to do about them, then the customers to look after. */}
         {!loading && organisers.length > 0 && (
-          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <FilterTile
               label="Organisers"
               value={counts.total}
+              hint="everyone"
               active={filter === 'all'}
               onClick={() => setFilter('all')}
             />
             <FilterTile
+              label="No players yet"
+              value={counts.empty}
+              hint="set up, nobody joined"
+              tone="warn"
+              active={filter === 'empty'}
+              onClick={() => setFilter('empty')}
+            />
+            <FilterTile
+              label="Gone quiet"
+              value={counts.quiet}
+              hint={`not seen in ${QUIET_AFTER_DAYS} days`}
+              tone="warn"
+              active={filter === 'quiet'}
+              onClick={() => setFilter('quiet')}
+            />
+            <FilterTile
               label="Paying"
               value={counts.paying}
-              hint="have bought credit"
+              hint="paid in the last 12 months"
               tone="good"
               active={filter === 'paying'}
               onClick={() => setFilter('paying')}
             />
-            <FilterTile
-              label="Running"
-              value={counts.running}
-              hint="an active competition"
-              tone="default"
-              active={filter === 'running'}
-              onClick={() => setFilter('running')}
-            />
-            <FilterTile
-              label="New"
-              value={counts.new}
-              hint={`joined in ${NEW_WITHIN_DAYS} days`}
-              tone="default"
-              active={filter === 'new'}
-              onClick={() => setFilter('new')}
-            />
-            <FilterTile
-              label="Gone quiet"
-              value={counts.dormant}
-              hint={`running, no picks in ${DORMANT_AFTER_DAYS} days`}
-              tone="warn"
-              active={filter === 'dormant'}
-              onClick={() => setFilter('dormant')}
-            />
           </div>
         )}
 
+        {/*
+        No bulk-copy button. It put every visible address on the clipboard for a Bcc paste, which
+        is the one thing this screen should not make easy: a pasted Bcc bypasses email_preference
+        entirely, so somebody who unsubscribed still gets it. Anything going to more than one
+        person belongs on Emails -> Broadcast, which counts the audience, honours opt-outs and
+        leaves a record.
+
+        The per-row mail button stays. One-to-one outreach is what this screen is for.
+        */}
         <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
-          {visibleEmails && (
-            <CopyButtonWithLabel
-              text={visibleEmails}
-              count={filtered.filter((o) => o.email).length}
-            />
-          )}
           <input
             type="text"
             placeholder="Search name or email..."
@@ -551,8 +558,10 @@ function OrganisersList() {
 
                     The players' newest pick used to sit above this, and two dates about two
                     different people stacked under one heading read as one fact contradicting
-                    itself. last_player_activity is still fetched - the "dormant" filter is built
-                    on it - it just no longer competes for the cell.
+                    itself. last_player_activity is still returned by the route but nothing on this
+                    screen reads it any more - "Gone quiet" now keys off this column instead,
+                    because an organiser can vanish while their competition ticks along without
+                    them, and that is precisely the person worth an email.
                     */}
                     <td className="px-4 py-3 text-slate-500" title={formatDate(o.last_active_at)}>
                       {formatAge(o.last_active_at)}
@@ -594,42 +603,5 @@ export default function OrganisersPage() {
     <Suspense fallback={<div className="min-h-screen" />}>
       <OrganisersList />
     </Suspense>
-  );
-}
-
-/*
-Bulk copy of every address currently on screen. Deliberately a copy rather than a mailto: with
-everyone in it - a long mailto is truncated by some mail clients and silently drops recipients,
-and pasting into Bcc yourself is the safer habit for anything going to more than one person.
-*/
-function CopyButtonWithLabel({ text, count }: { text: string; count: number }) {
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timer);
-  }, [copied]);
-
-  return (
-    <button
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setCopied(true);
-        } catch {
-          // Clipboard refused - the addresses are all visible in the table anyway
-        }
-      }}
-      className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
-      title="Copy every address shown, ready to paste into Bcc"
-    >
-      {copied ? (
-        <CheckIcon className="h-4 w-4 text-emerald-600" />
-      ) : (
-        <ClipboardIcon className="h-4 w-4" />
-      )}
-      {copied ? 'Copied' : `Copy ${count} email${count === 1 ? '' : 's'}`}
-    </button>
   );
 }
