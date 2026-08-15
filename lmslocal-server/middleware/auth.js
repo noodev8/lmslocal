@@ -17,9 +17,10 @@ const MAX_CACHE_SIZE = 1000; // Prevent unbounded memory growth
 
 /**
  * Middleware to verify JWT token and populate req.user
- * Implements caching to reduce database load
+ * Implements caching to reduce database load, and keeps app_user.last_active_at
+ * current on the same lookup (see the note beside the query).
  * @param {Object} req - Express request object
- * @param {Object} res - Express response object  
+ * @param {Object} res - Express response object
  * @param {Function} next - Express next function
  */
 const verifyToken = async (req, res, next) => {
@@ -63,8 +64,26 @@ const verifyToken = async (req, res, next) => {
     // password_hash is deliberately not selected. Routes that need it read it
     // fresh (see change-password) - caching it would both hold every recently
     // active user's hash in memory and serve a stale one for up to CACHE_TTL.
+    //
+    // last_active_at is touched here rather than at login because tokens last
+    // 270 days (login.js), so a user who signs in once and stays signed in for
+    // nine months never updated it. The admin organisers screen reads it as
+    // "last seen" and its quiet-organiser tile as "gone away", and both were
+    // wrong about anyone still using the site: one paying organiser last
+    // "seen" in June had created a competition and bought credit since.
+    //
+    // The write rides the cache-miss lookup instead of adding a query, and the
+    // one-hour floor keeps it to a handful of updates per user per day - the
+    // screen only renders whole days, so nothing finer would be visible. A
+    // data-modifying CTE always executes even though nothing selects from it.
     const result = await query(
-      'SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1',
+      `WITH touched AS (
+         UPDATE app_user
+            SET last_active_at = NOW()
+          WHERE id = $1
+            AND (last_active_at IS NULL OR last_active_at < NOW() - INTERVAL '1 hour')
+       )
+       SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1`,
       [userId]
     );
     
