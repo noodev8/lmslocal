@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — A5 mailer for landlords</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <link rel="stylesheet" href="../_shared/print.css" />
+    <style>
+      @page {
+        size: 148mm 210mm;
+        margin: 0;
+      }
+      .sheet {
+        width: 148mm;
+        height: 210mm;
+        overflow: hidden;
+      }
+      .safe {
+        padding: 7mm;
+      }
+    </style>
+  </head>
+
+  <body class="guides">
+    <!--
+      A5, DOUBLE SIDED, to go in an envelope to a pub. Audience C in
+      docs/marketing-strategy.md.
+
+      This is not a5-landlord.html with a back page. That one is left on a bar
+      by someone who is standing there to answer the obvious question; this one
+      arrives cold with nobody next to it, so the back is a signed note that
+      does the job the conversation used to do — why it came by post, what
+      happens if they say yes, and one easy way to reply.
+
+      PUB, NOT CLUB. Every "you" is the landlord and the angle is footfall and
+      dwell time, never fundraising — see §5 of the strategy doc, which got that
+      wrong once. There is deliberately no entry-fee or prize language anywhere
+      on this sheet: a landlord is not raising money, and staying off the
+      subject also keeps us clear of terms §6.
+
+      Money claims: none. No amount is promised and no number appears that is
+      not on the live pricing page (20 free places, packs from £10).
+
+      The two sheets must stay the same size and the same .safe padding.
+      _shared/bleed.js measures the FIRST .sheet and the FIRST .safe, then
+      applies what it measured to all of them — which is right here and would
+      silently mis-size a mixed pair.
+
+      Print double sided, long edge. Simplex would post the pitch with a blank
+      back and lose the entire reason this piece exists.
+    -->
+
+    <p class="screen-only max-w-[148mm] font-body text-sm text-white">
+      <strong>Do not print from here.</strong> Run
+      <code>node make-pdf.js a5-landlord-post</code> for the print shop, or add
+      <code>--home</code> for your own printer. Two pages —
+      <strong>tell the printer double sided, long edge</strong>. Dashed guides are screen-only.<br />
+      To preview the print-shop geometry: <a class="underline" href="?bleed">3mm bleed version</a>.
+    </p>
+
+    <!-- ================================================================= -->
+    <!-- SIDE 1 — the pitch                                                -->
+    <!-- ================================================================= -->
+    <div class="sheet guide-trim bg-stock text-ink">
+      <div class="safe guide-safe flex h-full flex-col">
+        <!-- Masthead ------------------------------------------------------ -->
+        <!-- "Pubs and bars" only. a5-landlord.html says "pubs, clubs and
+             teams", which quietly claims the club audience this leaflet is
+             deliberately not written for. -->
+        <p class="font-body text-[8pt] font-medium uppercase tracking-[0.22em] text-overprint">
+          For pubs and bars
+        </p>
+
+        <h1 class="mt-3 font-display text-[47pt] font-extrabold uppercase leading-[0.82]">
+          A reason<br />to be in<br />on Sunday
+        </h1>
+
+        <!-- Footfall and dwell, which is what a landlord is buying. "Lose or
+             draw" rather than "lose": a draw eliminates too, and the landlord
+             is the person who will be asked. -->
+        <p class="mt-4 max-w-[108mm] font-body text-[10.5pt] leading-[1.45] text-ink-fade">
+          Your regulars pick one team a week. Lose or draw and they are out. They come in to put
+          the pick on, and they stay to watch whose is going wrong.
+        </p>
+
+        <!-- shrink-0 on every fixed block below: this is a flex column, and
+             without it an over-full sheet crushes the hairline rule to nothing
+             and gives no other warning that it overflowed. -->
+        <div class="mt-4 h-px w-full shrink-0 bg-ink/25"></div>
+
+        <!-- The survival sheet: the thing this replaces, and the fastest way to
+             explain the game to someone who has never run one. Same names and
+             picks as the other leaflets and the social tiles on purpose — one
+             mock across the artwork reads as one system. font-data because
+             these read as filled in by hand. -->
+        <div class="mt-4 shrink-0 bg-stock-lit px-4 py-3.5">
+          <div class="flex items-baseline justify-between">
+            <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              Round 4
+            </p>
+            <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              9 left in
+            </p>
+          </div>
+          <dl class="mt-2.5 font-data text-[10pt] leading-tight">
+            <div class="flex justify-between border-b border-ink/15 py-[4px]">
+              <dt>Dave M.</dt>
+              <dd>Arsenal</dd>
+            </div>
+            <div class="flex justify-between border-b border-ink/15 py-[4px]">
+              <dt>Sarah K.</dt>
+              <dd>Brighton</dd>
+            </div>
+            <div class="flex justify-between border-b border-ink/15 py-[4px] text-overprint">
+              <dt class="line-through">Tom B.</dt>
+              <dd class="line-through">Leeds</dd>
+            </div>
+            <div class="flex justify-between py-[4px]">
+              <dt>Priya N.</dt>
+              <dd>Newcastle</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- The week. A landlord thinks in shifts, not in seasons — which is
+             why this is not the club leaflet's "Your season". -->
+        <div class="mt-5 shrink-0">
+          <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            Your week
+          </p>
+          <ul class="mt-2.5 space-y-[6px] font-body text-[10pt] leading-[1.4]">
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">Fri &amp; Sat</span>
+              <span class="text-ink-fade"
+                >The round goes up and they pick on their phones — no phone, you put it in for them
+                over the bar.</span
+              >
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">Sunday</span>
+              <span class="text-ink-fade"
+                >Everyone still in is watching a different game for a different reason.</span
+              >
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">After</span>
+              <span class="text-ink-fade"
+                >Eliminations sort themselves out and a round-up is written for you to paste into
+                the pub's group.</span
+              >
+            </li>
+          </ul>
+        </div>
+
+        <!-- Price. The pack price is on here where a5-landlord.html leaves it
+             off: a pub that fills its free twenty finds out about the cost
+             eventually, and by post there is nobody standing there to say it. -->
+        <div class="mt-5 shrink-0 border-y border-ink/25 py-3.5">
+          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p class="font-display text-[21pt] font-extrabold uppercase leading-none">
+              20 players free
+            </p>
+            <p class="font-body text-[9pt] text-ink-fade">
+              No card to start. More places from £10.
+            </p>
+          </div>
+        </div>
+
+        <!-- Foot. Deliberately quiet: the reply routes are on the back, next to
+             the reason to use them. -->
+        <div class="mt-auto shrink-0 pt-4">
+          <div class="flex items-end justify-between gap-4">
+            <p class="max-w-[80mm] font-body text-[9.5pt] leading-snug text-ink-fade">
+              There is a note on the back explaining why this came by post rather than through the
+              door.
+            </p>
+            <div class="text-right">
+              <p class="font-display text-[20pt] font-extrabold uppercase leading-none">lmslocal</p>
+              <p class="mt-1 font-body text-[9pt] tracking-wide text-ink-fade">lmslocal.co.uk</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- SIDE 2 — the note                                                 -->
+    <!-- ================================================================= -->
+    <!--
+      Written to be read once, standing up, by someone who is busy. Short
+      sentences, one idea each, and the ask is the smallest one available: a
+      phone call, not a signup.
+
+      The last line — "bin it and I won't write again" — is a promise that costs
+      nothing to keep and is the reason a cold piece gets read to the end.
+      Do not soften it into "I'll follow up in a fortnight".
+    -->
+    <div class="sheet guide-trim bg-stock text-ink">
+      <div class="safe guide-safe flex h-full flex-col">
+        <p class="font-body text-[8pt] font-medium uppercase tracking-[0.22em] text-overprint">
+          A note from Andreas
+        </p>
+
+        <h2 class="mt-3 font-display text-[28pt] font-extrabold uppercase leading-[0.88]">
+          I didn't want to<br />turn up mid-shift
+        </h2>
+
+        <div class="mt-4 space-y-3 font-body text-[10.5pt] leading-[1.5]">
+          <p>Hello. I built LMSLocal, and I wrote the sheet on the other side of this one.</p>
+          <p>
+            I'd rather post it than walk in on a Friday and ask someone with a full bar to think
+            about something new. So it's here, and you can look at it when it's quiet.
+          </p>
+          <p>
+            You may have run one of these before, on a sheet behind the bar. This is the same game
+            without the sheet — and without somebody working out on a Sunday night who is still in.
+          </p>
+          <p>
+            There's nothing to sign and nothing to pay. Twenty players is free and stays free, and I
+            don't ask for a card to set one up.
+          </p>
+        </div>
+
+        <!-- What actually happens next. The single most useful thing on a cold
+             piece: a landlord's real objection is not price, it is "who is
+             going to run this". Every line here is something we already do —
+             the per-competition sheet is /leaflet/[competitionId] in the app. -->
+        <div class="mt-4 shrink-0 bg-stock-lit px-4 py-3.5">
+          <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            If you say yes, this is my half
+          </p>
+          <ul class="mt-2.5 space-y-[6px] font-body text-[10pt] leading-[1.4]">
+            <li class="flex gap-3">
+              <span class="w-[20mm] shrink-0 font-semibold">I do</span>
+              <span class="text-ink-fade"
+                >The setting up, the fixtures and the first round — and a sheet for the bar with
+                your own join code printed on it.</span
+              >
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[20mm] shrink-0 font-semibold">You do</span>
+              <span class="text-ink-fade">Tell your regulars. That is your half, all of it.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[20mm] shrink-0 font-semibold">After that</span>
+              <span class="text-ink-fade"
+                >It runs each week on its own, and I'm on the end of the phone if anything ever
+                looks wrong.</span
+              >
+            </li>
+          </ul>
+        </div>
+
+        <p class="mt-4 font-body text-[10.5pt] leading-[1.5]">
+          And if it isn't for you, bin it — I won't write again.
+        </p>
+
+        <p class="mt-4 font-data text-[13pt] leading-none">Andreas</p>
+
+        <!-- Reply routes. The phone is set biggest on purpose: this piece is
+             asking for a two-minute call, not a signup, and the QR is the
+             lowest-friction way to look first. Check the QR scans off the
+             finished PDF before any print run — see the README. -->
+        <div class="mt-auto shrink-0 border-t border-ink/25 pt-4">
+          <div class="flex items-end justify-between gap-5">
+            <div>
+              <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+                Have a word
+              </p>
+              <p class="mt-2 font-data text-[15pt] font-bold leading-none">07818 443886</p>
+              <p class="mt-1.5 font-body text-[9.5pt] leading-snug text-ink-fade">
+                Ring or text, any time that suits you.
+              </p>
+              <p class="mt-2 font-data text-[10pt] leading-tight">lmslocal8@gmail.com</p>
+            </div>
+
+            <div class="shrink-0 text-center">
+              <img src="../assets/site-qr.png" alt="" class="h-[23mm] w-[23mm]" />
+              <p class="mt-1 font-body text-[8pt] tracking-wide text-ink-fade">lmslocal.co.uk</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../_shared/bleed.js"></script>
+  </body>
+</html>

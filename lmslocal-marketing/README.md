@@ -30,6 +30,7 @@ leaflet/            Print artwork. a5-test.html is the pipeline reference.
                     a5-player (players). a5-player-1992 is a one-off for a single
                     competition code — copy that pattern per competition, and the
                     printed code and its QR in assets/ must change together.
+                    a5-landlord-post is the only double-sided piece — see below.
 social/             Fixed-size tiles for Facebook etc. See social/README.md.
 out/                Exported PDFs and PNGs. Git-ignored — scratch.
 press/              PDFs actually sent to a printer. Tracked. See press/README.md.
@@ -88,6 +89,43 @@ print from there — see above.
 Chrome exports RGB. A digital press takes that happily; if the shop is running litho they will
 want CMYK, and `overprint` (`#C8341E`) is a saturated RGB red that dulls noticeably in the
 conversion — worth asking which before approving a proof.
+
+## Posting one instead of leaving one
+
+`a5-landlord-post.html` is the pub leaflet reworked to go in an envelope. It exists because a
+posted piece and a bar-top piece are not the same object: the leaflet you leave has **you**
+standing next to it to answer "who is going to run this", and the one you post does not. So the
+back page is a signed note that does that job — why it came by post, what happens if they say
+yes, and a phone number set larger than anything else on the sheet.
+
+It is **the only double-sided piece here**, which changes two things:
+
+- **Tell the printer double sided, long edge.** Simplex posts the pitch with a blank back and
+  loses the whole reason the piece exists. `make-pdf.js` needs no flag — the file is two `.sheet`
+  divs and comes out two pages — but nothing in the PDF says "print these back to back".
+- **Both sides must stay the same size and the same `.safe` padding.** `_shared/bleed.js`
+  measures the *first* `.sheet` and the *first* `.safe`, then applies what it measured to all of
+  them. Correct for a matched pair, silently wrong for a mixed one.
+
+It goes in an envelope, not out as a self-mailer: there is no address panel and no stamp box, and
+adding one would turn a letter into something that reads as junk before it is opened.
+
+The QR on the back is `assets/site-qr.png` — plain `https://lmslocal.co.uk`, no competition code,
+so it does not go stale. It was generated with the same settings the in-app leaflet uses
+(error correction `H`, margin 2), because this one also ends up creased in a pub:
+
+```bash
+cd lmslocal-web && node -e "require('qrcode').toFile( \
+  '../lmslocal-marketing/assets/site-qr.png', 'https://lmslocal.co.uk', \
+  {width:600, margin:2, errorCorrectionLevel:'H', color:{dark:'#1C2620', light:'#F2F3EC'}})"
+```
+
+`qrcode` is a `lmslocal-web` dependency — this folder still has no `package.json` and the PNG is
+committed, the same way `join-qr.png` is.
+
+There is no club equivalent yet. When there is, it is a copy swap on this shell and **not** a
+reworded pub note — the §5 rule in `docs/marketing-strategy.md` applies to the back page as much
+as the front.
 
 ## Making a link preview image (OG)
 

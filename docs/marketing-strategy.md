@@ -125,7 +125,9 @@ This bridge does not currently exist. See §7.
 Small, high-intent, geographic. The revenue audience.
 **Message:** footfall on a quiet Sunday, no work for you, free for twenty.
 **Channel:** leaflets in person, local Facebook, licensed-trade groups.
-`lmslocal-marketing/leaflet/a5-landlord.html` is the artwork.
+`lmslocal-marketing/leaflet/a5-landlord.html` is the artwork to leave on a bar;
+`a5-landlord-post.html` is the same pitch for an envelope, with a signed note on the back
+doing the job the conversation does when you hand one over.
 
 ### D — Club, society or team
 Cricket, football, social, anything with a committee and a shortfall. No landlord gatekeeper, no
@@ -208,6 +210,7 @@ Beyond the honesty rules in the design system:
 | Facebook — local / trade groups | C | Not started |
 | In-product prompt | B | **Does not exist** |
 | A5 leaflet, landlord | C | Built |
+| A5 mailer, landlord | C | Built — double sided, goes in an envelope |
 | A5 leaflet, player | A/C | Built — generic, code filled in by hand |
 | A5 leaflet, club | D | Built |
 | A5 leaflet, workplace | E | Built |
@@ -257,4 +260,5 @@ Order matters: ad spend should track progress on 1, or we pay to fill a bucket w
 | 5 Aug 2026 | Doc created. Deleted `pricing-strategy.md` (described a £29/£79 subscription model that was never shipped; live pricing is credit packs). Settled: fresh £50 weekly, no rollover until budget allows. |
 | 5 Aug 2026 | Three social tiles built for the free game (square, portrait, story), join code 1992. Headline is "win £50 every game", not "every week" — terms §5 lets us cancel or suspend, so the cadence is not printable as a promise. Open question raised: the homepage sells "the competition that pays for itself" while §5 of this doc said never to pitch organisers on money. |
 | 5 Aug 2026 | §5 rewritten and the old rule withdrawn — it was wrong. Fundraising is right for clubs and wrong for pubs, so the landing page and the landlord leaflet were both already correct and the blanket ban was the error. Kept three narrower cautions: no promised amounts, describe what the organiser controls rather than designing their scheme, never pair paid entry with random picks. Audiences split from four to five: D is now clubs (fundraising), E is workplaces and mates' groups (neither). |
+| 15 Aug 2026 | Landlord mailer built (`a5-landlord-post.html`) — a posted variant of C's artwork, for approaching pubs without walking in. First double-sided piece. Back page is a signed note; the front finally sells footfall and dwell time, which §5 has claimed the landlord leaflet did since 5 Aug but which `a5-landlord.html` does not actually say. |
 | 5 Aug 2026 | D and E artwork built — one each, not a shared piece, resolving the §8 open question. `a5-club.html` sells fundraising, matching D's message in §4. `a5-workplace.html` sells neither fundraising nor footfall — bragging rights and something to talk about at work, with no entry-fee language at all, keeping it distinct from the club leaflet per §5. |

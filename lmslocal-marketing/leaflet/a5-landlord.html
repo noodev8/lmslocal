@@ -34,9 +34,10 @@
       a back page doubles the print cost for something nobody turns over.
 
       Every figure here is taken from the live site (pricing page + landing
-      page). Do not add a number that is not on one of those. In particular
-      "Free right now" is the real current state of the fixture service, not a
-      promotion we invented.
+      page). Do not add a number that is not on one of those.
+
+      Posting one instead of leaving it? Use a5-landlord-post.html — a cold
+      envelope needs the note on its back page, which this sheet does not have.
     -->
 
     <p class="screen-only max-w-[148mm] font-body text-sm text-white">
@@ -63,12 +64,14 @@
           sheet behind the bar — now it keeps itself.
         </p>
 
-        <div class="mt-4 h-px w-full bg-ink/25"></div>
+        <!-- shrink-0 because this is a flex column: without it an over-full
+             sheet crushes the rule to nothing and gives no other warning. -->
+        <div class="mt-4 h-px w-full shrink-0 bg-ink/25"></div>
 
         <!-- The survival sheet: the thing this replaces, and the fastest way
              to explain the game to someone who has never run one. font-data
              because these read as filled in by hand. -->
-        <div class="mt-4 bg-stock-lit px-4 py-3.5">
+        <div class="mt-4 shrink-0 bg-stock-lit px-4 py-3.5">
           <div class="flex items-baseline justify-between">
             <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
               Round 4
@@ -119,7 +122,7 @@
         </div>
 
         <!-- Price --------------------------------------------------------- -->
-        <div class="mt-5 border-y border-ink/25 py-3.5">
+        <div class="mt-5 shrink-0 border-y border-ink/25 py-3.5">
           <div class="flex items-baseline gap-3">
             <p class="font-display text-[21pt] font-extrabold uppercase leading-none">
               20 players free
@@ -129,7 +132,7 @@
         </div>
 
         <!-- Contact ------------------------------------------------------- -->
-        <div class="mt-auto pt-4">
+        <div class="mt-auto shrink-0 pt-4">
           <div class="flex items-end justify-between gap-4">
             <div>
               <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
