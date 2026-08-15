@@ -621,6 +621,47 @@ export type PreviewEmailResponse = ApiResponse & {
   } | null;
 };
 
+/*
+What actually happened to one email over the last 30 days, read off email_queue. `waiting` cannot
+answer this: a candidate drops out of that count the moment it is dealt with, so a healthy zero and
+an email that never ran look identical.
+
+The window is fixed server-side and matches the card's "sent" count, so the two cannot disagree.
+Anything older is a database question, not a screen one.
+*/
+export type EmailHistoryStatus = 'sent' | 'failed' | 'suppressed' | 'skipped' | 'pending';
+
+export interface EmailHistoryRow {
+  id: number;
+  user_id: number;
+  email: string;
+  display_name: string;
+  competition_id: number | null;
+  /* The live name. Null once the competition is deleted - the queue row outlives it. */
+  competition_name: string | null;
+  /* The name the email itself carried, off template_data. Survives a delete or a rename. */
+  competition_name_at_send: string | null;
+  round_number: number | null;
+  status: EmailHistoryStatus;
+  /* When it happened - the send, the attempt, or the row being written, per status. */
+  at: string;
+  created_at: string;
+  /* Failures only. */
+  error_message: string | null;
+  /* Skips only - what the operator gave as the reason. */
+  reason: string | null;
+}
+
+export type EmailHistoryResponse = ApiResponse & {
+  /* Every status seen in the window, whatever the filter - it is what the filter is chosen from. */
+  totals?: Partial<Record<EmailHistoryStatus, number>>;
+  total?: number;
+  /* How far back the server looked. Fixed at 30. */
+  window_days?: number;
+  rows?: EmailHistoryRow[];
+  truncated?: boolean;
+};
+
 export type SendEmailsResponse = ApiResponse & {
   test_mode?: boolean;
   sent_count?: number;
@@ -937,6 +978,25 @@ export const adminApi = {
       email_type: emailType,
       competition_id: competitionId,
       include_sample: includeSample,
+    });
+    return response.data;
+  },
+
+  /*
+  The other half of the picture: who this email HAS gone to, and when. competitionId null spans
+  every competition, matching the focus card. status null returns all four.
+  */
+  getEmailHistory: async (
+    emailType: string,
+    competitionId: number | null,
+    status?: EmailHistoryStatus,
+    limit?: number
+  ): Promise<EmailHistoryResponse> => {
+    const response = await api.post<EmailHistoryResponse>('/admin/get-email-history', {
+      email_type: emailType,
+      competition_id: competitionId,
+      status,
+      limit,
     });
     return response.data;
   },

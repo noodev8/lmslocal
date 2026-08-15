@@ -30,7 +30,9 @@ what "I'm being careful for now" rules out.
 Cards count ON REQUEST, one card at a time. Every number here is a live query - roughly 25ms each,
 but against the whole platform - and the operator comes to this screen for one email. Counting all
 of them on mount spends the work before knowing which one is wanted, so a card shows "Not counted
-yet" until Count is pressed, and Refresh re-runs only that card.
+yet" until Count is pressed, and Refresh re-runs only that card. Refresh all on the control bar
+does the lot in one press, after which the cards reorder so the emails with people waiting sit at
+the top and the ones with nothing to do fall below them.
 
 TEST MODE defaults to on at every page load and is deliberately not persisted. A sticky "off"
 surviving a refresh is how the whole user base gets mailed by accident. In test mode the server
@@ -59,6 +61,7 @@ import {
   apiBaseUrl,
   AdminCompetition,
   EmailCount,
+  EmailHistoryResponse,
   EmailRecipient,
   PreviewEmailResponse,
 } from '@/lib/api';
@@ -343,10 +346,13 @@ function FocusCard({
   onOpen,
   /* Bumped by the page after a send or a mark, so the card that was acted on re-counts itself. */
   reloadToken,
+  /* The page orders the cards by this, so the emails with people waiting come to the top. */
+  onCounted,
 }: {
   email: OutlineEmail;
   onOpen: () => void;
   reloadToken: number;
+  onCounted: (key: string, stat: { waiting: number; sent: number }) => void;
 }) {
   const [count, setCount] = useState<EmailCount | null>(null);
   const [loading, setLoading] = useState(false);
@@ -359,6 +365,10 @@ function FocusCard({
       const res = await adminApi.getEmailTargets(null, [email.key]);
       if (res.return_code === 'SUCCESS' && res.counts?.[email.key]) {
         setCount(res.counts[email.key]);
+        onCounted(email.key, {
+          waiting: res.counts[email.key].waiting,
+          sent: res.counts[email.key].sent_recently,
+        });
       } else if (res.return_code !== 'UNAUTHORIZED' && res.return_code !== 'TOKEN_EXPIRED') {
         setError(res.message || 'Could not count');
       }
@@ -367,7 +377,7 @@ function FocusCard({
     } finally {
       setLoading(false);
     }
-  }, [email.key]);
+  }, [email.key, onCounted]);
 
   /* Only ever after an action on this card. A zero token is the initial state and loads nothing. */
   useEffect(() => {
@@ -395,7 +405,7 @@ function FocusCard({
                 <Stat value={count.competitions} label={count.competitions === 1 ? 'competition' : 'competitions'} />
               )}
               {/* Without this, an email showing zero waiting is ambiguous: caught up, or never
-                  sending at all. */}
+                  sending at all. Review is where the names behind it are. */}
               <Stat value={count.sent_recently} label="sent" />
             </>
           ) : (
@@ -415,12 +425,14 @@ function FocusCard({
             <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             {count ? 'Refresh' : 'Count'}
           </button>
+          {/* One way in. Waiting, history, send and mark are all behind it - a second button for
+              one tab of the thing this already opens was noise on every card. */}
           <button
             onClick={onOpen}
             className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-slate-900"
           >
             <EyeIcon className="h-4 w-4" />
-            Review, send or mark as sent
+            Review
           </button>
         </div>
       </div>
@@ -431,6 +443,151 @@ function FocusCard({
 // ======================================================================================
 // Send panel
 // ======================================================================================
+
+/*
+The two questions about one email, and they are genuinely different.
+
+  waiting  who WOULD get it if it went now. A forward-looking list that empties as it is dealt
+           with, which is what makes it useless as a record.
+  history  who it HAS gone to, and when. Read off email_queue, which every path writes to.
+
+The second matters more the moment the cron takes over: nobody is watching the send, and "did it
+run, and to whom" is the only question afterwards. A candidate drops out of `waiting` as soon as
+it is handled, so an email that is up to date and one that never ran both show zero.
+*/
+type PanelTab = 'waiting' | 'history';
+
+/*
+What actually went out, in the last thirty days. Sends only.
+
+ONLY SENDS. The tab is called Sent and shows exactly that - one question, one answer. Marked rows
+outnumber real sends 105 to 3 on `welcome` and would bury them; failures and suppressions are
+real but rare, and mixing four statuses under one heading meant a status column, filter chips and
+a footnote explaining that most of the list was never emailed at all. All of it is still on
+email_queue for db/query.js when a failure needs chasing.
+
+THIRTY DAYS, fixed server-side, matching the card's "sent" count so the two cannot disagree.
+
+No opens or clicks. email_tracking has the columns but nothing fills them - there is no Resend
+webhook here - and a column of permanent zeros reads as "nobody opens our email" rather than "we
+do not measure it".
+*/
+function HistoryTab({
+  history,
+  loading,
+  onRefresh,
+}: {
+  history: EmailHistoryResponse | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const rows = history?.rows ?? [];
+  const sent = history?.totals?.sent ?? 0;
+  /* On competition_id, not on the name: a list made entirely of deleted competitions carries no
+     names and would otherwise drop the very column that says which. */
+  const showCompetition = rows.some((r) => r.competition_id !== null);
+
+  if (loading && !history) {
+    return <p className="py-8 text-center text-sm text-slate-400">Reading the queue…</p>;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Nothing sent in the last 30 days.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-600">
+          <span className="font-medium text-slate-900">{sent.toLocaleString()}</span>{' '}
+          {sent === 1 ? 'email' : 'emails'} sent in the last 30 days
+        </p>
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition hover:text-slate-700 disabled:opacity-50"
+        >
+          <ArrowPathIcon className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      {(
+      <div className="max-h-96 overflow-y-auto rounded-lg border border-slate-200">
+        <table className="w-full text-left text-sm">
+          <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-3 py-2 font-semibold">Name</th>
+              <th className="px-3 py-2 font-semibold">Email</th>
+              {showCompetition && <th className="px-3 py-2 font-semibold">Competition</th>}
+              {/* No Status column - every row here is a send, which the tab already says. */}
+              <th className="px-3 py-2 font-semibold">When</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td className="px-3 py-2 text-slate-800">
+                  {r.display_name}
+                  {r.round_number !== null && (
+                    <span className="ml-1.5 text-xs text-slate-400">R{r.round_number}</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-slate-500">{r.email}</td>
+                {showCompetition && (
+                  /*
+                  The LIVE name first - that is what an operator will be searching for today, and
+                  it is right even if the competition has since been renamed.
+
+                  Falling back to the name the EMAIL carried, which template_data has stored all
+                  along. The row outlives the competition (a sent email is a fact, and the LEFT
+                  JOIN keeps it) and "LMS Comp, deleted" is what somebody asking about that email a
+                  month later actually needs. A bare dash would have been indistinguishable from a
+                  platform-wide email that never had a competition at all.
+                  */
+                  <td className="px-3 py-2 text-slate-500">
+                    {r.competition_name ??
+                      (r.competition_id !== null ? (
+                        <span className="text-slate-400" title={`Competition #${r.competition_id} has since been deleted`}>
+                          {r.competition_name_at_send ?? `#${r.competition_id}`}{' '}
+                          {/* (x) rather than (deleted) - the column is already the widest thing on
+                              the row, and the tooltip says it in full. */}
+                          <span className="italic" title="Deleted">(x)</span>
+                        </span>
+                      ) : (
+                        '—'
+                      ))}
+                  </td>
+                )}
+                {/* Absolute, not relative. "3 days ago" is the right frame for a decision about
+                    whether to send; a record is read against a date somebody else has - the day a
+                    player says they got nothing, or the morning the cron was meant to run. */}
+                <td className="whitespace-nowrap px-3 py-2 text-slate-500" title={relativeTime(r.at)}>
+                  {new Date(r.at).toLocaleString(undefined, {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {history?.truncated && (
+          <p className="border-t border-slate-100 px-3 py-2 text-xs italic text-slate-400">
+            Newest {rows.length} of {sent.toLocaleString()} shown.
+          </p>
+        )}
+      </div>
+      )}
+    </>
+  );
+}
 
 function SendPanel({
   email,
@@ -449,12 +606,18 @@ function SendPanel({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  /* Always opens on Waiting - the panel is opened to do something, and history is a click away. */
+  const [tab, setTab] = useState<PanelTab>('waiting');
   const [preview, setPreview] = useState<PreviewEmailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  /* History, loaded on its own and only once its tab has been opened. */
+  const [history, setHistory] = useState<EmailHistoryResponse | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   /*
   Scoped emails send the selected competition, unless the focus card opened this - then they send
@@ -480,9 +643,32 @@ function SendPanel({
     }
   }, [email.key, scopeId]);
 
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      /* Sends only. The other statuses are still on email_queue for whoever needs to chase one. */
+      const res = await adminApi.getEmailHistory(email.key, scopeId, 'sent');
+      if (res.return_code === 'SUCCESS') {
+        setHistory(res);
+      } else if (res.return_code !== 'UNAUTHORIZED' && res.return_code !== 'TOKEN_EXPIRED') {
+        setError(res.message || 'Could not read the history');
+      }
+    } catch {
+      setError(`Could not reach ${apiBaseUrl}`);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [email.key, scopeId]);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  /* Not on mount - the history is a second query and only the tab that is open should pay for it.
+     Re-runs on a filter change, and after a send, since that is when it has changed. */
+  useEffect(() => {
+    if (tab === 'history') loadHistory();
+  }, [tab, loadHistory]);
 
   const count = preview?.recipient_count ?? 0;
   const recipients: EmailRecipient[] = useMemo(() => preview?.recipients ?? [], [preview]);
@@ -591,12 +777,50 @@ function SendPanel({
           </button>
         </div>
 
-        <div className="space-y-4 px-5 py-4">
+        {/*
+        Two tabs rather than two screens. They are the same email and the same scope, and the
+        judgement the operator is making moves between them constantly: "has this one had it
+        already?" is a history question asked in the middle of a send.
+        */}
+        {/*
+        NO COUNTS ON THE TABS. They arrive from two different queries at two different moments, so
+        a badge appearing after the fact resized the tab, shifted the one beside it and moved the
+        panel under the cursor of whoever had just pressed it. Each tab states its own numbers in
+        its own body, where the content is already changing.
+        */}
+        <div className="flex gap-1 border-b border-slate-200 px-5">
+          {([
+            { id: 'waiting' as const, label: 'Waiting' },
+            { id: 'history' as const, label: 'Sent' },
+          ]).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`-mb-px border-b-2 px-3 py-2.5 text-sm font-medium transition ${
+                tab === t.id
+                  ? 'border-slate-800 text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* A floor under the body so switching tabs, or a list arriving, cannot collapse the panel
+            and walk the buttons up the screen. */}
+        <div className="min-h-[22rem] space-y-4 px-5 py-4">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
           )}
 
-          {loading ? (
+          {tab === 'history' ? (
+            <HistoryTab
+              history={history}
+              loading={historyLoading}
+              onRefresh={loadHistory}
+            />
+          ) : loading ? (
             <p className="py-8 text-center text-sm text-slate-400">Working out recipients…</p>
           ) : (
             <>
@@ -743,7 +967,7 @@ function SendPanel({
 
           {/* Mark as sent, on the focus card's email only - it is the one whose rules and backlog
               have actually been gone through. */}
-          {email.focus && count > 0 && (
+          {tab === 'waiting' && email.focus && count > 0 && (
             <button
               onClick={handleMark}
               disabled={busy || nothingChosen}
@@ -754,6 +978,10 @@ function SendPanel({
             </button>
           )}
 
+          {/* The history tab is a record, not a control. Nothing on it can be acted on, so the
+              send button is absent rather than disabled - a greyed-out send invites a hunt for
+              what would enable it. */}
+          {tab === 'waiting' && (
           <button
             onClick={handleSend}
             disabled={loading || busy || nothingChosen}
@@ -766,6 +994,7 @@ function SendPanel({
                 is never something the operator has to remember. */}
             {busy ? 'Working…' : testMode ? 'Send test' : `Send live to ${chosen.length}`}
           </button>
+          )}
         </div>
       </div>
     </div>
@@ -792,6 +1021,42 @@ export default function EmailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<{ email: OutlineEmail; scopeAll: boolean } | null>(null);
+
+  /* What each card last counted, reported back as it counts. Only used for the ordering below. */
+  const [stats, setStats] = useState<Record<string, { waiting: number; sent: number }>>({});
+  const noteCount = useCallback(
+    (key: string, stat: { waiting: number; sent: number }) => setStats((prev) => ({ ...prev, [key]: stat })),
+    []
+  );
+
+  /*
+  ONLY REFRESH ALL REORDERS. The cards are counted asynchronously, so sorting on every count made a
+  card jump under the cursor of whoever had just pressed its own Count button - and moving the
+  thing somebody is looking at is worse than a stale order.
+
+  So `order` is a snapshot, taken once every card has reported after a Refresh all, and nothing
+  else touches it. An empty snapshot is outline order.
+  */
+  const [order, setOrder] = useState<string[]>([]);
+  const [pendingSort, setPendingSort] = useState(false);
+
+  useEffect(() => {
+    if (!pendingSort || FOCUS.some((e) => stats[e.key] === undefined)) return;
+    setOrder(
+      FOCUS.map((e, index) => ({ key: e.key, index, ...stats[e.key] }))
+        /* Waiting first - the screen becomes a queue of work. Then `sent`, so that among the
+           emails with nobody waiting the ones actually running sit above the ones that have never
+           sent anything, which is the difference between caught up and not wired up. */
+        .sort((a, b) => b.waiting - a.waiting || b.sent - a.sent || a.index - b.index)
+        .map((row) => row.key)
+    );
+    setPendingSort(false);
+  }, [pendingSort, stats]);
+
+  const orderedFocus = useMemo(() => {
+    if (order.length === 0) return FOCUS;
+    return [...FOCUS].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+  }, [order]);
 
   const competition = useMemo(
     () => competitions.find((c) => c.id === competitionId) ?? null,
@@ -846,6 +1111,8 @@ export default function EmailsPage() {
   */
   const refreshCounts = () => {
     if (REMAINING.length > 0 && competitionId !== null) loadCounts(competitionId);
+    /* The one gesture that reorders. Applied once every card has reported back. */
+    setPendingSort(true);
     setReloadTokens((prev) => {
       const next = { ...prev };
       for (const e of FOCUS) next[e.key] = (next[e.key] ?? 0) + 1;
@@ -859,38 +1126,29 @@ export default function EmailsPage() {
 
   return (
     <div className="min-h-screen">
-      <AdminHeader>
-        {/* Broadcast has its own screen: it carries typed text and needs an audience count and a
-            confirmation before sending, which would be noise on every row here. */}
-        <Link
-          href="/dashboard/emails/broadcast"
-          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10"
-        >
-          <MegaphoneIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">Broadcast</span>
-        </Link>
-        <button
-          onClick={refreshCounts}
-          disabled={loading}
-          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/10 disabled:opacity-50"
-        >
-          <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">Count all</span>
-        </button>
-      </AdminHeader>
+      {/* Refresh all, the live switch and Broadcast are on the control bar below rather than up
+          here: they are this screen's controls, not navigation, and in the nav bar they read as
+          chrome and sat at a lower priority than the live switch they belong beside. */}
+      <AdminHeader />
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
         )}
 
-        {/* Mode bar */}
-        <div
-          className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
-            testMode ? 'border-amber-200 bg-amber-50' : 'border-red-300 bg-red-50'
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
+        {/*
+        THE CONTROL BAR. The three things an operator does on arriving - refresh the numbers, arm
+        or disarm sending, write a broadcast - sit together at the same size, because they are the
+        same kind of decision. Two of them used to be small buttons in the nav bar, which read as
+        chrome rather than as the controls for this screen.
+
+        Colour is carried by the mode strip and the live label alone. A full red panel behind all
+        three made the other two look like part of the warning.
+        */}
+        <div className="flex flex-wrap items-stretch gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className={`w-1 shrink-0 ${testMode ? 'bg-amber-400' : 'bg-red-500'}`} />
+
+          <div className="flex min-w-[16rem] flex-1 items-center gap-2.5 py-3">
             {testMode ? (
               <BeakerIcon className="h-5 w-5 shrink-0 text-amber-600" />
             ) : (
@@ -899,40 +1157,61 @@ export default function EmailsPage() {
             <div className="text-sm">
               {testMode ? (
                 <>
-                  <p className="font-medium text-amber-900">Test mode on</p>
-                  <p className="text-amber-700">
-                    One copy goes to the test address. Nothing is queued and no player is touched.
-                  </p>
+                  <p className="font-medium text-slate-900">Test mode on</p>
+                  <p className="text-slate-500">One copy to the test address. Nothing queued, nobody touched.</p>
                 </>
               ) : (
                 <>
-                  <p className="font-medium text-red-900">Live sending</p>
-                  <p className="text-red-700">Emails go to real people. Resets to test on refresh.</p>
+                  <p className="font-medium text-red-800">Live sending</p>
+                  <p className="text-slate-500">Emails go to real people. Resets to test on refresh.</p>
                 </>
               )}
             </div>
           </div>
 
-          <button
-            onClick={() => setTestMode((v) => !v)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              testMode
-                ? 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-300 hover:bg-slate-50'
-                : 'bg-red-600 text-white hover:bg-red-700'
-            }`}
-          >
-            {testMode ? 'Switch to live' : 'Back to test'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+            <button
+              onClick={refreshCounts}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh all
+            </button>
+
+            <button
+              onClick={() => setTestMode((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition ${
+                testMode
+                  ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  : 'border-red-600 bg-red-600 text-white hover:bg-red-700'
+              }`}
+            >
+              {testMode ? <ExclamationTriangleIcon className="h-4 w-4" /> : <BeakerIcon className="h-4 w-4" />}
+              {testMode ? 'Switch to live' : 'Back to test'}
+            </button>
+
+            {/* Broadcast has its own screen: it carries typed text and needs an audience count and
+                a confirmation before sending, which would be noise on every card here. */}
+            <Link
+              href="/dashboard/emails/broadcast"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              <MegaphoneIcon className="h-4 w-4" />
+              Broadcast
+            </Link>
+          </div>
         </div>
 
         {/* ============================================================================
             One card per email taken up so far. Each counts itself, on request.
             ============================================================================ */}
-        {FOCUS.map((email) => (
+        {orderedFocus.map((email) => (
           <FocusCard
             key={email.key}
             email={email}
             reloadToken={reloadTokens[email.key] ?? 0}
+            onCounted={noteCount}
             onOpen={() => setOpen({ email, scopeAll: true })}
           />
         ))}
