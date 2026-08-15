@@ -46,8 +46,8 @@ Business Logic:
 - Only real organizers (created_by_user_id IS NULL) can view/purchase credits
 - Guest players and bots are rejected early to save database queries
 - Player count includes ALL players in ALL competitions owned by this organizer
-- Free tier: First 20 players are free
-- Paid tier: Players 21+ consume paid credits (1 credit per player)
+- Free tier: 20 player slots are free, counted live — a player leaving frees their slot again
+- Paid tier: slots beyond the free limit consume paid credits (1 credit per player)
 =======================================================================================================================================
 */
 

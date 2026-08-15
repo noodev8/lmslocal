@@ -261,7 +261,8 @@ export default function BillingPage() {
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-12">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Important Information</h3>
           <div className="text-sm text-gray-600 space-y-2">
-            <p>• Your first <strong>{freeLimit} slots</strong> are completely free across all competitions</p>
+            <p>• <strong>{freeLimit} slots</strong> are completely free across all competitions</p>
+            <p>• Your free slots are counted live — if a player leaves, that slot opens up again</p>
             <p>• Each additional slot costs <strong>1 credit</strong> when a player joins</p>
             <p>• If the same person joins multiple competitions, each join uses a slot</p>
             <p>• You&apos;ll get 1 credit back if you remove a player during setup (when using paid credits)</p>
