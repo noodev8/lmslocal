@@ -29,9 +29,12 @@ Success Response (ALWAYS HTTP 200):
       "competitions_setup": 1,                      // integer, of those, created but not started
       "competitions_complete": 0,                   // integer, of those, finished
       "competitions_on_fixture_service": 1,         // integer, of those, opted into the fixture service
-      "players_total": 22,                          // integer, memberships across their competitions
+      "players_total": 21,                          // integer, people recruited (no bots, not themselves)
       "players_unique": 21,                         // integer, of those, distinct people
-      "lifetime_spend": 80,                         // number, total ever paid across credit_purchases
+      "chargeable_players": 22,                     // integer, memberships that count for billing (no bots/guests)
+      "free_places_left": 0,                        // integer, unused part of FREE_PLAYER_LIMIT
+      "credits_available": 19,                      // integer, free places left + credit bought
+      "spend_12m": 40,                              // number, real money paid in the last 12 months
       "credit": 19,                                 // integer, current credit balance
       "signed_up_at": "2026-01-04T12:00:00.000Z",   // string, ISO datetime, account created
       "last_active_at": "2026-08-01T09:00:00.000Z", // string or null, ISO datetime, last seen by the player app
@@ -58,21 +61,34 @@ Data Notes:
 - competition.status is uppercase ('SETUP', 'ACTIVE', 'COMPLETE'). It used to be mixed; the data
   was normalised on 2026-08-04. Every comparison here still lowercases the column first, which is
   now belt-and-braces rather than load-bearing.
-- "players_total" counts competition_user rows, exactly like "player_count" in
-  get-admin-competitions, so an organiser's total is the sum of the numbers shown against their
-  competitions on the other screen. That matters more than it sounds: the two screens sit one
-  click apart and a discrepancy of even one reads as a bug.
+- "players_total" is PEOPLE THEY RECRUITED: competition_user rows excluding bots and excluding the
+  organiser's own membership. This screen is read to answer "how is recruitment going", and both
+  exclusions were flattering that answer - one competition reported 24 against 2 real players, and
+  four organisers sitting alone in an empty competition reported 1 each rather than 0.
 
-  It therefore includes the organiser, who is inserted into competition_user when they create a
-  competition. Most of them then play, so this is not padding - but it does mean a competition
-  nobody has joined reports 1, not 0.
+  It therefore no longer matches "player_count" in get-admin-competitions, which still counts
+  every membership. Those two screens used to reconcile exactly and now do not. If they need to
+  again, the fix is to apply the same two exclusions there, not to put them back here.
+
+  It also no longer matches "chargeable_players" on this same row, and that gap IS the organiser:
+  they consume a chargeable place while not being somebody they recruited.
 
   "players_unique" is the same set deduplicated, which is lower whenever someone plays in two of
   the same organiser's competitions. Reported separately rather than instead: the totals are what
   reconcile with the competitions screen, the distinct count is the honest reach figure.
-- "lifetime_spend" is SUM over credit_purchases, NOT app_user.paid_credit. Credit can be granted
+- "spend_12m" is SUM over credit_purchases, NOT app_user.paid_credit. Credit can be granted
   without money changing hands, so only a purchase proves a paying customer. The current balance
   is returned separately as "credit" - a paying organiser sitting at zero is worth spotting.
+
+  Twelve months rather than lifetime, and cs_test_ sessions excluded. See the query.
+- "credits_available" is the headroom question: how many more players could this organiser take on
+  right now. Free places left plus credit bought, because from their side a place is a place. It
+  is deliberately NOT the same as "credit", which is only the bought half and reads as zero for
+  every organiser who has never needed to buy anything.
+
+  It says who can act NOW, where spend says who once handed over money, and the two do not agree -
+  one account has 190 credits bought and 2 chargeable players, because bots are excluded from
+  charging and nearly all of its members are bots.
 - "last_active_at" is the organiser's own last session; "last_player_activity" is the newest pick
   by anyone in their competitions. An organiser who has gone quiet while their players have not
   reads very differently from one whose whole competition has stalled.
@@ -85,7 +101,12 @@ const express = require('express');
 const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
+const { organiserChargeableCountSql, chargeableMemberFilter } = require('../../services/botPool');
 const router = express.Router();
+
+// The same env var every billing path reads. Defaulted identically, so this screen cannot report
+// an allowance the charging code does not honour.
+const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
 
 router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-admin-organisers');
@@ -115,20 +136,68 @@ router.get('/', verifyAdminToken, async (req, res) => {
           WHERE c.organiser_id = u.id
             AND COALESCE(c.fixture_service, false) = true)                   AS competitions_on_fixture_service,
 
-        -- Memberships, counted the same way as get-admin-competitions so the two screens agree,
-        -- plus the deduplicated figure (see Data Notes)
+        /*
+        PEOPLE THEY RECRUITED. Not "memberships" - two exclusions, both of which were making the
+        number say something the screen is not read for:
+
+        BOTS are seeding, accounts we drive to make a new competition look alive. Counting them
+        reported 24 players for an organiser who had recruited one.
+
+        THE ORGANISER THEMSELVES is inserted into competition_user when they create a competition,
+        so every organiser started at 1 and four accounts sitting alone in an empty competition
+        were indistinguishable from four who had found a player. Nobody recruits themselves.
+
+        Excluded by comparing the row to c.organiser_id rather than by subtracting one per
+        competition: one organiser today is NOT a member of their own competition, so the
+        arithmetic version would take them to -1.
+
+        This is deliberately NOT the same as the billing count below, and the difference is the
+        organiser: they occupy a chargeable place like anybody else, so they cost a credit while
+        never counting as recruited. Two questions, two numbers - see Data Notes.
+        */
         (SELECT COUNT(*)
            FROM competition_user cu
            JOIN competition c ON c.id = cu.competition_id
-          WHERE c.organiser_id = u.id)                                       AS players_total,
+           JOIN app_user pu ON pu.id = cu.user_id
+          WHERE c.organiser_id = u.id
+            AND cu.user_id <> c.organiser_id
+            AND ${chargeableMemberFilter('pu')})                              AS players_total,
         (SELECT COUNT(DISTINCT cu.user_id)
            FROM competition_user cu
            JOIN competition c ON c.id = cu.competition_id
-          WHERE c.organiser_id = u.id)                                       AS players_unique,
+           JOIN app_user pu ON pu.id = cu.user_id
+          WHERE c.organiser_id = u.id
+            AND cu.user_id <> c.organiser_id
+            AND ${chargeableMemberFilter('pu')})                              AS players_unique,
 
+        /*
+        TWELVE MONTHS, AND REAL MONEY ONLY.
+
+        Lifetime was the wrong window for a screen about who to contact: a purchase from two years
+        ago says nothing about whether somebody is a customer now, and it never decays, so the
+        column could only ever grow.
+
+        cs_test_ sessions are Stripe's test mode - checkouts that took no money. Three of the six
+        purchases on the platform are test ones, all on the same account, and including them
+        reported 70 of a 140 total that never existed. COALESCE because a purchase inserted by
+        hand would have no session id at all, and NULL NOT LIKE is NULL, which would drop the row.
+        */
         (SELECT COALESCE(SUM(cp.paid_amount), 0)
            FROM credit_purchases cp
-          WHERE cp.user_id = u.id)                                           AS lifetime_spend,
+          WHERE cp.user_id = u.id
+            AND cp.created_at >= NOW() - INTERVAL '12 months'
+            AND COALESCE(cp.stripe_subscription_id, '') NOT LIKE 'cs_test%')  AS spend_12m,
+
+        /*
+        Chargeable memberships across all their competitions, from the one shared definition in
+        services/botPool.js - the same fragment the player-facing credit screen uses, so what the
+        admin sees and what the organiser is billed for cannot drift apart. Bots and guests are
+        excluded there, which is the point: a competition seeded with bots must not read as usage.
+
+        The free allowance is subtracted in JS below rather than here, so FREE_PLAYER_LIMIT is
+        read from one place.
+        */
+        ${organiserChargeableCountSql('u.id')}                                AS chargeable_players,
 
         (SELECT MIN(c.created_at) FROM competition c
           WHERE c.organiser_id = u.id)                                       AS first_competition_at,
@@ -161,7 +230,24 @@ router.get('/', verifyAdminToken, async (req, res) => {
       competitions_on_fixture_service: n(row.competitions_on_fixture_service),
       players_total: n(row.players_total),
       players_unique: n(row.players_unique),
-      lifetime_spend: parseFloat(row.lifetime_spend) || 0,
+      chargeable_players: n(row.chargeable_players),
+      /*
+      HOW MANY MORE PLAYERS THIS ORGANISER CAN TAKE BEFORE THEY HAVE TO BUY.
+
+      Free places left PLUS credit bought, because those are the same thing from the organiser's
+      side - a place is a place, and which pocket it comes out of is our accounting, not theirs.
+      A brand new organiser reads 20 rather than 0, which is the honest answer to "can they run a
+      competition today".
+
+      Note it is free places LEFT, not a flat 20 added to everyone: somebody already past the
+      allowance has spent theirs, and adding 20 back would credit them twice.
+
+      Derived here so FREE_PLAYER_LIMIT is read in one place and the screen subtracts nothing of
+      its own.
+      */
+      free_places_left: Math.max(0, FREE_PLAYER_LIMIT - n(row.chargeable_players)),
+      credits_available: Math.max(0, FREE_PLAYER_LIMIT - n(row.chargeable_players)) + n(row.credit),
+      spend_12m: parseFloat(row.spend_12m) || 0,
       credit: n(row.credit),
       signed_up_at: row.signed_up_at,
       last_active_at: row.last_active_at,

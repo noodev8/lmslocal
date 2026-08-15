@@ -90,23 +90,32 @@ function SortableHeader({
   );
 }
 
-const formatMoney = (amount: number) =>
-  `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+/*
+Competition 117, "App Store", is ours and is hidden from this screen entirely.
+
+It exists so Apple's reviewers have something to sign into when an iOS release is submitted, and
+it is never played. On a platform with eighteen competitions it was one row in eighteen of noise,
+and worse, it counted: it sat in the SETUP tab and the status breakdown as though somebody had
+created a competition and abandoned it.
+
+Hidden here rather than deleted or flagged in the database - it has to keep working for the next
+submission, and a column on `competition` for one permanent exception would be a schema change
+carrying a single row forever. By id, not by name, so renaming it in the app cannot bring it back.
+*/
+const HIDDEN_COMPETITION_IDS = [117];
 
 /*
 Who runs this competition, with an address that can be copied in one click.
 
-Deliberately thin. This used to also carry the organiser's competition count and lifetime spend,
-which made every row three lines tall to answer a question about a person rather than about the
-competition. That belongs on the Organisers screen, which is what the name links to. The paid
-badge stays because "is this a customer" changes how you read every other cell on the row - and
-it is lifetime spend across credit_purchases, never paid_credit, since credit can be granted
-without a purchase behind it.
+Deliberately thin: a name and an address that can be copied in one click. Everything about the
+PERSON - competition count, lifetime spend, when they were last seen - belongs on the Organisers
+screen, which is what the name links to. A spend badge lived here too and went the same way; this
+screen is read a row at a time about competitions, and money is a question you ask about an
+organiser, in the place that ranks them by it.
 */
 function OrganiserCell({ competition }: { competition: AdminCompetition }) {
   const [copied, setCopied] = useState(false);
   const email = competition.organiser_email;
-  const hasPaid = competition.organiser_lifetime_spend > 0;
 
   useEffect(() => {
     if (!copied) return;
@@ -140,14 +149,6 @@ function OrganiserCell({ competition }: { competition: AdminCompetition }) {
         >
           {competition.organiser_name || 'Unnamed'}
         </Link>
-        {hasPaid && (
-          <span
-            className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20"
-            title={`Lifetime spend ${formatMoney(competition.organiser_lifetime_spend)} · ${competition.organiser_credit} credit remaining`}
-          >
-            {formatMoney(competition.organiser_lifetime_spend)}
-          </span>
-        )}
         {email && (
           <button
             onClick={copyEmail}
@@ -528,7 +529,10 @@ function CompetitionsList() {
     try {
       const result = await adminApi.getCompetitions();
       if (result.return_code === 'SUCCESS' && result.competitions) {
-        setCompetitions(result.competitions);
+        /* Dropped here, once, rather than in the render - every count on this screen (the status
+           breakdown, the organiser filter, the row total) reads this array, and filtering later
+           would leave them all including a competition nobody can see. */
+        setCompetitions(result.competitions.filter((c) => !HIDDEN_COMPETITION_IDS.includes(c.id)));
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setError(result.message || 'Could not load competitions');
       }

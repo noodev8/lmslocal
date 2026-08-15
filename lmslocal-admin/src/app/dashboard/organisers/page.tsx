@@ -34,13 +34,27 @@ type SortKey =
   | 'name'
   | 'competitions_total'
   | 'players_total'
-  | 'lifetime_spend'
-  | 'signed_up_at'
-  | 'last_player_activity';
+  | 'credits_available'
+  | 'spend_12m'
+  | 'last_active_at';
 type SortDirection = 'asc' | 'desc';
 
 // 'all' is everyone; the rest narrow to a group worth contacting for a different reason.
 type Filter = 'all' | 'paying' | 'running' | 'new' | 'dormant';
+
+/*
+Andreas's own test accounts, hidden from this screen. They are real accounts doing real things -
+just not customers - and on a list of fifteen organisers two of them being ours is noise on every
+read.
+
+By EMAIL rather than user id, because that is how they are recognised: `lmslocal8@gmail.com` even
+carries the display name "Andreas". Note which one is NOT here - aandreou25@gmail.com stays,
+because that account runs genuine competitions for real players and belongs in every count.
+
+Expected to come back when they are being tested with. This is a display filter over one array,
+so removing an address from the list is the whole of it.
+*/
+const HIDDEN_ORGANISER_EMAILS = ['brookfieldcomfort@gmail.com', 'lmslocal8@gmail.com'];
 
 const NEW_WITHIN_DAYS = 30;
 // An organiser whose competitions have seen no pick this long is worth a nudge, not a sale.
@@ -49,10 +63,17 @@ const DORMANT_AFTER_DAYS = 30;
 const COLUMNS: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: 'name', label: 'Organiser' },
   { key: 'competitions_total', label: 'Competitions', numeric: true },
-  { key: 'players_total', label: 'Players', numeric: true },
-  { key: 'lifetime_spend', label: 'Spend', numeric: true },
-  { key: 'signed_up_at', label: 'Signed up' },
-  { key: 'last_player_activity', label: 'Last activity' },
+  /* "Recruited", because that is now what it counts - bots and the organiser's own membership are
+     both excluded, so a 0 means nobody has joined rather than "one, themselves". */
+  { key: 'players_total', label: 'Recruited', numeric: true },
+  /* Headroom, not consumption: free places left plus credit bought. "Billable" (how far PAST the
+     free allowance they were) answered the billing question and told you nothing about whether
+     somebody could start a competition tomorrow, which is what this screen is read for. */
+  { key: 'credits_available', label: 'Credits', numeric: true },
+  { key: 'spend_12m', label: 'Spend 12m', numeric: true },
+  /* Signed up removed: a join date is a fact about the past that never changes and never prompts
+     an action. "Last seen" is the column that answers what it was being read for. */
+  { key: 'last_active_at', label: 'Last seen' },
 ];
 
 const formatMoney = (amount: number) =>
@@ -61,8 +82,22 @@ const formatMoney = (amount: number) =>
 const formatDate = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
+/*
+CALENDAR days, not elapsed 24-hour blocks, because "Today" and "Yesterday" are calendar words and
+were being answered with arithmetic.
+
+Dividing the elapsed milliseconds by 86,400,000 made a pick at 21:37 last night read as "Today"
+at 09:41 this morning - twelve hours, so zero blocks - while the same organiser's login three days
+earlier correctly read "3 days ago". Two lines of the same cell disagreeing about what day it is
+looks like the data is wrong when only the arithmetic was.
+
+Rounding rather than flooring the day difference: a clock change makes a local day 23 or 25 hours,
+and both must still count as one day.
+*/
+const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
 const daysSince = (iso: string | null): number | null =>
-  iso === null ? null : Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  iso === null ? null : Math.round((startOfDay(new Date()) - startOfDay(new Date(iso))) / 86_400_000);
 
 // "3 days ago" reads faster than a date when the question is "has this gone quiet".
 const formatAge = (iso: string | null): string => {
@@ -216,7 +251,7 @@ function OrganisersList() {
   const [filter, setFilter] = useState<Filter>('all');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>('last_player_activity');
+  const [sortKey, setSortKey] = useState<SortKey>('last_active_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const load = useCallback(async () => {
@@ -225,7 +260,11 @@ function OrganisersList() {
     try {
       const result = await adminApi.getOrganisers();
       if (result.return_code === 'SUCCESS' && result.organisers) {
-        setOrganisers(result.organisers);
+        /* Dropped here, once, so every tile count and every filter agrees with the rows below.
+           Filtering in the render would leave the totals counting people nobody can see. */
+        setOrganisers(
+          result.organisers.filter((o) => !HIDDEN_ORGANISER_EMAILS.includes((o.email || '').toLowerCase()))
+        );
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setError(result.message || 'Could not load organisers');
       }
@@ -257,7 +296,7 @@ function OrganisersList() {
   const matchesFilter = useCallback((o: AdminOrganiser): boolean => {
     switch (filter) {
       case 'paying':
-        return o.lifetime_spend > 0;
+        return o.spend_12m > 0;
       case 'running':
         return o.competitions_active > 0;
       case 'new': {
@@ -309,7 +348,7 @@ function OrganisersList() {
     };
     return {
       total: organisers.length,
-      paying: organisers.filter((o) => o.lifetime_spend > 0).length,
+      paying: organisers.filter((o) => o.spend_12m > 0).length,
       running: organisers.filter((o) => o.competitions_active > 0).length,
       new: organisers.filter(isNew).length,
       dormant: organisers.filter(isDormant).length,
@@ -455,12 +494,18 @@ function OrganisersList() {
                     </td>
 
                     {/*
-                    The total matches the sum of this organiser's rows on the competitions
-                    screen. The distinct count only appears when someone has played in more than
-                    one of their competitions and the two numbers therefore disagree.
+                    People they recruited - not themselves, not bots. It therefore no longer
+                    matches the sum of their rows on the competitions screen, which counts every
+                    membership. The distinct count only appears when someone has played in more
+                    than one of their competitions and the two numbers therefore disagree.
                     */}
                     <td className="px-4 py-3 text-slate-600">
-                      <span className="tabular-nums">{o.players_total}</span>
+                      <span
+                        className="tabular-nums"
+                        title="People who joined, excluding the organiser themselves and any bots"
+                      >
+                        {o.players_total}
+                      </span>
                       {o.players_unique !== o.players_total && (
                         <div
                           className="text-xs text-slate-400"
@@ -471,28 +516,46 @@ function OrganisersList() {
                       )}
                     </td>
 
-                    <td className="px-4 py-3">
-                      {o.lifetime_spend > 0 ? (
-                        <span
-                          className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20"
-                          title={`${o.credit} credit remaining`}
-                        >
-                          {formatMoney(o.lifetime_spend)}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
+                    {/*
+                    CREDITS: how many more players they could take on right now - free places left
+                    plus credit bought. A real 0 is shown as 0, not a dash: an organiser who cannot
+                    add another player is the one row here worth acting on, and a dash reads as
+                    "nothing to say".
+
+                    Bots and guests are excluded server-side, which matters: the account with 190
+                    credits bought has almost all of its members as bots, and bots are never
+                    charged, so its free places were never spent either.
+                    */}
+                    <td
+                      className={`px-4 py-3 tabular-nums ${o.credits_available === 0 ? 'font-medium text-red-700' : 'text-slate-600'}`}
+                      title={
+                        o.free_places_left > 0
+                          ? `${o.free_places_left} free place${o.free_places_left === 1 ? '' : 's'} left + ${o.credit} bought · ${o.chargeable_players} players counted so far`
+                          : `Free allowance used up · ${o.credit} bought · ${o.chargeable_players} players counted so far`
+                      }
+                    >
+                      {o.credits_available}
                     </td>
 
-                    <td className="px-4 py-3 text-slate-500">{formatDate(o.signed_up_at)}</td>
+                    {/* Real money, last 12 months. Test-mode Stripe sessions are excluded server
+                        side, so this no longer counts £70 that was never taken. */}
+                    <td className="px-4 py-3 tabular-nums text-slate-600" title={`${o.credit} credit remaining`}>
+                      {o.spend_12m > 0 ? formatMoney(o.spend_12m) : <span className="text-slate-400">—</span>}
+                    </td>
 
-                    <td className="px-4 py-3 text-slate-500">
-                      <div title={`Last pick in any of their competitions: ${formatDate(o.last_player_activity)}`}>
-                        {formatAge(o.last_player_activity)}
-                      </div>
-                      <div className="text-xs text-slate-400" title="When this organiser was last seen">
-                        seen {formatAge(o.last_active_at).toLowerCase()}
-                      </div>
+
+                    {/*
+                    THE ORGANISER'S OWN last session, and only that. This screen is about the
+                    person; how busy their players are is a question about a competition, and the
+                    competitions screen answers it there.
+
+                    The players' newest pick used to sit above this, and two dates about two
+                    different people stacked under one heading read as one fact contradicting
+                    itself. last_player_activity is still fetched - the "dormant" filter is built
+                    on it - it just no longer competes for the cell.
+                    */}
+                    <td className="px-4 py-3 text-slate-500" title={formatDate(o.last_active_at)}>
+                      {formatAge(o.last_active_at)}
                     </td>
 
                     <td className="px-4 py-3">

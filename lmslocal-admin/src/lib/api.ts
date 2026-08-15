@@ -182,15 +182,24 @@ export interface AdminOrganiser {
   competitions_complete: number;
   competitions_on_fixture_service: number;
   /*
-  Memberships across their competitions - counted exactly like player_count on the competitions
-  screen, so an organiser's total is the sum of their competitions' numbers there. Includes the
-  organiser, who joins their own competition on creating it.
+  People they RECRUITED: memberships across their competitions, excluding bots and excluding the
+  organiser's own. Deliberately not player_count on the competitions screen, which counts every
+  membership, and deliberately not chargeable_players below - the organiser costs a credit while
+  never being somebody they recruited.
   */
   players_total: number;
   /* The same set deduplicated - lower when someone plays in two of their competitions. */
   players_unique: number;
-  /* Total ever paid across credit_purchases - what makes someone a paying customer. */
-  lifetime_spend: number;
+  /* Memberships that count for billing: bots and guests excluded, per services/botPool.js. */
+  chargeable_players: number;
+  /* The unused part of the free allowance. */
+  free_places_left: number;
+  /* Free places left PLUS credit bought - how many more players they could take on right now.
+     Not the same as `credit`, which is only the bought half and reads zero for anyone who has
+     never had to buy. */
+  credits_available: number;
+  /* Real money paid in the last 12 months. Excludes Stripe test-mode sessions, which took none. */
+  spend_12m: number;
   /* Current credit balance, which can be granted without a purchase behind it. */
   credit: number;
   signed_up_at: string;
