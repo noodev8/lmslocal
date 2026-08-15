@@ -2,6 +2,21 @@
 
 Fixed-size tiles for Facebook and Instagram. Open the HTML directly in Chrome — no dev server.
 
+## The link previews (`og-*.html`)
+
+`og-default.html` and `og-join.html` are 1200×630 and are **not** part of the free-game campaign
+below. They are the images a chat app draws when someone pastes a link to the site, and they are
+built by `node make-png.js og-default` / `og-join` from the parent folder — never by hand. See
+[Making a link preview image](../README.md#making-a-link-preview-image-og).
+
+The pair exists because the two links go to different people. `og-default` is the organiser
+(**you** = the organiser, §9 of `docs/design-system.md`); `og-join` is the player who has been
+sent an invite code, and says nothing about pricing, fees or running your own — the join route is
+the sanctioned exception to the voice rule, and the whole reason it has its own image is that a
+site-wide preview selling the platform to organisers was going out on links sent to players.
+
+Their copy repeats the metadata on the pages they preview. If one changes, change both.
+
 ## The free game
 
 The free national last-man-standing game: £50 to the winner, a new game every week, join code

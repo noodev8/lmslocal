@@ -19,10 +19,12 @@ and is reachable by URL, so a half-finished leaflet would be live on the interne
 
 ```
 make-pdf.js         Build a print-ready PDF from a leaflet. Start here.
+make-png.js         Render an OG image to lmslocal-web/public/. Tiles only.
 _shared/brand.js    Tailwind token config + Google Fonts. Load on every page.
 _shared/print.css   Print rules, screen preview desk, trim/safe guides. Leaflets only.
 _shared/bleed.js    `?bleed` print-shop mode: sheet +3mm per side. Leaflets only.
 _shared/social.css  Fixed-size canvas + screenshot desk. Social tiles only.
+_shared/bare.js     `?bare` screenshot mode: strips the desk. make-png.js only.
 leaflet/            Print artwork. a5-test.html is the pipeline reference.
                     a5-landlord (pubs), a5-club (clubs), a5-workplace (offices),
                     a5-player (players). a5-player-1992 is a one-off for a single
@@ -86,6 +88,31 @@ print from there — see above.
 Chrome exports RGB. A digital press takes that happily; if the shop is running litho they will
 want CMYK, and `overprint` (`#C8341E`) is a saturated RGB red that dulls noticeably in the
 conversion — worth asking which before approving a proof.
+
+## Making a link preview image (OG)
+
+```bash
+cd lmslocal-marketing
+node make-png.js og-default    # what lmslocal.co.uk previews as
+node make-png.js og-join       # what an invite link previews as
+```
+
+These are the exception to "this folder ships nothing": the PNG is written
+**straight into `lmslocal-web/public/`** and is committed there, because unlike a
+leaflet the file itself is not the deliverable — the deployed site is, and an
+export sitting in `out/` waiting to be copied goes stale the first time the copy
+changes. The source HTML still lives here, with the rest of the artwork.
+
+Run it after any edit to `social/og-*.html`, and commit the PNG with the HTML.
+Do not screenshot these by hand: 1200×630 is a size the platforms check, and a
+hand capture on a HiDPI screen is 2400px.
+
+`og-default.html` repeats the root metadata copy in `lmslocal-web/src/app/layout.tsx`
+and `og-join.html` repeats the copy in `join/[code]/layout.tsx` — **change the
+image and the metadata together**, or the preview promises something the page
+does not.
+
+Chat apps cache previews hard, so test with a URL they have not seen before.
 
 ## Making a social tile (screenshot is fine here)
 
