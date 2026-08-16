@@ -131,11 +131,21 @@ const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), 
 const daysSince = (iso: string | null): number | null =>
   iso === null ? null : Math.round((startOfDay(new Date()) - startOfDay(new Date(iso))) / 86_400_000);
 
+/*
+Times are rendered by the browser from a UTC ISO string, so they come out in the reader's own
+zone - 17:34 BST for the 16:34Z the server stored. Never format a time server-side for this
+screen, and never slice the ISO string, or it will be an hour out all summer.
+*/
+const formatTime = (iso: string): string =>
+  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
 // "3 days ago" reads faster than a date when the question is "has this gone quiet".
 const formatAge = (iso: string | null): string => {
-  const days = daysSince(iso);
-  if (days === null) return 'Never';
-  if (days <= 0) return 'Today';
+  if (iso === null) return 'Never';
+  const days = daysSince(iso) as number;
+  // The time only for today: at 5pm "Today" could mean nine hours ago. From yesterday back, the
+  // hour changes nothing you would do about it.
+  if (days <= 0) return `Today, ${formatTime(iso)}`;
   if (days === 1) return 'Yesterday';
   if (days < 30) return `${days} days ago`;
   const months = Math.floor(days / 30);

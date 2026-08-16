@@ -54,8 +54,14 @@ Data Notes:
 - competition.status is uppercase ('SETUP', 'ACTIVE', 'COMPLETE'). It used to be mixed; the data
   was normalised on 2026-08-04. The filter and the returned field still lowercase it, which is
   harmless and keeps this screen's API contract unchanged.
-- "last_activity" is the most recent pick.created_at across the competition's rounds, or the
-  competition's created_at if it has never had a pick.
+- "last_activity" is the most recent thing that happened INSIDE this competition: the latest of
+  its picks, its joins, its rounds being created, and its own created_at. It was picks alone,
+  which showed a competition in SETUP as untouched since the day it was made however many people
+  had joined since - comp 173 read "29 June" on a day somebody joined it.
+  It is deliberately NOT the latest app_user.last_active_at across its members. That is a fact
+  about a person, and a person carries it into every competition they are in: a COMPLETE
+  competition whose organiser was on the site today working on a different one would read as
+  active today. "Last seen" per person is the organisers screen's column, and belongs there.
 - "fixture_service" is the flag every push reads. The fixtures screen filters this list by it to
   show which competitions a push will actually reach, and the opt-in toggle writes it through
   /admin/set-fixture-service.
@@ -115,10 +121,18 @@ router.get('/', verifyAdminToken, async (req, res) => {
           WHERE cu.competition_id = c.id
             AND bu.email LIKE $2)                                             AS bot_count,
         c.created_at,
-        COALESCE(
+        -- Anything that happened IN this competition, not anything that happened to its members.
+        -- GREATEST ignores NULLs, and c.created_at is NOT NULL, so this always resolves.
+        GREATEST(
           (SELECT MAX(p.created_at)
              FROM pick p
              JOIN round r ON r.id = p.round_id
+            WHERE r.competition_id = c.id),
+          (SELECT MAX(cu.joined_at)
+             FROM competition_user cu
+            WHERE cu.competition_id = c.id),
+          (SELECT MAX(r.created_at)
+             FROM round r
             WHERE r.competition_id = c.id),
           c.created_at
         )                                                                     AS last_activity,
