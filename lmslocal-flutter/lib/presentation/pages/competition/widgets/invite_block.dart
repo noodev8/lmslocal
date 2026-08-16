@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:lmslocal_flutter/core/game/invite.dart';
@@ -75,12 +76,38 @@ class InviteBlock extends StatelessWidget {
           // The link itself, in font-data: it is a value, and seeing it is what
           // tells an organiser the button is going to send the right thing.
           //
-          // 13 rather than the default 15 so it holds one line on a 411dp phone
-          // — at 14 a five-digit code goes over by a few pixels and the URL
-          // breaks after the slash, which reads as two links rather than one.
+          // Full width and above the QR rather than set beside it. Sharing the
+          // row with the code left it about half as wide and broke it over three
+          // lines, which reads as three things — the one failure a URL on screen
+          // has to avoid. 13 rather than the default 15 so it holds one line on
+          // a 411dp phone.
           Text(
             joinUrl,
             style: CouponTheme.dataText.copyWith(fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+
+          // The QR under the link it encodes. Tapping fills the screen, because
+          // the whole point of a QR is someone else's phone pointing at this one
+          // from across a table, and 92dp is a thumbnail rather than a target.
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => _showLargeQr(context, joinUrl),
+                child: _qr(joinUrl, 92),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  'Tap to enlarge. Whoever scans it goes straight to the join '
+                  'page — nothing to type.',
+                  style: CouponTheme.bodyText.copyWith(
+                    fontSize: 14,
+                    color: CouponTheme.inkFade,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
 
@@ -144,6 +171,84 @@ class InviteBlock extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// The join QR, on white with a quiet zone round it.
+  ///
+  /// White and not `stockLit`, which is the one place in the app that breaks the
+  /// palette on purpose: a scanner wants maximum contrast, and the tinted stock
+  /// costs contrast for nothing. It is a printed sticker on the coupon rather
+  /// than part of it, so the border keeps it a deliberate object.
+  ///
+  /// Error correction 'H' because this ends up photographed off a screen and
+  /// stuck on a poster rather than scanned from a pristine display — the same
+  /// reasoning as the web's `/promote`.
+  Widget _qr(String joinUrl, double size) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.fromBorderSide(CouponTheme.rule()),
+      ),
+      child: QrImageView(
+        data: joinUrl,
+        size: size,
+        padding: EdgeInsets.zero,
+        backgroundColor: Colors.white,
+        errorCorrectionLevel: QrErrorCorrectLevel.H,
+        eyeStyle: const QrEyeStyle(
+          eyeShape: QrEyeShape.square,
+          color: CouponTheme.ink,
+        ),
+        dataModuleStyle: const QrDataModuleStyle(
+          dataModuleShape: QrDataModuleShape.square,
+          color: CouponTheme.ink,
+        ),
+      ),
+    );
+  }
+
+  /// The QR at scanning size.
+  ///
+  /// A dialog rather than a route: it is a thing held up for a few seconds, not
+  /// a place to be, and it must be dismissable by tapping anywhere — an
+  /// organiser holding the phone out is not looking for a close button.
+  ///
+  /// The competition name goes above it because a phone held out across a table
+  /// is often being pointed at by someone who has been told a name and nothing
+  /// else, and the code below it covers the person whose camera will not scan.
+  void _showLargeQr(BuildContext context, String joinUrl) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => GestureDetector(
+        onTap: () => Navigator.of(dialogContext).pop(),
+        child: Dialog(
+          insetPadding: const EdgeInsets.all(24),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  competition.name.toUpperCase(),
+                  style: CouponTheme.heading(26),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                _qr(joinUrl, 240),
+                const SizedBox(height: 20),
+                Text('SCAN TO JOIN', style: CouponTheme.label),
+                const SizedBox(height: 6),
+                Text(
+                  competition.inviteCode ?? '',
+                  style: CouponTheme.dataText.copyWith(fontSize: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1363,14 +1362,12 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
 
-                // The code someone needs to join. Only while joining is still
-                // open — codes are permanent, so showing one after round 1
-                // locks would invite sharing that leads to a dead end.
-                if (competition.inviteCode != null &&
-                    _joiningOpen(competition)) ...[
-                  const SizedBox(height: 16),
-                  _buildInviteCode(competition.inviteCode!),
-                ],
+                // No invite code here. It used to sit on every card while
+                // joining was open, back when this was the only place the app
+                // showed one — a bare code with nothing to do with it, on the
+                // screen you pass through rather than the one you act on. The
+                // competition screen now has the whole invitation: the link,
+                // the QR, and a share sheet. One place, one step further in.
 
                 // Action button
                 const SizedBox(height: 16),
@@ -1398,64 +1395,6 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Whether anyone can still join. Lifted into `core/game/round_state.dart`
-  /// beside its web twin, because the competition screen now asks the same
-  /// question and the two must never disagree about the same competition.
-  bool _joiningOpen(Competition competition) => joiningOpen(
-        currentRound: competition.currentRound,
-        currentRoundLockTime: competition.currentRoundLockTime,
-      );
-
-  Widget _buildInviteCode(String code) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        Clipboard.setData(ClipboardData(text: code));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invite code copied'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          border: Border.all(color: CouponTheme.ink.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'PLAYER INVITE CODE',
-                    style: CouponTheme.label,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    code,
-                    style: CouponTheme.dataText.copyWith(
-                      fontSize: 20,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.copy_outlined,
-              size: 18,
-              color: CouponTheme.inkFade,
-            ),
-          ],
         ),
       ),
     );

@@ -56,6 +56,9 @@ dependencies:
   # The OS share sheet. The whole point of inviting from the phone rather than
   # the website: one tap into WhatsApp, where these invitations actually go.
   share_plus: ^13.0.0
+  # The join QR. Pure Dart — it draws the code, so there is nothing to fetch and
+  # the artwork can never disagree with the link printed beside it.
+  qr_flutter: ^4.1.0
 
   # Firebase
   firebase_core: ^4.13.0
