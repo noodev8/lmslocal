@@ -319,8 +319,15 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
+        {/*
+          Not "you can change your mind later", which read as something the organiser could do and
+          is not: update-competition deliberately leaves fixture_service alone, the settings screen
+          does not offer it, and set-fixture-service-organiser is unregistered. Only an admin can
+          flip it, through /admin/set-fixture-service - so the sentence has to point at us.
+        */}
         <p className="mt-4 text-[16px] leading-relaxed text-ink-fade">
-          You choose per competition, and you can change your mind later.
+          You choose per competition when you set it up. Ask us if you want it switched over at any
+          time.
         </p>
 
         <h3 className={`${EYEBROW} mt-12 text-ink-fade`}>Included either way</h3>
