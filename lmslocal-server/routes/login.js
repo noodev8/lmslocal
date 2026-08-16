@@ -198,12 +198,24 @@ router.post('/', async (req, res) => {
         };
       }
 
+      // The account holder's own password failed and the master password carried them in, so
+      // whoever this is, it is not them. Everything below that records "the user did something"
+      // has to know, or we write a developer's session into a customer's history.
+      const isImpersonation = !passwordValid && masterPasswordValid;
+
       // STEP 5: Generate JWT token with comprehensive payload
       // Token includes essential user information for authentication
+      //
+      // "impersonated" is the one claim beyond user_id/email/display_name (CLAUDE.md says keep
+      // it to those and fetch the rest from the database). Where a token came from is a fact
+      // about the token, not the user, so the database cannot answer it. verifyToken reads it to
+      // leave last_active_at alone - see middleware/auth.js. Set only when true, so a normal
+      // login's token is byte-for-byte what it always was.
       const tokenPayload = {
         user_id: user.id,
         email: user.email,
-        display_name: user.display_name
+        display_name: user.display_name,
+        ...(isImpersonation ? { impersonated: true } : {})
       };
 
       const token = jwt.sign(
@@ -218,24 +230,35 @@ router.post('/', async (req, res) => {
       const expiresAt = new Date(jwt.decode(token).exp * 1000);
 
       // STEP 6: Update user activity tracking atomically
-      const updateActivityQuery = `
-        UPDATE app_user 
-        SET last_active_at = $1
-        WHERE id = $2
-        RETURNING last_active_at
-      `;
+      // Skipped for a master-password login: "last seen" means the customer was here, and the
+      // admin organisers screen acts on it - its quiet-organiser tile exists to find people who
+      // have stopped coming, and a developer opening their account would hide them from it.
+      let updatedLastLogin = user.last_active_at;
 
-      const activityResult = await client.query(updateActivityQuery, [loginTimestamp, user.id]);
-      const updatedLastLogin = activityResult.rows[0].last_active_at;
+      if (!isImpersonation) {
+        const updateActivityQuery = `
+          UPDATE app_user
+          SET last_active_at = $1
+          WHERE id = $2
+          RETURNING last_active_at
+        `;
+
+        const activityResult = await client.query(updateActivityQuery, [loginTimestamp, user.id]);
+        updatedLastLogin = activityResult.rows[0].last_active_at;
+      }
 
       // STEP 7: Create simple audit log entry for successful login
+      // A master-password sign-in is still recorded - it is the one impersonation route that
+      // leaves any trace at all - but under its own action, because 'LOGIN_SUCCESSFUL' against
+      // a customer's id asserts that the customer logged in, and reading that back later there
+      // is no way to tell it was us. Nothing queries these action strings, so a new one is safe.
       await client.query(`
         INSERT INTO audit_log (user_id, action, details, created_at)
         VALUES ($1, $2, $3, $4)
       `, [
         user.id,
-        'LOGIN_SUCCESSFUL',
-        'logged in',
+        isImpersonation ? 'LOGIN_MASTER_PASSWORD' : 'LOGIN_SUCCESSFUL',
+        isImpersonation ? 'signed in with the master password - not the account holder' : 'logged in',
         loginTimestamp
       ]);
 

@@ -18,7 +18,8 @@ const MAX_CACHE_SIZE = 1000; // Prevent unbounded memory growth
 /**
  * Middleware to verify JWT token and populate req.user
  * Implements caching to reduce database load, and keeps app_user.last_active_at
- * current on the same lookup (see the note beside the query).
+ * current on the same lookup - unless the token says it is not the account
+ * holder (see the note beside the query).
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  * @param {Function} next - Express next function
@@ -76,14 +77,30 @@ const verifyToken = async (req, res, next) => {
     // one-hour floor keeps it to a handful of updates per user per day - the
     // screen only renders whole days, so nothing finer would be visible. A
     // data-modifying CTE always executes even though nothing selects from it.
-    const result = await query(
+    //
+    // Except when we are not the account holder. Both the admin tool's "view as
+    // organiser" and a MASTER_PASSWORD login mint a token that is otherwise
+    // identical to a real one, so this middleware had no way to tell them apart
+    // and recorded an admin's visit as the customer's. A new organiser last did
+    // something at 13:09 and read as active at 17:34, which was an admin looking
+    // at his competition. Both minting routes now set "impersonated".
+    //
+    // Two queries rather than a branch inside one, because a data-modifying CTE
+    // cannot be made conditional - it runs whether or not anything selects it.
+    const readOnlyQuery =
+      `SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1`;
+
+    const touchingQuery =
       `WITH touched AS (
          UPDATE app_user
             SET last_active_at = NOW()
           WHERE id = $1
             AND (last_active_at IS NULL OR last_active_at < NOW() - INTERVAL '1 hour')
        )
-       SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1`,
+       ${readOnlyQuery}`;
+
+    const result = await query(
+      decoded.impersonated === true ? readOnlyQuery : touchingQuery,
       [userId]
     );
     

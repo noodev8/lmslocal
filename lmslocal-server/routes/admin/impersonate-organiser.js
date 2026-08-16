@@ -7,10 +7,11 @@ Purpose: Mint a short-lived, ordinary player-scoped JWT for a competition's orga
          admin can open the player app "as" them - for tracking down what a competition
          actually looks like without needing the master password or a second browser.
 
-         The returned token is a completely normal login token (same shape and secret as
-         /login) - it is not admin-scoped and carries no record of who requested it. It just
-         expires fast. This is an internal convenience tool, not an audited support-impersonation
-         feature; do not present it as one.
+         The returned token is a normal player login token (same secret as /login) - it is not
+         admin-scoped and carries no record of WHO requested it. It just expires fast, and
+         carries an "impersonated" claim so the server can tell it is not the account holder.
+         This is an internal convenience tool, not an audited support-impersonation feature; do
+         not present it as one.
 =======================================================================================================================================
 Request Payload:
 {
@@ -92,12 +93,21 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    // Same payload shape as /login - the player app cannot tell this apart from a real login
+    // Same payload shape as /login - the player app cannot tell this apart from a real login,
+    // which is the point, plus one claim that the SERVER reads.
+    //
+    // "impersonated" is the documented exception to keeping the token to user_id/email/
+    // display_name (CLAUDE.md). That rule says to fetch anything else from the database, and
+    // everything else can be - but where a token came from is a fact about the token, not about
+    // the user, so there is nowhere else for it to live. verifyToken reads it to skip the
+    // last_active_at touch: without it, an admin clicking "view as organiser" marked that
+    // customer as seen today, and the admin organisers screen believed it.
     const token = jwt.sign(
       {
         user_id: organiser.id,
         email: organiser.email,
-        display_name: organiser.display_name
+        display_name: organiser.display_name,
+        impersonated: true
       },
       process.env.JWT_SECRET,
       { expiresIn: IMPERSONATION_TOKEN_EXPIRES_IN }
