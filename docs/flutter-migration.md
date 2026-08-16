@@ -93,6 +93,7 @@ Do not "fix" these; they are current as of Flutter 3.47.0.
   target-API requirement is already met — this is not a deadline we are racing.
 - Gradle 9.3.1, AGP 9.1.0, Kotlin 2.4.0, Java 17, `minSdk` 24.
 - The project builds with the Kotlin DSL (`build.gradle.kts`), not Groovy.
+- Kotlin is compiled by **AGP's built-in Kotlin**, not the Kotlin Gradle plugin.
 
 ### The toolchain versions are Flutter's template, deliberately
 
@@ -106,6 +107,28 @@ The pairing is not free choice either: AGP 9.1.x requires Gradle **>= 9.3.1**, s
 together. The same file carries the thresholds behind the "will soon be dropped" warnings, and,
 more usefully, the ones behind the hard errors — Gradle 8.14.0, AGP 8.11.1, KGP 2.2.20. The
 previous toolchain sat exactly on all three, which is why this was done ahead of needing it.
+
+### Built-in Kotlin, and the one line that looks dead but is not
+
+AGP 9 compiles Kotlin itself, and Flutter warns on the Kotlin Gradle plugin and will fail the
+build on it in a future release. So `android.builtInKotlin=true`, `app/build.gradle.kts` no longer
+applies `kotlin-android`, and the `kotlin { compilerOptions { } }` block moved **out** of
+`android { }` to the top level — it used to work in there only because the Kotlin DSL resolved it
+against the outer project scope.
+
+**Do not delete `id("org.jetbrains.kotlin.android") version "..." apply false` from
+`settings.gradle.kts`.** Nothing applies it any more, so it reads like leftover, and removing it
+does not disable Kotlin — it silently drops the project to the Kotlin **bundled with AGP** (2.2.10
+on AGP 9.1.0), which is below Flutter's 2.2.20 minimum. The build then fails with a message about
+your Kotlin version being too low, pointing back at the line you just deleted. That declaration is
+now the **only** thing choosing the Kotlin version.
+
+It is all-or-nothing across the app *and* its plugins: Flutter names any plugin still applying
+KGP. `shared_preferences_android` was the last one here and needed **2.4.24+** (we took 2.4.27,
+resolvable without touching `pubspec.yaml`). A future plugin bump that reintroduces KGP will show
+up as that same warning rather than silently.
+
+`android.newDsl` stays **false**. It is a separate AGP 9 change and nothing here depends on it.
 
 ### compileSdk 37
 

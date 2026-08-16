@@ -2,9 +2,10 @@ import java.util.Properties
 import java.io.FileInputStream
 
 plugins {
+    // No kotlin-android: Kotlin comes from AGP's built-in support
+    // (android.builtInKotlin in gradle.properties), not the Kotlin Gradle plugin.
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // The Flutter Gradle Plugin must be applied after the Android Gradle plugin.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
@@ -36,12 +37,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        }
-    }
-
     tasks.withType<JavaCompile> {
         options.compilerArgs.addAll(listOf("-Xlint:-options"))
     }
@@ -71,6 +66,16 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+}
+
+// Top level, not inside `android { }`. It used to sit in there and still worked,
+// because Kotlin DSL resolved it against the outer project scope — under built-in
+// Kotlin that is ambiguous, and this is where the migration guide puts it.
+// Must stay in step with compileOptions above; Java and Kotlin both target 17.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
