@@ -150,6 +150,24 @@ RoundPhase _derivePhase({
   return RoundPhase.resultsPartial;
 }
 
+/// Whether anyone can still join — round 1's lock time, never `status`, which
+/// lags behind it (docs/player-onboarding.md §4.2).
+///
+/// The Dart half of `joiningOpen` in lmslocal-web/src/lib/roundState.ts; keep
+/// the two in step. Everyone has to start together, so joining closes the
+/// moment round 1 locks: a late entrant would face opponents who had already
+/// burned teams.
+bool joiningOpen({
+  required int? currentRound,
+  required DateTime? currentRoundLockTime,
+  DateTime? now,
+}) {
+  if (currentRound == null || currentRound < 1) return true; // no rounds yet
+  if (currentRound > 1) return false;
+  if (currentRoundLockTime == null) return true;
+  return currentRoundLockTime.isAfter(now ?? DateTime.now());
+}
+
 /* -----------------------------------------------------------------------------------------------
  * Copy
  *

@@ -53,6 +53,9 @@ dependencies:
   intl: ^0.20.3
   url_launcher: ^6.3.1
   package_info_plus: ^10.2.1
+  # The OS share sheet. The whole point of inviting from the phone rather than
+  # the website: one tap into WhatsApp, where these invitations actually go.
+  share_plus: ^13.0.0
 
   # Firebase
   firebase_core: ^4.13.0

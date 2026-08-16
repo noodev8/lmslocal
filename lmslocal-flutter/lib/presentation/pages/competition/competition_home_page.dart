@@ -18,6 +18,7 @@ import 'package:lmslocal_flutter/presentation/pages/competition/widgets/player_s
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/pick_status_card.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/round_results_card.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/complete_banner.dart';
+import 'package:lmslocal_flutter/presentation/pages/competition/widgets/invite_block.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/unpicked_players_sheet.dart';
 import 'package:lmslocal_flutter/presentation/pages/competition/widgets/your_pick_block.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/pick_remote_data_source.dart';
@@ -397,6 +398,13 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
                       const SizedBox(height: 16),
                     ],
 
+                    // Recruiting, while there is still time to recruit. High on
+                    // the screen and below the player's own pick: for the whole
+                    // window this is visible, round 1 has not locked and there
+                    // is little else here — but a pick in hand is still the one
+                    // thing with a deadline on it.
+                    ..._buildInvite(),
+
                     // Round Status Section
                     if (_currentRound != null &&
                         _competition!.status != 'COMPLETE')
@@ -615,6 +623,27 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
         outcome: _myOutcome,
         onTap: widget.onGoToPlay,
       ),
+      const SizedBox(height: 16),
+    ];
+  }
+
+  /// The invite block, or nothing.
+  ///
+  /// Withheld once joining closes rather than shown disabled: an invite code is
+  /// permanent, so a link handed out after round 1 locks takes someone to a door
+  /// that will not open. See [InviteBlock] for why players get it too.
+  List<Widget> _buildInvite() {
+    final competition = _competition!;
+    if (!joiningOpen(
+      currentRound: _currentRound?.roundNumber ?? competition.currentRound,
+      currentRoundLockTime:
+          _currentRound?.lockTime ?? competition.currentRoundLockTime,
+    )) {
+      return const [];
+    }
+
+    return [
+      InviteBlock(competition: competition),
       const SizedBox(height: 16),
     ];
   }

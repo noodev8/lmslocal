@@ -1403,18 +1403,13 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  /// Whether anyone can still join — round 1's lock time, never `status`,
-  /// which lags behind it (docs/player-onboarding.md §4.2).
-  ///
-  /// The Dart half of `joiningOpen` in lmslocal-web/src/lib/roundState.ts;
-  /// keep the two in step.
-  bool _joiningOpen(Competition competition) {
-    if (competition.currentRound < 1) return true; // no rounds yet
-    if (competition.currentRound > 1) return false;
-    final lockTime = competition.currentRoundLockTime;
-    if (lockTime == null) return true;
-    return lockTime.isAfter(DateTime.now());
-  }
+  /// Whether anyone can still join. Lifted into `core/game/round_state.dart`
+  /// beside its web twin, because the competition screen now asks the same
+  /// question and the two must never disagree about the same competition.
+  bool _joiningOpen(Competition competition) => joiningOpen(
+        currentRound: competition.currentRound,
+        currentRoundLockTime: competition.currentRoundLockTime,
+      );
 
   Widget _buildInviteCode(String code) {
     return GestureDetector(

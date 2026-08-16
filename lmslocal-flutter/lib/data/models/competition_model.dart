@@ -1,5 +1,16 @@
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 
+/// A number that may arrive as a number or as a string.
+///
+/// Postgres sends `numeric` columns as strings to avoid the precision loss a
+/// float round-trip would cause, so a plain `as double?` throws on the very
+/// values it exists to read.
+double? _toDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}
+
 /// Competition model for JSON serialization
 class CompetitionModel extends Competition {
   const CompetitionModel({
@@ -7,6 +18,7 @@ class CompetitionModel extends Competition {
     required super.name,
     super.description,
     super.prizeStructure,
+    super.entryFee,
     super.venueName,
     super.city,
     super.logoUrl,
@@ -47,6 +59,10 @@ class CompetitionModel extends Competition {
       name: json['name'] as String,
       description: json['description'] as String?,
       prizeStructure: json['prize_structure'] as String?,
+      // A Postgres `numeric` reaches us as a string, not a number, so this is
+      // parsed rather than cast — and again on the way out, because the cached
+      // copy is re-read through this same factory.
+      entryFee: _toDouble(json['entry_fee']),
       venueName: json['venue_name'] as String?,
       city: json['city'] as String?,
       logoUrl: json['logo_url'] as String?,
@@ -98,6 +114,7 @@ class CompetitionModel extends Competition {
       'name': name,
       'description': description,
       'prize_structure': prizeStructure,
+      'entry_fee': entryFee,
       'venue_name': venueName,
       'city': city,
       'logo_url': logoUrl,

@@ -6,6 +6,10 @@ class Competition extends Equatable {
   final String name;
   final String? description;
   final String? prizeStructure;
+
+  /// What a player pays to enter, if anything. Read only by the invitation —
+  /// it is part of what someone needs to know before they join.
+  final double? entryFee;
   final String? venueName;
   final String? city;
   final String? logoUrl;
@@ -52,6 +56,7 @@ class Competition extends Equatable {
     required this.name,
     this.description,
     this.prizeStructure,
+    this.entryFee,
     this.venueName,
     this.city,
     this.logoUrl,
@@ -92,6 +97,7 @@ class Competition extends Equatable {
         name,
         description,
         prizeStructure,
+        entryFee,
         venueName,
         city,
         logoUrl,
