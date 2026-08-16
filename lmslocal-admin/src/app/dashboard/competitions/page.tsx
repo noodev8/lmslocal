@@ -24,6 +24,7 @@ import {
 } from '@heroicons/react/24/outline';
 import AdminHeader from '@/components/AdminHeader';
 import { adminApi, getToken, AdminCompetition, apiBaseUrl, getWebBaseUrl } from '@/lib/api';
+import { formatAge, formatDate } from '@/lib/dates';
 
 type SortKey = 'name' | 'status' | 'player_count' | 'last_activity';
 type SortDirection = 'asc' | 'desc';
@@ -172,9 +173,6 @@ function OrganiserCell({ competition }: { competition: AdminCompetition }) {
   );
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
 
 const TILE_TONES = {
   default: 'from-indigo-500 to-cyan-400',
@@ -517,7 +515,11 @@ function CompetitionsList() {
       setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      setSortDirection('asc');
+      // Numbers and dates are almost always wanted biggest-first; names are not. Starting every
+      // column ascending meant clicking "Last activity" - the one you click to see what has just
+      // happened - answered with the deadest competitions on the platform. The organisers screen
+      // already does this; this one was missed.
+      setSortDirection(key === 'name' || key === 'status' ? 'asc' : 'desc');
     }
   };
 
@@ -724,11 +726,12 @@ function CompetitionsList() {
                     <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
                     <td className="max-w-[16rem] px-4 py-3"><OrganiserCell competition={c} /></td>
                     <td className="px-4 py-3 tabular-nums text-slate-600">{c.player_count}</td>
+                    {/* The exact day moves into the tooltip, since the cell now reads relatively. */}
                     <td
                       className="px-4 py-3 text-slate-500"
-                      title={`Created ${formatDate(c.created_at)}`}
+                      title={`Last activity ${formatDate(c.last_activity)} — created ${formatDate(c.created_at)}`}
                     >
-                      {formatDate(c.last_activity)}
+                      {formatAge(c.last_activity)}
                     </td>
                     <td className="px-4 py-3">
                       <FixtureServiceToggle

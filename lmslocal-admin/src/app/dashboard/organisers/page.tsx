@@ -29,6 +29,7 @@ import {
 } from '@heroicons/react/24/outline';
 import AdminHeader from '@/components/AdminHeader';
 import { adminApi, getToken, AdminOrganiser, apiBaseUrl } from '@/lib/api';
+import { daysSince, formatAge, formatDate } from '@/lib/dates';
 
 type SortKey =
   | 'name'
@@ -110,47 +111,6 @@ const COLUMNS: { key: SortKey; label: string; numeric?: boolean }[] = [
 
 const formatMoney = (amount: number) =>
   `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-
-const formatDate = (iso: string | null): string =>
-  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-
-/*
-CALENDAR days, not elapsed 24-hour blocks, because "Today" and "Yesterday" are calendar words and
-were being answered with arithmetic.
-
-Dividing the elapsed milliseconds by 86,400,000 made a pick at 21:37 last night read as "Today"
-at 09:41 this morning - twelve hours, so zero blocks - while the same organiser's login three days
-earlier correctly read "3 days ago". Two lines of the same cell disagreeing about what day it is
-looks like the data is wrong when only the arithmetic was.
-
-Rounding rather than flooring the day difference: a clock change makes a local day 23 or 25 hours,
-and both must still count as one day.
-*/
-const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-
-const daysSince = (iso: string | null): number | null =>
-  iso === null ? null : Math.round((startOfDay(new Date()) - startOfDay(new Date(iso))) / 86_400_000);
-
-/*
-Times are rendered by the browser from a UTC ISO string, so they come out in the reader's own
-zone - 17:34 BST for the 16:34Z the server stored. Never format a time server-side for this
-screen, and never slice the ISO string, or it will be an hour out all summer.
-*/
-const formatTime = (iso: string): string =>
-  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-// "3 days ago" reads faster than a date when the question is "has this gone quiet".
-const formatAge = (iso: string | null): string => {
-  if (iso === null) return 'Never';
-  const days = daysSince(iso) as number;
-  // The time only for today: at 5pm "Today" could mean nine hours ago. From yesterday back, the
-  // hour changes nothing you would do about it.
-  if (days <= 0) return `Today, ${formatTime(iso)}`;
-  if (days === 1) return 'Yesterday';
-  if (days < 30) return `${days} days ago`;
-  const months = Math.floor(days / 30);
-  return months < 12 ? `${months} month${months === 1 ? '' : 's'} ago` : formatDate(iso);
-};
 
 function SortableHeader({
   col,
