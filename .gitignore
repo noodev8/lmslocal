@@ -65,6 +65,13 @@ build/
 .packages
 .pub-cache/
 
+# pubspec.lock is tracked, against the general *.lock rule above — that rule is
+# aimed at Gradle's scratch files and catches this one by accident. This is an
+# application, not a library: the lock is what makes the Windows machine and the
+# Mac resolve identical package versions, so an Android build and an iOS build
+# of the same commit cannot ship against different ones.
+!lmslocal-flutter/pubspec.lock
+
 # iOS
 ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
