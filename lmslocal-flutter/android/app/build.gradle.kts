@@ -23,6 +23,12 @@ android {
     // SDK is backward compatible and does not change what devices we support —
     // targetSdk below still comes from Flutter.
     compileSdk = 37
+    // AGP 9 resolves the platform by exact hash, so `compileSdk = 37` alone looks
+    // for `android-37`, which Google does not publish — API 37 exists only as
+    // 37.0, 37.1 and so on under the major.minor SDK naming. AGP 8 was lenient
+    // about this; 9 is not, and fails with "Failed to find target with hash
+    // string 'android-37'". The minor has to be stated.
+    compileSdkMinor = 0
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -87,12 +87,25 @@ shows it.
 
 ### Already fine
 
-Do not "fix" these; they are current as of Flutter 3.38.9.
+Do not "fix" these; they are current as of Flutter 3.47.0.
 
 - `targetSdk` resolves from `flutter.targetSdkVersion`, which defaults to **36**. The Play Store
   target-API requirement is already met — this is not a deadline we are racing.
-- Gradle 8.14, AGP 8.11.1, Kotlin 2.2.20, Java 17, `minSdk` 24.
+- Gradle 9.3.1, AGP 9.1.0, Kotlin 2.4.0, Java 17, `minSdk` 24.
 - The project builds with the Kotlin DSL (`build.gradle.kts`), not Groovy.
+
+### The toolchain versions are Flutter's template, deliberately
+
+Gradle 9.3.1 / AGP 9.1.0 / Kotlin 2.4.0 are exactly what `flutter create` emits on 3.47.0
+(`templateDefaultGradleVersion` and friends in `flutter_tools/lib/src/android/gradle_utils.dart`),
+so they are the combination Flutter's own CI tests. **Take the next set from that file rather than
+from whatever is newest on Maven** — at the time of writing AGP was up to 9.3.1 and Gradle to
+9.7.0, both past `maxKnownAndSupportedAgpVersion`, for no benefit we need.
+
+The pairing is not free choice either: AGP 9.1.x requires Gradle **>= 9.3.1**, so those two move
+together. The same file carries the thresholds behind the "will soon be dropped" warnings, and,
+more usefully, the ones behind the hard errors — Gradle 8.14.0, AGP 8.11.1, KGP 2.2.20. The
+previous toolchain sat exactly on all three, which is why this was done ahead of needing it.
 
 ### compileSdk 37
 
@@ -101,17 +114,28 @@ Do not "fix" these; they are current as of Flutter 3.38.9.
 is backward compatible and does not change which devices are supported — `targetSdk` still comes
 from Flutter.
 
-A machine without that platform fails with `Failed to find target with hash string 'android-37'`.
-Install it with:
+**`compileSdkMinor = 0` sits beside it and is not optional.** Google does not publish a plain
+`android-37`: API 37 exists only as `37.0`, `37.1`, `37.2-beta*` under the major.minor SDK naming,
+as `sdkmanager --list` will show. AGP 8 papered over that and matched `android-37.0` anyway; **AGP
+9 resolves the platform by exact hash and does not**, failing with:
+
+```
+Failed to find target with hash string 'android-37' in: ...\Android\Sdk
+```
+
+So that error now has two causes — the platform genuinely missing, or the minor not being stated.
+Check `platforms/` before reaching for `sdkmanager`. Install it with:
 
 ```bash
 export JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"
-"$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager.bat" "platforms;android-37"
+"$ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager.bat" "platforms;android-37.0"
 ```
 
-It lands as `platforms/android-37.0` under the newer major.minor SDK naming, and `sdkmanager`
-reports `Failed to find package 'platforms;android-37'` while installing it anyway. Both are
-expected; Gradle resolves it correctly.
+`flutter_secure_storage` 11 pins `compileSdk = 37` **inside its own module**, with no minor, and
+Flutter does not override a plugin's value — `FlutterPluginUtils.kt` only warns when a plugin asks
+for more than the app. It builds regardless, so no root-level `subprojects` override is needed;
+this is recorded because it is the obvious thing to reach for when the app-level fix looks too
+narrow to work.
 
 ### If the build fails on a plugin class that plainly exists
 
