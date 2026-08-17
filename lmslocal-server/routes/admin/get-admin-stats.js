@@ -36,9 +36,8 @@ Success Response (ALWAYS HTTP 200):
     "eliminated": 85                        // integer, memberships knocked out
   },
   "users": {
-    "total": 239,                           // integer, registered accounts
-    "verified": 210,                        // integer, accounts with a verified email
-    "new_last_30_days": 18                  // integer, accounts created in the last 30 days
+    "total": 247,                           // integer, registered accounts
+    "new_last_30_days": 70                  // integer, accounts created in the last 30 days
   },
   "generated_at": "2026-08-02T14:00:00.000Z" // string, ISO datetime this snapshot was taken
 }
@@ -62,6 +61,11 @@ Data Notes:
 - "inactive" means no pick has been made in any of the competition's rounds for 30 days. It
   counts only competitions that are supposed to be running, so a SETUP or COMPLETE competition
   is never reported as inactive.
+- Every figure here counts the REAL platform, not us. Excluded: competition 117 ("App Store",
+  ours), the accounts brookfieldcomfort@gmail.com and lmslocal8@gmail.com, and bots (email
+  'bot_%@lms-guest.com'). Guest accounts are counted - a guest is a real person who joined
+  without registering. The exclusions are the reason "competitions" agrees with the
+  /competitions screen, which hides the same competition client-side.
 =======================================================================================================================================
 */
 
@@ -74,6 +78,24 @@ const router = express.Router();
 // A competition running with no picks for this long is considered to have gone quiet
 const INACTIVE_AFTER_DAYS = 30;
 
+// Competition 117 ("App Store") is ours, created for the store listing screenshots. The
+// competitions screen hides it (HIDDEN_COMPETITION_IDS there), so the dashboard has to hide it
+// too or the two screens disagree on how many competitions exist.
+const EXCLUDED_COMPETITION_IDS = [117];
+
+// Our own accounts. They join competitions to test them, which inflates every player figure.
+// Keyed by email rather than id so a recreated account stays excluded.
+const EXCLUDED_EMAILS = ['brookfieldcomfort@gmail.com', 'lmslocal8@gmail.com'];
+
+// Bots have no is_bot column - the email pattern is the definition. Kept in step with
+// BOT_EMAIL_LIKE in services/botPool.js.
+const BOT_EMAIL_LIKE = 'bot_%@lms-guest.com';
+
+// Reusable predicates. Guest accounts (non-bot @lms-guest.com) are deliberately NOT excluded:
+// a guest is a real person who joined without registering.
+const REAL_USER = `(u.email NOT LIKE '${BOT_EMAIL_LIKE}' AND u.email <> ALL($2::text[]))`;
+const REAL_COMP = `cu.competition_id <> ALL($3::int[])`;
+
 router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-admin-stats');
 
@@ -83,16 +105,20 @@ router.get('/', verifyAdminToken, async (req, res) => {
     const statsQuery = `
       SELECT
         -- Competition counts. LOWER() guards the known status casing inconsistency.
-        (SELECT COUNT(*) FROM competition)                                        AS comp_total,
-        (SELECT COUNT(*) FROM competition WHERE LOWER(status) = 'setup')          AS comp_setup,
-        (SELECT COUNT(*) FROM competition WHERE LOWER(status) = 'active')         AS comp_active,
-        (SELECT COUNT(*) FROM competition WHERE LOWER(status) = 'complete')       AS comp_complete,
+        (SELECT COUNT(*) FROM competition WHERE id <> ALL($3::int[]))             AS comp_total,
+        (SELECT COUNT(*) FROM competition
+          WHERE id <> ALL($3::int[]) AND LOWER(status) = 'setup')                 AS comp_setup,
+        (SELECT COUNT(*) FROM competition
+          WHERE id <> ALL($3::int[]) AND LOWER(status) = 'active')                AS comp_active,
+        (SELECT COUNT(*) FROM competition
+          WHERE id <> ALL($3::int[]) AND LOWER(status) = 'complete')              AS comp_complete,
 
         -- Running competitions whose most recent pick is older than the cutoff, plus those
         -- that are running but have never had a pick at all.
         (SELECT COUNT(*)
            FROM competition c
           WHERE LOWER(c.status) = 'active'
+            AND c.id <> ALL($3::int[])
             AND COALESCE(
                   (SELECT MAX(p.created_at)
                      FROM pick p
@@ -105,33 +131,54 @@ router.get('/', verifyAdminToken, async (req, res) => {
         -- Organisers. "Organiser" means owning a competition, matching get-admin-organisers -
         -- helping run someone else's does not count. "Paying" is a real purchase, never
         -- paid_credit, which can be granted without money changing hands.
-        (SELECT COUNT(DISTINCT organiser_id) FROM competition
-          WHERE organiser_id IS NOT NULL)                                     AS organisers_total,
         (SELECT COUNT(DISTINCT c.organiser_id)
            FROM competition c
-          WHERE c.organiser_id IS NOT NULL
+           JOIN app_user u ON u.id = c.organiser_id
+          WHERE c.id <> ALL($3::int[])
+            AND u.email <> ALL($2::text[]))                                   AS organisers_total,
+        (SELECT COUNT(DISTINCT c.organiser_id)
+           FROM competition c
+           JOIN app_user u ON u.id = c.organiser_id
+          WHERE c.id <> ALL($3::int[])
+            AND u.email <> ALL($2::text[])
             AND EXISTS (SELECT 1 FROM credit_purchases cp
                          WHERE cp.user_id = c.organiser_id
                            AND cp.paid_amount > 0))                           AS organisers_paying,
         (SELECT COUNT(DISTINCT c.organiser_id)
            FROM competition c
-          WHERE c.organiser_id IS NOT NULL
+           JOIN app_user u ON u.id = c.organiser_id
+          WHERE c.id <> ALL($3::int[])
+            AND u.email <> ALL($2::text[])
             AND LOWER(c.status) = 'active')                                   AS organisers_with_active,
 
-        -- Player participation
-        (SELECT COUNT(*) FROM competition_user)                                   AS memberships_total,
-        (SELECT COUNT(DISTINCT user_id) FROM competition_user)                    AS players_unique,
-        (SELECT COUNT(*) FROM competition_user WHERE LOWER(status) = 'active')    AS memberships_active,
-        (SELECT COUNT(*) FROM competition_user WHERE LOWER(status) = 'out')       AS memberships_out,
+        -- Player participation. Bots and our own accounts are excluded everywhere; guests are
+        -- not, because a guest is a real person who joined without registering.
+        (SELECT COUNT(*)
+           FROM competition_user cu JOIN app_user u ON u.id = cu.user_id
+          WHERE ${REAL_USER} AND ${REAL_COMP})                                    AS memberships_total,
+        (SELECT COUNT(DISTINCT cu.user_id)
+           FROM competition_user cu JOIN app_user u ON u.id = cu.user_id
+          WHERE ${REAL_USER} AND ${REAL_COMP})                                    AS players_unique,
+        (SELECT COUNT(*)
+           FROM competition_user cu JOIN app_user u ON u.id = cu.user_id
+          WHERE ${REAL_USER} AND ${REAL_COMP} AND LOWER(cu.status) = 'active')    AS memberships_active,
+        (SELECT COUNT(*)
+           FROM competition_user cu JOIN app_user u ON u.id = cu.user_id
+          WHERE ${REAL_USER} AND ${REAL_COMP} AND LOWER(cu.status) = 'out')       AS memberships_out,
 
-        -- Account totals
-        (SELECT COUNT(*) FROM app_user)                                           AS users_total,
-        (SELECT COUNT(*) FROM app_user WHERE email_verified = true)               AS users_verified,
-        (SELECT COUNT(*) FROM app_user
-          WHERE created_at > NOW() - INTERVAL '30 days')                          AS users_new
+        -- Account totals. Same exclusions, so "accounts" and "distinct people" are drawn from
+        -- the same population and the difference between them is only "never joined anything".
+        (SELECT COUNT(*) FROM app_user u
+          WHERE ${REAL_USER})                                                     AS users_total,
+        (SELECT COUNT(*) FROM app_user u
+          WHERE ${REAL_USER} AND u.created_at > NOW() - INTERVAL '30 days')       AS users_new
     `;
 
-    const result = await query(statsQuery, [INACTIVE_AFTER_DAYS]);
+    const result = await query(statsQuery, [
+      INACTIVE_AFTER_DAYS,
+      EXCLUDED_EMAILS,
+      EXCLUDED_COMPETITION_IDS
+    ]);
     const row = result.rows[0];
 
     // COUNT() comes back as a string from node-postgres (bigint), so coerce for the client
@@ -159,7 +206,6 @@ router.get('/', verifyAdminToken, async (req, res) => {
       },
       users: {
         total: n(row.users_total),
-        verified: n(row.users_verified),
         new_last_30_days: n(row.users_new)
       },
       generated_at: new Date().toISOString()

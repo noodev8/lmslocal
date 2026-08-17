@@ -119,7 +119,6 @@ export interface AdminStats {
   };
   users: {
     total: number;
-    verified: number;
     new_last_30_days: number;
   };
   generated_at: string;

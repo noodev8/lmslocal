@@ -243,22 +243,12 @@ export default function DashboardPage() {
                 />
               </Panel>
 
-              <Panel title="Organisers">
-                <Row
-                  label="Paying"
-                  hint="have bought credit"
-                  value={stats.organisers.paying}
-                  href="/dashboard/organisers"
-                />
-                <Row
-                  label="Running something"
-                  hint="at least one active competition"
-                  value={stats.organisers.with_active_competition}
-                  href="/dashboard/organisers"
-                />
-                <Row label="Total" value={stats.organisers.total} href="/dashboard/organisers" />
-              </Panel>
-
+              {/*
+                No Organisers or Accounts panel. Every row they held was either already on a
+                headline card (organisers total/paying, accounts registered/new) or told us
+                nothing - "Verified" has equalled "Registered" since verification became
+                mandatory. Only the two panels below carry numbers the cards do not.
+              */}
               <Panel title="Players">
                 <Row
                   label="Memberships"
@@ -267,12 +257,6 @@ export default function DashboardPage() {
                 />
                 <Row label="Still in" value={stats.players.still_in} />
                 <Row label="Eliminated" value={stats.players.eliminated} />
-              </Panel>
-
-              <Panel title="Accounts">
-                <Row label="Registered" value={stats.users.total} />
-                <Row label="Verified" value={stats.users.verified} />
-                <Row label="New" hint="last 30 days" value={stats.users.new_last_30_days} />
               </Panel>
             </div>
 
