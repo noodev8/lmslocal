@@ -120,6 +120,7 @@ export interface AdminStats {
   users: {
     total: number;
     new_last_30_days: number;
+    guests: number;
   };
   generated_at: string;
 }

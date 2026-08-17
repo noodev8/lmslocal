@@ -143,6 +143,12 @@ export default function DashboardPage() {
         setStats({
           ...(result as AdminStats),
           organisers: result.organisers ?? { total: 0, paying: 0, with_active_competition: 0 },
+          // Same reason: users.guests arrived later than this screen did.
+          users: {
+            total: result.users?.total ?? 0,
+            new_last_30_days: result.users?.new_last_30_days ?? 0,
+            guests: result.users?.guests ?? 0,
+          },
         });
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         // Auth failures are handled by the response interceptor, which redirects to /login
@@ -208,8 +214,14 @@ export default function DashboardPage() {
                 hint="distinct people"
                 tone="default"
               />
+              {/*
+                "Registered", not "Accounts" or "App Users". It counts signups with a real
+                email, and nothing in the data records whether someone came via the web or the
+                phone app (user_type is empty on every row), so any "App ..." label would imply
+                a mobile figure we cannot actually measure.
+              */}
               <HeadlineCard
-                label="Accounts"
+                label="Registered"
                 value={stats.users.total}
                 hint={`${stats.users.new_last_30_days} new in 30 days`}
                 tone="neutral"
@@ -257,6 +269,16 @@ export default function DashboardPage() {
                 />
                 <Row label="Still in" value={stats.players.still_in} />
                 <Row label="Eliminated" value={stats.players.eliminated} />
+                {/*
+                  Guests sit here, not under Accounts. They are real people and are counted in
+                  the Players figure above, but the account is created by joining and dies with
+                  the competition, so it is not a signup.
+                */}
+                <Row
+                  label="Guests"
+                  hint="joined without registering"
+                  value={stats.users.guests}
+                />
               </Panel>
             </div>
 

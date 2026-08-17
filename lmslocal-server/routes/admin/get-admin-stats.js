@@ -36,8 +36,9 @@ Success Response (ALWAYS HTTP 200):
     "eliminated": 85                        // integer, memberships knocked out
   },
   "users": {
-    "total": 247,                           // integer, registered accounts
-    "new_last_30_days": 70                  // integer, accounts created in the last 30 days
+    "total": 242,                           // integer, REGISTERED accounts (guests not included)
+    "new_last_30_days": 66,                 // integer, registered accounts created in last 30 days
+    "guests": 5                             // integer, joined without registering
   },
   "generated_at": "2026-08-02T14:00:00.000Z" // string, ISO datetime this snapshot was taken
 }
@@ -63,9 +64,13 @@ Data Notes:
   is never reported as inactive.
 - Every figure here counts the REAL platform, not us. Excluded: competition 117 ("App Store",
   ours), the accounts brookfieldcomfort@gmail.com and lmslocal8@gmail.com, and bots (email
-  'bot_%@lms-guest.com'). Guest accounts are counted - a guest is a real person who joined
-  without registering. The exclusions are the reason "competitions" agrees with the
+  'bot_%@lms-guest.com'). The exclusions are the reason "competitions" agrees with the
   /competitions screen, which hides the same competition client-side.
+- Guests (non-bot '%@lms-guest.com') are counted as PLAYERS but not as ACCOUNTS, and are
+  reported on their own as users.guests. A guest is a real person, so they belong in
+  participation; but the account is created by joining and is tied to that one competition, so
+  counting it as a signup would make "new in 30 days" move with competitions being created and
+  dropped rather than with users actually gained.
 =======================================================================================================================================
 */
 
@@ -91,9 +96,15 @@ const EXCLUDED_EMAILS = ['brookfieldcomfort@gmail.com', 'lmslocal8@gmail.com'];
 // BOT_EMAIL_LIKE in services/botPool.js.
 const BOT_EMAIL_LIKE = 'bot_%@lms-guest.com';
 
-// Reusable predicates. Guest accounts (non-bot @lms-guest.com) are deliberately NOT excluded:
-// a guest is a real person who joined without registering.
+// A guest joined a competition without registering. Same domain as bots, so this only means
+// "guest" once the bot pattern has already been ruled out.
+const GUEST_EMAIL_LIKE = '%@lms-guest.com';
+
+// Reusable predicates. REAL_USER keeps guests in - for PARTICIPATION figures a guest is a real
+// person and belongs in the count. The account figures below then split them back out, because
+// there "accounts" reads as signups and a guest never signed up.
 const REAL_USER = `(u.email NOT LIKE '${BOT_EMAIL_LIKE}' AND u.email <> ALL($2::text[]))`;
+const IS_GUEST = `u.email LIKE '${GUEST_EMAIL_LIKE}'`;
 const REAL_COMP = `cu.competition_id <> ALL($3::int[])`;
 
 router.get('/', verifyAdminToken, async (req, res) => {
@@ -166,12 +177,17 @@ router.get('/', verifyAdminToken, async (req, res) => {
            FROM competition_user cu JOIN app_user u ON u.id = cu.user_id
           WHERE ${REAL_USER} AND ${REAL_COMP} AND LOWER(cu.status) = 'out')       AS memberships_out,
 
-        -- Account totals. Same exclusions, so "accounts" and "distinct people" are drawn from
-        -- the same population and the difference between them is only "never joined anything".
+        -- Account totals: REGISTERED accounts only. Guests are counted separately below rather
+        -- than folded in here, because a guest account lives and dies with the competition it
+        -- was created for - counting them as signups would make growth rise and fall with
+        -- competitions being dropped, which is not a fair reading of users gained.
         (SELECT COUNT(*) FROM app_user u
-          WHERE ${REAL_USER})                                                     AS users_total,
+          WHERE ${REAL_USER} AND NOT ${IS_GUEST})                                 AS users_total,
         (SELECT COUNT(*) FROM app_user u
-          WHERE ${REAL_USER} AND u.created_at > NOW() - INTERVAL '30 days')       AS users_new
+          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
+            AND u.created_at > NOW() - INTERVAL '30 days')                        AS users_new,
+        (SELECT COUNT(*) FROM app_user u
+          WHERE ${REAL_USER} AND ${IS_GUEST})                                     AS users_guests
     `;
 
     const result = await query(statsQuery, [
@@ -206,7 +222,8 @@ router.get('/', verifyAdminToken, async (req, res) => {
       },
       users: {
         total: n(row.users_total),
-        new_last_30_days: n(row.users_new)
+        new_last_30_days: n(row.users_new),
+        guests: n(row.users_guests)
       },
       generated_at: new Date().toISOString()
     });
