@@ -30,6 +30,26 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const TEST_RECIPIENT = process.env.EMAIL_TEST_RECIPIENT || 'aandreou25@gmail.com';
 
 /**
+ * First word of a display name, for greetings only.
+ *
+ * display_name is free text the user typed, and about two thirds of them are a full name, so
+ * "Hi Andreas Andreou," reads like a letter from a bank. This is a presentation rule, not a data
+ * change: the stored name is untouched and anywhere we identify a person - admin screens, audit
+ * log, the players list - still shows it in full.
+ *
+ * Deliberately just the first whitespace-separated word. No attempt to understand titles,
+ * particles or double-barrelled names: over-cleverness here mangles real names, and the failure
+ * mode of taking one word too few is a friendly greeting rather than a wrong one.
+ *
+ * @param {string} name - display_name as stored
+ * @returns {string} first word, or 'there' if there is nothing usable
+ */
+const firstName = (name) => {
+  const first = String(name || '').trim().split(/\s+/)[0];
+  return first || 'there';
+};
+
+/**
  * The single point every email leaves through.
  *
  * This replaces a hardcoded `emailData.to = [...]` that sat in a wrapper called by only five of
@@ -241,7 +261,7 @@ const sendVerificationEmail = async (email, token, displayName) => {
             
             <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 30px; border-radius: 10px; text-align: center;">
               <h2 style="color: #1f2937; margin-top: 0;">Verify Your Email Address</h2>
-              <p style="color: #4b5563; margin-bottom: 25px;">Hi ${displayName},</p>
+              <p style="color: #4b5563; margin-bottom: 25px;">Hi ${firstName(displayName)},</p>
               <p style="color: #4b5563; margin-bottom: 25px;">
                 Welcome to LMS Local! Please click the button below to verify your email address and activate your account.
               </p>
@@ -271,7 +291,7 @@ const sendVerificationEmail = async (email, token, displayName) => {
     const textContent = `
       LMS Local - Verify Your Email Address
       
-      Hi ${displayName},
+      Hi ${firstName(displayName)},
       
       Welcome to LMS Local! Please visit the following link to verify your email address:
       
@@ -329,7 +349,7 @@ const sendPasswordResetEmail = async (email, token, displayName) => {
             
             <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 30px; border-radius: 10px; text-align: center;">
               <h2 style="color: #1f2937; margin-top: 0;">Reset Your Password</h2>
-              <p style="color: #4b5563; margin-bottom: 25px;">Hi ${displayName},</p>
+              <p style="color: #4b5563; margin-bottom: 25px;">Hi ${firstName(displayName)},</p>
               <p style="color: #4b5563; margin-bottom: 25px;">
                 You requested a password reset for your LMS Local account. Click the button below to create a new password.
               </p>
@@ -359,7 +379,7 @@ const sendPasswordResetEmail = async (email, token, displayName) => {
     const textContent = `
       LMS Local - Reset Your Password
       
-      Hi ${displayName},
+      Hi ${firstName(displayName)},
       
       You requested a password reset for your LMS Local account. Please visit the following link to create a new password:
       
@@ -428,7 +448,7 @@ const sendPlayerMagicLink = async (email, token, displayName, competitionName, s
           </div>
           
           <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e9ecef;">
-            <h2 style="color: #343a40; margin-top: 0;">Hi ${displayName}! 👋</h2>
+            <h2 style="color: #343a40; margin-top: 0;">Hi ${firstName(displayName)}! 👋</h2>
             
             <p style="font-size: 16px; margin-bottom: 25px;">
               You're ready to join <strong>${competitionName}</strong> and test your football knowledge!
@@ -466,7 +486,7 @@ const sendPlayerMagicLink = async (email, token, displayName, competitionName, s
     const textContent = `
       Welcome to ${competitionName}!
       
-      Hi ${displayName},
+      Hi ${firstName(displayName)},
       
       You're ready to join ${competitionName} and test your football knowledge!
       
@@ -534,7 +554,7 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
 
             <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 30px; border-radius: 10px; text-align: center;">
               <h2 style="color: #1f2937; margin-top: 0;">${planEmoji} Payment Confirmed!</h2>
-              <p style="color: #4b5563; margin-bottom: 25px;">Hi ${displayName},</p>
+              <p style="color: #4b5563; margin-bottom: 25px;">Hi ${firstName(displayName)},</p>
               <p style="color: #4b5563; margin-bottom: 25px;">
                 Thank you for upgrading to the <strong>${planName.charAt(0).toUpperCase() + planName.slice(1)} plan</strong>! Your payment has been processed successfully.
               </p>
@@ -573,7 +593,7 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
     const textContent = `
       LMS Local - Payment Confirmed!
 
-      Hi ${displayName},
+      Hi ${firstName(displayName)},
 
       Thank you for upgrading to the ${planName.charAt(0).toUpperCase() + planName.slice(1)} plan! Your payment has been processed successfully.
 
@@ -705,7 +725,7 @@ const buildPickReminderEmail = (email, templateData) => {
             <div style="padding: 40px 30px;">
 
               <!-- Greeting -->
-              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
               <!-- Main Message -->
               <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
@@ -768,7 +788,7 @@ const buildPickReminderEmail = (email, templateData) => {
     const textContent = `
 ${competition_name} - Pick Reminder
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 Time to make your pick for Round ${round_number}.
 
@@ -897,7 +917,7 @@ const buildJoinLmsEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
               Welcome to LMS Local. Your account is ready.
@@ -955,7 +975,7 @@ const buildJoinLmsEmail = (email, templateData) => {
   const textContent = `
 Welcome to LMS Local
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 Welcome to LMS Local. Your account is ready.
 
@@ -1117,7 +1137,7 @@ that takes.
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
               <strong>${competition_name}</strong> is set up. All it needs now is players.
@@ -1160,7 +1180,7 @@ that takes.
   const textContent = `
 ${competition_name} is ready to share
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 ${competition_name} is set up. All it needs now is players.
 
@@ -1283,7 +1303,7 @@ const buildShareReminderEmail = (email, templateData) => {
 
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
               <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px; font-weight: 600;">Round 1 kicks off ${deadline}</p>
@@ -1318,7 +1338,7 @@ const buildShareReminderEmail = (email, templateData) => {
   const textContent = `
 ${competition_name} starts soon
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 ROUND 1 KICKS OFF ${deadline.toUpperCase()}
 
@@ -1445,7 +1465,7 @@ const buildGameStartReminderEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
               <strong>${competition_name}</strong> has not started yet, and there is a round waiting for it.
@@ -1486,7 +1506,7 @@ const buildGameStartReminderEmail = (email, templateData) => {
   const textContent = `
 ${competition_name} is ready to start
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 ${competition_name} has not started yet, and there is a round waiting for it.
 
@@ -1604,7 +1624,7 @@ const buildFixtureReminderEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
               Round ${last_round_number} of <strong>${competition_name}</strong> is settled${settledDate ? ` — you processed it on ${settledDate}` : ''}.
@@ -1645,7 +1665,7 @@ const buildFixtureReminderEmail = (email, templateData) => {
   const textContent = `
 ${competition_name} is waiting on the next round
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 Round ${last_round_number} of ${competition_name} is settled${settledDate ? ` - you processed it on ${settledDate}` : ''}.
 Round ${next_round_number} needs its fixtures before anyone can pick.
@@ -1778,7 +1798,7 @@ const buildResultReminderEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
               Round ${round_number} of <strong>${competition_name}</strong> has been played${playedDate ? ` — the last match was ${playedDate}` : ''},
@@ -1821,7 +1841,7 @@ const buildResultReminderEmail = (email, templateData) => {
   const textContent = `
 ${competition_name} is waiting on results
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 Round ${round_number} of ${competition_name} has been played${playedDate ? ` - the last match was ${playedDate}` : ''},
 and it has not been settled yet.
@@ -1957,7 +1977,7 @@ const buildGameCompleteEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
               <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 18px; font-weight: 600;">${headline}</p>
@@ -1989,7 +2009,7 @@ const buildGameCompleteEmail = (email, templateData) => {
   const textContent = `
 ${competition_name} has finished
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2179,7 +2199,7 @@ const buildRoundOverEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <!-- Block 1: your own result -->
             <div style="background: ${survived ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${survived ? '#16a34a' : '#dc2626'}; padding: 20px; margin: 0 0 24px 0;">
@@ -2221,7 +2241,7 @@ const buildRoundOverEmail = (email, templateData) => {
   const textContent = `
 ${competition_name} - Round ${round_number} results
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2331,7 +2351,7 @@ const buildHintEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <p style="color: #0f172a; font-size: 17px; font-weight: 600; margin: 0 0 16px 0;">${heading}</p>
 
@@ -2361,7 +2381,7 @@ const buildHintEmail = (email, templateData) => {
   const textContent = `
 ${heading}
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 ${paragraphs.join('\n\n')}
 
@@ -2476,7 +2496,7 @@ const buildBroadcastEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${escapeHtml(user_display_name)},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${escapeHtml(firstName(user_display_name))},</h2>
 
             ${paragraphs.map((p) => `<p style="color: #334155; font-size: 15px; margin: 0 0 16px 0; line-height: 1.5;">${p}</p>`).join('')}
 
@@ -2492,7 +2512,7 @@ const buildBroadcastEmail = (email, templateData) => {
   const textContent = `
 ${subject}
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 ${message}
 
@@ -2640,7 +2660,7 @@ const sendResultsEmail = async (email, templateData) => {
             <div style="padding: 40px 30px;">
 
               <!-- Greeting -->
-              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
               <!-- Main Message -->
               <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
@@ -2684,7 +2704,7 @@ const sendResultsEmail = async (email, templateData) => {
     const textContent = `
       ${competition_name} - Round ${round_number} Results
 
-      Hi ${user_display_name},
+      Hi ${firstName(user_display_name)},
 
       Round ${round_number} results are in.
 
@@ -2809,7 +2829,7 @@ const buildWelcomeCompetitionEmail = (email, templateData) => {
           <!-- Main Content -->
           <div style="padding: 40px 30px;">
 
-            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
             <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
               You are in <strong>${competition_name}</strong>, organised by ${organizer_name}.
@@ -2854,7 +2874,7 @@ ${nextRoundHtml}
   const textContent = `
 Welcome to ${competition_name}
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 You are in ${competition_name}, organised by ${organizer_name}.
 ${nextRoundText}
@@ -3284,7 +3304,7 @@ const sendCompetitionAnnouncementEmail = async (email, templateData) => {
             <div style="padding: 40px 30px;">
 
               <!-- Greeting -->
-              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${user_display_name},</h2>
+              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
               <!-- Main Message -->
               <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
@@ -3347,7 +3367,7 @@ const sendCompetitionAnnouncementEmail = async (email, templateData) => {
     const textContent = `
 New Competition: ${competition_name} - LMS Local
 
-Hi ${user_display_name},
+Hi ${firstName(user_display_name)},
 
 A new Last Man Standing competition is starting and you're invited to join!
 
