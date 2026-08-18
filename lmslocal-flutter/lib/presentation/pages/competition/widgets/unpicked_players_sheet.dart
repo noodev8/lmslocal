@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:lmslocal_flutter/core/constants/app_constants.dart';
-import 'package:lmslocal_flutter/core/theme/game_theme.dart';
+import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/domain/entities/round_info.dart';
 import 'package:lmslocal_flutter/domain/entities/unpicked_player.dart';
 
-/// Bottom sheet showing unpicked players for a round
-/// Shows different views based on count: all picked, list, or count only
+/// Who still owes a pick, opened from [PickStatusCard].
+///
+/// Three states, matching the web's modal: everyone is in, a short enough list
+/// to name, or too many to be a list. The cut is at ten because past that the
+/// names stop being a chase list and become a wall - the count and the
+/// percentage say the same thing in one line.
+///
+/// Names are set in `data` type: a player typed them in, and design-system.md
+/// §3 keeps that distinct from anything the app wrote. The dot beside each is
+/// `overprint` as a mark rather than a tinted row behind it (§8).
 class UnpickedPlayersSheet extends StatelessWidget {
   final RoundInfo round;
   final List<UnpickedPlayer> unpickedPlayers;
@@ -21,41 +28,36 @@ class UnpickedPlayersSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
+      // Square, and on the panel ground. The rounded white sheet it replaced
+      // was the last of the old theme on this path, and it arrived over a
+      // screen with no rounded corners left on it.
+      decoration: BoxDecoration(
+        color: CouponTheme.stockLit,
+        border: Border(top: CouponTheme.rule()),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   Expanded(
                     child: Text(
-                      'Round ${round.roundNumber} - Players',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      'ROUND ${round.roundNumber} PICKS',
+                      style: CouponTheme.heading(24),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, color: CouponTheme.inkFade),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
 
-              // Content
               if (unpickedPlayers.isEmpty)
                 _buildAllPickedContent()
               else if (unpickedPlayers.length <= 10)
@@ -63,7 +65,7 @@ class UnpickedPlayersSheet extends StatelessWidget {
               else
                 _buildCountOnlyContent(),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -72,102 +74,101 @@ class UnpickedPlayersSheet extends StatelessWidget {
   }
 
   Widget _buildAllPickedContent() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: GameTheme.accentGreen.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Center(
+        child: Column(
+          children: [
+            // No party emoji. The organiser opened this to find out whether
+            // there was work left; the answer is the whole content, and
+            // celebrating it back at them is the app talking about itself.
+            Text(
+              'ALL PLAYERS HAVE PICKED',
+              style: CouponTheme.heading(24),
+              textAlign: TextAlign.center,
             ),
-            child: const Text(
-              '🎉',
-              style: TextStyle(fontSize: 48),
+            const SizedBox(height: 10),
+            Text(
+              'Everyone has made their selection for this round.',
+              style: CouponTheme.bodyText.copyWith(
+                fontSize: 15,
+                color: CouponTheme.inkFade,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'All players have picked!',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Everyone has made their selection',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPlayerListContent() {
+    final count = unpickedPlayers.length;
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 400),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          RichText(
-            text: TextSpan(
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+          Text.rich(
+            TextSpan(
+              style: CouponTheme.bodyText.copyWith(
+                fontSize: 15,
+                color: CouponTheme.inkFade,
+              ),
               children: [
                 TextSpan(
-                  text: '${unpickedPlayers.length} ${unpickedPlayers.length == 1 ? 'player has' : 'players have'}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                  text: '$count ${count == 1 ? 'player has' : 'players have'}',
+                  style: const TextStyle(color: CouponTheme.ink),
                 ),
                 const TextSpan(text: ' not made their pick yet:'),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Flexible(
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: unpickedPlayers.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final player = unpickedPlayers[index];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.zero,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.orange,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          player.displayName,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(
+                  top: CouponTheme.rule(),
+                  bottom: CouponTheme.rule(),
+                ),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: count,
+                separatorBuilder: (_, _) => Divider(
+                  height: 0.5,
+                  thickness: 0.5,
+                  color: CouponTheme.ink.withValues(alpha: 0.3),
+                ),
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: CouponTheme.overprint,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            unpickedPlayers[index].displayName,
+                            style: CouponTheme.dataText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -176,38 +177,31 @@ class UnpickedPlayersSheet extends StatelessWidget {
   }
 
   Widget _buildCountOnlyContent() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: Column(
-        children: [
-          Text(
-            '${unpickedPlayers.length}',
-            style: TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.bold,
-              color: AppConstants.primaryNavy,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'players have not made their pick yet',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[700],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          if (pickPercentage != null) ...[
-            const SizedBox(height: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          children: [
             Text(
-              '$pickPercentage% complete',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              '${unpickedPlayers.length}',
+              style: CouponTheme.heading(64)
+                  .copyWith(color: CouponTheme.overprint),
             ),
+            const SizedBox(height: 6),
+            Text(
+              'players have not made their pick yet',
+              style: CouponTheme.bodyText.copyWith(
+                fontSize: 15,
+                color: CouponTheme.inkFade,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (pickPercentage != null) ...[
+              const SizedBox(height: 12),
+              Text('$pickPercentage% COMPLETE', style: CouponTheme.label),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

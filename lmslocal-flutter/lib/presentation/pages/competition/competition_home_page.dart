@@ -263,8 +263,10 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     showDialog(
       context: context,
       barrierDismissible: false,
+      // Ink, not white: the barrier sits over the coupon's light ground, where
+      // a white spinner is an empty screen with a dialog you cannot dismiss.
       builder: (context) => const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+        child: CircularProgressIndicator(color: CouponTheme.ink),
       ),
     );
 
