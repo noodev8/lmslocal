@@ -14,7 +14,7 @@ queries cannot disagree with this file about it.
 =======================================================================================================================================
 */
 
-const { query, transaction } = require('../database');
+const { query } = require('../database');
 
 /*
 Where bots are allowed.

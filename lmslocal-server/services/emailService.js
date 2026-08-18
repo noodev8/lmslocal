@@ -3438,9 +3438,6 @@ Unsubscribe from competition announcements: ${unsubscribeUrl}
       ]
     });
 
-    // Resend returns { data: { id: '...' }, error: null } format
-    const resendMessageId = result?.data?.id || result?.id || 'unknown';
-
     return readSendResult(result);
 
   } catch (error) {

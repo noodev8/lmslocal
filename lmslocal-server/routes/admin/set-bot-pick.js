@@ -133,11 +133,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // --- Clearing the pick ---------------------------------------------------------------
     if (team === null) {
       await transaction(async (client) => {
-        const existing = await client.query(
-          'SELECT team FROM pick WHERE round_id = $1 AND user_id = $2',
-          [round.round_id, user_id]
-        );
-
         await client.query(
           'DELETE FROM pick WHERE round_id = $1 AND user_id = $2',
           [round.round_id, user_id]

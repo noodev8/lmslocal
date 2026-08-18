@@ -44,7 +44,7 @@ Return Codes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../database'); // Use central database with transaction support
+const { transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const { recordJoinBlock } = require('../services/joinBlock');
 const { countOrganiserChargeableMembers } = require('../services/botPool');
