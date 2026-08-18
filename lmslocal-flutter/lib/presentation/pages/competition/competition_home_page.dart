@@ -819,18 +819,22 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
     );
   }
 
-  /// Hidden pending removal — see [_showPickProgress].
+  /// Whether to show the pre-lock "N of M picked" card, and behind it the list
+  /// of who has not picked.
   ///
-  /// The pre-lock half of this is the "N of M picked" progress card. It is a
-  /// statistic about other people, on the screen a player opens to find out
-  /// about themselves, and with the round status line above it now saying where
-  /// the round has got to, it earns none of the room it takes.
+  /// Settled on role rather than removed. For a player it is a statistic about
+  /// other people on the screen they opened to find out about themselves — and
+  /// their own state is not in it, so a nearly-full bar reads as "nothing
+  /// pending here" to the one person it is pending for. The round status line
+  /// above tells them the thing they actually need. For whoever can chase the
+  /// picks it is the opposite: a work queue with a deadline, and the names are
+  /// the queue. An organiser standing in the pub is exactly who wants it.
   ///
-  /// Flipping the flag brings it back unchanged, which is the only reason it is
-  /// still here. Delete it, `PickStatusCard`, `_showUnpickedPlayersModal` and
-  /// `UnpickedPlayersSheet` together once that decision is settled — the sheet
-  /// is reachable from nowhere else.
-  static const bool _showPickProgress = false;
+  /// `manage_players` counts as well as the organiser, matching the web — the
+  /// delegate does the chasing on their behalf. Keep in step with
+  /// `roundPanelHasContent` in `lmslocal-web/src/app/game/[id]/page.tsx`.
+  bool get _showPickProgress =>
+      _competition!.isOrganiser || (_competition!.managePlayers ?? false);
 
   Widget _buildRoundStatusSection(RoundInfo round) {
     if (!round.isLocked && _pickStats != null) {

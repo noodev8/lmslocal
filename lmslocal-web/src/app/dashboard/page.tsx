@@ -8,7 +8,6 @@ import {
   UserGroupIcon,
   ExclamationTriangleIcon,
   ChartBarIcon,
-  ClipboardDocumentIcon,
   UserIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
@@ -23,7 +22,7 @@ import { useAppData } from '@/contexts/AppDataContext';
 import JoinCompetitionModal from '@/components/JoinCompetitionModal';
 import CompetitionLogo from '@/components/CompetitionLogo';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK, TICK } from '@/lib/design';
-import { deriveDashboardRoundState, joiningOpen, pickDeadlineText } from '@/lib/roundState';
+import { deriveDashboardRoundState, pickDeadlineText } from '@/lib/roundState';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -622,30 +621,11 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      {/* Card Body */}
-                      {competition.invite_code && joiningOpen({
-                        currentRound: competition.current_round,
-                        currentRoundLockTime: competition.current_round_lock_time,
-                        now: new Date(),
-                      }) && (
-                        <div className="flex-1 p-4 sm:p-6">
-                          <div className="border border-ink/30 p-3">
-                            <p className={`${LABEL} mb-1 text-ink-fade`}>Player invite code</p>
-                            <div className="flex items-center gap-2">
-                              <code className="font-data text-xl tracking-wider text-ink">{competition.invite_code}</code>
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  navigator.clipboard.writeText(competition.invite_code || '');
-                                }}
-                                className="p-1 text-ink-fade transition-colors hover:text-ink"
-                              >
-                                <ClipboardDocumentIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      {/* No invite code here. It used to sit on every card while joining was
+                          open, back when this was the only place the web showed one - a bare code
+                          with nothing to do with it, on the screen you pass through rather than
+                          the one you act on. The competition screen now has the whole invitation:
+                          the link, the QR and a share sheet. One place, one step further in. */}
 
                       {/* Action Buttons */}
                       <div className="mt-auto border-t border-ink/30 px-4 py-4 sm:px-6">

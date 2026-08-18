@@ -454,6 +454,41 @@ export function roundStatusLine(state: RoundState): string {
 }
 
 /**
+ * The same line for a player, on the game dashboard.
+ *
+ * Kept apart from `roundStatusLine` because that one talks to whoever can act on the round -
+ * "process the round to settle it", "add this round's matches" - and a player can do none of it.
+ * This says only where the round has got to, which for them is one question: can I still pick, and
+ * until when.
+ *
+ * It carries the whole deadline on the dashboard, because the "N of M picked" card that used to
+ * sit below is now the organiser's alone: a count of other people never told a player whether
+ * *they* still owed a pick, and a nearly-full bar read as "nothing pending here" to the one person
+ * it was pending for. The Dart half is `playerRoundStatus` in the app's `round_state.dart` - keep
+ * the two in step.
+ */
+export function playerRoundStatus(state: RoundState): string {
+  switch (state.phase) {
+    case 'COMPETITION_COMPLETE':
+      return 'This competition has finished.';
+    case 'NO_ROUND':
+      return 'Waiting for the first round of matches.';
+    case 'OPEN':
+      return state.lockTime ? `Picks close ${formatLong(state.lockTime)}.` : 'Picks are open.';
+    case 'LOCKED':
+      // States what happened to the window, not how many picked. Counting invites a claim the
+      // numbers cannot back - a round can lock with picks missing. This is true either way.
+      return 'Picks are in — the window is closed.';
+    case 'RESULTS_PARTIAL':
+      return `${state.resultsIn} of ${state.totalFixtures} results in.`;
+    case 'RESULTS_READY':
+      return 'Every result is in.';
+    case 'COMPLETE':
+      return state.roundNumber ? `Round ${state.roundNumber} is settled.` : 'This round is settled.';
+  }
+}
+
+/**
  * The tile's own label — "Round 3", or a plain fallback before any round exists.
  *
  * When the tile is asking for fixtures it names the round being *created*, not the one that just

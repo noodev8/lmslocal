@@ -20,6 +20,7 @@ import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayer
 import { useAppData } from '@/contexts/AppDataContext';
 import { useCompetitionGate } from '@/hooks/useCompetitionGate';
 import CompetitionUnavailable from '@/components/CompetitionUnavailable';
+import InviteBlock from '@/components/InviteBlock';
 import { getCurrentUser } from '@/lib/auth';
 import { useToast, ToastContainer } from '@/components/Toast';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK } from '@/lib/design';
@@ -35,9 +36,8 @@ import {
   roundTileNeedsAction,
   roundTileSummary,
   roundTileTarget,
+  playerRoundStatus,
 } from '@/lib/roundState';
-import { buildInviteMessage, buildJoinUrl } from '@/lib/templates';
-import { formatLockTime } from '@/components/StartDateChooser';
 import { cacheUtils } from '@/lib/cache';
 import { cachePrefixes } from '@/lib/cacheKeys';
 
@@ -126,12 +126,6 @@ export default function UnifiedGameDashboard() {
   const [addPlayerForm, setAddPlayerForm] = useState({ display_name: '' });
   const [addPlayerError, setAddPlayerError] = useState<string | null>(null);
 
-  // Copy button states
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
-
-  const joinUrl = competition?.invite_code ? buildJoinUrl(competition.invite_code) : '';
-
   const joiningOpen = useMemo(() => isJoiningOpen({
     currentRound: currentRoundInfo?.round_number,
     currentRoundLockTime: currentRoundInfo?.lock_time,
@@ -152,7 +146,6 @@ export default function UnifiedGameDashboard() {
   const [currentBatchKickoff, setCurrentBatchKickoff] = useState<string | null>(null);
   const [isSettingReady, setIsSettingReady] = useState(false);
   const [readyError, setReadyError] = useState<string | null>(null);
-  const [messageCopied, setMessageCopied] = useState(false);
 
   /* Guests and bots with no pick for the open round. They cannot sign in, so nobody but the
      organiser can pick for them - which makes this a job with a deadline rather than a stat.
@@ -347,11 +340,16 @@ export default function UnifiedGameDashboard() {
      Deciding here rather than in the JSX keeps the panel and its contents from disagreeing. */
   const roundPanelHasContent = useMemo(() => {
     if (!currentRoundInfo || competition?.status === 'COMPLETE') return false;
-    if (!currentRoundInfo.is_locked) return true;
+    /* Before the lock this panel is "N of M picked" and the list of who hasn't - a work queue
+       with a deadline for whoever can chase it, and a statistic about other people for everyone
+       else. A player's own state isn't in that bar, so a nearly-full one read as "nothing pending
+       here" to the one person it was pending for; the round status line under the still-in count
+       tells them what they actually need. Same split in the app - see `_showPickProgress`. */
+    if (!currentRoundInfo.is_locked) return canManagePlayers;
     if (currentRoundInfo.status === 'COMPLETE') return SHOW_ROUND_STATISTICS && !!roundStats;
     const latestSettled = competition?.history?.[0];
     return !latestSettled || latestSettled.round_number < currentRoundInfo.round_number;
-  }, [currentRoundInfo, competition?.status, competition?.history, roundStats]);
+  }, [currentRoundInfo, competition?.status, competition?.history, roundStats, canManagePlayers]);
 
   // Standings is unconditional; the rest are earned. Counted here so the grid can pick a column
   // count that divides evenly - see TILE_GRID_COLS.
@@ -540,8 +538,10 @@ export default function UnifiedGameDashboard() {
           });
       }
 
-      // Load pick statistics for all users
-      if (!pickStatsLoadedRef.current && currentRoundInfo) {
+      // Only for whoever can chase the picks - it feeds the progress panel and the list of who
+      // hasn't picked, and both are theirs now. Nobody else's screen shows the number, so nobody
+      // else's screen should pay for the call.
+      if (!pickStatsLoadedRef.current && currentRoundInfo && canManagePlayers) {
         pickStatsLoadedRef.current = true;
         competitionApi.getPickStatistics(parseInt(competitionId))
           .then(response => {
@@ -885,6 +885,12 @@ export default function UnifiedGameDashboard() {
               </p>
               <p className="mt-2 font-display text-6xl text-overprint">{competition.player_count}</p>
               <p className={`${LABEL} mt-1 text-ink-fade`}>Still in</p>
+
+              {/* Where the round has got to, in one sentence. Without it the screen showed a count
+                  and a lives figure and left "have picks closed?" - the thing a player actually
+                  wants to know - to be inferred from whether the pick screen happened to offer
+                  them anything. The app's dashboard puts the same line in the same place. */}
+              <p className="mt-3 text-[15px] text-ink-fade">{playerRoundStatus(dashboardRoundState)}</p>
             </div>
 
             {/* Guest picks the organiser owes. A guest has no login and no app, so a round can
@@ -1064,102 +1070,41 @@ export default function UnifiedGameDashboard() {
           </div>
         )}
 
-        {/* Invite Players */}
-        {competition.invite_code && joiningOpen && (isOrganiser || canManagePlayers) && (
-          <div className={`${PANEL} p-6`}>
-            <div className="text-center">
-              <p className={EYEBROW}>Setup</p>
-              <p className={`${HEADING} mt-1 text-2xl`}>Invite players</p>
+        {/* The invitation. Shown to players as well as organisers - a player bringing their own
+            mates in is good for the competition - and to both in the same shape as the app's
+            InviteBlock, so doing this on the laptop is doing what you did on the phone. */}
+        <InviteBlock
+          competitionName={competition.name}
+          inviteCode={competition.invite_code}
+          isOrganiser={isOrganiser}
+          currentRound={currentRoundInfo?.round_number}
+          lockTime={currentRoundInfo?.lock_time}
+          entryFee={competition.entry_fee}
+          prizeStructure={competition.prize_structure}
+          onToast={showToast}
+        />
 
-              {/* The deadline, said out loud, on the screen where recruiting actually happens.
-                  Joining closes when the round locks - everyone has to start together, or a late
-                  joiner would face opponents who had already burned teams. Nothing used to say
-                  so, which is why an organiser could spend a week recruiting without knowing
-                  there was a clock on it. */}
-              {currentRoundInfo?.lock_time && (
-                <p className="mt-2 text-[13px] text-ink-fade">
-                  Players can join until{' '}
-                  <span className="text-ink">{formatLockTime(currentRoundInfo.lock_time)}</span>,
-                  when Round {currentRoundInfo.round_number} locks. After that the competition is
-                  closed.
-                </p>
-              )}
-            </div>
-
-            {/* The link comes first and the code second: a player sent a link never has to type
-                anything, which is the whole point of docs/player-onboarding.md §2. The code is
-                still here for anyone told it out loud. */}
-            <div className="mt-5 border-t border-ink/30 pt-5 text-center">
-              <p className="text-[15px] text-ink-fade">Send players this link</p>
-              <p className="mt-2 break-all font-data text-[15px] text-ink">{joinUrl}</p>
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(joinUrl);
-                    setLinkCopied(true);
-                    showToast('Join link copied', 'success');
-                    setTimeout(() => setLinkCopied(false), 2000);
-                  }}
-                  className={`${BTN_OUTLINE} px-3 py-1.5`}
-                >
-                  {linkCopied ? 'Copied' : 'Copy link'}
-                </button>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      buildInviteMessage({
-                        competition_name: competition.name,
-                        join_url: joinUrl,
-                        lock_time: currentRoundInfo?.lock_time,
-                        entry_fee: competition.entry_fee,
-                        prize_structure: competition.prize_structure,
-                      })
-                    );
-                    setMessageCopied(true);
-                    showToast('Message copied! Paste it into WhatsApp, email, or any messaging app', 'success');
-                    setTimeout(() => setMessageCopied(false), 2000);
-                  }}
-                  className={`${BTN_OUTLINE} px-3 py-1.5`}
-                >
-                  {messageCopied ? 'Copied' : 'Copy full message'}
-                </button>
-              </div>
-
-              <p className="mt-4 text-[13px] text-ink-fade">
-                Or give them the code <code className="font-data text-[15px] text-ink">{competition.invite_code}</code>{' '}
-                to enter at lmslocal.co.uk
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(competition.invite_code || '');
-                    setCodeCopied(true);
-                    showToast('Competition code copied to clipboard!', 'success');
-                    setTimeout(() => setCodeCopied(false), 2000);
-                  }}
-                  className="ml-2 underline underline-offset-2 hover:text-ink"
-                >
-                  {codeCopied ? 'Copied' : 'Copy code'}
-                </button>
-              </p>
-            </div>
-
-            <div className="mt-5 border-t border-ink/30 pt-5 text-center">
-              <p className={`${LABEL} mb-1 text-ink-fade`}>Or add players directly</p>
-              {/* Says what a guest is before the button, not after it in the modal - organisers
-                  were clicking to find out. One line, because the whole idea is one line. */}
-              <p className="mb-3 text-[13px] text-ink-fade">
-                A guest has no login and no app &mdash; you make their picks for them
-              </p>
-              <button
-                onClick={() => {
-                  setShowAddPlayerModal(true);
-                  setAddPlayerError(null);
-                }}
-                className={`${BTN_DARK} inline-flex items-center gap-2 px-5 py-2.5 text-base`}
-              >
-                <UserIcon className="h-4 w-4" />
-                Add guest players
-              </button>
-            </div>
+        {/* Guests are a separate job from the invitation, and one only the organiser can do: they
+            have no login and no app, so someone has to make their picks. Kept out of InviteBlock,
+            which players see. */}
+        {joiningOpen && (isOrganiser || canManagePlayers) && (
+          <div className={`${PANEL} p-6 text-center`}>
+            <p className={`${LABEL} mb-1 text-ink-fade`}>Or add players directly</p>
+            {/* Says what a guest is before the button, not after it in the modal - organisers
+                were clicking to find out. One line, because the whole idea is one line. */}
+            <p className="mb-3 text-[13px] text-ink-fade">
+              A guest has no login and no app &mdash; you make their picks for them
+            </p>
+            <button
+              onClick={() => {
+                setShowAddPlayerModal(true);
+                setAddPlayerError(null);
+              }}
+              className={`${BTN_DARK} inline-flex items-center gap-2 px-5 py-2.5 text-base`}
+            >
+              <UserIcon className="h-4 w-4" />
+              Add guest players
+            </button>
           </div>
         )}
 
