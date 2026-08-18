@@ -178,6 +178,31 @@ const formatUkDateTime = (value) =>
     hour12: true
   });
 
+/**
+ * The note that goes above the footer on emails sent "as" the organiser.
+ *
+ * The FROM line reads "{organiser} via LMS Local", which is honest about who this is on behalf
+ * of, but players read it as an email from their organiser personally and reply to it as such -
+ * every reply lands in the platform's inbox, not the organiser's. Interim fix (2026-08-18) ahead
+ * of a proper reply routing system: say plainly where a reply goes and where competition
+ * questions actually belong.
+ *
+ * @param {string} organizerName
+ * @returns {{html: string, text: string}}
+ */
+const buildOrganiserReplyNote = (organizerName) => {
+  const html = `
+    <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0 0; line-height: 1.5;">
+      For questions about the competition, contact ${organizerName} directly. Replying to this
+      email reaches LMS Local platform support.
+    </p>
+  `;
+
+  const text = `For questions about the competition, contact ${organizerName} directly. Replying to this email reaches LMS Local platform support.`;
+
+  return { html, text };
+};
+
 const buildEmailFooter = (unsubscribeUrl = null) => {
   const html = `
     <div style="background-color: #f8fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0;">
@@ -760,6 +785,8 @@ const buildPickReminderEmail = (email, templateData) => {
                 ${organizer_name}
               </p>
 
+              ${buildOrganiserReplyNote(organizer_name).html}
+
             </div>
 
             ${footer.html}
@@ -811,11 +838,13 @@ ${makePickUrl}
 Good luck,
 ${organizer_name}
 
+${buildOrganiserReplyNote(organizer_name).text}
+
 ${footer.text}
     `;
 
     return {
-      from: `${organizer_name} via LMS Local <${process.env.EMAIL_FROM}>`,
+      from: `LMS Local <${process.env.EMAIL_FROM}>`,
       to: [email],
       subject: `${organizer_name} (${competition_name}): Pick reminder for Round ${round_number}`,
       html: htmlContent,
@@ -2862,6 +2891,8 @@ ${nextRoundHtml}
               </a>
             </div>
 
+            ${buildOrganiserReplyNote(organizer_name).html}
+
           </div>
 
           ${footer.html}
@@ -2899,11 +2930,13 @@ HOW TO PLAY
 ${next_round_number ? 'Make your first pick:' : 'View your competition:'}
 ${viewCompetitionUrl}
 
+${buildOrganiserReplyNote(organizer_name).text}
+
 ${footer.text}
   `;
 
   return {
-    from: `${organizer_name} via LMS Local <${process.env.EMAIL_FROM}>`,
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
     to: [email],
     subject: joinCompSubjectFor(competition_name),
     html: htmlContent,
