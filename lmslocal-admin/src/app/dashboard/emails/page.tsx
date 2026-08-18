@@ -248,6 +248,17 @@ const OUTLINE: OutlineEmail[] = [
     blurb:
       'What anyone gets once, when they first have an LMS Local account — however they arrived. No competition attached, so it explains the game and offers both doors rather than guessing whether they came to play or to organise.',
   },
+  {
+    key: 'signup_nudge',
+    consumer: 'All',
+    section: 'Info',
+    name: 'Signup Nudge',
+    scoped: false,
+    note: 'Idle 7 days',
+    focus: true,
+    blurb:
+      'The follow-up to Welcome Join LMS, to the same person a week later: signed up, joined nothing, created nothing. One per account ever, and the copy says so — it lands on people who have not been back in a week, who report mail as spam rather than ignoring it.',
+  },
   // The outline's BROADCAST block is deliberately absent from this table. Broadcast from Admin
   // lives on its own screen - the message is typed rather than derived, so there is nothing here
   // to preview or count, and the header button is the way in. Broadcast from Organiser was

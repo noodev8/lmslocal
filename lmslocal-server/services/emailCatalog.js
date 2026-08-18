@@ -21,6 +21,7 @@ than harmless - a preview scoped to a competition nobody in the list belongs to.
 
 const pickReminder = require('./pickReminder');
 const joinLms = require('./joinLms');
+const signupNudge = require('./signupNudge');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
 // gameStartReminder is not imported: unwired on purpose - see the note where its entry was.
@@ -35,6 +36,8 @@ const {
   sendPickReminderEmail,
   buildJoinLmsEmail,
   sendJoinLmsEmail,
+  buildSignupNudgeEmail,
+  sendSignupNudgeEmail,
   buildCreatedCompEmail,
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,
@@ -68,6 +71,21 @@ const CATALOG = {
     service: joinLms,
     build: buildJoinLmsEmail,
     send: sendJoinLmsEmail
+  },
+  /*
+  The follow-up to join_lms, and the same population a week later: signed up, joined nothing,
+  created nothing. Unscoped for the same reason - there is no competition to name, which is
+  precisely the problem it is about.
+
+  Clear its backlog with "Mark as sent" before the first real send. 94 accounts qualified the day
+  it was wired, the oldest from September 2025 - pressing Send instead mails three months of
+  accumulated dormancy in one go.
+  */
+  signup_nudge: {
+    scoped: false,
+    service: signupNudge,
+    build: buildSignupNudgeEmail,
+    send: sendSignupNudgeEmail
   },
   created_comp: {
     scoped: true,

@@ -17,6 +17,17 @@ import { LABEL, EYEBROW, TICK } from '@/lib/design';
  * interface labels use the body face, which stays legible at small sizes where
  * mono does not.
  *
+ * Audience order: clubs first, then pubs, then workplaces — and pubs are never
+ * dropped. Set 2026-08-18 from who actually turned up. The page was written for
+ * pub landlords, but of the organisers who found us on their own the amateur and
+ * junior sports clubs were an order of magnitude bigger (50 players across six
+ * clubs against 6 across three pubs), and two of them independently wrote the
+ * same prize structure by hand: half to the winner, half back to the club. That
+ * is why the hero leads on what is left over rather than on footfall — a club
+ * secretary sells a fundraiser to their own members, where a landlord has no
+ * reason to push a winner-takes-all sweepstake. Do not reorder these without
+ * new numbers.
+ *
  * Voice rule: "you" on this page is always the organiser, never the player.
  * Anything the player does is written in the third person ("they pick").
  *
@@ -28,11 +39,22 @@ import { LABEL, EYEBROW, TICK } from '@/lib/design';
  * organiser sections between them.
  */
 
-// Real platform figures. Update these by hand rather than inventing them.
+/*
+Real platform figures. Update these by hand rather than inventing them.
+
+ALL-TIME, not currently-running, which is what the 13/11/110 these replaced were counting - the
+caption beside them said "running right now" and did not match. Kept all-time on purpose: a
+competition that finished still happened, and switching to a live count would have dropped the
+players figure from 110 to 84 and read as going backwards.
+
+Excludes organisers 50 and 862, which are ours, and excludes bots from the player count. Counting
+our own seeded competition would put 22 accounts we drive into a number whose only job is to be
+believable. Last counted 2026-08-18.
+*/
 const TALLY = [
-  { value: '13', label: 'competitions' },
-  { value: '11', label: 'organisers' },
-  { value: '110', label: 'players' },
+  { value: '18', label: 'competitions' },
+  { value: '16', label: 'organisers' },
+  { value: '161', label: 'players' },
 ];
 
 const WEEKEND = [
@@ -213,7 +235,7 @@ export default function LandingPage() {
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-14">
           <div>
-            <p className={`${EYEBROW} text-overprint`}>Last Man Standing · for organisers</p>
+            <p className={`${EYEBROW} text-overprint`}>Last Man Standing · for clubs, pubs and workplaces</p>
             <h1 className="mt-4 font-display text-[4rem] font-semibold uppercase leading-[0.82] tracking-[0.01em] text-ink sm:text-[5.5rem] lg:text-[6.2rem]">
               The
               <br />
@@ -224,8 +246,9 @@ export default function LandingPage() {
               <span className="text-overprint">for itself.</span>
             </h1>
             <p className="mt-7 max-w-lg text-xl leading-relaxed text-ink">
-              Your regulars already know the game. Set the entry fee, set the prize, and keep
-              whatever is left for the club or the charity of your choice.
+              Run one for your club, your pub or your workplace. Set the entry fee, set the prize,
+              and keep whatever is left &mdash; for club funds, for kit, or for a charity of your
+              choice.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-4">
@@ -349,6 +372,21 @@ export default function LandingPage() {
       {/* ---------------------------------------------------------------- */}
       {/* Offline players — the objection that decides it for a lot of      */}
       {/* venues, and the thing existing organisers rate most               */}
+      {/*                                                                   */}
+      {/* "Big Ben", not "Old Ben" (2026-08-18). The earlier name explained  */}
+      {/* itself faster, which is why it was chosen, but it classified the   */}
+      {/* person it was meant to include. Plenty of people who avoid an app  */}
+      {/* are wary of technology rather than old, and being filed under      */}
+      {/* "old" is its own reason to opt out — so the heading was creating   */}
+      {/* an objection in the section that exists to remove one. Big Ben     */}
+      {/* reads as an ordinary nickname beside "doesn't use the app".        */}
+      {/* Do not put an age word back.                                      */}
+      {/*                                                                   */}
+      {/* "Doesn't use the app", not "hasn't got a smartphone", for the same */}
+      {/* reason: most people who avoid the app own a phone and simply will  */}
+      {/* not use it, so the old heading described a smaller group than the  */}
+      {/* section actually serves and read as a shortcoming rather than a    */}
+      {/* preference. The body copy below covers both cases unchanged.       */}
       {/* ---------------------------------------------------------------- */}
       <section className="border-y border-ink/30 bg-stock-deep">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
@@ -356,19 +394,19 @@ export default function LandingPage() {
             <div>
               <p className={`${EYEBROW} text-overprint`}>Everyone plays</p>
               <h2 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
-                Old Ben hasn&rsquo;t got a smartphone
+                Big Ben doesn&rsquo;t use the app
               </h2>
               <p className="mt-6 max-w-lg text-xl leading-relaxed text-ink">
                 He is still in it. Add him yourself and he is on the sheet with everybody else. Each
-                round he tells you his team at the bar and you put it in for him.
+                round he tells you his team and you put it in for him.
               </p>
               <p className="mt-4 max-w-lg text-xl leading-relaxed text-ink">
                 No email address, no app, nothing for him to set up &mdash; and he can win the whole
                 thing.
               </p>
               <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-fade">
-                That is the difference between a competition for whoever happens to have the app and
-                a competition for your whole crowd.
+                That is the difference between a competition for whoever will use an app and a
+                competition for your whole crowd.
               </p>
             </div>
 
@@ -381,7 +419,7 @@ export default function LandingPage() {
                   <span className="font-data text-[13px] text-ink-fade">picked on the app</span>
                 </li>
                 <li className="flex items-baseline justify-between gap-3">
-                  <span className="font-data text-[15px] text-ink">Old Ben</span>
+                  <span className="font-data text-[15px] text-ink">Big Ben</span>
                   <span className="font-data text-[13px] text-overprint">you put his in</span>
                 </li>
               </ul>
@@ -436,7 +474,7 @@ export default function LandingPage() {
               Where we&rsquo;re up to
             </h2>
             <p className="mt-5 max-w-md text-xl leading-relaxed text-ink">
-              LMSLocal started this season. Everything running on it right now, counted honestly:
+              LMSLocal is new. Everything that has run on it so far, counted honestly:
             </p>
             <p className="mt-5 max-w-md text-[16px] leading-relaxed text-ink-fade">
               There are no reviews on this page because we have not earned any yet. When an
@@ -466,7 +504,7 @@ export default function LandingPage() {
           <h2 className="max-w-2xl font-display text-6xl font-semibold uppercase leading-[0.88] text-stock-lit sm:text-7xl">
             Put one up
             <br />
-            behind the bar
+            on the noticeboard
           </h2>
           <p className="mt-6 max-w-lg text-xl leading-relaxed text-stock/85">
             Twenty player places, free, for as long as you like. You only pay once you go past
