@@ -13,7 +13,7 @@ The subject lives with the service that queues the email, not here, because the 
 written there before the template is built and the two have to say the same thing.
 */
 const { SUBJECT: JOIN_LMS_SUBJECT } = require('./joinLms');
-const { SUBJECT: SIGNUP_NUDGE_SUBJECT } = require('./signupNudge');
+const { subjectFor: emptyCompSubjectFor } = require('./emptyComp');
 const { subjectFor: createdCompSubjectFor } = require('./createdComp');
 const { subjectFor: shareReminderSubjectFor } = require('./shareReminder');
 const { subjectFor: joinCompSubjectFor } = require('./joinComp');
@@ -1071,59 +1071,55 @@ const sendJoinLmsEmail = async (email, templateData, options = {}) => {
 };
 
 /**
- * Build the signup nudge without sending it.
+ * Build the empty-competition nudge without sending it.
  *
- * Outline row: All | Info | Signup Nudge. One per account, ever, to somebody who signed up a week
- * ago and has neither joined a competition nor created one.
+ * Outline row: Organiser | Info | Empty Competition. One per competition, ever, to the organiser
+ * of one that has been set up for a week with nobody in it.
  *
- * Deliberately SHORTER than the Join LMS welcome rather than a second copy of it. That email
- * already explained the game to this person; repeating the rules would read as a resend and give
- * them nothing new to act on. What is new here is only that time has passed, so the email is the
- * two doors, plainly, and an honest statement that nothing further follows.
+ * IT ASKS, IT DOES NOT INSTRUCT. The first draft named the problem ("nobody has joined"), then
+ * explained how to hand out a join code - poster, group chat, read it out - and closed by pointing
+ * at everything they had left to do. Every line was true and the whole thing was patronising: it
+ * told a person who had already set up a competition how to invite their own friends, and framed
+ * a week of quiet as a failure needing correction. Andreas's read, 2026-08-18, and he was right.
+ *
+ * So it asks one question instead. We do not know why it is empty - they may have gone off the
+ * idea, be waiting on somebody, or be stuck on something we could fix in a sentence - and the only
+ * way to find out is to ask and make replying easy. No advice, because any we gave would be a
+ * guess at which of those it is.
+ *
+ * NO JOIN CODE, deliberately, though template_data still carries it. Putting the code back in
+ * would reintroduce the how-to-recruit framing that made the first version grate. The button goes
+ * to the competition, where the code already is.
+ *
+ * deliver() sets reply_to to EMAIL_REPLY_TO on everything we send, so "reply to this email" is
+ * true rather than a friendly-sounding dead end. If that variable is ever unset, this copy has to
+ * change with it.
  *
  * @param {string} email - recipient
- * @param {object} templateData - as built by services/signupNudge.js
+ * @param {object} templateData - as built by services/emptyComp.js
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
-const buildSignupNudgeEmail = (email, templateData) => {
+const buildEmptyCompEmail = (email, templateData) => {
   const {
     user_display_name,
+    competition_name,
+    competition_id,
     email_tracking_id,
-    /*
-    Built by services/signupNudge.js from the recipient's own token. Absent only if the account
-    somehow has no token, in which case the footer link and the headers are omitted rather than
-    rendering a link that would 404.
-    */
     unsubscribe
   } = templateData;
 
   const footer = buildEmailFooter(unsubscribe?.url || null);
 
   const base = process.env.PLAYER_FRONTEND_URL;
-  /*
-  The landing page, not /join - there is no bare /join page, only /join/[code], and linking to it
-  404s. The landing page's sticky "Got a code?" bar takes the code and forwards to /join/[code],
-  signed in or out. Same reasoning as buildJoinLmsEmail; if one of these changes so must the other.
-  */
-  const joinUrl = `${base}/?email_id=${email_tracking_id}`;
-  const createUrl = `${base}/competition/create?email_id=${email_tracking_id}`;
-  const howToPlayUrl = `${base}/help/how-to-play`;
+  const manageUrl = `${base}/game/${competition_id}?email_id=${email_tracking_id}`;
 
-  /*
-  "The only reminder we will send" is load-bearing and it is TRUE - the once-ever guard in
-  signupNudge.findCandidates is what makes it true, not a promise the copy is making on its own.
-  It is here because this email lands on people who have not touched the product in a week, which
-  is exactly the population that reports mail as spam rather than ignoring it. Saying plainly that
-  nothing follows is worth more than another call to action. If the once-ever guard is ever
-  loosened, this sentence has to go in the same commit.
-  */
   const htmlContent = `
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Still time to get started</title>
+        <title>Still planning to run it?</title>
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
@@ -1139,39 +1135,22 @@ const buildSignupNudgeEmail = (email, templateData) => {
 
             <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
 
-            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
-              You set up an LMS Local account a little while back and have not started anything yet.
-              It takes a couple of minutes either way.
+            <p style="color: #334155; font-size: 16px; margin: 0 0 20px 0; line-height: 1.5;">
+              You set up <strong>${competition_name}</strong> a little while ago. Just checking
+              whether you are still planning to run it.
             </p>
 
-            <!-- Two doors, same pair as the welcome -->
-            <div style="margin: 0 0 20px 0;">
-              <a href="${joinUrl}"
+            <p style="color: #334155; font-size: 16px; margin: 0 0 28px 0; line-height: 1.5;">
+              If there is anything you are stuck on, or you have a question about how any of it
+              works, reply to this email. It comes to a real person and we are happy to help.
+            </p>
+
+            <div style="margin: 0;">
+              <a href="${manageUrl}"
                  style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
-                Join a competition
+                Open your competition
               </a>
-              <p style="color: #64748b; font-size: 13px; margin: 8px 0 0 0; text-align: center;">
-                Got a code from your club, pub or workplace? Enter it here.
-              </p>
             </div>
-
-            <div style="margin: 0 0 30px 0;">
-              <a href="${createUrl}"
-                 style="display: block; background-color: #ffffff; color: #475569; padding: 15px 32px; text-decoration: none; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
-                Run your own competition
-              </a>
-              <p style="color: #64748b; font-size: 13px; margin: 8px 0 0 0; text-align: center;">
-                Set one up for your club, your regulars or your workplace.
-              </p>
-            </div>
-
-            <p style="color: #64748b; font-size: 14px; margin: 0 0 16px 0; line-height: 1.5;">
-              New to the game? <a href="${howToPlayUrl}" style="color: #2563eb;">How to play</a> covers it in a couple of minutes.
-            </p>
-
-            <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.5;">
-              This is the only reminder we will send.
-            </p>
 
           </div>
 
@@ -1183,25 +1162,19 @@ const buildSignupNudgeEmail = (email, templateData) => {
   `;
 
   const textContent = `
-Still time to get started on LMS Local
+Still planning to run ${competition_name}?
 
 Hi ${firstName(user_display_name)},
 
-You set up an LMS Local account a little while back and have not started
-anything yet. It takes a couple of minutes either way.
+You set up ${competition_name} a little while ago. Just checking whether
+you are still planning to run it.
 
-JOIN A COMPETITION
-Got a code from your club, pub or workplace? Enter it here:
-${joinUrl}
+If there is anything you are stuck on, or you have a question about how
+any of it works, reply to this email. It comes to a real person and we
+are happy to help.
 
-RUN YOUR OWN COMPETITION
-Set one up for your club, your regulars or your workplace:
-${createUrl}
-
-New to the game? How to play covers it in a couple of minutes:
-${howToPlayUrl}
-
-This is the only reminder we will send.
+Open your competition:
+${manageUrl}
 
 ${footer.text}
   `;
@@ -1209,29 +1182,29 @@ ${footer.text}
   return {
     from: `LMS Local <${process.env.EMAIL_FROM}>`,
     to: [email],
-    subject: SIGNUP_NUDGE_SUBJECT,
+    subject: emptyCompSubjectFor(competition_name),
     html: htmlContent,
     text: textContent,
     headers: {
       'X-Entity-Ref-ID': email_tracking_id,
       ...(unsubscribe?.headers || {})
     },
-    tags: [{ name: 'email_type', value: 'signup_nudge' }]
+    tags: [{ name: 'email_type', value: 'empty_comp' }]
   };
 };
 
 /**
- * Send the signup nudge.
+ * Send the empty-competition nudge.
  * @param {string} email - recipient
- * @param {object} templateData - as built by services/signupNudge.js
+ * @param {object} templateData - as built by services/emptyComp.js
  * @param {object} [options] - { testMode, testRecipient }, see deliver()
  */
-const sendSignupNudgeEmail = async (email, templateData, options = {}) => {
+const sendEmptyCompEmail = async (email, templateData, options = {}) => {
   try {
-    const result = await deliver(buildSignupNudgeEmail(email, templateData), options);
+    const result = await deliver(buildEmptyCompEmail(email, templateData), options);
     return readSendResult(result);
   } catch (error) {
-    console.error('Failed to send signup nudge email:', error);
+    console.error('Failed to send empty competition email:', error);
     return {
       success: false,
       error: error.message
@@ -3667,8 +3640,8 @@ module.exports = {
   sendPickReminderEmail,
   buildJoinLmsEmail,
   sendJoinLmsEmail,
-  buildSignupNudgeEmail,
-  sendSignupNudgeEmail,
+  buildEmptyCompEmail,
+  sendEmptyCompEmail,
   buildCreatedCompEmail,
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,

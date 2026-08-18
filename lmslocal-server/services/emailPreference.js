@@ -74,11 +74,12 @@ const EMAIL_GROUPS = {
   created_comp: GROUPS.INFO,
   join_lms: GROUPS.INFO,
   /*
-  The nudge sits in Info beside the welcome it follows up, not in Game. Somebody who has never
-  joined a competition has no game to be told about, and grouping it with pick reminders would
-  mean an organiser muting fixture chatter also muted an email about starting at all.
+  Info beside created_comp, the email it follows up, rather than Game with share_reminder. A
+  competition nobody has joined has no game happening in it yet, and grouping it with the round
+  mail would mean an organiser muting fixture chatter also lost the one email about a competition
+  of theirs that is going nowhere.
   */
-  signup_nudge: GROUPS.INFO,
+  empty_comp: GROUPS.INFO,
   promote_competition: GROUPS.INFO,
   update_scores_mid_round_tip: GROUPS.INFO,
 

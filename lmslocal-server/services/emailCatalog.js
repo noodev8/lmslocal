@@ -21,7 +21,7 @@ than harmless - a preview scoped to a competition nobody in the list belongs to.
 
 const pickReminder = require('./pickReminder');
 const joinLms = require('./joinLms');
-const signupNudge = require('./signupNudge');
+const emptyComp = require('./emptyComp');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
 // gameStartReminder is not imported: unwired on purpose - see the note where its entry was.
@@ -36,8 +36,8 @@ const {
   sendPickReminderEmail,
   buildJoinLmsEmail,
   sendJoinLmsEmail,
-  buildSignupNudgeEmail,
-  sendSignupNudgeEmail,
+  buildEmptyCompEmail,
+  sendEmptyCompEmail,
   buildCreatedCompEmail,
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,
@@ -73,19 +73,20 @@ const CATALOG = {
     send: sendJoinLmsEmail
   },
   /*
-  The follow-up to join_lms, and the same population a week later: signed up, joined nothing,
-  created nothing. Unscoped for the same reason - there is no competition to name, which is
-  precisely the problem it is about.
+  The follow-up to created_comp: a competition set up a week ago that nobody has joined. Replaced
+  signup_nudge, which chased dormant registrations - twenty times as many people, but far colder,
+  and only one nudge email is wanted (2026-08-18).
 
-  Clear its backlog with "Mark as sent" before the first real send. 94 accounts qualified the day
-  it was wired, the oldest from September 2025 - pressing Send instead mails three months of
-  accumulated dormancy in one go.
+  Scoped, and the grain is the COMPETITION not the organiser: it carries that competition's join
+  code, and somebody with two empty ones has two to fill.
+
+  Clear its backlog with "Mark as sent" before the first real send.
   */
-  signup_nudge: {
-    scoped: false,
-    service: signupNudge,
-    build: buildSignupNudgeEmail,
-    send: sendSignupNudgeEmail
+  empty_comp: {
+    scoped: true,
+    service: emptyComp,
+    build: buildEmptyCompEmail,
+    send: sendEmptyCompEmail
   },
   created_comp: {
     scoped: true,
