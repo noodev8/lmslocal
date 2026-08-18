@@ -30,26 +30,29 @@ const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require
 
 /*
 How close to the lock a round has to be before its players are chased. Narrowed from 3 days
-(2026-08-14).
+(2026-08-14), then from 48 hours to 12 (2026-08-18).
 
 The email is ONCE PER PLAYER PER ROUND, so the window is not "when may we send" - it is "when does
 the one reminder get spent". Three days out was the worst moment to spend it: no urgency yet, the
 player thinks "later", and the queue guard means nothing follows.
 
-WHY 48 AND NOT 24. The window has to be wider than however often the sender runs, or it can be
-missed entirely - and roughly double it, or the notice becomes a lottery. With a daily cron and a
-24-hour window, a round locking just after the cron's hour gets chased a minute before the
-deadline, while one locking just before it gets a clean day. 48 gives between 24 and 48 hours'
-notice whatever the lock time, which is always useful and never three days early.
+WHY 12 AND NOT 48. Sending is manual (no scheduler), so the operator is the one deciding when to
+press - the window only bounds who is ELIGIBLE to appear on the admin card, not when the reminder
+actually goes. 48 hours made a round eligible two days out, which read as "ready to send" long
+before the operator actually wanted to nag anyone. 12 hours means a round only shows up the
+morning of an evening kickoff - genuinely "the day of" - while still leaving the operator the
+whole day to press Send before lock.
 
-It costs nothing while sending is manual: this bounds who is ELIGIBLE, not when the operator
-presses. A wider window just means the row appears on the card sooner.
+This assumes an operator checking in at least once within the 12-hour window, since there is still
+no cron. If sending is ever automated, this number needs revisiting - the old 48-hour comment's
+"wider than however often the sender runs, roughly doubled" logic still applies to a scheduled
+sender and would argue for widening it back up.
 
-The bigger version - two reminders per round, one at ~48h and one at ~4h - is foreclosed by the
-per-round queue guard, and would need a "which reminder is this" concept rather than a wider
-window. Deliberately not built.
+The bigger version - two reminders per round, one early and one close to the deadline - is
+foreclosed by the per-round queue guard, and would need a "which reminder is this" concept rather
+than a wider window. Deliberately not built.
 */
-const REMINDER_WINDOW_HOURS = 48;
+const REMINDER_WINDOW_HOURS = 12;
 
 /**
  * Find every player who should get a pick reminder.
