@@ -108,10 +108,18 @@ function getPoolStatus() {
 }
 
 
-// Graceful shutdown
-async function closePool() {
+/*
+Graceful shutdown.
+
+`quiet` exists for scheduled scripts. A cron job that prints a line every run accumulates output
+forever whether or not anything happened, and "Database pool closed" is never the reason anyone
+opens a log. Passing it lets a run that did nothing produce NOTHING, so cron only has something to
+say when there is something to say. Default is unchanged, so the server and the other scripts keep
+their line.
+*/
+async function closePool({ quiet = false } = {}) {
   await pool.end();
-  console.log('Database pool closed');
+  if (!quiet) console.log('Database pool closed');
 }
 
 // Connection test is now handled by server.js startup

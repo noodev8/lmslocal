@@ -14,9 +14,12 @@ Purpose: Send every scheduled outline email to whoever currently qualifies, unat
          competition, or to named people. This is what stops an email being forgotten.
 
 WHICH EMAILS THIS SENDS is not decided here. It is the `cron` field on services/emailCatalog.js,
-which holds a bucket name matching the argument below. An email without the field is not
-scheduled, and today that is all of them - the machinery ships first and emails join one at a
-time, each watched running before the next.
+which holds a bucket name matching the argument below; an email without the field is not
+scheduled. Emails join one at a time, each watched running before the next - see the list in that
+file's header for what is on today.
+
+OUTPUT IS SILENT UNLESS SOMETHING HAPPENED, so a daily run does not accumulate a log forever. See
+the note by `log` below.
 
 Usage:
   node scripts/email-sweep.js daily              # send
@@ -73,19 +76,49 @@ collide with another advisory lock in the codebase; nothing else uses one today.
 */
 const LOCK_KEY = 4820261;
 
-/** Log one line with a consistent prefix, so a cron mail is greppable. */
-const log = (msg) => console.log(`email-sweep: ${msg}`);
+/*
+SILENT WHEN NOTHING HAPPENED.
+
+Run daily forever, a script that prints even one line per run accumulates output indefinitely -
+and a log that is 99% "nobody qualified" is one nobody reads, which defeats the point of keeping
+it. So a scheduled run that finds nothing to do prints NOTHING, and cron mails nothing.
+
+Lines are buffered rather than printed as they happen, and flushed at the end only if something
+worth reporting went in. `interactive` overrides that: --dry-run and --test exist to be watched,
+and a person who typed the command and got no output would reasonably think it was broken.
+
+Errors and warnings never buffer. They go straight to stderr, so a failure is loud whatever mode
+the run is in.
+*/
+const interactive = isDryRun || isTest;
+const buffered = [];
+let reported = false;
+
+/** Queue a line, and mark the run as worth reporting. */
+const log = (msg) => {
+  buffered.push(`email-sweep: ${msg}`);
+  reported = true;
+};
+
+/** Queue a line WITHOUT making the run worth reporting on its own. */
+const note = (msg) => buffered.push(`email-sweep: ${msg}`);
+
+/** Print the buffer, if this run earned it. */
+const flush = () => {
+  if (reported || interactive) buffered.forEach((line) => console.log(line));
+};
 
 const run = async () => {
   const started = Date.now();
   const mode = isDryRun ? ' (DRY RUN)' : isTest ? ' (TEST)' : '';
-  log(`=== ${bucket || 'no bucket'} ${new Date().toISOString()}${mode} ===`);
+  // A header on its own is not news - note, not log - so a quiet run stays silent.
+  note(`=== ${bucket || 'no bucket'} ${new Date().toISOString()}${mode} ===`);
 
   if (!bucket) {
     console.error(`email-sweep: no bucket given. Usage: node scripts/email-sweep.js <bucket> [--dry-run] [--test]`);
     const known = cronBuckets();
     console.error(`email-sweep: buckets in use: ${known.length ? known.join(', ') : 'none - no email is scheduled yet'}`);
-    await closePool().catch(() => {});
+    await closePool({ quiet: true }).catch(() => {});
     process.exit(1);
   }
 
@@ -99,8 +132,10 @@ const run = async () => {
   */
   const enabled = (process.env.EMAIL_CRON_ENABLED || 'true').toLowerCase() !== 'false';
   if (!enabled && !isDryRun) {
-    log('EMAIL_CRON_ENABLED is false - nothing sent.');
-    await closePool();
+    // Deliberately not `log`. Being switched off is a standing state, not a daily event.
+    note('EMAIL_CRON_ENABLED is false - nothing sent.');
+    flush();
+    await closePool({ quiet: true });
     process.exit(0);
   }
 
@@ -108,8 +143,16 @@ const run = async () => {
 
   if (types.length === 0) {
     const known = cronBuckets();
-    log(`no email is scheduled in '${bucket}'${known.length ? `. Buckets in use: ${known.join(', ')}` : ' - nothing is scheduled at all yet'}.`);
-    await closePool();
+    const msg = `no email is scheduled in '${bucket}'${known.length ? `. Buckets in use: ${known.join(', ')}` : ' - nothing is scheduled at all yet'}.`;
+    /*
+    A bucket nobody uses is a typo in the crontab if OTHER buckets exist, and simply an empty
+    schedule if none do. The first deserves stderr every day until somebody fixes it; the second
+    is a normal state and stays quiet.
+    */
+    if (known.length) console.error(`email-sweep: ${msg}`);
+    else note(msg);
+    flush();
+    await closePool({ quiet: true });
     process.exit(0);
   }
 
@@ -123,9 +166,11 @@ const run = async () => {
       lockHeld = lock.rows[0].got === true;
 
       if (!lockHeld) {
-        // Not an error. The previous run is still going, and this one has nothing useful to add.
+        // Not an error, and worth saying: an overlap means the previous run is taking longer
+        // than a day, which somebody should see.
         log('another sweep is already running - skipping this run.');
-        await closePool();
+        flush();
+        await closePool({ quiet: true });
         process.exit(0);
       }
     }
@@ -151,7 +196,8 @@ const run = async () => {
       const candidates = await entry.service.findCandidates();
 
       if (candidates.length === 0) {
-        log(`${emailType}: nobody qualifies.`);
+        // The overwhelmingly common case, and the reason for all of the above.
+        note(`${emailType}: nobody qualifies.`);
         continue;
       }
 
@@ -187,10 +233,11 @@ const run = async () => {
     }
 
     const secs = ((Date.now() - started) / 1000).toFixed(1);
-    log(`done in ${secs}s - ${totalSent} sent, ${totalFailed} failed across ${types.length} email type(s).`);
+    note(`done in ${secs}s - ${totalSent} sent, ${totalFailed} failed across ${types.length} email type(s).`);
+    flush();
 
     if (lockHeld) await query('SELECT pg_advisory_unlock($1)', [LOCK_KEY]);
-    await closePool();
+    await closePool({ quiet: true });
 
     /*
     A failed send is reported but does not fail the run. The queue row records it, the address is
@@ -200,9 +247,11 @@ const run = async () => {
     process.exit(0);
 
   } catch (error) {
+    // Buffered context first, so the failure arrives with whatever got as far as being queued.
+    buffered.forEach((line) => console.error(line));
     console.error('email-sweep FAILED:', error.message);
     if (lockHeld) await query('SELECT pg_advisory_unlock($1)', [LOCK_KEY]).catch(() => {});
-    await closePool().catch(() => {});
+    await closePool({ quiet: true }).catch(() => {});
     process.exit(1);
   }
 };
