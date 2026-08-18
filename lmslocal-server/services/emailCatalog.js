@@ -23,8 +23,12 @@ of a code change. It is also what the admin Emails screen renders its clock agai
 through /admin/get-email-targets - so the symbol on the screen and the behaviour of the script are
 the same constant, and a screen claiming an email is scheduled cannot be wrong.
 
-NOTHING IS SCHEDULED YET. Every entry below is deliberately without the field: phase 1 built the
-machinery, and emails join the cron one at a time once each has been watched running.
+Emails join the cron ONE AT A TIME, each watched running before the next - the machinery shipped
+with nothing scheduled at all. On the cron today:
+
+  empty_comp   daily   (first one, 2026-08-18) - chosen to go first because its blast radius is
+                       the smallest on the platform: once per competition ever, no deadline in the
+                       copy, and a candidate list that has never been larger than four.
 
 `scoped` is what the routes ask before insisting on a competition_id. Most outline emails are
 about one competition; the Welcome and Info rows are platform-wide and have none. The admin
@@ -98,6 +102,7 @@ const CATALOG = {
   */
   empty_comp: {
     scoped: true,
+    cron: 'daily',
     service: emptyComp,
     build: buildEmptyCompEmail,
     send: sendEmptyCompEmail
