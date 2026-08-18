@@ -589,15 +589,24 @@ export interface EmailCount {
   sent_recently: number;
   /* Competitions the waiting recipients span. Zero on platform-wide emails, which have none. */
   competitions: number;
-  /* The cron bucket that sends this unattended, or null for one that only ever goes by hand.
-     Comes from the `cron` field on the server's emailCatalog.js - the same constant
-     scripts/email-sweep.js reads - so the clock on the screen cannot disagree with what actually
-     runs. Deliberately not re-declared in the page's OUTLINE table beside `scoped`. */
-  cron: string | null;
 }
 
 export type EmailTargetsResponse = ApiResponse & {
   counts?: Record<string, EmailCount>;
+};
+
+/*
+Which emails the cron sends on its own. Static configuration, so unlike EmailCount it is safe to
+load for every email on mount - get-email-schedule runs no candidate queries.
+*/
+export interface EmailScheduleEntry {
+  /* The cron bucket that sends this unattended, or null for one that only ever goes by hand. */
+  cron: string | null;
+  scoped: boolean;
+}
+
+export type EmailScheduleResponse = ApiResponse & {
+  schedule?: Record<string, EmailScheduleEntry>;
 };
 
 export interface EmailRecipient {
@@ -965,6 +974,16 @@ export const adminApi = {
   wants. emailTypes narrows which emails are worked out at all, so the card can read one number
   without triggering a pass over the whole catalog.
   */
+  /*
+  The cron schedule for every email, in one cheap call. Separate from getEmailTargets because
+  counts are expensive and load on demand, while this is configuration and has to be on screen
+  before anybody asks - see the route's header.
+  */
+  getEmailSchedule: async (): Promise<EmailScheduleResponse> => {
+    const response = await api.post<EmailScheduleResponse>('/admin/get-email-schedule', {});
+    return response.data;
+  },
+
   getEmailTargets: async (
     competitionId: number | null,
     emailTypes?: string[]

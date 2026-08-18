@@ -44,8 +44,7 @@ Success Response (ALWAYS HTTP 200):
     "welcome": {
       "waiting": 3,                    // integer, qualify now
       "sent_recently": 1,              // integer, delivered in the last 30 days
-      "competitions": 2,               // integer, competitions the waiting span; 0 when unscoped
-      "cron": "daily"                  // string or null, the cron bucket that sends this unattended
+      "competitions": 2                // integer, competitions the waiting span; 0 when unscoped
     }
   }
 }
@@ -145,15 +144,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
         // Meaningless on platform-wide emails, which carry no competition at all.
         competitions: entry.scoped
           ? new Set(candidates.map((c) => c.competition_id)).size
-          : 0,
-        /*
-        Which cron bucket sends this unattended, or null for one that only ever goes by hand.
-        Returned rather than re-declared on the screen because the screen already keeps its own
-        copy of `scoped`, and a second copy of this one could say an email is scheduled while
-        scripts/email-sweep.js disagrees - which is the exact confusion the symbol exists to end.
-        The catalog is the one source; this just carries it.
-        */
-        cron: entry.cron || null
+          : 0
       };
     }
 

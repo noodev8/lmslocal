@@ -154,6 +154,7 @@ const removeBotFromCompetitionRoute = require('./routes/admin/remove-bot-from-co
 const setBotPicksRoute = require('./routes/admin/set-bot-picks');
 const setBotPickRoute = require('./routes/admin/set-bot-pick');
 const getEmailTargetsRoute = require('./routes/admin/get-email-targets');
+const getEmailScheduleRoute = require('./routes/admin/get-email-schedule');
 const previewEmailRoute = require('./routes/admin/preview-email');
 const getEmailHistoryRoute = require('./routes/admin/get-email-history');
 const adminSendEmailsRoute = require('./routes/admin/send-emails');
@@ -535,6 +536,7 @@ Emails screen. Each route carries verifyAdminToken itself rather than relying on
 gate, matching the rest of the /admin namespace.
 */
 app.use('/admin/get-email-targets', getEmailTargetsRoute);
+app.use('/admin/get-email-schedule', getEmailScheduleRoute);
 app.use('/admin/preview-email', previewEmailRoute);
 app.use('/admin/get-email-history', getEmailHistoryRoute);
 app.use('/admin/send-emails', adminSendEmailsRoute);
