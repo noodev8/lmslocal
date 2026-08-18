@@ -12,6 +12,20 @@ refused - or worse, a count from one email and a send from another.
 Adding an email is now one entry here plus its service and template. Nothing in the routes
 changes.
 
+`cron` is what scripts/email-sweep.js asks before sending anything unattended. It holds a BUCKET
+NAME - the argument the script is run with, e.g. 'daily' - and an entry without the field is not
+scheduled at all. That is the switch: hardcoded here on purpose rather than in a table, because
+turning an email loose on a schedule is a decision worth seeing in a diff and reviewing, not a
+checkbox somebody can flip at 2am with no record.
+
+A name rather than a boolean so a second cadence costs a crontab line and one edited value instead
+of a code change. It is also what the admin Emails screen renders its clock against, read back
+through /admin/get-email-targets - so the symbol on the screen and the behaviour of the script are
+the same constant, and a screen claiming an email is scheduled cannot be wrong.
+
+NOTHING IS SCHEDULED YET. Every entry below is deliberately without the field: phase 1 built the
+machinery, and emails join the cron one at a time once each has been watched running.
+
 `scoped` is what the routes ask before insisting on a competition_id. Most outline emails are
 about one competition; the Welcome and Info rows are platform-wide and have none. The admin
 screen's competition picker does not apply to those, and passing one would be meaningless rather
@@ -223,4 +237,29 @@ function wiredTypes() {
   return Object.keys(CATALOG);
 }
 
-module.exports = { CATALOG, entryFor, wiredTypes };
+/**
+ * The email types scheduled in one cron bucket, in catalog order.
+ *
+ * Returns an empty array for a bucket nothing is assigned to, which is the correct answer and not
+ * an error - it is what every bucket returns today. The script reports it and exits 0, because a
+ * cron that fails loudly when there is simply no work would train whoever reads the log to ignore
+ * it.
+ *
+ * @param {string} bucket - the cron bucket name, e.g. 'daily'
+ * @returns {string[]}
+ */
+function scheduledTypes(bucket) {
+  if (!bucket) return [];
+  return Object.keys(CATALOG).filter((type) => CATALOG[type].cron === bucket);
+}
+
+/**
+ * Every bucket name any entry is assigned to. Lets the script reject a typo'd argument by saying
+ * what the real buckets are, rather than silently sweeping nothing.
+ * @returns {string[]}
+ */
+function cronBuckets() {
+  return [...new Set(Object.values(CATALOG).map((e) => e.cron).filter(Boolean))];
+}
+
+module.exports = { CATALOG, entryFor, wiredTypes, scheduledTypes, cronBuckets };

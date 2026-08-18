@@ -328,6 +328,29 @@ function SectionTag({ section }: { section: Section }) {
   return <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${tone[section]}`}>{section}</span>;
 }
 
+function CronTag({ bucket }: { bucket: string | null }) {
+  /*
+  Which emails go out on their own, and which only ever go when somebody presses Send.
+
+  Worth a symbol because the two are indistinguishable otherwise, and the mistake it prevents is
+  expensive in both directions: pressing Send on a scheduled email double-handles it, and waiting
+  for a schedule that was never set means an email silently never goes.
+
+  The bucket name comes from the server, not from OUTLINE below - see EmailCount.cron. A clock
+  that disagreed with the script would be worse than no clock.
+  */
+  if (!bucket) return null;
+  return (
+    <span
+      title={`Sent automatically by the ${bucket} cron sweep`}
+      className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700"
+    >
+      <span aria-hidden="true">&#9201;</span>
+      {bucket}
+    </span>
+  );
+}
+
 function Stat({ value, label, tone }: { value: number; label: string; tone?: 'plain' | 'warn' }) {
   return (
     <div>
@@ -402,6 +425,7 @@ function FocusCard({
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-slate-900">{email.name}</h3>
             <SectionTag section={email.section} />
+            {count && <CronTag bucket={count.cron} />}
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">{email.key}</code>
           </div>
           {email.blurb && <p className="mt-1.5 text-sm text-slate-600">{email.blurb}</p>}

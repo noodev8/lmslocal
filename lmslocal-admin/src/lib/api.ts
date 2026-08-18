@@ -589,6 +589,11 @@ export interface EmailCount {
   sent_recently: number;
   /* Competitions the waiting recipients span. Zero on platform-wide emails, which have none. */
   competitions: number;
+  /* The cron bucket that sends this unattended, or null for one that only ever goes by hand.
+     Comes from the `cron` field on the server's emailCatalog.js - the same constant
+     scripts/email-sweep.js reads - so the clock on the screen cannot disagree with what actually
+     runs. Deliberately not re-declared in the page's OUTLINE table beside `scoped`. */
+  cron: string | null;
 }
 
 export type EmailTargetsResponse = ApiResponse & {

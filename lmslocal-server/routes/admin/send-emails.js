@@ -73,9 +73,9 @@ Return Codes:
 */
 
 const express = require('express');
-const { query } = require('../../database');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { entryFor } = require('../../services/emailCatalog');
+const { sendTest, sendToAll } = require('../../services/emailSweep');
 const { logApiCall } = require('../../utils/apiLogger');
 
 const router = express.Router();
@@ -174,9 +174,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // ===============================================================================
     if (testMode) {
       const first = targets[0];
-      const templateData = await entry.service.buildTemplateData(first);
 
-      const result = await entry.send(first.user_email, templateData, { testMode: true });
+      const result = await sendTest(entry, first);
 
       if (!result.success) {
         console.error('admin/send-emails test send failed:', result.error);
@@ -205,47 +204,12 @@ router.post('/', verifyAdminToken, async (req, res) => {
     // ===============================================================================
     // LIVE MODE - queue everyone, then send
     // ===============================================================================
-    let sentCount = 0;
-    let failedCount = 0;
-
-    for (const candidate of targets) {
-      const queued = await entry.service.queueCandidate(candidate);
-
-      if (!queued.success) {
-        failedCount++;
-        continue;
-      }
-
-      const result = await entry.send(
-        candidate.user_email,
-        queued.template_data,
-        { testMode: false }
-      );
-
-      if (result.success) {
-        await query(
-          `UPDATE email_queue SET status = 'sent', sent_at = NOW() WHERE id = $1`,
-          [queued.queue_id]
-        );
-        await query(
-          `UPDATE email_tracking SET resend_message_id = $1, sent_at = NOW() WHERE email_id = $2`,
-          [result.resend_message_id, queued.template_data.email_tracking_id]
-        );
-        sentCount++;
-      } else {
-        /*
-        Left as 'failed' rather than deleted. The queue row is the only record that we tried,
-        and the ALREADY_QUEUED guard reads it - so a failed address is not silently retried on
-        the next press without someone looking at why it failed.
-        */
-        await query(
-          `UPDATE email_queue SET status = 'failed', error_message = $1, attempts = attempts + 1, last_attempt_at = NOW() WHERE id = $2`,
-          [result.error, queued.queue_id]
-        );
-        failedCount++;
-        console.error(`admin/send-emails: send failed for user ${candidate.user_id}:`, result.error);
-      }
-    }
+    /*
+    No cap from this caller. The operator has seen the count and confirmed it through
+    expected_count above, so truncating the send they just approved would be the surprise, not the
+    safeguard. The cron passes one because nobody is watching it.
+    */
+    const { sent: sentCount, failed: failedCount } = await sendToAll(entry, targets);
 
     return res.json({
       return_code: 'SUCCESS',
