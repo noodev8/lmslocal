@@ -31,7 +31,8 @@ Success Response (ALWAYS HTTP 200):
   },
   "players": {
     "total_memberships": 180,               // integer, rows in competition_user (a person in 2 comps counts twice)
-    "unique_players": 140,                  // integer, distinct people taking part in a competition
+    "unique_players": 140,                  // integer, distinct people who have ever joined a competition
+    "players_in_live_competition": 115,     // integer, of those, in a SETUP or ACTIVE competition
     "still_in": 95,                         // integer, memberships not yet eliminated
     "eliminated": 85                        // integer, memberships knocked out
   },
@@ -66,6 +67,11 @@ Data Notes:
   ours), the accounts brookfieldcomfort@gmail.com and lmslocal8@gmail.com, and bots (email
   'bot_%@lms-guest.com'). The exclusions are the reason "competitions" agrees with the
   /competitions screen, which hides the same competition client-side.
+- "unique_players" is every person who has ever joined anything, so it only ever grows;
+  "players_in_live_competition" is the subset with a competition still to play. The gap is people
+  whose competitions have all finished. The two are reported separately because the first was
+  being read as an audience figure when most of it was the back catalogue - one completed
+  competition of 52 sat inside it for months.
 - Guests (non-bot '%@lms-guest.com') are counted as PLAYERS but not as ACCOUNTS, and are
   reported on their own as users.guests. A guest is a real person, so they belong in
   participation; but the account is created by joining and is tied to that one competition, so
@@ -170,6 +176,15 @@ router.get('/', verifyAdminToken, async (req, res) => {
         (SELECT COUNT(DISTINCT cu.user_id)
            FROM competition_user cu JOIN app_user u ON u.id = cu.user_id
           WHERE ${REAL_USER} AND ${REAL_COMP})                                    AS players_unique,
+        -- The same people, minus anyone whose every competition has finished. A person in a
+        -- finished competition AND a running one counts here, because they still have
+        -- something to come back to.
+        (SELECT COUNT(DISTINCT cu.user_id)
+           FROM competition_user cu
+           JOIN app_user u ON u.id = cu.user_id
+           JOIN competition c ON c.id = cu.competition_id
+          WHERE ${REAL_USER} AND ${REAL_COMP}
+            AND LOWER(c.status) IN ('setup', 'active'))                           AS players_live,
         (SELECT COUNT(*)
            FROM competition_user cu JOIN app_user u ON u.id = cu.user_id
           WHERE ${REAL_USER} AND ${REAL_COMP} AND LOWER(cu.status) = 'active')    AS memberships_active,
@@ -217,6 +232,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
       players: {
         total_memberships: n(row.memberships_total),
         unique_players: n(row.players_unique),
+        players_in_live_competition: n(row.players_live),
         still_in: n(row.memberships_active),
         eliminated: n(row.memberships_out)
       },

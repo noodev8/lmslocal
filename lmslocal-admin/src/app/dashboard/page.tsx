@@ -208,10 +208,16 @@ export default function DashboardPage() {
                 tone="good"
                 href="/dashboard/organisers"
               />
+              {/*
+                The headline is the live figure, not the all-time one. "Players" was showing
+                every person who has ever joined anything, which only ever rises - a completed
+                competition of 52 stayed in it for months and made the platform look busier
+                than it was. All-time is still here, as the hint.
+              */}
               <HeadlineCard
                 label="Players"
-                value={stats.players.unique_players}
-                hint="distinct people"
+                value={stats.players.players_in_live_competition}
+                hint={`in a live competition, of ${stats.players.unique_players} total`}
                 tone="default"
               />
               {/*
@@ -266,6 +272,16 @@ export default function DashboardPage() {
                   label="Memberships"
                   hint="one per competition joined"
                   value={stats.players.total_memberships}
+                />
+                <Row
+                  label="In a live competition"
+                  hint="setup or active, not finished"
+                  value={stats.players.players_in_live_competition}
+                />
+                <Row
+                  label="Joined ever"
+                  hint="all time, including finished competitions"
+                  value={stats.players.unique_players}
                 />
                 <Row label="Still in" value={stats.players.still_in} />
                 <Row label="Eliminated" value={stats.players.eliminated} />

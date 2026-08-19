@@ -114,6 +114,7 @@ export interface AdminStats {
   players: {
     total_memberships: number;
     unique_players: number;
+    players_in_live_competition: number;
     still_in: number;
     eliminated: number;
   };
