@@ -44,6 +44,12 @@ See middleware/service-auth.js.
 */
 const { logApiCall } = require('../utils/apiLogger');
 const { sendPickReminderEmail, sendRoundOverEmail, sendWelcomeCompetitionEmail, sendHintEmail, sendBroadcastEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
+/*
+The hint list itself decides which types this route renders as hints, so adding a hint to
+services/hints.js is enough. This route used to name them one by one, and the next hint added
+would have fallen through to "Unknown email type" and failed every row it queued.
+*/
+const { HINT_TYPES } = require('../services/hints');
 const router = express.Router();
 
 /*
@@ -150,10 +156,10 @@ router.post('/', async (req, res) => {
           emailResult = await sendRoundOverEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'welcome') {
           emailResult = await sendWelcomeCompetitionEmail(userEmail, templateData);
-        } else if (emailRecord.email_type === 'update_scores_mid_round_tip' || emailRecord.email_type === 'promote_competition') {
-          // Hints, all rendered by one builder - see services/hints.js. New hint types need
-          // adding here as well as to the catalog; there is no pending row under the old
-          // sendOrganiserTipEmail shape, so nothing queued can reach the wrong renderer.
+        } else if (HINT_TYPES.includes(emailRecord.email_type)) {
+          // Hints, all rendered by one builder - see services/hints.js, which is also where the
+          // list of them lives, so a new hint needs nothing here. There is no pending row under
+          // the old sendOrganiserTipEmail shape, so nothing queued can reach the wrong renderer.
           emailResult = await sendHintEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'broadcast_admin') {
           // A broadcast queues everyone and sends only up to its cap, so the remainder arrives
