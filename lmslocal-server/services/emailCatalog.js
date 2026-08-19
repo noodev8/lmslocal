@@ -191,7 +191,7 @@ const CATALOG = {
   /*
   Hints. One entry each so the admin screen can send them independently and email_type stays
   meaningful per hint, but all of them share one builder and one service - the hints differ only
-  in their words, which live in services/hints.js. A third hint is an entry there plus two lines
+  in their words, which live in services/hints.js. Another hint is an entry there plus two lines
   here, not a new service and a new template.
 
   Unscoped: a hint is about an organiser rather than a competition, and the service picks which of
@@ -206,6 +206,12 @@ const CATALOG = {
   update_scores_mid_round_tip: {
     scoped: false,
     service: hints.serviceFor('update_scores_mid_round_tip'),
+    build: buildHintEmail,
+    send: sendHintEmail
+  },
+  personal_names_tip: {
+    scoped: false,
+    service: hints.serviceFor('personal_names_tip'),
     build: buildHintEmail,
     send: sendHintEmail
   }

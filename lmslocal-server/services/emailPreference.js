@@ -82,6 +82,7 @@ const EMAIL_GROUPS = {
   empty_comp: GROUPS.INFO,
   promote_competition: GROUPS.INFO,
   update_scores_mid_round_tip: GROUPS.INFO,
+  personal_names_tip: GROUPS.INFO,
 
   /*
   Broadcast from Admin. An email type absent from here has no group, and no group means deliver()

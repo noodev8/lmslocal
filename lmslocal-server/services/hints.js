@@ -20,7 +20,7 @@ The guards, and why each exists:
   would otherwise be taught the same lesson four times. A hint teaches the person, not the
   competition; when several of their competitions qualify, the oldest is the one named.
 
-  ONE HINT PER ORGANISER PER WEEK. With two hints at offsets 3 and 7 this rarely bites. With six
+  ONE HINT PER ORGANISER PER WEEK. With three hints at offsets 3, 7 and 14 this rarely bites. With six
   it would, and retrofitting it after somebody receives three in a morning is much harder than
   having it from the start.
 
@@ -89,6 +89,31 @@ const HINTS = {
     ],
     ctaLabel: 'Open your current round',
     ctaPath: (competitionId) => `/game/${competitionId}/round`
+  },
+
+  personal_names_tip: {
+    afterDays: 14,
+    /*
+    No extraSql: this is true of every competition and every account, automated or not, and of the
+    organiser as a player in their own competition.
+    */
+    extraSql: null,
+    subject: 'You can change your name, and what you call each competition',
+    heading: 'Two names you can set for yourself',
+    /*
+    Both features exist for everyone in a competition, organisers included - the organiser plays in
+    their own. Written to the organiser as a player, because that is who receives hints.
+
+    The second one is easy to confuse with renaming the competition for real, which an organiser
+    can also do, so the copy says outright that nobody else sees it.
+    */
+    body: [
+      'The name you play under does not have to be the same everywhere. You can set a different one for each competition you are in - the name the pub knows you by is not always the one the office does.',
+      'Change it in Settings on the web, under Profile, or on the Profile tab in the app: your name is there, and under it a name for each competition.',
+      'You can also give a competition a name of your own. Tap the pencil beside its name on your dashboard, on the web or in the app, and call it whatever tells you which one it is. Only you see that name - everyone else still sees the one the organiser chose, and the competition itself is not renamed.'
+    ],
+    ctaLabel: 'Open your dashboard',
+    ctaPath: () => '/dashboard'
   }
 };
 

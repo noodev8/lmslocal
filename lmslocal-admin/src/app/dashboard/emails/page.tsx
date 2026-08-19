@@ -187,7 +187,7 @@ const OUTLINE: OutlineEmail[] = [
       'For an organiser who supplies their own fixtures: their last round is settled, three days have passed and the next round is not up, so their players are waiting. A nudge rather than a one-off — re-eligible seven days after the last attempt, so marking it as sent defers it rather than ending it.',
   },
   /*
-  The two hints share one service, one template and one builder - they differ only in their words
+  The hints share one service, one template and one builder - they differ only in their words
   (services/hints.js). Separate rows so each can be sent independently and email_type stays
   meaningful per hint. Unscoped because a hint teaches the ORGANISER, once ever, however many
   competitions they run - but each candidate still names the competition it picked, which is why
@@ -214,6 +214,17 @@ const OUTLINE: OutlineEmail[] = [
     focus: true,
     blurb:
       'Teaches entering results as matches finish rather than all at once. Organiser-managed competitions only — an automated one rejects organiser result entry outright, so the hint would be teaching a button they do not have.',
+  },
+  {
+    key: 'personal_names_tip',
+    consumer: 'Organiser',
+    section: 'Info',
+    name: 'Hint - Personal names',
+    scoped: false,
+    note: '14 days, every competition',
+    focus: true,
+    blurb:
+      'Two things anyone in a competition can set for themselves: a different display name per competition (Settings on the web, Profile tab in the app) and their own name for a competition (the pencil on the dashboard, web or app). Sent to the organiser as a player. No applicability rule — both work everywhere.',
   },
   {
     key: 'welcome',
