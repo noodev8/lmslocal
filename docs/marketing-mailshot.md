@@ -291,6 +291,35 @@ Fill this in as batches land. The empty rows are the point of the document.
 
 ---
 
+## 8b. Next job: building the list
+
+**Everything else for batch one is done.** Leaflets designed, QR codes generated, print PDFs in
+`lmslocal-marketing/out/`, `/club-a` and `/club-b` live and counting. The list is the only thing
+standing between here and posting.
+
+**The deliverable:** a CSV of **400 UK clubs**, ready to mail-merge onto labels.
+
+Columns: `club_name`, `addressee`, `address_1`, `address_2`, `town`, `postcode`, `club_type`
+(football / other), `variant` (a / b), `source`, `date_added`.
+
+**How it has to be built** — the rules that make the result readable, all of them from §4 and §7:
+
+1. **Sources, in order of quality:** HMRC CASC register first (constituted, has a committee), then
+   CIU, then sport-by-sport lists, then the FSA FHRS API to gap-fill and verify addresses.
+2. **UK-wide, randomly sampled.** Not the first 400 rows alphabetically or by county — that
+   silently turns a national test into a county one.
+3. **Football-weighted, not football-only.** Live Premier League is the hook; cricket, rugby,
+   bowls and social clubs all have members, a bar and a season. Record `club_type` so any
+   difference can be *observed*, but it is not a test — the cells are far too small.
+4. **200 variant a / 200 variant b**, assigned randomly, not by source or region — otherwise the
+   variant is confounded with whatever the list was ordered by.
+5. **Addressee is "The Secretary"** unless a real name is on the source. Both read as normal post.
+6. **Hygiene:** deduplicate on address rather than name, drop anything without a postcode, and
+   keep the file as the permanent sent log so batch two never re-hits batch one.
+
+**Before it posts:** note the current `/club-a` and `/club-b` scan counts as the baseline — the
+test scans of 19 Aug are in there — and record the send date in §8.
+
 ## 9. Open questions
 
 - Does the existing Royal Mail account reach letter products, and at what rate? (§5)
