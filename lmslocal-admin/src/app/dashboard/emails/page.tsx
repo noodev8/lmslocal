@@ -7,10 +7,17 @@ Admin Emails
 Purpose: One place to see every email on the outline, preview who it would go to, send it, or mark
          people as dealt with without sending.
 
-The spine is docs/email/email-outline.xlsx - the same rows in the same order. A row whose service
-is missing would be refused by the server with UNSUPPORTED_EMAIL_TYPE rather than half-sent, so
-this table does not have to police that. The server's own list is services/emailCatalog.js - add
-an email there and add its row here.
+THE OUTLINE BELOW IS THE AUTHORITATIVE LIST of what we intend to send. It used to be a copy of
+docs/email/email-outline.xlsx, which was deleted 2026-08-19: a spreadsheet nobody opens while
+working stops being true, and it made every email a three-place edit. This array took the job
+because it is the version somebody actually looks at - it IS the screen, so it cannot drift from
+what is displayed.
+
+The server's own list is services/emailCatalog.js, and it answers a different question: not what
+we intend to send but what is WIRED. Add an email there and add its row here. A row whose service
+is missing renders greyed out and would be refused by the server with UNSUPPORTED_EMAIL_TYPE
+rather than half-sent, so this table does not have to police that - and that greyed row is also
+how an email that is only planned is meant to look. Sketch it here, build it later.
 
 A CARD PER EMAIL, ADDED AS EACH IS TAKEN UP
 
@@ -98,11 +105,11 @@ interface OutlineEmail {
 }
 
 /*
-Row for row from docs/email/email-outline.xlsx, which is the authoritative list, in its order.
+THE OUTLINE. The authoritative list of what we intend to send - see the header.
 
 CONSUMER survives here even though the unsubscribe groups no longer use it. It is still how an
-operator reads the list ("which of these does a player get?"), and it is a column of the outline
-this table mirrors; it just no longer decides anything.
+operator reads the list ("which of these does a player get?"), and it was a column of the
+spreadsheet this replaced; it just no longer decides anything.
 */
 const OUTLINE: OutlineEmail[] = [
   {

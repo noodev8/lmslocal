@@ -1,6 +1,8 @@
 # Email Operations
 
-How to actually send email. For what we send and why, see `README.md` and `email-outline.xlsx`.
+How to actually send email. For what we send and why, see `README.md` and the `OUTLINE` array in
+`lmslocal-admin/src/app/dashboard/emails/page.tsx` — the authoritative list, and the admin Emails
+screen itself.
 
 ## Test mode
 

@@ -1,9 +1,22 @@
 # Email & Notifications
 
-`email-outline.xlsx` is the authoritative list of what we intend to send. This README maps that
-list onto what actually exists in the code. `email-operations.md` covers how to send.
+**The authoritative list of what we intend to send is the `OUTLINE` array in
+`lmslocal-admin/src/app/dashboard/emails/page.tsx`**, rendered on the admin Emails screen. This
+README maps that list onto what actually exists in the code. `email-operations.md` covers how to
+send.
 
 **If the outline and this README disagree, the outline wins** — update this file to match.
+
+It used to be `email-outline.xlsx`, deleted 2026-08-19 because it was getting in the way. A
+spreadsheet nobody opens while working is a list that silently stops being true, and every email
+needed a row there, a row in `OUTLINE` and an entry in `emailCatalog.js` — three places, one of
+which was invisible from the code and none of which the screen could check. The `OUTLINE` array
+takes its job because it is the version somebody actually looks at: it *is* the screen, so it
+cannot drift from what is displayed, it lives beside the catalog it has to agree with, and a row
+with no catalog entry renders greyed out — the disagreement shows up rather than hiding in a file
+nobody opened. What the spreadsheet had that the array does not is a place to sketch an email
+before deciding to build it; put those in `OUTLINE` too, without a catalog entry, which is exactly
+what a greyed row means.
 
 **This file is not updated on every change** (2026-08-14). It was written while the design was
 being settled and "change the doc first" was the right discipline; the shape is agreed now. It
@@ -59,6 +72,13 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 
 14 rows, after removing the duplicate and folding "Game started" into "Round Over".
 **Six built, one half-built, seven to build.**
+
+> **These three tables are a snapshot from 2026-08-11 and are not maintained.** They were the
+> workbook copied into prose; with the workbook gone there is nothing to copy, and a hand-kept
+> second list is exactly what the move to `OUTLINE` was meant to stop. **The live answer is the
+> admin Emails screen** — every row, greyed if unwired — and `emailCatalog.js` for what is wired.
+> Kept below because the *reasoning* attached to them is still worth having: what folded into
+> what, and why the gap was organiser comms.
 
 ### Built
 
@@ -458,8 +478,8 @@ deciding rather than assuming.
 ## Hints — the rules (built 2026-08-11)
 
 `services/hints.js`. Occasional training for organisers: one feature, one email, a few days apart.
-Two on the outline today (`Hint - Promote competition`, `Hint - Result set mid round`) and the
-list is expected to grow and shrink as Andreas edits the workbook.
+Three on the outline today (`Hint - Promote competition`, `Hint - Result set mid round`,
+`Hint - Personal names`) and the list is expected to grow and shrink.
 
 **That expectation is the design.** Hints are a **list in one file**, not an email each. A hint is
 an entry with a day offset, an applicability rule and its copy; the query, the template, the
@@ -470,7 +490,8 @@ Each hint still gets its **own catalog entry and outline row**, so the admin scr
 independently and `email_queue.email_type` stays meaningful per hint. The entries are thin: both
 point at the same builder, and `hints.serviceFor(key)` supplies the eligibility.
 
-**Trigger: days since the competition was created** — 3 for Promote, 7 for the mid-round hint.
+**Trigger: days since the competition was created** — 3 for Promote, 7 for the mid-round hint,
+14 for Personal names.
 Simple and predictable, which is what training wants. Four guards:
 
 1. **Once per organiser per hint, ever — not per competition.** Somebody running four
@@ -496,6 +517,56 @@ below) and there is no dashboard notice either. A hint that teaches a feature wh
 is worse than no hint.
 
 Group `info`, which both keys already mapped to.
+
+## Join Blocked — the rules (built 2026-08-19)
+
+`services/joinBlocked.js`. A real player tried to join and was turned away because the organiser
+is at the free player limit with no credits. `join_block` rows have recorded this since the
+dashboard banner was built; this is the same event, pushed rather than pulled.
+
+**Asked for as a hint, and deliberately not one.** Worth writing down because the next person to
+add something like it will reach for `hints.js` too. Hints teach a feature *once per organiser
+ever*, on an offset from the day they created a competition, and hold everyone to one a week. All
+three are wrong here: this is an **event** not a lesson, it **recurs**, and it is the one email
+with money on the other end of it — so it must not queue behind a tip about renaming competitions.
+Its own service, sharing the catalog, the screen and the sweep.
+
+**Why email at all, when the dashboard already says it.** `share_reminder` and
+`game_start_reminder` were both dropped on the argument that a dashboard notice beats email for a
+disengaged organiser. That argument does not reach this one and the difference is *who receives
+it*: an organiser whose competition is full of real players is the most engaged person on the
+platform, and what they need to know is time-critical in a way a banner cannot be. The banner
+serves whoever opens the dashboard; this serves whoever does not.
+
+**Grain is the organiser, not the competition.** The free limit counts across everything they run
+and one purchase reopens all of it, so two emails would be two requests to do one thing. The
+competition named is the one that lost the most people; when several are affected, subject *and*
+body switch to "your competitions" — the same branch the dashboard headline makes.
+
+**Four guards on repetition**, because the state is ongoing rather than momentary and each stops a
+different flavour of nagging:
+
+1. **Still blocked at send time**, recomputed from the join gate's own SQL
+   (`organiserChargeableCountSql`). Nobody is ever asked to fix what they have already fixed.
+   There is no "resolved" state to keep, because the state *is* their credit balance.
+2. **A block newer than the last email we queued them.** Without it, one player turned away on
+   Monday generates the same email every day that week.
+3. **A seven-day cooldown.** New evidence arriving daily is exactly what a competition being
+   shared round a WhatsApp group looks like, and exactly when daily mail would be worst.
+4. **Three ever, per organiser.** After three tellings they know. Somebody who has decided not to
+   spend is entitled to have that respected without unsubscribing from everything else.
+
+**Window is the same 7 days the dashboard banner uses.** If they disagree, the email describes
+something the organiser cannot find when they follow it in.
+
+**Group `info`, not transactional.** It asks for money, which is an argument for exempting it from
+opt-outs — and the answer is no. Somebody who switched Info off said they do not want to hear from
+us about their competitions; "but this one earns us something" is the reasoning an opt-out exists
+to overrule.
+
+**Not on the cron yet, on purpose.** Operator-driven from the admin screen first, so the candidate
+list can be watched for a while before it sends unattended. It is the strongest cron candidate on
+the outline when that happens — a `crontab` line, not a code change.
 
 ## Broadcast from Admin — the rules (built 2026-08-11)
 
@@ -583,10 +654,11 @@ email is **`scoped`** — competition-scoped or platform-wide. `scoped` is what 
 before insisting on a `competition_id`, and what the admin screen asks before showing the
 competition picker's name in the panel.
 
-`OUTLINE` in `lmslocal-admin` mirrors `email-outline.xlsx` row for row and is kept in step by hand.
-It **no longer carries a `wired` flag** — the catalog is the only answer to that question, and the
-server refusing an unwired type is what actually stops a send. A new email still needs its row
-added there or it will not appear on the screen.
+`OUTLINE` in `lmslocal-admin` **is** the outline — the authoritative list, since the spreadsheet
+went (see the top of this file). It **carries no `wired` flag** — the catalog is the only answer
+to that question, and the server refusing an unwired type is what actually stops a send. A new
+email needs its row there or it will not appear on the screen at all, and a row with no catalog
+entry renders greyed out, which is how an email that is planned but not built is meant to look.
 
 ## Wiring the next email
 
@@ -1293,6 +1365,6 @@ A one-line description per row on the outline would help step 4 — Andreas to a
 
 | File | What it is |
 |---|---|
-| `email-outline.xlsx` | **Authoritative.** The list of emails to build. |
+| `lmslocal-admin/src/app/dashboard/emails/page.tsx` → `OUTLINE` | **Authoritative.** The list of emails to build, and the admin Emails screen itself. |
 | `README.md` | This file — the outline mapped against the code. |
 | `email-operations.md` | How to send: the queue, one-off scripts, recipient SQL. |

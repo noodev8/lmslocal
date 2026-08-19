@@ -5,10 +5,10 @@ Email Preference Service
 Purpose: The one definition of what a person has opted out of, and the one place that decides
          whether a given email may be sent to them.
 
-Preferences are grouped by CONSUMER x SECTION from docs/email/email-outline.xlsx, not by
-individual email. What someone switches off is "organiser tips" or "game emails", never "Round
-Over specifically" - so the group is the unit, and the group key is what email_preference.email_type
-holds.
+Preferences are grouped by CONSUMER x SECTION from the outline - the OUTLINE array behind the
+admin Emails screen (lmslocal-admin/src/app/dashboard/emails/page.tsx) - not by individual email.
+What someone switches off is "organiser tips" or "game emails", never "Round Over specifically" -
+so the group is the unit, and the group key is what email_preference.email_type holds.
 
 Section alone would have been simpler but wrong: Player/Game (pick reminders) and Organiser/Game
 (fixture reminders) are unrelated things that happen to share a section, and anyone who both
@@ -46,7 +46,7 @@ const GROUPS = {
 };
 
 /*
-The two groups are the SECTION column of docs/email/email-outline.xlsx and nothing else.
+The two groups are the SECTION field of the outline rows and nothing else.
 
 This replaced a CONSUMER x SECTION model of seven groups (player.game, organiser.tips,
 platform.welcome and so on) on 2026-08-11, at Andreas's decision, when the outline itself was cut

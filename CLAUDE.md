@@ -30,8 +30,12 @@ doc first** (except the email README, see below):
   fetch anything else from the database when needed. Middleware: `middleware/auth.js` (player),
   `middleware/admin-auth.js`, `middleware/service-auth.js`
 - **Security**: Helmet, CORS, rate limiting, input validation
-- **Email**: Resend. `docs/email/email-outline.xlsx` is the authoritative list of what we send;
-  `docs/email/README.md` maps it onto the code and has a step-by-step for wiring the next one.
+- **Email**: Resend. The **`OUTLINE` array in `lmslocal-admin/src/app/dashboard/emails/page.tsx`**
+  is the authoritative list of what we send — it is also the admin Emails screen, so it cannot
+  drift from what is displayed, and a row with no `emailCatalog.js` entry shows greyed out.
+  Replaced `docs/email/email-outline.xlsx`, deleted 2026-08-19 — a spreadsheet nobody opens while
+  working stops being true, and it made every email a three-place edit.
+  `docs/email/README.md` maps that list onto the code and has a step-by-step for wiring the next one.
   - **Do not update that README as a matter of course** (rule set 2026-08-14). It was written
     while the design was being settled, when "change the doc first" was right. The shape is agreed
     now, and a doc edit on every tweak buries the decisions worth keeping. **Ask, and update it
