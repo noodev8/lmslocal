@@ -80,6 +80,14 @@ const EMAIL_GROUPS = {
   of theirs that is going nowhere.
   */
   empty_comp: GROUPS.INFO,
+  /*
+  Info beside empty_comp for the same reason: both are about a competition of theirs that has
+  stopped growing. It asks for money, which is an argument for treating it as transactional and
+  exempt - and the answer is no. Somebody who has switched Info off has said they do not want to
+  hear from us about their competitions, and "but this one earns us something" is exactly the
+  reasoning an opt-out exists to overrule.
+  */
+  join_blocked: GROUPS.INFO,
   promote_competition: GROUPS.INFO,
   update_scores_mid_round_tip: GROUPS.INFO,
   personal_names_tip: GROUPS.INFO,

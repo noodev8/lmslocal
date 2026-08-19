@@ -23,6 +23,7 @@ const { subjectFor: resultReminderSubjectFor } = require('./resultReminder');
 const { subjectFor: gameCompleteSubjectFor } = require('./gameComplete');
 const { subjectFor: roundOverSubjectFor } = require('./roundOver');
 const { subjectFor: hintSubjectFor } = require('./hints');
+const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
 const { isOptedOut } = require('./emailPreference');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -1205,6 +1206,170 @@ const sendEmptyCompEmail = async (email, templateData, options = {}) => {
     return readSendResult(result);
   } catch (error) {
     console.error('Failed to send empty competition email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Build the join-blocked email without sending it.
+ *
+ * Outline row: Organiser | Info | Join Blocked. A real player tried to join and was turned away
+ * because the organiser is at the free limit with no credits. Eligibility, and the four rules
+ * stopping this being sent repeatedly, live in services/joinBlocked.js.
+ *
+ * IT LEADS WITH THE DEMAND, NOT THE BILL. The event is that somebody wanted into their
+ * competition - that is good news about a thing they built, and it happens to cost a credit to
+ * act on. Opening with the balance would make it a dunning letter about a product they are using
+ * successfully.
+ *
+ * NO NUMBER IS PRESENTED AS EXACT. services/joinBlock.js collapses repeat attempts inside ten
+ * minutes and never sees anyone who heard "it's full" from a friend and did not open the link, so
+ * the count is a floor. "At least" is doing real work in that sentence, not hedging.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/joinBlocked.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildJoinBlockedEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    total_blocks,
+    blocked_competition_count,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const base = process.env.PLAYER_FRONTEND_URL;
+  const creditsUrl = `${base}/billing?email_id=${email_tracking_id}`;
+
+  const total = Number(total_blocks) || 1;
+  const one = total === 1;
+
+  // Which competition, in words. Naming one is stronger than a total, but naming one when three
+  // are affected would understate it - the same branch the dashboard headline makes.
+  const where = Number(blocked_competition_count) > 1
+    ? `your competitions, including <strong>${competition_name}</strong>,`
+    : `<strong>${competition_name}</strong>`;
+  const whereText = Number(blocked_competition_count) > 1
+    ? `your competitions, including ${competition_name},`
+    : competition_name;
+
+  const whoHtml = one ? 'Somebody' : `At least ${total} people`;
+  const verb = one ? 'was' : 'were';
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Somebody tried to join</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 20px 0; line-height: 1.5;">
+              ${whoHtml} tried to join ${where} in the last few days and ${verb} turned away. You
+              are at your free player limit with no credits left, so the door is shut.
+            </p>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 20px 0; line-height: 1.5;">
+              Add credits and it opens again straight away. Nothing else changes and nobody needs
+              a new link &mdash; the same join code that turned them away starts working.
+            </p>
+
+            <p style="color: #64748b; font-size: 14px; margin: 0 0 28px 0; line-height: 1.5;">
+              If you would rather leave it there, you can. Your competition carries on exactly as
+              it is with the players already in it.
+            </p>
+
+            <div style="margin: 0;">
+              <a href="${creditsUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Add credits
+              </a>
+            </div>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const subject = joinBlockedSubjectFor(total_blocks, competition_name, blocked_competition_count);
+
+  const textContent = `
+${subject}
+
+Hi ${firstName(user_display_name)},
+
+${one ? 'Somebody' : `At least ${total} people`} tried to join ${whereText} in the last few days
+and ${verb} turned away. You are at your free player limit with no credits
+left, so the door is shut.
+
+Add credits and it opens again straight away. Nothing else changes and
+nobody needs a new link - the same join code that turned them away starts
+working.
+
+If you would rather leave it there, you can. Your competition carries on
+exactly as it is with the players already in it.
+
+Add credits:
+${creditsUrl}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject,
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'join_blocked' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
+ * Send the join-blocked email.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/joinBlocked.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendJoinBlockedEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildJoinBlockedEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send join blocked email:', error);
     return {
       success: false,
       error: error.message
@@ -3642,6 +3807,8 @@ module.exports = {
   sendJoinLmsEmail,
   buildEmptyCompEmail,
   sendEmptyCompEmail,
+  buildJoinBlockedEmail,
+  sendJoinBlockedEmail,
   buildCreatedCompEmail,
   sendCreatedCompEmail,
   buildWelcomeCompetitionEmail,

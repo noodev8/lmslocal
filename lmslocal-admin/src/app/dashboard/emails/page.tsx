@@ -226,6 +226,22 @@ const OUTLINE: OutlineEmail[] = [
     blurb:
       'Two things anyone in a competition can set for themselves: a different display name per competition (Settings on the web, Profile tab in the app) and their own name for a competition (the pencil on the dashboard, web or app). Sent to the organiser as a player. No applicability rule — both work everywhere.',
   },
+  /*
+  Not a hint, though it sits next to them and was asked for as one: an event rather than a lesson,
+  it recurs, and it must not queue behind the weekly hint spacing. services/joinBlocked.js carries
+  the argument and the four rules that stop it repeating.
+  */
+  {
+    key: 'join_blocked',
+    consumer: 'Organiser',
+    section: 'Info',
+    name: 'Join Blocked',
+    scoped: false,
+    note: 'Blocked join in last 7 days, still shut',
+    focus: true,
+    blurb:
+      'A real player tried to join and was turned away because the organiser is at the free limit with no credits. One per organiser, not per competition — the limit counts across everything they run and one purchase reopens all of it. Four guards on repeats: still blocked at send time, a block newer than the last email, a 7-day cooldown, and 3 ever. The competition named is the one that lost the most people.',
+  },
   {
     key: 'welcome',
     consumer: 'Player',

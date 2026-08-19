@@ -37,6 +37,7 @@ const resultReminder = require('./resultReminder');
 const gameComplete = require('./gameComplete');
 const roundOver = require('./roundOver');
 const hints = require('./hints');
+const joinBlocked = require('./joinBlocked');
 const {
   buildPickReminderEmail,
   sendPickReminderEmail,
@@ -57,7 +58,9 @@ const {
   buildRoundOverEmail,
   sendRoundOverEmail,
   buildHintEmail,
-  sendHintEmail
+  sendHintEmail,
+  buildJoinBlockedEmail,
+  sendJoinBlockedEmail
 } = require('./emailService');
 
 /*
@@ -214,6 +217,24 @@ const CATALOG = {
     service: hints.serviceFor('personal_names_tip'),
     build: buildHintEmail,
     send: sendHintEmail
+  },
+
+  /*
+  A player turned away because the organiser is at the free limit with no credits.
+
+  Asked for as a hint and deliberately not built as one - it is an event rather than a lesson, it
+  recurs, and it must not queue behind the weekly hint spacing. services/joinBlocked.js opens with
+  the full argument, along with the four rules that stop it being sent repeatedly.
+
+  Unscoped: the grain is the ORGANISER, because the free limit counts across everything they run
+  and one purchase reopens all of it. The candidate row still names the competition that lost the
+  most people, which is what the copy leads with.
+  */
+  join_blocked: {
+    scoped: false,
+    service: joinBlocked,
+    build: buildJoinBlockedEmail,
+    send: sendJoinBlockedEmail
   }
 };
 

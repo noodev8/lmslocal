@@ -43,7 +43,7 @@ Machine-invoked. Requires the X-Service-Token header, applied at mount time in s
 See middleware/service-auth.js.
 */
 const { logApiCall } = require('../utils/apiLogger');
-const { sendPickReminderEmail, sendRoundOverEmail, sendWelcomeCompetitionEmail, sendHintEmail, sendBroadcastEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
+const { sendPickReminderEmail, sendRoundOverEmail, sendWelcomeCompetitionEmail, sendHintEmail, sendJoinBlockedEmail, sendBroadcastEmail, sendCompetitionAnnouncementEmail } = require('../services/emailService');
 /*
 The hint list itself decides which types this route renders as hints, so adding a hint to
 services/hints.js is enough. This route used to name them one by one, and the next hint added
@@ -161,6 +161,8 @@ router.post('/', async (req, res) => {
           // list of them lives, so a new hint needs nothing here. There is no pending row under
           // the old sendOrganiserTipEmail shape, so nothing queued can reach the wrong renderer.
           emailResult = await sendHintEmail(userEmail, templateData);
+        } else if (emailRecord.email_type === 'join_blocked') {
+          emailResult = await sendJoinBlockedEmail(userEmail, templateData);
         } else if (emailRecord.email_type === 'broadcast_admin') {
           // A broadcast queues everyone and sends only up to its cap, so the remainder arrives
           // here on later runs. Without this branch those rows would sit pending until they aged
