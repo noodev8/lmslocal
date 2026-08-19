@@ -320,6 +320,61 @@ Columns: `club_name`, `addressee`, `address_1`, `address_2`, `town`, `postcode`,
 **Before it posts:** note the current `/club-a` and `/club-b` scan counts as the baseline — the
 test scans of 19 Aug are in there — and record the send date in §8.
 
+### Built, 19 Aug 2026
+
+`lmslocal-marketing/list/` — see its README. Two files matter:
+
+- **`pool.csv` — the full clean list, 7,714 UK clubs.** This is the reusable asset; the list
+  build does not have to happen again. A later batch is a **draw from this**, not a rebuild.
+- **`batch-one.csv`** — the 400 being posted, with variant and addressee.
+
+Rebuild both with `python build_pool.py && python sample.py`. The draw is seeded (`SEED =
+20260819`), so it reproduces byte for byte. **Batch two is one command, and must pass
+`--exclude`** — that flag is the whole of hygiene rule 6, and it matches on address rather than
+name, the same way the pool dedupes:
+
+```bash
+python sample.py --n 400 --out batch-two.csv --seed 20260901 --exclude "batch-*.csv"
+```
+
+**Only the scripts and the source `.ods` are in git; `pool.*` and `batch-*.csv` are ignored.**
+This repo is public. The register is Open Government Licence data so mirroring it is fine, but
+the batch files record *who we mailed* and eventually who replied — our own data about named
+people, most of them at home addresses. They regenerate from the tracked inputs, so nothing needs
+syncing between machines **except the sent log once a batch is actually posted**, which stops
+being reproducible the moment it carries results.
+
+**The CASC register alone was enough.** 8,128 rows in, 7,714 mailable after hygiene, spread over
+133 postcode areas. CIU and the sport-by-sport lists were not needed and were not touched — they
+are batch two's problem, at 1,000+.
+
+**Two things about the CASC file that cost an hour each if met cold:**
+
+- **It wraps every field at 40 characters by injecting a space mid-word.** 355 names are affected,
+  and unfixed they print as `ABERDEEN AND DISTRICT ANGLING ASSOCIATIO N`. It cannot be undone by
+  rule alone: 43 of the 355 have a *genuine* space at that position (`… Club Limited`) and joining
+  those is just as wrong. `dewrap.py` decides with three tests and its docstring says why fragment
+  frequency alone fails — "on" is commoner than "association". The 43 kept spaces were reviewed by
+  hand.
+- **1,519 rows repeat the club name as address line 1**, and a county often sits where the town
+  should. Both are stripped in `build_pool.py`.
+
+**The FSA FHRS pass was dropped, and rule 1 above overstates it.** Measured against a random 40
+clubs, name lookup matched **5 confirmed and 2 name-only — 12.5%**. Small clubs register under a
+different trading name and most have no food registration at all. So FHRS presence **cannot be
+used as a filter** — it would discard seven eligible clubs in eight — and as address verification
+it is mostly silence. **Postcode validation via postcodes.io replaced it**, which is cheap, covers
+100%, and found 12 dead postcodes in the drawn sample. Do not spend the afternoon on FHRS again
+without a better join key than the club's name.
+
+**Worth knowing when reading the replies:** a large share of CASC addresses are the secretary's
+home, not a clubhouse. That fits "The Secretary" as addressee and puts the sheet on a real
+person's doormat, but it means it will not be seen on a club noticeboard — so do not expect the
+second-hand reach a clubhouse drop would get.
+
+**The file holds personal addresses.** It is the permanent sent log per rule 6 and has to persist,
+but treat it accordingly if the repo ever goes public.
+
 ## 9. Open questions
 
 - Does the existing Royal Mail account reach letter products, and at what rate? (§5)
@@ -344,3 +399,5 @@ test scans of 19 Aug are in there — and record the send date in §8.
 | 19 Aug 2026 | Both club sheets now carry the fundraising line — a club that cannot see the money angle has no reason to act. Narrows the test from "money or not" to "which motivation leads", which is weaker but honest; B keeps it as the last sentence of the lead, under a headline about the club talking. Site QR added to both, beside the wordmark rather than under it so it costs the sheet no height. |
 | 19 Aug 2026 | Recorded what batch one cannot do: at 150 per cell it cannot pick a creative winner, only tell us whether addressed mail works at all. The split stays because print is free and responders can be asked. Creative test deferred to batch two, where the graphical (Nano Banana) variant joins as a third arm. |
 | 19 Aug 2026 | Timing rewritten before it was ever acted on. A first draft treated late August as a missed window and proposed holding everything for January; wrong — the season runs to February, competitions start at any point and finished ones restart, so every letter has a live entry point. Steady batches across the season, not one annual shot. |
+| 19 Aug 2026 | List built — 400 clubs, `lmslocal-marketing/list/batch-one.csv`, seeded and reproducible. Settled: the HMRC CASC register alone covers a 400 batch, so CIU and the sport-by-sport lists went untouched. Football weighted to 50% against a natural 10.6%. **FSA FHRS dropped from the pipeline** — a 12.5% name-match rate makes it unusable as a filter and near-silent as verification; postcodes.io validates every record instead. The CASC export wraps fields at 40 characters mid-word, which is the one trap that would have reached the labels. |
+| 19 Aug 2026 | List work made reusable. `pool.csv` keeps all **7,714** clean clubs, so the build never has to happen twice — later batches are a draw from it via `sample.py --exclude`, which enforces hygiene rule 6 on address rather than name (verified: zero overlap between a drawn batch one and batch two). Settled what goes in git, the repo being public: scripts and the OGL-licensed source `.ods` tracked, `pool.*` and `batch-*.csv` ignored — they regenerate byte-identically, and the batch files are our own record of who we mailed rather than public data. The sent log is the one thing that must be moved between machines by hand. |

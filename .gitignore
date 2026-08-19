@@ -129,3 +129,12 @@ nul
 
 # Local capture output from lmslocal-server/tests/capture-dashboard.js
 lmslocal-server/tests/captures/
+
+# Mailing list: scripts and the source register are tracked, derived data is not.
+# pool.* and the batch CSVs regenerate from casc-*.ods; the batch files also become
+# a record of who we mailed, which does not belong in a public repo. See
+# lmslocal-marketing/list/README.md
+lmslocal-marketing/list/pool.json
+lmslocal-marketing/list/pool.csv
+lmslocal-marketing/list/batch-*.csv
+lmslocal-marketing/list/__pycache__/
