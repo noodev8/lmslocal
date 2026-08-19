@@ -61,7 +61,6 @@ import {
   apiBaseUrl,
   AdminCompetition,
   EmailCount,
-  EmailScheduleEntry,
   EmailHistoryResponse,
   EmailRecipient,
   PreviewEmailResponse,
@@ -329,31 +328,6 @@ function SectionTag({ section }: { section: Section }) {
   return <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${tone[section]}`}>{section}</span>;
 }
 
-function CronTag({ bucket }: { bucket: string | null }) {
-  /*
-  Which emails go out on their own, and which only ever go when somebody presses Send.
-
-  Worth a symbol because the two are indistinguishable otherwise, and the mistake it prevents is
-  expensive in both directions: pressing Send on a scheduled email double-handles it, and waiting
-  for a schedule that was never set means an email silently never goes.
-
-  The bucket name comes from the server, not from OUTLINE below, so a clock cannot disagree with
-  what the script actually does. It arrives from /admin/get-email-schedule rather than from the
-  counts: counts are expensive and load only when Count is pressed, and a schedule that appeared
-  only after running a query read as "nothing is scheduled" to anyone who had not pressed it.
-  */
-  if (!bucket) return null;
-  return (
-    <span
-      title={`Sent automatically by the ${bucket} cron sweep`}
-      className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700"
-    >
-      <span aria-hidden="true">&#9201;</span>
-      {bucket}
-    </span>
-  );
-}
-
 function Stat({ value, label, tone }: { value: number; label: string; tone?: 'plain' | 'warn' }) {
   return (
     <div>
@@ -385,14 +359,11 @@ function FocusCard({
   reloadToken,
   /* The page orders the cards by this, so the emails with people waiting come to the top. */
   onCounted,
-  schedule,
 }: {
   email: OutlineEmail;
   onOpen: () => void;
   reloadToken: number;
   onCounted: (key: string, stat: { waiting: number; sent: number }) => void;
-  /* Static config, loaded once by the page. Undefined only while that call is in flight. */
-  schedule?: EmailScheduleEntry;
 }) {
   const [count, setCount] = useState<EmailCount | null>(null);
   const [loading, setLoading] = useState(false);
@@ -431,7 +402,6 @@ function FocusCard({
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-slate-900">{email.name}</h3>
             <SectionTag section={email.section} />
-            <CronTag bucket={schedule?.cron ?? null} />
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">{email.key}</code>
           </div>
           {email.blurb && <p className="mt-1.5 text-sm text-slate-600">{email.blurb}</p>}
@@ -1081,22 +1051,6 @@ export default function EmailsPage() {
   const [order, setOrder] = useState<string[]>([]);
   const [pendingSort, setPendingSort] = useState(false);
 
-  /*
-  Which emails the cron sends on its own. Loaded once on mount, unlike the counts - it runs no
-  candidate queries, and it has to be on screen before anybody presses anything. A failure is
-  swallowed: no badge is the same as no schedule to a reader, and an error banner about a decoration
-  would be louder than the thing it describes.
-  */
-  const [schedule, setSchedule] = useState<Record<string, EmailScheduleEntry>>({});
-
-  useEffect(() => {
-    adminApi
-      .getEmailSchedule()
-      .then((res) => {
-        if (res.return_code === 'SUCCESS' && res.schedule) setSchedule(res.schedule);
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!pendingSort || FOCUS.some((e) => stats[e.key] === undefined)) return;
@@ -1270,7 +1224,6 @@ export default function EmailsPage() {
             email={email}
             reloadToken={reloadTokens[email.key] ?? 0}
             onCounted={noteCount}
-            schedule={schedule[email.key]}
             onOpen={() => setOpen({ email, scopeAll: true })}
           />
         ))}

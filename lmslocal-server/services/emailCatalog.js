@@ -12,23 +12,11 @@ refused - or worse, a count from one email and a send from another.
 Adding an email is now one entry here plus its service and template. Nothing in the routes
 changes.
 
-`cron` is what scripts/email-sweep.js asks before sending anything unattended. It holds a BUCKET
-NAME - the argument the script is run with, e.g. 'daily' - and an entry without the field is not
-scheduled at all. That is the switch: hardcoded here on purpose rather than in a table, because
-turning an email loose on a schedule is a decision worth seeing in a diff and reviewing, not a
-checkbox somebody can flip at 2am with no record.
-
-A name rather than a boolean so a second cadence costs a crontab line and one edited value instead
-of a code change. It is also what the admin Emails screen renders its clock against, read back
-through /admin/get-email-targets - so the symbol on the screen and the behaviour of the script are
-the same constant, and a screen claiming an email is scheduled cannot be wrong.
-
-Emails join the cron ONE AT A TIME, each watched running before the next - the machinery shipped
-with nothing scheduled at all. On the cron today:
-
-  empty_comp   daily   (first one, 2026-08-18) - chosen to go first because its blast radius is
-                       the smallest on the platform: once per competition ever, no deadline in the
-                       copy, and a candidate list that has never been larger than four.
+WHICH EMAILS THE CRON SENDS IS NOT RECORDED HERE, deliberately (2026-08-18). An email is on the
+cron when it has a line in the VPS crontab and off when that line is commented out - see
+scripts/email-sweep.js, which takes the email's key as its argument. A flag here would be a second
+switch that could disagree with the real one, and something claiming an email is scheduled when it
+is not is worse than nothing claiming anything. `crontab -l` is the answer.
 
 `scoped` is what the routes ask before insisting on a competition_id. Most outline emails are
 about one competition; the Welcome and Info rows are platform-wide and have none. The admin
@@ -102,7 +90,6 @@ const CATALOG = {
   */
   empty_comp: {
     scoped: true,
-    cron: 'daily',
     service: emptyComp,
     build: buildEmptyCompEmail,
     send: sendEmptyCompEmail
@@ -242,29 +229,4 @@ function wiredTypes() {
   return Object.keys(CATALOG);
 }
 
-/**
- * The email types scheduled in one cron bucket, in catalog order.
- *
- * Returns an empty array for a bucket nothing is assigned to, which is the correct answer and not
- * an error - it is what every bucket returns today. The script reports it and exits 0, because a
- * cron that fails loudly when there is simply no work would train whoever reads the log to ignore
- * it.
- *
- * @param {string} bucket - the cron bucket name, e.g. 'daily'
- * @returns {string[]}
- */
-function scheduledTypes(bucket) {
-  if (!bucket) return [];
-  return Object.keys(CATALOG).filter((type) => CATALOG[type].cron === bucket);
-}
-
-/**
- * Every bucket name any entry is assigned to. Lets the script reject a typo'd argument by saying
- * what the real buckets are, rather than silently sweeping nothing.
- * @returns {string[]}
- */
-function cronBuckets() {
-  return [...new Set(Object.values(CATALOG).map((e) => e.cron).filter(Boolean))];
-}
-
-module.exports = { CATALOG, entryFor, wiredTypes, scheduledTypes, cronBuckets };
+module.exports = { CATALOG, entryFor, wiredTypes };
