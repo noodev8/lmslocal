@@ -11,6 +11,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 import { AppDataProvider } from "@/contexts/AppDataContext";
 import CookieConsent from "@/components/CookieConsent";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -102,6 +103,20 @@ export default function RootLayout({
             {children}
           </AppDataProvider>
           <CookieConsent />
+          {/*
+            Vercel Web Analytics. Counts page views by path, which is what makes
+            the mailshot measurable: /club-a and /club-b are reached only by
+            scanning a leaflet, so their view counts are scan counts.
+            See docs/marketing-mailshot.md §7.
+
+            Cookieless and stores no personal data, so it sits outside
+            CookieConsent deliberately rather than behind it.
+
+            Page views are all the Hobby plan collects — custom events and UTM
+            parameters are Pro features. Do not rewrite the leaflet tracking to
+            use either without checking the plan first.
+          */}
+          <Analytics />
         </ErrorBoundary>
       </body>
     </html>

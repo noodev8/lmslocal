@@ -161,9 +161,33 @@
               <p class="font-data text-[9.5pt] leading-tight text-ink-fade">lmslocal8@gmail.com</p>
             </div>
 
-            <div class="text-right">
-              <p class="font-display text-[20pt] font-extrabold uppercase leading-none">lmslocal</p>
-              <p class="mt-1 font-body text-[9pt] tracking-wide text-ink-fade">lmslocal.co.uk</p>
+            <!-- QR sits beside the wordmark rather than under it: the contact
+                 block on the left is already ~20mm tall, so a 20mm code costs
+                 the sheet no height at all. Stacking it would, and this sheet
+                 has no room. Check it scans off the finished PDF before any
+                 print run — see the README.
+
+                 THIS CODE IS THE MEASUREMENT, and it is variant-specific:
+                 club-a-qr.png resolves to lmslocal.co.uk/club-a, where the B
+                 sheet uses /club-b. Nothing else anywhere links to those
+                 paths, so every hit is this leaflet — that is the whole point,
+                 and swapping either sheet back to the generic site-qr.png
+                 silently destroys the only number batch one can read. See
+                 marketing-mailshot.md §7.
+
+                 The URL is printed under the code because a QR is unreadable
+                 to a human and some people will type it instead. Both must
+                 agree; regenerate the PNG if the path ever changes. -->
+            <div class="flex shrink-0 items-end gap-3">
+              <div class="text-right">
+                <p class="font-display text-[20pt] font-extrabold uppercase leading-none">
+                  lmslocal
+                </p>
+                <p class="mt-1 font-body text-[9pt] tracking-wide text-ink-fade">
+                  lmslocal.co.uk/club-a
+                </p>
+              </div>
+              <img src="../assets/club-a-qr.png" alt="" class="h-[20mm] w-[20mm] shrink-0" />
             </div>
           </div>
         </div>

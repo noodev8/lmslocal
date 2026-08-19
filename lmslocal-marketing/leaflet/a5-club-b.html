@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — A5 leaflet for clubs, variant B</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <link rel="stylesheet" href="../_shared/print.css" />
+    <style>
+      @page {
+        size: 148mm 210mm;
+        margin: 0;
+      }
+      .sheet {
+        width: 148mm;
+        height: 210mm;
+        overflow: hidden;
+      }
+      .safe {
+        padding: 7mm;
+      }
+    </style>
+  </head>
+
+  <body class="guides">
+    <!--
+      A5 leaflet, single sided, for clubs — audience D, VARIANT B.
+      Test partner of a5-club-a.html for the mailshot (docs/marketing-mailshot.md).
+
+      Both sheets sell fundraising — a club that cannot see the money angle
+      has no reason to act, and strategy §5 is clear it is the right argument
+      for this audience. What differs is the ROUTE IN:
+
+        A — "A fundraiser that runs itself". Leads on the promise. Aimed at
+            the committee member who already knows they need money and is
+            weighing up the effort.
+        B — "Something to argue about", then the mechanism stated plainly:
+            members pay in, the club keeps the rest. Aimed at the same person
+            arriving from the other end — the thing sounds good first, and it
+            turns out to pay.
+
+      An earlier draft of this file had B avoiding money entirely and selling
+      belonging. That was a cleaner test and a worse leaflet, and it was
+      abandoned deliberately — see the mailshot doc's log.
+
+      A reworded headline over the same proposition would be untestable at any
+      volume we can afford, so the two must stay genuinely different. If a
+      future edit makes this read like a synonym of the A leaflet, the test is
+      dead — change it back or retire the variant.
+
+      Money claims stay bounded the same way as the A leaflet: what the
+      organiser controls (entry, prize, what is left over), never an amount.
+      LMSLocal never touches the money — terms §6.
+
+      Voice rule unchanged from the A leaflet: every "you" is the organiser,
+      members stay third person ("they pick").
+
+      The survival sheet is byte-identical to a5-club-a.html on purpose — one
+      mock across the artwork reads as one system.
+
+      Everything else diverged once the funding message was strengthened, and
+      the sheet no longer varies only at the top. That is a deliberate trade:
+      a cleanly isolated variable is worth less than a sheet a club with a
+      shortfall actually responds to. It does mean a win here cannot be
+      attributed to the headline alone — see marketing-mailshot.md §7, which
+      already says this batch cannot pick a creative winner anyway.
+
+      HEIGHT IS THE BINDING CONSTRAINT. The sheet is a fixed 210mm with
+      overflow:hidden, so anything too tall is CLIPPED SILENTLY from the
+      bottom — the contact block goes first, and an earlier draft of this file
+      lost the email address and half the phone number that way with no
+      warning. The lead is one line and the season list one line per item,
+      both cut to pay for the money block. Adding a line anywhere means taking
+      one out somewhere else.
+
+      READING ORDER IS THE OTHER CONSTRAINT, and it is the one that was got
+      wrong twice. The money block sits directly under the rule, first in the
+      body, because at the bottom of the sheet it was read seventh and missed
+      on a full read-through. Do not move it down for visual balance.
+
+      Figures are from the pricing page: 20 free places, packs from £10.
+    -->
+
+    <p class="screen-only max-w-[148mm] font-body text-sm text-white">
+      <strong>Ctrl+P → Save as PDF</strong> · paper A5 · margins <strong>None</strong> ·
+      <strong>Background graphics ticked</strong> ·
+      <strong>Headers and footers unticked</strong>, or Chrome stamps the URL and date on the
+      sheet. Dashed guides are screen-only.<br />Sending it to a print shop? Use the
+      <a class="underline" href="?bleed">3mm bleed version</a>.
+    </p>
+
+    <div class="sheet guide-trim bg-stock text-ink">
+      <div class="safe guide-safe flex h-full flex-col">
+        <!-- Masthead ------------------------------------------------------ -->
+        <p class="font-body text-[8pt] font-medium uppercase tracking-[0.22em] text-overprint">
+          For clubs, societies and teams
+        </p>
+
+        <h1 class="mt-3 font-display text-[48pt] font-extrabold uppercase leading-[0.82]">
+          Something to<br />argue about
+        </h1>
+
+        <p class="mt-4 max-w-[110mm] font-body text-[10.5pt] leading-[1.45] text-ink-fade">
+          Your members pick one team a week. Lose and they are out.
+        </p>
+
+        <!-- shrink-0 because this is a flex column: without it an over-full
+             sheet crushes the rule to nothing and gives no other warning. -->
+        <div class="mt-4 h-px w-full shrink-0 bg-ink/25"></div>
+
+        <!-- The money, and it is FIRST in the body for one reason: at the
+             bottom of the sheet, under the table and the season list, it was
+             read seventh and missed entirely on a full read-through. No
+             wording survives that position. Anything added above this block
+             pushes it back down the reading order and undoes the fix.
+
+             "Members pay in" is the concrete half — a committee reads it as
+             income without having to work anything out. The eyebrow carries
+             the conditional, because running it for money is the organiser's
+             choice and design-system §9 forbids stating an opt-in as
+             universal.
+
+             Bounded exactly as strategy §5 requires: every line is something
+             the ORGANISER controls, and "the club keeps the rest" describes
+             their own pot, not an amount we promise. Never let this become
+             "raise £500 for your club".
+
+             Our own price rides underneath rather than in a band of its own —
+             clubs routinely run past twenty so it has to be on the sheet, but
+             it is not what this block is for. -->
+        <div class="mt-4 shrink-0 border-b border-ink/25 pb-3.5">
+          <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            Run it as a fundraiser
+          </p>
+          <p class="mt-1.5 font-display text-[28pt] font-extrabold uppercase leading-[0.88] text-overprint">
+            Members pay in.<br />The club keeps the rest.
+          </p>
+          <p class="mt-2.5 font-body text-[9pt] leading-snug text-ink-fade">
+            You set the entry, you set the prize.
+            <span class="font-semibold text-ink">20 players free</span> — no card, ever. More
+            places from £10.
+          </p>
+        </div>
+
+        <!-- The survival sheet. Same names and picks as a5-club-a.html and the
+             story tile on purpose — one mock across the artwork reads as
+             one system. font-data because these read as filled in by hand. -->
+        <div class="mt-4 shrink-0 bg-stock-lit px-4 py-3.5">
+          <div class="flex items-baseline justify-between">
+            <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              Round 4
+            </p>
+            <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+              9 left in
+            </p>
+          </div>
+          <dl class="mt-2.5 font-data text-[10pt] leading-tight">
+            <div class="flex justify-between border-b border-ink/15 py-[4px]">
+              <dt>Dave M.</dt>
+              <dd>Arsenal</dd>
+            </div>
+            <div class="flex justify-between border-b border-ink/15 py-[4px]">
+              <dt>Sarah K.</dt>
+              <dd>Brighton</dd>
+            </div>
+            <div class="flex justify-between border-b border-ink/15 py-[4px] text-overprint">
+              <dt class="line-through">Tom B.</dt>
+              <dd class="line-through">Leeds</dd>
+            </div>
+            <div class="flex justify-between py-[4px]">
+              <dt>Priya N.</dt>
+              <dd>Newcastle</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Same three-step spine as the A leaflet, angled at who is in it and
+             what they say to each other rather than at what it raises. -->
+        <div class="mt-5">
+          <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+            Your season · now until February
+          </p>
+          <ul class="mt-2.5 space-y-[6px] font-body text-[10pt] leading-[1.4]">
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">Who is in</span>
+              <span class="text-ink-fade">Members, parents, the bar regulars — you decide.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">Each week</span>
+              <span class="text-ink-fade">They pick on their phones. No phone, you do it.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">Sunday night</span>
+              <span class="text-ink-fade">Someone goes out, and a round-up writes itself.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Contact ------------------------------------------------------- -->
+        <div class="mt-auto shrink-0 pt-4">
+          <div class="flex items-end justify-between gap-5">
+            <div class="min-w-0">
+              <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
+                Raising for something this season?
+              </p>
+              <p class="mt-1 font-body text-[10.5pt] leading-snug">
+                Talk to <span class="font-semibold">Andreas</span> — I will set the first one up
+                with you.
+              </p>
+              <p class="mt-2 font-data text-[11pt] font-bold leading-tight">07818 443886</p>
+              <p class="font-data text-[9.5pt] leading-tight text-ink-fade">lmslocal8@gmail.com</p>
+            </div>
+
+            <!-- QR sits beside the wordmark rather than under it: the contact
+                 block on the left is already ~20mm tall, so a 19mm code costs
+                 the sheet no height at all. Stacking it would, and this sheet
+                 has no room. Check it scans off the finished PDF before any
+                 print run — see the README.
+
+                 THIS CODE IS THE MEASUREMENT, and it is variant-specific:
+                 club-b-qr.png resolves to lmslocal.co.uk/club-b, where the A
+                 sheet uses /club-a. Nothing else anywhere links to those
+                 paths, so every hit is this leaflet — that is the whole point,
+                 and swapping either sheet back to the generic site-qr.png
+                 silently destroys the only number batch one can read. See
+                 marketing-mailshot.md §7.
+
+                 The URL is printed under the code because a QR is unreadable
+                 to a human and some people will type it instead. Both must
+                 agree; regenerate the PNG if the path ever changes. -->
+            <div class="flex shrink-0 items-end gap-3">
+              <div class="pb-[1mm] text-right">
+                <p class="font-display text-[18pt] font-extrabold uppercase leading-none">
+                  lmslocal
+                </p>
+                <p class="mt-1 font-body text-[8.5pt] tracking-wide text-ink-fade">
+                  lmslocal.co.uk/club-b
+                </p>
+              </div>
+              <img src="../assets/club-b-qr.png" alt="" class="h-[19mm] w-[19mm] shrink-0" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../_shared/bleed.js"></script>
+  </body>
+</html>

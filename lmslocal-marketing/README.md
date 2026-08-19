@@ -32,6 +32,8 @@ leaflet/            Print artwork. a5-test.html is the pipeline reference.
                     printed code and its QR in assets/ must change together.
                     a5-landlord-post is the only double-sided piece — see below.
 social/             Fixed-size tiles for Facebook etc. See social/README.md.
+ai-brief/           Prompts for generating artwork with an image model instead of
+                    laying it out here. Clubs only so far. See ai-brief/README.md.
 out/                Exported PDFs and PNGs. Git-ignored — scratch.
 press/              PDFs actually sent to a printer. Tracked. See press/README.md.
 ```
@@ -119,6 +121,16 @@ cd lmslocal-web && node -e "require('qrcode').toFile( \
   '../lmslocal-marketing/assets/site-qr.png', 'https://lmslocal.co.uk', \
   {width:600, margin:2, errorCorrectionLevel:'H', color:{dark:'#1C2620', light:'#F2F3EC'}})"
 ```
+
+It is also the QR for anything generated from `ai-brief/` — an image model cannot draw a
+scannable one, so the artwork leaves a square and this file is composited in.
+
+**The two club leaflets do not use it.** `a5-club-a.html` and `a5-club-b.html` carry
+`assets/club-a-qr.png` and `club-b-qr.png`, which resolve to `lmslocal.co.uk/club-a` and
+`/club-b` — same settings, different URL. Those paths render the homepage and exist only so a
+scan can be counted per variant, so **swapping either sheet back to `site-qr.png` destroys the
+only number the mailshot can read** (`docs/marketing-mailshot.md` §7). The URL is printed under
+each code, so the PNG and the printed line have to change together.
 
 `qrcode` is a `lmslocal-web` dependency — this folder still has no `package.json` and the PNG is
 committed, the same way `join-qr.png` is.

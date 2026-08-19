@@ -5,7 +5,8 @@ being useful rather than leaving it to rot.** (`pricing-strategy.md` rotted for 
 and ended up describing a subscription model we never shipped.)
 
 Copy rules live in `docs/design-system.md` §9. Artwork lives in `lmslocal-marketing/`. This file
-is strategy only — who, why, and what we say.
+is strategy only — who, why, and what we say. **How a campaign actually gets sent** — lists,
+costs, batch sizes, results — is `docs/marketing-mailshot.md`.
 
 ---
 
@@ -94,7 +95,7 @@ page a signed note doing the job the conversation does when you hand one over.
 **D — Club, society or team.** Committee and a shortfall, no gatekeeper, and the buyer is the
 user. A club of 60 crosses the free tier immediately.
 *Message:* fundraising — the competition that pays for itself (§5).
-*Channel:* search, content, club association groups. *Artwork:* `a5-club.html`.
+*Channel:* search, content, club association groups. *Artwork:* `a5-club-a.html`.
 
 **E — Workplace or mates' group.** **Probably the easiest first revenue and the most
 under-weighted.** An office of 40 crosses the free tier on day one, with no gatekeeper at all.
@@ -146,6 +147,7 @@ invented promotion — and it will stop being true, so anything printed with it 
 | In-product prompt | B | **Does not exist** |
 | A5 leaflet, landlord | C | Built |
 | A5 mailer, landlord | C | Built — double sided, for an envelope |
+| Addressed mailshot | D + C | Planned — `marketing-mailshot.md`, batch one not yet sent |
 | A5 leaflet, player | A/C | Built — generic, code filled in by hand |
 | A5 leaflet, club | D | Built |
 | A5 leaflet, workplace | E | Built |
@@ -191,5 +193,6 @@ pay to fill a bucket with a hole in it.
 | 5 Aug 2026 | Three social tiles for the free game, join code 1992. Headline is "win £50 every game", not "every week" — terms §5 lets us cancel or suspend, so the cadence is not printable as a promise. |
 | 5 Aug 2026 | §5 rewritten, old rule withdrawn as wrong: fundraising is right for clubs and wrong for pubs, so the landing page and landlord leaflet were both already correct. Kept three narrower cautions. Audiences split four → five: D clubs (fundraising), E workplaces (neither). |
 | 5 Aug 2026 | D and E artwork built — one each, not a shared piece, resolving a §8 open question. |
+| 19 Aug 2026 | `marketing-mailshot.md` split out — execution of an addressed campaign (lists, costs, batches, results) rather than strategy. Settled there: post not cold email, clubs 75 / pubs 25, self-fulfilled under 1,000 pieces. |
 | 15 Aug 2026 | Landlord mailer (`a5-landlord-post.html`) for approaching pubs without walking in. First double-sided piece; the front finally sells footfall and dwell time, which §5 had claimed of the landlord leaflet since 5 Aug but which `a5-landlord.html` does not actually say. |
 </content>
