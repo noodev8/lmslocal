@@ -101,6 +101,70 @@ class DashboardRemoteDataSource {
     }
   }
 
+  /// Set (or clear, with null) the player's own name for one competition.
+  ///
+  /// Returns the name the server stored, which is the trimmed value — the
+  /// caller shows that rather than what was typed.
+  ///
+  /// The cached dashboard is patched in place rather than dropped: the rename
+  /// is the only thing that changed, and re-fetching the whole dashboard to
+  /// learn a string we already have would make a one-word edit cost a round
+  /// trip. A miss here is harmless — the next load fetches as usual.
+  Future<String?> updatePersonalName({
+    required int competitionId,
+    required String? personalName,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/update-personal-competition-name',
+        data: {
+          'competition_id': competitionId,
+          'personal_name': personalName,
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final returnCode = data['return_code'] as String;
+
+      if (returnCode != AppConstants.successCode) {
+        final message =
+            data['message'] as String? ?? 'Failed to update competition name';
+        throw ServerFailure(message);
+      }
+
+      final saved = data['personal_name'] as String?;
+      await _patchCachedPersonalName(competitionId, saved);
+      return saved;
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw NetworkFailure(
+          'Failed to update competition name: ${e.toString()}');
+    }
+  }
+
+  /// Rewrite one competition's personal_name inside the cached dashboard.
+  Future<void> _patchCachedPersonalName(
+    int competitionId,
+    String? personalName,
+  ) async {
+    try {
+      final cachedJson = _prefs.getString(_cacheKey);
+      if (cachedJson == null) return;
+
+      final competitions = jsonDecode(cachedJson) as List<dynamic>;
+      for (final entry in competitions) {
+        final competition = entry as Map<String, dynamic>;
+        if (competition['id'] == competitionId) {
+          competition['personal_name'] = personalName;
+        }
+      }
+
+      await _prefs.setString(_cacheKey, jsonEncode(competitions));
+    } catch (e) {
+      // Silently fail - caching is optional
+    }
+  }
+
   /// Get cached dashboard data if available and fresh
   Future<DashboardData?> _getCachedDashboard({
     bool ignoreExpiry = false,

@@ -43,6 +43,12 @@ class Competition extends Equatable {
   final int? livesRemaining;
   final DateTime? joinedAt;
   final String? playerDisplayName;
+
+  /// The player's own name for this competition, shown beside the organiser's
+  /// name rather than instead of it — everyone else still sees the real one.
+  /// Null when they have not set one.
+  final String? personalName;
+
   final bool? manageResults;
   final bool? manageFixtures;
   final bool? managePlayers;
@@ -82,6 +88,7 @@ class Competition extends Equatable {
     this.livesRemaining,
     this.joinedAt,
     this.playerDisplayName,
+    this.personalName,
     this.manageResults,
     this.manageFixtures,
     this.managePlayers,
@@ -90,6 +97,51 @@ class Competition extends Equatable {
     this.history = const [],
     this.winnerName,
   });
+
+  /// This competition with a different [personalName].
+  ///
+  /// Only the one field moves, so the dashboard can show a rename the moment
+  /// it is saved without re-fetching everything else on the card.
+  Competition copyWithPersonalName(String? personalName) => Competition(
+        id: id,
+        name: name,
+        description: description,
+        prizeStructure: prizeStructure,
+        entryFee: entryFee,
+        venueName: venueName,
+        city: city,
+        logoUrl: logoUrl,
+        status: status,
+        livesPerPlayer: livesPerPlayer,
+        noTeamTwice: noTeamTwice,
+        inviteCode: inviteCode,
+        slug: slug,
+        teamListId: teamListId,
+        teamListName: teamListName,
+        createdAt: createdAt,
+        playerCount: playerCount,
+        currentRound: currentRound,
+        currentRoundLockTime: currentRoundLockTime,
+        totalFixtures: totalFixtures,
+        fixturesWithResults: fixturesWithResults,
+        fixturesProcessed: fixturesProcessed,
+        totalRounds: totalRounds,
+        isComplete: isComplete,
+        isOrganiser: isOrganiser,
+        isParticipant: isParticipant,
+        userStatus: userStatus,
+        livesRemaining: livesRemaining,
+        joinedAt: joinedAt,
+        playerDisplayName: playerDisplayName,
+        personalName: personalName,
+        manageResults: manageResults,
+        manageFixtures: manageFixtures,
+        managePlayers: managePlayers,
+        needsPick: needsPick,
+        currentPick: currentPick,
+        history: history,
+        winnerName: winnerName,
+      );
 
   @override
   List<Object?> get props => [
@@ -123,6 +175,7 @@ class Competition extends Equatable {
         livesRemaining,
         joinedAt,
         playerDisplayName,
+        personalName,
         manageResults,
         manageFixtures,
         managePlayers,

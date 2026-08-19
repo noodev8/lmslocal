@@ -841,6 +841,122 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  /// Edit the player's own name for a competition.
+  ///
+  /// Prefilled with the name currently shown so an edit starts from what is on
+  /// screen; emptying the field clears the nickname and leaves the organiser's
+  /// name on its own.
+  void _showRenameDialog(Competition competition) {
+    final controller = TextEditingController(
+      text: competition.personalName ?? competition.name,
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: GameTheme.cardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
+        ),
+        title: Text(
+          'Rename for yourself',
+          style: TextStyle(
+            color: GameTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Not "everyone else sees X" — anyone can rename it for themselves,
+            // so the organiser's name is not what the next player is looking at
+            // either, and we cannot say what is on their screen.
+            Text(
+              'Only you see this name. Everyone else sees what they chose.',
+              style: TextStyle(color: GameTheme.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 100,
+              textInputAction: TextInputAction.done,
+              style: TextStyle(color: GameTheme.textPrimary),
+              decoration: const InputDecoration(
+                labelText: 'Your name for it',
+              ),
+              onSubmitted: (_) {
+                Navigator.of(dialogContext).pop();
+                _savePersonalName(competition, controller.text);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: GameTheme.textMuted),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _savePersonalName(competition, controller.text);
+            },
+            child: Text(
+              'Save',
+              style: TextStyle(color: GameTheme.glowCyan),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Save the nickname, showing it straight away and putting it back if the
+  /// server refuses — a rename is not worth a blocking spinner.
+  Future<void> _savePersonalName(Competition competition, String value) async {
+    final trimmed = value.trim();
+    // Typing the organiser's name back is the same as having no nickname.
+    final newName =
+        (trimmed.isEmpty || trimmed == competition.name) ? null : trimmed;
+    final previousName = competition.personalName;
+
+    if (newName == previousName) return;
+
+    void apply(String? name) {
+      if (!mounted) return;
+      setState(() {
+        _competitions = _competitions
+            .map((c) =>
+                c.id == competition.id ? c.copyWithPersonalName(name) : c)
+            .toList();
+      });
+    }
+
+    apply(newName);
+
+    try {
+      final saved = await _dashboardDataSource.updatePersonalName(
+        competitionId: competition.id,
+        personalName: newName,
+      );
+      apply(saved);
+    } catch (e) {
+      apply(previousName);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not save that name. Please try again.'),
+          backgroundColor: GameTheme.accentRed,
+        ),
+      );
+    }
+  }
+
   void _showDeleteConfirmation(Competition competition) {
     final hasNotStarted = competition.status == 'SETUP';
     final message = hasNotStarted
@@ -1190,12 +1306,46 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        competition.name,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: GameTheme.textPrimary,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // The player's own name is the heading once they
+                          // set one — they renamed it because the organiser's
+                          // name did not tell them which competition this was.
+                          // The organiser's name stays underneath, smaller, so
+                          // they can still say which competition they mean to
+                          // anyone else.
+                          Text(
+                            competition.personalName ?? competition.name,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: GameTheme.textPrimary,
+                            ),
+                          ),
+                          if (competition.personalName != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              competition.name,
+                              style: CouponTheme.bodyText.copyWith(
+                                fontSize: 13,
+                                color: CouponTheme.inkFade,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    // Rename for yourself only
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _showRenameDialog(competition),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.edit_outlined,
+                          size: 20,
+                          color: GameTheme.textMuted,
                         ),
                       ),
                     ),
