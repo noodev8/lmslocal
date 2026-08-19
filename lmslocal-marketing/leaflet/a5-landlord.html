@@ -38,6 +38,18 @@
 
       Posting one instead of leaving it? Use a5-landlord-post.html — a cold
       envelope needs the note on its back page, which this sheet does not have.
+
+      THIS SHEET IS FULL. It is a fixed 210mm with overflow:hidden, so anything
+      too tall is CLIPPED SILENTLY from the bottom and the contact block goes
+      first — email, then phone, then the QR, with no warning anywhere. Two
+      additions (club-a's three-step season block, then the fundraising
+      paragraph) each clipped it, and the space was bought back from whitespace
+      rather than copy: the headline came down from 47pt, the lead sets over a
+      wider measure at two lines instead of three, and the block gaps and table
+      padding came in a step. There is no slack left. Adding a line now means
+      taking one out, and every change must be checked on the rendered PDF —
+      the screen view scrolls and will happily show you a sheet that prints
+      short.
     -->
 
     <p class="screen-only max-w-[148mm] font-body text-sm text-white">
@@ -55,100 +67,161 @@
           For pubs, clubs and teams
         </p>
 
-        <h1 class="mt-3 font-display text-[47pt] font-extrabold uppercase leading-[0.82]">
+        <h1 class="mt-3 font-display text-[38pt] font-extrabold uppercase leading-[0.82]">
           Run last man<br />standing<br />at the bar
         </h1>
 
-        <p class="mt-4 max-w-[105mm] font-body text-[10.5pt] leading-[1.45] text-ink-fade">
+        <p class="mt-3 max-w-[122mm] font-body text-[10.5pt] leading-[1.45] text-ink-fade">
           Your regulars pick one team a week. Lose and they are out. You used to keep that on a
           sheet behind the bar — now it keeps itself.
         </p>
 
         <!-- shrink-0 because this is a flex column: without it an over-full
              sheet crushes the rule to nothing and gives no other warning. -->
-        <div class="mt-4 h-px w-full shrink-0 bg-ink/25"></div>
+        <div class="mt-3 h-px w-full shrink-0 bg-ink/25"></div>
 
         <!-- The survival sheet: the thing this replaces, and the fastest way
              to explain the game to someone who has never run one. font-data
-             because these read as filled in by hand. -->
-        <div class="mt-4 shrink-0 bg-stock-lit px-4 py-3.5">
+             because these read as filled in by hand.
+
+             The eyebrow names the competition. It is the only line with room
+             for it, and it sits directly above four Premier League clubs, so
+             it reads as a caption rather than a claim. Both club sheets carry
+             the same wording. -->
+        <div class="mt-3 shrink-0 bg-stock-lit px-4 py-3">
           <div class="flex items-baseline justify-between">
             <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
-              Round 4
+              Premier League football · Round 4
             </p>
             <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
               9 left in
             </p>
           </div>
-          <dl class="mt-2.5 font-data text-[10pt] leading-tight">
-            <div class="flex justify-between border-b border-ink/15 py-[4px]">
+          <dl class="mt-1.5 font-data text-[10pt] leading-tight">
+            <div class="flex justify-between border-b border-ink/15 py-[2px]">
               <dt>Dave M.</dt>
               <dd>Arsenal</dd>
             </div>
-            <div class="flex justify-between border-b border-ink/15 py-[4px]">
+            <div class="flex justify-between border-b border-ink/15 py-[2px]">
               <dt>Sarah K.</dt>
               <dd>Brighton</dd>
             </div>
-            <div class="flex justify-between border-b border-ink/15 py-[4px] text-overprint">
+            <div class="flex justify-between border-b border-ink/15 py-[2px] text-overprint">
               <dt class="line-through">Tom B.</dt>
               <dd class="line-through">Leeds</dd>
             </div>
-            <div class="flex justify-between py-[4px]">
+            <div class="flex justify-between py-[2px]">
               <dt>Priya N.</dt>
               <dd>Newcastle</dd>
             </div>
           </dl>
         </div>
 
-        <!-- The week ------------------------------------------------------ -->
-        <div class="mt-5">
+        <!-- The season, taken verbatim from a5-club-a.html on request, heading
+             and all three rows. It replaced a two-row "Your week" pitched at
+             the weekend (Fri & Sat, paste into WhatsApp). Keep the two sheets
+             identical here, or put the pub wording back on both — a half-
+             merged version is how this block drifted before. -->
+        <div class="mt-4">
           <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
-            Your week
+            Your season
           </p>
-          <ul class="mt-2.5 space-y-[6px] font-body text-[10pt] leading-[1.4]">
+          <ul class="mt-2 space-y-[5px] font-body text-[10pt] leading-[1.4]">
             <li class="flex gap-3">
-              <span class="w-[27mm] shrink-0 font-semibold">Fri &amp; Sat</span>
+              <span class="w-[24mm] shrink-0 font-semibold">Setting up</span>
+              <span class="text-ink-fade"
+                >About five minutes. You choose the entry, the prize and who it is open to.</span
+              >
+            </li>
+            <li class="flex gap-3">
+              <span class="w-[24mm] shrink-0 font-semibold">Each week</span>
               <span class="text-ink-fade"
                 >Rounds go up and they pick on their phones — no phone, you put it in for them.</span
               >
             </li>
             <li class="flex gap-3">
-              <span class="w-[27mm] shrink-0 font-semibold">After</span>
+              <span class="w-[24mm] shrink-0 font-semibold">After</span>
               <span class="text-ink-fade"
-                >Eliminations sort themselves out and a round-up is written for you to paste into WhatsApp.</span
+                >Eliminations sort themselves out and a round-up is written for you to paste into
+                the club group.</span
               >
             </li>
           </ul>
         </div>
 
+        <!-- Raising money, on a sheet whose angle is otherwise footfall.
+             Added on request. Two rules still bind it:
+
+             It is the ORGANISER'S CHOICE, not what the product is for, so the
+             sentence is conditional — design-system §9 forbids stating an
+             opt-in feature as universal, and most pubs will run this for the
+             bar, not for a cause.
+
+             The claim is bounded exactly as the club sheets bound it: entry,
+             prize and what is left over are all things the landlord controls.
+             LMSLocal never touches the money (terms §6). Never let this become
+             an amount, or "raise £500 for your team". -->
+        <p class="mt-3 max-w-[122mm] font-body text-[9.5pt] leading-[1.45] text-ink-fade">
+          Raising for the team or a local charity? You set the entry and the prize — what is left
+          over goes where you choose, and it gives them a reason to be in all season.
+        </p>
+
         <!-- Price --------------------------------------------------------- -->
-        <div class="mt-5 shrink-0 border-y border-ink/25 py-3.5">
+        <div class="mt-3 shrink-0 border-y border-ink/25 py-2.5">
           <div class="flex items-baseline gap-3">
             <p class="font-display text-[21pt] font-extrabold uppercase leading-none">
               20 players free
             </p>
-            <p class="font-body text-[9pt] text-ink-fade">No card. Ever.</p>
+            <p class="font-body text-[9pt] text-ink-fade">No card.</p>
           </div>
         </div>
 
         <!-- Contact ------------------------------------------------------- -->
-        <div class="mt-auto shrink-0 pt-4">
+        <div class="mt-auto shrink-0 pt-3">
           <div class="flex items-end justify-between gap-4">
-            <div>
+            <div class="min-w-0">
               <p class="font-body text-[7.5pt] font-medium uppercase tracking-[0.18em] text-ink-fade">
                 Fancy one behind your bar?
               </p>
               <p class="mt-1 font-body text-[10.5pt] leading-snug">
-                Talk to <span class="font-semibold">Andreas</span> — I will set the first one up
+                Talk to <span class="font-semibold">Andreas</span> — I will help set this up
                 with you.
               </p>
               <p class="mt-2 font-data text-[11pt] font-bold leading-tight">07818 443886</p>
-              <p class="font-data text-[9.5pt] leading-tight text-ink-fade">lmslocal8@gmail.com</p>
+              <p class="text-[9.5pt] leading-tight text-ink-fade">
+                <span class="font-body">Email:</span>
+                <span class="font-data">lmslocal8@gmail.com</span>
+              </p>
             </div>
 
-            <div class="text-right">
-              <p class="font-display text-[20pt] font-extrabold uppercase leading-none">lmslocal</p>
-              <p class="mt-1 font-body text-[9pt] tracking-wide text-ink-fade">lmslocal.co.uk</p>
+            <!-- QR sits beside the wordmark rather than under it: the contact
+                 block on the left is already ~20mm tall, so a 19mm code costs
+                 the sheet no height at all, and this sheet has none to give.
+                 Check it scans off the finished PDF before any print run —
+                 see the README.
+
+                 THIS CODE IS THE MEASUREMENT. bar-a-qr.png resolves to
+                 lmslocal.co.uk/bar-a, which renders the homepage and exists
+                 only so a scan of the pub leaflet can be counted separately
+                 from the two club sheets (/club-a, /club-b). Nothing else
+                 anywhere links to that path, so every hit is this leaflet;
+                 swapping it back to the generic site-qr.png silently destroys
+                 the only number this sheet produces. a5-landlord-post.html
+                 still carries site-qr.png, so posted scans are not in it.
+
+                 The URL is printed under the wordmark because a QR is
+                 unreadable to a human and some people will type it instead.
+                 Both must agree; regenerate the PNG if the path changes. -->
+            <div class="flex shrink-0 items-end gap-3">
+              <div class="pb-[1mm] text-right">
+                <p class="font-display text-[20pt] font-extrabold uppercase leading-none">
+                  lmslocal
+                </p>
+                <p class="mt-1 font-body text-[9pt] tracking-wide text-ink-fade">
+                  lmslocal.co.uk/bar-a
+                </p>
+              </div>
+              <img src="../assets/bar-a-qr.png" alt="" class="h-[19mm] w-[19mm] shrink-0" />
             </div>
           </div>
         </div>

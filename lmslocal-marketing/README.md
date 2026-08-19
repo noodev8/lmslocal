@@ -125,12 +125,20 @@ cd lmslocal-web && node -e "require('qrcode').toFile( \
 It is also the QR for anything generated from `ai-brief/` — an image model cannot draw a
 scannable one, so the artwork leaves a square and this file is composited in.
 
-**The two club leaflets do not use it.** `a5-club-a.html` and `a5-club-b.html` carry
-`assets/club-a-qr.png` and `club-b-qr.png`, which resolve to `lmslocal.co.uk/club-a` and
-`/club-b` — same settings, different URL. Those paths render the homepage and exist only so a
-scan can be counted per variant, so **swapping either sheet back to `site-qr.png` destroys the
-only number the mailshot can read** (`docs/marketing-mailshot.md` §7). The URL is printed under
-each code, so the PNG and the printed line have to change together.
+**Three leaflets do not use it.** `a5-club-a.html`, `a5-club-b.html` and `a5-landlord.html`
+carry `assets/club-a-qr.png`, `club-b-qr.png` and `bar-a-qr.png`, which resolve to
+`lmslocal.co.uk/club-a`, `/club-b` and `/bar-a` — same settings, different URL. Those paths
+render the homepage and exist only so a scan can be counted per sheet, so **swapping any of them
+back to `site-qr.png` destroys the only number that sheet produces** (`docs/marketing-mailshot.md`
+§7). The URL is printed under each code, so the PNG and the printed line have to change together.
+
+`/club-a` and `/club-b` are an A/B pair of the same club sheet; `/bar-a` is the pub sheet, named
+for the audience rather than a variant, and there is no `/bar-b`. `a5-landlord-post.html` — the
+posted version — still carries `site-qr.png`, so posted scans are **not** in the `/bar-a` count.
+Adding a code to a sheet is three steps that must land together: the route in
+`lmslocal-web/src/app/<id>/page.tsx` (copy `club-a`, `noindex` and **not** disallowed in
+`robots.ts`), the PNG generated with the command above, and the `<img>` plus the printed URL on
+the sheet.
 
 `qrcode` is a `lmslocal-web` dependency — this folder still has no `package.json` and the PNG is
 committed, the same way `join-qr.png` is.

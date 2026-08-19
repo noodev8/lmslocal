@@ -205,11 +205,17 @@ human and some people will type it.
 need one, and not holding it keeps this clear of anything needing a cookie banner or a
 privacy-policy change. This counts scans; it does not identify clubs.
 
-**Built, 19 Aug 2026.** `lmslocal-web/src/app/club-a/page.tsx` and `club-b/page.tsx` each render
-the homepage component — one design, two addresses, so nothing diverges when the homepage changes.
-Both carry `noindex, follow` and inherit a canonical pointing at `/`; **neither is disallowed in
-`robots.ts`, and neither must be** — a crawler that is blocked never fetches the page, so it never
-reads the noindex. Vercel Web Analytics is enabled and `@vercel/analytics` is in the root layout.
+The pub leaflet (`a5-landlord.html`) carries the same mechanism at `/bar-a` — `bar-a-qr.png`,
+named for the audience rather than a variant, with no `/bar-b`. It is not part of this mailshot
+and its scans are a separate number; `a5-landlord-post.html` still carries the generic
+`site-qr.png` and is in neither.
+
+**Built, 19 Aug 2026.** `lmslocal-web/src/app/club-a/page.tsx`, `club-b/page.tsx` and
+`bar-a/page.tsx` each render the homepage component — one design, two addresses, so nothing diverges when the homepage changes.
+All three carry `noindex, follow` and inherit a canonical pointing at `/` from the root layout;
+**none is disallowed in `robots.ts`, and none must be** — a crawler that is blocked never fetches
+the page, so it never reads the noindex. None is listed in `sitemap.ts` either: they are not pages
+we want indexed, and a sitemap entry contradicts the noindex. Vercel Web Analytics is enabled and `@vercel/analytics` is in the root layout.
 
 **Hobby plan, so page views only** — custom events and UTM parameters are Pro features, which is
 why the design counts paths. Free to 50,000 events a month; over that, collection pauses rather
