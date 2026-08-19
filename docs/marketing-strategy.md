@@ -6,7 +6,8 @@ and ended up describing a subscription model we never shipped.)
 
 Copy rules live in `docs/design-system.md` §9. Artwork lives in `lmslocal-marketing/`. This file
 is strategy only — who, why, and what we say. **How a campaign actually gets sent** — lists,
-costs, batch sizes, results — is `docs/marketing-mailshot.md`.
+costs, batch sizes, results — is `docs/marketing-mailshot.md`. It is still named for the
+mailshot; the current plan there is hand delivery to local bars, with the mail batch held.
 
 ---
 
@@ -147,7 +148,8 @@ invented promotion — and it will stop being true, so anything printed with it 
 | In-product prompt | B | **Does not exist** |
 | A5 leaflet, landlord | C | Built |
 | A5 mailer, landlord | C | Built — double sided, for an envelope |
-| Addressed mailshot | D + C | Planned — `marketing-mailshot.md`, batch one not yet sent |
+| Walking the leaflet into local bars | C | **Current plan** — `marketing-mailshot.md` §1, bars that advertise live sport |
+| Addressed mailshot | D + C | **Held** — `marketing-mailshot.md` §6, built and costed, list drawn, nothing sent |
 | A5 leaflet, player | A/C | Built — generic, code filled in by hand |
 | A5 leaflet, club | D | Built |
 | A5 leaflet, workplace | E | Built |
@@ -194,5 +196,6 @@ pay to fill a bucket with a hole in it.
 | 5 Aug 2026 | §5 rewritten, old rule withdrawn as wrong: fundraising is right for clubs and wrong for pubs, so the landing page and landlord leaflet were both already correct. Kept three narrower cautions. Audiences split four → five: D clubs (fundraising), E workplaces (neither). |
 | 5 Aug 2026 | D and E artwork built — one each, not a shared piece, resolving a §8 open question. |
 | 19 Aug 2026 | `marketing-mailshot.md` split out — execution of an addressed campaign (lists, costs, batches, results) rather than strategy. Settled there: post not cold email, clubs 75 / pubs 25, self-fulfilled under 1,000 pieces. |
+| 19 Aug 2026 | Channel order changed: **the pub leaflet gets walked into local bars showing live sport, and the 400-piece club mailshot is held** until a landlord has held the sheet. Nothing about the audiences changed — this is about spending £450 of postage before anyone outside the project has seen the artwork. See `marketing-mailshot.md` §1. Note §5's "pubs want footfall, clubs want funds" now has a documented exception: a local pub runs this by hand and splits the pot with the football team that drinks there, which is why the pub sheet carries a fundraising line. |
 | 15 Aug 2026 | Landlord mailer (`a5-landlord-post.html`) for approaching pubs without walking in. First double-sided piece; the front finally sells footfall and dwell time, which §5 had claimed of the landlord leaflet since 5 Aug but which `a5-landlord.html` does not actually say. |
 </content>
