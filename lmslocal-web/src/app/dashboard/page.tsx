@@ -514,7 +514,7 @@ export default function DashboardPage() {
                             ) : (
                               <div className="flex items-baseline gap-2">
                                 <h4 className="truncate font-display text-2xl uppercase tracking-[0.03em] text-ink">
-                                  {competition.name}
+                                  {competition.personal_name || competition.name}
                                 </h4>
                                 {competition.is_organiser && (
                                   <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>Organiser</span>
@@ -534,9 +534,10 @@ export default function DashboardPage() {
                           )}
                         </div>
 
-                        {/* Personal Note Display */}
+                        {/* The organiser's official name, shown underneath only when the player has
+                            renamed the competition for themselves — otherwise it is already the title. */}
                         {competition.personal_name && editingNameId !== competition.id && (
-                          <p className="mb-3 font-data text-[15px] italic text-ink-fade">{competition.personal_name}</p>
+                          <p className="mb-3 font-data text-[15px] italic text-ink-fade">{competition.name}</p>
                         )}
 
                         {/* Your Status Display - Only for participants */}
