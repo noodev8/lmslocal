@@ -120,11 +120,18 @@ export default function BillingPage() {
     }
   };
 
-  // Calculate available slots (only if credits loaded)
+  // Capacity. paid_credit is a LIVE BALANCE, not a purchase total: a credit is
+  // deducted the moment a chargeable player joins beyond the free limit, and
+  // handed back when one is removed (server routes join-competition-by-code,
+  // add-offline-player, remove-player). So the players it has already paid for
+  // must NOT be subtracted from it a second time — doing that understated an
+  // organiser's headroom by exactly the number of paid players they had.
   const freeLimit = credits?.free_player_limit || 20; // Use dynamic limit from backend
-  const totalCapacity = credits ? freeLimit + credits.paid_credit : 0; // Free limit + purchased credits
   const slotsUsed = credits?.total_players || 0;
-  const slotsAvailable = totalCapacity - slotsUsed;
+  const freeLeft = Math.max(0, freeLimit - slotsUsed);
+  const boughtLeft = credits?.paid_credit || 0;
+  const slotsAvailable = freeLeft + boughtLeft;
+  const freeUsed = Math.min(slotsUsed, freeLimit);
 
   // Header is repeated across the three states rather than hoisted into a
   // layout, matching /dashboard — this page is the only thing under /billing.
@@ -193,22 +200,22 @@ export default function BillingPage() {
 
         {/* Balance as a §6 ledger: the figures add up, so they are set as a
             reckoning rather than a sentence, and the total is the big number
-            instead of being stated twice. */}
+            instead of being stated twice.
+
+            Both rows are what is LEFT, never what was spent, so the two add to
+            the total by construction. The earlier ledger set a purchase figure
+            against a headcount and could not stay honest, because the balance
+            it called "Bought" had already had those players taken out of it.
+            What has been used is stated underneath as a sentence instead. */}
         <section className="mt-8 border-y border-ink/30 py-8">
           <dl className="w-full max-w-sm font-data text-[15px]">
             <div className="flex items-baseline justify-between gap-6 py-1.5">
-              <dt className="text-ink-fade">Free credits</dt>
-              <dd className="tabular-nums text-ink">{freeLimit}</dd>
+              <dt className="text-ink-fade">Free credits left</dt>
+              <dd className="tabular-nums text-ink">{freeLeft}</dd>
             </div>
             <div className="flex items-baseline justify-between gap-6 py-1.5">
-              <dt className="text-ink-fade">Bought</dt>
-              <dd className="tabular-nums text-ink">+{credits.paid_credit}</dd>
-            </div>
-            <div className="flex items-baseline justify-between gap-6 py-1.5">
-              <dt className="text-ink-fade">
-                Used by {slotsUsed === 1 ? 'player' : 'players'}
-              </dt>
-              <dd className="tabular-nums text-ink">&minus;{slotsUsed}</dd>
+              <dt className="text-ink-fade">Bought credits left</dt>
+              <dd className="tabular-nums text-ink">+{boughtLeft}</dd>
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-6 border-t border-ink/30 pt-3">
               <dt className={`${LABEL} text-ink-fade`}>
@@ -220,8 +227,14 @@ export default function BillingPage() {
             </div>
           </dl>
           <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-ink">
-            You can add {slotsAvailable} more {slotsAvailable === 1 ? 'player' : 'players'} across
-            your competitions.
+            {slotsUsed} {slotsUsed === 1 ? 'player has' : 'players have'} joined your competitions
+            {freeUsed > 0 && <> — {freeUsed} on your free {freeUsed === 1 ? 'credit' : 'credits'}</>}
+            {slotsUsed > freeLimit && (
+              <>
+                , {slotsUsed - freeLimit} on credits you bought
+              </>
+            )}
+            . You can add {slotsAvailable} more {slotsAvailable === 1 ? 'player' : 'players'}.
           </p>
         </section>
 
