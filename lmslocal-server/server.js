@@ -156,6 +156,7 @@ const setBotPickRoute = require('./routes/admin/set-bot-pick');
 const getEmailTargetsRoute = require('./routes/admin/get-email-targets');
 const previewEmailRoute = require('./routes/admin/preview-email');
 const getEmailHistoryRoute = require('./routes/admin/get-email-history');
+const getEmailVolumeRoute = require('./routes/admin/get-email-volume');
 const adminSendEmailsRoute = require('./routes/admin/send-emails');
 const adminMarkEmailsSentRoute = require('./routes/admin/mark-emails-sent');
 const adminBroadcastAudienceRoute = require('./routes/admin/broadcast-audience');
@@ -537,6 +538,7 @@ gate, matching the rest of the /admin namespace.
 app.use('/admin/get-email-targets', getEmailTargetsRoute);
 app.use('/admin/preview-email', previewEmailRoute);
 app.use('/admin/get-email-history', getEmailHistoryRoute);
+app.use('/admin/get-email-volume', getEmailVolumeRoute);
 app.use('/admin/send-emails', adminSendEmailsRoute);
 app.use('/admin/mark-emails-sent', adminMarkEmailsSentRoute);
 

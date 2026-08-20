@@ -672,6 +672,19 @@ export type EmailHistoryResponse = ApiResponse & {
   truncated?: boolean;
 };
 
+/*
+Today's sending against the daily allowance. `remaining_estimate` is an UPPER bound: test sends and
+transactional mail (password reset, verification, contact form) leave no email_queue row, so the
+real headroom is this or less. The screen labels it as an estimate for that reason.
+*/
+export type EmailVolumeResponse = ApiResponse & {
+  daily_limit?: number;
+  /* date is the Europe/London day the server counted, not one worked out from the browser clock. */
+  today?: { date: string; sent: number };
+  yesterday?: { date: string; sent: number };
+  remaining_estimate?: number;
+};
+
 export type SendEmailsResponse = ApiResponse & {
   test_mode?: boolean;
   sent_count?: number;
@@ -1008,6 +1021,15 @@ export const adminApi = {
       status,
       limit,
     });
+    return response.data;
+  },
+
+  /*
+  No arguments: always the whole platform, always today. Cheap enough to run on mount, unlike the
+  per-email counts, because it is one indexed pass over two days of email_queue.
+  */
+  getEmailVolume: async (): Promise<EmailVolumeResponse> => {
+    const response = await api.post<EmailVolumeResponse>('/admin/get-email-volume', {});
     return response.data;
   },
 

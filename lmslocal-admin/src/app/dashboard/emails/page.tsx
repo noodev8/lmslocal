@@ -69,6 +69,7 @@ import {
   AdminCompetition,
   EmailCount,
   EmailHistoryResponse,
+  EmailVolumeResponse,
   EmailRecipient,
   PreviewEmailResponse,
 } from '@/lib/api';
@@ -76,6 +77,10 @@ import {
 // ======================================================================================
 // The outline
 // ======================================================================================
+
+/* Below this many sends left, the figure turns amber - enough headroom to notice before a backlog
+   of forty-odd runs out halfway through. Not a server rule: purely how the number is coloured. */
+const LOW_ALLOWANCE = 25;
 
 type Consumer = 'Player' | 'Organiser' | 'All';
 // The outline has exactly two sections since 2026-08-11, and they are also the two unsubscribe
@@ -1085,6 +1090,11 @@ export default function EmailsPage() {
   const [order, setOrder] = useState<string[]>([]);
   const [pendingSort, setPendingSort] = useState(false);
 
+  /* Today's sending against the daily allowance. Counted on arrival, unlike the cards: it is one
+     query over two days rather than a pass per email, and it is the number you want before
+     deciding which backlog to spend the day's sends on. */
+  const [volume, setVolume] = useState<EmailVolumeResponse | null>(null);
+
 
   useEffect(() => {
     if (!pendingSort || FOCUS.some((e) => stats[e.key] === undefined)) return;
@@ -1137,13 +1147,25 @@ export default function EmailsPage() {
     }
   }, []);
 
+  /* Failure leaves the strip absent rather than showing zeros. A budget that reads "0 sent, 100
+     left" because the query fell over is the one mistake this must not make. */
+  const loadVolume = useCallback(async () => {
+    try {
+      const res = await adminApi.getEmailVolume();
+      setVolume(res.return_code === 'SUCCESS' ? res : null);
+    } catch {
+      setVolume(null);
+    }
+  }, []);
+
   useEffect(() => {
     if (!getToken()) {
       router.replace('/login');
       return;
     }
     loadCompetitions();
-  }, [router, loadCompetitions]);
+    loadVolume();
+  }, [router, loadCompetitions, loadVolume]);
 
   useEffect(() => {
     if (competitionId !== null) loadCounts(competitionId);
@@ -1157,6 +1179,7 @@ export default function EmailsPage() {
   */
   const refreshCounts = () => {
     if (REMAINING.length > 0 && competitionId !== null) loadCounts(competitionId);
+    loadVolume();
     /* The one gesture that reorders. Applied once every card has reported back. */
     setPendingSort(true);
     setReloadTokens((prev) => {
@@ -1167,8 +1190,12 @@ export default function EmailsPage() {
   };
 
   /* Only the card that was acted on. A send from one card cannot change another's count. */
-  const refreshCard = (key: string) =>
+  const refreshCard = (key: string) => {
     setReloadTokens((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
+    /* A send from a card spends the allowance, so the strip has to move with it - otherwise the
+       budget is only ever right until the first thing you do with it. */
+    loadVolume();
+  };
 
   return (
     <div className="min-h-screen">
@@ -1214,6 +1241,51 @@ export default function EmailsPage() {
               )}
             </div>
           </div>
+
+          {/*
+          TODAY'S BUDGET. On the control bar rather than on a card, because it is not about any one
+          email - it is the constraint every card on this screen is spending, and the question asked
+          before choosing which backlog to send.
+
+          Yesterday sits beside it as the only cheap comparison that means anything: "11" alone says
+          nothing about whether today is busy. Absent entirely if the query failed - a strip reading
+          "0 sent, 100 left" because the server was down is worse than no strip.
+
+          "Estimate" is on the face of it, not hidden in the tooltip. Test sends queue nothing and
+          transactional mail was never queued, so the true headroom is this or less; the tooltip says
+          which. Once deliver() logs every send itself this can drop the hedge.
+          */}
+          {volume?.today && (
+            <div className="flex items-center gap-5 border-slate-200 px-4 py-3 sm:border-l">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Sent today</p>
+                <p className="text-lg font-semibold leading-tight text-slate-900">
+                  {volume.today.sent}
+                  <span className="ml-2 text-sm font-normal text-slate-500">
+                    yesterday {volume.yesterday?.sent ?? '—'}
+                  </span>
+                </p>
+              </div>
+
+              <div title="Counts emails the queue actually sent. Test copies and account mail (password reset, verification, contact form) leave no queue row and are not included, so the real headroom is this or less.">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Left today</p>
+                <p
+                  className={`text-lg font-semibold leading-tight ${
+                    (volume.remaining_estimate ?? 0) === 0
+                      ? 'text-red-700'
+                      : (volume.remaining_estimate ?? 0) <= LOW_ALLOWANCE
+                        ? 'text-amber-700'
+                        : 'text-slate-900'
+                  }`}
+                >
+                  ~{volume.remaining_estimate ?? 0}
+                  <span className="ml-2 text-sm font-normal text-slate-500">
+                    of {volume.daily_limit ?? 0} · estimate
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2 px-4 py-3">
             <button
