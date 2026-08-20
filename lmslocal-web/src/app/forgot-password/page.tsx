@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSearchParams } from 'next/navigation';
 import { authApi } from '@/lib/api';
 import AuthShell, { authInput, authButton, Notice, AuthLink } from '@/components/public/AuthShell';
 import { LABEL } from '@/lib/design';
@@ -10,7 +11,21 @@ interface ForgotPasswordForm {
   email: string;
 }
 
-export default function ForgotPasswordPage() {
+/*
+Where "Back to sign in" goes. The join page sends the competition it was showing, so someone who
+came here from a join link is handed back to it rather than to the dashboard. Same rule as /login:
+only a path on this site, never a protocol-relative "//evil.example" that a browser reads as
+another host. The reset email cannot carry this — its link is built server-side and always lands
+on /login — so this only holds the journey together up to the point the email takes over.
+*/
+const signInHref = (returnTo: string | null): string =>
+  returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+    ? `/login?returnTo=${encodeURIComponent(returnTo)}`
+    : '/login';
+
+function ForgotPasswordForm() {
+  const searchParams = useSearchParams();
+  const backToSignIn = signInHref(searchParams.get('returnTo'));
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +68,7 @@ export default function ForgotPasswordPage() {
           </>
         }
       >
-        <AuthLink href="/login">Back to sign in</AuthLink>
+        <AuthLink href={backToSignIn}>Back to sign in</AuthLink>
       </AuthShell>
     );
   }
@@ -65,7 +80,7 @@ export default function ForgotPasswordPage() {
       intro="Give us the email you signed up with and we will send you a link to set a new one."
       footer={
         <>
-          Remembered it? <AuthLink href="/login">Back to sign in</AuthLink>
+          Remembered it? <AuthLink href={backToSignIn}>Back to sign in</AuthLink>
         </>
       }
     >
@@ -91,5 +106,13 @@ export default function ForgotPasswordPage() {
         </button>
       </form>
     </AuthShell>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ForgotPasswordForm />
+    </Suspense>
   );
 }

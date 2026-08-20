@@ -548,6 +548,24 @@ export default function JoinPage() {
             {navigating ? 'Taking you in…' : busy ? 'One moment…' : `Join ${competition.name}`}
           </button>
 
+          {/*
+            A returning player who has forgotten their password used to be stuck here with no way
+            out but to guess at /login. The code travels as returnTo so the pre-email half of the
+            journey keeps it — the reset link itself is built server-side and lands on /login, so
+            they still re-open the join link once the password is set. That is the accepted cost;
+            carrying the code through the email is a separate job.
+          */}
+          {mode === 'signin' && (
+            <p className="mt-5 text-[16px] text-ink-fade">
+              <Link
+                href={`/forgot-password?returnTo=${encodeURIComponent(`/join/${code}`)}`}
+                className="underline decoration-dotted underline-offset-4 hover:text-ink"
+              >
+                Forgotten your password?
+              </Link>
+            </p>
+          )}
+
           <p className="mt-5 text-[16px] text-ink-fade">
             {mode === 'create' ? 'Already have an account? ' : 'Not got an account yet? '}
             <button
