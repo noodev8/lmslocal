@@ -22,7 +22,7 @@
 # Add `2>&1` for silence, knowing a typo would then fail quietly every day.
 
 # --- LMSLocal email sweeps - start ---
-#0 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
+#0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
 #5 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
 #10 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
 #15 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_blocked >/dev/null
@@ -60,11 +60,21 @@
 
 
 # ---------------------------------------------------------------------------------------------
-# 1. Player, Game - Pick reminder | Round locks within 3 days, no pick made
+# 1. Player, Game - Pick reminder | Round locks within 24 hours, no pick made
 #    Top of the list because it is the only email with a hard deadline. A killed one can cost a
 #    player a life, and no other email can make that up to them.
-# 9:00 AM
-#0 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
+#
+#    RUNS AN HOUR BEFORE THE REST, and the hour is load-bearing rather than tidy. A round is only
+#    eligible inside REMINDER_WINDOW_HOURS of its lock, so under a daily cron it is chased on the
+#    one run that falls inside that window or it is never chased at all. A 12:30 Saturday kickoff
+#    locks at 11:30; running at 08:00 gives that player three and a half hours, where 11:00 would
+#    give thirty minutes. Evening locks still get eleven hours on the morning of.
+#
+#    Modelled against every real round of the last 60 days plus the Saturday 12:30s expected this
+#    season: a 24-hour window misses none of them at this hour. The old 12 missed every evening
+#    lock from a 07:00 GMT run. If this line moves later, check services/pickReminder.js first.
+# 8:00 AM
+#0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
 
 # ---------------------------------------------------------------------------------------------
 # 2. Player, Game - Round Over | Round settled + next fixtures in

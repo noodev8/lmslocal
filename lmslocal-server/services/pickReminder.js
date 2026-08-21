@@ -11,7 +11,7 @@ a count of five and mails eight.
 
 The eligibility rules, all in findCandidates below:
   - competition is not COMPLETE (compared case-insensitively; the column holds upper case)
-  - round has a lock time, in the future, and within REMINDER_WINDOW_HOURS (48)
+  - round has a lock time, in the future, and within REMINDER_WINDOW_HOURS (24)
   - round has fixtures
   - player is still active in the competition
   - player has a real email (guest accounts use @lms-guest.com and are excluded)
@@ -29,30 +29,40 @@ const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 
 /*
-How close to the lock a round has to be before its players are chased. Narrowed from 3 days
-(2026-08-14), then from 48 hours to 12 (2026-08-18).
+How close to the lock a round has to be before its players are chased. 3 days -> 48h (2026-08-14)
+-> 12h (2026-08-18) -> 24h (2026-08-21, when this went on a daily cron).
 
 The email is ONCE PER PLAYER PER ROUND, so the window is not "when may we send" - it is "when does
 the one reminder get spent". Three days out was the worst moment to spend it: no urgency yet, the
 player thinks "later", and the queue guard means nothing follows.
 
-WHY 12 AND NOT 48. Sending is manual (no scheduler), so the operator is the one deciding when to
-press - the window only bounds who is ELIGIBLE to appear on the admin card, not when the reminder
-actually goes. 48 hours made a round eligible two days out, which read as "ready to send" long
-before the operator actually wanted to nag anyone. 12 hours means a round only shows up the
-morning of an evening kickoff - genuinely "the day of" - while still leaving the operator the
-whole day to press Send before lock.
+WHY 24, AND WHY IT MUST BE WIDER THAN THE CRON INTERVAL
 
-This assumes an operator checking in at least once within the 12-hour window, since there is still
-no cron. If sending is ever automated, this number needs revisiting - the old 48-hour comment's
-"wider than however often the sender runs, roughly doubled" logic still applies to a scheduled
-sender and would argue for widening it back up.
+The 12 was chosen while a person was pressing the button, and the reasoning depended on that: the
+window only bounded who APPEARED on the admin card, and the operator decided when to actually
+press. Under a daily cron the window decides both - a round is chased on the one run that falls
+inside it, or it is never chased at all, silently, because nobody qualified.
+
+12 hours against a 24-hour cron leaves a 12-hour band each day in which a lock gets no reminder at
+all. Modelled against all 33 real rounds of the last 60 days plus the Saturday 12:30 kickoffs
+expected this season: at a 07:00 run, 12 hours misses 24 of 37 - every evening lock, which sits 13
+hours out and is therefore outside the window at the only run that could catch it. 24 hours misses
+nothing at any run time between 07:00 and 11:00.
+
+THIS DOES NOT SEND ANYTHING A DAY EARLY, which is the thing 12 was protecting and the reason 48
+was rejected. At 07:00 the day BEFORE, an evening lock is 37 hours away and a Saturday 11:30 lock
+28.5 hours - both outside 24. So a round still becomes eligible on the morning of, exactly as
+before; what changes is that an early kickoff is no longer dropped on the floor. A 12:30 Saturday
+kickoff locks at 11:30 and now gets 3.5 hours' notice instead of nothing.
+
+KEEP THIS ABOVE THE CRON INTERVAL. If the sweep ever runs less often than daily, this number has to
+grow with it, roughly doubled - see docs/email/email-cron-priority-order.txt for the schedule.
 
 The bigger version - two reminders per round, one early and one close to the deadline - is
 foreclosed by the per-round queue guard, and would need a "which reminder is this" concept rather
 than a wider window. Deliberately not built.
 */
-const REMINDER_WINDOW_HOURS = 12;
+const REMINDER_WINDOW_HOURS = 24;
 
 /**
  * Find every player who should get a pick reminder.

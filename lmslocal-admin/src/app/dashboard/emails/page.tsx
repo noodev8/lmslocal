@@ -136,7 +136,7 @@ const OUTLINE: OutlineEmail[] = [
     name: 'Pick reminder',
     scoped: true,
     push: true,
-    note: 'Round locks within 3 days, no pick made',
+    note: 'Round locks within 24 hours, no pick made',
     focus: true,
     blurb:
       'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Once per player per round. Locks is their countdown, not an elapsed time.',
