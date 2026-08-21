@@ -890,6 +890,18 @@ function SendPanel({
                       <span className="font-medium text-slate-900">{count.toLocaleString()}</span>{' '}
                       {count === 1 ? 'person' : 'people'} waiting, after preferences and opt-outs
                     </p>
+                    {/*
+                      The MOST that can go, not the number that will. Anyone emailed in the last 48
+                      hours is marked as sent instead of emailed - see services/emailQuiet.js - so a
+                      send routinely reports fewer than this and that is not a failure.
+
+                      Deliberately a sentence rather than a second number. The real figure depends on
+                      what is sent BEFORE this, which is decided at the moment of pressing, so any
+                      count shown here would be out of date the instant another email went out.
+                    */}
+                    <p className="w-full text-xs text-slate-400">
+                      Up to. Anyone already emailed in the last 48 hours is marked as sent instead.
+                    </p>
                     <button
                       onClick={() => setSelected(allSelected ? new Set() : new Set(recipients.map(keyOf)))}
                       className="text-sm text-slate-500 underline-offset-2 hover:underline"

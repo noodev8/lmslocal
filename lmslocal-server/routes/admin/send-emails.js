@@ -17,6 +17,12 @@ That is deliberate - the destination is a cron, which cannot pick a competition 
 replacing them. It exists so a ticked row means the same thing to this route as it does to
 mark-emails-sent; the cron passes none and behaves exactly as before.
 
+MAGIC SEND applies to a live send from this button exactly as it does to the cron - both go
+through sendToAll. Anyone emailed in the last 48 hours is marked as sent rather than emailed, so
+sent_count is routinely lower than candidate_count and that is not a failure. Note what this button
+does NOT get: the crontab's ordering. Priority here is whatever the operator presses first, so a
+Round Over sent at 2pm takes the collisions from anything sent that evening.
+
 Two modes, and they are deliberately not the same code path:
 
   test_mode true  - builds ONE email for the first candidate and sends it to the test address.
@@ -49,6 +55,7 @@ Success Response (ALWAYS HTTP 200):
   "test_mode": true,                   // boolean, what actually happened
   "sent_count": 1,                     // integer, emails accepted by Resend
   "failed_count": 0,                   // integer, sends that came back with an error
+  "skipped_count": 2,                  // integer, marked as sent by magic send, live mode only
   "candidate_count": 3,                // integer, who qualified
   "sent_to": "aandreou25@gmail.com",   // string or null, set in test mode only
   "message": "..."                     // string, plain summary for the screen
@@ -209,16 +216,26 @@ router.post('/', verifyAdminToken, async (req, res) => {
     expected_count above, so truncating the send they just approved would be the surprise, not the
     safeguard. The cron passes one because nobody is watching it.
     */
-    const { sent: sentCount, failed: failedCount } = await sendToAll(entry, targets);
+    const { sent: sentCount, failed: failedCount, skipped: skippedCount } = await sendToAll(entry, targets);
 
+    /*
+    skipped_count is magic send: people who were emailed inside the last 48 hours and have been
+    marked as sent instead. Reported rather than folded into sent_count, because the two are not
+    the same event and the operator watching a count of 40 turn into "Sent 6" needs the other 34
+    accounted for on the same line or it reads as a failure.
+    */
     return res.json({
       return_code: 'SUCCESS',
       test_mode: false,
       candidate_count: targets.length,
       sent_count: sentCount,
       failed_count: failedCount,
+      skipped_count: skippedCount,
       sent_to: null,
-      message: `Sent ${sentCount} of ${targets.length}${failedCount > 0 ? `, ${failedCount} failed` : ''}.`
+      message: `Sent ${sentCount} of ${targets.length}`
+        + (skippedCount > 0 ? `, ${skippedCount} marked as sent (emailed in the last 48 hours)` : '')
+        + (failedCount > 0 ? `, ${failedCount} failed` : '')
+        + '.'
     });
 
   } catch (error) {

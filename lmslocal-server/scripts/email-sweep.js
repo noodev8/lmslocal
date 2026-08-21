@@ -40,6 +40,16 @@ row, and every candidate query excludes anyone who already has one - so a second
 That is what makes this safe to run as often as you like, in any order, by cron or by hand, and it
 is why there is no lock and no state of its own here.
 
+ORDER IN THE CRONTAB IS THE PRIORITY ORDER, and it is the only one - see services/emailQuiet.js.
+Anyone emailed in the last 48 hours is marked as sent rather than emailed, so whichever email runs
+first takes the collisions and the ones below it get whoever is left. Nothing is exempt, on purpose:
+a priority field in the code would be a second way to say what this file's order already says.
+
+STAGGER THE LINES BY A FEW MINUTES. Two lines at the same minute run at the same time, and then
+neither can see what the other sent - the rule is enforced by reading email_queue, and the row only
+exists once the send has happened. The queue row is written BEFORE the Resend call, so a few
+minutes is generous; the same clock minute is not.
+
 OUTPUT IS SILENT UNLESS SOMETHING HAPPENED, so a daily run does not accumulate a log forever. See
 the note by `log` below.
 =======================================================================================================================================
@@ -49,6 +59,7 @@ require('dotenv').config();
 const { closePool } = require('../database');
 const { entryFor, wiredTypes } = require('../services/emailCatalog');
 const { sendTest, sendToAll } = require('../services/emailSweep');
+const { findRecentlyEmailed } = require('../services/emailQuiet');
 
 const args = process.argv.slice(2);
 const emailType = args.find((a) => !a.startsWith('--')) || null;
@@ -129,10 +140,20 @@ const run = async () => {
     }
 
     if (isDryRun) {
+      /*
+      Marks each candidate magic send would decline, because the count on its own is the number
+      BEFORE the 48-hour rule and a dry run exists to show what a real run would do. Read live here
+      rather than reusing a send-time value: this branch never calls sendToAll.
+
+      It is a snapshot and says so. Anything sent between this run and the real one moves people
+      into the quiet period, and within a real run the set grows as it sends.
+      */
+      const quiet = await findRecentlyEmailed();
+      const quietCount = candidates.filter((c) => quiet.has(c.user_id)).length;
       const shown = candidates
-        .map((c) => `${c.user_email}${c.competition_id ? ` (comp ${c.competition_id})` : ''}`)
+        .map((c) => `${quiet.has(c.user_id) ? '[48h] ' : '      '}${c.user_email}${c.competition_id ? ` (comp ${c.competition_id})` : ''}`)
         .join('\n  ');
-      log(`${candidates.length} candidate(s):\n  ${shown}`);
+      log(`${candidates.length} candidate(s), ${quietCount} would be marked as sent [48h]:\n  ${shown}`);
 
     } else if (isTest) {
       const result = await sendTest(entry, candidates[0]);
@@ -143,8 +164,8 @@ const run = async () => {
       }
 
     } else {
-      const { sent, failed } = await sendToAll(entry, candidates);
-      log(`${candidates.length} candidate(s), ${sent} sent, ${failed} failed.`);
+      const { sent, failed, skipped } = await sendToAll(entry, candidates);
+      log(`${candidates.length} candidate(s), ${sent} sent, ${skipped} marked as sent (emailed inside 48h), ${failed} failed.`);
     }
 
     note(`done in ${((Date.now() - started) / 1000).toFixed(1)}s.`);

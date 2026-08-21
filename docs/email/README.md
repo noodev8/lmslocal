@@ -1103,6 +1103,140 @@ the screen's rule, not the route's.
 being a person, which is the test each step had to pass. Digests below are the next layer and are
 independent of this one — they change what gets *queued*, not how it is sent.
 
+---
+
+## Magic send — one email per person per 48 hours (built 2026-08-21)
+
+**The rule:** before a live send, anyone who has had an email from us in the last **48 hours** is
+**marked as sent instead of emailed**. Built at the start of the football season, with several
+emails about to go on the cron at once.
+
+It was not theoretical. Twelve people had already received two emails inside 48 hours while daily
+volume went from 3 to 61 in nine days (11–20 Aug), and every email added to the crontab multiplies
+the collisions rather than adding to them.
+
+### It kills, it does not hold
+
+This is the whole design, and the thing to re-read before changing it.
+
+A **held** candidate has no answer to "how long for". They come back tomorrow, lose again to
+whatever is higher up the crontab, and the queue never drains. **Killing has an answer.**
+
+The argument for it being acceptable: the person has had an email from us inside two days, that
+email carries a link to the app, and the app is where the actual state lives. A second email would
+be a prompt to do something they have already been prompted to do.
+
+**The cost is real and permanent, and was accepted with it in view.** Every once-ever guard is
+`NOT EXISTS (... AND eq.email_type = X)` with no condition on status, so a row written by magic
+send means that person **never** gets that email. Somebody who happens to receive a Round Over
+email on the Saturday morning does not get their Welcome email at all.
+
+Two cases where that visibly costs something, both known and both accepted:
+
+- **`join_blocked`** is not a nudge — it tells an organiser they are at the free limit and losing
+  players who tried to join. Killing it trades a sale for an email credit. **Deliberately given no
+  preference** (2026-08-21): whether it matters is to be judged from real manual sends rather than
+  guessed at now.
+- **`pick_reminder`** is the only email with a hard deadline; a killed one can cost a player a
+  life.
+
+Both are handled by putting them at the top of the crontab, not by code.
+
+### Nothing is exempt, on purpose
+
+There is no per-email opt-out and no priority field, because **there is already a priority
+mechanism and it is the crontab**: the email at the top runs first, takes the collisions, and
+everything below it gets whoever is left. A priority field in the code would be a second way to say
+what the crontab order already says, and the two could disagree — the same argument that keeps the
+schedule itself out of `emailCatalog.js`.
+
+**Stagger the crontab lines by a few minutes.** Two lines at the same minute run at the same time,
+and then neither can see what the other sent — the rule is enforced by reading `email_queue`, and
+the row only exists once the send has happened. The queue row is written *before* the Resend call,
+so a few minutes is generous; the same clock minute is not.
+
+**The Send button does not get the crontab's ordering.** Priority there is whatever the operator
+presses first, so a Round Over sent at 2pm takes the collisions from anything sent that evening.
+
+### Where it lives
+
+`services/emailQuiet.js` — the rule, the window and the argument. Applied inside `sendToAll` in
+`services/emailSweep.js`, which is the single path **both** live senders take: the admin Send button
+and the cron.
+
+**Not in `deliver()`,** despite that being where the opt-out rule lives. `deliver()` knows nothing
+about the queue row, cannot defer, and its `suppressed` return lands in the failure branch — which
+would mark the row `failed` and retry it forever.
+
+**Not in test mode.** `sendTest` writes nothing and sends one copy to the test address; a quiet
+period that hid the sample would make it impossible to preview an email during a busy week.
+
+### How it reads and writes
+
+Reading — one query per run, **not narrowed to the candidate list**:
+
+```sql
+SELECT DISTINCT user_id FROM email_queue
+WHERE status = 'sent' AND sent_at >= NOW() - interval '48 hours'
+```
+
+The obvious shape is `WHERE user_id = ANY($candidates)` and it is the wrong one: that array grows
+with the player count. Unfiltered, the result is bounded by **send volume in 48 hours** — a number
+we control — so it stays small however many players there are.
+
+`status = 'sent' AND sent_at`, never `email_tracking`: `email_tracking.sent_at` defaults to insert
+time and is therefore set on rows that were never delivered. Verified against live data — every
+`sent` row carries `sent_at` and no `skipped` row does, so a magic-send row can never suppress a
+later email itself.
+
+**The set is kept up to date as the run sends.** A scoped email swept platform-wide yields one row
+per competition, so an organiser with two empty competitions appears twice in one list — without
+this they would get both emails in the same second, the most flagrant possible breach of the rule.
+They get the first; the second is marked as sent.
+
+Writing — through `emailSkip.insertSkipRows`, status `skipped`, so it is already excluded from
+candidacy and from the screen's `sent_recently` with no new status vocabulary. Rows carry
+`magic_send: true` in `template_data`:
+
+```sql
+-- how many did it decline?
+SELECT COUNT(*) FROM email_queue WHERE template_data->>'magic_send' = 'true';
+-- undo a run
+DELETE FROM email_queue WHERE template_data->>'magic_send' = 'true' AND created_at >= '...';
+```
+
+A **flag** rather than matching the reason sentence: these rows are permanent by design, so the one
+thing that must stay possible is finding them again, and a wording change would orphan every
+earlier row from an exact-match query.
+
+The insert is **chunked** — five parameters per row against Postgres's 65535-parameter statement
+cap means one statement dies above 13,107 rows. The operator ticking boxes was never going to reach
+that; magic send hands the helper every candidate a sweep declined, which is exactly the list that
+will.
+
+### What the admin screen shows
+
+**The count is the maximum, not the forecast** — and deliberately so. The real figure depends on
+what is sent *before* it, which is decided at the moment of pressing, so any number shown would be
+out of date the instant another email went out. The panel says "Up to" in a sentence rather than
+carrying a second number.
+
+A live send reports `skipped_count` alongside `sent_count`, and the message says so: *"Sent 6 of
+40, 34 marked as sent (emailed in the last 48 hours)."* Without that line, a count of 40 turning
+into "Sent 6" reads as a failure.
+
+`node scripts/email-sweep.js <type> --dry-run` marks each candidate it would decline with `[48h]`.
+
+### Requires an index
+
+```sql
+CREATE INDEX idx_email_queue_sent_recent ON email_queue (sent_at) WHERE status = 'sent';
+```
+
+Created 2026-08-21. Without it the quiet-set query is a scan of the whole table.
+
+---
+
 ## Digests — one email when several competitions qualify
 
 **Agreed 2026-08-12. Not built.** Everything below is the design to build against, not a
@@ -1333,6 +1467,29 @@ The test address is `EMAIL_TEST_RECIPIENT`, falling back to `aandreou25@gmail.co
    document specifies an individual email's trigger, content or timing; that is per-email work.
 
 A one-line description per row on the outline would help step 4 — Andreas to add if useful.
+
+---
+
+---
+
+## Considerations of scale
+
+Nothing here is a problem today. It is the list of things that **become** problems as volume grows,
+kept so that a slow screen or a failed send in six months is a lookup rather than an investigation.
+Ballpark being planned against: **~24,000 players within 12 months** (next season).
+
+Add to this list whenever something is built with a known ceiling, rather than fixing it early.
+
+| Area | What breaks | When it bites | Fix when needed |
+|---|---|---|---|
+| `admin/get-email-targets` | Runs one `findCandidates` per catalog entry, **sequentially**, each a full pass over every competition. Already the heaviest screen on the platform, and made wider when the competition filter became optional. | Screen load time — well before anything else on this list. | Cache the counts with a short TTL, or work them out on a schedule and read the cached row. Do **not** just parallelise: the comment in the route explains why one at a time keeps it off the pool's 20-connection limit. |
+| `email_queue` growth | 24k players × several emails a week is millions of rows a season, and the once-ever guards are `NOT EXISTS` lookups against it on every candidate query. | Candidate queries slow as the table grows. | `idx_email_queue_unique_check` covers the guard. Beyond that, archive rows older than a season to a history table rather than deleting — the guards need "ever". |
+| Magic send quiet set | One `SELECT DISTINCT user_id`, bounded by send volume in 48h rather than by player count — chosen for exactly this reason. At 24k players it could still be a five-figure set held in memory per run. | Only if 48h volume gets very large. | Still fine as a Set; if not, move the check into each candidate query as a `NOT EXISTS`, at the cost of it no longer being in one place. |
+| Magic send skip insert | Chunked at 500 rows against Postgres's 65535-parameter statement cap. | Handled. | Nothing — noted so the chunking is not "simplified" away later. |
+| `sendToAll` | Strictly sequential, one Resend call at a time, no concurrency and no rate limiting. A big send is a long-running HTTP request from the admin button and a long-running cron job. | A single competition big enough that the request times out. | The `cap` option already exists and is unused by both callers. Give the button a cap and drain across runs — see the deferred "One press: drain, then send" section. |
+| Resend daily allowance | Tracked by `admin/get-email-volume` against a daily limit. | The allowance itself, before anything technical does. | Watch the Emails screen's volume card. Magic send exists partly to push this out. |
+| `email_tracking` | One row per send, written alongside every queue row, never pruned. It carries opens and clicks, so it is the more valuable of the two. | Same curve as `email_queue`. | Archive with `email_queue`, same season boundary. |
+| Unsubscribe token | One opaque token per `app_user`; no index on it is recorded anywhere. | Lookup on every unsubscribe click. | Check for an index on the token column before it matters. |
 
 ---
 

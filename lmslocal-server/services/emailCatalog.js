@@ -256,4 +256,23 @@ function wiredTypes() {
   return Object.keys(CATALOG);
 }
 
-module.exports = { CATALOG, entryFor, wiredTypes };
+/**
+ * The key an entry is filed under - entryFor backwards.
+ *
+ * services/emailSweep.js needs the email type to write a magic-send row, and is handed only the
+ * entry. Both its callers know the type and could pass it, and that is exactly the arrangement to
+ * avoid: an optional argument the cron could omit would file skips under the wrong email type,
+ * silently, for the one caller nobody is watching. Looking it up here cannot be forgotten.
+ *
+ * Matched on object identity, which is safe for the three hints: they share a builder and a
+ * sender but each has its own entry object here.
+ *
+ * @param {object} entry - a CATALOG entry
+ * @returns {string|null}
+ */
+function typeFor(entry) {
+  const found = Object.entries(CATALOG).find(([, value]) => value === entry);
+  return found ? found[0] : null;
+}
+
+module.exports = { CATALOG, entryFor, wiredTypes, typeFor };

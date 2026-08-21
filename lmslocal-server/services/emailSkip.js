@@ -47,14 +47,35 @@ const { query } = require('../database');
  * three straight off the candidate, which is what makes one shared helper safe here - see the
  * recount in markSkipped for the check that this stays true.
  *
+ * WRITTEN IN CHUNKS. A single INSERT carries five parameters per row and Postgres caps a statement
+ * at 65535 of them, so one statement dies above 13,107 rows. The operator ticking boxes was never
+ * going to reach that; magic send hands this function every candidate a sweep declined to email,
+ * which at the volumes this platform is heading for is exactly the list that will. The chunk size
+ * is well under the cap rather than at it, because the cap is on parameters and the parameters per
+ * row would change if a column were ever added here.
+ *
  * @param {string} emailType - the catalog key
  * @param {Array<object>} candidates - rows from the service's findCandidates
  * @param {string} [reason] - free text stored on the row, for whoever reads the queue later
+ * @param {object} [extra] - merged into template_data, for a caller that must find its rows again
  * @returns {Promise<number>} rows written
  */
-async function insertSkipRows(emailType, candidates, reason) {
+const CHUNK_ROWS = 500;
+
+async function insertSkipRows(emailType, candidates, reason, extra = {}) {
   if (candidates.length === 0) return 0;
 
+  let written = 0;
+
+  for (let start = 0; start < candidates.length; start += CHUNK_ROWS) {
+    written += await insertChunk(emailType, candidates.slice(start, start + CHUNK_ROWS), reason, extra);
+  }
+
+  return written;
+}
+
+/** One INSERT. Never called with more than CHUNK_ROWS candidates - see insertSkipRows. */
+async function insertChunk(emailType, candidates, reason, extra) {
   const values = [];
   const params = [];
 
@@ -75,7 +96,8 @@ async function insertSkipRows(emailType, candidates, reason) {
       JSON.stringify({
         skipped: true,
         skipped_at: new Date().toISOString(),
-        reason: reason || 'Marked as sent from the admin Emails screen'
+        reason: reason || 'Marked as sent from the admin Emails screen',
+        ...extra
       })
     );
   });

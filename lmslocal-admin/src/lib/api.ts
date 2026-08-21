@@ -689,6 +689,8 @@ export type SendEmailsResponse = ApiResponse & {
   test_mode?: boolean;
   sent_count?: number;
   failed_count?: number;
+  /* Magic send: emailed inside the last 48 hours, so marked as sent instead. Live mode only. */
+  skipped_count?: number;
   candidate_count?: number;
   /* Set in test mode only - where the single copy actually went. */
   sent_to?: string | null;

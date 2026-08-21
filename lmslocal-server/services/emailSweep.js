@@ -24,6 +24,9 @@ This service is handed a final list and does what it is told with it.
 */
 
 const { query } = require('../database');
+const { typeFor } = require('./emailCatalog');
+const { insertSkipRows } = require('./emailSkip');
+const { findRecentlyEmailed, MAGIC_SEND_MARK, MAGIC_SEND_REASON } = require('./emailQuiet');
 
 /**
  * Send one test copy of an email to the test address, writing nothing.
@@ -52,12 +55,17 @@ async function sendTest(entry, candidate, options = {}) {
  * stops a crash midway through leaving people who were queued but never sent looking ineligible
  * forever.
  *
+ * MAGIC SEND is applied here and only here, because this function is the single path both live
+ * senders take - the admin Send button and the cron. Anyone emailed inside the quiet period is
+ * marked as sent instead of being emailed; services/emailQuiet.js carries the argument for why
+ * that is a kill rather than a hold, and what it permanently costs.
+ *
  * @param {object} entry - a catalog entry from services/emailCatalog.js
  * @param {Array} candidates - the final list, already narrowed by the caller
  * @param {object} [options]
  * @param {number} [options.cap] - stop after this many, leaving the rest for the next run
  * @param {function} [options.onProgress] - called per person, for a script that wants to log
- * @returns {Promise<{sent: number, failed: number, attempted: number, capped: boolean}>}
+ * @returns {Promise<{sent: number, failed: number, skipped: number, attempted: number, capped: boolean}>}
  */
 async function sendToAll(entry, candidates, options = {}) {
   const { cap = null, onProgress = null } = options;
@@ -68,7 +76,26 @@ async function sendToAll(entry, candidates, options = {}) {
   let sent = 0;
   let failed = 0;
 
+  /*
+  One query for the whole run, not one per candidate. See findRecentlyEmailed for why it is not
+  narrowed to this candidate list.
+
+  The set is then kept up to date AS WE SEND, which is the part that is easy to miss: a scoped
+  email swept platform-wide yields one row per competition, so an organiser with two empty
+  competitions appears twice in a single list. Without the running update they would receive both
+  emails in the same second - the most flagrant possible breach of the rule this is here to
+  enforce. They get the first and the second is marked as sent.
+  */
+  const quiet = await findRecentlyEmailed();
+  const skipped = [];
+
   for (const candidate of targets) {
+    if (quiet.has(candidate.user_id)) {
+      skipped.push(candidate);
+      if (onProgress) onProgress({ candidate, ok: false, skipped: true });
+      continue;
+    }
+
     const queued = await entry.service.queueCandidate(candidate);
 
     if (!queued.success) {
@@ -89,6 +116,7 @@ async function sendToAll(entry, candidates, options = {}) {
         [result.resend_message_id, queued.template_data.email_tracking_id]
       );
       sent++;
+      quiet.add(candidate.user_id);
       if (onProgress) onProgress({ candidate, ok: true });
     } else {
       /*
@@ -107,7 +135,35 @@ async function sendToAll(entry, candidates, options = {}) {
     }
   }
 
-  return { sent, failed, attempted: targets.length, capped };
+  /*
+  Written after the loop rather than one at a time. These rows are bookkeeping - nothing reads them
+  until the next run - so there is no reason to pay a round trip per person, and a single bulk
+  insert is what keeps a sweep that declines thousands of people cheap. insertSkipRows chunks it.
+
+  Deliberately NOT inside a transaction with the sends. A send cannot be rolled back, so a failure
+  here must not be able to undo one; the worst case is that the skip rows are missing and those
+  people are simply candidates again on the next run, which is the safe direction.
+  */
+  if (skipped.length > 0) {
+    const emailType = typeFor(entry);
+
+    /*
+    Refuse rather than write. A skip row's email_type is what the once-ever guard reads, so a null
+    would write rows that no guard matches - the people would still be waiting and nothing would
+    say why, permanently and silently. The only way to get here is an entry that is not the catalog
+    object itself, which is a programming error in a caller, so it should be loud.
+
+    Thrown AFTER the sends, which is deliberate: whatever went out stays out, and the skips are
+    simply not recorded, leaving those people as candidates again next run.
+    */
+    if (!emailType) {
+      throw new Error('emailSweep: entry is not a catalog entry, refusing to write skip rows for it');
+    }
+
+    await insertSkipRows(emailType, skipped, MAGIC_SEND_REASON, MAGIC_SEND_MARK);
+  }
+
+  return { sent, failed, skipped: skipped.length, attempted: targets.length, capped };
 }
 
 module.exports = { sendTest, sendToAll };
