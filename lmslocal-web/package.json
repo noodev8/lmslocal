@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "build-help": "node scripts/build-help.js"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

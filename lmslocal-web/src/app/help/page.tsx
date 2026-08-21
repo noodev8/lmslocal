@@ -1,168 +1,148 @@
 import Link from 'next/link';
+import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 export const metadata = {
-  title: 'Help Center - LMSLocal',
-  description: 'Learn how to create and manage Last Man Standing competitions for your pub, workplace, or club.',
+  title: 'Help Centre - LMSLocal',
+  description:
+    'How to run and play a Last Man Standing competition: the rules, setting one up for your pub, workplace or club, joining as a player, and answers to the common questions.',
+  alternates: { canonical: 'https://lmslocal.co.uk/help' },
+  openGraph: {
+    title: 'LMSLocal Help Centre',
+    description:
+      'The rules, setting up a competition, joining as a player, and answers to the questions organisers and players actually ask.',
+    type: 'website'
+  }
 };
+
+/**
+ * Help home. Built to the coupon design system — see docs/design-system.md.
+ *
+ * The old version was three panels of links to the same six pages the sidebar already lists,
+ * plus its own copy of the contact panel the layout appends to every help page. This is one
+ * ruled index instead: each destination gets a line saying what is actually on it, which is the
+ * only thing a landing page here can add over the navigation.
+ */
+
+const DESTINATIONS = [
+  {
+    href: '/help/how-to-play',
+    title: 'How to play',
+    blurb:
+      'The rules in full. What a draw does to your pick, why regulation time is the only thing that counts, how lives work, and what happens when you have used every team.',
+    who: 'Everyone'
+  },
+  {
+    href: '/help/getting-started/organizers',
+    title: 'Setting up a competition',
+    blurb:
+      'Creating one, choosing whether we run the fixtures or you do, inviting players, and what happens each round once it is live.',
+    who: 'Organisers'
+  },
+  {
+    href: '/help/getting-started/players',
+    title: 'Joining and playing',
+    blurb: 'Getting in with an invite code, making and changing your pick, and following how you are doing.',
+    who: 'Players'
+  },
+  {
+    href: '/help/faq',
+    title: 'Frequently asked questions',
+    blurb:
+      'Thirty-odd short answers, grouped by whether you are playing or running it. The fastest route if you already know what you want to ask.',
+    who: 'Everyone'
+  },
+  {
+    href: '/help/support',
+    title: 'Contact us',
+    blurb: 'A real person reads these and replies, usually the same day. No account needed.',
+    who: 'Everyone'
+  }
+];
+
+/* The handful of things people arrive already wanting to know. Deep links into the FAQ. */
+const QUICK_ANSWERS = [
+  { href: '/help/faq#does-a-draw-count-as-a-win', q: 'Does a draw count as a win?', a: 'No. A draw costs you the same as a defeat.' },
+  { href: '/help/faq#can-i-change-my-pick', q: 'Can I change my pick?', a: 'Yes, right up until the round locks.' },
+  {
+    href: '/help/faq#what-happens-when-i-run-out-of-teams',
+    q: 'What if I run out of teams?',
+    a: 'They all come back and you start the list again.'
+  },
+  { href: '/help/faq#how-much-does-it-cost', q: 'What does it cost to run?', a: 'Your first 20 player places are free.' }
+];
 
 export default function HelpHomePage() {
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Hero Section */}
-      <div className="border border-ink/30 bg-stock-lit p-8 mb-8">
-        <h1 className="text-4xl font-bold text-ink mb-4">
-          Welcome to LMSLocal Help Center
-        </h1>
-        <p className="text-xl leading-relaxed text-ink mb-6">
-          Everything you need to know about running Last Man Standing competitions for your pub, workplace, or club.
+    <div className="max-w-3xl">
+      <h1 className={`${HEADING} text-5xl sm:text-6xl`}>Help centre</h1>
+      <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-ink">
+        Everything about running a Last Man Standing competition for your pub, workplace or club
+        &mdash; and about playing in one.
+      </p>
+
+      {/* ------------------------------------------------------------ quick answers */}
+      <section className="mt-12 border-t border-ink/30 pt-10">
+        <p className={`${EYEBROW} text-overprint`}>Asked most often</p>
+
+        <div className="mt-6 grid gap-px border border-ink/30 bg-ink/30 sm:grid-cols-2">
+          {QUICK_ANSWERS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="bg-stock-lit p-5 transition-colors hover:bg-stock focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+            >
+              <p className={`${LABEL} text-ink-fade`}>{item.q}</p>
+              <p className="mt-2 text-[17px] leading-relaxed text-ink">{item.a}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------- destinations */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <p className={`${EYEBROW} text-ink-fade`}>Browse</p>
+
+        <dl className="mt-6 divide-y divide-ink/30 border-y border-ink/30">
+          {DESTINATIONS.map((d) => (
+            <div key={d.href} className="py-7 first:pt-6 last:pb-6">
+              <dt className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <Link
+                  href={d.href}
+                  className={`${HEADING} text-2xl tracking-[0.02em] underline decoration-ink/30 decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint hover:decoration-overprint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink`}
+                >
+                  {d.title}
+                </Link>
+                <span className={`${LABEL} text-ink-fade`}>{d.who}</span>
+              </dt>
+              <dd className="mt-2 text-[17px] leading-relaxed text-ink">{d.blurb}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* ---------------------------------------------------------------- new here? */}
+      <section className={`${PANEL} mt-14 p-6 sm:p-7`}>
+        <p className={`${EYEBROW} text-overprint`}>Not started yet?</p>
+        <h2 className={`${HEADING} mt-3 text-3xl`}>Set one up in five minutes</h2>
+        <p className="mt-3 max-w-lg text-[17px] leading-relaxed text-ink">
+          Twenty player places are free and stay free. There is no card to enter and nothing to
+          install &mdash; yours or your players&apos;.
         </p>
-        <div className="flex flex-wrap gap-4">
+        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
           <Link
-            href="/help/getting-started/organizers"
-            className="inline-flex items-center px-4 py-2 rounded-sm bg-overprint font-display uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90"
+            href="/register"
+            className="rounded-sm bg-overprint px-6 py-3 font-display text-xl uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            <span className="mr-2">🚀</span>
-            Quick Start Guide
+            Create a competition
           </Link>
           <Link
-            href="/help/how-to-play"
-            className="inline-flex items-center px-4 py-2 bg-stock-lit text-ink border border-ink/30 rounded-none hover:bg-stock-lit transition-colors"
+            href="/pricing"
+            className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint`}
           >
-            <span className="mr-2">🏆</span>
-            Learn How to Play
+            What it costs
           </Link>
         </div>
-      </div>
-
-      {/* Quick Links Grid */}
-      <div className="mb-8">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">Browse Help Topics</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Link
-            href="/help/how-to-play"
-            className="border border-ink/30 bg-stock-lit p-6 transition-colors hover:border-ink"
-          >
-            <div className="mb-4">
-              <span className="text-2xl">▶️</span>
-            </div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">
-              How to Play
-            </h3>
-            <p className="text-[15px] text-ink-fade">
-              Learn the basics of Last Man Standing competitions
-            </p>
-          </Link>
-
-          <Link
-            href="/help/getting-started/organizers"
-            className="border border-ink/30 bg-stock-lit p-6 transition-colors hover:border-ink"
-          >
-            <div className="mb-4">
-              <span className="text-2xl">👥</span>
-            </div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">
-              For Organizers
-            </h3>
-            <p className="text-[15px] text-ink-fade">
-              Set up and manage your first competition
-            </p>
-          </Link>
-
-          <Link
-            href="/help/getting-started/players"
-            className="border border-ink/30 bg-stock-lit p-6 transition-colors hover:border-ink"
-          >
-            <div className="mb-4">
-              <span className="text-2xl">⚽</span>
-            </div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">
-              For Players
-            </h3>
-            <p className="text-[15px] text-ink-fade">
-              Join competitions and start making picks
-            </p>
-          </Link>
-
-          <Link
-            href="/help/faq"
-            className="border border-ink/30 bg-stock-lit p-6 transition-colors hover:border-ink"
-          >
-            <div className="mb-4">
-              <span className="text-2xl">❓</span>
-            </div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">
-              FAQ
-            </h3>
-            <p className="text-[15px] text-ink-fade">
-              Answers to commonly asked questions
-            </p>
-          </Link>
-
-          <Link
-            href="/help/support"
-            className="border border-ink/30 bg-stock-lit p-6 transition-colors hover:border-ink"
-          >
-            <div className="mb-4">
-              <span className="text-2xl">📞</span>
-            </div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">
-              Contact Support
-            </h3>
-            <p className="text-[15px] text-ink-fade">
-              Get in touch with our support team
-            </p>
-          </Link>
-        </div>
-      </div>
-
-      {/* Popular Topics */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">Popular Topics</h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Link
-            href="/help/getting-started/organizers"
-            className="flex items-center text-ink underline decoration-dotted underline-offset-4 hover:text-overprint"
-          >
-            <span className="mr-2">→</span>
-            Getting started as an organizer
-          </Link>
-          <Link
-            href="/help/getting-started/players"
-            className="flex items-center text-ink underline decoration-dotted underline-offset-4 hover:text-overprint"
-          >
-            <span className="mr-2">→</span>
-            Getting started as a player
-          </Link>
-          <Link
-            href="/help/how-to-play"
-            className="flex items-center text-ink underline decoration-dotted underline-offset-4 hover:text-overprint"
-          >
-            <span className="mr-2">→</span>
-            How to play Last Man Standing
-          </Link>
-          <Link
-            href="/help/support"
-            className="flex items-center text-ink underline decoration-dotted underline-offset-4 hover:text-overprint"
-          >
-            <span className="mr-2">→</span>
-            Contact our support team
-          </Link>
-        </div>
-      </div>
-
-      {/* Contact Support */}
-      <div className="border border-ink/30 bg-stock-lit p-8 text-center">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-4">Still Need Help?</h2>
-        <p className="text-[17px] leading-relaxed text-ink mb-6">
-          Can&apos;t find what you&apos;re looking for? Our support team is here to help you get the most out of LMSLocal.
-        </p>
-        <a
-          href="mailto:lmslocal8@gmail.com"
-          className="inline-flex items-center px-6 py-3 rounded-sm bg-overprint font-display uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90"
-        >
-          📧 lmslocal8@gmail.com
-        </a>
-      </div>
+      </section>
     </div>
   );
 }

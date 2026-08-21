@@ -1,278 +1,532 @@
+import Link from 'next/link';
+import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
+
 export const metadata = {
   title: 'Frequently Asked Questions - LMSLocal Help',
-  description: 'Get answers to common questions about Last Man Standing competitions, organizing events, player rules, and technical support.',
-  keywords: 'last man standing FAQ, help, questions, competition rules, technical support',
+  description:
+    'Answers to common questions about Last Man Standing: what a draw does to your pick, when picks lock, lives, resets, credits, and running a competition for your pub, workplace or club.',
+  keywords:
+    'last man standing FAQ, last man standing rules, does a draw count, when do picks lock, competition rules, football sweepstake help',
+  alternates: { canonical: 'https://lmslocal.co.uk/help/faq' },
   openGraph: {
-    title: 'Frequently Asked Questions',
-    description: 'Get answers to common questions about Last Man Standing competitions and LMSLocal platform.',
-    type: 'article',
+    title: 'Last Man Standing: Frequently Asked Questions',
+    description:
+      'What happens on a draw, when picks lock, how lives work, what a reset costs — the questions organisers and players actually ask.',
+    type: 'article'
   }
 };
 
+/*
+  The FAQ is data, not markup.
+
+  Two reasons. Google's FAQPage rich result needs every question and answer a second time as
+  JSON-LD, and a hand-maintained copy of a page's own text drifts the moment somebody edits one
+  and not the other — at which point the structured data is a lie we are actively publishing.
+  Here the page and the schema are rendered from the same array, so they cannot disagree.
+
+  Second, answers are plain strings rather than JSX so they can be flattened to text for the
+  schema. That also means writing an apostrophe as an apostrophe: React escapes on render, so
+  none of the &apos; noise the hand-written version was carrying.
+*/
+
+type Block = { p: string } | { ul: string[] } | { ol: string[] };
+
+type Faq = {
+  q: string;
+  a: Block[];
+};
+
+type Section = {
+  id: string;
+  title: string;
+  faqs: Faq[];
+};
+
+const SECTIONS: Section[] = [
+  {
+    id: 'general',
+    title: 'The basics',
+    faqs: [
+      {
+        q: 'What is Last Man Standing?',
+        a: [
+          {
+            p: 'An elimination competition. Each round you pick one team you think will win. If they win, you go through to the next round. If they lose or draw, you are out — or you lose a life, if your competition gives you one. Players drop away week by week until somebody is the last one standing.'
+          }
+        ]
+      },
+      {
+        q: 'Does a draw count as a win?',
+        a: [
+          {
+            p: 'No. Your team has to win. A draw is treated exactly the same as a defeat: it costs you a life, or puts you out if you have none left. This catches more people out than anything else in the game, so it is worth saying plainly before you pick a team you fancy for a point.'
+          }
+        ]
+      },
+      {
+        q: 'Is extra time or penalties included in the result?',
+        a: [
+          {
+            p: 'No. Results are judged on regulation time only — the ninety minutes plus stoppage time. If a cup tie is level at full time and your team goes on to win in extra time or on penalties, the pick still counts as a draw and you still lose a life.'
+          },
+          {
+            p: 'It is the standard Last Man Standing convention and it removes any argument about which scoreline counted.'
+          }
+        ]
+      },
+      {
+        q: 'How much does it cost?',
+        a: [
+          {
+            p: 'Players: nothing. Joining is free. Your organiser may run their own entry fee or kitty, which is between you and them and has nothing to do with us.'
+          },
+          {
+            p: 'Organisers: your first 20 places are free and yours for good, no card needed. They are shared across everything you run, not 20 per competition. Every player past that uses a credit, and credits come in packs starting at £10 for 20 more places.'
+          }
+        ]
+      },
+      {
+        q: 'Can I play on mobile?',
+        a: [
+          {
+            p: 'Yes. It works in any browser on a phone, tablet or computer — there is nothing to install, and most players do the whole thing on their phone.'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'playing',
+    title: 'Playing',
+    faqs: [
+      {
+        q: 'How do I join a competition?',
+        a: [
+          {
+            p: 'Your organiser gives you an invite code. Enter it in the join box on the LMSLocal home page, then sign in or create an account. If they sent you a link instead, the code is already in it — just follow the link.'
+          },
+          {
+            p: 'You can only join before round 1 locks. After that the competition is closed and you will have to wait for the next one.'
+          }
+        ]
+      },
+      {
+        q: 'Can I change my pick?',
+        a: [
+          {
+            p: 'Yes — right up until the round locks. You can switch to a different team as often as you like, or clear your pick and come back to it later. Once the deadline passes, whatever is showing is your pick and it can no longer be changed.'
+          }
+        ]
+      },
+      {
+        q: 'When do picks lock?',
+        a: [
+          {
+            p: 'At the deadline your organiser sets for that round. There is no automatic buffer before kick-off, so do not assume it is an hour before the first match — it might be, or it might not.'
+          },
+          { p: 'The deadline is shown on your dashboard and again on the pick screen. Check it there rather than guessing.' }
+        ]
+      },
+      {
+        q: 'What if I forget to pick?',
+        a: [
+          { p: 'Missing the deadline counts the same as a losing pick. You lose a life, or you are eliminated if you had none left.' }
+        ]
+      },
+      {
+        q: 'Can I use the same team twice?',
+        a: [
+          {
+            p: 'Usually not — most competitions run the "no team twice" rule, so once you have used a team they are gone from your list. Your organiser chooses this when they set the competition up, and it cannot be changed once round 1 has started.'
+          }
+        ]
+      },
+      {
+        q: 'What happens when I run out of teams?',
+        a: [
+          {
+            p: 'Every team comes back. Once you have used all of them, your list resets and the whole roster is available to you again from the next round.'
+          },
+          {
+            p: 'It happens per player rather than per competition, so somebody who joined later still has their own teams to work through. Worth planning for: the last few rounds before a reset are the ones where people get stuck with nobody good left.'
+          }
+        ]
+      },
+      {
+        q: 'Can I join multiple competitions?',
+        a: [{ p: 'Yes, as many as you like on one account. Your picks and your used teams are tracked separately in each one.' }]
+      },
+      {
+        q: 'How do I know if I am eliminated?',
+        a: [
+          {
+            p: 'Your dashboard shows your status and how many lives you have left. If you are out, it says so and tells you which round you went out in.'
+          }
+        ]
+      },
+      {
+        q: 'Can other players see my picks?',
+        a: [
+          {
+            p: 'Not before the deadline. Until the round locks, your pick is yours alone — nobody else can see it, including players who have already picked.'
+          },
+          {
+            p: 'Once the round locks, everybody’s picks become visible on the standings. That is the point at which the second-guessing starts.'
+          }
+        ]
+      },
+      {
+        q: 'What happens if my team’s match is postponed?',
+        a: [
+          {
+            p: 'That is your organiser’s call — there is no automatic "void" outcome. A fixture with no result entered simply stays unresulted, and the round does not finish until it has one.'
+          },
+          {
+            p: 'Some organisers wait for the rearranged match, others decide the pick counts as a win. Ask yours what they do before it comes up.'
+          }
+        ]
+      },
+      {
+        q: 'Can eliminated players rejoin?',
+        a: [
+          {
+            p: 'Not under your own steam — elimination is final from the player’s side. Your organiser can put somebody back in by hand if they judge it fair, but that is entirely their decision, so ask rather than expect.'
+          },
+          { p: 'A competition reset is the other route: it starts the whole thing again with everybody back in.' }
+        ]
+      },
+      {
+        q: 'How are ties handled?',
+        a: [
+          {
+            p: 'If the last remaining players are all eliminated in the same round, nobody is left standing and they share the win. How that translates into a prize is for your organiser to decide — commonly the pot is split, or the competition is reset and run again.'
+          }
+        ]
+      },
+      {
+        q: 'How long does a competition last?',
+        a: [
+          {
+            p: 'Until somebody wins, which is a matter of luck rather than a fixed length. Small competitions can be over in five or six rounds. A big one can run most of a season, especially with lives in play.'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'organising',
+    title: 'Running a competition',
+    faqs: [
+      {
+        q: 'How many players can join?',
+        a: [
+          {
+            p: 'As many as you like — there is no cap on the size of a competition. Your first 20 places are free across everything you run, and each player after that uses a credit, so a big competition is a question of credits rather than a limit.'
+          }
+        ]
+      },
+      {
+        q: 'How many competitions can I run?',
+        a: [
+          {
+            p: 'As many as you want, all from one account. Remember the 20 free places are shared across them rather than granted to each.'
+          }
+        ]
+      },
+      {
+        q: 'Who supplies the fixtures and results?',
+        a: [
+          {
+            p: 'Either us or you. Where we cover the league your competition is using, you are offered the choice as you create it. Where we do not cover it, you run the fixtures yourself.'
+          },
+          {
+            p: 'Do it for me — we add each round’s fixtures and enter the results as they come in. You pick a start date up front, round 1 is there from the moment the competition exists, and your job is just to get people to join.'
+          },
+          {
+            p: 'I’ll do my own — you enter the matches and the results yourself each round, and you set the lock time. More work, but complete control over what counts and when.'
+          },
+          {
+            p: 'It is not something you can change yourself once the competition exists, but it is not set in stone either: ask us and we will switch a competition from one to the other.'
+          }
+        ]
+      },
+      {
+        q: 'What if I enter the wrong result?',
+        a: [
+          {
+            p: 'While you are still entering them, tap a result again to clear it and put a different one in. Nothing is committed until you submit the round.'
+          },
+          {
+            p: 'Once you submit, the results are final and there is no way to change them in the app. Get in touch with us and we will see what can be done. Be aware that unwinding a submitted round is not a simple edit — it has already decided who won, who lost a life and who went out, and every one of those has to be put back by hand — so it is worth checking the results carefully before you submit.'
+          }
+        ]
+      },
+      {
+        q: 'Can I change the rules after starting?',
+        a: [
+          { p: 'Some of them:' },
+          {
+            ul: [
+              'Name and description: yes, whenever you like',
+              'Lives and the no-team-twice rule: no, these lock once the first round starts'
+            ]
+          },
+          {
+            p: 'Changing the game rules underneath people who are already playing would not be fair on them, which is why those two set hard.'
+          }
+        ]
+      },
+      {
+        q: 'What does resetting a competition actually do?',
+        a: [
+          {
+            p: 'It puts the competition back to the start. Every round, pick and result is cleared and everyone still in it is restored to full lives, ready for a new set of fixtures. It does not finish the current game or file the stats away — the previous run is simply gone.'
+          },
+          {
+            p: 'The point of it is that you do not have to invite everybody again. The invite code stays the same and your players keep their place without lifting a finger. If one of them does not fancy another go, remove that single player rather than starting from scratch.'
+          },
+          {
+            p: 'Your first 20 places are still free. Beyond that, bringing a player back uses a place, the same as if they were joining for the first time — the last run’s places were spent on the last run. You are shown the exact number before you confirm, with the option to back out and tidy up your player list first.'
+          }
+        ]
+      },
+      {
+        q: 'Can I bring an eliminated player back in?',
+        a: [
+          {
+            p: 'Yes — a player’s in/out status is yours to set, so you can move somebody from eliminated back to active whenever you think it is the fair thing to do.'
+          },
+          {
+            p: 'Treat it as an override rather than part of the game. Nothing recalculates around it, so a player brought back mid-competition can look odd in the standings and in their own history. Use it sparingly and tell your other players you have done it. If you want a genuinely clean slate for everyone, reset the competition instead.'
+          }
+        ]
+      },
+      {
+        q: 'If I remove a player, do I get their credit back?',
+        a: [
+          {
+            p: 'Only if you remove them before the competition has started. Once it is underway, removing a player frees up their place but does not refund a credit that has been spent.'
+          }
+        ]
+      },
+      {
+        q: 'What happens if a player tries to join when I am full?',
+        a: [
+          {
+            p: 'They see a message saying the competition is full and to get in touch with you. You get a notice on your dashboard shortly afterwards, so you can buy more places or tell them where they stand.'
+          }
+        ]
+      },
+      {
+        q: 'What is the "Set Pick" option against a player’s name for?',
+        a: [
+          {
+            p: 'An optional override for making or correcting a pick on somebody’s behalf — the player who texts you their team because they will be on a plane at lock time, or one who has picked the wrong side of a fixture by mistake. You do not need to use it to confirm picks players have made themselves.'
+          }
+        ]
+      },
+      {
+        q: 'How do I handle disputes?',
+        a: [
+          { p: 'You have the final say, and the tools to back it up:' },
+          {
+            ul: [
+              'Set or change any player’s pick before the round locks',
+              'Adjust a player’s lives, or their in/out status',
+              'Add or remove players at any point',
+              'Reset the whole competition and start again'
+            ]
+          },
+          {
+            p: 'The platform runs the competition; it does not referee it. Where a call is a judgement rather than a fact — a postponed match, a player who says they picked and did not — the decision is yours, and being seen to make it consistently matters more than which way you go.'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'account',
+    title: 'Account, privacy and problems',
+    faqs: [
+      {
+        q: 'I cannot log in — what should I try?',
+        a: [
+          {
+            ol: [
+              'Check you are using the email address you signed up with',
+              'Use the forgot password link to set a new one',
+              'Try a different browser, or clear this one’s cache',
+              'Get in touch if none of that works'
+            ]
+          }
+        ]
+      },
+      {
+        q: 'What timezone are the deadlines in?',
+        a: [
+          {
+            p: 'Yours. Times are converted to whatever timezone your device is set to, so the deadline you see is the deadline where you are.'
+          }
+        ]
+      },
+      {
+        q: 'Is my data safe?',
+        a: [
+          {
+            p: 'Passwords are hashed, connections are encrypted, and we do not sell or share personal data. We ask for an email address and a display name and no more, because we would rather not hold anything we do not need.'
+          }
+        ]
+      },
+      {
+        q: 'Can I delete my account?',
+        a: [
+          {
+            p: 'Yes, from your profile settings. It takes you out of every competition you have joined and deletes your picks and history along with the account.'
+          },
+          { p: 'If you organise competitions of your own, delete those first — the account cannot be removed while it still owns live ones.' }
+        ]
+      }
+    ]
+  }
+];
+
+/* Anchors, so an answer can be linked to directly and search results can deep-link into it. */
+const slug = (q: string) =>
+  q
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 60);
+
+/* Flatten an answer to the plain text the FAQPage schema wants. */
+const asText = (blocks: Block[]) =>
+  blocks.map((b) => ('p' in b ? b.p : 'ul' in b ? b.ul.join('. ') : b.ol.join('. '))).join(' ');
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: SECTIONS.flatMap((s) =>
+    s.faqs.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: asText(f.a) }
+    }))
+  )
+};
+
+function Blocks({ blocks }: { blocks: Block[] }) {
+  return (
+    <>
+      {blocks.map((b, i) => {
+        if ('p' in b) {
+          return (
+            <p key={i} className={`text-[17px] leading-relaxed text-ink${i > 0 ? ' mt-3' : ''}`}>
+              {b.p}
+            </p>
+          );
+        }
+        if ('ul' in b) {
+          return (
+            <ul key={i} className="mt-3 space-y-1.5">
+              {b.ul.map((item, j) => (
+                <li key={j} className="flex gap-3 text-[17px] leading-relaxed text-ink">
+                  <span aria-hidden="true" className="text-ink-fade">
+                    &mdash;
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <ol key={i} className="mt-3 space-y-1.5">
+            {b.ol.map((item, j) => (
+              <li key={j} className="flex gap-3 text-[17px] leading-relaxed text-ink">
+                <span className={`${LABEL} flex-none translate-y-[5px] text-ink-fade`}>{j + 1}</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ol>
+        );
+      })}
+    </>
+  );
+}
+
 export default function FAQPage() {
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="border border-ink/30 bg-stock-lit p-8 mb-8">
-        <h1 className="text-4xl font-bold text-ink mb-4">
-          Frequently Asked Questions
-        </h1>
-        <p className="text-lg text-ink">
-          Find quick answers to common questions about Last Man Standing competitions,
-          organizing events, and using the LMSLocal platform.
-        </p>
-      </div>
+    <div className="max-w-3xl">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
-      {/* General Questions */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
-          <span className="text-2xl mr-3">❓</span>
-          General Questions
-        </h2>
+      <h1 className={`${HEADING} text-5xl sm:text-6xl`}>Frequently asked questions</h1>
+      <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-ink">
+        The questions players and organisers actually ask &mdash; how a draw is treated, when picks
+        lock, what happens when you run out of teams, and what running a competition costs.
+      </p>
 
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What is Last Man Standing?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Last Man Standing (LMS) is an elimination-style competition where players pick one winning team each round. Wrong picks may lead to elimination, and the last player(s) remaining win.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How much does it cost?</h3>
-            <div className="text-[17px] leading-relaxed text-ink">
-              <p>A: For players: Free to join competitions. Your organiser may charge their own entry fees.</p>
-              <p className="mt-2">For organisers: Your first 20 player slots are free, shared across all of your competitions (not 20 per competition). Anyone beyond that uses a paid credit.</p>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I play on mobile?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Yes! LMSLocal works on all devices - phones, tablets, and computers.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* For Organisers */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
-          <span className="text-2xl mr-3">👥</span>
-          For Organisers
-        </h2>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How many competitions can I run?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Unlimited! You can manage multiple competitions from a single account.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What happens if a player tries to join once I&apos;m full?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: They&apos;ll see a message saying the competition is full and to contact you. You&apos;ll also get a notification on your dashboard shortly after they try.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: If I remove a player, do I get their credit back?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Only if you remove them before the competition has started. Once it&apos;s underway, removing a player frees up the slot but doesn&apos;t refund a paid credit.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: If there&apos;s a rollover and everyone goes back in, do I need to buy credits again?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Not if you&apos;re at or under your free 20. If your competition has grown past 20 players, restoring everyone on reset will charge for the overage — this is shown clearly before you confirm the reset, with the option to back out.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What&apos;s the &quot;Set Pick&quot; option against a player&apos;s name for?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: It&apos;s an optional override for setting or correcting a pick on a player&apos;s behalf — for example if they can&apos;t pick themselves in time. You don&apos;t need to use it to confirm every player&apos;s pick.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I change rules after starting?</h3>
-            <div className="text-[17px] leading-relaxed text-ink">
-              <p>A: It depends on what you want to change:</p>
-              <ul className="mt-2 space-y-1 ml-4">
-                <li>• Competition name and description: Yes, anytime</li>
-                <li>• Lives and No Team Twice rule: No, locked after first round starts</li>
-              </ul>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How do I handle disputes?</h3>
-            <div className="text-[17px] leading-relaxed text-ink">
-              <p>A: You have full control to:</p>
-              <ul className="mt-2 space-y-1 ml-4">
-                <li>• Override any player&apos;s pick</li>
-                <li>• Adjust match results</li>
-                <li>• Add or remove players</li>
-                <li>• Make final decisions on edge cases</li>
-              </ul>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What if I enter wrong results?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: You can edit match results at any time. The system will automatically recalculate eliminations.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* For Players */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
-          <span className="text-2xl mr-3">⚽</span>
-          For Players
-        </h2>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I change my pick?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: No, picks are final once submitted. Double-check before confirming!</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What if I forget to pick?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Missing a pick counts as a wrong pick. You&apos;ll lose a life (or be eliminated in knockout format).</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I join multiple competitions?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Yes! You can join as many competitions as you want with the same account.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How do I know if I&apos;m eliminated?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Check your competition dashboard - your status will show as &quot;Eliminated&quot; and you&apos;ll see which round you went out.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What happens if my team&apos;s match is postponed?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Usually, postponed matches are void (no win or loss), but check with your organiser for their specific rules.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Technical Questions */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
-          <span className="text-2xl mr-3">🔧</span>
-          Technical Questions
-        </h2>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: I can&apos;t log in - help!</h3>
-            <div className="text-[17px] leading-relaxed text-ink">
-              <p>A: Try these steps:</p>
-              <ol className="mt-2 space-y-1 ml-4 list-decimal">
-                <li>Check you&apos;re using the correct email</li>
-                <li>Try the &quot;Forgot Password&quot; option</li>
-                <li>Clear your browser cache</li>
-                <li>Contact support if issues persist</li>
-              </ol>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How do I join a competition?</h3>
-            <div className="text-[17px] leading-relaxed text-ink">
-              <p>A: Enter the invite code from your organiser</p>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I use the same team twice?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: In most competitions, no. The &quot;No Team Twice&quot; rule prevents reusing teams. Check your competition settings.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What timezone are deadlines in?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: All times are shown in your local timezone automatically.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Competition Management */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
-          <span className="text-2xl mr-3">⚙️</span>
-          Competition Management
-        </h2>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: When do picks lock?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Whenever your organiser sets the deadline for that round — there&apos;s no automatic buffer before kickoff. The deadline is shown on your dashboard and again when you make your pick, so check there rather than assuming a fixed time.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How are ties handled?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: If multiple players are eliminated in the same round with no one left, they all share the victory.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can eliminated players rejoin?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: No, once eliminated you&apos;re out for that competition. You can join other competitions or wait for the next season.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How long do competitions last?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Varies by competition - could be a full season (38+ weeks) or shorter custom competitions.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Privacy & Security */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6 flex items-center">
-          <span className="text-2xl mr-3">🔒</span>
-          Privacy & Security
-        </h2>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Is my data safe?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Yes, we use industry-standard encryption and never share personal data without consent.</p>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can other players see my picks?</h3>
-            <div className="text-[17px] leading-relaxed text-ink">
-              <p>A: It depends on timing:</p>
-              <ul className="mt-2 space-y-1 ml-4">
-                <li>• Before deadline: No, picks are hidden</li>
-                <li>• After deadline: Yes, all picks become visible</li>
-              </ul>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: Can I delete my account?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Yes, you can delete your account from the profile settings. This removes you from all active competitions.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Support CTA */}
-      <div className="border border-ink/30 bg-stock-lit p-8 text-center">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-4">Still Have Questions?</h2>
-        <p className="text-[17px] leading-relaxed text-ink mb-6">
-          Can&apos;t find what you&apos;re looking for? Our support team is here to help,
-          or you can ask your competition organiser directly.
-        </p>
-        <div className="flex justify-center gap-4">
+      {/* Jump links. The page is long and most people arrive wanting one answer. */}
+      <div className="mt-7 flex flex-wrap gap-2">
+        {SECTIONS.map((s) => (
           <a
-            href="mailto:lmslocal8@gmail.com"
-            className="px-6 py-3 rounded-sm bg-overprint font-display uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90"
+            key={s.id}
+            href={`#${s.id}`}
+            className={`${LABEL} rounded-sm border border-ink/30 px-3 py-2 text-ink-fade transition-colors hover:border-ink hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink`}
           >
-            📧 Contact Support
+            {s.title}
           </a>
-          <a
-            href="/help"
-            className="px-6 py-3 bg-stock-lit text-ink border rounded-none hover:bg-stock-lit transition-colors"
-          >
-            Browse Help Center
-          </a>
-        </div>
+        ))}
       </div>
+
+      {SECTIONS.map((section) => (
+        <section key={section.id} id={section.id} className="mt-14 scroll-mt-8 border-t border-ink/30 pt-10">
+          <p className={`${EYEBROW} text-overprint`}>{section.title}</p>
+
+          {/*
+            One hairline between answers rather than a card around each. A page of forty stacked
+            panels reads as a list of boxes; the coupon reads as a ruled sheet.
+          */}
+          <dl className="mt-6 divide-y divide-ink/30 border-y border-ink/30">
+            {section.faqs.map((faq) => (
+              <div key={faq.q} id={slug(faq.q)} className="scroll-mt-8 py-7 first:pt-6 last:pb-6">
+                <dt className={`${HEADING} text-2xl tracking-[0.02em]`}>{faq.q}</dt>
+                <dd className="mt-3">
+                  <Blocks blocks={faq.a} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ))}
+
+      {/*
+        Where to go next. The help layout already ends every page with the contact panel, so
+        repeating it here just put the same two buttons on screen twice.
+      */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <p className={`${EYEBROW} text-ink-fade`}>Not what you were after?</p>
+        <ul className={`${PANEL} mt-5 divide-y divide-ink/30`}>
+          {[
+            { href: '/help/how-to-play', label: 'The full rules of Last Man Standing' },
+            { href: '/help/getting-started/organizers', label: 'Setting up your first competition' },
+            { href: '/help/getting-started/players', label: 'Joining and playing' },
+            { href: '/pricing', label: 'What credits cost' }
+          ].map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                className="flex items-baseline gap-3 px-5 py-4 text-[17px] text-ink transition-colors hover:bg-stock focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+              >
+                <span aria-hidden="true" className="text-ink-fade">
+                  &rarr;
+                </span>
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

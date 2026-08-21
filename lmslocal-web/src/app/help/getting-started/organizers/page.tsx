@@ -41,7 +41,7 @@ export default function OrganizersGettingStartedPage() {
             <div className="flex-1">
               <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-3">Create Your Account</h3>
               <div className="space-y-2 text-[17px] leading-relaxed text-ink">
-                <p>1. Go to <Link href="/register" className="text-blue-600 hover:underline">Register</Link></p>
+                <p>1. Go to <Link href="/register" className="underline decoration-dotted underline-offset-4 hover:text-overprint">Register</Link></p>
                 <p>2. Enter your email and create a password</p>
                 <p>3. Verify your email address</p>
               </div>
@@ -63,14 +63,14 @@ export default function OrganizersGettingStartedPage() {
                 <div className="border border-ink/30 bg-stock-lit p-4">
                   <h4 className="font-semibold text-ink mb-2">Basic Details</h4>
                   <div className="space-y-1 text-[15px] text-ink">
-                    <p><strong>Name:</strong> e.g., &quot;The Red Lion LMS 2024&quot;</p>
+                    <p><strong>Name:</strong> e.g., &quot;The Red Lion LMS&quot;</p>
                     <p><strong>Description:</strong> Optional details about your competition</p>
                   </div>
                 </div>
                 <div className="border border-ink/30 bg-stock-lit p-4">
                   <h4 className="font-semibold text-ink mb-2">Rules Settings</h4>
                   <div className="space-y-1 text-[15px] text-ink">
-                    <p><strong>Lives:</strong> How many wrong picks players can survive (0-2)</p>
+                    <p><strong>Lives:</strong> 0 for straight knockout, or 1 to give everyone a second chance</p>
                   </div>
                 </div>
               </div>
@@ -126,11 +126,11 @@ export default function OrganizersGettingStartedPage() {
           <div className="flex items-start">
             <div className="mr-4 mt-1 flex h-10 w-10 flex-none items-center justify-center bg-overprint font-display text-lg text-stock-lit">5</div>
             <div className="flex-1">
-              <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-3">Add Fixtures</h3>
-              <div className="space-y-2 text-[17px] leading-relaxed text-ink">
-                <p>After creating your competition, you&apos;ll be asked to enter your first set of fixtures:</p>
-                <p>1. Set the lock date and time for the round (applies to the whole round)</p>
-                <p>2. Add matches for that round</p>
+              <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-3">Fixtures and Results</h3>
+              <div className="space-y-3 text-[17px] leading-relaxed text-ink">
+                <p>You choose who handles the matches when you create the competition. It is not a switch you can throw yourself later, though if you change your mind just ask us and we will move the competition over.</p>
+                <p><strong>Do it for me.</strong> We add each round&apos;s fixtures and enter the results. You are offered a start date as you create the competition, and round 1 is sitting there from the moment it exists &mdash; so the players you are recruiting have something to look at. If we have no dates to offer yet, you press <strong>Ready</strong> on the Round screen once the first set of fixtures is available.</p>
+                <p><strong>I&apos;ll do my own.</strong> You enter each round yourself from the Round screen: set the lock date and time for the round, add the matches, then enter the results once they have been played. Nothing starts until you say so.</p>
               </div>
             </div>
           </div>
@@ -143,11 +143,12 @@ export default function OrganizersGettingStartedPage() {
 
         <div className="space-y-4 text-ink mb-6">
           <p>Once your competition is running, managing it is simple:</p>
+          <p>Everything happens on the competition&apos;s <strong>Round</strong> screen, which shows you whatever the round needs next.</p>
           <ol className="space-y-3 ml-4 list-decimal">
-            <li><strong>Enter fixtures</strong> for each round (click &quot;Fixtures&quot; to start a new round)</li>
-            <li><strong>Update results</strong> after matches are played</li>
-            <li><strong>Lives and eliminations are automatically calculated</strong> when the round is over</li>
-            <li><strong>Start the next round</strong> by clicking &quot;Fixtures&quot; again</li>
+            <li><strong>The round opens</strong> with its matches and a lock time. Players pick until that deadline.</li>
+            <li><strong>Results go in</strong> once the matches have been played &mdash; by us, or by you, depending on which you chose.</li>
+            <li><strong>Submit the round.</strong> This works out lives and eliminations. Check the results before you do &mdash; once submitted they are final, and putting a wrong one right means a conversation with us rather than an edit on screen.</li>
+            <li><strong>The next round follows.</strong> We add it for you, or you add it yourself.</li>
           </ol>
         </div>
 
@@ -201,7 +202,7 @@ export default function OrganizersGettingStartedPage() {
         <div className="space-y-4">
           <div>
             <h3 className="font-semibold text-ink mb-2">Q: How many players can join?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Unlimited! The system handles competitions of any size.</p>
+            <p className="text-[17px] leading-relaxed text-ink">A: As many as you like &mdash; there is no cap on the size of a competition. Your first 20 places are free, shared across all of your competitions, and every player after that uses a credit. So a big competition is a question of credits rather than a limit.</p>
           </div>
           <div>
             <h3 className="font-semibold text-ink mb-2">Q: Can I run multiple competitions?</h3>

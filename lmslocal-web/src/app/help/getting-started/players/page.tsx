@@ -38,9 +38,12 @@ export default function PlayersGettingStartedPage() {
           </div>
           <div className="space-y-2 text-[17px] leading-relaxed text-ink">
             <p>1. Get the invite code from your organiser</p>
-            <p>2. Go to <Link href="/join" className="text-blue-600 hover:underline">Join Competition</Link></p>
-            <p>3. Enter the code</p>
+            <p>2. Enter it in the join box on the <Link href="/" className="underline decoration-dotted underline-offset-4 hover:text-overprint">LMSLocal home page</Link></p>
+            <p>3. Sign in, or create an account if this is your first competition</p>
           </div>
+          <p className="mt-4 text-[15px] text-ink-fade">
+            If your organiser sent you a link rather than a code, it already has the code in it &mdash; just follow it.
+          </p>
         </div>
       </div>
 
@@ -65,7 +68,8 @@ export default function PlayersGettingStartedPage() {
             <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
               <li>• <strong>One pick per round</strong> - Choose wisely</li>
               <li>• <strong>Win = Advance</strong> - Your team must win (not draw)</li>
-              <li>• <strong>Deadline matters</strong> - Late picks are penalised</li>
+              <li>• <strong>Change it freely</strong> - until the round locks, you can switch teams or clear your pick</li>
+              <li>• <strong>Deadline matters</strong> - no pick by lock time costs you the same as a losing one</li>
             </ul>
           </div>
 
@@ -74,8 +78,8 @@ export default function PlayersGettingStartedPage() {
             <div className="space-y-2 text-[17px] leading-relaxed text-ink">
               <p>Your competition may have lives:</p>
               <ul className="space-y-1">
-                <li>• <strong>0 lives:</strong> One wrong pick = eliminated</li>
-                <li>• <strong>1+ lives:</strong> You can survive wrong picks</li>
+                <li>• <strong>0 lives:</strong> One wrong pick and you are out</li>
+                <li>• <strong>1 life:</strong> Your first wrong pick costs the life, the next one puts you out</li>
               </ul>
             </div>
           </div>
@@ -113,8 +117,8 @@ export default function PlayersGettingStartedPage() {
         <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">💡 Tips for Success</h2>
 
         <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-green-50 rounded-none p-6">
-            <h3 className="text-lg font-semibold text-ink mb-4 text-green-800">✅ DO</h3>
+          <div className="border border-ink/30 bg-stock-lit p-6">
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-4">✅ DO</h3>
             <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
               <li>✅ Check fixtures early each week</li>
               <li>✅ Make picks well before deadline</li>
@@ -123,8 +127,8 @@ export default function PlayersGettingStartedPage() {
             </ul>
           </div>
 
-          <div className="bg-red-50 rounded-none p-6">
-            <h3 className="text-lg font-semibold text-ink mb-4 text-red-800">❌ DON&apos;T</h3>
+          <div className="border border-ink/30 bg-stock-lit p-6">
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-4">❌ DON&apos;T</h3>
             <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
               <li>❌ Forget to make a pick</li>
               <li>❌ Pick teams playing away at difficult venues</li>
@@ -141,12 +145,12 @@ export default function PlayersGettingStartedPage() {
         <div className="space-y-6">
           <div className="border border-ink/30 bg-stock-lit p-4">
             <h3 className="font-semibold text-ink mb-2">❓ Missed the deadline?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">Unfortunately, this counts as a loss. Set reminders for future rounds!</p>
+            <p className="text-[17px] leading-relaxed text-ink">It counts the same as a losing pick &mdash; you lose a life, or you are out if you had none left. Set yourself a reminder for future rounds.</p>
           </div>
 
           <div className="border border-ink/30 bg-stock-lit p-4">
             <h3 className="font-semibold text-ink mb-2">⏸️ Your team&apos;s match was postponed?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">Usually void (no win/loss), but check with your organiser for specific rules.</p>
+            <p className="text-[17px] leading-relaxed text-ink">There is no automatic &quot;void&quot; &mdash; the fixture just stays unresulted and the round waits. What happens next is your organiser&apos;s decision, so ask them.</p>
           </div>
 
           <div className="border border-ink/30 bg-stock-lit p-4">

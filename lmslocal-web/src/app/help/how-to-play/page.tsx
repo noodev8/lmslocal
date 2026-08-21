@@ -1,7 +1,8 @@
 export const metadata = {
   title: 'How to Play Last Man Standing - LMSLocal Help',
   description: 'Learn how to play Last Man Standing competitions. Pick one team each week to win - if they lose or draw, you\'re out. Simple rules, exciting competition.',
-  keywords: 'last man standing, how to play, football competition, premier league, elimination game',
+  keywords: 'last man standing rules, how to play last man standing, does a draw count, football elimination game, premier league last man standing',
+  alternates: { canonical: 'https://lmslocal.co.uk/help/how-to-play' },
   openGraph: {
     title: 'How to Play Last Man Standing',
     description: 'Pick one team each week to win. If they lose or draw, you\'re out. Learn the complete rules.',
@@ -9,9 +10,45 @@ export const metadata = {
   }
 };
 
+/*
+  The three steps below are shown on the page and handed to Google as HowTo structured data.
+  One array feeds both, for the same reason the FAQ works that way - a second hand-written copy
+  of the steps is a copy that will quietly stop matching the page.
+*/
+const STEPS = [
+  {
+    name: 'Join a competition',
+    text: 'Get the invite code from whoever is running the competition, enter it on the join page, and you are in. Joining closes when the first round locks.'
+  },
+  {
+    name: 'Pick one team to win',
+    text: 'Each round, choose a single team you think will win their match. You can change your mind as often as you like until the round locks. You cannot pick the same team twice until you have used them all, at which point they all come back.'
+  },
+  {
+    name: 'Win and go through',
+    text: 'If your team wins in regulation time you go through to the next round. A draw or a defeat costs you a life, or puts you out if you have none left. Keep going until you are the last player standing.'
+  }
+];
+
+const howToSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: 'How to play Last Man Standing',
+  description:
+    'Last Man Standing is a football elimination competition. Pick one team to win each round: if they win you go through, if they lose or draw you are out.',
+  totalTime: 'PT5M',
+  step: STEPS.map((s, i) => ({
+    '@type': 'HowToStep',
+    position: i + 1,
+    name: s.name,
+    text: s.text
+  }))
+};
+
 export default function HowToPlayPage() {
   return (
     <div className="max-w-4xl mx-auto">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }} />
       {/* Hero Section */}
       <div className="border border-ink/30 bg-stock-lit p-8 mb-8">
         <h1 className="font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl mb-6">
@@ -25,8 +62,13 @@ export default function HowToPlayPage() {
           </p>
 
           <div className="bg-stock-lit border border-ink/30 rounded p-4">
-            <p className="font-semibold">🚫 Key Rule: You cannot pick the same team twice throughout the competition.</p>
-            <p className="text-sm mt-2 text-ink-fade">Note: Available teams get reset once all teams have been used.</p>
+            <p className="font-semibold">🚫 Key rule: you cannot pick the same team twice.</p>
+            <p className="text-sm mt-2 text-ink-fade">Once you have used every team, they all come back and you start the list again.</p>
+          </div>
+
+          <div className="bg-stock-lit border border-ink/30 rounded p-4">
+            <p className="font-semibold">⏱️ Regulation time only.</p>
+            <p className="text-sm mt-2 text-ink-fade">Results are settled on the ninety minutes plus stoppage time. A cup tie your team wins in extra time or on penalties still counts as a draw, and a draw goes against you.</p>
           </div>
 
           <p>
@@ -49,11 +91,12 @@ export default function HowToPlayPage() {
           </div>
 
           <div>
-            <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-4">❌ How to Lose a Life</h3>
+            <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-4">❌ How to Go Out</h3>
             <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
               <li>• Your team <strong>LOSES</strong> their match</li>
               <li>• Your team <strong>DRAWS</strong> their match</li>
               <li>• You miss the pick deadline</li>
+              <li className="pt-2 text-ink-fade">Any of these costs a life. With no lives left, it puts you out.</li>
             </ul>
           </div>
         </div>
@@ -130,23 +173,13 @@ export default function HowToPlayPage() {
         <h2 className="text-2xl font-bold text-ink mb-6 text-center">🚀 Ready to Play?</h2>
 
         <div className="grid md:grid-cols-3 gap-6">
-          <div className="bg-stock-lit rounded-none p-6 text-center border">
-            <div className="mx-auto mb-4 flex h-8 w-8 items-center justify-center bg-overprint font-display text-stock-lit">1</div>
-            <h3 className="font-semibold text-ink mb-2">Join a Competition</h3>
-            <p className="text-[15px] text-ink-fade">Get an access code from your organiser</p>
-          </div>
-
-          <div className="bg-stock-lit rounded-none p-6 text-center border">
-            <div className="mx-auto mb-4 flex h-8 w-8 items-center justify-center bg-overprint font-display text-stock-lit">2</div>
-            <h3 className="font-semibold text-ink mb-2">Make Your Pick</h3>
-            <p className="text-[15px] text-ink-fade">Choose your team before the deadline</p>
-          </div>
-
-          <div className="bg-stock-lit rounded-none p-6 text-center border">
-            <div className="mx-auto mb-4 flex h-8 w-8 items-center justify-center bg-overprint font-display text-stock-lit">3</div>
-            <h3 className="font-semibold text-ink mb-2">Track Results</h3>
-            <p className="text-[15px] text-ink-fade">See if you advance to the next round</p>
-          </div>
+          {STEPS.map((step, i) => (
+            <div key={step.name} className="bg-stock-lit rounded-none p-6 border">
+              <div className="mb-4 flex h-8 w-8 items-center justify-center bg-overprint font-display text-stock-lit">{i + 1}</div>
+              <h3 className="font-semibold text-ink mb-2">{step.name}</h3>
+              <p className="text-[15px] text-ink-fade">{step.text}</p>
+            </div>
+          ))}
         </div>
       </div>
 

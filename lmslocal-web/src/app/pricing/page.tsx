@@ -122,8 +122,9 @@ export default function PricingPage() {
               Matches and results
             </h2>
             <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
-              You choose this when you create a competition, and you can change your mind at any
-              time afterwards.
+              You choose this when you create a competition. It is not a setting you can flip
+              yourself afterwards, but you are not stuck with it either &mdash; ask us and we will
+              switch a competition over.
             </p>
 
             <div className="mt-7 grid gap-4 sm:grid-cols-2">
