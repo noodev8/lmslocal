@@ -139,7 +139,7 @@ const OUTLINE: OutlineEmail[] = [
     note: 'Round locks within 3 days, no pick made',
     focus: true,
     blurb:
-      'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Once per player per round. The When column is their countdown, not an elapsed time.',
+      'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Once per player per round. Locks is their countdown, not an elapsed time.',
   },
   {
     key: 'game_complete',
@@ -859,7 +859,7 @@ function SendPanel({
 
         {/* A floor under the body so switching tabs, or a list arriving, cannot collapse the panel
             and walk the buttons up the screen. */}
-        <div className="min-h-[22rem] space-y-4 px-5 py-4">
+        <div className="min-h-[16rem] space-y-3 px-5 py-3">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
           )}
@@ -885,22 +885,26 @@ function SendPanel({
                 </p>
               ) : (
                 <>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm text-slate-600">
-                      <span className="font-medium text-slate-900">{count.toLocaleString()}</span>{' '}
-                      {count === 1 ? 'person' : 'people'} waiting, after preferences and opt-outs
-                    </p>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     {/*
-                      The MOST that can go, not the number that will. Anyone emailed in the last 48
-                      hours is marked as sent instead of emailed - see services/emailQuiet.js - so a
-                      send routinely reports fewer than this and that is not a failure.
+                      One line, not three. The 48-hour caveat sits inline because it qualifies the
+                      number and reads as part of it; on its own row it forced Select all onto a
+                      third line and cost twice the height it was worth.
 
-                      Deliberately a sentence rather than a second number. The real figure depends on
-                      what is sent BEFORE this, which is decided at the moment of pressing, so any
-                      count shown here would be out of date the instant another email went out.
+                      "up to" is the point: anyone emailed in the last 48 hours is marked as sent
+                      instead (services/emailQuiet.js), so a send routinely reports fewer than this
+                      and that is not a failure. Deliberately not a second number - the real figure
+                      depends on what is sent BEFORE this, so any count here would be stale the
+                      instant another email went out.
+
+                      What was dropped: "after preferences and opt-outs". True, but it describes
+                      every count on this screen and never changed a decision.
                     */}
-                    <p className="w-full text-xs text-slate-400">
-                      Up to. Anyone already emailed in the last 48 hours is marked as sent instead.
+                    <p className="text-sm text-slate-600">
+                      <span className="font-medium text-slate-900">{count.toLocaleString()}</span> waiting
+                      <span className="ml-2 text-xs text-slate-400">
+                        up to — anyone emailed in the last 48h is marked as sent
+                      </span>
                     </p>
                     <button
                       onClick={() => setSelected(allSelected ? new Set() : new Set(recipients.map(keyOf)))}
@@ -911,24 +915,30 @@ function SendPanel({
                   </div>
 
                   <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-200">
-                    <table className="w-full text-left text-sm">
+                    {/*
+                    table-fixed, not auto. Truncating a cell only works if its column has a width;
+                    on an auto table the max-w cells pushed the table wider than the panel and the
+                    last column scrolled off the right. Widths below are percentages of the panel,
+                    so nothing overflows at any size.
+                    */}
+                    <table className="w-full table-fixed text-left text-sm">
                       <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                         <tr>
-                          <th className="w-8 px-3 py-2"></th>
-                          <th className="px-3 py-2 font-semibold">Name</th>
-                          <th className="px-3 py-2 font-semibold">Email</th>
-                          {showCompetition && <th className="px-3 py-2 font-semibold">Competition</th>}
+                          <th className="w-9 px-3 py-1.5"></th>
+                          <th className={`px-3 py-1.5 font-semibold ${showCompetition ? 'w-[22%]' : 'w-[30%]'}`}>Name</th>
+                          <th className={`px-3 py-1.5 font-semibold ${showCompetition ? 'w-[30%]' : 'w-[44%]'}`}>Email</th>
+                          {showCompetition && <th className="w-[26%] px-3 py-1.5 font-semibold">Competition</th>}
                           {/* Named by the server, which knows which trigger column the service
                               actually used - "Joined" on a welcome. It falls back to "When"
                               rather than "Waiting since" because some emails hang off something
                               still to come, and the column reads both ways. */}
-                          <th className="px-3 py-2 font-semibold">{preview?.since_label ?? 'When'}</th>
+                          <th className="px-3 py-1.5 font-semibold">{preview?.since_label ?? 'When'}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {recipients.map((r) => (
                           <tr key={keyOf(r)} className={selected.has(keyOf(r)) ? 'bg-slate-50' : ''}>
-                            <td className="px-3 py-2">
+                            <td className="px-3 py-1.5">
                               {/* Ticking is how a run of test accounts gets marked off without
                                   touching the real players in the same list. */}
                               <input
@@ -939,16 +949,28 @@ function SendPanel({
                                 aria-label={`Select ${r.display_name}`}
                               />
                             </td>
-                            <td className="px-3 py-2 text-slate-800">{r.display_name}</td>
-                            <td className="px-3 py-2 text-slate-500">{r.email}</td>
+                            {/*
+                            Every cell on one line. Long names and long competition titles were
+                            wrapping, so a list of 17 was twice the height it needed to be and half
+                            of it was whitespace. Truncated with the full text on hover rather than
+                            shrunk, because the name is what the operator scans for.
+                            */}
+                            <td className="truncate px-3 py-1.5 text-slate-800" title={r.display_name}>
+                              {r.display_name}
+                            </td>
+                            <td className="truncate px-3 py-1.5 text-slate-500" title={r.email}>
+                              {r.email}
+                            </td>
                             {showCompetition && (
-                              <td className="px-3 py-2 text-slate-500">{r.competition_name ?? '—'}</td>
+                              <td className="truncate px-3 py-1.5 text-slate-500" title={r.competition_name ?? undefined}>
+                                {r.competition_name ?? '—'}
+                              </td>
                             )}
                             {/* The judgement this screen exists for: a join from yesterday is a
                                 send, one from January is a mark-as-sent, and a deadline in 31
                                 hours is a send now. */}
                             <td
-                              className="px-3 py-2 whitespace-nowrap text-slate-500"
+                              className="whitespace-nowrap px-3 py-1.5 text-slate-500"
                               title={r.since ? new Date(r.since).toLocaleString() : undefined}
                             >
                               {relativeTime(r.since)}
@@ -969,14 +991,12 @@ function SendPanel({
                 </>
               )}
 
-              {/* The summary line. Last thing read before the button. */}
-              {/* Nothing ticked is the resting state, so say what to do rather than warn about a
-                  send that cannot happen. */}
-              {count > 0 && nothingChosen && (
-                <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  Tick the people you want. Nothing sends or gets marked until you do.
-                </p>
-              )}
+              {/*
+              The summary line below appears once something IS ticked. Nothing is shown while
+              nothing is: a whole boxed callout said "tick the people you want, nothing sends until
+              you do", which the disabled "Mark 0 as sent" button beside it already says, and it
+              was the tallest thing on the panel in the resting state.
+              */}
 
               {count > 0 &&
                 !nothingChosen &&

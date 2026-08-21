@@ -84,8 +84,27 @@ const SINCE_COLUMNS = [
   'created_at'
 ];
 
+/*
+Where the chain above picks the wrong one for an email.
+
+created_comp candidates carry BOTH starts_at and created_at, and the chain reached starts_at first
+- so the column showed round 1's lock time and read "in 7 hours", the only forward-pointing date on
+a screen where every other row answers "how long has this been waiting". This column exists for the
+send-versus-mark judgement, and for a once-ever email that judgement is whether the competition is
+fresh or from January, which only created_at answers.
+
+Display only. `since` is built here and read by one table cell; nothing about sending, queueing or
+the template sees it.
+*/
+const SINCE_OVERRIDES = {
+  created_comp: 'created_at'
+};
+
 /** The trigger timestamp a candidate carries, or null. */
-const sinceOf = (candidate) => {
+const sinceOf = (candidate, emailType) => {
+  const override = SINCE_OVERRIDES[emailType];
+  if (override && candidate[override] != null) return candidate[override];
+
   const column = SINCE_COLUMNS.find((c) => candidate[c] != null);
   return column ? candidate[column] : null;
 };
@@ -110,7 +129,7 @@ const SINCE_LABELS = {
   results: 'Settled',                         // when the round was settled
   game_complete: 'Finished',                  // when the competition ended
   welcome: 'Joined',                          // when they joined the competition
-  created_comp: 'Starts',                     // round 1 lock time - when joining closes
+  created_comp: 'Created',                    // when the competition was made - see SINCE_OVERRIDES
   join_lms: 'Signed up',                      // when the account was created
   result_reminder: 'Last kickoff',            // the round's last kickoff, now played
   fixture_reminder: 'Settled',                // when their last round was settled
@@ -219,7 +238,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
         collide today - each candidate row carries exactly one of these - and a service adding a
         new trigger column just adds itself to this list.
         */
-        since: sinceOf(c),
+        since: sinceOf(c, email_type),
         // Present only on round-based emails; null on the platform-wide ones.
         round_number: c.round_number ?? null
       })),
