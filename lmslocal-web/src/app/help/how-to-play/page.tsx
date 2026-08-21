@@ -1,12 +1,17 @@
+import Link from 'next/link';
+import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
+
 export const metadata = {
   title: 'How to Play Last Man Standing - LMSLocal Help',
-  description: 'Learn how to play Last Man Standing competitions. Pick one team each week to win - if they lose or draw, you\'re out. Simple rules, exciting competition.',
-  keywords: 'last man standing rules, how to play last man standing, does a draw count, football elimination game, premier league last man standing',
+  description:
+    'The rules of Last Man Standing. Pick one team to win each round: if they win you go through, if they lose or draw it costs you. Draws, lives, regulation time and running out of teams, explained.',
+  keywords:
+    'last man standing rules, how to play last man standing, does a draw count, football elimination game, premier league last man standing',
   alternates: { canonical: 'https://lmslocal.co.uk/help/how-to-play' },
   openGraph: {
     title: 'How to Play Last Man Standing',
-    description: 'Pick one team each week to win. If they lose or draw, you\'re out. Learn the complete rules.',
-    type: 'article',
+    description: 'Pick one team each week to win. If they lose or draw, it costs you. The complete rules.',
+    type: 'article'
   }
 };
 
@@ -18,7 +23,7 @@ export const metadata = {
 const STEPS = [
   {
     name: 'Join a competition',
-    text: 'Get the invite code from whoever is running the competition, enter it on the join page, and you are in. Joining closes when the first round locks.'
+    text: 'Get the invite code from whoever is running the competition, enter it on the LMSLocal home page, and you are in. Joining closes when the first round locks.'
   },
   {
     name: 'Pick one team to win',
@@ -45,154 +50,215 @@ const howToSchema = {
   }))
 };
 
+/* The two rules people get wrong, given their own weight rather than buried in a paragraph. */
+const CAVEATS = [
+  {
+    title: 'You cannot pick the same team twice',
+    body: 'Once you have used a team they drop off your list. When you have used every one of them, they all come back and you start the list again — so the rounds just before that are the tight ones.'
+  },
+  {
+    title: 'Regulation time only',
+    body: 'Results are settled on the ninety minutes plus stoppage time. A cup tie your team wins in extra time or on penalties still counts as a draw — and a draw goes against you.'
+  }
+];
+
+const LIVES = [
+  { n: '0', name: 'Knockout', body: 'One wrong pick and you are out. Short, brutal competitions.' },
+  { n: '1', name: 'One life', body: 'Your first wrong pick costs the life. The next one puts you out.' }
+];
+
+const STRATEGY = [
+  {
+    title: 'Managing your teams',
+    points: [
+      'Do not spend a Manchester City or an Arsenal on an easy early round',
+      'Save the strongest sides for the weeks where nothing looks safe',
+      'Look at the fixtures a few rounds ahead before committing to one now',
+      'Watch which teams the rest of the field is burning through'
+    ]
+  },
+  {
+    title: 'Reading a fixture',
+    points: [
+      'Home advantage is real — check where the match is being played',
+      'Recent form and injuries matter more than the league table',
+      'Derbies are unpredictable, whatever the form says',
+      'A team fighting relegation at home is not the free win it looks'
+    ]
+  }
+];
+
 export default function HowToPlayPage() {
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-3xl">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }} />
-      {/* Hero Section */}
-      <div className="border border-ink/30 bg-stock-lit p-8 mb-8">
-        <h1 className="font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl mb-6">
-          How to Play Last Man Standing
-        </h1>
 
-        <div className="text-lg text-ink mb-6 space-y-4">
-          <p>
-            <strong>Simple concept:</strong> Pick one team to WIN each round. If your team WINS, you advance.
-            If they LOSE or DRAW, you&apos;re eliminated.
-          </p>
+      <p className={`${EYEBROW} text-overprint`}>The rules</p>
+      <h1 className={`${HEADING} mt-4 text-5xl sm:text-6xl`}>How to play Last Man Standing</h1>
+      <p className="mt-6 max-w-xl text-xl leading-relaxed text-ink">
+        Pick one team to win, each round. If they win, you go through. If they lose or draw, it
+        costs you. Keep going until you are the only one left.
+      </p>
 
-          <div className="bg-stock-lit border border-ink/30 rounded p-4">
-            <p className="font-semibold">🚫 Key rule: you cannot pick the same team twice.</p>
-            <p className="text-sm mt-2 text-ink-fade">Once you have used every team, they all come back and you start the list again.</p>
+      {/* ------------------------------------------------------------ win / go out */}
+      <section className="mt-12 border-t border-ink/30 pt-10">
+        <p className={`${EYEBROW} text-ink-fade`}>The whole game</p>
+
+        <div className="mt-6 grid gap-px border border-ink/30 bg-ink/30 sm:grid-cols-2">
+          <div className="bg-stock-lit p-6">
+            <p className={`${LABEL} text-overprint`}>You go through</p>
+            <p className="mt-3 font-display text-3xl uppercase tracking-[0.02em] text-ink">Your team wins</p>
+            <p className="mt-3 text-[17px] leading-relaxed text-ink">
+              That is the only outcome that carries you into the next round.
+            </p>
           </div>
 
-          <div className="bg-stock-lit border border-ink/30 rounded p-4">
-            <p className="font-semibold">⏱️ Regulation time only.</p>
-            <p className="text-sm mt-2 text-ink-fade">Results are settled on the ninety minutes plus stoppage time. A cup tie your team wins in extra time or on penalties still counts as a draw, and a draw goes against you.</p>
-          </div>
-
-          <p>
-            <strong>LMS Local twist:</strong> Organisers can give every player a life, so one bad
-            week does not end their competition.
-          </p>
-        </div>
-      </div>
-
-      {/* Core Rules */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">Core Rules</h2>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-4">✅ How to Win</h3>
-            <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
-              <li>• Your selected team must <strong>WIN</strong> their match</li>
+          <div className="bg-stock-lit p-6">
+            <p className={`${LABEL} text-ink-fade`}>It costs you</p>
+            <ul className="mt-3 space-y-1.5">
+              {['Your team loses', 'Your team draws', 'You miss the deadline'].map((item) => (
+                <li key={item} className="font-display text-2xl uppercase tracking-[0.02em] text-ink">
+                  {item}
+                </li>
+              ))}
             </ul>
-          </div>
-
-          <div>
-            <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-4">❌ How to Go Out</h3>
-            <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
-              <li>• Your team <strong>LOSES</strong> their match</li>
-              <li>• Your team <strong>DRAWS</strong> their match</li>
-              <li>• You miss the pick deadline</li>
-              <li className="pt-2 text-ink-fade">Any of these costs a life. With no lives left, it puts you out.</li>
-            </ul>
+            <p className="mt-3 text-[17px] leading-relaxed text-ink">
+              Each of these takes a life. With no lives left, it puts you out.
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Lives System */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">Lives System</h2>
-        <p className="text-[17px] leading-relaxed text-ink mb-6">Your organiser sets how many lives each player gets at the start:</p>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="border border-ink/30 bg-stock-lit p-6 text-center">
-            <div className="text-2xl mb-2">💀</div>
-            <h3 className="font-semibold text-ink mb-2">0 Lives</h3>
-            <p className="text-[15px] text-ink-fade">Knockout format</p>
-          </div>
-
-          <div className="border border-ink/30 bg-stock-lit p-6 text-center">
-            <div className="text-2xl mb-2">❤️</div>
-            <h3 className="font-semibold text-ink mb-2">1 Life</h3>
-            <p className="text-[15px] text-ink-fade">One second chance</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Strategy Tips */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">💡 Strategy Tips</h2>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-4">Smart Team Management</h3>
-            <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
-              <li>• Don&apos;t use Manchester City or Arsenal in easy early rounds</li>
-              <li>• Save the strongest teams for difficult fixtures later</li>
-              <li>• Look ahead at upcoming fixtures before picking</li>
-              <li>• Consider which teams others might avoid</li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-4">Tactical Considerations</h3>
-            <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
-              <li>• Home advantage matters - check venue</li>
-              <li>• Consider recent team form and injuries</li>
-              <li>• Derby matches can be unpredictable</li>
-              <li>• Track what teams other players have used</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* How to Win */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">🏆 How to Win the Competition</h2>
-
-        <p className="text-[17px] leading-relaxed text-ink mb-6">Be the <strong>last player standing</strong>!</p>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="border border-ink/30 bg-stock-lit p-4 text-center">
-            <h3 className="font-semibold text-ink mb-2">Winner</h3>
-            <p className="text-[15px] text-ink-fade">Only one player remains</p>
-          </div>
-
-          <div className="border border-ink/30 bg-stock-lit p-4 text-center">
-            <h3 className="font-semibold text-ink mb-2">Draw - No winner</h3>
-            <p className="text-[15px] text-ink-fade">Multiple players eliminated in same round</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Getting Started */}
-      <div className="border border-ink/30 bg-stock-lit p-8 mb-8">
-        <h2 className="text-2xl font-bold text-ink mb-6 text-center">🚀 Ready to Play?</h2>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {STEPS.map((step, i) => (
-            <div key={step.name} className="bg-stock-lit rounded-none p-6 border">
-              <div className="mb-4 flex h-8 w-8 items-center justify-center bg-overprint font-display text-stock-lit">{i + 1}</div>
-              <h3 className="font-semibold text-ink mb-2">{step.name}</h3>
-              <p className="text-[15px] text-ink-fade">{step.text}</p>
+        <div className="mt-6 space-y-4">
+          {CAVEATS.map((c) => (
+            <div key={c.title} className="border-l-2 border-ink/40 bg-stock-lit px-4 py-3">
+              <p className={`${LABEL} text-ink`}>{c.title}</p>
+              <p className="mt-1.5 text-[16px] leading-relaxed text-ink">{c.body}</p>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Final CTA */}
-      <div className="bg-ink text-stock-lit rounded-none p-8 text-center">
-        <h2 className="text-2xl font-bold mb-4">Important to Remember</h2>
-        <p className="text-lg mb-4">
-          You can change your pick at any time <strong className="text-stock-lit">until lock time</strong>. Choose wisely!
+      {/* ------------------------------------------------------------------ lives */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>Lives</h2>
+        <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
+          Your organiser decides how many lives everyone starts with, before the competition
+          begins. It cannot be changed once round one is under way.
         </p>
-        <p className="text-[17px] leading-relaxed text-stock/85">
-          Good luck, and may the best strategist win! 🏆
+
+        <dl className="mt-7 divide-y divide-ink/30 border-y border-ink/30">
+          {LIVES.map((l) => (
+            <div key={l.n} className="flex items-baseline gap-5 py-5">
+              <dt className="font-data text-4xl font-semibold text-ink">{l.n}</dt>
+              <dd>
+                <p className="font-display text-2xl uppercase tracking-[0.02em] text-ink">{l.name}</p>
+                <p className="mt-1 text-[17px] leading-relaxed text-ink">{l.body}</p>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* ------------------------------------------------------------------ steps */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>Playing a round</h2>
+
+        <ol className="mt-7 divide-y divide-ink/30 border-y border-ink/30">
+          {STEPS.map((step, i) => (
+            <li key={step.name} className="flex gap-5 py-6">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 flex-none items-center justify-center bg-overprint font-display text-lg text-stock-lit"
+              >
+                {i + 1}
+              </span>
+              <div>
+                <p className="font-display text-2xl uppercase tracking-[0.02em] text-ink">{step.name}</p>
+                <p className="mt-2 text-[17px] leading-relaxed text-ink">{step.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        <p className="mt-6 max-w-2xl border-l-2 border-ink/40 bg-stock-lit px-4 py-3 text-[16px] leading-relaxed text-ink">
+          <strong className="font-semibold">Nothing is final until the round locks.</strong> Until
+          then you can switch teams as often as you like, or clear your pick and come back to it.
+          The deadline is on your dashboard and again on the pick screen &mdash; your organiser sets
+          it, and there is no automatic buffer before kick-off, so read it rather than assuming.
         </p>
-      </div>
+      </section>
+
+      {/* --------------------------------------------------------------- strategy */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>Strategy</h2>
+        <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
+          None of this is a rule. It is just what tends to separate the players who last.
+        </p>
+
+        <div className="mt-7 grid gap-8 sm:grid-cols-2">
+          {STRATEGY.map((group) => (
+            <div key={group.title}>
+              <p className={`${LABEL} text-ink-fade`}>{group.title}</p>
+              <ul className="mt-3 space-y-2">
+                {group.points.map((point) => (
+                  <li key={point} className="flex gap-3 text-[17px] leading-relaxed text-ink">
+                    <span aria-hidden="true" className="text-ink-fade">
+                      &mdash;
+                    </span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------- how it ends */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>How it ends</h2>
+
+        <dl className="mt-7 divide-y divide-ink/30 border-y border-ink/30">
+          <div className="py-5">
+            <dt className="font-display text-2xl uppercase tracking-[0.02em] text-ink">One player left</dt>
+            <dd className="mt-1 text-[17px] leading-relaxed text-ink">
+              They have won it. That is the last man standing.
+            </dd>
+          </div>
+          <div className="py-5">
+            <dt className="font-display text-2xl uppercase tracking-[0.02em] text-ink">Everyone left goes out together</dt>
+            <dd className="mt-1 text-[17px] leading-relaxed text-ink">
+              Nobody is standing, so they share it. What that means for the prize is your
+              organiser&apos;s call &mdash; usually the pot is split, or the whole thing is reset and
+              run again.
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      {/* -------------------------------------------------------------------- next */}
+      <section className={`${PANEL} mt-14 p-6 sm:p-7`}>
+        <p className={`${EYEBROW} text-overprint`}>Next</p>
+        <h2 className={`${HEADING} mt-3 text-3xl`}>Ready to play?</h2>
+        <p className="mt-3 max-w-lg text-[17px] leading-relaxed text-ink">
+          If somebody has sent you a code, you are two minutes from your first pick. If you want to
+          run one yourself, the first twenty player places are free.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Link
+            href="/help/getting-started/players"
+            className="rounded-sm bg-overprint px-6 py-3 font-display text-xl uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            Joining as a player
+          </Link>
+          <Link
+            href="/help/getting-started/organizers"
+            className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint`}
+          >
+            Running one yourself
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

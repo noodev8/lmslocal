@@ -1,237 +1,229 @@
 import Link from 'next/link';
+import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 export const metadata = {
-  title: 'Getting Started for Organizers - LMSLocal Help',
-  description: 'Complete guide to setting up and managing your first Last Man Standing competition. Create competitions, invite players, and manage rounds in just 5 minutes.',
-  keywords: 'last man standing organizer, create competition, manage LMS, pub competition, workplace competition',
+  title: 'Getting Started for Organisers - LMSLocal Help',
+  description:
+    'How to set up and run a Last Man Standing competition for your pub, workplace or club: creating it, choosing who runs the fixtures, inviting players, and what happens each round.',
+  keywords:
+    'run last man standing, last man standing organiser, pub competition, workplace sweepstake, set up last man standing',
+  alternates: { canonical: 'https://lmslocal.co.uk/help/getting-started/organizers' },
   openGraph: {
-    title: 'Getting Started for Organizers',
-    description: 'Learn how to create and manage Last Man Standing competitions for your pub, workplace, or club.',
-    type: 'article',
+    title: 'Getting Started for Organisers',
+    description: 'Set up a Last Man Standing competition for your pub, workplace or club in about five minutes.',
+    type: 'article'
   }
 };
 
+const SETUP = [
+  {
+    title: 'Create your account',
+    body: 'Email address and a password. Verify the email and you are in — there is no card to enter and nothing to install.'
+  },
+  {
+    title: 'Create the competition',
+    body: 'Give it a name your players will recognise — "The Red Lion LMS" rather than "Competition 1" — and decide the two rules that set hard: how many lives everyone starts with (none, or one), and whether a team can be picked twice. Neither can be changed once round one is under way, because changing the game underneath people already playing it is not fair on them.'
+  },
+  {
+    title: 'Choose the team list',
+    body: 'Which teams your players pick from. The Premier League list is the one to use for a normal competition; we add others as we cover them.'
+  },
+  {
+    title: 'Invite your players',
+    body: 'Your competition gets an invite code. Share the code, or the link that carries it — WhatsApp, a poster behind the bar, the group chat. Players enter the code on the LMSLocal home page. Joining stays open until round one locks.'
+  }
+];
+
+const FIXTURES = [
+  {
+    title: 'Do it for me',
+    body: 'We add each round’s fixtures and enter the results. You are offered a start date as you create the competition, and round one is sitting there from the moment it exists — so the players you are recruiting have something to look at rather than an empty screen. Where we have no dates to offer yet, you press Ready on the Round screen once the first set of fixtures is available.'
+  },
+  {
+    title: 'I’ll do my own',
+    body: 'You enter each round yourself from the Round screen: set the lock date and time for the round, add the matches, then enter the results once they have been played. More work, but total control over what counts and when. Nothing starts until you say so.'
+  }
+];
+
+const ROUND_CYCLE = [
+  {
+    title: 'The round opens',
+    body: 'Players see the matches and the deadline. They pick until it passes; you can see who has and who has not.'
+  },
+  {
+    title: 'Results go in',
+    body: 'By us or by you, depending on which you chose. While you are entering them, tapping a result again clears it.'
+  },
+  {
+    title: 'You submit the round',
+    body: 'This is what works out lives and eliminations. Check the results before you do — once submitted they are final, and putting a wrong one right means a conversation with us rather than an edit on screen.'
+  },
+  {
+    title: 'The next round follows',
+    body: 'We add it, or you do. It carries on like that until somebody is the last one standing.'
+  }
+];
+
+const CONTROLS = [
+  'Set or change a player’s pick before the round locks',
+  'Adjust anyone’s lives, or put them back in after elimination',
+  'Add players who have not got a smartphone, and remove anyone who drops out',
+  'Reset the whole competition and run it again with the same players'
+];
+
+const PRACTICE = [
+  {
+    title: 'Say when the deadline is',
+    body: 'The single most common complaint is a player who did not know picks had closed. Tell them the deadline in the same place you tell them everything else.'
+  },
+  {
+    title: 'Be consistent, not lenient',
+    body: 'You will get asked to make exceptions. Whichever way you go matters less than going the same way every time, and being seen to.'
+  },
+  {
+    title: 'Say something each week',
+    body: 'Who went out, who is left, who had a narrow escape. A competition nobody talks about quietly stops being fun long before it ends.'
+  }
+];
+
 export default function OrganizersGettingStartedPage() {
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Hero Section */}
-      <div className="border border-ink/30 bg-stock-lit p-8 mb-8">
-        <h1 className="font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl mb-6">
-          Getting Started for Organizers
-        </h1>
-        <p className="text-xl leading-relaxed text-ink mb-6">
-          Welcome! This guide will walk you through setting up your first Last Man Standing competition
-          for your pub, workplace, or club in just 5 minutes.
+    <div className="max-w-3xl">
+      <p className={`${EYEBROW} text-overprint`}>For organisers</p>
+      <h1 className={`${HEADING} mt-4 text-5xl sm:text-6xl`}>Setting up a competition</h1>
+      <p className="mt-6 max-w-xl text-xl leading-relaxed text-ink">
+        About five minutes from a standing start. Your first twenty player places are free and stay
+        free, so you can have the whole thing running before you decide whether to spend anything.
+      </p>
+
+      {/* -------------------------------------------------------------- the setup */}
+      <section className="mt-12 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>Getting it running</h2>
+
+        <ol className="mt-7 divide-y divide-ink/30 border-y border-ink/30">
+          {SETUP.map((step, i) => (
+            <li key={step.title} className="flex gap-5 py-6">
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 flex-none items-center justify-center bg-overprint font-display text-lg text-stock-lit"
+              >
+                {i + 1}
+              </span>
+              <div>
+                <p className="font-display text-2xl uppercase tracking-[0.02em] text-ink">{step.title}</p>
+                <p className="mt-2 text-[17px] leading-relaxed text-ink">{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        <p className="mt-6 max-w-2xl border-l-2 border-ink/40 bg-stock-lit px-4 py-3 text-[16px] leading-relaxed text-ink">
+          <strong className="font-semibold">You do not have to fill it first.</strong> Players can
+          keep joining right up until round one locks, so send the code out as soon as the
+          competition exists and let it fill while you get on with something else.
         </p>
-        <div className="bg-stock-lit border rounded-none p-4">
-          <p className="font-semibold">🚀 Quick Setup: Follow these 5 simple steps to get your competition running</p>
-        </div>
-      </div>
+      </section>
 
-      {/* Quick Setup Steps */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-ink mb-8 text-center">
-          Quick Setup (5 Minutes)
-        </h2>
-
-        {/* Step 1 */}
-        <div className="bg-stock-lit rounded-none border p-6 mb-6">
-          <div className="flex items-start">
-            <div className="mr-4 mt-1 flex h-10 w-10 flex-none items-center justify-center bg-overprint font-display text-lg text-stock-lit">1</div>
-            <div className="flex-1">
-              <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-3">Create Your Account</h3>
-              <div className="space-y-2 text-[17px] leading-relaxed text-ink">
-                <p>1. Go to <Link href="/register" className="underline decoration-dotted underline-offset-4 hover:text-overprint">Register</Link></p>
-                <p>2. Enter your email and create a password</p>
-                <p>3. Verify your email address</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Step 2 */}
-        <div className="bg-stock-lit rounded-none border p-6 mb-6">
-          <div className="flex items-start">
-            <div className="mr-4 mt-1 flex h-10 w-10 flex-none items-center justify-center bg-overprint font-display text-lg text-stock-lit">2</div>
-            <div className="flex-1">
-              <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-3">Create a Competition</h3>
-              <div className="space-y-2 text-ink mb-4">
-                <p>1. Click &quot;Create Competition&quot; from your dashboard</p>
-                <p>2. Enter competition details:</p>
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="border border-ink/30 bg-stock-lit p-4">
-                  <h4 className="font-semibold text-ink mb-2">Basic Details</h4>
-                  <div className="space-y-1 text-[15px] text-ink">
-                    <p><strong>Name:</strong> e.g., &quot;The Red Lion LMS&quot;</p>
-                    <p><strong>Description:</strong> Optional details about your competition</p>
-                  </div>
-                </div>
-                <div className="border border-ink/30 bg-stock-lit p-4">
-                  <h4 className="font-semibold text-ink mb-2">Rules Settings</h4>
-                  <div className="space-y-1 text-[15px] text-ink">
-                    <p><strong>Lives:</strong> 0 for straight knockout, or 1 to give everyone a second chance</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Step 3 */}
-        <div className="bg-stock-lit rounded-none border p-6 mb-6">
-          <div className="flex items-start">
-            <div className="mr-4 mt-1 flex h-10 w-10 flex-none items-center justify-center bg-overprint font-display text-lg text-stock-lit">3</div>
-            <div className="flex-1">
-              <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-3">Add Teams</h3>
-              <p className="text-[17px] leading-relaxed text-ink mb-4">Choose which teams players can pick from:</p>
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="border border-ink/30 bg-stock-lit p-4 text-center">
-                  <h4 className="font-semibold text-ink mb-2">Premier League</h4>
-                  <p className="text-[15px] text-ink">20 teams</p>
-                </div>
-                <div className="bg-stock-lit rounded-none p-4 text-center border-2 border-ink/30">
-                  <h4 className="font-semibold text-ink mb-2">Championship</h4>
-                  <p className="text-[15px] italic text-ink-fade">Coming Soon</p>
-                </div>
-                <div className="bg-stock-lit rounded-none p-4 text-center border-2 border-ink/30">
-                  <h4 className="font-semibold text-ink mb-2">Custom Teams</h4>
-                  <p className="text-[15px] italic text-ink-fade">Coming Soon</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Step 4 */}
-        <div className="bg-stock-lit rounded-none border p-6 mb-6">
-          <div className="flex items-start">
-            <div className="mr-4 mt-1 flex h-10 w-10 flex-none items-center justify-center bg-overprint font-display text-lg text-stock-lit">4</div>
-            <div className="flex-1">
-              <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-3">Invite Players</h3>
-              <p className="text-[17px] leading-relaxed text-ink mb-4">Your competition generates an invite code that players can use to join.</p>
-              <div className="border border-ink/30 bg-stock-lit p-4">
-                <div className="flex items-center mb-2">
-                  <span className="text-xl mr-2">🔑</span>
-                  <h4 className="font-semibold text-ink">Invite Code</h4>
-                </div>
-                <p className="text-[15px] text-ink">Share this code with your players so they can join your competition.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Step 5 */}
-        <div className="bg-stock-lit rounded-none border p-6 mb-6">
-          <div className="flex items-start">
-            <div className="mr-4 mt-1 flex h-10 w-10 flex-none items-center justify-center bg-overprint font-display text-lg text-stock-lit">5</div>
-            <div className="flex-1">
-              <h3 className="mt-8 font-display text-2xl uppercase tracking-[0.03em] text-ink mb-3">Fixtures and Results</h3>
-              <div className="space-y-3 text-[17px] leading-relaxed text-ink">
-                <p>You choose who handles the matches when you create the competition. It is not a switch you can throw yourself later, though if you change your mind just ask us and we will move the competition over.</p>
-                <p><strong>Do it for me.</strong> We add each round&apos;s fixtures and enter the results. You are offered a start date as you create the competition, and round 1 is sitting there from the moment it exists &mdash; so the players you are recruiting have something to look at. If we have no dates to offer yet, you press <strong>Ready</strong> on the Round screen once the first set of fixtures is available.</p>
-                <p><strong>I&apos;ll do my own.</strong> You enter each round yourself from the Round screen: set the lock date and time for the round, add the matches, then enter the results once they have been played. Nothing starts until you say so.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Managing Competition */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">⚙️ Managing Your Competition</h2>
-
-        <div className="space-y-4 text-ink mb-6">
-          <p>Once your competition is running, managing it is simple:</p>
-          <p>Everything happens on the competition&apos;s <strong>Round</strong> screen, which shows you whatever the round needs next.</p>
-          <ol className="space-y-3 ml-4 list-decimal">
-            <li><strong>The round opens</strong> with its matches and a lock time. Players pick until that deadline.</li>
-            <li><strong>Results go in</strong> once the matches have been played &mdash; by us, or by you, depending on which you chose.</li>
-            <li><strong>Submit the round.</strong> This works out lives and eliminations. Check the results before you do &mdash; once submitted they are final, and putting a wrong one right means a conversation with us rather than an edit on screen.</li>
-            <li><strong>The next round follows.</strong> We add it for you, or you add it yourself.</li>
-          </ol>
-        </div>
-
-        <div className="border border-ink/30 bg-stock-lit p-6">
-          <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-4">Key Features</h3>
-          <ul className="space-y-2 text-ink list-disc ml-4">
-            <li><strong>Override Picks:</strong> Help players who have issues</li>
-            <li><strong>Manage Players:</strong> Add or remove players</li>
-            <li><strong>View Standings:</strong> Track player progress and eliminations</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Best Practices */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">💡 Best Practices</h2>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-4">💬 Communication is Key</h3>
-            <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
-              <li>• Send weekly reminders</li>
-              <li>• Share fixture lists early</li>
-              <li>• Announce results promptly</li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-4">⚖️ Fair Play</h3>
-            <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
-              <li>• Be consistent with deadlines</li>
-              <li>• Enter results accurately</li>
-              <li>• Handle disputes fairly</li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-4">🎉 Keep It Fun</h3>
-            <ul className="space-y-2 text-[17px] leading-relaxed text-ink">
-              <li>• Share weekly updates</li>
-              <li>• Celebrate last players standing</li>
-              <li>• Consider prizes for winners</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div className="bg-stock-lit rounded-none p-8 mb-8 border">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-6">Common Questions</h2>
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-semibold text-ink mb-2">Q: How many players can join?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: As many as you like &mdash; there is no cap on the size of a competition. Your first 20 places are free, shared across all of your competitions, and every player after that uses a credit. So a big competition is a question of credits rather than a limit.</p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-ink mb-2">Q: Can I run multiple competitions?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Yes, you can manage multiple competitions from one account.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Support CTA */}
-      <div className="border border-ink/30 bg-stock-lit p-8 text-center">
-        <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink mb-4">Need Help?</h2>
-        <p className="text-[17px] leading-relaxed text-ink mb-6">
-          If you need assistance, check our FAQ or contact support.
+      {/* ---------------------------------------------------------- who runs them */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>Fixtures and results</h2>
+        <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
+          You choose who handles the matches when you create the competition. It is not a switch you
+          can throw yourself afterwards &mdash; but if you change your mind, ask us and we will move
+          the competition over.
         </p>
-        <div className="flex justify-center gap-4">
+
+        <div className="mt-7 grid gap-px border border-ink/30 bg-ink/30 sm:grid-cols-2">
+          {FIXTURES.map((option) => (
+            <div key={option.title} className="bg-stock-lit p-6">
+              <p className="font-display text-2xl uppercase tracking-[0.02em] text-ink">{option.title}</p>
+              <p className="mt-3 text-[17px] leading-relaxed text-ink">{option.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------ the round */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>What happens each round</h2>
+        <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
+          All of it on the competition&apos;s Round screen, which shows you whatever the round needs
+          next.
+        </p>
+
+        <dl className="mt-7 divide-y divide-ink/30 border-y border-ink/30">
+          {ROUND_CYCLE.map((phase) => (
+            <div key={phase.title} className="py-5">
+              <dt className="font-display text-2xl uppercase tracking-[0.02em] text-ink">{phase.title}</dt>
+              <dd className="mt-1.5 text-[17px] leading-relaxed text-ink">{phase.body}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* --------------------------------------------------------- what you control */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>What you can override</h2>
+        <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
+          The platform runs the competition; it does not referee it. Where a call is a judgement
+          rather than a fact, it is yours to make, and you have the tools to make it stick.
+        </p>
+
+        <ul className="mt-6 space-y-2.5">
+          {CONTROLS.map((item) => (
+            <li key={item} className="flex gap-3 text-[17px] leading-relaxed text-ink">
+              <span aria-hidden="true" className="text-ink-fade">
+                &mdash;
+              </span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* ---------------------------------------------------------------- practice */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>Running it well</h2>
+
+        <dl className="mt-7 divide-y divide-ink/30 border-y border-ink/30">
+          {PRACTICE.map((item) => (
+            <div key={item.title} className="py-5">
+              <dt className={`${LABEL} text-ink-fade`}>{item.title}</dt>
+              <dd className="mt-2 text-[17px] leading-relaxed text-ink">{item.body}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* -------------------------------------------------------------------- next */}
+      <section className={`${PANEL} mt-14 p-6 sm:p-7`}>
+        <p className={`${EYEBROW} text-overprint`}>Next</p>
+        <h2 className={`${HEADING} mt-3 text-3xl`}>Set yours up</h2>
+        <p className="mt-3 max-w-lg text-[17px] leading-relaxed text-ink">
+          Twenty player places free, no card, nothing to install. If a question comes up first, the
+          FAQ has the short answers.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
           <Link
-            href="/help/faq"
-            className="px-4 py-2 bg-stock-lit text-ink border rounded-none hover:bg-stock-lit transition-colors"
+            href="/register"
+            className="rounded-sm bg-overprint px-6 py-3 font-display text-xl uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            View FAQ
+            Create a competition
           </Link>
           <Link
-            href="/help/support"
-            className="px-4 py-2 rounded-sm bg-overprint font-display uppercase tracking-[0.06em] text-stock-lit transition-opacity hover:opacity-90"
+            href="/help/faq#organising"
+            className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint`}
           >
-            Contact Support
+            Organiser questions
+          </Link>
+          <Link
+            href="/pricing"
+            className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint`}
+          >
+            What it costs
           </Link>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
