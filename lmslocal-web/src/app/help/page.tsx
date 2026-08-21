@@ -68,7 +68,13 @@ const QUICK_ANSWERS = [
     q: 'What if I run out of teams?',
     a: 'They all come back and you start the list again.'
   },
-  { href: '/help/faq#how-much-does-it-cost', q: 'What does it cost to run?', a: 'Your first 20 player places are free.' }
+  {
+    // Straight to pricing rather than the FAQ answer - somebody asking what it costs wants the
+    // packs and the numbers, not a two-line summary of them.
+    href: '/pricing',
+    q: 'What does it cost to run?',
+    a: 'Your first 20 player places are free. See what the packs cost beyond that.'
+  }
 ];
 
 export default function HelpHomePage() {
