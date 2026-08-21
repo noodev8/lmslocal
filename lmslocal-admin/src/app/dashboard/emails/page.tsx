@@ -918,9 +918,11 @@ function SendPanel({
                           <th className="px-3 py-2 font-semibold">Name</th>
                           <th className="px-3 py-2 font-semibold">Email</th>
                           {showCompetition && <th className="px-3 py-2 font-semibold">Competition</th>}
-                          {/* "When", not "Waiting since": some emails hang off something still
-                              to come, and this column reads both ways. */}
-                          <th className="px-3 py-2 font-semibold">When</th>
+                          {/* Named by the server, which knows which trigger column the service
+                              actually used - "Joined" on a welcome. It falls back to "When"
+                              rather than "Waiting since" because some emails hang off something
+                              still to come, and the column reads both ways. */}
+                          <th className="px-3 py-2 font-semibold">{preview?.since_label ?? 'When'}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">

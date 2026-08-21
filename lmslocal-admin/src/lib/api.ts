@@ -623,6 +623,9 @@ export type PreviewEmailResponse = ApiResponse & {
   recipient_count?: number;
   recipients?: EmailRecipient[];
   truncated?: boolean;
+  /* Heading for the `since` column - "Joined" on a welcome, "When" otherwise. Server-derived from
+     the same chain that picks the value, so it cannot name a column the rows do not carry. */
+  since_label?: string;
   /* Rendered from the real template for the first recipient. Null when nobody qualifies. */
   sample?: {
     for_email: string;

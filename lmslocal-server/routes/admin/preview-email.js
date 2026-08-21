@@ -38,6 +38,7 @@ Success Response (ALWAYS HTTP 200):
     }
   ],
   "truncated": false,                  // boolean, true if more recipients than listed
+  "since_label": "Joined",             // string, heading for the `since` column on this email
   "sample": {                          // object or null, null when nobody qualifies
     "for_email": "player@example.com", // string, whose copy this is
     "subject": "...",                  // string
@@ -67,6 +68,58 @@ const { entryFor } = require('../../services/emailCatalog');
 const { logApiCall } = require('../../utils/apiLogger');
 
 const router = express.Router();
+
+/*
+Which column a service used to say when a candidate became one. Services name it for their own
+trigger, so take whichever is present, in this order.
+*/
+const SINCE_COLUMNS = [
+  'settled_at',
+  'last_kickoff',
+  'last_block',
+  'finished_at',
+  'lock_time',
+  'starts_at',
+  'joined_at',
+  'created_at'
+];
+
+/** The trigger timestamp a candidate carries, or null. */
+const sinceOf = (candidate) => {
+  const column = SINCE_COLUMNS.find((c) => candidate[c] != null);
+  return column ? candidate[column] : null;
+};
+
+/*
+What to head that column with, per email. "When" said nothing: the same word sat over a deadline
+that has not arrived, a competition that ended weeks ago and the moment somebody signed up, and
+"in 7 hours" under it on Welcome Created Comp read as nonsense - it is round 1's lock time, when
+joining closes.
+
+Keyed by email type rather than by the column above, because the column cannot tell you the
+wording. join_lms and empty_comp both hang off a created_at, but one is a person signing up and
+the other a competition being made, and "Created" is only right for the second.
+
+Named here rather than on the admin screen's OUTLINE so the heading sits beside the value it
+heads. A label held on the screen would be a second place describing what this route chose.
+
+Anything absent falls back to "When".
+*/
+const SINCE_LABELS = {
+  pick_reminder: 'Locks',                     // round 1 lock time, ahead: "in 31 hours"
+  results: 'Settled',                         // when the round was settled
+  game_complete: 'Finished',                  // when the competition ended
+  welcome: 'Joined',                          // when they joined the competition
+  created_comp: 'Starts',                     // round 1 lock time - when joining closes
+  join_lms: 'Signed up',                      // when the account was created
+  result_reminder: 'Last kickoff',            // the round's last kickoff, now played
+  fixture_reminder: 'Settled',                // when their last round was settled
+  empty_comp: 'Created',                      // when the competition was created
+  promote_competition: 'Created',             // hints all hang off the competition's creation
+  update_scores_mid_round_tip: 'Created',
+  personal_names_tip: 'Created',
+  join_blocked: 'Last blocked'                // the most recent join we turned away
+};
 
 // How many addresses come back. Enough to sanity-check a list, short of dumping the user base.
 const MAX_LISTED = 50;
@@ -166,11 +219,15 @@ router.post('/', verifyAdminToken, async (req, res) => {
         collide today - each candidate row carries exactly one of these - and a service adding a
         new trigger column just adds itself to this list.
         */
-        since: c.settled_at ?? c.last_kickoff ?? c.finished_at ?? c.lock_time ?? c.starts_at ?? c.joined_at ?? c.created_at ?? null,
+        since: sinceOf(c),
         // Present only on round-based emails; null on the platform-wide ones.
         round_number: c.round_number ?? null
       })),
       truncated: candidates.length > MAX_LISTED,
+      // Heading for the `since` column - see SINCE_LABELS. One per response: a preview is
+      // always one email type, so every row in it is measuring the same thing.
+
+      since_label: SINCE_LABELS[email_type] || 'When',
       sample
     });
 
