@@ -1,0 +1,156 @@
+# EMAIL
+
+# =============================================================================================
+# AREA to cut and paste into VPS through Putty - Address the times before copying
+# =============================================================================================
+# `crontab -e`, replace the block between the markers, save. `crontab -l` to check.
+#
+# THE ORDER IS THE MASTER, and the times are worked out from it. It is priority order: whichever
+# email runs first takes the collisions, because magic send marks anyone emailed in the last 48
+# hours as sent rather than emailing them again. So move the rows into the order you want, ignore
+# the times, and ask Claude to align it - it sets the times, keeps the section below in step and
+# rewrites the reasoning on each line.
+#
+# Times are GMT, the server clock. Each line below carries its BST equivalent in a comment.
+#
+# NO TWO LINES IN THE SAME MINUTE. That is the one hard rule: the 48-hour check reads email_queue,
+# and a row only exists once the send has happened, so two runs at the same moment cannot see each
+# other. Anything else is free - a line can run several times a day, and the gaps need not be even.
+#
+# `>/dev/null` throws away the run summary; what went out is in Resend and on the admin Emails
+# screen. stderr is left alone on purpose, so a misspelt email type or a failed send still shouts.
+# Add `2>&1` for silence, knowing a typo would then fail quietly every day.
+
+# --- LMSLocal email sweeps - start ---
+#0 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
+#5 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
+#10 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
+#15 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_blocked >/dev/null
+#20 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js welcome >/dev/null
+#25 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js created_comp >/dev/null
+#30 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_lms >/dev/null
+#35 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js result_reminder >/dev/null
+#40 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js fixture_reminder >/dev/null
+#45 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js empty_comp >/dev/null
+#50 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js promote_competition >/dev/null
+#55 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js update_scores_mid_round_tip >/dev/null
+#0 9 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js personal_names_tip >/dev/null
+# --- LMSLocal email sweeps - end ---
+
+
+# =============================================================================================
+# THE SAME LINES, WITH THE REASONING - reference, not for pasting
+# =============================================================================================
+#
+# WHY THE ORDER MATTERS. Magic send (services/emailQuiet.js) marks anyone emailed in the last 48
+# hours as sent rather than emailing them again, so whichever email runs first takes the collisions
+# and the ones after it get whoever is left. Nothing is exempt: moving a line up is the only way to
+# promote an email, and there is no priority setting in the code, on purpose.
+#
+# A '#' switches one off - no edit, no commit, no deploy, no restart. `crontab -l` is the only
+# honest answer to what is running; the admin screen cannot see this file.
+#
+# DRY RUN BEFORE SWITCHING ONE ON, especially with a backlog behind it. The kill is permanent:
+#   node scripts/email-sweep.js <type> --dry-run     lists who qualifies, marks declines with [48h]
+#   node scripts/email-sweep.js <type> --test        one sample to the test address, writes nothing
+#
+# The order here is a STARTING SUGGESTION, not a finding. It ranks by how much damage a killed
+# email does, and by whether losing it is permanent (once-ever) or merely a deferral (a recurring
+# nudge that comes round again). Real sends will beat that reasoning - move things as you learn.
+
+
+# ---------------------------------------------------------------------------------------------
+# 1. Player, Game - Pick reminder | Round locks within 3 days, no pick made
+#    Top of the list because it is the only email with a hard deadline. A killed one can cost a
+#    player a life, and no other email can make that up to them.
+# 9:00 AM
+#0 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 2. Player, Game - Round Over | Round settled + next fixtures in
+#    The one email every player gets every week, and the biggest single sender - so it is also the
+#    email that will take the most collisions FROM the ones below it. Watch that.
+# 9:05 AM
+#5 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 3. Player, Game - Game complete | Everyone who took part, once
+#    Once ever, and the end of the story. Nothing else tells them who won.
+# 9:10 AM
+#10 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 4. Organiser, Info - Join Blocked | Blocked join in last 7 days, still shut
+#    The only email on the list that is about money: an organiser at the free limit is losing
+#    players who tried to join. Killing it trades a sale for an email credit.
+# 9:15 AM
+#15 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_blocked >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 5. Player, Info - Welcome Join Comp | New joins only
+#    Once ever. A killed welcome is never replaced by anything.
+# 9:20 AM
+#20 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js welcome >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 6. Organiser, Info - Welcome Created Comp | New competitions only
+#    Once ever, and it carries the join code - the one payload the app does not push at them.
+# 9:25 AM
+#25 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js created_comp >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 7. All, Info - Welcome Join LMS | New signups only
+#    Once ever.
+# 9:30 AM
+#30 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_lms >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 8. Organiser, Game - Result reminder | Round played 36h+, unsettled
+#    Recurring, so a kill defers it rather than ending it - but a whole competition of players is
+#    waiting on this one organiser, which is why it sits above the other chases.
+# 9:35 AM
+#35 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js result_reminder >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 9. Organiser, Game - Fixture reminder | Last round settled 3+ days
+#    The other half of result_reminder. Recurring, same 7-day cooldown.
+# 9:40 AM
+#40 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js fixture_reminder >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 10. Organiser, Info - Empty Competition | Empty after 7 days
+#     Once per competition. Note the grain: somebody with two empty competitions has two to fill,
+#     but magic send now gives them only the first - the second is marked as sent in the same run.
+# 9:45 AM
+#45 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js empty_comp >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 11. Organiser, Info - Hint: Promote competition | 3 days after creating, once ever
+#     Hints are lessons rather than events and are already spaced a week apart among themselves,
+#     so they lose least by being at the bottom.
+# 9:50 AM
+#50 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js promote_competition >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 12. Organiser, Info - Hint: Result set mid round | 7 days, manual comps with fixtures
+# 9:55 AM
+#55 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js update_scores_mid_round_tip >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 13. Organiser, Info - Hint: Personal names | 14 days, every competition
+# 10:00 AM
+#0 9 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js personal_names_tip >/dev/null
+
+
+# ---------------------------------------------------------------------------------------------
+# NOT ON THIS LIST, and not by oversight:
+#
+#   broadcast_admin           Operator-driven only. It is a message you wrote, not a rule, so it
+#                             has no candidate query for a sweep to run.
+#   game_start_reminder       UNWIRED 2026-08-14. Built, then dropped - email is the wrong channel
+#   share_reminder            UNWIRED 2026-08-14. for an organiser who has already disengaged.
+#                             Both still on disk with their rules intact. See
+#                             services/emailCatalog.js and docs/email/README.md.
+#
+# Account mail (verification, password reset) never goes near this file or magic send - it is sent
+# at the moment it is needed and carries no email_type tag, so nothing can suppress it.

@@ -33,7 +33,16 @@ Crontab - one line per email, comment it out to switch that email off. Server cl
 write the BST equivalent in the comment as elsewhere in the file:
 
   # 9:00 AM - chase organisers whose competition nobody has joined
-  0 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js empty_comp
+  0 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js empty_comp >/dev/null
+
+`>/dev/null` and NOT `2>&1`, deliberately. The redirect throws away the run summary - what went
+out is recorded in Resend and on the admin Emails screen under Sent, which are better records than
+cron mail nobody reads - while stderr still shouts. Given the buffering below, the only things that
+can now produce output at all are a misspelt email type, a failed send and an outright crash, so
+anything arriving is worth reading. Adding 2>&1 would make a typo in a crontab line fail silently
+every day forever.
+
+docs/email/email-cron-priority-order.txt holds the full block, in priority order, ready to paste.
 
 NOTHING GUARDS AGAINST RUNNING IT TWICE, and nothing needs to. Every send writes an email_queue
 row, and every candidate query excludes anyone who already has one - so a second run finds nobody.
@@ -45,10 +54,11 @@ Anyone emailed in the last 48 hours is marked as sent rather than emailed, so wh
 first takes the collisions and the ones below it get whoever is left. Nothing is exempt, on purpose:
 a priority field in the code would be a second way to say what this file's order already says.
 
-STAGGER THE LINES BY A FEW MINUTES. Two lines at the same minute run at the same time, and then
+NO TWO LINES IN THE SAME MINUTE. Two lines at the same minute run at the same time, and then
 neither can see what the other sent - the rule is enforced by reading email_queue, and the row only
-exists once the send has happened. The queue row is written BEFORE the Resend call, so a few
-minutes is generous; the same clock minute is not.
+exists once the send has happened. The queue row is written BEFORE the Resend call, so any real gap
+is enough; the same clock minute is not. Nothing else about the times is fixed - an email can run
+several times a day, and the gaps need not be even.
 
 OUTPUT IS SILENT UNLESS SOMETHING HAPPENED, so a daily run does not accumulate a log forever. See
 the note by `log` below.

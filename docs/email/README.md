@@ -1150,10 +1150,15 @@ everything below it gets whoever is left. A priority field in the code would be 
 what the crontab order already says, and the two could disagree — the same argument that keeps the
 schedule itself out of `emailCatalog.js`.
 
-**Stagger the crontab lines by a few minutes.** Two lines at the same minute run at the same time,
+**No two crontab lines in the same minute.** Two lines at the same minute run at the same time,
 and then neither can see what the other sent — the rule is enforced by reading `email_queue`, and
 the row only exists once the send has happened. The queue row is written *before* the Resend call,
-so a few minutes is generous; the same clock minute is not.
+so any real gap is enough; the same clock minute is not. Nothing else about the times is fixed —
+an email can run several times a day, and the gaps need not be even.
+
+`docs/email/email-cron-priority-order.txt` holds the block ready to paste. **The order in that file
+is the master and the times are derived from it** — reorder the rows, ignore the times, then have
+them realigned.
 
 **The Send button does not get the crontab's ordering.** Priority there is whatever the operator
 presses first, so a Round Over sent at 2pm takes the collisions from anything sent that evening.
