@@ -760,7 +760,15 @@ function PushFixturesPanel({
                       <span className="shrink-0 text-xs text-slate-400">round {target.round_number}</span>
                     )}
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-slate-500">{target.organiser_email}</p>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">
+                    {/* The id is what ties this row to db/query.js, /game/[id] and any hand-written
+                        unwind. Names collide across organisers - "LMS", "Last man standing" and
+                        "MIT LAST MAN STANDING" were all live at once - and this is the one screen
+                        where pushing the wrong row cannot be taken back. */}
+                    <span className="font-mono text-slate-400">#{target.competition_id}</span>
+                    <span className="mx-1 text-slate-300">·</span>
+                    {target.organiser_email}
+                  </p>
                 </div>
 
                 <div className="text-right text-xs text-slate-500">
@@ -1193,7 +1201,15 @@ function PushResultsPanel({
                       </span>
                     )}
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-slate-500">{target.organiser_email}</p>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">
+                    {/* The id is what ties this row to db/query.js, /game/[id] and any hand-written
+                        unwind. Names collide across organisers - "LMS", "Last man standing" and
+                        "MIT LAST MAN STANDING" were all live at once - and this is the one screen
+                        where pushing the wrong row cannot be taken back. */}
+                    <span className="font-mono text-slate-400">#{target.competition_id}</span>
+                    <span className="mx-1 text-slate-300">·</span>
+                    {target.organiser_email}
+                  </p>
                 </div>
 
                 <div className="text-right text-xs text-slate-500">
@@ -1279,7 +1295,10 @@ function PushResultsPanel({
             <ul className="mt-4 space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               {outstanding.map((c) => (
                 <li key={c.competition_id} className="flex justify-between gap-3">
-                  <span className="truncate">{c.name}</span>
+                  <span className="truncate">
+                    <span className="font-mono text-xs text-slate-400">#{c.competition_id}</span>{' '}
+                    {c.name}
+                  </span>
                   <span className="shrink-0 text-xs text-slate-500">
                     {c.fixtures_pending > 0
                       ? `${c.fixtures_pending} not pushed`

@@ -24,7 +24,7 @@ import {
 } from '@heroicons/react/24/outline';
 import AdminHeader from '@/components/AdminHeader';
 import { adminApi, getToken, AdminCompetition, apiBaseUrl, getWebBaseUrl } from '@/lib/api';
-import { formatAge, formatDate } from '@/lib/dates';
+import { formatAge, formatDate, formatTime } from '@/lib/dates';
 
 type SortKey = 'name' | 'status' | 'player_count' | 'last_activity';
 type SortDirection = 'asc' | 'desc';
@@ -720,7 +720,19 @@ function CompetitionsList() {
                     }`}
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
-                    <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={c.status} />
+                      {/* Setup only. On a started competition the start date is in the past and
+                          adds a column of noise to every row; the badge alone is the answer. */}
+                      {c.status === 'setup' && c.start_date && (
+                        <div
+                          className="mt-1 whitespace-nowrap text-xs text-slate-500"
+                          title={`Round 1 locks ${formatDate(c.start_date)} at ${formatTime(c.start_date)}`}
+                        >
+                          {formatDate(c.start_date)}
+                        </div>
+                      )}
+                    </td>
                     <td className="max-w-[16rem] px-4 py-3"><OrganiserCell competition={c} /></td>
                     <td className="px-4 py-3 tabular-nums text-slate-600">{c.player_count}</td>
                     {/* The exact day moves into the tooltip, since the cell now reads relatively. */}

@@ -29,6 +29,7 @@ Success Response (ALWAYS HTTP 200):
       "bot_count": 4,                            // integer, of which are bots
       "bots_allowed": true,                      // boolean, organiser may use bots - see services/botPool.js
       "created_at": "2026-01-04T12:00:00.000Z",  // string, ISO datetime
+      "start_date": "2026-08-28T19:00:00.000Z", // string or null, Round 1 lock time - null if no round yet
       "last_activity": "2026-08-01T09:00:00.000Z",// string or null, most recent pick, falls back to created_at
       "fixture_service": true,                   // boolean, opted into the automated fixture service
       "team_list_id": 1,                         // integer, which staged fixtures it receives
@@ -121,6 +122,15 @@ router.get('/', verifyAdminToken, async (req, res) => {
           WHERE cu.competition_id = c.id
             AND bu.email LIKE $2)                                             AS bot_count,
         c.created_at,
+        -- Round 1's lock time is the competition's start: the moment picks close and it is
+        -- under way. Only meaningful while status is 'setup' - once it has started, the date
+        -- is in the past and last_activity is the more useful column - so the screen shows it
+        -- for setup rows only. NULL for a competition with no round yet, which is every
+        -- manual competition still waiting on its organiser to press Ready.
+        (SELECT r.lock_time
+           FROM round r
+          WHERE r.competition_id = c.id
+            AND r.round_number = 1)                                           AS start_date,
         -- Anything that happened IN this competition, not anything that happened to its members.
         -- GREATEST ignores NULLs, and c.created_at is NOT NULL, so this always resolves.
         GREATEST(
@@ -165,6 +175,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
       // to it rather than offering a page that will refuse.
       bots_allowed: BOT_ORGANISER_IDS.includes(row.organiser_id),
       created_at: row.created_at,
+      start_date: row.start_date,
       last_activity: row.last_activity,
       fixture_service: row.fixture_service === true,
       team_list_id: row.team_list_id,

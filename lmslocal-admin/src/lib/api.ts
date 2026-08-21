@@ -161,6 +161,12 @@ export interface AdminCompetition {
   /* Whether this organiser may use bots at all - see services/botPool.js on the server. */
   bots_allowed: boolean;
   created_at: string;
+  /*
+  Round 1's lock time - when picks close and the competition is under way. Null while it has no
+  round at all. Only shown on the competitions screen for setup rows; once started, the date is
+  behind us and last_activity answers the more useful question.
+  */
+  start_date: string | null;
   last_activity: string;
   /* Opted into the automated fixture service - the flag every push reads. */
   fixture_service: boolean;

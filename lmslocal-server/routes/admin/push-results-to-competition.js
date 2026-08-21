@@ -57,7 +57,8 @@ Success Response (ALWAYS HTTP 200):
   "fixtures_processed": 10,                 // integer, fixtures whose picks were settled
   "players_eliminated": 3,                  // integer, players who lost their last life this round
   "no_pick_penalties": 2,                   // integer, active players penalised for not picking
-  "competition_status": "active",           // string, "active" or "COMPLETE" (if a winner was decided)
+  "competition_status": "active",           // string, "active", "ACTIVE" (promoted from SETUP by
+                                            //   this push) or "COMPLETE" (a winner was decided)
   "active_players_remaining": 5,            // integer, active players after processing
   "message": "Results pushed and processed"
 }
@@ -87,6 +88,7 @@ const express = require('express');
 const { transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
+const { promoteCompetitionIfStarted } = require('../../services/competitionStatus');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
@@ -379,17 +381,21 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
       // === COMPETITION COMPLETION CHECK ===
       let competitionStatus = 'active';
-      let activePlayersRemaining = 0;
+
+      // Counted unconditionally, not inside the completion check below. It used to be, which
+      // meant a partial push - one fixture of ten resulted, the normal case on a Friday night -
+      // returned the initialiser 0 and the admin screen printed "0 left" beside a competition
+      // that still had every player in it. The number is reported on every push, so it has to be
+      // true on every push; the completion rule stays gated on the whole round being processed.
+      const activePlayersResult = await client.query(`
+        SELECT COUNT(*) as active_count
+        FROM competition_user
+        WHERE competition_id = $1 AND status = 'active'
+      `, [competitionId]);
+
+      const activePlayersRemaining = parseInt(activePlayersResult.rows[0].active_count);
 
       if (total_fixtures > 0 && total_fixtures == processed_fixtures) {
-        const activePlayersResult = await client.query(`
-          SELECT COUNT(*) as active_count
-          FROM competition_user
-          WHERE competition_id = $1 AND status = 'active'
-        `, [competitionId]);
-
-        activePlayersRemaining = parseInt(activePlayersResult.rows[0].active_count);
-
         // If only one or zero players remain active, mark competition as complete
         if (activePlayersRemaining <= 1) {
           // Query for the winner (if there is one)
@@ -415,6 +421,15 @@ router.post('/', verifyAdminToken, async (req, res) => {
           `, [competitionId, winnerId]);
           competitionStatus = 'COMPLETE';
         }
+      }
+
+      // === PROMOTE SETUP -> ACTIVE ===
+      // Placed after the completion check on purpose: the shared predicate requires status to
+      // still be SETUP, so a competition just marked COMPLETE above is left alone. Nothing gates
+      // on this column - the join rule computes the same condition live - so this only stops the
+      // admin screen showing SETUP beside a competition whose results are already in.
+      if (await promoteCompetitionIfStarted(client, competitionId)) {
+        competitionStatus = 'ACTIVE';
       }
 
       // NOTE: No 'results' notification queued here - the 'new_round' notification
