@@ -40,7 +40,7 @@ export default function FAQPage() {
             <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How much does it cost?</h3>
             <div className="text-[17px] leading-relaxed text-ink">
               <p>A: For players: Free to join competitions. Your organiser may charge their own entry fees.</p>
-              <p className="mt-2">For organisers: First 10 player slots are free. Additional slots require credits, which can be purchased in packs.</p>
+              <p className="mt-2">For organisers: Your first 20 player slots are free, shared across all of your competitions (not 20 per competition). Anyone beyond that uses a paid credit.</p>
             </div>
           </div>
 
@@ -62,6 +62,26 @@ export default function FAQPage() {
           <div>
             <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: How many competitions can I run?</h3>
             <p className="text-[17px] leading-relaxed text-ink">A: Unlimited! You can manage multiple competitions from a single account.</p>
+          </div>
+
+          <div>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What happens if a player tries to join once I&apos;m full?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: They&apos;ll see a message saying the competition is full and to contact you. You&apos;ll also get a notification on your dashboard shortly after they try.</p>
+          </div>
+
+          <div>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: If I remove a player, do I get their credit back?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Only if you remove them before the competition has started. Once it&apos;s underway, removing a player frees up the slot but doesn&apos;t refund a paid credit.</p>
+          </div>
+
+          <div>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: If there&apos;s a rollover and everyone goes back in, do I need to buy credits again?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: Not if you&apos;re at or under your free 20. If your competition has grown past 20 players, restoring everyone on reset will charge for the overage — this is shown clearly before you confirm the reset, with the option to back out.</p>
+          </div>
+
+          <div>
+            <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: What&apos;s the &quot;Set Pick&quot; option against a player&apos;s name for?</h3>
+            <p className="text-[17px] leading-relaxed text-ink">A: It&apos;s an optional override for setting or correcting a pick on a player&apos;s behalf — for example if they can&apos;t pick themselves in time. You don&apos;t need to use it to confirm every player&apos;s pick.</p>
           </div>
 
           <div>
@@ -180,7 +200,7 @@ export default function FAQPage() {
         <div className="space-y-6">
           <div>
             <h3 className="font-display text-xl uppercase tracking-[0.03em] text-ink mb-2">Q: When do picks lock?</h3>
-            <p className="text-[17px] leading-relaxed text-ink">A: Default: 1 hour before the first match of the round. Organisers can set custom deadlines.</p>
+            <p className="text-[17px] leading-relaxed text-ink">A: Whenever your organiser sets the deadline for that round — there&apos;s no automatic buffer before kickoff. The deadline is shown on your dashboard and again when you make your pick, so check there rather than assuming a fixed time.</p>
           </div>
 
           <div>

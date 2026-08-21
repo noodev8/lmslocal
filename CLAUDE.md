@@ -211,7 +211,8 @@ Table names are **singular**: `competition`, `round`, `pick`, `team`, `team_list
   was **dropped in Aug 2026** — it duplicated derivable state and had **three** rebuild
   implementations carrying **two** different definitions. `services/allowedTeams.js` is now the
   only definition; **do not reintroduce a stored copy**
-- **Lock**: when all players have picked, at an admin-set time, or 1hr before kickoff
+- **Lock**: when all players have picked, or at the admin-set time — there is no automatic buffer
+  before kickoff
 - **Outcome**: win = advance; draw or loss = eliminated; missed pick = life lost. Judged on
   **regulation time only** (90 minutes + stoppage)
 - Players join by competition slug or access code
