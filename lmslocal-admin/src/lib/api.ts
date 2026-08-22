@@ -122,6 +122,20 @@ export interface AdminStats {
     total: number;
     new_last_30_days: number;
     guests: number;
+    /*
+    Registered accounts split by whether anything ever came of them. genuine + wasters === total.
+    The rule is the server's (get-admin-stats.js): joined a competition, organises one, or seen in
+    the last 30 days.
+
+    "returned" and "signup_only" split the accounts that are genuine on that last clause ALONE -
+    they joined nothing and organise nothing. Kept apart because they are not the same people:
+    most of that group had never come back at all, their last activity being the registration
+    itself.
+    */
+    genuine: number;
+    wasters: number;
+    returned: number;
+    signup_only: number;
   };
   generated_at: string;
 }
@@ -172,6 +186,25 @@ export interface AdminCompetition {
   fixture_service: boolean;
   team_list_id: number;
   team_list_name: string | null;
+  /* Members who are neither the organiser nor a bot - i.e. how many people actually turned up. */
+  real_player_count: number;
+  /* Picks ever made, across every round. Zero means the competition was never played. */
+  pick_count: number;
+  /* Whole days since last_activity. */
+  quiet_days: number;
+  /*
+  The tyre-kicker verdict, and the one thing this screen counts by: nobody but the organiser ever
+  did anything and it has gone quiet. Defined once on the server in
+  services/competitionEngagement.js - never re-derive it here, or the tiles and the tab will
+  drift apart.
+  */
+  is_stalled: boolean;
+  /* "derived" when the rule decided, "admin" when someone overrode it. */
+  stalled_source: 'derived' | 'admin';
+  /* The stored override: true forces stalled, false forces real, null trusts the rule. */
+  stalled_override: boolean | null;
+  /* Why it was called stalled, ready to show - null when it is not. */
+  stalled_reason: string | null;
 }
 
 /*
@@ -542,6 +575,8 @@ export type SetBotPickResponse = ApiResponse & {
 
 export type CompetitionsResponse = ApiResponse & {
   competitions?: AdminCompetition[];
+  /* Days of silence the server's rule requires before it will call a competition stalled. */
+  quiet_days_threshold?: number;
   generated_at?: string;
 };
 
@@ -784,6 +819,21 @@ export const adminApi = {
     const response = await api.post<DeleteCompetitionResponse>('/admin/delete-admin-competition', {
       competition_id: competitionId,
     });
+    return response.data;
+  },
+
+  /*
+  Override the derived tyre-kicker judgement. Pass null to stop overriding and go back to
+  trusting the rule - which is why the argument is boolean | null rather than a plain boolean.
+  */
+  setCompetitionStalled: async (
+    competitionId: number,
+    stalled: boolean | null
+  ): Promise<ApiResponse & { stalled_override?: boolean | null }> => {
+    const response = await api.post<ApiResponse & { stalled_override?: boolean | null }>(
+      '/admin/set-competition-stalled',
+      { competition_id: competitionId, stalled }
+    );
     return response.data;
   },
 

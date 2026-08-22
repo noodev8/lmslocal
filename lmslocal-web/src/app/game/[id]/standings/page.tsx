@@ -500,7 +500,16 @@ export default function StandingsPage() {
                                           ? 'text-overprint'
                                           : 'text-ink-fade'
                                       }`}>
-                                        {player.current_pick.outcome === 'WIN' ? 'Won' : player.current_pick.outcome === 'LOSE' ? 'Out' : 'Pending'}
+                                        {/* A lost pick is not an exit. A player with a life
+                                            to spend loses one and plays on, and calling that
+                                            "Out" in the standings retired people who were
+                                            still in. Whether they are out is their status,
+                                            not their pick's outcome. */}
+                                        {player.current_pick.outcome === 'WIN'
+                                          ? 'Won'
+                                          : player.current_pick.outcome === 'LOSE'
+                                          ? player.status === 'active' ? 'Lost' : 'Out'
+                                          : 'Pending'}
                                       </span>
                                     </>
                                   )}

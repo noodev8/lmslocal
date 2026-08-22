@@ -7,6 +7,12 @@ Admin Competitions List
 Purpose: Drill-down from the dashboard's "Competitions" cards - every competition on the
          platform with organiser, player count, and last activity, filterable by status and,
          via ?organiser=<id> from the Organisers screen, down to one person's competitions.
+
+         The status tiles count REAL competitions only. A competition nobody but its organiser
+         ever touched - the tyre kickers - is pulled out into its own "Stalled" tile and tab, so
+         the headline figures stop flattering us. That verdict is the server's (see
+         services/competitionEngagement.js and is_stalled on each row); this screen never
+         re-derives it, it only counts and filters by it.
 =======================================================================================================================================
 */
 
@@ -21,9 +27,12 @@ import {
   ArrowTopRightOnSquareIcon,
   ClipboardIcon,
   CheckIcon,
+  FlagIcon,
+  ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
+import { FlagIcon as FlagSolidIcon } from '@heroicons/react/24/solid';
 import AdminHeader from '@/components/AdminHeader';
-import { adminApi, getToken, AdminCompetition, apiBaseUrl, getWebBaseUrl } from '@/lib/api';
+import { adminApi, getToken, AdminCompetition, AdminStats, apiBaseUrl, getWebBaseUrl } from '@/lib/api';
 import { formatAge, formatDate, formatTime } from '@/lib/dates';
 
 type SortKey = 'name' | 'status' | 'player_count' | 'last_activity';
@@ -49,11 +58,25 @@ const STATUS_BADGE: Record<string, string> = {
 // Squash runs of whitespace to a single space and trim, mirroring how HTML renders text.
 const collapseSpaces = (value: string) => value.replace(/\s+/g, ' ').trim();
 
+/*
+What each status is CALLED on screen. "setup" stays the stored value, the URL parameter and the
+API's filter - this is display only, and the two must not be confused: renaming the value would
+break the ?status= links the dashboard hands over and the filter the server accepts.
+
+"Pending" because "Setup" reads like an instruction rather than a state - these are competitions
+waiting to begin, not competitions being configured.
+*/
+const STATUS_LABEL: Record<string, string> = {
+  active: 'active',
+  setup: 'pending',
+  complete: 'complete',
+};
+
 function StatusBadge({ status }: { status: string }) {
   const cls = STATUS_BADGE[status] || STATUS_BADGE.complete;
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}`}>
-      {status}
+      {STATUS_LABEL[status] || status}
     </span>
   );
 }
@@ -178,6 +201,7 @@ const TILE_TONES = {
   default: 'from-indigo-500 to-cyan-400',
   good: 'from-emerald-500 to-teal-400',
   neutral: 'from-slate-500 to-slate-400',
+  warn: 'from-amber-500 to-orange-400',
 } as const;
 
 function StatusTile({
@@ -449,10 +473,20 @@ function RoundInProgressModal({
 function CompetitionsList() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const statusParam = searchParams.get('status') || '';
   // Set when arriving from the Organisers screen - narrows the whole page to one person.
   const organiserParam = searchParams.get('organiser');
   const organiserId = organiserParam ? parseInt(organiserParam, 10) : null;
+  /*
+  Active is the landing tab: it is the question this screen is usually open to answer, and it is
+  the number that has to be true. "all" is a real value rather than the absence of one, so that
+  clicking the lit Active tile can turn it off and stay off - with an empty default, clearing the
+  filter would drop the parameter and land straight back on Active.
+
+  The exception is arriving from the Organisers screen. That click means "show me this person's
+  competitions", all of them - defaulting them to Active would silently hide the setup and
+  finished ones and make their row's count disagree with the list it opened.
+  */
+  const statusParam = searchParams.get('status') || (organiserParam ? 'all' : 'active');
 
   const [competitions, setCompetitions] = useState<AdminCompetition[]>([]);
   const [search, setSearch] = useState('');
@@ -463,6 +497,10 @@ function CompetitionsList() {
   const [deleteTarget, setDeleteTarget] = useState<AdminCompetition | null>(null);
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [markingId, setMarkingId] = useState<number | null>(null);
+  /* People figures for the strip under the tiles. Null until they arrive, and null if they
+     fail - the strip is context, and losing it must not take the competitions list with it. */
+  const [people, setPeople] = useState<AdminStats['users'] | null>(null);
   const [lastViewed, setLastViewed] = useState<{ id: number; at: number } | null>(null);
   const [roundInProgressTarget, setRoundInProgressTarget] = useState<{
     competition: AdminCompetition;
@@ -560,6 +598,36 @@ function CompetitionsList() {
     }
   };
 
+  /*
+  Mark a competition as a tyre kicker, clear that mark, or hand the row back to the rule.
+
+  Three states rather than two, because "not stalled" and "the rule has not called it stalled"
+  are different claims. Sending an explicit false rescues a genuine slow-burner from the
+  calculation permanently; sending null says the admin no longer wants to disagree with it, and
+  the row goes back to being judged like everything else. Without that third option every row an
+  admin ever touched would be frozen on the day they touched it.
+
+  No optimistic update here, unlike the fixture-service switch. Marking a row moves it to a
+  different tab, so the honest feedback is the row leaving the list once the server has agreed -
+  flipping it locally first would make it vanish and then reappear on failure.
+  */
+  const handleSetStalled = async (competition: AdminCompetition, stalled: boolean | null) => {
+    setMarkingId(competition.id);
+    setError('');
+    try {
+      const result = await adminApi.setCompetitionStalled(competition.id, stalled);
+      if (result.return_code === 'SUCCESS') {
+        await load();
+      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
+        setError(result.message || 'Could not update the competition');
+      }
+    } catch {
+      setError(`Could not reach ${apiBaseUrl}.`);
+    } finally {
+      setMarkingId(null);
+    }
+  };
+
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -593,6 +661,18 @@ function CompetitionsList() {
     } finally {
       setLoading(false);
     }
+
+    /*
+    People are a second, separate request, deliberately after the list rather than alongside it:
+    the strip is context and the competitions are the screen. A failure here is swallowed - a
+    missing people line is a smaller loss than an error banner over a list that loaded fine.
+    */
+    try {
+      const stats = await adminApi.getStats();
+      setPeople(stats.return_code === 'SUCCESS' && stats.users ? stats.users : null);
+    } catch {
+      setPeople(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -605,19 +685,35 @@ function CompetitionsList() {
     load();
   }, [router, load]);
 
-  // Status and organiser are independent filters, so changing one must not drop the other.
+  /*
+  Status and organiser are independent filters, so changing one must not drop the other.
+
+  Clicking the tile that is already lit clears it to "all". Not for reachability - the four tiles
+  partition the platform, so every competition is one click away from exactly one of them - but to
+  reach the combined list, the only view where the search box spans every live status at once.
+  */
   const setStatus = (status: string) => {
+    const next = status === statusParam ? 'all' : status;
     const params = new URLSearchParams();
-    if (status) params.set('status', status);
+    params.set('status', next);
     if (organiserParam) params.set('organiser', organiserParam);
     const qs = params.toString();
     router.push(qs ? `/dashboard/competitions?${qs}` : '/dashboard/competitions');
   };
 
+  /*
+  "stalled" is a tab, not a status - a stalled competition still has a real status underneath.
+  So it is filtered as its own view AND excluded from every other one, including Total. Leaving
+  the rows in the status tabs while pulling them out of the counts would be the worst of both:
+  tiles that disagree with the list beneath them.
+  */
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
+    const stalledTab = statusParam === 'stalled';
     const matches = competitions.filter((c) =>
-      (!statusParam || c.status === statusParam) &&
+      (stalledTab
+        ? c.is_stalled
+        : !c.is_stalled && (statusParam === 'all' || c.status === statusParam)) &&
       (organiserId === null || c.organiser_id === organiserId) &&
       (c.name.toLowerCase().includes(term) ||
         (c.organiser_email || '').toLowerCase().includes(term) ||
@@ -652,9 +748,13 @@ function CompetitionsList() {
   );
 
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { active: 0, setup: 0, complete: 0 };
+    const counts: Record<string, number> = { active: 0, setup: 0, complete: 0, stalled: 0 };
     scoped.forEach((c) => {
-      counts[c.status] = (counts[c.status] || 0) + 1;
+      // A stalled competition is counted once, as stalled, and nowhere else. Competition 176
+      // reached ACTIVE with a round pushed and not one pick ever made, and sat in the "Active"
+      // tile from 16 July - that number was the reason for all of this.
+      if (c.is_stalled) counts.stalled += 1;
+      else counts[c.status] = (counts[c.status] || 0) + 1;
     });
     return counts;
   }, [scoped]);
@@ -688,8 +788,10 @@ function CompetitionsList() {
             <span>
               Showing competitions run by <strong>{organiserName || `organiser ${organiserId}`}</strong>
             </span>
+            {/* Says "all", so it has to mean all - without the parameter this would drop onto
+                the Active tab and show a fraction of what it offered. */}
             <Link
-              href="/dashboard/competitions"
+              href="/dashboard/competitions?status=all"
               className="rounded-lg border border-indigo-300 bg-white px-3 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
             >
               Show all competitions
@@ -700,12 +802,6 @@ function CompetitionsList() {
         {!loading && scoped.length > 0 && (
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatusTile
-              label="Total"
-              value={scoped.length}
-              active={statusParam === ''}
-              onClick={() => setStatus('')}
-            />
-            <StatusTile
               label="Active"
               value={statusCounts.active}
               tone="good"
@@ -713,7 +809,7 @@ function CompetitionsList() {
               onClick={() => setStatus('active')}
             />
             <StatusTile
-              label="Setup"
+              label="Pending"
               value={statusCounts.setup}
               tone="default"
               active={statusParam === 'setup'}
@@ -726,7 +822,41 @@ function CompetitionsList() {
               active={statusParam === 'complete'}
               onClick={() => setStatus('complete')}
             />
+            <StatusTile
+              label="Stalled"
+              value={statusCounts.stalled}
+              tone="warn"
+              active={statusParam === 'stalled'}
+              onClick={() => setStatus('stalled')}
+            />
           </div>
+        )}
+
+        {/*
+          People, as one line rather than a fifth tile. Different unit from everything above it -
+          these count humans, the tiles count competitions - so it reads as a footnote to the
+          tiles instead of one of them, and it does not filter anything.
+
+          Hidden while the page is scoped to one organiser: these are platform-wide figures and
+          sitting them under a banner reading "showing competitions run by X" would invite them
+          to be read as that person's.
+        */}
+        {people && organiserId === null && (
+          <p className="mb-6 text-sm text-slate-500">
+            <span className="font-semibold tabular-nums text-slate-900">
+              {people.genuine.toLocaleString()}
+            </span>{' '}
+            genuine people
+            <span className="mx-2 text-slate-300">|</span>
+            <span className="font-semibold tabular-nums text-amber-700">
+              {people.wasters.toLocaleString()}
+            </span>{' '}
+            wasters
+            <span className="mx-2 text-slate-300">|</span>
+            <Link href="/dashboard" className="underline-offset-2 hover:text-indigo-600 hover:underline">
+              breakdown
+            </Link>
+          </p>
         )}
 
         <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
@@ -769,10 +899,20 @@ function CompetitionsList() {
                       lastViewed?.id === c.id ? 'bg-indigo-50/50' : ''
                     }`}
                   >
-                    <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {c.name}
+                      {/* The working behind the verdict, shown only in the Stalled tab - that is
+                          the view where you are deciding whether to believe it. Everywhere else
+                          it would be a line of explanation on a row nobody is questioning. */}
+                      {c.is_stalled && statusParam === 'stalled' && c.stalled_reason && (
+                        <div className="mt-0.5 text-xs font-normal text-amber-700">
+                          {c.stalled_reason}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={c.status} />
-                      {/* Setup only. On a started competition the start date is in the past and
+                      {/* Pending only. On a started competition the start date is in the past and
                           adds a column of noise to every row; the badge alone is the answer. */}
                       {c.status === 'setup' && c.start_date && (
                         <div
@@ -808,6 +948,38 @@ function CompetitionsList() {
                           title="View as organiser"
                         >
                           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                        </button>
+                        {/* Back to the rule. Only offered where there is an override to drop -
+                            on an untouched row it would be a button that does nothing. */}
+                        {c.stalled_override !== null && (
+                          <button
+                            onClick={() => handleSetStalled(c, null)}
+                            disabled={markingId === c.id}
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                            title={`Overridden by hand (${c.stalled_override ? 'marked stalled' : 'marked real'}) - click to judge it by the rule again`}
+                          >
+                            <ArrowUturnLeftIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleSetStalled(c, !c.is_stalled)}
+                          disabled={markingId === c.id}
+                          className={`rounded-lg p-1.5 transition disabled:opacity-50 ${
+                            c.is_stalled
+                              ? 'text-amber-600 hover:bg-emerald-50 hover:text-emerald-600'
+                              : 'text-slate-400 hover:bg-amber-50 hover:text-amber-600'
+                          }`}
+                          title={
+                            c.is_stalled
+                              ? 'Not a tyre kicker - count this competition again'
+                              : 'Mark as a tyre kicker and take it out of the counts'
+                          }
+                        >
+                          {c.is_stalled ? (
+                            <FlagSolidIcon className="h-4 w-4" />
+                          ) : (
+                            <FlagIcon className="h-4 w-4" />
+                          )}
                         </button>
                         <button
                           onClick={() => setDeleteTarget(c)}

@@ -89,6 +89,20 @@ doc first** (except the email README, see below):
   credit, no free place, in every counting query, via `services/botPool.js`. Still confined to the
   organisers listed there, but for a product reason not a billing one: a customer's competition
   filling with fake entrants means real players facing opponents who are not people
+- **Tyre kickers**: a competition can reach `ACTIVE` with a round pushed and no pick ever made, so
+  the status counts flattered us — seven of thirty rows. `services/competitionEngagement.js` is
+  the **one** definition of stalled (no real players **or** no picks, and quiet 7 days; `COMPLETE`
+  and anything newer than the threshold are exempt). `competition.stalled_override` is a
+  tri-state manual override — NULL trusts the rule, and **nothing ever writes the derived answer
+  into it**. Stalled rows get their own tile and tab and are excluded from every other count.
+  Marking is not deleting. See `docs/admin-tool.md`
+- **Genuine people vs wasters**: same problem as tyre kickers, one level up — a quarter of
+  "Registered" had never touched anything. Rule in `get-admin-stats.js`: genuine = joined a
+  competition, organises one, **or** seen in the last 30 days; the rest are wasters, and the two
+  sum back to `users.total`. The seen-recently group is split into `returned` and `signup_only`
+  because most of it had never come back — `last_active_at` was the registration itself. `/dashboard` is now **about people and nothing else** — its
+  competition counts duplicated the Competitions screen and disagreed with it, since that screen
+  excludes stalled and this one did not
 - **Organisers**: an organiser owns at least one competition. "Players" counts memberships the
   same way the competitions screen does so the two agree; "spend" is `credit_purchases`, **never**
   `app_user.paid_credit`

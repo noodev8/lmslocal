@@ -256,21 +256,33 @@ export default function PlayerResultsPage() {
                statements the reader had already read. What is left in the right-hand column is
                only what the teams cannot say themselves - whose stake it is, and whether a
                result has arrived at all. */
+            /* Two things this got wrong, both fixed to match lib/presentation/pages/play/
+               player_results_page.dart, which diverged deliberately and said why.
+
+               "You're out" on a lost pick is untrue for anyone still holding a life - most
+               players in most competitions. Andy T read "YOU'RE OUT" beside Hull v Man Utd
+               while sitting active with one life spent. The row states the pick's outcome;
+               what it cost is the lives panel's job.
+
+               A draw was worse: it said "Draw — pick" in neutral ink and never mentioned
+               losing. A draw IS a loss here - push-results-to-competition maps DRAW to LOSE -
+               so a player whose pick drew was told nothing had happened to them. */
+            const userDrewOwnPick = (userPickedHome || userPickedAway) && isDraw;
             const status = userPickedHome || userPickedAway
-              ? userWon
+              ? isPending
+                ? 'Pick'
+                : userWon
                 ? 'You won'
-                : userLost
-                ? "You're out"
                 : isDraw
-                ? 'Draw — pick'
-                : 'Pick'
+                ? 'Draw — you lost'
+                : 'You lost'
               : isPending
               ? 'Pending'
               : isDraw
               ? 'Draw'
               : '';
 
-            // "Pick" and "Draw — pick" name no team, so the fixture line has to.
+            // "Pick" and "Draw — you lost" name no team, so the fixture line has to.
             const markPick = isPending || isDraw;
 
             return (
@@ -300,7 +312,7 @@ export default function PlayerResultsPage() {
                     className={`${LABEL} whitespace-nowrap ${
                       userWon
                         ? 'font-semibold text-moss'
-                        : userLost
+                        : userLost || userDrewOwnPick
                         ? 'text-overprint'
                         : isPending
                         ? 'text-ink-fade'

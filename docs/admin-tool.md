@@ -138,6 +138,7 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/delete-admin-competition` | POST | Delete a competition and everything attached to it |
 | `/admin/impersonate-organiser` | POST | Short-lived player token for "View as organiser" |
 | `/admin/set-fixture-service` | POST | Opt a competition in or out of the fixture service |
+| `/admin/set-competition-stalled` | POST | Override the tyre-kicker verdict for one competition, or clear the override |
 | `/admin/get-fixture-team-lists` | GET | Active team lists and their teams, for fixture entry |
 | `/admin/add-staged-fixtures` | POST | Stage a batch of fixtures (refused if one is already pending) |
 | `/admin/get-staged-results` | GET | The currently staged batch, resulted or not |
@@ -155,11 +156,90 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/set-bot-pick` | POST | Set or clear one bot's pick |
 
 Pages: `/login`, `/dashboard`, `/dashboard/competitions`, `/dashboard/organisers`,
-`/dashboard/fixtures`, `/dashboard/bots`. `/dashboard` is the landing page and is a read-only
-snapshot — four headline numbers and four breakdown panels. The work happens on the other four,
-which the header's nav row moves between.
+`/dashboard/fixtures`, `/dashboard/bots`. `/dashboard` is the landing page and is read-only. The
+work happens on the other four, which the header's nav row moves between.
 
-Not built yet: inactive-competition actions, bulk email.
+**`/dashboard` is about people, and nothing else.** It carried sixteen numbers across four cards
+and four panels, and most were competition counts — which the Competitions screen now answers
+better, because it excludes stalled competitions and the overview did not: 16 active there
+against 14 here. Duplicated figures that drift apart are worse than no figures, so the
+competition and organiser halves went and what is left is the one thing that lives nowhere else.
+Three cards (genuine people, wasters, in a live competition) and one panel of what is not already
+a card.
+
+Not built yet: bulk email.
+
+## Competitions — tyre kickers
+
+A competition can reach `ACTIVE`, with a round pushed, and never have a single pick made in it.
+Comp 176 sat in the Competitions screen's "Active" tile from 16 July with one member — its own
+organiser — and comp 179 the same from 1 August. Seven of thirty rows were like that, so the
+headline numbers were wrong in the flattering direction and the screen could not be used to
+answer "how many real competitions are there".
+
+**The rule lives in `lmslocal-server/services/competitionEngagement.js`, once.** A competition is
+**stalled** when nobody but the organiser has done anything and it has gone quiet: no real
+players (members who are neither the organiser nor a bot) **or** no pick ever made, **and**
+nothing has happened for `QUIET_DAYS` (7). Three exemptions: `COMPLETE` competitions are never
+stalled, anything quiet for less than the threshold is too new to judge, and a manual override
+wins outright.
+
+The signal is this blunt because the data is — every genuine competition had picks within days of
+being created, and every dead one had none at all. Player count alone would not do it (comp 226
+had 24 members before it started) and quietness alone would not either (a mid-season competition
+between gameweeks is quiet and perfectly healthy).
+
+- `get-admin-competitions` reports `is_stalled`, `stalled_reason`, `stalled_source`,
+  `real_player_count`, `pick_count` and `quiet_days`. **The screen never re-derives the verdict**,
+  or the tiles and the tab would drift apart.
+- **`competition.stalled_override` is a tri-state**: `NULL` trusts the calculation, `true` forces
+  stalled, `false` forces real. `set-competition-stalled` is the only thing that writes it, and it
+  **never writes the derived answer into the column** — that would freeze today's verdict on a
+  competition that might yet come alive, and the screen could no longer tell an admin's decision
+  apart from the rule's. Clearing to `NULL` is offered on any overridden row, so a competition an
+  admin once touched is not judged by that decision forever.
+- On the screen, stalled competitions get **their own tile and tab** and are excluded from Total,
+  Active, Setup and Complete. They are counted once, as stalled, and nowhere else.
+- **Marking is not deleting.** It only moves a competition out of the counts. Removing it is still
+  the separate, name-typed step through `delete-admin-competition`.
+- Competition 117 ("App Store", kept for Apple's reviewers) is still hidden by id in the page
+  rather than marked — it is hidden entirely, not merely uncounted, and it must never appear on a
+  screen whose purpose is choosing what to delete.
+
+## Registered people — genuine or waster
+
+The same problem as the tyre-kicker competitions, one level up: **a quarter of "Registered" had
+never touched anything** — 105 accounts of 421 — which made the one number the overview exists for
+the one number you could not trust.
+
+**The rule is in `get-admin-stats.js`, above the query.** A registered account is **genuine** when
+they **joined a competition, organise one, or have been seen in the last 30 days**; everything
+else is a **waster**. The two split `users.total` and always sum back to it.
+
+- **The third clause is the loose one and it is deliberate.** An account that keeps coming back
+  without joining anything is a real person still deciding, not a waster.
+- **But "seen recently" does not mean what it sounds like, so the group it catches is split in
+  two.** Of the 27 accounts genuine on that clause alone, **19 had never come back** — their
+  `last_active_at` *was* the registration. Reported as `users.returned` (8, "Came back, never
+  joined" — the nudge worth sending) and `users.signup_only` (19, "Signed up, never seen since" —
+  a signup that never started). One row covering both would have been untrue of most of it.
+  The boundary is **one hour**, taken from `middleware/auth.js`, which refreshes `last_active_at`
+  at most hourly — so a signup session leaves the timestamps within an hour and anything beyond is
+  a genuinely later visit. Moving the line to five minutes shifts exactly one account.
+- **It needs no explicit "too new to judge" exemption**, unlike the competitions rule — somebody
+  who registered on Tuesday is recently active by definition. Be clear-eyed about what that means
+  though: the 30-day clause **is** the exemption, and a loose one. `signup_only` is where those
+  accounts sit, and they age into `wasters` on their own if they never return.
+- **Joining is enough; making a pick is not required.** Somebody who joined a competition that
+  then stalled answered a real invitation, and never getting a round to pick in was not their
+  doing.
+- Guests (`%@lms-guest.com`, non-bot) are outside this entirely — they are counted as players but
+  never as accounts, because the account is created by joining and dies with the competition.
+- The Competitions screen repeats **genuine and wasters only**, as a one-line strip under the
+  status tiles, linking here for the rest. It is a line rather than a fifth tile because it counts
+  humans and the tiles count competitions, and it hides itself when the screen is scoped to one
+  organiser — platform-wide figures under a "showing competitions run by X" banner would be read
+  as that person's.
 
 ## Organisers
 

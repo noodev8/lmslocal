@@ -39,7 +39,11 @@ Success Response (ALWAYS HTTP 200):
   "users": {
     "total": 242,                           // integer, REGISTERED accounts (guests not included)
     "new_last_30_days": 66,                 // integer, registered accounts created in last 30 days
-    "guests": 5                             // integer, joined without registering
+    "guests": 5,                            // integer, joined without registering
+    "genuine": 343,                         // integer, of "total", who joined, organise, or were seen in 30 days
+    "wasters": 78,                          // integer, of "total", the remainder - signups that went nowhere
+    "returned": 8,                          // integer, never joined anything but came back after signing up
+    "signup_only": 19                       // integer, never joined anything and not seen since signing up
   },
   "generated_at": "2026-08-02T14:00:00.000Z" // string, ISO datetime this snapshot was taken
 }
@@ -72,6 +76,14 @@ Data Notes:
   whose competitions have all finished. The two are reported separately because the first was
   being read as an audience figure when most of it was the back catalogue - one completed
   competition of 52 sat inside it for months.
+- "genuine" and "wasters" split users.total in two and always sum back to it. The rule is defined
+  once, above the query - joined, organises, or seen in the last 30 days. It exists because a
+  quarter of "Registered" had never touched anything, which made the headline useless for the one
+  question it is asked.
+- "returned" and "signup_only" split the accounts that are genuine on the seen-recently clause
+  ALONE - they joined nothing and organise nothing. They are reported apart because they are not
+  the same people: 19 of those 27 had never come back at all, their last_active_at being the
+  registration itself, so calling the group "coming back" would have been untrue of most of it.
 - Guests (non-bot '%@lms-guest.com') are counted as PLAYERS but not as ACCOUNTS, and are
   reported on their own as users.guests. A guest is a real person, so they belong in
   participation; but the account is created by joining and is tied to that one competition, so
@@ -112,6 +124,50 @@ const GUEST_EMAIL_LIKE = '%@lms-guest.com';
 const REAL_USER = `(u.email NOT LIKE '${BOT_EMAIL_LIKE}' AND u.email <> ALL($2::text[]))`;
 const IS_GUEST = `u.email LIKE '${GUEST_EMAIL_LIKE}'`;
 const REAL_COMP = `cu.competition_id <> ALL($3::int[])`;
+
+/*
+Who counts as a GENUINE registered person, as opposed to a signup that went nowhere.
+
+A quarter of "Registered" had never touched anything - 105 of 421 - which made the number useless
+for the only question it gets asked: how many real people are on this platform. The rule is the
+same shape as the stalled-competition one in services/competitionEngagement.js: did they do the
+thing the product is for?
+
+Genuine = joined a competition, OR organises one, OR has been seen in the last
+SEEN_RECENTLY_DAYS. The third clause is deliberate and it is the loosest of the three: an account
+that keeps coming back without joining anything is a real person still deciding, not a waster.
+
+It also means no "too new to judge" exemption is needed, unlike the competitions rule - somebody
+who registered on Tuesday is recently active by definition, so they land in genuine on their own
+and drop out later if they never come back.
+
+Joining is enough on its own; making a pick is not required. Somebody who joined a competition
+that then stalled answered a real invitation, and never getting a round to pick in was not their
+doing.
+*/
+const SEEN_RECENTLY_DAYS = 30;
+const DID_SOMETHING = `(
+  u.id IN (SELECT cu2.user_id FROM competition_user cu2 WHERE cu2.competition_id <> ALL($3::int[]))
+  OR u.id IN (SELECT c2.organiser_id FROM competition c2
+               WHERE c2.organiser_id IS NOT NULL AND c2.id <> ALL($3::int[]))
+)`;
+const SEEN_RECENTLY = `u.last_active_at > NOW() - INTERVAL '${SEEN_RECENTLY_DAYS} days'`;
+const IS_GENUINE = `(${DID_SOMETHING} OR ${SEEN_RECENTLY})`;
+
+/*
+Did they ever come back, or is the "activity" just the session they signed up in?
+
+This matters because SEEN_RECENTLY on its own does not mean what it sounds like. Of the 27
+accounts that qualified as genuine on that clause alone, 19 had never returned - their
+last_active_at was their registration. Reporting all 27 as people who keep coming back would have
+been flatly untrue.
+
+The one-hour boundary is middleware/auth.js's, not a guess: it refreshes last_active_at at most
+once an hour, so a signup session leaves the two timestamps within an hour of each other and
+anything beyond that is a genuinely later visit. Moving the line to five minutes shifts exactly
+one account, which is what a clean split looks like.
+*/
+const CAME_BACK = `u.last_active_at > u.created_at + INTERVAL '1 hour'`;
 
 router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-admin-stats');
@@ -202,7 +258,28 @@ router.get('/', verifyAdminToken, async (req, res) => {
           WHERE ${REAL_USER} AND NOT ${IS_GUEST}
             AND u.created_at > NOW() - INTERVAL '30 days')                        AS users_new,
         (SELECT COUNT(*) FROM app_user u
-          WHERE ${REAL_USER} AND ${IS_GUEST})                                     AS users_guests
+          WHERE ${REAL_USER} AND ${IS_GUEST})                                     AS users_guests,
+
+        -- Registered accounts split by whether anything ever came of them. The two add up to
+        -- users_total, so the screen can show either half without them disagreeing.
+        (SELECT COUNT(*) FROM app_user u
+          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
+            AND ${IS_GENUINE})                                                    AS users_genuine,
+        (SELECT COUNT(*) FROM app_user u
+          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
+            AND NOT ${IS_GENUINE})                                                AS users_wasters,
+        -- The two halves of "genuine on the strength of being seen alone" - registered, never
+        -- joined or organised anything. Split because they are different people: one came back
+        -- of their own accord and is worth a nudge, the other has not been seen since the form
+        -- they filled in. Together they are the whole of that clause.
+        (SELECT COUNT(*) FROM app_user u
+          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
+            AND NOT ${DID_SOMETHING} AND ${SEEN_RECENTLY}
+            AND ${CAME_BACK})                                                     AS users_returned,
+        (SELECT COUNT(*) FROM app_user u
+          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
+            AND NOT ${DID_SOMETHING} AND ${SEEN_RECENTLY}
+            AND NOT ${CAME_BACK})                                                 AS users_signup_only
     `;
 
     const result = await query(statsQuery, [
@@ -239,7 +316,11 @@ router.get('/', verifyAdminToken, async (req, res) => {
       users: {
         total: n(row.users_total),
         new_last_30_days: n(row.users_new),
-        guests: n(row.users_guests)
+        guests: n(row.users_guests),
+        genuine: n(row.users_genuine),
+        wasters: n(row.users_wasters),
+        returned: n(row.users_returned),
+        signup_only: n(row.users_signup_only)
       },
       generated_at: new Date().toISOString()
     });

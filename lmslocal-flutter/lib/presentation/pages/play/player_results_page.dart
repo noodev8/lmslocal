@@ -561,11 +561,13 @@ class _PlayerResultsPageState extends State<PlayerResultsPage> {
   /// the winner is already bold and the beaten side already faded, which is why
   /// a settled fixture the reader had no stake in says nothing at all.
   ///
-  /// **Copy deliberately diverges from the web here.** `player-results/page.tsx`
-  /// says "You're out" on a lost pick, which is untrue for anyone holding a life
-  /// — most players in most competitions (the same trap §3b removed from the
-  /// pick screen's footer). This states the pick's outcome and lets the
-  /// dashboard's lives panel say what it cost.
+  /// **The web matches this now — keep the two in step.** It used to say "You're
+  /// out" on a lost pick, untrue for anyone holding a life (the same trap §3b
+  /// removed from the pick screen's footer), and said only "Draw — pick" on a
+  /// drawn one, though a draw is a loss. `player-results/page.tsx` was brought to
+  /// this wording on 22 Aug 2026, after 35 players across six competitions were
+  /// shown as out while still in. State the pick's outcome; let the dashboard's
+  /// lives panel say what it cost.
   Widget _buildFixtureRow(Fixture fixture) {
     final homeIsUserPick = _currentPick == fixture.homeTeamShort;
     final awayIsUserPick = _currentPick == fixture.awayTeamShort;

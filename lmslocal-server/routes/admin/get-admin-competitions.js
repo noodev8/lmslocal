@@ -33,9 +33,17 @@ Success Response (ALWAYS HTTP 200):
       "last_activity": "2026-08-01T09:00:00.000Z",// string or null, most recent pick, falls back to created_at
       "fixture_service": true,                   // boolean, opted into the automated fixture service
       "team_list_id": 1,                         // integer, which staged fixtures it receives
-      "team_list_name": "English Premier League 2026-27" // string, may be null if the list was removed
+      "team_list_name": "English Premier League 2026-27", // string, may be null if the list was removed
+      "real_player_count": 23,                   // integer, members who are neither the organiser nor a bot
+      "pick_count": 41,                          // integer, picks ever made across every round
+      "quiet_days": 3,                           // integer, whole days since last_activity
+      "is_stalled": false,                       // boolean, the tyre-kicker verdict the screen counts by
+      "stalled_source": "derived",               // string, "derived" (the rule) or "admin" (marked by hand)
+      "stalled_override": null,                  // boolean or null - the admin's override, null when unset
+      "stalled_reason": null                     // string or null, why it was called stalled
     }
   ],
+  "quiet_days_threshold": 7,
   "generated_at": "2026-08-02T14:00:00.000Z"
 }
 
@@ -66,6 +74,11 @@ Data Notes:
 - "fixture_service" is the flag every push reads. The fixtures screen filters this list by it to
   show which competitions a push will actually reach, and the opt-in toggle writes it through
   /admin/set-fixture-service.
+- "is_stalled" is the tyre-kicker verdict: nobody but the organiser ever did anything and it has
+  gone quiet. The rule, the exemptions and the manual override all live in
+  services/competitionEngagement.js - this route only reports it. It matters because a
+  competition can reach ACTIVE with a round pushed and no pick ever made, so it sat in the
+  screen's "Active" tile forever; seven of thirty rows were like that.
 - Paid status comes from "organiser_lifetime_spend" (SUM over credit_purchases), NOT from
   app_user.paid_credit. paid_credit is a current balance that can be granted without any money
   changing hands, so a badge driven off it would call non-paying accounts customers. Credit is
@@ -79,6 +92,12 @@ const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { BOT_EMAIL_LIKE, BOT_ORGANISER_IDS } = require('../../services/botPool');
+const {
+  QUIET_DAYS,
+  realPlayerCountSql,
+  pickCountSql,
+  classifyCompetition
+} = require('../../services/competitionEngagement');
 const router = express.Router();
 
 const VALID_STATUSES = ['setup', 'active', 'complete'];
@@ -121,6 +140,11 @@ router.get('/', verifyAdminToken, async (req, res) => {
            JOIN app_user bu ON bu.id = cu.user_id
           WHERE cu.competition_id = c.id
             AND bu.email LIKE $2)                                             AS bot_count,
+        -- The two facts the stalled rule turns on. Kept as their own columns rather than
+        -- folded into a boolean here so the screen can show the working, not just the verdict.
+        ${realPlayerCountSql('c', '$2')}                                       AS real_player_count,
+        ${pickCountSql('c')}                                                   AS pick_count,
+        c.stalled_override,
         c.created_at,
         -- Round 1's lock time is the competition's start: the moment picks close and it is
         -- under way. Only meaningful while status is 'setup' - once it has started, the date
@@ -158,33 +182,41 @@ router.get('/', verifyAdminToken, async (req, res) => {
 
     const result = await query(competitionsQuery, [statusFilter, BOT_EMAIL_LIKE]);
 
-    const competitions = result.rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      status: row.status,
-      organiser_id: row.organiser_id,
-      organiser_name: row.organiser_name,
-      organiser_email: row.organiser_email,
-      organiser_competitions: parseInt(row.organiser_competitions, 10) || 0,
-      // NUMERIC comes back as a string from pg; the UI formats it as currency.
-      organiser_lifetime_spend: parseFloat(row.organiser_lifetime_spend) || 0,
-      organiser_credit: parseInt(row.organiser_credit, 10) || 0,
-      player_count: parseInt(row.player_count, 10) || 0,
-      bot_count: parseInt(row.bot_count, 10) || 0,
-      // Whether the Bots screen would accept this competition at all, so the list can link
-      // to it rather than offering a page that will refuse.
-      bots_allowed: BOT_ORGANISER_IDS.includes(row.organiser_id),
-      created_at: row.created_at,
-      start_date: row.start_date,
-      last_activity: row.last_activity,
-      fixture_service: row.fixture_service === true,
-      team_list_id: row.team_list_id,
-      team_list_name: row.team_list_name
-    }));
+    const competitions = result.rows.map((row) => {
+      const engagement = classifyCompetition(row);
+      return {
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        organiser_id: row.organiser_id,
+        organiser_name: row.organiser_name,
+        organiser_email: row.organiser_email,
+        organiser_competitions: parseInt(row.organiser_competitions, 10) || 0,
+        // NUMERIC comes back as a string from pg; the UI formats it as currency.
+        organiser_lifetime_spend: parseFloat(row.organiser_lifetime_spend) || 0,
+        organiser_credit: parseInt(row.organiser_credit, 10) || 0,
+        player_count: parseInt(row.player_count, 10) || 0,
+        real_player_count: parseInt(row.real_player_count, 10) || 0,
+        pick_count: parseInt(row.pick_count, 10) || 0,
+        bot_count: parseInt(row.bot_count, 10) || 0,
+        // Whether the Bots screen would accept this competition at all, so the list can link
+        // to it rather than offering a page that will refuse.
+        bots_allowed: BOT_ORGANISER_IDS.includes(row.organiser_id),
+        created_at: row.created_at,
+        start_date: row.start_date,
+        last_activity: row.last_activity,
+        fixture_service: row.fixture_service === true,
+        team_list_id: row.team_list_id,
+        team_list_name: row.team_list_name,
+        stalled_override: row.stalled_override,
+        ...engagement
+      };
+    });
 
     return res.json({
       return_code: 'SUCCESS',
       competitions,
+      quiet_days_threshold: QUIET_DAYS,
       generated_at: new Date().toISOString()
     });
 

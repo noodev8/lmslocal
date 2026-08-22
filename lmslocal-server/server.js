@@ -147,6 +147,7 @@ const promoteFixtureBlockRoute = require('./routes/admin/promote-fixture-block')
 const getStagedResultsRoute = require('./routes/admin/get-staged-results');
 const setStagedResultRoute = require('./routes/admin/set-staged-result');
 const setFixtureServiceRoute = require('./routes/admin/set-fixture-service');
+const setCompetitionStalledRoute = require('./routes/admin/set-competition-stalled');
 const getBotsRoute = require('./routes/admin/get-bots');
 const createBotsRoute = require('./routes/admin/create-bots');
 const addBotsToCompetitionRoute = require('./routes/admin/add-bots-to-competition');
@@ -520,6 +521,7 @@ app.use('/admin/promote-fixture-block', promoteFixtureBlockRoute);
 app.use('/admin/get-staged-results', getStagedResultsRoute);
 app.use('/admin/set-staged-result', setStagedResultRoute);
 app.use('/admin/set-fixture-service', setFixtureServiceRoute);
+app.use('/admin/set-competition-stalled', setCompetitionStalledRoute);
 app.use('/admin/get-fixture-push-targets', getFixturePushTargetsRoute);
 app.use('/admin/push-fixtures-to-competition', pushFixturesToCompetitionRoute);
 app.use('/admin/get-push-targets', getPushTargetsRoute);

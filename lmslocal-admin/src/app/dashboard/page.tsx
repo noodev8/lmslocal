@@ -4,13 +4,17 @@
 =======================================================================================================================================
 Admin Dashboard
 =======================================================================================================================================
-Purpose: Platform-wide snapshot - competitions, organisers, players and accounts. The first
-         screen of the admin tool and a reference point rather than a workspace: the day-to-day
-         work happens on the Competitions, Organisers and Fixtures screens in the nav.
+Purpose: How many real people are on the platform. The first screen of the admin tool, and
+         deliberately nothing more than that.
 
-Laid out as four headline numbers and four compact breakdown panels. It was twelve equal tiles
-in four stacked sections, which pushed accounts below the fold and gave "Eliminated" the same
-visual weight as the total number of competitions. Headline first, detail underneath, one screen.
+It carried sixteen numbers across four cards and four panels, and most of them were competition
+counts the Competitions screen now answers better - that screen excludes stalled competitions and
+this one did not, so the two disagreed: 16 active here against 14 there. Duplicated figures that
+drift apart are worse than no figures.
+
+What is left is the one thing that lives nowhere else: registered people, split by whether
+anything ever came of the signup. Seven numbers, one screen, no overlap with the workspaces in
+the nav.
 =======================================================================================================================================
 */
 
@@ -136,18 +140,21 @@ export default function DashboardPage() {
     try {
       const result = await adminApi.getStats();
 
-      if (result.return_code === 'SUCCESS' && result.competitions) {
-        // The organisers block was added after this screen shipped. The admin tool and the
-        // server deploy separately, so a build of this page can briefly be talking to a server
-        // that predates it - fall back to zeros rather than crashing on a missing object.
+      if (result.return_code === 'SUCCESS' && result.users) {
+        // The admin tool and the server deploy separately, so a build of this page can briefly
+        // be talking to a server that predates it. genuine/wasters/lurkers are the newest
+        // fields here - fall back to zeros rather than crashing on a missing one.
         setStats({
           ...(result as AdminStats),
           organisers: result.organisers ?? { total: 0, paying: 0, with_active_competition: 0 },
-          // Same reason: users.guests arrived later than this screen did.
           users: {
             total: result.users?.total ?? 0,
             new_last_30_days: result.users?.new_last_30_days ?? 0,
             guests: result.users?.guests ?? 0,
+            genuine: result.users?.genuine ?? 0,
+            wasters: result.users?.wasters ?? 0,
+            returned: result.users?.returned ?? 0,
+            signup_only: result.users?.signup_only ?? 0,
           },
         });
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
@@ -193,110 +200,82 @@ export default function DashboardPage() {
 
         {stats && (
           <>
-            <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {/*
+                The headline is genuine people, not "Registered". Registered counted every signup
+                that ever happened, and a quarter of it had never joined or organised anything -
+                which made the one number this screen exists for the one number you could not
+                trust. It is still here, as the hint and in the panel, because the gap between
+                the two is itself worth seeing.
+              */}
               <HeadlineCard
-                label="Competitions"
-                value={stats.competitions.total}
-                hint={`${stats.competitions.active} running`}
-                tone="default"
-                href="/dashboard/competitions"
-              />
-              <HeadlineCard
-                label="Organisers"
-                value={stats.organisers.total}
-                hint={`${stats.organisers.paying} paying`}
+                label="Genuine people"
+                value={stats.users.genuine}
+                hint={`of ${stats.users.total.toLocaleString()} registered`}
                 tone="good"
-                href="/dashboard/organisers"
+              />
+              <HeadlineCard
+                label="Wasters"
+                value={stats.users.wasters}
+                hint="never joined, not seen in 30 days"
+                tone="warn"
               />
               {/*
-                The headline is the live figure, not the all-time one. "Players" was showing
-                every person who has ever joined anything, which only ever rises - a completed
-                competition of 52 stayed in it for months and made the platform look busier
-                than it was. All-time is still here, as the hint.
+                Live, not all-time. Every person who has ever joined anything only ever rises -
+                one finished competition of 52 sat in that figure for months and made the
+                platform look busier than it was. All-time is the hint.
               */}
               <HeadlineCard
-                label="Players"
+                label="In a live competition"
                 value={stats.players.players_in_live_competition}
-                hint={`in a live competition, of ${stats.players.unique_players} total`}
+                hint={`of ${stats.players.unique_players.toLocaleString()} who ever joined`}
                 tone="default"
               />
-              {/*
-                "Registered", not "Accounts" or "App Users". It counts signups with a real
-                email, and nothing in the data records whether someone came via the web or the
-                phone app (user_type is empty on every row), so any "App ..." label would imply
-                a mobile figure we cannot actually measure.
-              */}
-              <HeadlineCard
+            </div>
+
+            {/* Only what is NOT already a card above - a number repeated twice on one screen is
+                a number you have to check against itself. */}
+            <Panel title="Registered accounts">
+              <Row
                 label="Registered"
+                hint="every signup, genuine or not"
                 value={stats.users.total}
-                hint={`${stats.users.new_last_30_days} new in 30 days`}
-                tone="neutral"
               />
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Panel title="Competitions">
-                <Row
-                  label="Active"
-                  hint="currently running"
-                  value={stats.competitions.active}
-                  href="/dashboard/competitions?status=active"
-                />
-                <Row
-                  label="Setup"
-                  hint="created, not started"
-                  value={stats.competitions.setup}
-                  href="/dashboard/competitions?status=setup"
-                />
-                <Row
-                  label="Complete"
-                  value={stats.competitions.complete}
-                  href="/dashboard/competitions?status=complete"
-                />
-                <Row
-                  label="Inactive"
-                  hint="active but no picks in 30 days"
-                  value={stats.competitions.inactive}
-                  highlight
-                />
-              </Panel>
-
+              <Row
+                label="New in 30 days"
+                hint="registered recently"
+                value={stats.users.new_last_30_days}
+              />
               {/*
-                No Organisers or Accounts panel. Every row they held was either already on a
-                headline card (organisers total/paying, accounts registered/new) or told us
-                nothing - "Verified" has equalled "Registered" since verification became
-                mandatory. Only the two panels below carry numbers the cards do not.
+                The two halves of "genuine because we have seen them, and nothing else" - neither
+                has joined or organised anything. They were one row reading "Coming back, never
+                joined", which was untrue of most of it: last_active_at was the registration
+                itself for nineteen of the twenty-seven. Split, both rows are true and they say
+                different things - one is a nudge worth sending, the other is a signup that never
+                started.
               */}
-              <Panel title="Players">
-                <Row
-                  label="Memberships"
-                  hint="one per competition joined"
-                  value={stats.players.total_memberships}
-                />
-                <Row
-                  label="In a live competition"
-                  hint="setup or active, not finished"
-                  value={stats.players.players_in_live_competition}
-                />
-                <Row
-                  label="Joined ever"
-                  hint="all time, including finished competitions"
-                  value={stats.players.unique_players}
-                />
-                <Row label="Still in" value={stats.players.still_in} />
-                <Row label="Eliminated" value={stats.players.eliminated} />
-                {/*
-                  Guests sit here, not under Accounts. They are real people and are counted in
-                  the Players figure above, but the account is created by joining and dies with
-                  the competition, so it is not a signup.
-                */}
-                <Row
-                  label="Guests"
-                  hint="joined without registering"
-                  value={stats.users.guests}
-                />
-              </Panel>
-            </div>
+              <Row
+                label="Came back, never joined"
+                hint="returned after signing up, but has not joined anything"
+                value={stats.users.returned}
+                highlight
+              />
+              <Row
+                label="Signed up, never seen since"
+                hint="not been back since registering"
+                value={stats.users.signup_only}
+              />
+              {/*
+                Guests are real people and are counted in the players figure above, but the
+                account is created by joining and dies with the competition, so it is not a
+                signup and is not in "Registered".
+              */}
+              <Row
+                label="Guests"
+                hint="joined without registering"
+                value={stats.users.guests}
+              />
+            </Panel>
 
             <p className="mt-6 text-xs text-slate-400">
               Snapshot taken {new Date(stats.generated_at).toLocaleString('en-GB')}

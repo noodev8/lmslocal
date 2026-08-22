@@ -217,13 +217,13 @@ function CopyButton({ text, title, className = '' }: { text: string; title: stri
 
 /*
 Competition counts as a single cell: the total, then the breakdown underneath but only where it
-adds something. Most organisers have one competition in setup, and spelling that out on every
+adds something. Most organisers have one competition pending, and spelling that out on every
 row would turn the column into noise that has to be read past to find the rows that differ.
 */
 function CompetitionsCell({ organiser }: { organiser: AdminOrganiser }) {
   const parts: string[] = [];
   if (organiser.competitions_active) parts.push(`${organiser.competitions_active} active`);
-  if (organiser.competitions_setup) parts.push(`${organiser.competitions_setup} setup`);
+  if (organiser.competitions_setup) parts.push(`${organiser.competitions_setup} pending`);
   if (organiser.competitions_complete) parts.push(`${organiser.competitions_complete} done`);
 
   return (
