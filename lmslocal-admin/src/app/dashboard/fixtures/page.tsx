@@ -182,9 +182,11 @@ const PUSH_BUTTON_FAILED =
 function PendingFixturesPanel({
   teamList,
   setNotice,
+  onProgress,
 }: {
   teamList: FixtureTeamList;
   setNotice: (n: Notice) => void;
+  onProgress: (p: { resulted: number; total: number } | null) => void;
 }) {
   const [fixtures, setFixtures] = useState<StagedFixture[] | null>(null);
 
@@ -195,7 +197,14 @@ function PendingFixturesPanel({
     adminApi.getStagedResults(teamList.id).then((result) => {
       if (cancelled) return;
       if (result.return_code === 'SUCCESS') {
-        setFixtures(result.fixtures || []);
+        const loaded = result.fixtures || [];
+        setFixtures(loaded);
+        // Reported up so the tab strip can show how far the batch has got from either side.
+        onProgress(
+          loaded.length > 0
+            ? { resulted: loaded.filter((f) => savedOutcome(f) !== null).length, total: loaded.length }
+            : null
+        );
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not load the staged fixtures.' });
         setFixtures([]);
@@ -210,55 +219,52 @@ function PendingFixturesPanel({
     return () => {
       cancelled = true;
     };
-  }, [teamList.id, setNotice]);
+  }, [teamList.id, setNotice, onProgress]);
 
-  // All fixtures in a batch share one kickoff time - that's the cut-off, shown once rather
-  // than repeated on every row.
-  const cutoff = fixtures && fixtures.length > 0
-    ? fixtures.reduce((earliest, f) => (f.kickoff_time < earliest ? f.kickoff_time : earliest), fixtures[0].kickoff_time)
-    : null;
-
+  /* No banner above this list. It said the batch was staged and results came next, which the
+     tab strip's count now says in three characters, and it repeated a cut-off that has passed
+     by the time anyone is reading results. The fixtures are the screen. */
   return (
     <div>
-      {/* A statement of fact, not a warning. Nothing here has gone wrong and nothing needs
-          deciding - the batch is staged and results come next - so it reads as one line in the
-          ordinary card colours rather than a full-width amber alert. */}
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-        <p className="text-sm text-slate-600">
-          <span className="font-medium text-slate-900">Fixtures are set.</span> Enter the results
-          before creating new fixtures.
-          {cutoff && (
-            <>
-              <span className="mx-1.5 text-slate-300">·</span>
-              Cut-off{' '}
-              {new Date(cutoff).toLocaleDateString('en-GB', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </>
-          )}
-        </p>
-      </div>
-
-      <div className="mt-6 space-y-2">
+      <div className="space-y-1.5">
         {fixtures === null ? (
           <p className="text-sm text-slate-500">Loading...</p>
         ) : (
           fixtures.map((fixture) => {
-            const resulted = fixture.home_score !== null && fixture.away_score !== null;
+            const outcome = savedOutcome(fixture);
+            const code =
+              outcome === null
+                ? null
+                : outcome === 'draw'
+                  ? 'DRAW'
+                  : outcome === 'home_win'
+                    ? fixture.home_team_short
+                    : fixture.away_team_short;
+
+            /* A tint alone was doing all the work and doing it faintly - at a glance the done
+               rows and the waiting ones were the same row. Three marks now, any one of which
+               carries in a hurry: a solid left edge, a tick, and the result itself. Saying WHICH
+               team won costs nothing here and is the thing you actually came to check. */
             return (
               <div
                 key={fixture.fixture_id}
-                className={`rounded-lg border px-4 py-3 text-sm font-medium text-slate-900 ${
-                  resulted ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-white'
+                className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-sm ${
+                  code
+                    ? 'border-emerald-300 border-l-4 border-l-emerald-600 bg-emerald-50'
+                    : 'border-slate-200 bg-white'
                 }`}
               >
-                {fixture.home_team_name}
-                <span className="mx-2 text-slate-400">v</span>
-                {fixture.away_team_name}
+                {code && <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-700" />}
+                <span className="min-w-0 flex-1 font-medium text-slate-900">
+                  {fixture.home_team_name}
+                  <span className="mx-2 font-normal text-slate-400">v</span>
+                  {fixture.away_team_name}
+                </span>
+                {code && (
+                  <span className="shrink-0 font-mono text-sm font-semibold tracking-wider text-emerald-700">
+                    {code}
+                  </span>
+                )}
               </div>
             );
           })
@@ -276,10 +282,12 @@ function FixturesTab({
   teamList,
   onStaged,
   setNotice,
+  onProgress,
 }: {
   teamList: FixtureTeamList;
   onStaged: () => void;
   setNotice: (n: Notice) => void;
+  onProgress: (p: { resulted: number; total: number } | null) => void;
 }) {
   const [kickoffDate, setKickoffDate] = useState('');
   const [kickoffTime, setKickoffTime] = useState('15:00');
@@ -302,6 +310,12 @@ function FixturesTab({
     setPairs([{ home_team_short: '', away_team_short: '' }]);
     setStaged([]);
   }, [teamList.id]);
+
+  // Nothing staged means there is no batch to report on. In an effect, not in the render body:
+  // reporting during render updates the page while this component is rendering.
+  useEffect(() => {
+    if (!teamList.pending_fixtures) onProgress(null);
+  }, [teamList.pending_fixtures, onProgress]);
 
   const dateShortcuts = useMemo(() => {
     const build = (day: number, weeks: number, prefix: string) => {
@@ -345,7 +359,7 @@ function FixturesTab({
   const completePairs = pairs.filter((p) => p.home_team_short && p.away_team_short);
 
   if (teamList.pending_fixtures) {
-    return <PendingFixturesPanel teamList={teamList} setNotice={setNotice} />;
+    return <PendingFixturesPanel teamList={teamList} setNotice={setNotice} onProgress={onProgress} />;
   }
 
   const handleTeamClick = (shortName: string) => {
@@ -882,10 +896,12 @@ function ResultsTab({
   teamList,
   setNotice,
   onBatchCleared,
+  onProgress,
 }: {
   teamList: FixtureTeamList;
   setNotice: (n: Notice) => void;
   onBatchCleared: () => void;
+  onProgress: (p: { resulted: number; total: number } | null) => void;
 }) {
   const [fixtures, setFixtures] = useState<StagedFixture[]>([]);
   const [loading, setLoading] = useState(true);
@@ -900,8 +916,14 @@ function ResultsTab({
     try {
       const result = await adminApi.getStagedResults(teamList.id);
       if (result.return_code === 'SUCCESS') {
-        setFixtures(result.fixtures || []);
+        const loaded = result.fixtures || [];
+        setFixtures(loaded);
         setSelected({});
+        onProgress(
+          loaded.length > 0
+            ? { resulted: loaded.filter((f) => savedOutcome(f) !== null).length, total: loaded.length }
+            : null
+        );
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not load fixtures.' });
       }
@@ -910,7 +932,7 @@ function ResultsTab({
     } finally {
       setLoading(false);
     }
-  }, [teamList.id, setNotice]);
+  }, [teamList.id, setNotice, onProgress]);
 
   useEffect(() => {
     load();
@@ -926,17 +948,22 @@ function ResultsTab({
     try {
       const result = await adminApi.setStagedResult(fixture.fixture_id, outcome);
       if (result.return_code === 'SUCCESS') {
-        setFixtures((prev) =>
-          prev.map((f) =>
-            f.fixture_id === fixture.fixture_id
-              ? { ...f, home_score: result.home_score!, away_score: result.away_score! }
-              : f
-          )
+        // Built once, then both set and reported from - the list is patched here rather than
+        // refetched, so the tab strip's count has to be moved from the same array.
+        const updated = fixtures.map((f) =>
+          f.fixture_id === fixture.fixture_id
+            ? { ...f, home_score: result.home_score!, away_score: result.away_score! }
+            : f
         );
+        setFixtures(updated);
         setSelected((prev) => {
           const next = { ...prev };
           delete next[fixture.fixture_id];
           return next;
+        });
+        onProgress({
+          resulted: updated.filter((f) => savedOutcome(f) !== null).length,
+          total: updated.length
         });
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not save that result.' });
@@ -1031,10 +1058,14 @@ function ResultsTab({
           and the row went ragged. The codes are what a scoreboard uses, they never truncate, and
           the full names are on the line directly above.
           */
+          /* Code on the button you pick with, full name on the button that commits it. The
+             three-up buttons have no room for "Crystal Palace" and the codes are unambiguous
+             once the names are on the line above - but Confirm is full width, is the step that
+             cannot be taken back, and is read after your eye has left those names. */
           const options: { key: ResultOutcome; code: string; says: string }[] = [
-            { key: 'home_win', code: fixture.home_team_short, says: `${fixture.home_team_short} win` },
+            { key: 'home_win', code: fixture.home_team_short, says: `${fixture.home_team_name} win` },
             { key: 'draw', code: 'DRAW', says: 'draw' },
-            { key: 'away_win', code: fixture.away_team_short, says: `${fixture.away_team_short} win` },
+            { key: 'away_win', code: fixture.away_team_short, says: `${fixture.away_team_name} win` },
           ];
 
           return (
@@ -1471,6 +1502,9 @@ export default function FixturesPage() {
   const [teamLists, setTeamLists] = useState<FixtureTeamList[]>([]);
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
   const [tab, setTab] = useState<Tab>('fixtures');
+  // How far the staged batch has got, reported by whichever tab is mounted, so the strip can
+  // show it from either side. setProgress is a stable setter, safe in the children's deps.
+  const [progress, setProgress] = useState<{ resulted: number; total: number } | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [loading, setLoading] = useState(true);
 
@@ -1562,23 +1596,45 @@ export default function FixturesPage() {
                   </select>
                 )}
 
-                <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-                  {(['fixtures', 'results'] as Tab[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => {
-                        setTab(t);
-                        setNotice(null);
-                      }}
-                      className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition ${
-                        tab === t
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+                {/* Two words on a rule, not two coloured pills. The active tab is marked by
+                    the ink bar under it, and Results carries how much of the batch is in - the
+                    one thing you cannot see while standing on the other tab. It turns green
+                    when the last result lands, which is also when Clear becomes pressable. */}
+                <div className="flex items-end gap-7 border-b border-slate-200">
+                  {(['fixtures', 'results'] as Tab[]).map((t) => {
+                    const active = tab === t;
+                    const complete = progress !== null && progress.resulted === progress.total;
+
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          setTab(t);
+                          setNotice(null);
+                        }}
+                        className={`-mb-px flex items-baseline gap-2 border-b-2 pb-2.5 pt-1 text-xs font-semibold uppercase tracking-[0.14em] transition ${
+                          active
+                            ? 'border-slate-900 text-slate-900'
+                            : 'border-transparent text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                        }`}
+                      >
+                        {t}
+                        {t === 'results' && progress !== null && (
+                          <span
+                            className={`font-mono text-[11px] font-semibold tracking-normal ${
+                              complete
+                                ? 'text-emerald-600'
+                                : active
+                                  ? 'text-slate-500'
+                                  : 'text-slate-400'
+                            }`}
+                          >
+                            {progress.resulted}/{progress.total}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1588,7 +1644,7 @@ export default function FixturesPage() {
 
             {tab === 'fixtures' ? (
               <>
-                <FixturesTab teamList={teamList} onStaged={load} setNotice={setNotice} />
+                <FixturesTab teamList={teamList} onStaged={load} setNotice={setNotice} onProgress={setProgress} />
                 {/* Below the entry form, not beside it: stage the batch, then push it to each
                     competition in turn. */}
                 <PushFixturesPanel
@@ -1598,7 +1654,7 @@ export default function FixturesPage() {
                 />
               </>
             ) : (
-              <ResultsTab teamList={teamList} setNotice={setNotice} onBatchCleared={load} />
+              <ResultsTab teamList={teamList} setNotice={setNotice} onBatchCleared={load} onProgress={setProgress} />
             )}
           </>
         )}
