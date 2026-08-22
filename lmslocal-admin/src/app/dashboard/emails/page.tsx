@@ -398,11 +398,24 @@ function FocusCard({
   reloadToken,
   /* The page orders the cards by this, so the emails with people waiting come to the top. */
   onCounted,
+  /*
+  A fresher `waiting` than this card's own, handed back by the panel it opened.
+
+  The card's count is a live query taken at the moment Count was pressed, and candidacy moves
+  underneath it - one hint sent to an organiser makes them ineligible for the next for a week. The
+  panel re-runs the same query on open, so pressing Review on a card reading 1 could leave "1
+  waiting" sitting above "Nobody qualifies for this email right now", which reads as a bug in the
+  screen rather than as work that has already been done.
+
+  A new object each time, so re-previewing the same number still lands.
+  */
+  correction,
 }: {
   email: OutlineEmail;
   onOpen: () => void;
   reloadToken: number;
   onCounted: (key: string, stat: { waiting: number; sent: number }) => void;
+  correction: { waiting: number; competitions: number | null } | null;
 }) {
   const [count, setCount] = useState<EmailCount | null>(null);
   const [loading, setLoading] = useState(false);
@@ -433,6 +446,24 @@ function FocusCard({
   useEffect(() => {
     if (reloadToken > 0) load();
   }, [reloadToken, load]);
+
+  /*
+  Take the panel's number rather than re-counting: it came from the same candidate query this card
+  runs, seconds ago and across the same scope, and pick_reminder's is the heaviest query on the
+  platform. `sent_recently` is left alone - the preview says nothing about it.
+  */
+  useEffect(() => {
+    if (!correction) return;
+    setCount((prev) =>
+      prev
+        ? {
+            ...prev,
+            waiting: correction.waiting,
+            competitions: correction.competitions ?? prev.competitions,
+          }
+        : prev
+    );
+  }, [correction]);
 
   return (
     <section className="rounded-xl border-2 border-indigo-200 bg-white shadow-sm">
@@ -646,6 +677,7 @@ function SendPanel({
   testMode,
   onClose,
   onChanged,
+  onWaiting,
 }: {
   email: OutlineEmail;
   /* Null for platform-wide emails, which have no competition and never send one to the server. */
@@ -655,6 +687,11 @@ function SendPanel({
   testMode: boolean;
   onClose: () => void;
   onChanged: () => void;
+  /*
+  What the preview actually found, reported back so the card that opened this can correct its own
+  "waiting". Only called when this panel is counting the same thing the card is - see the call.
+  */
+  onWaiting: (key: string, waiting: number, competitions: number | null) => void;
 }) {
   /* Always opens on Waiting - the panel is opened to do something, and history is a click away. */
   const [tab, setTab] = useState<PanelTab>('waiting');
@@ -683,6 +720,24 @@ function SendPanel({
       const res = await adminApi.previewEmail(email.key, scopeId);
       if (res.return_code === 'SUCCESS') {
         setPreview(res);
+        /*
+        Only platform-wide. The card counts across every competition; a preview narrowed to the
+        picked one is a smaller number for a good reason, and handing it up would replace a true
+        count with a partial one.
+
+        `competitions` is only offered when the list is complete - a truncated one can only ever
+        undercount how many competitions the waiting span.
+        */
+        if (scopeId === null) {
+          const listed = res.recipients ?? [];
+          onWaiting(
+            email.key,
+            res.recipient_count ?? 0,
+            res.truncated
+              ? null
+              : new Set(listed.map((r) => r.competition_id).filter((id) => id !== null)).size
+          );
+        }
       } else if (res.return_code !== 'UNAUTHORIZED' && res.return_code !== 'TOKEN_EXPIRED') {
         setError(res.message || 'Could not build the preview');
       }
@@ -691,7 +746,7 @@ function SendPanel({
     } finally {
       setLoading(false);
     }
-  }, [email.key, scopeId]);
+  }, [email.key, scopeId, onWaiting]);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -880,9 +935,21 @@ function SendPanel({
               So it opens expanded, with no toggle in front of it.
               */}
               {count === 0 ? (
-                <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                  Nobody qualifies for this email right now.
-                </p>
+                /*
+                Say what an empty list means, not just that it is empty. Every count on this screen
+                is a live query, and candidacy moves between one and the next - a hint sent this
+                morning takes that organiser out of every other hint for a week. Without the second
+                line, a card reading "1 waiting" above an empty panel looks like the screen is
+                broken rather than like the work is done.
+                */
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center">
+                  <p className="text-sm text-slate-500">Nobody qualifies for this email right now.</p>
+                  <p className="mx-auto mt-1.5 max-w-md text-xs text-slate-400">
+                    {scopeAll
+                      ? 'Checked just now, across every competition. Anyone counted earlier has since been sent this, opted out, or stopped qualifying - the count on the card has been updated to match.'
+                      : `Checked just now, in ${competition?.name ?? 'this competition'} only. Open this email from its card to check every competition.`}
+                  </p>
+                </div>
               ) : (
                 <>
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -1106,10 +1173,25 @@ export default function EmailsPage() {
   const [error, setError] = useState('');
   const [open, setOpen] = useState<{ email: OutlineEmail; scopeAll: boolean } | null>(null);
 
+  /*
+  A fresher count for one card, taken from the panel it opened. Set on every platform-wide preview
+  and handed straight back down, so a card cannot go on advertising people the panel has just
+  found do not qualify. A new object per preview, so the same number lands twice.
+  */
+  const [corrections, setCorrections] = useState<Record<string, { waiting: number; competitions: number | null }>>({});
+
   /* What each card last counted, reported back as it counts. Only used for the ordering below. */
   const [stats, setStats] = useState<Record<string, { waiting: number; sent: number }>>({});
   const noteCount = useCallback(
     (key: string, stat: { waiting: number; sent: number }) => setStats((prev) => ({ ...prev, [key]: stat })),
+    []
+  );
+
+  /* Stable: the panel's preview effect depends on this, and a fresh function each render would
+     re-run the candidate query in a loop. */
+  const noteWaiting = useCallback(
+    (key: string, waiting: number, competitions: number | null) =>
+      setCorrections((prev) => ({ ...prev, [key]: { waiting, competitions } })),
     []
   );
 
@@ -1364,6 +1446,7 @@ export default function EmailsPage() {
             email={email}
             reloadToken={reloadTokens[email.key] ?? 0}
             onCounted={noteCount}
+            correction={corrections[email.key] ?? null}
             onOpen={() => setOpen({ email, scopeAll: true })}
           />
         ))}
@@ -1478,6 +1561,7 @@ export default function EmailsPage() {
           testMode={testMode}
           onClose={() => setOpen(null)}
           onChanged={() => (open.scopeAll ? refreshCard(open.email.key) : refreshCounts())}
+          onWaiting={noteWaiting}
         />
       )}
     </div>
