@@ -1518,7 +1518,7 @@ export default function FixturesPage() {
 
   return (
     <div className="min-h-screen">
-      <AdminHeader title="Fixtures" backHref="/dashboard">
+      <AdminHeader title="Fixtures" backHref="/dashboard/competitions">
         {/* The forward calendar. Blocks are keyed there weeks ahead and staged into this screen
             when their kickoffs are confirmed - see docs/competition-start.md. */}
         <Link

@@ -101,10 +101,13 @@ export interface AdminUser {
 export interface AdminStats {
   competitions: {
     total: number;
+    /* Stored name; both screens LABEL this "Pending". */
     setup: number;
     active: number;
     complete: number;
-    inactive: number;
+    /* Tyre kickers. Counted once, here, and never also as active or setup - so the four
+       sum to total and agree with the Competitions screen's tiles. */
+    stalled: number;
   };
   organisers: {
     total: number;
@@ -123,19 +126,14 @@ export interface AdminStats {
     new_last_30_days: number;
     guests: number;
     /*
-    Registered accounts split by whether anything ever came of them. genuine + wasters === total.
-    The rule is the server's (get-admin-stats.js): joined a competition, organises one, or seen in
-    the last 30 days.
-
-    "returned" and "signup_only" split the accounts that are genuine on that last clause ALONE -
-    they joined nothing and organise nothing. Kept apart because they are not the same people:
-    most of that group had never come back at all, their last activity being the registration
-    itself.
+    In a competition that is live right now - neither complete nor stalled. Eliminated players
+    count: they are real people in a competition that is still running. A strict subset of
+    "total". The rule is the server's, and which competitions are live comes from the same
+    definition the Competitions screen uses.
     */
-    genuine: number;
-    wasters: number;
-    returned: number;
-    signup_only: number;
+    active: number;
+    /* Guests in a live competition. Real people, but never part of "total" - they never signed up. */
+    active_guests: number;
   };
   generated_at: string;
 }

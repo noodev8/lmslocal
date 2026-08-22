@@ -10,7 +10,8 @@ Purpose: Drill-down from the dashboard's "Competitions" cards - every competitio
 
          The status tiles count REAL competitions only. A competition nobody but its organiser
          ever touched - the tyre kickers - is pulled out into its own "Stalled" tile and tab, so
-         the headline figures stop flattering us. That verdict is the server's (see
+         the headline figures stop flattering us. People figures live on the overview, not here;
+         this screen counts competitions. That verdict is the server's (see
          services/competitionEngagement.js and is_stalled on each row); this screen never
          re-derives it, it only counts and filters by it.
 =======================================================================================================================================
@@ -230,6 +231,27 @@ function StatusTile({
         {value.toLocaleString()}
       </p>
     </button>
+  );
+}
+
+/*
+People, under the competition tiles.
+
+Deliberately smaller and deliberately not a button. The four tiles above are controls - they
+filter the list - and these are not; making them the same size would invite a click that does
+nothing. Lighter type, no gradient rule, tighter padding, but the same grid so the edges line up.
+*/
+function PeopleCard({ label, value, hint }: { label: string; value: number; hint: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+      <div className="flex items-baseline gap-2">
+        <span className="text-lg font-semibold tabular-nums text-slate-900">
+          {value.toLocaleString()}
+        </span>
+        <span className="text-sm font-medium text-slate-600">{label}</span>
+      </div>
+      <p className="mt-0.5 text-xs text-slate-400">{hint}</p>
+    </div>
   );
 }
 
@@ -498,8 +520,8 @@ function CompetitionsList() {
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [markingId, setMarkingId] = useState<number | null>(null);
-  /* People figures for the strip under the tiles. Null until they arrive, and null if they
-     fail - the strip is context, and losing it must not take the competitions list with it. */
+  /* People figures for the row under the tiles. Null until they arrive, and null if they fail -
+     losing them must not take the competitions list with it. */
   const [people, setPeople] = useState<AdminStats['users'] | null>(null);
   const [lastViewed, setLastViewed] = useState<{ id: number; at: number } | null>(null);
   const [roundInProgressTarget, setRoundInProgressTarget] = useState<{
@@ -663,9 +685,9 @@ function CompetitionsList() {
     }
 
     /*
-    People are a second, separate request, deliberately after the list rather than alongside it:
-    the strip is context and the competitions are the screen. A failure here is swallowed - a
-    missing people line is a smaller loss than an error banner over a list that loaded fine.
+    People are a second request, after the list rather than alongside it: the competitions are
+    the screen and these are context. A failure is swallowed - a missing people row is a smaller
+    loss than an error banner over a list that loaded fine.
     */
     try {
       const stats = await adminApi.getStats();
@@ -761,7 +783,7 @@ function CompetitionsList() {
 
   return (
     <div className="min-h-screen">
-      <AdminHeader title="Competitions" backHref="/dashboard">
+      <AdminHeader title="Competitions">
         <button
           onClick={() => {
             localStorage.removeItem(LAST_VIEWED_KEY);
@@ -833,30 +855,35 @@ function CompetitionsList() {
         )}
 
         {/*
-          People, as one line rather than a fifth tile. Different unit from everything above it -
-          these count humans, the tiles count competitions - so it reads as a footnote to the
-          tiles instead of one of them, and it does not filter anything.
+          People. A separate, quieter row rather than a fifth tile, because these count humans
+          and the tiles count competitions - and because nothing here filters anything.
 
-          Hidden while the page is scoped to one organiser: these are platform-wide figures and
-          sitting them under a banner reading "showing competitions run by X" would invite them
-          to be read as that person's.
+          "Active" means the same thing in both rows: in a competition that is neither complete
+          nor stalled. A player eliminated from a running competition still counts; they stop
+          counting when it ends, not when they lose.
+
+          Hidden while the page is scoped to one organiser - these are platform-wide figures, and
+          sitting them under a banner reading "showing competitions run by X" would invite them to
+          be read as that person's.
         */}
         {people && organiserId === null && (
-          <p className="mb-6 text-sm text-slate-500">
-            <span className="font-semibold tabular-nums text-slate-900">
-              {people.genuine.toLocaleString()}
-            </span>{' '}
-            genuine people
-            <span className="mx-2 text-slate-300">|</span>
-            <span className="font-semibold tabular-nums text-amber-700">
-              {people.wasters.toLocaleString()}
-            </span>{' '}
-            wasters
-            <span className="mx-2 text-slate-300">|</span>
-            <Link href="/dashboard" className="underline-offset-2 hover:text-indigo-600 hover:underline">
-              breakdown
-            </Link>
-          </p>
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <PeopleCard
+              label="active players"
+              value={people.active}
+              hint={`of ${people.total.toLocaleString()} registered, in a live competition`}
+            />
+            <PeopleCard
+              label="registered"
+              value={people.total}
+              hint={`${people.new_last_30_days.toLocaleString()} new in 30 days`}
+            />
+            <PeopleCard
+              label="guests"
+              value={people.active_guests}
+              hint="playing without an account"
+            />
+          </div>
         )}
 
         <div className="mb-5 flex flex-wrap items-center justify-end gap-3">

@@ -18,11 +18,11 @@ Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "competitions": {
-    "total": 33,                            // integer, all competitions ever created
-    "setup": 25,                            // integer, created but not started
-    "active": 4,                            // integer, currently running
+    "total": 29,                            // integer, all competitions ever created
+    "setup": 4,                             // integer, created but not started (labelled "Pending")
+    "active": 14,                           // integer, currently running
     "complete": 4,                          // integer, finished
-    "inactive": 12                          // integer, no player activity in the last 30 days
+    "stalled": 7                            // integer, tyre kickers - see services/competitionEngagement.js
   },
   "organisers": {
     "total": 10,                            // integer, accounts owning at least one competition
@@ -40,10 +40,8 @@ Success Response (ALWAYS HTTP 200):
     "total": 242,                           // integer, REGISTERED accounts (guests not included)
     "new_last_30_days": 66,                 // integer, registered accounts created in last 30 days
     "guests": 5,                            // integer, joined without registering
-    "genuine": 343,                         // integer, of "total", who joined, organise, or were seen in 30 days
-    "wasters": 78,                          // integer, of "total", the remainder - signups that went nowhere
-    "returned": 8,                          // integer, never joined anything but came back after signing up
-    "signup_only": 19                       // integer, never joined anything and not seen since signing up
+    "active": 242,                          // integer, of "total", in a competition that is live right now
+    "active_guests": 15                     // integer, guests in a live competition (NOT part of "total")
   },
   "generated_at": "2026-08-02T14:00:00.000Z" // string, ISO datetime this snapshot was taken
 }
@@ -64,9 +62,12 @@ Data Notes:
 - competition.status is uppercase ('SETUP', 'ACTIVE', 'COMPLETE'). It used to be mixed; the data
   was normalised on 2026-08-04. Every comparison here still lowercases the column first, which is
   now belt-and-braces rather than load-bearing.
-- "inactive" means no pick has been made in any of the competition's rounds for 30 days. It
-  counts only competitions that are supposed to be running, so a SETUP or COMPLETE competition
-  is never reported as inactive.
+- The competition counts come from classifyCompetition, NOT from counting statuses in SQL. A
+  stalled competition is counted once, as stalled, and never also as active or setup - which is
+  what makes these agree with the Competitions screen. They previously did not: 16 active here
+  against 14 there. total = active + setup + complete + stalled.
+- "inactive" (running, no picks for 30 days) was removed. "stalled" answers the same question
+  better and having both invited the two to be compared.
 - Every figure here counts the REAL platform, not us. Excluded: competition 117 ("App Store",
   ours), the accounts brookfieldcomfort@gmail.com and lmslocal8@gmail.com, and bots (email
   'bot_%@lms-guest.com'). The exclusions are the reason "competitions" agrees with the
@@ -76,14 +77,15 @@ Data Notes:
   whose competitions have all finished. The two are reported separately because the first was
   being read as an audience figure when most of it was the back catalogue - one completed
   competition of 52 sat inside it for months.
-- "genuine" and "wasters" split users.total in two and always sum back to it. The rule is defined
-  once, above the query - joined, organises, or seen in the last 30 days. It exists because a
-  quarter of "Registered" had never touched anything, which made the headline useless for the one
-  question it is asked.
-- "returned" and "signup_only" split the accounts that are genuine on the seen-recently clause
-  ALONE - they joined nothing and organise nothing. They are reported apart because they are not
-  the same people: 19 of those 27 had never come back at all, their last_active_at being the
-  registration itself, so calling the group "coming back" would have been untrue of most of it.
+- "active" is a strict subset of "total": registered people holding a membership in a competition
+  that is neither complete nor stalled. Eliminated players count - they are real people in a
+  competition that is still running. Which competitions those are comes from
+  services/competitionEngagement.js via a first round trip, NOT from a second copy of the stalled
+  rule written in SQL.
+- "active" and "players_in_live_competition" are close but not the same and will not match. The
+  older figure counts SETUP or ACTIVE by status alone, so it includes stalled competitions;
+  "active" excludes them. Prefer "active" - the dashboard reads it, and the difference between
+  the two is exactly the stalled players.
 - Guests (non-bot '%@lms-guest.com') are counted as PLAYERS but not as ACCOUNTS, and are
   reported on their own as users.guests. A guest is a real person, so they belong in
   participation; but the account is created by joining and is tied to that one competition, so
@@ -96,10 +98,12 @@ const express = require('express');
 const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
+const {
+  realPlayerCountSql,
+  pickCountSql,
+  classifyCompetition
+} = require('../../services/competitionEngagement');
 const router = express.Router();
-
-// A competition running with no picks for this long is considered to have gone quiet
-const INACTIVE_AFTER_DAYS = 30;
 
 // Competition 117 ("App Store") is ours, created for the store listing screenshots. The
 // competitions screen hides it (HIDDEN_COMPETITION_IDS there), so the dashboard has to hide it
@@ -121,85 +125,94 @@ const GUEST_EMAIL_LIKE = '%@lms-guest.com';
 // Reusable predicates. REAL_USER keeps guests in - for PARTICIPATION figures a guest is a real
 // person and belongs in the count. The account figures below then split them back out, because
 // there "accounts" reads as signups and a guest never signed up.
-const REAL_USER = `(u.email NOT LIKE '${BOT_EMAIL_LIKE}' AND u.email <> ALL($2::text[]))`;
+const REAL_USER = `(u.email NOT LIKE '${BOT_EMAIL_LIKE}' AND u.email <> ALL($1::text[]))`;
 const IS_GUEST = `u.email LIKE '${GUEST_EMAIL_LIKE}'`;
-const REAL_COMP = `cu.competition_id <> ALL($3::int[])`;
+const REAL_COMP = `cu.competition_id <> ALL($2::int[])`;
 
 /*
-Who counts as a GENUINE registered person, as opposed to a signup that went nowhere.
+ACTIVE PEOPLE - the count this screen exists for.
 
-A quarter of "Registered" had never touched anything - 105 of 421 - which made the number useless
-for the only question it gets asked: how many real people are on this platform. The rule is the
-same shape as the stalled-competition one in services/competitionEngagement.js: did they do the
-thing the product is for?
+Active = holds a membership in a competition that is LIVE right now: not complete, and not
+stalled. Being eliminated still counts. Somebody knocked out in round 3 of a competition that is
+still running is a real player who turned up, and the moment they stop counting is the moment the
+competition ends, not the moment they lose.
 
-Genuine = joined a competition, OR organises one, OR has been seen in the last
-SEEN_RECENTLY_DAYS. The third clause is deliberate and it is the loosest of the three: an account
-that keeps coming back without joining anything is a real person still deciding, not a waster.
+This replaced a "genuine registered person" rule that asked what someone had EVER done - joined,
+organised, or been seen in 30 days. Two problems with that: it counted people who did something
+once and vanished (70 of 346 had not been seen in a month), and being cumulative it could only
+ever rise, so it could not tell growth from churn. Active can fall, which is the point of it.
 
-It also means no "too new to judge" exemption is needed, unlike the competitions rule - somebody
-who registered on Tuesday is recently active by definition, so they land in genuine on their own
-and drop out later if they never come back.
+Which competitions are live is NOT decided here. The stalled rule lives in
+services/competitionEngagement.js and this route runs classifyCompetition over the same facts the
+admin Competitions screen uses, in a first round trip, then counts memberships against the ids
+that survive. A second implementation in SQL would drift from the screen within a month - the
+whole table is a few dozen rows, so the extra query is the cheap way to stay honest.
 
-Joining is enough on its own; making a pick is not required. Somebody who joined a competition
-that then stalled answered a real invitation, and never getting a round to pick in was not their
-doing.
+Guests are excluded, so "active" and "total" describe the same population - registered accounts -
+and one is a true subset of the other. Guests in a live competition are real people and are
+reported separately as active_guests rather than dropped.
 */
-const SEEN_RECENTLY_DAYS = 30;
-const DID_SOMETHING = `(
-  u.id IN (SELECT cu2.user_id FROM competition_user cu2 WHERE cu2.competition_id <> ALL($3::int[]))
-  OR u.id IN (SELECT c2.organiser_id FROM competition c2
-               WHERE c2.organiser_id IS NOT NULL AND c2.id <> ALL($3::int[]))
-)`;
-const SEEN_RECENTLY = `u.last_active_at > NOW() - INTERVAL '${SEEN_RECENTLY_DAYS} days'`;
-const IS_GENUINE = `(${DID_SOMETHING} OR ${SEEN_RECENTLY})`;
-
-/*
-Did they ever come back, or is the "activity" just the session they signed up in?
-
-This matters because SEEN_RECENTLY on its own does not mean what it sounds like. Of the 27
-accounts that qualified as genuine on that clause alone, 19 had never returned - their
-last_active_at was their registration. Reporting all 27 as people who keep coming back would have
-been flatly untrue.
-
-The one-hour boundary is middleware/auth.js's, not a guess: it refreshes last_active_at at most
-once an hour, so a signup session leaves the two timestamps within an hour of each other and
-anything beyond that is a genuinely later visit. Moving the line to five minutes shifts exactly
-one account, which is what a clean split looks like.
-*/
-const CAME_BACK = `u.last_active_at > u.created_at + INTERVAL '1 hour'`;
 
 router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-admin-stats');
 
   try {
+    /*
+    First round trip: which competitions are live. Classified in JS by the shared rule rather
+    than re-expressed in SQL, so this screen and the Competitions screen can never disagree
+    about what "stalled" means.
+    */
+    const liveQuery = `
+      SELECT
+        c.id,
+        LOWER(c.status)                          AS status,
+        c.stalled_override,
+        ${realPlayerCountSql('c', '$1')}         AS real_player_count,
+        ${pickCountSql('c')}                     AS pick_count,
+        GREATEST(
+          (SELECT MAX(p.created_at) FROM pick p
+             JOIN round r ON r.id = p.round_id WHERE r.competition_id = c.id),
+          (SELECT MAX(cu.joined_at) FROM competition_user cu WHERE cu.competition_id = c.id),
+          (SELECT MAX(r.created_at) FROM round r WHERE r.competition_id = c.id),
+          c.created_at
+        )                                        AS last_activity
+      FROM competition c
+      WHERE c.id <> ALL($2::int[])
+    `;
+    const liveResult = await query(liveQuery, [BOT_EMAIL_LIKE, EXCLUDED_COMPETITION_IDS]);
+
+    const classified = liveResult.rows.map((c) => ({
+      ...c,
+      is_stalled: classifyCompetition(c).is_stalled
+    }));
+
+    // Complete competitions are excluded outright: their players finished, they did not drift.
+    const liveCompetitionIds = classified
+      .filter((c) => c.status !== 'complete' && !c.is_stalled)
+      .map((c) => c.id);
+
+    /*
+    The same breakdown the Competitions screen shows, from the same classification - a stalled
+    competition is counted once, as stalled, and never also as active or setup. Counting by
+    status alone is what made this screen say 16 active where that one said 14.
+
+    "setup" keeps its stored name here; the screens label it "Pending".
+    */
+    const competitionCounts = {
+      total: classified.length,
+      active: classified.filter((c) => !c.is_stalled && c.status === 'active').length,
+      setup: classified.filter((c) => !c.is_stalled && c.status === 'setup').length,
+      complete: classified.filter((c) => !c.is_stalled && c.status === 'complete').length,
+      stalled: classified.filter((c) => c.is_stalled).length
+    };
+
     // One round trip. These are small aggregates over small tables, so a single query with
     // scalar subselects beats four sequential ones.
     const statsQuery = `
       SELECT
-        -- Competition counts. LOWER() guards the known status casing inconsistency.
-        (SELECT COUNT(*) FROM competition WHERE id <> ALL($3::int[]))             AS comp_total,
-        (SELECT COUNT(*) FROM competition
-          WHERE id <> ALL($3::int[]) AND LOWER(status) = 'setup')                 AS comp_setup,
-        (SELECT COUNT(*) FROM competition
-          WHERE id <> ALL($3::int[]) AND LOWER(status) = 'active')                AS comp_active,
-        (SELECT COUNT(*) FROM competition
-          WHERE id <> ALL($3::int[]) AND LOWER(status) = 'complete')              AS comp_complete,
-
-        -- Running competitions whose most recent pick is older than the cutoff, plus those
-        -- that are running but have never had a pick at all.
-        (SELECT COUNT(*)
-           FROM competition c
-          WHERE LOWER(c.status) = 'active'
-            AND c.id <> ALL($3::int[])
-            AND COALESCE(
-                  (SELECT MAX(p.created_at)
-                     FROM pick p
-                     JOIN round r ON r.id = p.round_id
-                    WHERE r.competition_id = c.id),
-                  c.created_at
-                ) < NOW() - ($1 || ' days')::interval
-        )                                                                         AS comp_inactive,
+        -- Competition counts are NOT here - see competitionCounts above. They come from the
+        -- classified rows so that "active" means the same thing on this screen as it does on
+        -- the Competitions screen.
 
         -- Organisers. "Organiser" means owning a competition, matching get-admin-organisers -
         -- helping run someone else's does not count. "Paying" is a real purchase, never
@@ -207,21 +220,21 @@ router.get('/', verifyAdminToken, async (req, res) => {
         (SELECT COUNT(DISTINCT c.organiser_id)
            FROM competition c
            JOIN app_user u ON u.id = c.organiser_id
-          WHERE c.id <> ALL($3::int[])
-            AND u.email <> ALL($2::text[]))                                   AS organisers_total,
+          WHERE c.id <> ALL($2::int[])
+            AND u.email <> ALL($1::text[]))                                   AS organisers_total,
         (SELECT COUNT(DISTINCT c.organiser_id)
            FROM competition c
            JOIN app_user u ON u.id = c.organiser_id
-          WHERE c.id <> ALL($3::int[])
-            AND u.email <> ALL($2::text[])
+          WHERE c.id <> ALL($2::int[])
+            AND u.email <> ALL($1::text[])
             AND EXISTS (SELECT 1 FROM credit_purchases cp
                          WHERE cp.user_id = c.organiser_id
                            AND cp.paid_amount > 0))                           AS organisers_paying,
         (SELECT COUNT(DISTINCT c.organiser_id)
            FROM competition c
            JOIN app_user u ON u.id = c.organiser_id
-          WHERE c.id <> ALL($3::int[])
-            AND u.email <> ALL($2::text[])
+          WHERE c.id <> ALL($2::int[])
+            AND u.email <> ALL($1::text[])
             AND LOWER(c.status) = 'active')                                   AS organisers_with_active,
 
         -- Player participation. Bots and our own accounts are excluded everywhere; guests are
@@ -260,32 +273,24 @@ router.get('/', verifyAdminToken, async (req, res) => {
         (SELECT COUNT(*) FROM app_user u
           WHERE ${REAL_USER} AND ${IS_GUEST})                                     AS users_guests,
 
-        -- Registered accounts split by whether anything ever came of them. The two add up to
-        -- users_total, so the screen can show either half without them disagreeing.
-        (SELECT COUNT(*) FROM app_user u
-          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
-            AND ${IS_GENUINE})                                                    AS users_genuine,
-        (SELECT COUNT(*) FROM app_user u
-          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
-            AND NOT ${IS_GENUINE})                                                AS users_wasters,
-        -- The two halves of "genuine on the strength of being seen alone" - registered, never
-        -- joined or organised anything. Split because they are different people: one came back
-        -- of their own accord and is worth a nudge, the other has not been seen since the form
-        -- they filled in. Together they are the whole of that clause.
-        (SELECT COUNT(*) FROM app_user u
-          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
-            AND NOT ${DID_SOMETHING} AND ${SEEN_RECENTLY}
-            AND ${CAME_BACK})                                                     AS users_returned,
-        (SELECT COUNT(*) FROM app_user u
-          WHERE ${REAL_USER} AND NOT ${IS_GUEST}
-            AND NOT ${DID_SOMETHING} AND ${SEEN_RECENTLY}
-            AND NOT ${CAME_BACK})                                                 AS users_signup_only
+        -- People holding a membership in a competition that is live right now. $3 is the list
+        -- of those competitions, settled in JS above by the one stalled rule.
+        (SELECT COUNT(DISTINCT cu.user_id)
+           FROM competition_user cu
+           JOIN app_user u ON u.id = cu.user_id
+          WHERE cu.competition_id = ANY($3::int[])
+            AND ${REAL_USER} AND NOT ${IS_GUEST})                                 AS users_active,
+        (SELECT COUNT(DISTINCT cu.user_id)
+           FROM competition_user cu
+           JOIN app_user u ON u.id = cu.user_id
+          WHERE cu.competition_id = ANY($3::int[])
+            AND ${REAL_USER} AND ${IS_GUEST})                                     AS users_active_guests
     `;
 
     const result = await query(statsQuery, [
-      INACTIVE_AFTER_DAYS,
       EXCLUDED_EMAILS,
-      EXCLUDED_COMPETITION_IDS
+      EXCLUDED_COMPETITION_IDS,
+      liveCompetitionIds
     ]);
     const row = result.rows[0];
 
@@ -294,13 +299,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
 
     return res.json({
       return_code: 'SUCCESS',
-      competitions: {
-        total: n(row.comp_total),
-        setup: n(row.comp_setup),
-        active: n(row.comp_active),
-        complete: n(row.comp_complete),
-        inactive: n(row.comp_inactive)
-      },
+      competitions: competitionCounts,
       organisers: {
         total: n(row.organisers_total),
         paying: n(row.organisers_paying),
@@ -317,10 +316,8 @@ router.get('/', verifyAdminToken, async (req, res) => {
         total: n(row.users_total),
         new_last_30_days: n(row.users_new),
         guests: n(row.users_guests),
-        genuine: n(row.users_genuine),
-        wasters: n(row.users_wasters),
-        returned: n(row.users_returned),
-        signup_only: n(row.users_signup_only)
+        active: n(row.users_active),
+        active_guests: n(row.users_active_guests)
       },
       generated_at: new Date().toISOString()
     });

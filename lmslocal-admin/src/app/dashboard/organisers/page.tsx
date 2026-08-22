@@ -342,7 +342,7 @@ function OrganisersList() {
 
   return (
     <div className="min-h-screen">
-      <AdminHeader title="Organisers" backHref="/dashboard">
+      <AdminHeader title="Organisers" backHref="/dashboard/competitions">
         <button
           onClick={load}
           disabled={loading}

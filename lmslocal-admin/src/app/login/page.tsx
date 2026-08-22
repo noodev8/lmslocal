@@ -28,7 +28,7 @@ export default function LoginPage() {
   // Suspense boundary, which Next would otherwise require at build time.
   useEffect(() => {
     if (getToken()) {
-      router.replace('/dashboard');
+      router.replace('/dashboard/competitions');
       return;
     }
     if (window.location.search.includes('expired=1')) {
@@ -46,7 +46,7 @@ export default function LoginPage() {
 
       if (result.return_code === 'SUCCESS' && result.token && result.admin) {
         saveSession(result.token, result.admin);
-        router.replace('/dashboard');
+        router.replace('/dashboard/competitions');
         return;
       }
 

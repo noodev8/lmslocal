@@ -155,19 +155,16 @@ transparency logs. Vercel's Deployment Protection is worth enabling as a second 
 | `/admin/set-bot-picks` | POST | Random picks for bots that have not picked this round |
 | `/admin/set-bot-pick` | POST | Set or clear one bot's pick |
 
-Pages: `/login`, `/dashboard`, `/dashboard/competitions`, `/dashboard/organisers`,
-`/dashboard/fixtures`, `/dashboard/bots`. `/dashboard` is the landing page and is read-only. The
-work happens on the other four, which the header's nav row moves between.
+Pages: `/login`, `/dashboard/competitions`, `/dashboard/organisers`, `/dashboard/fixtures`,
+`/dashboard/bots`, `/dashboard/emails`. **`/dashboard/competitions` is the landing page** — login
+and `/` both bounce there, and it is first in the nav.
 
-**`/dashboard` is about people, and nothing else.** It carried sixteen numbers across four cards
-and four panels, and most were competition counts — which the Competitions screen now answers
-better, because it excludes stalled competitions and the overview did not: 16 active there
-against 14 here. Duplicated figures that drift apart are worse than no figures, so the
-competition and organiser halves went and what is left is the one thing that lives nowhere else.
-Three cards (genuine people, wasters, in a live competition) and one panel of what is not already
-a card.
-
-Not built yet: bulk email.
+**There is no Overview screen.** `/dashboard` was deleted. It carried sixteen numbers, and most
+of them were competition counts that duplicated the Competitions screen *and disagreed with it* —
+16 active there against 14 here, because that screen excludes stalled competitions and the
+overview counted by status alone. The competition breakdown it briefly showed is redundant with
+the tiles, and its people figures moved onto the Competitions screen as a quieter second row.
+One screen, one set of numbers.
 
 ## Competitions — tyre kickers
 
@@ -206,40 +203,39 @@ between gameweeks is quiet and perfectly healthy).
   rather than marked — it is hidden entirely, not merely uncounted, and it must never appear on a
   screen whose purpose is choosing what to delete.
 
-## Registered people — genuine or waster
+## Active people
 
-The same problem as the tyre-kicker competitions, one level up: **a quarter of "Registered" had
-never touched anything** — 105 accounts of 421 — which made the one number the overview exists for
-the one number you could not trust.
+The three small cards under the Competitions tiles. Smaller and not clickable on purpose: the
+tiles above are controls that filter the list, these are context, and matching their size would
+invite a click that does nothing.
 
-**The rule is in `get-admin-stats.js`, above the query.** A registered account is **genuine** when
-they **joined a competition, organise one, or have been seen in the last 30 days**; everything
-else is a **waster**. The two split `users.total` and always sum back to it.
+**Active = holds a place in a competition that is live right now** — one that is neither complete
+nor stalled. **Eliminated players count.** Somebody knocked out in round 3 of a competition still
+running is a real player who turned up; they stop counting when the competition ends, not when
+they lose. Currently 242 of 424 registered, across 18 live competitions. "Active" means exactly
+this in both rows of the screen.
 
-- **The third clause is the loose one and it is deliberate.** An account that keeps coming back
-  without joining anything is a real person still deciding, not a waster.
-- **But "seen recently" does not mean what it sounds like, so the group it catches is split in
-  two.** Of the 27 accounts genuine on that clause alone, **19 had never come back** — their
-  `last_active_at` *was* the registration. Reported as `users.returned` (8, "Came back, never
-  joined" — the nudge worth sending) and `users.signup_only` (19, "Signed up, never seen since" —
-  a signup that never started). One row covering both would have been untrue of most of it.
-  The boundary is **one hour**, taken from `middleware/auth.js`, which refreshes `last_active_at`
-  at most hourly — so a signup session leaves the timestamps within an hour and anything beyond is
-  a genuinely later visit. Moving the line to five minutes shifts exactly one account.
-- **It needs no explicit "too new to judge" exemption**, unlike the competitions rule — somebody
-  who registered on Tuesday is recently active by definition. Be clear-eyed about what that means
-  though: the 30-day clause **is** the exemption, and a loose one. `signup_only` is where those
-  accounts sit, and they age into `wasters` on their own if they never return.
-- **Joining is enough; making a pick is not required.** Somebody who joined a competition that
-  then stalled answered a real invitation, and never getting a round to pick in was not their
-  doing.
-- Guests (`%@lms-guest.com`, non-bot) are outside this entirely — they are counted as players but
-  never as accounts, because the account is created by joining and dies with the competition.
-- The Competitions screen repeats **genuine and wasters only**, as a one-line strip under the
-  status tiles, linking here for the rest. It is a line rather than a fifth tile because it counts
-  humans and the tiles count competitions, and it hides itself when the screen is scoped to one
-  organiser — platform-wide figures under a "showing competitions run by X" banner would be read
-  as that person's.
+- **Which competitions are live is not decided in the stats route.** `get-admin-stats` runs
+  `classifyCompetition` from `services/competitionEngagement.js` over the same facts the
+  Competitions screen uses, in a first round trip, then counts memberships against the ids that
+  survive. Re-expressing the stalled rule in SQL would have given two definitions that drift
+  apart within a month; the table is a few dozen rows, so the extra query is the cheap way to
+  stay honest. The same classification produces `competitions.{active,setup,complete,stalled}`.
+- **Guests are excluded from `active`**, so it is a true subset of `total` and both describe
+  registered accounts. Guests get their own card, `active_guests` (15), judged by *exactly* the
+  same rule. They sit outside "Registered" only because the account is created by joining and
+  dies with the competition, so it was never a signup.
+- **It replaced a "genuine people" figure** that asked what someone had ever done — joined,
+  organised, or been seen in 30 days. That counted 346, of whom 70 had not been seen in a month
+  and 19 had never returned after signing up. Worse, being cumulative it could only ever rise, so
+  it could not tell growth from churn. Active can fall, which is the point of watching it.
+- The row **hides itself when the screen is scoped to one organiser** — platform-wide figures
+  under a "showing competitions run by X" banner would be read as that person's.
+- **`players_in_live_competition` in the same response is close but not equal** (266 vs 242) and
+  nothing reads it. It counts SETUP or ACTIVE by status alone, so it includes stalled
+  competitions. The gap is exactly the stalled players.
+- **`competitions.inactive` was removed** (running, no picks for 30 days). "stalled" answers the
+  same question better, and keeping both invited the two to be compared.
 
 ## Organisers
 

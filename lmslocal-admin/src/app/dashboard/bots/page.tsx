@@ -496,7 +496,7 @@ function BotsScreen() {
 
   return (
     <div className="min-h-screen">
-      <AdminHeader title="Bots" backHref="/dashboard">
+      <AdminHeader title="Bots" backHref="/dashboard/competitions">
         <button
           onClick={() => load(selectedId)}
           disabled={loading}

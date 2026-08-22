@@ -83,8 +83,6 @@ doc first** (except the email README, see below):
 - **Auth**: normal LMSLocal credentials, but a separate login route, a separate signing key
   (`JWT_ADMIN_SECRET`), a `scope: "admin"` claim, and a live `app_user.is_admin` check
 - **Rule: never add an admin bypass to an existing player route** — admin gets its own routes
-- **Screens**: `/dashboard` (read-only platform snapshot, the landing page), `/competitions`,
-  `/organisers`, `/fixtures`, `/fixtures/calendar`, `/bots`
 - **Bots**: placeholder players for seeding a competition. **A bot is never chargeable** — no
   credit, no free place, in every counting query, via `services/botPool.js`. Still confined to the
   organisers listed there, but for a product reason not a billing one: a customer's competition
@@ -96,13 +94,16 @@ doc first** (except the email README, see below):
   tri-state manual override — NULL trusts the rule, and **nothing ever writes the derived answer
   into it**. Stalled rows get their own tile and tab and are excluded from every other count.
   Marking is not deleting. See `docs/admin-tool.md`
-- **Genuine people vs wasters**: same problem as tyre kickers, one level up — a quarter of
-  "Registered" had never touched anything. Rule in `get-admin-stats.js`: genuine = joined a
-  competition, organises one, **or** seen in the last 30 days; the rest are wasters, and the two
-  sum back to `users.total`. The seen-recently group is split into `returned` and `signup_only`
-  because most of it had never come back — `last_active_at` was the registration itself. `/dashboard` is now **about people and nothing else** — its
-  competition counts duplicated the Competitions screen and disagreed with it, since that screen
-  excludes stalled and this one did not
+- **Screens**: **`/dashboard/competitions` is the landing page** — there is no Overview.
+  `/dashboard` was deleted because its counts duplicated the Competitions screen and disagreed
+  with it (16 active against 14 — it counted by status alone and did not exclude stalled)
+- **Active people**: three small cards under the Competitions tiles — registered accounts holding
+  a place in a competition that is **neither complete nor stalled**; eliminated players count.
+  Which competitions those are comes from `classifyCompetition` in a first round trip, **never**
+  a second copy of the stalled rule in SQL; that same pass produces the competition counts.
+  Guests are excluded so `active` is a true subset of `total`, and get their own card via
+  `active_guests`. It replaced a cumulative "genuine people" count that could only ever rise and
+  so could not tell growth from churn. `competitions.inactive` is gone; stalled answers it better
 - **Organisers**: an organiser owns at least one competition. "Players" counts memberships the
   same way the competitions screen does so the two agree; "spend" is `credit_purchases`, **never**
   `app_user.paid_credit`

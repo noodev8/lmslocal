@@ -31,8 +31,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { clearSession, getAdmin } from '@/lib/api';
 
+/*
+Competitions is first because it is now the landing page. The Overview that used to sit here was
+deleted: its competition counts duplicated the Competitions screen and disagreed with it, and its
+people figures moved onto that screen as a second row of cards. One screen, one set of numbers.
+*/
 const NAV = [
-  { href: '/dashboard', label: 'Overview' },
   { href: '/dashboard/competitions', label: 'Competitions' },
   { href: '/dashboard/organisers', label: 'Organisers' },
   { href: '/dashboard/fixtures', label: 'Fixtures' },
