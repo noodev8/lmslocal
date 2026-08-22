@@ -34,6 +34,9 @@ Success Response (ALWAYS HTTP 200):
       "organiser_name": "Jo",               // string
       "players": 55,                        // integer, total members
       "active_players": 43,                 // integer, members still in
+      "results_to_push": 2,                 // integer, entered results this competition has not
+                                            //   received yet - zero means pressing Push would
+                                            //   return ALREADY_PUSHED
       "fixtures_pending": 10,               // integer, matched fixtures with no result yet
       "fixtures_unprocessed": 0,            // integer, resulted but eliminations not applied
       "fixtures_done": 0                    // integer, resulted and processed
@@ -55,6 +58,10 @@ Return Codes:
 "SERVER_ERROR"              - Database or unexpected error
 =======================================================================================================================================
 Data Notes:
+- "results_to_push" is what the screen disables the Push button on. It counts staged rows that
+  have a result entered AND whose matching fixture here is still unresulted, so it answers "would
+  pressing this do anything" rather than "is this competition finished". Without it the button
+  stayed live on every row all weekend and a second press returned ALREADY_PUSHED.
 - The three fixture counts are what the screen turns into a row state: fixtures_pending > 0 is
   "waiting to be pushed", pending 0 with unprocessed > 0 is "pushed but eliminations not applied"
   (a part-finished attempt worth pressing again), and both 0 is "done".
@@ -106,6 +113,12 @@ router.get('/', verifyAdminToken, async (req, res) => {
         c.name,
         u.email AS organiser_email,
         u.display_name AS organiser_name,
+        -- Staged results this competition has NOT received yet. The one number that says
+        -- whether a row still needs pressing: fixtures_pending counts every unresulted fixture,
+        -- which on a Friday night is the same 9 for everybody and so distinguishes nothing.
+        COUNT(*) FILTER (
+          WHERE fl.home_score IS NOT NULL AND fl.away_score IS NOT NULL AND f.result IS NULL
+        ) AS results_to_push,
         COUNT(*) FILTER (WHERE f.result IS NULL) AS fixtures_pending,
         COUNT(*) FILTER (WHERE f.result IS NOT NULL AND f.processed IS NULL) AS fixtures_unprocessed,
         COUNT(*) FILTER (WHERE f.processed IS NOT NULL) AS fixtures_done
@@ -156,6 +169,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
         organiser_name: row.organiser_name,
         players: playerCounts.get(row.competition_id)?.players ?? 0,
         active_players: playerCounts.get(row.competition_id)?.active_players ?? 0,
+        results_to_push: parseInt(row.results_to_push, 10),
         fixtures_pending: parseInt(row.fixtures_pending, 10),
         fixtures_unprocessed: parseInt(row.fixtures_unprocessed, 10),
         fixtures_done: parseInt(row.fixtures_done, 10)

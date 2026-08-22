@@ -377,6 +377,13 @@ export interface PushTarget {
   organiser_name: string;
   players: number;
   active_players: number;
+  /*
+  Entered results this competition has not received yet. Zero means pressing Push would do
+  nothing and come back ALREADY_PUSHED - which is what the button disables on. Distinct from
+  fixtures_pending, which counts every unresulted fixture and so reads the same on every row
+  until the whole gameweek is in.
+  */
+  results_to_push: number;
   fixtures_pending: number;
   fixtures_unprocessed: number;
   fixtures_done: number;

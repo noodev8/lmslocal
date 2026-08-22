@@ -154,6 +154,31 @@ Read-only view of the staged batch, shown instead of the entry form while one is
 so the block ("finish this before staging another") is not a dead end, just a look at what's
 already there.
 */
+/*
+The committing action, shared by both push lists.
+
+Outlined rather than filled. A dozen of these stack down a list, and a column of solid buttons
+reads as a dozen things all demanding to be pressed - which is the opposite of the truth, since
+they are worked one at a time in order. It fills on hover and on touch, so the one under the
+thumb is unmistakable at the moment it matters.
+
+The ink is the near-black already used by Confirm on a fixture, because they are the same kind
+of act: this writes and cannot be taken back. Indigo now means one thing only - a result chosen
+but not yet confirmed - instead of standing for both a pick and a push.
+*/
+const PUSH_BUTTON =
+  'min-h-[44px] w-24 shrink-0 rounded-lg border px-3 text-sm font-semibold transition ' +
+  'disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-white disabled:text-slate-300';
+
+const PUSH_BUTTON_READY =
+  'border-slate-900 bg-white text-slate-900 hover:bg-slate-900 hover:text-white ' +
+  'active:bg-slate-900 active:text-white';
+
+/* A push that came back with an error keeps its place in the list but says so on the button. */
+const PUSH_BUTTON_FAILED =
+  'border-red-300 bg-white text-red-700 hover:bg-red-600 hover:text-white ' +
+  'active:bg-red-600 active:text-white';
+
 function PendingFixturesPanel({
   teamList,
   setNotice,
@@ -821,7 +846,7 @@ function PushFixturesPanel({
                   onClick={() => handlePush(target)}
                   disabled={disabled}
                   title={!target.eligible ? target.reason || undefined : pushed ? 'Already pushed.' : undefined}
-                  className="w-24 shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  className={`${PUSH_BUTTON} ${outcome && !outcome.ok ? PUSH_BUTTON_FAILED : PUSH_BUTTON_READY}`}
                 >
                   {isPushing ? 'Pushing...' : outcome && !outcome.ok ? 'Retry' : 'Push'}
                 </button>
@@ -947,82 +972,115 @@ function ResultsTab({
   return (
     <>
       {beforeCutoff && (
-        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            Kick off is{' '}
-            {new Date(cutoff).toLocaleDateString('en-GB', {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-            . Results can be entered after that.
-          </span>
+        <div className="mb-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+          Kick off is{' '}
+          {new Date(cutoff).toLocaleDateString('en-GB', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+          . Results can be entered after that.
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {fixtures.map((fixture) => {
           const locked = savedOutcome(fixture);
-          const outcome = locked ?? selected[fixture.fixture_id];
-          const isConfirming = confirming === fixture.fixture_id;
-          const entryDisabled = !!locked || isConfirming || beforeCutoff;
 
-          const buttons: { key: ResultOutcome; label: string; tone: string }[] = [
-            { key: 'home_win', label: fixture.home_team_name, tone: 'bg-indigo-600 hover:bg-indigo-700' },
-            { key: 'draw', label: 'Draw', tone: 'bg-slate-600 hover:bg-slate-700' },
-            { key: 'away_win', label: fixture.away_team_name, tone: 'bg-indigo-600 hover:bg-indigo-700' },
+          /*
+          A settled fixture collapses to one line. Entering results is done a match at a time as
+          they finish, so on a phone the screen should be mostly the fixtures still needing an
+          answer - a done match that keeps a full card of dead buttons pushes the live ones off
+          the screen. It stays visible, and still says what was recorded, in a third of the height.
+          */
+          if (locked) {
+            const code =
+              locked === 'draw'
+                ? 'DRAW'
+                : locked === 'home_win'
+                  ? fixture.home_team_short
+                  : fixture.away_team_short;
+
+            return (
+              <div
+                key={fixture.fixture_id}
+                className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-2.5"
+              >
+                <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-600">
+                  {fixture.home_team_name}
+                  <span className="mx-1.5 text-slate-400">v</span>
+                  {fixture.away_team_name}
+                </span>
+                <span className="shrink-0 font-mono text-sm font-semibold tracking-wider text-emerald-700">
+                  {code}
+                </span>
+              </div>
+            );
+          }
+
+          const chosen = selected[fixture.fixture_id];
+          const isConfirming = confirming === fixture.fixture_id;
+          const disabled = beforeCutoff || isConfirming;
+
+          /*
+          Labelled with the three-letter code, not the club name. Three buttons across a phone
+          leave about ten characters each, and "Crystal Palace" is fourteen - the names wrapped
+          and the row went ragged. The codes are what a scoreboard uses, they never truncate, and
+          the full names are on the line directly above.
+          */
+          const options: { key: ResultOutcome; code: string; says: string }[] = [
+            { key: 'home_win', code: fixture.home_team_short, says: `${fixture.home_team_short} win` },
+            { key: 'draw', code: 'DRAW', says: 'draw' },
+            { key: 'away_win', code: fixture.away_team_short, says: `${fixture.away_team_short} win` },
           ];
 
           return (
-            <div
-              key={fixture.fixture_id}
-              className={`rounded-xl border p-4 transition ${
-                locked ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-white'
-              }`}
-            >
-              <div className="mb-3 text-sm font-medium text-slate-900">
+            <div key={fixture.fixture_id} className="rounded-xl border border-slate-200 bg-white p-2.5">
+              <p className="mb-2 truncate px-1 text-sm font-medium text-slate-900">
                 {fixture.home_team_name}
-                <span className="mx-2 text-slate-400">v</span>
+                <span className="mx-1.5 font-normal text-slate-400">v</span>
                 {fixture.away_team_name}
-              </div>
+              </p>
 
-              <div className="flex gap-2">
-                {buttons.map((b) => {
-                  const resolvedTone =
-                    outcome === b.key
-                      ? locked
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-indigo-700 text-white ring-2 ring-indigo-300'
-                      : outcome
-                        ? 'bg-slate-200 hover:bg-slate-300 text-slate-500'
-                        : `${b.tone} text-white`;
-
+              <div className="grid grid-cols-3 gap-1.5">
+                {options.map((option) => {
+                  const picked = chosen === option.key;
                   return (
                     <button
-                      key={b.key}
+                      key={option.key}
                       type="button"
-                      disabled={entryDisabled}
-                      title={beforeCutoff && !locked ? 'Kick off hasn\'t happened yet.' : undefined}
-                      onClick={() => setSelected((prev) => ({ ...prev, [fixture.fixture_id]: b.key }))}
-                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed ${resolvedTone}`}
+                      disabled={disabled}
+                      title={beforeCutoff ? 'Kick off has not happened yet.' : undefined}
+                      onClick={() => setSelected((prev) => ({ ...prev, [fixture.fixture_id]: option.key }))}
+                      // Filled only once chosen. All three filled made one choice look like three
+                      // actions. min-h keeps every target past the 44px a thumb needs.
+                      className={`flex min-h-[52px] items-center justify-center rounded-lg border px-1 font-mono text-base font-semibold tracking-wider transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                        picked
+                          ? 'border-indigo-600 bg-indigo-600 text-white'
+                          : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                      }`}
                     >
-                      {b.label}
+                      {option.code}
                     </button>
                   );
                 })}
               </div>
 
-              {!locked && (
+              {/* Only once something is chosen. A permanently disabled Confirm on every row was
+                  a screenful of dead button between the fixtures that still needed one. */}
+              {chosen && (
                 <button
                   type="button"
-                  disabled={!selected[fixture.fixture_id] || entryDisabled}
+                  disabled={isConfirming}
                   onClick={() => handleConfirm(fixture)}
-                  className="mt-2 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  className="mt-1.5 min-h-[48px] w-full rounded-lg bg-slate-900 px-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
-                  {isConfirming ? 'Confirming...' : 'Confirm'}
+                  {isConfirming
+                    ? 'Confirming...'
+                    : `Confirm ${options.find((o) => o.key === chosen)!.says}`}
                 </button>
               )}
             </div>
@@ -1205,74 +1263,126 @@ function PushResultsPanel({
             const isPushing = pushingId === target.competition_id;
             const outcome = outcomes[target.competition_id];
             const finished = target.fixtures_pending === 0 && target.fixtures_unprocessed === 0;
-            const disabled = pushingId !== null || !anyResults || finished;
+            /*
+            Whether pressing Push would actually do anything. results_to_push counts entered
+            results this competition has not had yet; fixtures_unprocessed is a push that wrote
+            results but never settled them, which pressing again finishes. Anything else and the
+            push returns ALREADY_PUSHED, so the button has no business being live.
+            */
+            const needsPush = target.results_to_push > 0 || target.fixtures_unprocessed > 0;
+            const disabled = pushingId !== null || !needsPush;
+
+            /*
+            A competition finished before this session opened collapses to one line with no
+            button. Pushing eleven competitions on a phone is a worklist, and a row already done
+            should not cost the same height - or carry a Push button to mis-tap - as one still
+            waiting. A row pushed in THIS session keeps its full height: those numbers are the
+            outcome of what just happened and are the reason to look.
+            */
+            if (!needsPush && !outcome) {
+              return (
+                <li
+                  key={target.competition_id}
+                  className="flex items-center gap-2.5 px-4 py-2.5"
+                >
+                  {/* A tick means the batch is finished here. A competition merely caught up on
+                      what has been entered so far gets a plain dot - more results are coming and
+                      it will need pressing again. */}
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                    {finished ? (
+                      <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-500">
+                    {target.name}
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-slate-400">
+                    #{target.competition_id}
+                  </span>
+                </li>
+              );
+            }
 
             return (
-              <li key={target.competition_id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    {finished && <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-600" />}
-                    <span className="truncate text-sm font-medium text-slate-900">{target.name}</span>
-                    {outcome?.ok && outcome.data.competition_status === 'COMPLETE' && (
-                      <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
-                        complete
-                      </span>
-                    )}
+              <li key={target.competition_id} className="px-4 py-3">
+                {/* Stacked on a phone, three columns from sm up. The name had to share a row with
+                    a status column and a button, so it truncated to a few words at the width this
+                    is actually read on. */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {finished && <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-600" />}
+                      <span className="truncate text-sm font-medium text-slate-900">{target.name}</span>
+                      {outcome?.ok && outcome.data.competition_status === 'COMPLETE' && (
+                        <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                          complete
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">
+                      {/* The id is what ties this row to db/query.js, /game/[id] and any hand-written
+                          unwind. Names collide across organisers - "LMS", "Last man standing" and
+                          "MIT LAST MAN STANDING" were all live at once - and this is the one screen
+                          where pushing the wrong row cannot be taken back. */}
+                      <span className="font-mono text-slate-400">#{target.competition_id}</span>
+                      <span className="mx-1 text-slate-300">·</span>
+                      {target.organiser_email}
+                    </p>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-slate-500">
-                    {/* The id is what ties this row to db/query.js, /game/[id] and any hand-written
-                        unwind. Names collide across organisers - "LMS", "Last man standing" and
-                        "MIT LAST MAN STANDING" were all live at once - and this is the one screen
-                        where pushing the wrong row cannot be taken back. */}
-                    <span className="font-mono text-slate-400">#{target.competition_id}</span>
-                    <span className="mx-1 text-slate-300">·</span>
-                    {target.organiser_email}
-                  </p>
-                </div>
 
-                <div className="text-right text-xs text-slate-500">
-                  {isPushing ? (
-                    <span className="flex items-center gap-1.5 text-indigo-600">
-                      <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                      Processing - don&apos;t refresh
-                    </span>
-                  ) : outcome && !outcome.ok ? (
-                    <span className="text-red-600">{outcome.message}</span>
-                  ) : outcome?.ok && outcome.data.fixtures_processed !== undefined ? (
-                    <span className="text-emerald-700">
-                      {outcome.data.players_eliminated} eliminated
-                      <span className="mx-1 text-slate-300">·</span>
-                      {outcome.data.active_players_remaining} left
-                    </span>
-                  ) : finished ? (
-                    <span className="text-slate-400">done</span>
-                  ) : (
-                    <span>
-                      {target.players} player{target.players === 1 ? '' : 's'}
-                      <span className="mx-1 text-slate-300">·</span>
-                      {target.fixtures_pending + target.fixtures_unprocessed} fixture
-                      {target.fixtures_pending + target.fixtures_unprocessed === 1 ? '' : 's'}
-                    </span>
-                  )}
-                </div>
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <div className="text-xs text-slate-500 sm:text-right">
+                      {isPushing ? (
+                        <span className="flex items-center gap-1.5 text-indigo-600">
+                          <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                          Processing - don&apos;t refresh
+                        </span>
+                      ) : outcome && !outcome.ok ? (
+                        <span className="text-red-600">{outcome.message}</span>
+                      ) : outcome?.ok && outcome.data.fixtures_processed !== undefined ? (
+                        <span className="text-emerald-700">
+                          {outcome.data.players_eliminated} eliminated
+                          <span className="mx-1 text-slate-300">·</span>
+                          {outcome.data.active_players_remaining} left
+                        </span>
+                      ) : finished ? (
+                        <span className="text-slate-400">done</span>
+                      ) : (
+                        <span>
+                          {target.players} player{target.players === 1 ? '' : 's'}
+                          <span className="mx-1 text-slate-300">·</span>
+                          {/* The number that says press me. Weighted, because it is the only
+                              thing on the row that changes as the weekend goes on. */}
+                          <span className="font-semibold text-slate-900">
+                            {target.results_to_push > 0
+                              ? `${target.results_to_push} to push`
+                              : `${target.fixtures_unprocessed} to finish`}
+                          </span>
+                        </span>
+                      )}
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => handlePush(target)}
-                  disabled={disabled}
-                  title={
-                    finished
-                      ? 'Already pushed and processed.'
-                      : !anyResults
-                        ? 'Enter at least one result first.'
-                        : pushingId !== null
-                          ? 'Another competition is being pushed.'
-                          : undefined
-                  }
-                  className="w-24 shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                >
-                  {isPushing ? 'Pushing...' : outcome && !outcome.ok ? 'Retry' : 'Push'}
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePush(target)}
+                      disabled={disabled}
+                      title={
+                        !anyResults
+                          ? 'Enter at least one result first.'
+                          : !needsPush
+                            ? 'Nothing new to push to this competition.'
+                            : pushingId !== null
+                              ? 'Another competition is being pushed.'
+                              : undefined
+                      }
+                      className={`${PUSH_BUTTON} ${outcome && !outcome.ok ? PUSH_BUTTON_FAILED : PUSH_BUTTON_READY}`}
+                    >
+                      {isPushing ? 'Pushing...' : outcome && !outcome.ok ? 'Retry' : 'Push'}
+                    </button>
+                  </div>
+                </div>
               </li>
             );
           })}
