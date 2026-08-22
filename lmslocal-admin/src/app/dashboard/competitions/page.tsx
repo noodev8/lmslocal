@@ -361,11 +361,33 @@ function RoundInProgressModal({
     round_number?: number;
     total_fixtures?: number;
     unresolved_fixtures?: number;
+    batch_staged?: boolean;
+    matched_fixtures?: number;
+    round_kickoff?: string | null;
+    batch_kickoff?: string | null;
   };
   onCancel: () => void;
   onOverride: () => void;
 }) {
-  const { competition, round_number, total_fixtures, unresolved_fixtures } = target;
+  const {
+    competition,
+    round_number,
+    total_fixtures,
+    unresolved_fixtures,
+    batch_staged,
+    matched_fixtures,
+    round_kickoff,
+    batch_kickoff,
+  } = target;
+
+  /*
+  The push matches a staged result to a fixture on home team + away team + kickoff time. An
+  organiser who keyed their own round chose that kickoff themselves, usually as their pick
+  deadline rather than the real one, so taking the round over can leave it matching nothing -
+  invisible to the push, and no longer entered by the organiser either. Marshfield JYFC went
+  that way with 57 players sitting in a locked round.
+  */
+  const unreachable = batch_staged === true && matched_fixtures === 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
@@ -385,6 +407,24 @@ function RoundInProgressModal({
           will need to finish this round yourself, through the admin Fixtures/Results screen.
         </div>
 
+        {unreachable && (
+          <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            <p className="font-medium">The staged batch cannot reach this round.</p>
+            <p className="mt-1">
+              None of its unresulted fixtures match on kickoff time, so it would not appear on the
+              Results screen and nobody could resolve it.
+              {round_kickoff && batch_kickoff && (
+                <>
+                  {' '}This round kicks off {formatDate(round_kickoff)} at{' '}
+                  {formatTime(round_kickoff)}; the batch kicks off {formatDate(batch_kickoff)} at{' '}
+                  {formatTime(batch_kickoff)}.
+                </>
+              )}{' '}
+              Align the kickoff times first.
+            </p>
+          </div>
+        )}
+
         <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={onCancel}
@@ -394,7 +434,9 @@ function RoundInProgressModal({
           </button>
           <button
             onClick={onOverride}
-            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700"
+            disabled={unreachable}
+            title={unreachable ? 'Align the kickoff times before taking this round over.' : undefined}
+            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
           >
             Switch on and take over this round
           </button>
@@ -427,6 +469,10 @@ function CompetitionsList() {
     round_number?: number;
     total_fixtures?: number;
     unresolved_fixtures?: number;
+    batch_staged?: boolean;
+    matched_fixtures?: number;
+    round_kickoff?: string | null;
+    batch_kickoff?: string | null;
   } | null>(null);
 
   // Remembers which competition "View as organiser" last opened, purely so the row is easy to
@@ -495,6 +541,10 @@ function CompetitionsList() {
             round_number: result.round_number,
             total_fixtures: result.total_fixtures,
             unresolved_fixtures: result.unresolved_fixtures,
+            batch_staged: result.batch_staged,
+            matched_fixtures: result.matched_fixtures,
+            round_kickoff: result.round_kickoff,
+            batch_kickoff: result.batch_kickoff,
           });
         } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
           setError(result.message || 'Could not change the fixture service setting');

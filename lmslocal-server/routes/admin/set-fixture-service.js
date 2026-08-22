@@ -60,6 +60,12 @@ Data Notes:
 - Every change writes an audit_log row, because from the organiser's side a competition that
   suddenly starts creating its own rounds is otherwise unexplained.
 
+- A ROUND_IN_PROGRESS body also carries whether a staged batch could actually reach that round:
+  "batch_staged", "matched_fixtures", "round_kickoff" and "batch_kickoff". Taking a round over
+  only works if the push can match its fixtures, which needs the kickoff times to agree as well
+  as the teams - see checkBatchReach in services/fixtureServiceSwitch.js. Reported, never
+  refused: the batch for this round may simply not be staged yet.
+
 Why ROUND_IN_PROGRESS and ROUND_NOT_PROCESSED exist:
 
   See services/fixtureServiceSwitch.js, which holds both checks and the reasoning. They are

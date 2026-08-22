@@ -421,6 +421,16 @@ export type SetFixtureServiceResponse = ApiResponse & {
   round_number?: number;
   total_fixtures?: number;
   unresolved_fixtures?: number;
+  /*
+  Also on ROUND_IN_PROGRESS: whether a staged batch could actually reach that round. The push
+  matches on home team + away team + kickoff time, and an organiser's hand-keyed kickoff often
+  differs, which leaves a taken-over round matching nothing and unresolvable by anyone.
+  batch_staged false means there is no batch to compare against, not that it is safe.
+  */
+  batch_staged?: boolean;
+  matched_fixtures?: number;
+  round_kickoff?: string | null;
+  batch_kickoff?: string | null;
 };
 
 /* One member of the shared bot pool. The same bot can be in any number of competitions. */

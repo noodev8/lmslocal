@@ -53,6 +53,56 @@ const { query } = require('../database');
  * @returns {Promise<object|null>} null when safe, otherwise a ready-to-send response body
  *                                 ({ return_code, message, ...context })
  */
+/**
+ * Whether a staged batch could actually reach this round's unresolved fixtures.
+ *
+ * Taking an organiser's round over is only half the job. The results push matches a staged row
+ * to a competition's fixture on home team + away team + AND kickoff time, and an organiser who
+ * keyed their own round chose that kickoff themselves - usually their own pick deadline rather
+ * than the real one. Two of the three columns agree and the third does not, so the competition
+ * matches nothing, never appears on the push screen, and its round is stranded with nobody able
+ * to resolve it: the organiser has lost result entry and the service cannot see it.
+ *
+ * That is not hypothetical. Marshfield JYFC (57 players, all picked, sudden death) was taken
+ * over mid-round with fixtures keyed for Thursday 19:30 against a batch kicking off Friday
+ * 20:00, and simply vanished. It took a hand-written UPDATE to rescue.
+ *
+ * So: count how many of the unresolved fixtures a staged batch would match. Reported, not
+ * refused - the admin may be switching a competition whose batch is not staged yet, and the
+ * dates could line up perfectly later. What matters is that the dialog can say so before the
+ * override is taken, rather than the answer arriving at push time as an absence.
+ *
+ * @returns {Promise<{batch_staged: boolean, matched_fixtures: number, round_kickoff: string|null,
+ *                    batch_kickoff: string|null}>}
+ */
+async function checkBatchReach(competition, roundId, exec) {
+  const result = await exec(`
+    SELECT
+      (SELECT COUNT(*) FROM fixture_load WHERE team_list_id = $2)   AS staged_rows,
+      (SELECT MIN(kickoff_time) FROM fixture_load
+        WHERE team_list_id = $2)                                    AS batch_kickoff,
+      MIN(f.kickoff_time)                                           AS round_kickoff,
+      COUNT(fl.fixture_id)                                          AS matched_fixtures
+    FROM fixture f
+    LEFT JOIN fixture_load fl
+      ON fl.team_list_id = $2
+     AND fl.home_team_short = f.home_team_short
+     AND fl.away_team_short = f.away_team_short
+     AND fl.kickoff_time = f.kickoff_time
+    WHERE f.round_id = $1
+      AND f.result IS NULL
+  `, [roundId, competition.team_list_id]);
+
+  const row = result.rows[0] || {};
+
+  return {
+    batch_staged: parseInt(row.staged_rows, 10) > 0,
+    matched_fixtures: parseInt(row.matched_fixtures, 10) || 0,
+    round_kickoff: row.round_kickoff || null,
+    batch_kickoff: row.batch_kickoff || null
+  };
+}
+
 async function checkSafeToEnable(competition, exec = query, options = {}) {
   const { allowUnfinishedRound = false } = options;
 
@@ -70,6 +120,7 @@ async function checkSafeToEnable(competition, exec = query, options = {}) {
   // next one). Anything in between is the case that has nobody able to move it forward.
   const roundResult = await exec(`
     SELECT
+      r.id AS round_id,
       r.round_number,
       COUNT(f.id)        AS total_fixtures,
       COUNT(f.result)    AS resulted_fixtures,
@@ -78,7 +129,7 @@ async function checkSafeToEnable(competition, exec = query, options = {}) {
     LEFT JOIN fixture f ON f.round_id = r.id
     WHERE r.competition_id = $1
       AND r.round_number = (SELECT MAX(round_number) FROM round WHERE competition_id = $1)
-    GROUP BY r.round_number
+    GROUP BY r.id, r.round_number
   `, [competition.id]);
 
   const latestRound = roundResult.rows[0];
@@ -91,6 +142,8 @@ async function checkSafeToEnable(competition, exec = query, options = {}) {
   const processed = parseInt(latestRound.processed_fixtures, 10);
 
   if (total > 0 && resulted < total && !allowUnfinishedRound) {
+    const reach = await checkBatchReach(competition, latestRound.round_id, exec);
+
     return {
       return_code: 'ROUND_IN_PROGRESS',
       message:
@@ -100,7 +153,8 @@ async function checkSafeToEnable(competition, exec = query, options = {}) {
         `as this is on. Wait until the round is finished.`,
       round_number: latestRound.round_number,
       total_fixtures: total,
-      unresolved_fixtures: total - resulted
+      unresolved_fixtures: total - resulted,
+      ...reach
     };
   }
 
