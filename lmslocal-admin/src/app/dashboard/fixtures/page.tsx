@@ -195,24 +195,27 @@ function PendingFixturesPanel({
 
   return (
     <div>
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center">
-        <ExclamationTriangleIcon className="mx-auto h-8 w-8 text-amber-600" />
-        <h2 className="mt-2 font-semibold text-amber-900">Fixtures are set</h2>
-        <p className="mx-auto mt-1 max-w-md text-sm text-amber-800">
-          Enter the results before creating new fixtures.
+      {/* A statement of fact, not a warning. Nothing here has gone wrong and nothing needs
+          deciding - the batch is staged and results come next - so it reads as one line in the
+          ordinary card colours rather than a full-width amber alert. */}
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <p className="text-sm text-slate-600">
+          <span className="font-medium text-slate-900">Fixtures are set.</span> Enter the results
+          before creating new fixtures.
+          {cutoff && (
+            <>
+              <span className="mx-1.5 text-slate-300">·</span>
+              Cut-off{' '}
+              {new Date(cutoff).toLocaleDateString('en-GB', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </>
+          )}
         </p>
-        {cutoff && (
-          <p className="mt-3 text-sm font-medium text-amber-900">
-            Cut-off:{' '}
-            {new Date(cutoff).toLocaleDateString('en-GB', {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
-        )}
       </div>
 
       <div className="mt-6 space-y-2">
@@ -714,6 +717,23 @@ function PushFixturesPanel({
 
   const eligible = targets.filter((t) => t.eligible);
 
+  /*
+  Gone entirely once the batch has nowhere left to go: staged, but every competition already has
+  it. Pushing fixtures is a job with an end - once the deadline has passed and every round is
+  under way, a list of a dozen disabled Push buttons is answering a question nobody is asking,
+  under a banner that has already said results are what is wanted next.
+
+  It comes back the moment there is something to push, which is every time a new batch is staged.
+  Still shown after a push in this session, because those rows carry the outcome of what just
+  happened.
+
+  The cost, accepted deliberately: this is the only screen that names a competition whose
+  organiser has never pressed Ready. While a batch is pushable it says so; in this state it does
+  not.
+  */
+  const pushedThisSession = Object.keys(outcomes).length > 0;
+  if (stagedTotal > 0 && eligible.length === 0 && !pushedThisSession) return null;
+
   return (
     <div className="mt-8">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -1054,7 +1074,6 @@ function PushResultsPanel({
   onBatchCleared: () => void;
 }) {
   const [targets, setTargets] = useState<PushTarget[] | null>(null);
-  const [stagedTotal, setStagedTotal] = useState(0);
   const [stagedResulted, setStagedResulted] = useState(0);
   const [pushingId, setPushingId] = useState<number | null>(null);
   const [outcomes, setOutcomes] = useState<Record<number, PushOutcome>>({});
@@ -1066,7 +1085,6 @@ function PushResultsPanel({
       const result = await adminApi.getPushTargets(teamList.id);
       if (result.return_code === 'SUCCESS') {
         setTargets(result.competitions || []);
-        setStagedTotal(result.staged_total || 0);
         setStagedResulted(result.staged_resulted || 0);
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not load the competitions waiting for this batch.' });
@@ -1151,34 +1169,34 @@ function PushResultsPanel({
     );
   }
 
-  const remaining = targets.filter((t) => t.fixtures_pending > 0 || t.fixtures_unprocessed > 0);
-  const totalPlayers = targets.reduce((sum, t) => sum + t.players, 0);
   const anyResults = stagedResulted > 0;
-  const allResults = stagedTotal > 0 && stagedResulted === stagedTotal;
+
+  /*
+  Clearing is blocked outright until every competition is settled, rather than warned about.
+  The batch is the only source of results for a competition that has not been pushed yet, so
+  clearing early stalls its round until the identical batch is staged again - a mistake with no
+  quick undo, offered as a button that looked like ordinary tidying up.
+
+  Safe to make hard: this list and the server's guard both filter on fixture_service = true, so
+  a competition taken off the service mid-batch leaves both at once and cannot hold the batch
+  hostage. The server keeps its force escape for the case this screen cannot see - a round
+  resolved by hand - and the dialog below still exists for a client view that has gone stale.
+  */
+  const unsettled = targets.filter((t) => t.fixtures_pending > 0 || t.fixtures_unprocessed > 0);
+  const canClear = unsettled.length === 0;
 
   return (
     <div className="mt-8">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        {/* The counts that make it safe to press: who is affected, and how big they are */}
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-900">Push results</h2>
-          <p className="text-xs text-slate-500">
-            {remaining.length} of {targets.length} competition{targets.length === 1 ? '' : 's'} still to push
-            <span className="mx-1.5 text-slate-300">·</span>
-            {totalPlayers} player{totalPlayers === 1 ? '' : 's'}
-            <span className="mx-1.5 text-slate-300">·</span>
-            {stagedResulted} of {stagedTotal} results in
-          </p>
         </div>
 
-        {!allResults && (
-          <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              {anyResults
-                ? `Only ${stagedResulted} of ${stagedTotal} results are entered. Pushing now sends just those, and eliminations for missed picks wait until the round is complete.`
-                : 'No results are entered yet. Enter them above before pushing.'}
-            </span>
+        {/* Only the case that stops you pressing anything. A part-entered batch is the ordinary
+            state on a Friday night and needs no warning - the count in the header says it. */}
+        {!anyResults && (
+          <div className="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            No results entered yet.
           </div>
         )}
 
@@ -1262,12 +1280,15 @@ function PushResultsPanel({
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-xs text-slate-500">
-            The batch stays staged until you clear it. Nothing new can be staged before then.
+            {canClear
+              ? 'Clear the batch to stage the next round.'
+              : `Clear once the results are in, to stage the next round. ${unsettled.length} still to come.`}
           </p>
           <button
             type="button"
             onClick={() => handleClear(false)}
-            disabled={clearing || pushingId !== null}
+            disabled={clearing || pushingId !== null || !canClear}
+            title={!canClear ? 'Every competition needs its results first.' : undefined}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {clearing ? 'Clearing...' : 'Clear staged batch'}
