@@ -11,6 +11,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import GlobalErrorHandler from "@/components/GlobalErrorHandler";
 import { AppDataProvider } from "@/contexts/AppDataContext";
 import CookieConsent from "@/components/CookieConsent";
+import SiteSchema from "@/components/public/SiteSchema";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
@@ -97,6 +98,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${bigShoulders.variable} ${instrumentSans.variable} ${courierPrime.variable} antialiased`}
       >
+        {/* Who we are, what the site is and what it costs, in one place - see the component. */}
+        <SiteSchema />
         <ErrorBoundary>
           <GlobalErrorHandler />
           <AppDataProvider>
