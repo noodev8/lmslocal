@@ -22,7 +22,9 @@ COMPLETE, and the count is the whole story:
   1 survivor   - a winner, named
   0 survivors  - nobody left; everyone went out in the same round. This is real and not an edge
                  case invented here: competition 161 finished with all 21 of its players 'out'.
-  2+ survivors - shared, all named
+  2+ survivors - a draw as well, and the SAME message as 0, word for word. Nobody is named and
+                 no win is awarded: the competition ended without settling one, and what that
+                 means is the organiser's to decide, not ours to announce.
 
 A winner-shaped template alone would have been wrong, which is why "either a winner or a draw" is
 the right framing.
@@ -43,8 +45,26 @@ const EMAIL_TYPE = 'game_complete';
 /**
  * The subject line. A function because it carries the competition name, and the tracking row is
  * written before the template is built - the two have to say the same thing.
+ *
+ * The result is in the subject because it is the news. "X has finished" is what an inbox ignores;
+ * there is nothing to spoil, since the email exists to tell them. It varies per recipient the
+ * same way the headline does, and for the same reason - a winner should not read their own win
+ * in the third person. Pass no outcome and it falls back to the plain form.
+ *
+ * @param {string} competitionName
+ * @param {object} [outcome] - { survivor_count, winner_names, recipient_survived }
  */
-const subjectFor = (competitionName) => `${competitionName} has finished`;
+const subjectFor = (competitionName, outcome = null) => {
+  if (!outcome) return `${competitionName} has finished`;
+
+  const { survivor_count, winner_names, recipient_survived } = outcome;
+
+  if (survivor_count === 1) {
+    return recipient_survived ? `You won ${competitionName}` : `${winner_names} won ${competitionName}`;
+  }
+  // Every other ending is a draw, and a draw names nobody.
+  return `${competitionName} ends with no winner`;
+};
 
 /**
  * Find everyone who should be told their competition has finished.
@@ -98,7 +118,21 @@ async function findCandidates(opts = {}) {
       ) AS player_count,
       (
         SELECT MAX(r.round_number) FROM round r WHERE r.competition_id = c.id
-      ) AS rounds_played
+      ) AS rounds_played,
+
+      /*
+      How far this recipient got - the one per-recipient column, correlated on cu.user_id rather
+      than aggregated over the competition. player_progress records a missed pick as a LOSE row
+      with chosen_team 'NO-PICK', so both ways out are covered, and MAX takes the last one for
+      competitions played with more than one life. NULL for a survivor.
+      */
+      (
+        SELECT MAX(pp.round_number)
+        FROM player_progress pp
+        WHERE pp.player_id = cu.user_id
+          AND pp.competition_id = c.id
+          AND pp.outcome = 'LOSE'
+      ) AS eliminated_round
 
     FROM competition c
 
@@ -150,7 +184,8 @@ async function buildTemplateData(candidate) {
     survivor_count,
     winner_names,
     player_count,
-    rounds_played
+    rounds_played,
+    eliminated_round
   } = candidate;
 
   const token = await getOrCreateToken(user_id);
@@ -176,6 +211,12 @@ async function buildTemplateData(candidate) {
     recipient_survived: user_status === 'active',
     player_count: Number(player_count) || 0,
     rounds_played: Number(rounds_played) || 0,
+    /*
+    The round this recipient went out in, null if they are still standing. Gated on their own
+    membership row for the same reason recipient_survived is: a survivor must never be told they
+    went out, whatever stray progress rows exist.
+    */
+    eliminated_round: user_status === 'active' ? null : (Number(eliminated_round) || null),
     user_id
   };
 }
@@ -205,7 +246,7 @@ async function queueCandidate(candidate) {
       templateData.email_tracking_id,
       candidate.user_id,
       candidate.competition_id,
-      subjectFor(templateData.competition_name)
+      subjectFor(templateData.competition_name, templateData)
     ]);
 
     return { success: true, queue_id: queueResult.rows[0].id, template_data: templateData };

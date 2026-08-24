@@ -2263,6 +2263,7 @@ const buildGameCompleteEmail = (email, templateData) => {
     recipient_survived,
     player_count,
     rounds_played,
+    eliminated_round,
     email_tracking_id,
     unsubscribe
   } = templateData;
@@ -2277,19 +2278,19 @@ const buildGameCompleteEmail = (email, templateData) => {
   let headline;
   let outcomeLine;
 
-  if (survivor_count === 0) {
-    headline = 'No winner this time';
-    outcomeLine = `Everybody still standing went out in the same round, so ${competition_name} finishes without a winner. It happens — and it is a hard way to end.`;
-  } else if (survivor_count === 1) {
+  if (survivor_count === 1) {
     headline = recipient_survived ? 'You won' : `${winner_names} won`;
     outcomeLine = recipient_survived
       ? `You are the last one standing in ${competition_name}. Out of ${player_count} ${player_count === 1 ? 'player' : 'players'}, you are the one who made it.`
       : `${winner_names} is the last one standing in ${competition_name}, out of ${player_count} ${player_count === 1 ? 'player' : 'players'}.`;
   } else {
-    headline = recipient_survived ? 'You shared the win' : 'It ends in a draw';
-    outcomeLine = recipient_survived
-      ? `${competition_name} ends with ${survivor_count} of you still standing, so the win is shared: ${winner_names}.`
-      : `${competition_name} ends with ${survivor_count} players still standing, so the win is shared between ${winner_names}.`;
+    /*
+    ONE message for a draw, whatever the survivor count and whoever is reading. Nobody is named
+    and no win is awarded: the competition ended without settling one, and what that means -
+    split, play-off, nothing at all - is the organiser's to decide, not ours to announce.
+    */
+    headline = 'No winner this time';
+    outcomeLine = `Everybody still standing went out in the same round, so ${competition_name} finishes without a winner.`;
   }
 
   const standingsUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/standings?email_id=${email_tracking_id}`;
@@ -2321,10 +2322,7 @@ const buildGameCompleteEmail = (email, templateData) => {
               <p style="margin: 0; color: #475569; font-size: 15px;">${outcomeLine}</p>
             </div>
 
-            <p style="color: #334155; font-size: 15px; margin: 0 0 30px 0; line-height: 1.5;">
-              That is ${competition_name} done${rounds_played ? ` after ${rounds_played} ${rounds_played === 1 ? 'round' : 'rounds'}` : ''}.
-              Thanks for playing.
-            </p>
+            ${roundsLine ? `<p style="color: #334155; font-size: 15px; margin: 0 0 30px 0; line-height: 1.5;">${roundsLine}</p>` : ''}
 
             <!-- Call to Action Button -->
             <div style="margin: 0 0 24px 0;">
@@ -2356,8 +2354,8 @@ ${outcomeLine}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-That is ${competition_name} done${rounds_played ? ` after ${rounds_played} ${rounds_played === 1 ? 'round' : 'rounds'}` : ''}. Thanks for playing.
-
+${roundsLine ? `${roundsLine}
+` : ''}
 See the final table:
 ${standingsUrl}
 
@@ -2367,7 +2365,7 @@ ${footer.text}
   return {
     from: `LMS Local <${process.env.EMAIL_FROM}>`,
     to: [email],
-    subject: gameCompleteSubjectFor(competition_name),
+    subject: gameCompleteSubjectFor(competition_name, { survivor_count, winner_names, recipient_survived }),
     html: htmlContent,
     text: textContent,
     headers: {
