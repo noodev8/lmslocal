@@ -54,12 +54,7 @@ type Tab = 'fixtures' | 'results';
 
 // Feedback banner shown under the tab bar. Kept as data rather than a formatted string so the
 // tone drives the styling instead of the message being prefixed with a tick or a cross.
-/*
-href/linkText are optional because only one notice needs them so far: clearing a batch, whose
-whole point is that the next thing you do is on another screen. Telling the operator they "can
-stage the next one" without saying where was the gap that made the button feel like a dead end.
-*/
-type Notice = { tone: 'success' | 'info' | 'error'; text: string; href?: string; linkText?: string } | null;
+type Notice = { tone: 'success' | 'info' | 'error'; text: string } | null;
 
 // ======================================================================================
 // Date and time shortcuts
@@ -149,17 +144,7 @@ function NoticeBanner({ notice }: { notice: Notice }) {
   return (
     <div className={`mb-5 flex items-start gap-2 rounded-lg border px-4 py-3 text-sm ${box}`}>
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <span>
-        {notice.text}
-        {notice.href && notice.linkText && (
-          <>
-            {' '}
-            <Link href={notice.href} className="font-medium underline underline-offset-2">
-              {notice.linkText}
-            </Link>
-          </>
-        )}
-      </span>
+      <span>{notice.text}</span>
     </div>
   );
 }
@@ -1269,11 +1254,14 @@ function PushResultsPanel({
         // The notice renders above the tabs, and this button is at the foot of twelve
         // competitions - so the confirmation appeared off-screen behind the operator.
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        /*
+        Reports what happened, and stops there. The next action lives in exactly one place - the
+        empty state this clear is about to reveal - because two routes to the same screen read as
+        two different decisions to make.
+        */
         setNotice({
           tone: 'success',
-          text: `Gameweek closed — ${result.rows_cleared} staged fixtures cleared. Stage the next block to open the following round.`,
-          href: '/dashboard/fixtures/calendar',
-          linkText: 'Go to the calendar',
+          text: `Gameweek closed — ${result.rows_cleared} staged fixtures cleared.`,
         });
         onBatchCleared();
       } else if (result.return_code === 'OUTSTANDING_COMPETITIONS') {
