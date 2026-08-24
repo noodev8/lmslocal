@@ -559,6 +559,14 @@ function BlockCard({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const staged = block.staged_at !== null;
+  /*
+  Not shown to anyone - it only disables Delete, mirroring the server's COMPETITIONS_BOUND refusal.
+  It used to be displayed as "N competitions start here", which read as "N competitions are playing
+  this gameweek" and was always lower than that. It counts rounds still carrying source_block_id,
+  and that is peeled off the moment a fixtures push confirms a round - so a competition that took
+  the batch normally stopped being counted, and one created onto an already-staged block was
+  counted forever. Twelve competitions played the 21 Aug batch; the label said nine.
+  */
   const bound = block.competition_count > 0;
   const kickoffPassed = block.lock_time !== null && new Date(block.lock_time) <= new Date();
 
@@ -645,14 +653,6 @@ function BlockCard({
                 locks {formatKickoff(block.lock_time)}
               </>
             )}
-            {bound && (
-              <>
-                <span className="mx-1.5 text-slate-300">·</span>
-                <span className="font-medium text-indigo-600">
-                  {block.competition_count} competition{block.competition_count === 1 ? '' : 's'} start here
-                </span>
-              </>
-            )}
           </p>
         </div>
 
@@ -694,13 +694,12 @@ function BlockCard({
 
       <ul className="divide-y divide-slate-50">
         {block.fixtures.map((fixture) => (
-          <li key={fixture.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+          <li key={fixture.id} className="px-4 py-2 text-sm">
             <span className={staged ? 'text-slate-500' : 'text-slate-800'}>
               {fixture.home_team_name}
               <span className="mx-2 text-slate-400">v</span>
               {fixture.away_team_name}
             </span>
-            <span className="shrink-0 text-xs text-slate-400">{formatKickoff(fixture.kickoff_time)}</span>
           </li>
         ))}
       </ul>
@@ -864,16 +863,6 @@ export default function FixtureCalendarPage() {
             </button>
           )}
         </div>
-
-        {pendingBatch && (
-          <div className="mb-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              A batch is already staged for this list. Push it to every competition and clear it on
-              the Fixtures screen before staging another — only one can be out at a time.
-            </span>
-          </div>
-        )}
 
         {teamList && (showForm || editing) && (
           <div className="mb-6">
