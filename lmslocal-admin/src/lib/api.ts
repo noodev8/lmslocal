@@ -327,6 +327,9 @@ export interface FixtureBlock {
   lock_time: string | null;
   /* Competitions whose first round came from this block. Above zero blocks deletion. */
   competition_count: number;
+  /* Rows still sitting in fixture_load. staged_at never clears, so this is what separates the
+     gameweek going out now from one already played and closed. */
+  in_staging: boolean;
   fixtures: BlockFixture[];
 }
 

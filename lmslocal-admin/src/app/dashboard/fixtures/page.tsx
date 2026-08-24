@@ -988,12 +988,13 @@ function ResultsTab({
           {teamList.name} has no staged fixtures right now.
         </p>
         {/* This is where closing a gameweek lands you, so it has to point at the next step
-            rather than just report an absence. */}
+            rather than just report an absence. Named for where it goes, not what it achieves -
+            it is a plain link, and staging is a separate press once you are there. */}
         <Link
           href="/dashboard/fixtures/calendar"
           className="mt-4 inline-block rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50"
         >
-          Stage the next block
+          Go to calendar
         </Link>
       </div>
     );

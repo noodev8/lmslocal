@@ -545,12 +545,15 @@ function BlockForm({
 function BlockCard({
   block,
   pendingBatch,
+  isNext,
   onEdit,
   onChanged,
   setNotice,
 }: {
   block: FixtureBlock;
   pendingBatch: boolean;
+  /* The one block allowed to offer Stage - worked out once by the page, not per card. */
+  isNext: boolean;
   onEdit: () => void;
   onChanged: () => void;
   setNotice: (n: Notice) => void;
@@ -559,6 +562,12 @@ function BlockCard({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const staged = block.staged_at !== null;
+  /*
+  staged_at is stamped on promotion and never cleared, so it cannot tell a gameweek going out
+  right now from one played weeks ago - both read "staged". in_staging is whether the rows are
+  still in fixture_load, which is exactly what closing a gameweek changes.
+  */
+  const finished = staged && !block.in_staging;
   /*
   Not shown to anyone - it only disables Delete, mirroring the server's COMPETITIONS_BOUND refusal.
   It used to be displayed as "N competitions start here", which read as "N competitions are playing
@@ -611,7 +620,8 @@ function BlockCard({
     }
   };
 
-  // Why the Stage button is not available, in the order the server would refuse.
+  // Why the Stage button is not available, in the order the server would refuse. The last arm is
+  // this screen's own rule rather than the server's: later gameweeks wait their turn.
   const promoteBlocker = staged
     ? 'Already staged'
     : block.fixtures.length === 0
@@ -620,7 +630,9 @@ function BlockCard({
         ? 'First kick off has passed'
         : pendingBatch
           ? 'Another batch is staged — push and clear it first'
-          : null;
+          : !isNext
+            ? 'A later gameweek — the soonest one goes first'
+            : null;
 
   return (
     <div
@@ -635,8 +647,12 @@ function BlockCard({
               {block.label}
             </span>
             {staged && (
-              <span className="shrink-0 rounded-md bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                staged
+              <span
+                className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                  finished ? 'bg-slate-200 text-slate-500' : 'bg-emerald-100 text-emerald-700'
+                }`}
+              >
+                {finished ? 'done' : 'out now'}
               </span>
             )}
             {!block.opens_gameweek && (
@@ -675,15 +691,20 @@ function BlockCard({
             >
               <TrashIcon className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={handlePromote}
-              disabled={promoteBlocker !== null || busy !== null}
-              title={promoteBlocker ?? 'Copy into the staging table, ready to push'}
-              className="ml-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-            >
-              {busy === 'promote' ? 'Staging...' : 'Stage'}
-            </button>
+            {/* Absent, not disabled, on every block but the next one. A greyed Stage on each
+                future gameweek still reads as an option being withheld, and invites a hunt for
+                how to enable it. The line below the header says why instead. */}
+            {isNext && (
+              <button
+                type="button"
+                onClick={handlePromote}
+                disabled={promoteBlocker !== null || busy !== null}
+                title={promoteBlocker ?? 'Copy into the staging table, ready to push'}
+                className="ml-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                {busy === 'promote' ? 'Staging...' : 'Stage'}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -814,6 +835,39 @@ export default function FixtureCalendarPage() {
 
   const upcoming = blocks.filter((b) => b.staged_at === null);
 
+  /*
+  A closed gameweek is off the calendar. It was appearing at the very top - the list is ordered by
+  kickoff - so the week just finished was the most prominent thing on a screen about what happens
+  next. Hidden rather than deleted: round.source_block_id is an FK with NO ACTION and rounds can
+  still point at a block after it has been pushed, so deleting is not always possible and must not
+  be attempted as a side effect of closing a gameweek.
+  */
+  const visible = useMemo(
+    () => blocks.filter((b) => b.staged_at === null || b.in_staging),
+    [blocks]
+  );
+
+  /*
+  Only ONE block ever offers Stage: the soonest one that could actually take it. Gameweeks go out
+  in order, so a Stage button on every future block was three ways to do the same thing with only
+  one right answer, and picking the wrong one puts a competition's round a fortnight early.
+
+  "Soonest that COULD take it" rather than literally the first, because a block whose kickoff has
+  passed can never be staged - it would create a round locked on arrival. Anchoring on the first
+  block regardless would let one stale row hold the whole screen hostage with no way through.
+  */
+  const stageableId = useMemo(() => {
+    if (pendingBatch) return null;
+    const next = visible.find(
+      (b) =>
+        b.staged_at === null &&
+        b.fixtures.length > 0 &&
+        b.lock_time !== null &&
+        new Date(b.lock_time) > new Date()
+    );
+    return next ? next.id : null;
+  }, [visible, pendingBatch]);
+
   return (
     <div className="min-h-screen">
       <AdminHeader title="Fixture calendar" backHref="/dashboard/fixtures">
@@ -857,7 +911,10 @@ export default function FixtureCalendarPage() {
           {teamList && !showForm && !editing && (
             <button
               onClick={() => setShowForm(true)}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+              /* Secondary. Stage is the action this screen exists for and the only thing in
+                 solid indigo; keying a future gameweek is housekeeping you do when you came here
+                 to do it, not the choice being offered. Two identical buttons made it a fork. */
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50"
             >
               Add a block
             </button>
@@ -892,11 +949,12 @@ export default function FixtureCalendarPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {blocks.map((block) => (
+            {visible.map((block) => (
               <BlockCard
                 key={block.id}
                 block={block}
                 pendingBatch={pendingBatch}
+                isNext={block.id === stageableId}
                 onEdit={() => {
                   setEditing(block);
                   setShowForm(false);

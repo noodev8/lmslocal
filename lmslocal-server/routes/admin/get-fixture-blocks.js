@@ -25,6 +25,8 @@ Success Response (ALWAYS HTTP 200):
       "created_at": "2026-08-14T09:00:00Z",  // string
       "lock_time": "2026-08-29T14:00:00Z",   // string or null - MIN kickoff, null if no fixtures
       "competition_count": 3,                // integer, competitions whose round 1 came from here
+      "in_staging": false,                   // boolean, rows still in fixture_load - "out now"
+                                             //   rather than staged-and-since-closed
       "fixtures": [
         {
           "id": 41,                          // integer, fixture_block_item.id

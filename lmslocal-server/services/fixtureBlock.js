@@ -155,7 +155,14 @@ async function loadBlocks(teamListId) {
       (SELECT MIN(i.kickoff_time) FROM fixture_block_item i WHERE i.block_id = b.id) AS lock_time,
       -- Competitions whose round 1 came from this block. Deleting a block with any is refused:
       -- their round would lose its fixtures.
-      (SELECT COUNT(*) FROM round r WHERE r.source_block_id = b.id) AS competition_count
+      (SELECT COUNT(*) FROM round r WHERE r.source_block_id = b.id) AS competition_count,
+      /*
+      Whether this block's rows are STILL the batch in fixture_load. staged_at alone cannot say:
+      it is stamped when the block is promoted and never cleared, so a gameweek that has been
+      played, pushed and closed looks identical to the one going out right now. The screen needs
+      to tell "out now" from "done", and clearing the batch is what moves a block between them.
+      */
+      EXISTS (SELECT 1 FROM fixture_load fl WHERE fl.source_block_id = b.id) AS in_staging
     FROM fixture_block b
     WHERE b.team_list_id = $1
     ORDER BY lock_time NULLS LAST, b.id
@@ -202,6 +209,7 @@ async function loadBlocks(teamListId) {
     created_at: row.created_at,
     lock_time: row.lock_time,
     competition_count: parseInt(row.competition_count, 10),
+    in_staging: row.in_staging,
     fixtures: itemsByBlock.get(row.id) || []
   }));
 }
