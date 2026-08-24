@@ -1262,7 +1262,7 @@ function PushResultsPanel({
         */
         setNotice({
           tone: 'success',
-          text: `Gameweek closed — ${result.rows_cleared} staged fixtures cleared.`,
+          text: `Gameweek closed — ${result.rows_cleared} staged fixtures cleared and taken off the calendar.`,
         });
         onBatchCleared();
       } else if (result.return_code === 'OUTSTANDING_COMPETITIONS') {

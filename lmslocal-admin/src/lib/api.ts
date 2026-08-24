@@ -443,6 +443,8 @@ export type PushOneResponse = ApiResponse & {
 
 export type ClearBatchResponse = ApiResponse & {
   rows_cleared?: number;
+  /* Calendar blocks the batch came from, deleted with it - a closed gameweek is not kept. */
+  blocks_deleted?: number;
   forced?: boolean;
   competitions?: { competition_id: number; name: string; fixtures_pending: number; fixtures_unprocessed: number }[];
 };

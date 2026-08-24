@@ -3,7 +3,8 @@
 API Route: clear-staged-batch
 =======================================================================================================================================
 Method: POST
-Purpose: Empties fixture_load for one team list, which is what allows the next batch to be staged.
+Purpose: Empties fixture_load for one team list, which is what allows the next batch to be staged,
+         and deletes the calendar block(s) that batch came from.
 
          This used to be the final step of push-results-to-competitions.js (plural), which
          deleted the pushed rows once it had finished every competition in one pass. Pushing one
@@ -24,6 +25,7 @@ Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "rows_cleared": 10,                       // integer, fixture_load rows deleted
+  "blocks_deleted": 1,                      // integer, calendar blocks the batch came from, now gone
   "forced": false,                          // boolean, whether the outstanding-work guard was overridden
   "message": "Staged batch cleared"
 }
@@ -118,19 +120,60 @@ router.post('/', verifyAdminToken, async (req, res) => {
       const deleteResult = await client.query(`
         DELETE FROM fixture_load
         WHERE team_list_id = $1
-        RETURNING fixture_id
+        RETURNING fixture_id, source_block_id
       `, [teamListId]);
 
       if (deleteResult.rowCount === 0) {
         throw new Error('NOTHING_STAGED');
       }
 
-      return { rows_cleared: deleteResult.rowCount };
+      /*
+      The calendar entry goes with the batch. A block that has been staged, pushed and closed is
+      finished - it is scaffolding for getting fixtures out, not a record of what was played. The
+      record is the fixture rows on each competition, which are independent copies: nothing
+      references fixture_block_item, and fixture carries no foreign keys at all, so deleting a
+      block cannot reach them.
+
+      Kept out of the calendar screen it would otherwise head, ordered by kickoff, with the week
+      just finished sitting above the ones still to come.
+      */
+      const blockIds = [...new Set(
+        deleteResult.rows.map((row) => row.source_block_id).filter((id) => id !== null)
+      )];
+
+      let blocksDeleted = 0;
+
+      if (blockIds.length > 0) {
+        /*
+        round.source_block_id is an FK with NO ACTION, so a round still pointing at the block
+        would refuse the delete below and roll back the whole close - the operator could not
+        finish their gameweek. Clearing it first is what makes the delete unconditional.
+
+        Safe to clear outright at this point: the pointer means "this round is provisional,
+        replace its fixtures when the confirmed batch arrives", and the batch has just been
+        pushed and closed. There is no later arrival to wait for, and the block it names is
+        about to stop existing.
+        */
+        await client.query(
+          `UPDATE round SET source_block_id = NULL WHERE source_block_id = ANY($1::int[])`,
+          [blockIds]
+        );
+
+        // fixture_block_item goes with it - that FK does cascade.
+        const blockResult = await client.query(
+          `DELETE FROM fixture_block WHERE id = ANY($1::int[])`,
+          [blockIds]
+        );
+        blocksDeleted = blockResult.rowCount;
+      }
+
+      return { rows_cleared: deleteResult.rowCount, blocks_deleted: blocksDeleted };
     });
 
     return res.json({
       return_code: 'SUCCESS',
       rows_cleared: result.rows_cleared,
+      blocks_deleted: result.blocks_deleted,
       forced,
       message: 'Staged batch cleared'
     });
