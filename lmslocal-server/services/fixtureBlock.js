@@ -392,11 +392,29 @@ async function createRoundFromBlock(client, competitionId, teamListId, blockId) 
     throw new Error(`${start.code}: ${start.message}`);
   }
 
+  /*
+  source_block_id marks the round PROVISIONAL - "these fixtures are a copy of a calendar entry,
+  replace them when the confirmed batch arrives". The fixtures push finds a round by it, rebuilds
+  the fixtures and clears it (services/fixtureService.js).
+
+  An already-staged block has no unconfirmed self to be replaced by: its fixtures ARE the batch
+  sitting in fixture_load, so the copy taken below is the confirmed one from the moment it is
+  written. Marking it provisional was wrong twice over - the push would delete and rebuild ten
+  identical fixtures, needlessly clearing and re-pointing every pick made in the meantime, and if
+  no push ever came (the ordinary case - results arrive and the round is simply resolved) the mark
+  stayed on the round forever. Nine rounds from the 21 Aug batch are still carrying it.
+
+  With no mark the push sees an ordinary round_in_progress and skips the competition, which is the
+  honest answer: the round already holds this exact batch, so there is nothing to push into it.
+  Results still reach it - push-results-to-competition matches on teams and kickoff, never blocks.
+  */
+  const provisional = start.block.staged_at === null;
+
   const roundResult = await client.query(`
     INSERT INTO round (competition_id, round_number, lock_time, source_block_id, created_at)
     VALUES ($1, 1, $2, $3, CURRENT_TIMESTAMP)
     RETURNING id
-  `, [competitionId, start.lockTime, blockId]);
+  `, [competitionId, start.lockTime, provisional ? blockId : null]);
 
   const roundId = roundResult.rows[0].id;
 
