@@ -9,10 +9,10 @@ import { LABEL } from '@/lib/design';
 /**
  * Help section frame. Built to the coupon design system — see docs/design-system.md.
  *
- * The sidebar is a flat list rather than collapsible sections: there are six
- * destinations in total, so a disclosure control was hiding two links behind a
- * click for no benefit. On narrow screens the same list becomes a horizontal
- * strip, which avoids a full-screen modal menu for six items.
+ * The sidebar is a flat list rather than collapsible sections: there are eight
+ * destinations in total, so a disclosure control would hide links behind a click
+ * for no benefit. On narrow screens the same list becomes a horizontal strip,
+ * which avoids a full-screen modal menu for a handful of items.
  */
 
 type NavItem = { name: string; href: string; group?: string };
@@ -22,6 +22,8 @@ const NAVIGATION: NavItem[] = [
   { name: 'How to play', href: '/help/how-to-play' },
   { name: 'For organisers', href: '/help/getting-started/organizers', group: 'Getting started' },
   { name: 'For players', href: '/help/getting-started/players', group: 'Getting started' },
+  { name: 'Fundraising', href: '/help/fundraising', group: 'Raising money' },
+  { name: 'Is it gambling?', href: '/help/is-it-gambling', group: 'Raising money' },
   { name: 'FAQ', href: '/help/faq' },
   { name: 'Support', href: '/help/support' }
 ];

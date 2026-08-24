@@ -45,6 +45,20 @@ const DESTINATIONS = [
     who: 'Players'
   },
   {
+    href: '/help/fundraising',
+    title: 'Raising money with one',
+    blurb:
+      'Why it works as a fundraiser, what a competition of a given size comes to, and the three ways clubs and pubs structure the entry fee and the prize.',
+    who: 'Organisers'
+  },
+  {
+    href: '/help/is-it-gambling',
+    title: 'Is it gambling?',
+    blurb:
+      'Where an entry fee and a prize pot sit under UK gambling law, in plain English, with the official pages to check. Not legal advice.',
+    who: 'Organisers'
+  },
+  {
     href: '/help/faq',
     title: 'Frequently asked questions',
     blurb:

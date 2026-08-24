@@ -234,6 +234,44 @@ const SECTIONS: Section[] = [
         ]
       },
       {
+        q: 'Can I charge an entry fee, and is that gambling?',
+        a: [
+          {
+            p: 'Plenty of organisers charge one, and most fundraisers sit well inside the rules — but it is a real question rather than a formality, and the answer depends on who is playing and where the money ends up. A competition with no entry fee is not gambling at all, whatever the prize.'
+          },
+          {
+            p: 'The Is it gambling? page in this help centre maps it out in plain English and links to the Gambling Commission pages it comes from. We are not lawyers, so treat it as a starting point rather than a ruling.'
+          }
+        ]
+      },
+      {
+        q: 'Does LMSLocal take the entry money or pay the prizes?',
+        a: [
+          {
+            p: 'No. We never take entry fees, hold stakes or pay prizes, and that is deliberate — the money is between you and your players, collected and handed out however you like. The only thing you ever pay us for is player places.'
+          }
+        ]
+      },
+      {
+        q: 'How do I get people to join?',
+        a: [
+          {
+            p: 'Getting players in is the hardest part of running a competition, and it is the part we can actually help with. Every competition has a Promote page with the work already done:'
+          },
+          {
+            ul: [
+              'Ready-made WhatsApp messages you can edit and copy',
+              'An image to post on Facebook or Instagram',
+              'A QR code to print and put up behind the bar',
+              'Your join link, ready to paste anywhere'
+            ]
+          },
+          {
+            p: 'Most organisers find one good WhatsApp message to the right group does more than everything else put together.'
+          }
+        ]
+      },
+      {
         q: 'Who supplies the fixtures and results?',
         a: [
           {
@@ -247,6 +285,17 @@ const SECTIONS: Section[] = [
           },
           {
             p: 'It is not something you can change yourself once the competition exists, but it is not set in stone either: ask us and we will switch a competition from one to the other.'
+          }
+        ]
+      },
+      {
+        q: 'Do I have to wait for every match to finish before entering results?',
+        a: [
+          {
+            p: 'No — if you run your own fixtures, put results in as they come in. Enter one and process the round, and anyone whose team has lost is out there and then: they find out on Saturday evening instead of Sunday night, and the players still in can see where they stand.'
+          },
+          {
+            p: 'The rest of the round carries on as normal, and you keep adding results as the matches finish. If we supply your fixtures there is nothing to do — we enter them for you as the results come in.'
           }
         ]
       },
@@ -358,6 +407,25 @@ const SECTIONS: Section[] = [
               'Try a different browser, or clear this one’s cache',
               'Get in touch if none of that works'
             ]
+          }
+        ]
+      },
+      {
+        q: 'Can I change the name I play under?',
+        a: [
+          {
+            p: 'Yes, and it does not have to be the same everywhere. Set your name in Profile, and under it a separate name for each competition you are in — the name the pub knows you by is not always the one the office does.'
+          }
+        ]
+      },
+      {
+        q: 'Can I give a competition a name of my own?',
+        a: [
+          {
+            p: 'Yes. Tap the pencil beside a competition on your dashboard and call it whatever tells you which one it is.'
+          },
+          {
+            p: 'Only you see that name. Everyone else still sees the one the organiser chose, and the competition itself is not renamed — organisers who want to change the real name do it in the competition settings.'
           }
         ]
       },
