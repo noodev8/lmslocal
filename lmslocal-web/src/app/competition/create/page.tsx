@@ -99,7 +99,16 @@ export default function CreateCompetitionPage() {
     try {
       const response = await teamApi.getTeamLists();
       if (response.data.return_code === 'SUCCESS') {
-        setTeamLists((response.data.team_lists as TeamList[]) || []);
+        const lists = (response.data.team_lists as TeamList[]) || [];
+        setTeamLists(lists);
+
+        // Preselect the first list rather than making the organiser answer a question that
+        // usually has one possible answer - in season there is a single active list, and the
+        // empty select was a step between them and the rest of the form for no gain. Still a
+        // select, so a second list can be chosen the moment one exists.
+        if (lists.length > 0) {
+          setValue('team_list_id', lists[0].id);
+        }
       }
     } catch (error) {
       console.error('Failed to load team lists:', error);
@@ -361,7 +370,8 @@ export default function CreateCompetitionPage() {
                     })}
                     className={INPUT}
                   >
-                    <option value="">Choose team list…</option>
+                    {/* Only until the lists arrive - once they have, one is always selected */}
+                    {teamLists.length === 0 && <option value="">Choose team list…</option>}
                     {teamLists.map((teamList) => (
                       <option key={teamList.id} value={teamList.id}>
                         {teamList.name} {teamList.team_count && `(${teamList.team_count} teams)`}
