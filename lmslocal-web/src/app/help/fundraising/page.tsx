@@ -4,14 +4,14 @@ import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 export const metadata = {
   title: 'Football Fundraising Ideas: Run a Last Man Standing Competition - LMSLocal',
   description:
-    'A Last Man Standing competition is one of the simplest ways for a club, pub or workplace to raise money: a small entry fee, a few weeks of interest, and no equipment. What it typically raises, three ways to structure it, and how to run it well.',
+    'A Last Man Standing competition is one of the simplest ways for a club, pub or workplace to raise money: an entry fee you set, a few weeks of interest, and no equipment. What a competition of a given size comes to, three ways to structure it, and how to run it well.',
   keywords:
     'football fundraising ideas, club fundraiser football, pub fundraiser ideas, last man standing fundraiser, charity football competition, workplace fundraising football, sweepstake alternative',
   alternates: { canonical: 'https://lmslocal.co.uk/help/fundraising' },
   openGraph: {
     title: 'Football fundraising: running a Last Man Standing competition',
     description:
-      'A small entry fee, a few weeks of interest, nothing to buy and nothing to set up on the night. What it raises and how to structure it.',
+      'An entry fee you set, a few weeks of interest, nothing to buy and nothing to set up on the night. What it comes to and how to structure it.',
     type: 'article'
   }
 };
@@ -38,8 +38,8 @@ const WHY = [
     body: 'A quiz raises what it raises on the night. A Last Man Standing competition keeps the same group of people talking about it every weekend until somebody wins, which is why the money and the goodwill both go further.'
   },
   {
-    title: 'The buy-in is small',
-    body: 'A fiver each is nothing to ask and adds up quickly across forty people. Nobody has to be talked into it, and nobody feels stung when they go out in round two.'
+    title: 'The entry fee is yours to set',
+    body: 'Whatever you charge is between you and your players, and it is your competition to price. Multiply it by everyone who joins and even a modest fee adds up quickly across a decent-sized group.'
   },
   {
     title: 'There is nothing to buy',
@@ -102,8 +102,9 @@ export default function FundraisingPage() {
       <p className={`${EYEBROW} text-overprint`}>For organisers</p>
       <h1 className={`${HEADING} mt-4 text-5xl sm:text-6xl`}>Raising money with a competition</h1>
       <p className="mt-6 max-w-xl text-xl leading-relaxed text-ink">
-        A small entry fee, a few weeks of everyone paying attention, and nothing to buy or book. It
-        is the least work of any fundraiser we know of, and it is the reason most people run one.
+        An entry fee you set, a few weeks of everyone paying attention, and nothing to buy or book.
+        It is the least work of any fundraiser we know of, and it is the reason most people run
+        one.
       </p>
 
       {/* ------------------------------------------------------------------- why */}
@@ -150,9 +151,10 @@ export default function FundraisingPage() {
         </div>
 
         <p className="mt-6 max-w-2xl border-l-2 border-ink/40 bg-stock-lit px-4 py-3 text-[16px] leading-relaxed text-ink">
-          Against that, what the tool costs you: the first twenty player places are free and stay
-          free, and after that packs start at &pound;10 for twenty more. A sixty-player competition
-          costs you &pound;20 to run, once.
+          Against that, what the tool costs you. Your first twenty player places are free and stay
+          free; after that, packs start at &pound;10 for twenty more and there is no subscription.
+          Places are counted per player per competition, so running a second competition &mdash; or
+          resetting this one for another go &mdash; draws on them again.
         </p>
       </section>
 
