@@ -1002,6 +1002,14 @@ function ResultsTab({
         <p className="mt-1 text-sm text-slate-500">
           {teamList.name} has no staged fixtures right now.
         </p>
+        {/* This is where closing a gameweek lands you, so it has to point at the next step
+            rather than just report an absence. */}
+        <Link
+          href="/dashboard/fixtures/calendar"
+          className="mt-4 inline-block rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50"
+        >
+          Stage the next block
+        </Link>
       </div>
     );
   }
@@ -1138,7 +1146,18 @@ function ResultsTab({
         teamList={teamList}
         resultedCount={fixtures.filter((f) => savedOutcome(f) !== null).length}
         setNotice={setNotice}
-        onBatchCleared={onBatchCleared}
+        /*
+        Reload this tab's own fixtures too, not just the page's team lists. Clearing empties
+        fixture_load, so every fixture here and the whole push panel below have just stopped
+        existing - but each owns its state and neither was being told. The batch stayed on screen
+        with a live "Gameweek complete" button under it, inviting a second press on a batch that
+        was already gone. Once this reloads to zero fixtures the empty state above returns early
+        and the push panel unmounts with it.
+        */
+        onBatchCleared={() => {
+          load();
+          onBatchCleared();
+        }}
       />
     </>
   );
@@ -1247,6 +1266,9 @@ function PushResultsPanel({
       const result = await adminApi.clearStagedBatch(teamList.id, force);
       if (result.return_code === 'SUCCESS') {
         setOutstanding(null);
+        // The notice renders above the tabs, and this button is at the foot of twelve
+        // competitions - so the confirmation appeared off-screen behind the operator.
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         setNotice({
           tone: 'success',
           text: `Gameweek closed — ${result.rows_cleared} staged fixtures cleared. Stage the next block to open the following round.`,
