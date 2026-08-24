@@ -54,7 +54,12 @@ type Tab = 'fixtures' | 'results';
 
 // Feedback banner shown under the tab bar. Kept as data rather than a formatted string so the
 // tone drives the styling instead of the message being prefixed with a tick or a cross.
-type Notice = { tone: 'success' | 'info' | 'error'; text: string } | null;
+/*
+href/linkText are optional because only one notice needs them so far: clearing a batch, whose
+whole point is that the next thing you do is on another screen. Telling the operator they "can
+stage the next one" without saying where was the gap that made the button feel like a dead end.
+*/
+type Notice = { tone: 'success' | 'info' | 'error'; text: string; href?: string; linkText?: string } | null;
 
 // ======================================================================================
 // Date and time shortcuts
@@ -144,7 +149,17 @@ function NoticeBanner({ notice }: { notice: Notice }) {
   return (
     <div className={`mb-5 flex items-start gap-2 rounded-lg border px-4 py-3 text-sm ${box}`}>
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <span>{notice.text}</span>
+      <span>
+        {notice.text}
+        {notice.href && notice.linkText && (
+          <>
+            {' '}
+            <Link href={notice.href} className="font-medium underline underline-offset-2">
+              {notice.linkText}
+            </Link>
+          </>
+        )}
+      </span>
     </div>
   );
 }
@@ -1232,7 +1247,12 @@ function PushResultsPanel({
       const result = await adminApi.clearStagedBatch(teamList.id, force);
       if (result.return_code === 'SUCCESS') {
         setOutstanding(null);
-        setNotice({ tone: 'success', text: `Staged batch cleared (${result.rows_cleared} fixtures). You can stage the next one.` });
+        setNotice({
+          tone: 'success',
+          text: `Gameweek closed — ${result.rows_cleared} staged fixtures cleared. Stage the next block to open the following round.`,
+          href: '/dashboard/fixtures/calendar',
+          linkText: 'Go to the calendar',
+        });
         onBatchCleared();
       } else if (result.return_code === 'OUTSTANDING_COMPETITIONS') {
         setOutstanding(result.competitions || []);
@@ -1422,17 +1442,17 @@ function PushResultsPanel({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-xs text-slate-500">
             {canClear
-              ? 'Clear the batch to stage the next round.'
-              : `Clear once the results are in, to stage the next round. ${unsettled.length} still to come.`}
+              ? 'Every competition has this gameweek’s results. Close it to stage the next block.'
+              : `${unsettled.length} competition${unsettled.length === 1 ? '' : 's'} still to push before this gameweek can be closed.`}
           </p>
           <button
             type="button"
             onClick={() => handleClear(false)}
             disabled={clearing || pushingId !== null || !canClear}
-            title={!canClear ? 'Every competition needs its results first.' : undefined}
+            title={!canClear ? 'Every competition needs its results pushed first.' : undefined}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {clearing ? 'Clearing...' : 'Clear staged batch'}
+            {clearing ? 'Closing...' : 'Gameweek complete — press to continue'}
           </button>
         </div>
       </div>
