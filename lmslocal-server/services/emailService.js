@@ -2293,6 +2293,21 @@ const buildGameCompleteEmail = (email, templateData) => {
     outcomeLine = `Everybody still standing went out in the same round, so ${competition_name} finishes without a winner.`;
   }
 
+  /*
+  How far this reader got, and nothing else. Someone knocked out in round 2 of nine cares about
+  their own run before the competition's total, so an eliminated player is told the round they
+  went out in and a survivor gets the length of the competition. No sign-off either way: it is
+  over, but we are not in a position to promise another one yet.
+  */
+  let roundsLine = '';
+  if (eliminated_round && rounds_played) {
+    roundsLine = `You went out in round ${eliminated_round} of ${rounds_played}.`;
+  } else if (eliminated_round) {
+    roundsLine = `You went out in round ${eliminated_round}.`;
+  } else if (rounds_played) {
+    roundsLine = `${competition_name} ran for ${rounds_played} ${rounds_played === 1 ? 'round' : 'rounds'}.`;
+  }
+
   const standingsUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/standings?email_id=${email_tracking_id}`;
 
   const htmlContent = `
