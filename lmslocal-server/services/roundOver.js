@@ -37,6 +37,10 @@ they had no part in - that falls out of the data rather than needing a rule. NO-
 there (chosen_team = 'NO-PICK', outcome LOSE), so somebody who forgot to pick is still told what
 it cost.
 
+MINUS ANYONE WHO HAS ALREADY PICKED IN THE NEXT ROUND (added 2026-08-25). The email's job is to
+bring the player back to the app; if they are already there and have picked, it has nothing left
+to do. The organiser is exempt - their copy is also the competition-wide report.
+
 Two different questions, deliberately answered from two places:
   - "did your team win?"    -> player_progress.outcome for this round
   - "are you still in?"     -> competition_user.status
@@ -232,6 +236,28 @@ async function findCandidates(opts = {}) {
       branch: "never a dead end" now holds because a next round is the only thing that qualifies.
       */
       next_round.id IS NOT NULL
+
+      /*
+      Already picked in the next round -> not sent. The email exists to get the player back into
+      the app to pick; somebody who has picked is already there, and telling them again buys
+      nothing. At a few thousand players that is most of a send saved on an active competition.
+
+      The organiser is exempt. Their copy carries the organiser block (see is_organiser above),
+      which is not about picking at all, and they are usually the first person in - so keying
+      their own pick would silently cost them the one email that tells them how the round went
+      across the competition.
+
+      Note this cannot suppress an eliminated player: they have no next round to pick in, so the
+      NOT EXISTS holds and they are still told how their last round ended.
+      */
+      AND (
+        pp.player_id = c.organiser_id
+        OR NOT EXISTS (
+          SELECT 1 FROM pick pk
+          WHERE pk.round_id = next_round.id
+            AND pk.user_id = pp.player_id
+        )
+      )
 
       -- Once per player per round.
       AND NOT EXISTS (
