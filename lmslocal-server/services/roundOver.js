@@ -87,6 +87,20 @@ async function findCandidates(opts = {}) {
 
       -- This player's own round: what they picked and how it went.
       pp.chosen_team,
+
+      /*
+      The pick spelled out - "Arsenal", not the "ARS" that player_progress stores. Correlated on
+      the competition's own team_list, since short names are only unique within one. NULL for
+      'NO-PICK' and for a team since removed from the list, and the template falls back to the
+      stored code rather than printing nothing.
+      */
+      (
+        SELECT t.name
+        FROM team t
+        WHERE t.team_list_id = c.team_list_id
+          AND t.short_name = pp.chosen_team
+        LIMIT 1
+      ) AS chosen_team_name,
       pp.outcome,
       cu.status              AS player_status,
       cu.lives_remaining,
@@ -248,6 +262,7 @@ async function buildTemplateData(candidate) {
     round_id,
     round_number,
     chosen_team,
+    chosen_team_name,
     outcome,
     player_status,
     lives_remaining,
@@ -285,8 +300,12 @@ async function buildTemplateData(candidate) {
     round_id,
     round_number: Number(round_number),
 
-    // The recipient's own round. 'NO-PICK' is a real value here, not a missing one.
-    chosen_team,
+    /*
+    The recipient's own round. chosen_team carries the full name the reader would say out loud;
+    missed_pick is taken from the raw code below, because 'NO-PICK' is a real value here, not a
+    missing one, and it has no row in team to resolve against.
+    */
+    chosen_team: chosen_team_name || chosen_team,
     outcome,
     missed_pick: chosen_team === 'NO-PICK',
     survived: player_status === 'active',

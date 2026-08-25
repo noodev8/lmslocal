@@ -2498,7 +2498,14 @@ const buildRoundOverEmail = (email, templateData) => {
       })
     : null;
 
-  const fixtureLines = (next_fixtures || []).map((f) => `${f.home} v ${f.away}`);
+  /*
+  The next round's matches are for people who have to pick from them. Someone knocked out is being
+  shown a list they cannot use, under a deadline that is not theirs - so they get the heading and
+  nothing else, and the button below already points them at the table rather than the pick screen.
+  */
+  const fixtureLines = survived && !competition_complete
+    ? (next_fixtures || []).map((f) => `${f.home} v ${f.away}`)
+    : [];
 
   let nextHeading;
   let nextBody;
@@ -2514,9 +2521,15 @@ const buildRoundOverEmail = (email, templateData) => {
     }
   } else {
     nextHeading = `Round ${next_round_number}`;
-    nextBody = deadlineText
-      ? `Picks close ${deadlineText}.`
-      : 'Fixtures are up now.';
+    /*
+    "Picks close" is a deadline the reader can act on. It is not one for somebody already out, so
+    they are told the round is running and left to watch it.
+    */
+    nextBody = !survived
+      ? `Round ${next_round_number} is under way.`
+      : deadlineText
+        ? `Picks close ${deadlineText}.`
+        : 'Fixtures are up now.';
   }
 
   const actionUrl = competition_complete
