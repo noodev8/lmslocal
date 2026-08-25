@@ -31,7 +31,6 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import AdminHeader from '@/components/AdminHeader';
 import {
@@ -39,7 +38,6 @@ import {
   getToken,
   apiBaseUrl,
   FixtureTeamList,
-  FixturePair,
   StagedFixture,
   ResultOutcome,
   PushTarget,
@@ -48,7 +46,6 @@ import {
   PushFixturesOneResponse,
   ClearBatchResponse,
 } from '@/lib/api';
-import { ukTimeToUtcIso, describeUkDateTime } from '@/lib/uk-time';
 
 type Tab = 'fixtures' | 'results';
 
@@ -56,30 +53,7 @@ type Tab = 'fixtures' | 'results';
 // tone drives the styling instead of the message being prefixed with a tick or a cross.
 type Notice = { tone: 'success' | 'info' | 'error'; text: string } | null;
 
-// ======================================================================================
-// Date and time shortcuts
-// ======================================================================================
-
-/** Next occurrence of a weekday (0 = Sunday), optionally a number of weeks further out. */
-function nextDayOfWeek(dayOfWeek: number, weeksAhead = 0): Date {
-  const today = new Date();
-  let daysUntil = dayOfWeek - today.getDay();
-  if (daysUntil < 0) daysUntil += 7;
-  daysUntil += weeksAhead * 7;
-
-  const target = new Date(today);
-  target.setDate(today.getDate() + daysUntil);
-  return target;
-}
-
-/** 'YYYY-MM-DD' in local time. toISOString() would shift the date back an hour during BST. */
-function toDateInputValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-/* An already-stored timestamp, shown in UK time. describeUkDateTime is for the entry form, which
-   holds a date and a time separately; this takes the ISO string the server sends back. */
+/* An already-stored timestamp, shown in UK time - the ISO string the server sends back. */
 function formatKickoff(iso: string): string {
   return new Date(iso).toLocaleString('en-GB', {
     timeZone: 'Europe/London',
@@ -90,45 +64,6 @@ function formatKickoff(iso: string): string {
     minute: '2-digit',
     hour12: true,
   });
-}
-
-const TIME_SHORTCUTS = [
-  { value: '12:30', label: '12:30', sub: 'lunch' },
-  { value: '15:00', label: '15:00', sub: '3pm' },
-  { value: '17:30', label: '17:30', sub: '5:30pm' },
-  { value: '19:30', label: '19:30', sub: '7:30pm' },
-  { value: '20:00', label: '20:00', sub: '8pm' },
-];
-
-// ======================================================================================
-// Small presentational pieces
-// ======================================================================================
-
-function Chip({
-  label,
-  sub,
-  selected,
-  onClick,
-}: {
-  label: string;
-  sub?: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg px-3 py-2 text-xs font-medium transition ${
-        selected
-          ? 'bg-indigo-600 text-white shadow-sm'
-          : 'border border-slate-300 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
-      }`}
-    >
-      <div>{label}</div>
-      {sub && <div className="text-[10px] opacity-75">{sub}</div>}
-    </button>
-  );
 }
 
 function NoticeBanner({ notice }: { notice: Notice }) {
@@ -278,379 +213,50 @@ function PendingFixturesPanel({
 // Fixtures tab
 // ======================================================================================
 
+/*
+Fixtures are keyed on the CALENDAR, never here. This tab used to carry a full entry form calling
+add-staged-fixtures, which meant two places to key a gameweek and two mental models of what a
+batch is - and the form appeared the moment a batch was cleared, reading as a demand for fixtures
+from someone who had already keyed the next three weeks next door.
+
+The calendar covers both halves properly: key a block whenever, stage it when its turn comes. So
+this tab now shows the batch going out, or points at where the next one comes from.
+*/
 function FixturesTab({
   teamList,
-  onStaged,
   setNotice,
   onProgress,
 }: {
   teamList: FixtureTeamList;
-  onStaged: () => void;
   setNotice: (n: Notice) => void;
   onProgress: (p: { resulted: number; total: number } | null) => void;
 }) {
-  const [kickoffDate, setKickoffDate] = useState('');
-  const [kickoffTime, setKickoffTime] = useState('15:00');
-  // Whether this batch STARTS a gameweek or continues one already being pushed. A competition
-  // with no rounds yet can only take a batch that starts one - otherwise its round 1 would be the
-  // Sunday leftovers of a gameweek everyone else played in full. Nothing in the fixture data can
-  // tell these apart, so it is asked here.
-  const [opensGameweek, setOpensGameweek] = useState(true);
-  const [showCustomDate, setShowCustomDate] = useState(false);
-  const [showCustomTime, setShowCustomTime] = useState(false);
-  const [pairs, setPairs] = useState<FixturePair[]>([{ home_team_short: '', away_team_short: '' }]);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Batches staged in this session, so it is obvious what has already gone in.
-  const [staged, setStaged] = useState<{ count: number; at: string }[]>([]);
-
-  // Starting a new list clears whatever was half-entered for the previous one - team codes from
-  // one list are meaningless in another.
-  useEffect(() => {
-    setPairs([{ home_team_short: '', away_team_short: '' }]);
-    setStaged([]);
-  }, [teamList.id]);
-
   // Nothing staged means there is no batch to report on. In an effect, not in the render body:
   // reporting during render updates the page while this component is rendering.
   useEffect(() => {
     if (!teamList.pending_fixtures) onProgress(null);
   }, [teamList.pending_fixtures, onProgress]);
 
-  const dateShortcuts = useMemo(() => {
-    const build = (day: number, weeks: number, prefix: string) => {
-      const d = nextDayOfWeek(day, weeks);
-      return {
-        value: toDateInputValue(d),
-        label: `${prefix} ${d.getDate()} ${d.toLocaleString('en-GB', { month: 'short' })}`,
-      };
-    };
-    return [
-      build(5, 0, 'Fri'),
-      build(6, 0, 'Sat'),
-      build(0, 0, 'Sun'),
-      build(5, 1, 'Fri'),
-      build(6, 1, 'Sat'),
-      build(0, 1, 'Sun'),
-    ];
-  }, []);
-
-  // A team already used in this batch cannot be picked again - it would give a player two
-  // fixtures to satisfy with one pick.
-  const usedTeams = useMemo(() => {
-    const used = new Set<string>();
-    pairs.forEach((p) => {
-      if (p.home_team_short) used.add(p.home_team_short);
-      if (p.away_team_short) used.add(p.away_team_short);
-    });
-    return used;
-  }, [pairs]);
-
-  // Where the next clicked team goes. Derived from the list rather than tracked separately, so
-  // removing a fixture mid-entry cannot leave the cursor pointing at a filled slot.
-  const nextSlot = useMemo(() => {
-    for (let i = 0; i < pairs.length; i++) {
-      if (!pairs[i].home_team_short) return { index: i, side: 'home' as const };
-      if (!pairs[i].away_team_short) return { index: i, side: 'away' as const };
-    }
-    return { index: pairs.length - 1, side: 'away' as const };
-  }, [pairs]);
-
-  const completePairs = pairs.filter((p) => p.home_team_short && p.away_team_short);
-
   if (teamList.pending_fixtures) {
     return <PendingFixturesPanel teamList={teamList} setNotice={setNotice} onProgress={onProgress} />;
   }
 
-  const handleTeamClick = (shortName: string) => {
-    const updated = [...pairs];
-    if (nextSlot.side === 'home') {
-      updated[nextSlot.index] = { ...updated[nextSlot.index], home_team_short: shortName };
-    } else {
-      updated[nextSlot.index] = { ...updated[nextSlot.index], away_team_short: shortName };
-      // Completing the last pair opens a fresh one, so entry never needs an "add" button.
-      if (nextSlot.index === pairs.length - 1) {
-        updated.push({ home_team_short: '', away_team_short: '' });
-      }
-    }
-    setPairs(updated);
-  };
-
-  const handleRemove = (index: number) => {
-    setPairs((prev) =>
-      prev.length > 1
-        ? prev.filter((_, i) => i !== index)
-        : [{ home_team_short: '', away_team_short: '' }]
-    );
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setNotice(null);
-
-    if (!kickoffDate || !kickoffTime) {
-      setNotice({ tone: 'error', text: 'Choose a kick off date and time first.' });
-      return;
-    }
-    if (completePairs.length === 0) {
-      setNotice({ tone: 'error', text: 'Add at least one fixture with both teams.' });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const result = await adminApi.addStagedFixtures(
-        teamList.id,
-        ukTimeToUtcIso(kickoffDate, kickoffTime),
-        completePairs,
-        opensGameweek
-      );
-
-      if (result.return_code === 'SUCCESS') {
-        setStaged((prev) => [
-          ...prev,
-          {
-            count: result.fixtures_added!,
-            at: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-          },
-        ]);
-        setNotice({ tone: 'success', text: 'Fixtures staged.' });
-        setPairs([{ home_team_short: '', away_team_short: '' }]);
-        setKickoffDate('');
-        setKickoffTime('15:00');
-        setOpensGameweek(true);
-        onStaged();
-      } else if (result.return_code === 'PENDING_BATCH') {
-        setNotice({ tone: 'error', text: result.message || 'Finish the pending batch before staging a new one.' });
-        onStaged();
-      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
-        setNotice({ tone: 'error', text: result.message || 'Could not stage those fixtures.' });
-      }
-    } catch {
-      setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+  // Same shape and words as the Results tab's empty state - both mean "no batch", and two
+  // differently worded versions of that made them look like different situations.
   return (
-    <form onSubmit={handleSubmit}>
-      {staged.length > 0 && (
-        <div className="mb-5 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-slate-500">Staged this session:</span>
-          {staged.map((s, i) => (
-            <span
-              key={i}
-              className="rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
-            >
-              {s.count} fixture{s.count === 1 ? '' : 's'} · {s.at}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Kickoff - one time for the whole batch, which becomes the round's lock time */}
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-slate-900">Kick off &amp; lock time</h2>
-          <span className="text-xs text-slate-400">
-            entered as UK time, stored as UTC
-          </span>
-        </div>
-
-        <label className="mb-2 block text-xs font-medium text-slate-600">Date</label>
-        <div className="mb-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
-          {dateShortcuts.map((s) => (
-            <Chip
-              key={s.value}
-              label={s.label}
-              selected={kickoffDate === s.value}
-              onClick={() => {
-                setKickoffDate(s.value);
-                setShowCustomDate(false);
-              }}
-            />
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowCustomDate((v) => !v)}
-          className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
-        >
-          {showCustomDate ? 'Hide' : 'Another date...'}
-        </button>
-        {showCustomDate && (
-          <input
-            type="date"
-            value={kickoffDate}
-            onChange={(e) => setKickoffDate(e.target.value)}
-            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
-          />
-        )}
-
-        <label className="mb-2 mt-5 block text-xs font-medium text-slate-600">Time</label>
-        <div className="mb-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {TIME_SHORTCUTS.map((s) => (
-            <Chip
-              key={s.value}
-              label={s.label}
-              sub={s.sub}
-              selected={kickoffTime === s.value}
-              onClick={() => {
-                setKickoffTime(s.value);
-                setShowCustomTime(false);
-              }}
-            />
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowCustomTime((v) => !v)}
-          className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
-        >
-          {showCustomTime ? 'Hide' : 'Another time...'}
-        </button>
-        {showCustomTime && (
-          <input
-            type="time"
-            value={kickoffTime}
-            onChange={(e) => setKickoffTime(e.target.value)}
-            className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
-          />
-        )}
-
-        {kickoffDate && kickoffTime && (
-          <p className="mt-4 border-t border-slate-100 pt-3 text-sm font-medium text-slate-700">
-            {describeUkDateTime(kickoffDate, kickoffTime)}
-          </p>
-        )}
-
-        <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-slate-100 pt-3">
-          <input
-            type="checkbox"
-            checked={opensGameweek}
-            onChange={(e) => setOpensGameweek(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-indigo-600"
-          />
-          <span className="text-sm text-slate-700">
-            This batch starts a new gameweek
-            <span className="mt-0.5 block text-xs text-slate-500">
-              Untick for the Saturday and Sunday slices of a gameweek you have already started
-              pushing. Competitions that have not started yet will sit out those, and begin on the
-              next gameweek instead of joining halfway through.
-            </span>
-          </span>
-        </label>
-      </div>
-
-      {/* Team picker and the batch being built */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="order-2 lg:order-1">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-900">
-                {teamList.name}
-              </h2>
-              <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                pick {nextSlot.side}
-              </span>
-            </div>
-            <p className="mb-3 text-xs text-slate-500">
-              Click teams in turn - home, then away. Each pair opens the next.
-            </p>
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-              {teamList.teams.map((team) => {
-                const used = usedTeams.has(team.short_name);
-                return (
-                  <button
-                    key={team.id}
-                    type="button"
-                    disabled={used}
-                    onClick={() => handleTeamClick(team.short_name)}
-                    title={team.name}
-                    className={`rounded-lg px-2 py-2 text-sm font-bold transition ${
-                      used
-                        ? 'cursor-not-allowed bg-slate-100 text-slate-300'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800'
-                    }`}
-                  >
-                    {team.short_name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="order-1 lg:order-2">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">
-              New fixtures
-            </h2>
-            <span className="text-xs text-slate-500">
-              {completePairs.length} fixture{completePairs.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          <div className="max-h-[420px] space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
-            {pairs.map((pair, index) => {
-              const isNext = index === nextSlot.index;
-              const home = teamList.teams.find((t) => t.short_name === pair.home_team_short);
-              const away = teamList.teams.find((t) => t.short_name === pair.away_team_short);
-              const complete = pair.home_team_short && pair.away_team_short;
-
-              return (
-                <div
-                  key={index}
-                  className={`flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm ${
-                    complete ? 'border-emerald-200' : 'border-slate-200'
-                  }`}
-                >
-                  <div className="flex flex-1 items-center justify-between">
-                    <span
-                      className={
-                        isNext && nextSlot.side === 'home'
-                          ? 'font-medium text-indigo-600'
-                          : 'text-slate-800'
-                      }
-                    >
-                      {home?.name || 'Home'}
-                    </span>
-                    <span className="mx-2 text-xs text-slate-400">v</span>
-                    <span
-                      className={
-                        isNext && nextSlot.side === 'away'
-                          ? 'font-medium text-indigo-600'
-                          : 'text-slate-800'
-                      }
-                    >
-                      {away?.name || 'Away'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(index)}
-                    className="rounded p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
-                    title="Remove"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <button
-        type="submit"
-        disabled={submitting || completePairs.length === 0 || !kickoffDate}
-        className="w-full rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-6 py-8 text-center">
+      <CheckCircleIcon className="mx-auto h-8 w-8 text-slate-400" />
+      <h2 className="mt-2 font-semibold text-slate-700">Nothing waiting to push</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        {teamList.name} has no staged fixtures right now.
+      </p>
+      <Link
+        href="/dashboard/fixtures/calendar"
+        className="mt-4 inline-block rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50"
       >
-        {submitting
-          ? 'Confirming...'
-          : `Confirm fixtures (${completePairs.length})`}
-      </button>
-    </form>
+        Go to calendar
+      </Link>
+    </div>
   );
 }
 
@@ -1675,14 +1281,17 @@ export default function FixturesPage() {
 
             {tab === 'fixtures' ? (
               <>
-                <FixturesTab teamList={teamList} onStaged={load} setNotice={setNotice} onProgress={setProgress} />
-                {/* Below the entry form, not beside it: stage the batch, then push it to each
-                    competition in turn. */}
-                <PushFixturesPanel
-                  teamList={teamList}
-                  stagedCount={teamList.pending_fixtures ? 1 : 0}
-                  setNotice={setNotice}
-                />
+                <FixturesTab teamList={teamList} setNotice={setNotice} onProgress={setProgress} />
+                {/* Only once a batch exists. With nothing staged there is nothing to offer any
+                    competition, so fetching the list just puts an empty panel under the "nothing
+                    waiting" message and asks the server for an answer nobody can act on. */}
+                {teamList.pending_fixtures && (
+                  <PushFixturesPanel
+                    teamList={teamList}
+                    stagedCount={1}
+                    setNotice={setNotice}
+                  />
+                )}
               </>
             ) : (
               <ResultsTab teamList={teamList} setNotice={setNotice} onBatchCleared={load} onProgress={setProgress} />
