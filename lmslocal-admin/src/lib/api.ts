@@ -669,6 +669,9 @@ export interface EmailRecipient {
   since: string | null;
   /* Only meaningful on round-based emails. Null on the platform-wide ones. */
   round_number: number | null;
+  /* Whether they let the round go by without picking. Null - not false - on every email that has
+     no pick behind it, so a missing answer is never read as "they picked". */
+  missed_pick: boolean | null;
 }
 
 export type MarkEmailsSentResponse = ApiResponse & {

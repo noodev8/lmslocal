@@ -29,12 +29,14 @@ Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "recipient_count": 3,                // integer, how many would be sent
-  "recipients": [                      // array, capped at MAX_LISTED
+  "recipients": [                      // array, capped at MAX_LISTED, or MAX_LISTED_SCOPED on a
+                                       //   scoped email type
     {
       "user_id": 862,                  // integer
       "email": "player@example.com",   // string
       "display_name": "Brookfield",    // string
-      "round_number": 1                // integer or null, only meaningful for round-based emails
+      "round_number": 1,               // integer or null, only meaningful for round-based emails
+      "missed_pick": false             // boolean or null, null when the email has no pick behind it
     }
   ],
   "truncated": false,                  // boolean, true if more recipients than listed
@@ -140,8 +142,21 @@ const SINCE_LABELS = {
   join_blocked: 'Last blocked'                // the most recent join we turned away
 };
 
-// How many addresses come back. Enough to sanity-check a list, short of dumping the user base.
+/*
+How many addresses come back. Enough to sanity-check a list, short of dumping the user base.
+
+Two caps, because the two kinds of email ask different questions. On a SCOPED email the list IS
+the job - ticking reaches only what is listed, so a cap below the number waiting makes picking
+recipients impossible, and these are bounded by a competition's membership even when previewed
+across all of them. On a platform-wide email it is a sanity check, and the honest answer could be
+the whole user base.
+
+Keyed on entry.scoped, the email TYPE, not on whether a competition was passed: a round over
+preview across every competition is still a list of players to tick, and capping that one at 50
+was the same trap by another route.
+*/
 const MAX_LISTED = 50;
+const MAX_LISTED_SCOPED = 1000;
 
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('admin/preview-email');
@@ -173,6 +188,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
     const scopeId = entry.scoped && Number.isInteger(competition_id) ? competition_id : null;
 
     const candidates = await entry.service.findCandidates(scopeId ? { competition_id: scopeId } : {});
+
+    const listCap = entry.scoped ? MAX_LISTED_SCOPED : MAX_LISTED;
 
     // Nobody qualifies. Still a success - the screen shows a count of zero and disables send.
     if (candidates.length === 0) {
@@ -209,7 +226,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
     return res.json({
       return_code: 'SUCCESS',
       recipient_count: candidates.length,
-      recipients: candidates.slice(0, MAX_LISTED).map((c) => ({
+      recipients: candidates.slice(0, listCap).map((c) => ({
         user_id: c.user_id,
         email: c.user_email,
         display_name: c.user_display_name,
@@ -240,9 +257,18 @@ router.post('/', verifyAdminToken, async (req, res) => {
         */
         since: sinceOf(c, email_type),
         // Present only on round-based emails; null on the platform-wide ones.
-        round_number: c.round_number ?? null
+        round_number: c.round_number ?? null,
+        /*
+        Whether this player let the round go by without picking - the same 'NO-PICK' row the
+        template reads for its own wording, surfaced so the operator can leave them out. NULL,
+        not false, on every email that has no pick behind it, so the screen can tell "did not
+        pick" from "this email does not know".
+        */
+        missed_pick: c.chosen_team === undefined || c.chosen_team === null
+          ? null
+          : c.chosen_team === 'NO-PICK'
       })),
-      truncated: candidates.length > MAX_LISTED,
+      truncated: candidates.length > listCap,
       // Heading for the `since` column - see SINCE_LABELS. One per response: a preview is
       // always one email type, so every row in it is measuring the same thing.
 

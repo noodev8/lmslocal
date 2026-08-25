@@ -673,6 +673,7 @@ function HistoryTab({
 function SendPanel({
   email,
   competition,
+  competitions,
   scopeAll,
   testMode,
   onClose,
@@ -682,6 +683,8 @@ function SendPanel({
   email: OutlineEmail;
   /* Null for platform-wide emails, which have no competition and never send one to the server. */
   competition: AdminCompetition | null;
+  /* Everything the picker below can narrow to. Empty on a platform-wide email. */
+  competitions: AdminCompetition[];
   /* Opened from the focus card: count, send and mark across every competition. */
   scopeAll: boolean;
   testMode: boolean;
@@ -707,10 +710,29 @@ function SendPanel({
   const [historyLoading, setHistoryLoading] = useState(false);
 
   /*
-  Scoped emails send the selected competition, unless the focus card opened this - then they send
-  nothing and the server scans every competition. Platform-wide emails never send one.
+  Which competition this panel is working in, chosen here rather than outside it. The picker below
+  the table used to be the only one, and it went with the table: every email has a card now, cards
+  open across every competition, and there was nowhere left to narrow one.
+
+  Null means every competition, which is what a card opens on and what the cron does. Platform-wide
+  emails never send a competition at all, whatever is chosen.
   */
-  const scopeId = scopeAll || !email.scoped ? null : competition?.id ?? null;
+  const [scopeChoice, setScopeChoice] = useState<number | null>(
+    scopeAll ? null : competition?.id ?? null
+  );
+  const scopeId = email.scoped ? scopeChoice : null;
+
+  /*
+  The competitions with somebody actually waiting, and how many - taken from the unscoped preview,
+  which already lists every candidate. A dropdown of all thirty-odd competitions is thirty wrong
+  answers around the two that have anyone in them.
+
+  Held in state rather than derived from `preview`, because a narrowed preview only contains the
+  competition it was narrowed to: deriving would collapse the list to one option and strand the
+  operator there. Only an unscoped, untruncated load may replace it - a truncated list has seen
+  only the first N and would silently drop the competitions past them.
+  */
+  const [waitingIn, setWaitingIn] = useState<{ id: number; name: string; count: number }[] | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -730,12 +752,45 @@ function SendPanel({
         */
         if (scopeId === null) {
           const listed = res.recipients ?? [];
+
+          if (!res.truncated) {
+            const byId = new Map<number, { id: number; name: string; count: number }>();
+            for (const r of listed) {
+              if (r.competition_id === null) continue;
+              const seen = byId.get(r.competition_id);
+              if (seen) seen.count += 1;
+              else
+                byId.set(r.competition_id, {
+                  id: r.competition_id,
+                  /* Falls back to the id: a competition can be renamed or deleted between the
+                     candidate query and here, and an option with no label is unpickable. */
+                  name: r.competition_name ?? `Competition #${r.competition_id}`,
+                  count: 1
+                });
+            }
+            setWaitingIn([...byId.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)));
+          }
+
           onWaiting(
             email.key,
             res.recipient_count ?? 0,
             res.truncated
               ? null
               : new Set(listed.map((r) => r.competition_id).filter((id) => id !== null)).size
+          );
+        } else {
+          /*
+          Narrowed: only this competition's number can have moved, so correct that one in place
+          rather than leaving "Aptar (12)" standing over a list you have just emptied. It drops
+          out entirely at zero - there is nothing left to narrow to.
+          */
+          const nowWaiting = res.recipient_count ?? 0;
+          setWaitingIn((prev) =>
+            prev === null
+              ? prev
+              : prev
+                  .map((c) => (c.id === scopeId ? { ...c, count: nowWaiting } : c))
+                  .filter((c) => c.count > 0)
           );
         }
       } else if (res.return_code !== 'UNAUTHORIZED' && res.return_code !== 'TOKEN_EXPIRED') {
@@ -786,6 +841,16 @@ function SendPanel({
   one of their competitions, and keying off scoped hid exactly the thing that says which.
   */
   const showCompetition = recipients.some((r) => r.competition_name);
+
+  /*
+  Who let the round go by without picking. No column for it - the answer is only ever used to
+  select them, and a column of dashes on everyone who did pick earns nothing. Offered when the
+  data carries an answer, not when the email type looks like it should.
+  */
+  const noPickKeys = useMemo(
+    () => recipients.filter((r) => r.missed_pick === true).map(keyOf),
+    [recipients]
+  );
 
   const toggle = (r: EmailRecipient) => {
     setSelected((prev) => {
@@ -857,11 +922,20 @@ function SendPanel({
       return null;
     });
 
+  /*
+  What the picker offers: the competitions with somebody waiting, falling back to every competition
+  the admin can see. The fallback matters on the first render, before a preview has come back, and
+  on a truncated list where the derived answer would be missing competitions rather than merely
+  unsorted.
+  */
+  const scopeOptions: { id: number; name: string; count: number | null }[] =
+    waitingIn ?? competitions.map((c) => ({ id: c.id, name: `${c.name} (#${c.id})`, count: null }));
+
   const scopeLabel = !email.scoped
     ? 'Everyone on the platform'
-    : scopeAll
+    : scopeId === null
       ? 'Every competition'
-      : competition?.name ?? '';
+      : scopeOptions.find((c) => c.id === scopeId)?.name ?? `Competition #${scopeId}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center">
@@ -919,6 +993,35 @@ function SendPanel({
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
           )}
 
+          {/*
+          Narrowing lives inside the panel because this is where the decisions are made - who to
+          send to, who to mark off. It sits above the tabs' content rather than inside Waiting,
+          since the history query is scoped by the same value. Changing it re-runs the preview on
+          its own: `load` already depends on scopeId.
+          */}
+          {email.scoped && scopeOptions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor="panel-scope" className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Competition
+              </label>
+              <select
+                id="panel-scope"
+                value={scopeId ?? ''}
+                onChange={(e) => setScopeChoice(e.target.value === '' ? null : Number(e.target.value))}
+                className="max-w-xs rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm text-slate-900"
+              >
+                {/* The default, and the only option that matches what the card counted. */}
+                <option value="">Every competition</option>
+                {scopeOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.count === null ? '' : ` (${c.count})`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {tab === 'history' ? (
             <HistoryTab
               history={history}
@@ -945,9 +1048,9 @@ function SendPanel({
                 <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center">
                   <p className="text-sm text-slate-500">Nobody qualifies for this email right now.</p>
                   <p className="mx-auto mt-1.5 max-w-md text-xs text-slate-400">
-                    {scopeAll
+                    {scopeId === null
                       ? 'Checked just now, across every competition. Anyone counted earlier has since been sent this, opted out, or stopped qualifying - the count on the card has been updated to match.'
-                      : `Checked just now, in ${competition?.name ?? 'this competition'} only. Open this email from its card to check every competition.`}
+                      : `Checked just now, in ${scopeLabel} only. Switch the picker back to every competition to see the rest.`}
                   </p>
                 </div>
               ) : (
@@ -973,12 +1076,27 @@ function SendPanel({
                         up to — anyone emailed in the last 48h is marked as sent
                       </span>
                     </p>
-                    <button
-                      onClick={() => setSelected(allSelected ? new Set() : new Set(recipients.map(keyOf)))}
-                      className="text-sm text-slate-500 underline-offset-2 hover:underline"
-                    >
-                      {allSelected ? 'Clear selection' : 'Select all'}
-                    </button>
+                    <div className="flex items-center gap-3">
+                      {/* Selects them so they can be MARKED as sent rather than emailed: no point
+                          spending an email on somebody who let the round go by. Marking clears
+                          them out of the list, and what is left is then a plain select-all send.
+                          Replaces the selection rather than adding to it, so it is the same
+                          answer however many times it is pressed. */}
+                      {noPickKeys.length > 0 && (
+                        <button
+                          onClick={() => setSelected(new Set(noPickKeys))}
+                          className="text-sm text-slate-500 underline-offset-2 hover:underline"
+                        >
+                          Select no picks ({noPickKeys.length})
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSelected(allSelected ? new Set() : new Set(recipients.map(keyOf)))}
+                        className="text-sm text-slate-500 underline-offset-2 hover:underline"
+                      >
+                        {allSelected ? 'Clear selection' : 'Select all'}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-200">
@@ -1557,6 +1675,7 @@ export default function EmailsPage() {
         <SendPanel
           email={open.email}
           competition={competition}
+          competitions={competitions}
           scopeAll={open.scopeAll}
           testMode={testMode}
           onClose={() => setOpen(null)}
