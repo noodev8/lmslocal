@@ -232,6 +232,11 @@ async function getFixturePushCandidates(client, teamListId) {
      JOIN app_user u ON u.id = c.organiser_id
      LEFT JOIN competition_user cu ON cu.competition_id = c.id
      WHERE c.fixture_service = true AND c.team_list_id = $1
+       -- A finished competition can never take another round, and unlike every other skip
+       -- reason that will never change - so it is not an answer to "why didn't that one get
+       -- its fixtures?", just a row you cannot press. evaluateCompetition still refuses it
+       -- (BLOCKED.COMPETITION_COMPLETE), which is what guards the push itself.
+       AND UPPER(c.status) <> 'COMPLETE'
      GROUP BY c.id, u.email, u.display_name
      ORDER BY c.id`,
     [teamListId]
