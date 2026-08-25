@@ -845,7 +845,9 @@ function CompetitionsList() {
               onClick={() => setStatus('complete')}
             />
             <StatusTile
-              label="Stalled"
+              // Display only. The value, the ?status= parameter and everything on the server
+              // stay "stalled" - see services/competitionEngagement.js for what it means.
+              label="Archived"
               value={statusCounts.stalled}
               tone="warn"
               active={statusParam === 'stalled'}
@@ -999,7 +1001,7 @@ function CompetitionsList() {
                             onClick={() => handleSetStalled(c, null)}
                             disabled={markingId === c.id}
                             className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
-                            title={`Overridden by hand (${c.stalled_override ? 'marked stalled' : 'marked real'}) - click to judge it by the rule again`}
+                            title={`Overridden by hand (${c.stalled_override ? 'marked archived' : 'marked not archived'}) - click to judge it by the rule again`}
                           >
                             <ArrowUturnLeftIcon className="h-4 w-4" />
                           </button>
@@ -1014,8 +1016,8 @@ function CompetitionsList() {
                           }`}
                           title={
                             c.is_stalled
-                              ? 'Not a tyre kicker - count this competition again'
-                              : 'Mark as a tyre kicker and take it out of the counts'
+                              ? 'Unarchive - count this competition again'
+                              : 'Archive and take it out of the counts'
                           }
                         >
                           {c.is_stalled ? (
