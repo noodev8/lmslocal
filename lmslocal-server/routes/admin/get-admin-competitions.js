@@ -26,6 +26,7 @@ Success Response (ALWAYS HTTP 200):
       "organiser_lifetime_spend": 80,            // number, total paid across all credit purchases (0 if never paid)
       "organiser_credit": 19,                    // integer, current credit balance
       "player_count": 24,                        // integer, rows in competition_user
+      "still_in_count": 18,                      // integer, of which not yet eliminated
       "bot_count": 4,                            // integer, of which are bots
       "bots_allowed": true,                      // boolean, organiser may use bots - see services/botPool.js
       "created_at": "2026-01-04T12:00:00.000Z",  // string, ISO datetime
@@ -135,6 +136,14 @@ router.get('/', verifyAdminToken, async (req, res) => {
            FROM credit_purchases cp
           WHERE cp.user_id = u.id)                                            AS organiser_lifetime_spend,
         (SELECT COUNT(*) FROM competition_user cu WHERE cu.competition_id = c.id) AS player_count,
+        -- Memberships not yet eliminated. competition_user.status is only ever 'active' or
+        -- 'out', so this is simply "still in" - it is NOT the "active players" the people cards
+        -- above the list count, which mean a member of a live competition whether or not they
+        -- have been knocked out.
+        (SELECT COUNT(*)
+           FROM competition_user cu
+          WHERE cu.competition_id = c.id
+            AND cu.status = 'active')                                         AS still_in_count,
         (SELECT COUNT(*)
            FROM competition_user cu
            JOIN app_user bu ON bu.id = cu.user_id
@@ -196,6 +205,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
         organiser_lifetime_spend: parseFloat(row.organiser_lifetime_spend) || 0,
         organiser_credit: parseInt(row.organiser_credit, 10) || 0,
         player_count: parseInt(row.player_count, 10) || 0,
+        still_in_count: parseInt(row.still_in_count, 10) || 0,
         real_player_count: parseInt(row.real_player_count, 10) || 0,
         pick_count: parseInt(row.pick_count, 10) || 0,
         bot_count: parseInt(row.bot_count, 10) || 0,

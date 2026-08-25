@@ -168,6 +168,10 @@ export interface AdminCompetition {
   /* Current credit balance. Zero on a paying organiser means they have spent what they bought. */
   organiser_credit: number;
   player_count: number;
+  /* Of which are still in - not yet eliminated. NOT the same "active" as the people cards on
+     the competitions screen, which count members of a live competition including eliminated
+     ones. */
+  still_in_count: number;
   /* Of which are bots. Included in player_count, not additional to it. */
   bot_count: number;
   /* Whether this organiser may use bots at all - see services/botPool.js on the server. */

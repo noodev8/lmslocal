@@ -954,7 +954,20 @@ function CompetitionsList() {
                       )}
                     </td>
                     <td className="max-w-[16rem] px-4 py-3"><OrganiserCell competition={c} /></td>
-                    <td className="px-4 py-3 tabular-nums text-slate-600">{c.player_count}</td>
+                    {/* Total first, since that is what the column has always meant and what the
+                        header sorts by. "Still in" only appears once somebody is out: on a
+                        pending competition it would repeat the number directly above it. */}
+                    <td className="px-4 py-3 tabular-nums text-slate-600">
+                      {c.player_count}
+                      {c.still_in_count < c.player_count && (
+                        <div
+                          className="text-xs text-slate-400"
+                          title={`${c.player_count - c.still_in_count} eliminated`}
+                        >
+                          {c.still_in_count} still in
+                        </div>
+                      )}
+                    </td>
                     {/* The exact day moves into the tooltip, since the cell now reads relatively. */}
                     <td
                       className="px-4 py-3 text-slate-500"
