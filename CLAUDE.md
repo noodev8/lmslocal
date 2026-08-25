@@ -264,14 +264,44 @@ codebase** — delete it from `.env` if still there. Both plural routes
 (`push-fixtures-to-competitions.js`, `push-results-to-competitions.js`) are deprecated,
 **unregistered**, and kept on disk as frozen references — do not edit them or wire them back up.
 
-**One staged batch at a time per team list** — `fixture_load` itself is the pending batch.
-`add-staged-fixtures` refuses a new one while it is non-empty. Clearing is a deliberate step
-(**Clear staged batch**) because the staged rows must survive until every competition has been
-pushed to individually; it refuses while any competition is unfinished, unless forced. Every
-fixture in a batch shares one kickoff time, which becomes the round's lock time, so a real Fri–Sun
-gameweek is entered as several batches — **one round each**, since a round holding fixtures with
-no results is `round_in_progress` and takes no further push. Untick "starts a new gameweek" on the
-second and third.
+**One staged batch at a time per team list** — `fixture_load` itself is the pending batch, and
+staging refuses while it is non-empty. Closing the gameweek (**Gameweek complete — press to
+continue**, the Results tab) is a deliberate step because the staged rows must survive until every
+competition has been pushed to individually; it refuses while any competition is unfinished, unless
+forced. **It also deletes the calendar block the batch came from** — a played gameweek is not kept,
+since the record of what was played is the `fixture` rows on each competition, which are
+independent copies (nothing references `fixture_block_item`, and `fixture` carries no foreign keys
+at all). It clears `round.source_block_id` on that block first: the FK is `NO ACTION`, so a round
+still pointing at it would roll back the whole close.
+
+**Fixtures are keyed and staged on the CALENDAR, and nowhere else.** The Fixtures tab's entry form
+was deleted — it was a second place to key a gameweek, calling `add-staged-fixtures` directly, and
+it reappeared the moment a batch was cleared, reading as a demand for fixtures from someone who had
+already keyed the next three weeks next door. **`add-staged-fixtures` is now unreachable from the
+UI**; the route still works and is kept for the block-per-batch behaviour it documents, but every
+path goes `add-fixture-block` → `promote-fixture-block`. The tab now shows the batch going out, or
+points at the calendar.
+
+**A whole gameweek is ONE block, with ONE kick-off time set at the top of the form.** That time is
+the block's lock time and every fixture in it gets that value; `promote-fixture-block` copies them
+through and the push takes the earliest, which is all of them. `fixture_block_item.kickoff_time`
+is still per row and the server still takes the MIN — the schema can hold a 12:30 and a 15:00, the
+form just does not offer it, because nothing used it and the only thing it could change was
+locking a block earlier than intended.
+
+This retires the multi-batch dance: under the old staging form a Fri–Sun gameweek was several
+batches, one round each, with "starts a new gameweek" unticked on the second and third. **That
+checkbox is no longer asked** — see the long note where it stood, in
+`lmslocal-admin/src/app/dashboard/fixtures/calendar/page.tsx`. There is nothing left to split, so
+there is nothing to answer. `opens_gameweek` is still sent, stored and enforced server-side
+(`loadBlockForStart` refuses a false block as a start option, and the first-round rules still
+check it); only the question is gone. It has been true on every block ever created.
+
+**The label is derived too**, from the earliest kickoff — `labelForKickoff` in
+`services/fixtureBlock.js`, the one definition, shared with `add-staged-fixtures`. It was the only
+part of a start option not taken from the fixtures, so a typed one could contradict the kick-off
+time shown directly beneath it on the organiser's start chooser. `add-fixture-block` and
+`update-fixture-block` no longer accept a `label`; editing a block re-derives it.
 
 **When a competition is ready for a round**: `evaluateCompetition` in `services/fixtureService.js`
 — the one implementation, used by both the admin candidate list and the push, so the screen can
@@ -298,8 +328,8 @@ three more things, and only the first:
    that there is nothing ready, since no date exists to promise.
 2. **`fixture_load.opens_gameweek`** — the batch must **start** a gameweek, not continue one.
    Otherwise a competition first eligible on the Saturday gets a round 1 of Sunday's two matches
-   while everyone else plays a full slate. Nothing in the data distinguishes these, so
-   `add-staged-fixtures` asks whoever stages the batch (checkbox, default true).
+   while everyone else plays a full slate. Still enforced, but **no longer asked**: a block holds a
+   whole gameweek, so there is nothing to split, and it is true for anything keyed on the calendar.
 3. **now + 48 hours** (`FIRST_ROUND_LEAD_TIME_HOURS`) — someone pressing Ready on Friday afternoon
    must not be handed Saturday's matches before they have told anyone.
 
