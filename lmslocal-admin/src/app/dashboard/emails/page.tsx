@@ -852,6 +852,19 @@ function SendPanel({
     [recipients]
   );
 
+  /*
+  The organisers in the list. Same shape and same reasoning as no picks above: no column, because
+  the answer is only ever used to select them, and offered only when the data carries an answer.
+
+  What it is for: sending to a handful rather than the whole competition. Round Over now carries an
+  organiser block, so an organiser's copy says something a player's does not - and this is how that
+  copy goes out on its own, to three organisers rather than a hundred and twenty players.
+  */
+  const organiserKeys = useMemo(
+    () => recipients.filter((r) => r.is_organiser === true).map(keyOf),
+    [recipients]
+  );
+
   const toggle = (r: EmailRecipient) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -939,8 +952,17 @@ function SendPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center">
-      <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+      {/*
+      Capped to the viewport, with the BODY scrolling rather than the page behind it. Without this
+      the panel had no ceiling: its height was whatever the content came to, so a long recipient
+      list pushed the footer - Send, Mark, the test-mode switch - off the bottom of the screen, and
+      the only way back to them was scrolling the overlay.
+
+      Header, tabs and footer are outside the scrolling region on purpose. The footer holds every
+      irreversible action on this screen and must never be somewhere you have to go looking for.
+      */}
+      <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <h2 className="font-semibold text-slate-900">{email.name}</h2>
             <p className="text-sm text-slate-500">
@@ -967,7 +989,7 @@ function SendPanel({
         panel under the cursor of whoever had just pressed it. Each tab states its own numbers in
         its own body, where the content is already changing.
         */}
-        <div className="flex gap-1 border-b border-slate-200 px-5">
+        <div className="flex shrink-0 gap-1 border-b border-slate-200 px-5">
           {([
             { id: 'waiting' as const, label: 'Waiting' },
             { id: 'history' as const, label: 'Sent' },
@@ -987,8 +1009,13 @@ function SendPanel({
         </div>
 
         {/* A floor under the body so switching tabs, or a list arriving, cannot collapse the panel
-            and walk the buttons up the screen. */}
-        <div className="min-h-[16rem] space-y-3 px-5 py-3">
+            and walk the buttons up the screen.
+
+            It is also what lets this scroll: a flex child defaults to min-height:auto and will not
+            shrink below its content, so a capped column would overflow instead of scrolling. The
+            explicit floor overrides that default exactly as min-h-0 would, while still keeping the
+            panel from collapsing. */}
+        <div className="min-h-[16rem] flex-1 space-y-3 overflow-y-auto px-5 py-3">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
           )}
@@ -1076,7 +1103,7 @@ function SendPanel({
                         up to — anyone emailed in the last 48h is marked as sent
                       </span>
                     </p>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                       {/* Selects them so they can be MARKED as sent rather than emailed: no point
                           spending an email on somebody who let the round go by. Marking clears
                           them out of the list, and what is left is then a plain select-all send.
@@ -1088,6 +1115,17 @@ function SendPanel({
                           className="text-sm text-slate-500 underline-offset-2 hover:underline"
                         >
                           Select no picks ({noPickKeys.length})
+                        </button>
+                      )}
+                      {/* Sends to the organisers alone - a handful rather than everyone. Replaces
+                          the selection rather than adding to it, like Select no picks, so pressing
+                          it twice gives the same answer. */}
+                      {organiserKeys.length > 0 && (
+                        <button
+                          onClick={() => setSelected(new Set(organiserKeys))}
+                          className="text-sm text-slate-500 underline-offset-2 hover:underline"
+                        >
+                          Select organisers ({organiserKeys.length})
                         </button>
                       )}
                       <button
@@ -1220,7 +1258,7 @@ function SendPanel({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">
           {result && (
             <span className="mr-auto flex items-center gap-1.5 text-sm text-emerald-700">
               <CheckCircleIcon className="h-4 w-4" />

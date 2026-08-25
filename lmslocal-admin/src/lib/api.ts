@@ -672,6 +672,9 @@ export interface EmailRecipient {
   /* Whether they let the round go by without picking. Null - not false - on every email that has
      no pick behind it, so a missing answer is never read as "they picked". */
   missed_pick: boolean | null;
+  /* Whether they run the competition on this row. Same null convention as missed_pick: an email
+     whose service does not answer the question sends null, and the panel hides the filter. */
+  is_organiser: boolean | null;
 }
 
 export type MarkEmailsSentResponse = ApiResponse & {

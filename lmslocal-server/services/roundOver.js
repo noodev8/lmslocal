@@ -105,6 +105,15 @@ async function findCandidates(opts = {}) {
       cu.status              AS player_status,
       cu.lives_remaining,
 
+      /*
+      Whether this recipient runs the competition. Every organiser plays in their own competition
+      - 29 of 30 - so they were already getting this email as a player; this flag adds an
+      organiser block to their copy rather than sending them a second email. That is deliberate:
+      a separate organiser email would collide with this one under magic send, and which of the
+      two survived would be decided by whichever the operator pressed first.
+      */
+      (pp.player_id = c.organiser_id) AS is_organiser,
+
       -- The shape of the competition after this round. Constant per competition, so these are
       -- subqueries rather than a per-recipient lookup - see the N+1 rule in CLAUDE.md.
       (
@@ -272,7 +281,8 @@ async function buildTemplateData(candidate) {
     out_this_round_sample,
     next_round_number,
     next_deadline,
-    next_fixtures
+    next_fixtures,
+    is_organiser
   } = candidate;
 
   const token = await getOrCreateToken(user_id);
@@ -315,6 +325,13 @@ async function buildTemplateData(candidate) {
     out_this_round_count: Number(out_this_round_count) || 0,
     survivors_sample: survivors_sample || null,
     out_this_round_sample: out_this_round_sample || null,
+
+    /*
+    Adds an organiser block to this recipient's copy. Coerced rather than passed through: this is
+    stored on email_queue.template_data as JSON and read back by the template, so it must be a
+    real boolean and not whatever the driver hands back for a SQL comparison.
+    */
+    is_organiser: is_organiser === true,
 
     /*
     The ending, when there is one. A COMPLETE competition with one survivor has a winner; with

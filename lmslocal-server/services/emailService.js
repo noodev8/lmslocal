@@ -2448,6 +2448,7 @@ const buildRoundOverEmail = (email, templateData) => {
     next_round_number,
     next_deadline,
     next_fixtures,
+    is_organiser,
     email_tracking_id,
     unsubscribe
   } = templateData;
@@ -2532,6 +2533,31 @@ const buildRoundOverEmail = (email, templateData) => {
         : 'Fixtures are up now.';
   }
 
+  /*
+  Block 4 - the organiser's own block, and the reason there is no separate organiser email.
+
+  Every organiser plays in their own competition, so they are already a recipient here. A second
+  email would have been 80% the same words, and worse: magic send (services/emailQuiet.js) kills
+  whichever of two emails to one person comes second inside 48 hours, so which one they actually
+  got would have been decided by whichever button the operator pressed first. A block on the email
+  they were always getting has no race in it.
+
+  It does NOT list who has yet to pick. The organiser has the Round Progress card on the
+  competition page for that - "N of M picked", and the names behind it - and it is live, where an
+  emailed list is stale the moment somebody picks. They also have their own WhatsApp group and
+  will chase in their own way; this email's job is only to tell them the round has moved.
+
+  Shown to an organiser who is OUT as well as one still in. Being knocked out does not stop them
+  running the competition, and they are the one person who still needs the link.
+
+  Suppressed on a finished competition: there is no round to chase and nothing to make progress
+  on. That branch is currently unreachable anyway - see competition_complete above - but it would
+  be the wrong words if it ever fires.
+  */
+  const organiserBlock = is_organiser && !competition_complete;
+  const organiserLine = `Round ${next_round_number} is open for your ${survivors_count} ${survivors_count === 1 ? 'player' : 'players'}. You can see who has picked and who has not on the competition page.`;
+  const organiserUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}?email_id=${email_tracking_id}`;
+
   const actionUrl = competition_complete
     ? `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/standings?email_id=${email_tracking_id}`
     : `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/pick?email_id=${email_tracking_id}`;
@@ -2592,6 +2618,19 @@ const buildRoundOverEmail = (email, templateData) => {
               </a>
             </div>
 
+            ${organiserBlock ? `
+            <!-- Block 4: the organiser's block. Divided off above rather than boxed like blocks 1
+                 and 2, because it is a change of hat rather than another piece of the round. -->
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin: 0;">
+              <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 17px; font-weight: 600;">You are running this one</h3>
+              <p style="color: #334155; font-size: 15px; margin: 0 0 16px 0;">${organiserLine}</p>
+              <a href="${organiserUrl}"
+                 style="display: inline-block; color: #475569; font-weight: 600; font-size: 15px; text-decoration: underline;">
+                Check pick progress
+              </a>
+            </div>
+            ` : ''}
+
           </div>
 
           ${footer.html}
@@ -2622,7 +2661,16 @@ ${nextBody}
 ${fixtureLines.length ? '\n' + fixtureLines.map((l) => `  ${l}`).join('\n') + '\n' : ''}
 ${buttonLabel}:
 ${actionUrl}
+${organiserBlock ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+YOU ARE RUNNING THIS ONE
+
+${organiserLine}
+
+Check pick progress:
+${organiserUrl}
+` : ''}
 ${footer.text}
   `;
 

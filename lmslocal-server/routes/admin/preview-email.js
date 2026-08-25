@@ -36,7 +36,8 @@ Success Response (ALWAYS HTTP 200):
       "email": "player@example.com",   // string
       "display_name": "Brookfield",    // string
       "round_number": 1,               // integer or null, only meaningful for round-based emails
-      "missed_pick": false             // boolean or null, null when the email has no pick behind it
+      "missed_pick": false,            // boolean or null, null when the email has no pick behind it
+      "is_organiser": false            // boolean or null, null when the email does not answer it
     }
   ],
   "truncated": false,                  // boolean, true if more recipients than listed
@@ -266,7 +267,16 @@ router.post('/', verifyAdminToken, async (req, res) => {
         */
         missed_pick: c.chosen_team === undefined || c.chosen_team === null
           ? null
-          : c.chosen_team === 'NO-PICK'
+          : c.chosen_team === 'NO-PICK',
+        /*
+        Whether this recipient runs the competition. NULL, not false, on emails whose service does
+        not answer the question - the same convention as missed_pick above, so the screen can tell
+        "not the organiser" from "this email does not know" and only offers the filter when there
+        is a real answer.
+        */
+        is_organiser: c.is_organiser === undefined || c.is_organiser === null
+          ? null
+          : c.is_organiser === true
       })),
       truncated: candidates.length > listCap,
       // Heading for the `since` column - see SINCE_LABELS. One per response: a preview is
