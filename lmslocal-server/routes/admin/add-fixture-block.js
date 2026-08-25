@@ -13,7 +13,6 @@ Purpose: Key a block of fixtures into the forward calendar - a future round's wo
 Request Payload:
 {
   "team_list_id": 1,                         // integer, required - which team list these belong to
-  "label": "Sat 29 Aug",                     // string, required - what an organiser is shown
   "opens_gameweek": true,                    // boolean, optional - default true
   "fixtures": [                              // array, required - at least one fixture
     {
@@ -62,14 +61,14 @@ const express = require('express');
 const { query, transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { LABEL_MAX, validateFixtures } = require('../../services/fixtureBlock');
+const { validateFixtures, labelForFixtures } = require('../../services/fixtureBlock');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('add-fixture-block');
 
   try {
-    const { team_list_id, label, fixtures } = req.body;
+    const { team_list_id, fixtures } = req.body;
     // Defaults true: a block is its own gameweek unless told otherwise, the ordinary case.
     const opensGameweek = req.body.opens_gameweek !== false;
 
@@ -83,20 +82,11 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    if (typeof label !== 'string' || label.trim().length === 0) {
-      return res.json({
-        return_code: 'VALIDATION_ERROR',
-        message: 'A label is required - it is what an organiser sees when choosing a start date'
-      });
-    }
-
-    if (label.trim().length > LABEL_MAX) {
-      return res.json({
-        return_code: 'VALIDATION_ERROR',
-        message: `Label must be ${LABEL_MAX} characters or fewer`
-      });
-    }
-
+    /*
+    No label validation: the label is DERIVED from the fixtures, never sent. See labelForKickoff
+    in services/fixtureBlock.js - it was the only part of a start option not taken from the
+    fixtures, so a typed one could contradict the kick-off time shown directly beneath it.
+    */
     if (!Array.isArray(fixtures) || fixtures.length === 0) {
       return res.json({
         return_code: 'VALIDATION_ERROR',
@@ -154,7 +144,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
         INSERT INTO fixture_block (team_list_id, label, opens_gameweek)
         VALUES ($1, $2, $3)
         RETURNING id
-      `, [team_list_id, label.trim(), opensGameweek]);
+      `, [team_list_id, labelForFixtures(fixtures), opensGameweek]);
 
       const id = blockResult.rows[0].id;
 

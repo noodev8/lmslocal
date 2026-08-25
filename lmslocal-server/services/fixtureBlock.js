@@ -32,9 +32,6 @@ lock time that can disagree with the fixtures it locks is worse than no lock tim
 
 const { query } = require('../database');
 
-/** Longest label the organiser-facing start options can carry, e.g. 'Sat 29 Aug'. */
-const LABEL_MAX = 60;
-
 /**
  * How soon a block may be offered as a competition's start.
  *
@@ -87,6 +84,43 @@ const OFFERABLE_BLOCK_SQL = `(
     )
   )
 )`;
+
+/*
+The name an organiser sees when this block is offered as a start date, e.g. "Fri 21 Aug".
+
+DERIVED, NEVER TYPED. It was a required text field on the block form, and it was the only part of
+a start option not taken from the fixtures - "in 18 days" and the full kick-off time both come
+from lock_time, so a hand-typed label could sit directly above a line contradicting it. There is
+one right answer and the fixtures already hold it.
+
+Europe/London explicitly - a Friday 20:00 kickoff is stored as 19:00 UTC, and a server outside the
+UK would otherwise label it Friday or Thursday depending on where it happened to be running.
+
+@param {string|Date} kickoffTime - the block's EARLIEST kickoff, which is also its lock time
+@returns {string}
+*/
+function labelForKickoff(kickoffTime) {
+  return new Date(kickoffTime).toLocaleDateString('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  });
+}
+
+/**
+ * The label for a set of fixtures - named for the soonest of them, since that is the lock time.
+ *
+ * @param {Array<{kickoff_time: string}>} fixtures
+ * @returns {string}
+ */
+function labelForFixtures(fixtures) {
+  const earliest = fixtures.reduce(
+    (soonest, f) => (new Date(f.kickoff_time) < new Date(soonest) ? f.kickoff_time : soonest),
+    fixtures[0].kickoff_time
+  );
+  return labelForKickoff(earliest);
+}
 
 /**
  * Check a set of home/away pairs against a team list.
@@ -462,7 +496,8 @@ async function createRoundFromBlock(client, competitionId, teamListId, blockId) 
 }
 
 module.exports = {
-  LABEL_MAX,
+  labelForKickoff,
+  labelForFixtures,
   START_LEAD_TIME_HOURS,
   DEFAULT_MIN_HOURS,
   MAX_START_OPTIONS,

@@ -901,15 +901,15 @@ export const adminApi = {
     return response.data;
   },
 
+  /* No label: the server derives it from the earliest kickoff - see labelForKickoff in
+     services/fixtureBlock.js. */
   addFixtureBlock: async (
     teamListId: number,
-    label: string,
     fixtures: BlockFixtureInput[],
     opensGameweek: boolean
   ): Promise<SaveFixtureBlockResponse> => {
     const response = await api.post<SaveFixtureBlockResponse>('/admin/add-fixture-block', {
       team_list_id: teamListId,
-      label,
       fixtures,
       opens_gameweek: opensGameweek,
     });
@@ -919,13 +919,11 @@ export const adminApi = {
   // Fixtures are replaced wholesale, not merged - editing a block is re-keying it.
   updateFixtureBlock: async (
     blockId: number,
-    label: string,
     fixtures: BlockFixtureInput[],
     opensGameweek: boolean
   ): Promise<SaveFixtureBlockResponse> => {
     const response = await api.post<SaveFixtureBlockResponse>('/admin/update-fixture-block', {
       block_id: blockId,
-      label,
       fixtures,
       opens_gameweek: opensGameweek,
     });

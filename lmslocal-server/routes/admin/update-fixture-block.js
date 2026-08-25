@@ -12,7 +12,6 @@ Purpose: Change a block that has not been promoted yet - its label, whether it o
 Request Payload:
 {
   "block_id": 7,                             // integer, required
-  "label": "Sat 29 Aug",                     // string, required
   "opens_gameweek": true,                    // boolean, optional - default true
   "fixtures": [                              // array, required - replaces the block's fixtures wholesale
     {
@@ -63,14 +62,14 @@ const express = require('express');
 const { transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { LABEL_MAX, validateFixtures, loadBlockContext } = require('../../services/fixtureBlock');
+const { validateFixtures, labelForFixtures, loadBlockContext } = require('../../services/fixtureBlock');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('update-fixture-block');
 
   try {
-    const { block_id, label, fixtures } = req.body;
+    const { block_id, fixtures } = req.body;
     const opensGameweek = req.body.opens_gameweek !== false;
 
     // ========================================
@@ -83,20 +82,11 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    if (typeof label !== 'string' || label.trim().length === 0) {
-      return res.json({
-        return_code: 'VALIDATION_ERROR',
-        message: 'A label is required'
-      });
-    }
-
-    if (label.trim().length > LABEL_MAX) {
-      return res.json({
-        return_code: 'VALIDATION_ERROR',
-        message: `Label must be ${LABEL_MAX} characters or fewer`
-      });
-    }
-
+    /*
+    No label validation: the label is DERIVED from the fixtures, never sent. See labelForKickoff
+    in services/fixtureBlock.js - it was the only part of a start option not taken from the
+    fixtures, so a typed one could contradict the kick-off time shown directly beneath it.
+    */
     if (!Array.isArray(fixtures) || fixtures.length === 0) {
       return res.json({
         return_code: 'VALIDATION_ERROR',
@@ -154,7 +144,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
     await transaction(async (client) => {
       await client.query(`
         UPDATE fixture_block SET label = $1, opens_gameweek = $2 WHERE id = $3
-      `, [label.trim(), opensGameweek, block_id]);
+      `, [labelForFixtures(fixtures), opensGameweek, block_id]);
 
       await client.query('DELETE FROM fixture_block_item WHERE block_id = $1', [block_id]);
 

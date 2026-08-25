@@ -51,13 +51,18 @@ import { ukTimeToUtcIso } from '@/lib/uk-time';
 
 type Notice = { tone: 'success' | 'info' | 'error'; text: string } | null;
 
-/* A fixture being entered: teams plus its own kickoff, held as separate UK date and time fields
-   because that is what the inputs bind to. Converted to UTC only on submit. */
+/*
+A fixture being entered: just the two teams. The kickoff is the block's, set once at the top and
+applied to every fixture on submit.
+
+There used to be a date and time on each row. Nothing used them - the lock time is what the round
+turns on, and that is the earliest kickoff, so per-fixture times only ever mattered if you kept
+them apart on purpose. Twelve pairs of inputs nobody touched, each one a way to key a block that
+locks earlier than intended.
+*/
 type DraftFixture = {
   home_team_short: string;
   away_team_short: string;
-  date: string;
-  time: string;
 };
 
 // ======================================================================================
@@ -115,14 +120,6 @@ function toDraftDateTime(iso: string): { date: string; time: string } {
   };
 }
 
-/** The label we suggest for a block, from its earliest kickoff. Editable - it is only a name. */
-function suggestLabel(date: string): string {
-  if (!date) return '';
-  // Parsed as local midnight, which is the date the operator typed regardless of timezone.
-  const d = new Date(`${date}T00:00:00`);
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-}
-
 const TIME_SHORTCUTS = ['12:30', '15:00', '17:30', '19:30', '20:00'];
 
 // ======================================================================================
@@ -169,8 +166,8 @@ function BlockForm({
   // choice rather than ten.
   const [defaultDate, setDefaultDate] = useState('');
   const [defaultTime, setDefaultTime] = useState('15:00');
-  const [label, setLabel] = useState('');
-  const [labelTouched, setLabelTouched] = useState(false);
+  /* Not editable - see the long note where the checkbox used to be. Kept as state rather than a
+     literal so editing a block that predates this cannot silently flip its stored value. */
   const [opensGameweek, setOpensGameweek] = useState(true);
   const [fixtures, setFixtures] = useState<DraftFixture[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -178,21 +175,21 @@ function BlockForm({
   // Load the block being edited into the form, or reset to empty for a new one.
   useEffect(() => {
     if (editing) {
-      const drafts = editing.fixtures.map((f) => ({
+      setFixtures(editing.fixtures.map((f) => ({
         home_team_short: f.home_team_short,
         away_team_short: f.away_team_short,
-        ...toDraftDateTime(f.kickoff_time),
-      }));
-      setFixtures(drafts);
-      setLabel(editing.label);
-      setLabelTouched(true);
+      })));
       setOpensGameweek(editing.opens_gameweek);
-      setDefaultDate(drafts[0]?.date ?? '');
-      setDefaultTime(drafts[0]?.time ?? '15:00');
+      // The block's kickoff, taken from the fixture it locks on - the earliest.
+      const earliest = editing.fixtures.reduce(
+        (soonest, f) => (f.kickoff_time < soonest ? f.kickoff_time : soonest),
+        editing.fixtures[0]?.kickoff_time ?? ''
+      );
+      const seed = earliest ? toDraftDateTime(earliest) : null;
+      setDefaultDate(seed?.date ?? '');
+      setDefaultTime(seed?.time ?? '15:00');
     } else {
       setFixtures([]);
-      setLabel('');
-      setLabelTouched(false);
       setOpensGameweek(true);
       setDefaultDate('');
       setDefaultTime('15:00');
@@ -245,12 +242,7 @@ function BlockForm({
     setFixtures((prev) => {
       const updated = [...prev];
       if (nextSlot.index >= updated.length) {
-        updated.push({
-          home_team_short: shortName,
-          away_team_short: '',
-          date: defaultDate,
-          time: defaultTime,
-        });
+        updated.push({ home_team_short: shortName, away_team_short: '' });
       } else if (nextSlot.side === 'home') {
         updated[nextSlot.index] = { ...updated[nextSlot.index], home_team_short: shortName };
       } else {
@@ -258,8 +250,6 @@ function BlockForm({
       }
       return updated;
     });
-
-    if (!labelTouched && defaultDate) setLabel(suggestLabel(defaultDate));
   };
 
   const complete = fixtures.filter((f) => f.home_team_short && f.away_team_short);
@@ -272,26 +262,20 @@ function BlockForm({
       setNotice({ tone: 'error', text: 'Add at least one fixture with both teams.' });
       return;
     }
-    if (!label.trim()) {
-      setNotice({ tone: 'error', text: 'Give the block a label - it is what an organiser sees.' });
-      return;
-    }
-    if (complete.some((f) => !f.date || !f.time)) {
-      setNotice({ tone: 'error', text: 'Every fixture needs a kick off date and time.' });
-      return;
-    }
-
+    // Every fixture takes the block's kickoff. Stored per fixture because that is the shape
+    // fixture_load and fixture want, but there is only ever one value to store.
+    const blockKickoff = ukTimeToUtcIso(defaultDate, defaultTime);
     const payload: BlockFixtureInput[] = complete.map((f) => ({
       home_team_short: f.home_team_short,
       away_team_short: f.away_team_short,
-      kickoff_time: ukTimeToUtcIso(f.date, f.time),
+      kickoff_time: blockKickoff,
     }));
 
     setSubmitting(true);
     try {
       const result = editing
-        ? await adminApi.updateFixtureBlock(editing.id, label.trim(), payload, opensGameweek)
-        : await adminApi.addFixtureBlock(teamList.id, label.trim(), payload, opensGameweek);
+        ? await adminApi.updateFixtureBlock(editing.id, payload, opensGameweek)
+        : await adminApi.addFixtureBlock(teamList.id, payload, opensGameweek);
 
       if (result.return_code === 'SUCCESS') {
         setNotice({
@@ -327,7 +311,6 @@ function BlockForm({
             type="button"
             onClick={() => {
               setDefaultDate(s.value);
-              if (!labelTouched) setLabel(suggestLabel(s.value));
             }}
             className={`rounded-lg px-3 py-2 text-xs font-medium transition ${
               defaultDate === s.value
@@ -344,13 +327,12 @@ function BlockForm({
         value={defaultDate}
         onChange={(e) => {
           setDefaultDate(e.target.value);
-          if (!labelTouched) setLabel(suggestLabel(e.target.value));
         }}
         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
       />
 
       <label className="mb-2 mt-5 block text-xs font-medium text-slate-600">
-        Kick off <span className="font-normal text-slate-400">— applied to each fixture as you add it</span>
+        Kick off <span className="font-normal text-slate-400">— the whole block locks at this time</span>
       </label>
       <div className="flex flex-wrap items-center gap-2">
         {TIME_SHORTCUTS.map((t) => (
@@ -375,38 +357,31 @@ function BlockForm({
         />
       </div>
 
-      <div className="mt-5 border-t border-slate-100 pt-4">
-        <label className="mb-1 block text-xs font-medium text-slate-600">
-          Label <span className="font-normal text-slate-400">— what an organiser sees when choosing a start date</span>
-        </label>
-        <input
-          type="text"
-          value={label}
-          onChange={(e) => {
-            setLabel(e.target.value);
-            setLabelTouched(true);
-          }}
-          placeholder="Sat 29 Aug"
-          maxLength={60}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
-        />
-      </div>
+      {/*
+      THE "starts a new gameweek" CHECKBOX WAS HERE, AND IS DELIBERATELY NOT ASKED ANY MORE.
+      opensGameweek is still sent, still stored, and still enforced server-side - only the
+      question is gone. Do not put it back without reading this.
 
-      <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-slate-100 pt-4">
-        <input
-          type="checkbox"
-          checked={opensGameweek}
-          onChange={(e) => setOpensGameweek(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-indigo-600"
-        />
-        <span className="text-sm text-slate-700">
-          This block starts a new gameweek
-          <span className="mt-0.5 block text-xs text-slate-500">
-            Untick for the later slices of a gameweek you have already started pushing. Only a
-            block that starts one can be a competition&apos;s first round.
-          </span>
-        </span>
-      </label>
+      WHY IT EXISTED: fixture_load batches share ONE kickoff time. A real Fri-Sun gameweek
+      therefore had to be staged as two or three batches, one round each, and the later ones
+      marked as continuations - otherwise a competition first eligible on the Saturday would get
+      a round 1 of Sunday's two matches while everyone else played a full slate. Nothing in the
+      data could work that out, so whoever staged the batch was asked.
+
+      WHY IT NO LONGER APPLIES HERE: a block is not a batch. Every fixture in a block carries its
+      OWN kickoff (the date and time inputs on each row below), promote-fixture-block copies each
+      one through to fixture_load unchanged, and the push takes the earliest as the round's lock
+      time. So a whole Fri-Sun gameweek is ONE block: one round, locked at the Friday kickoff,
+      holding the entire weekend. There is nothing left to split, so there is nothing to answer.
+
+      The column and the server rules stay. loadBlockForStart refuses a block with it false as a
+      start option, and the first-round rules in fixtureService.js still check it. Those are the
+      safety rail; they cost nothing and removing them is a change to competition start eligibility,
+      which this is not. It has been true on every block ever created.
+
+      IF A CASE FOR false EVER RETURNS, it is a real product decision - two rounds in one weekend -
+      and wants more than a checkbox reinstated here.
+      */}
 
       {/* Team picker and the block being built */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -483,31 +458,6 @@ function BlockForm({
                     >
                       <XMarkIcon className="h-4 w-4" />
                     </button>
-                  </div>
-
-                  {/* Per fixture, because a real block holds a 12:30 and a 15:00. The earliest
-                      of these becomes the round's lock time. */}
-                  <div className="mt-1.5 flex gap-1.5 border-t border-slate-100 pt-1.5">
-                    <input
-                      type="date"
-                      value={fixture.date}
-                      onChange={(e) =>
-                        setFixtures((prev) =>
-                          prev.map((f, i) => (i === index ? { ...f, date: e.target.value } : f))
-                        )
-                      }
-                      className="flex-1 rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-indigo-400"
-                    />
-                    <input
-                      type="time"
-                      value={fixture.time}
-                      onChange={(e) =>
-                        setFixtures((prev) =>
-                          prev.map((f, i) => (i === index ? { ...f, time: e.target.value } : f))
-                        )
-                      }
-                      className="w-24 rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-indigo-400"
-                    />
                   </div>
                 </div>
               );
@@ -833,8 +783,6 @@ export default function FixtureCalendarPage() {
     loadLists();
   }, [selectedListId, loadBlocks, loadLists]);
 
-  const upcoming = blocks.filter((b) => b.staged_at === null);
-
   /*
   A closed gameweek is off the calendar. It was appearing at the very top - the list is ordered by
   kickoff - so the week just finished was the most prominent thing on a screen about what happens
@@ -842,6 +790,20 @@ export default function FixtureCalendarPage() {
   still point at a block after it has been pushed, so deleting is not always possible and must not
   be attempted as a side effect of closing a gameweek.
   */
+  /* One instance, rendered in whichever of two places the button that opened it lives. */
+  const blockForm = teamList ? (
+    <BlockForm
+      teamList={teamList}
+      editing={editing}
+      onSaved={refresh}
+      onCancel={() => {
+        setEditing(null);
+        setShowForm(false);
+      }}
+      setNotice={setNotice}
+    />
+  ) : null;
+
   const visible = useMemo(
     () => blocks.filter((b) => b.staged_at === null || b.in_staging),
     [blocks]
@@ -884,57 +846,34 @@ export default function FixtureCalendarPage() {
       <main className="mx-auto max-w-5xl px-4 py-8">
         <NoticeBanner notice={notice} />
 
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            {teamLists.length > 1 && (
-              <select
+        {/* Just the team-list picker, and only when there is a choice to make. The block count
+            lived here and said nothing the list below does not, and losing it left "Add a block"
+            alone in the corner - it now sits at the end of the list, where the block it creates
+            will appear. */}
+        {teamLists.length > 1 && (
+          <div className="mb-6 flex flex-wrap items-center gap-3">
+            <select
                 value={selectedListId ?? ''}
                 onChange={(e) => {
                   setSelectedListId(Number(e.target.value));
                   setEditing(null);
                   setShowForm(false);
                 }}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
-              >
-                {teamLists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            <p className="text-xs text-slate-500">
-              {upcoming.length} block{upcoming.length === 1 ? '' : 's'} waiting
-            </p>
-          </div>
-
-          {teamList && !showForm && !editing && (
-            <button
-              onClick={() => setShowForm(true)}
-              /* Secondary. Stage is the action this screen exists for and the only thing in
-                 solid indigo; keying a future gameweek is housekeeping you do when you came here
-                 to do it, not the choice being offered. Two identical buttons made it a fork. */
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
             >
-              Add a block
-            </button>
-          )}
-        </div>
-
-        {teamList && (showForm || editing) && (
-          <div className="mb-6">
-            <BlockForm
-              teamList={teamList}
-              editing={editing}
-              onSaved={refresh}
-              onCancel={() => {
-                setEditing(null);
-                setShowForm(false);
-              }}
-              setNotice={setNotice}
-            />
+              {teamLists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))}
+            </select>
           </div>
         )}
+
+        {/* Editing opens above the list, adding opens at the foot of it - each where the button
+            that opened it was, so neither needs a scroll to reach. Built once and placed once;
+            showForm and editing are mutually exclusive. */}
+        {teamList && editing && <div className="mb-6">{blockForm}</div>}
 
         {loading && blocks.length === 0 ? (
           <p className="text-sm text-slate-500">Loading...</p>
@@ -946,7 +885,17 @@ export default function FixtureCalendarPage() {
               Key the next two or three gameweeks here. A new competition picks its start date from
               these, so an empty calendar means new organisers have nothing to start on.
             </p>
+            {teamList && !showForm && !editing && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="mt-4 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50"
+              >
+                Add a block
+              </button>
+            )}
           </div>
+        ) : blocks.length === 0 && showForm ? (
+          blockForm
         ) : (
           <div className="space-y-4">
             {visible.map((block) => (
@@ -964,6 +913,23 @@ export default function FixtureCalendarPage() {
                 setNotice={setNotice}
               />
             ))}
+
+            {/* Last in the list, because the list is in date order and a new gameweek goes after
+                the ones already keyed - the button sits where the thing it creates will appear,
+                and the form then opens in its place rather than off the top of the screen.
+                Dashed and muted: Stage is still the only solid button on the screen. */}
+            {teamList && showForm ? (
+              blockForm
+            ) : (
+              teamList && !editing && (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="w-full rounded-xl border border-dashed border-slate-300 bg-white/50 px-4 py-4 text-sm font-medium text-slate-500 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  + Add a block
+                </button>
+              )
+            )}
           </div>
         )}
 

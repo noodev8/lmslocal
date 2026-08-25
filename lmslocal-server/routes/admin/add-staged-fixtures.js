@@ -73,24 +73,8 @@ const express = require('express');
 const { query, transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { validateFixtures } = require('../../services/fixtureBlock');
+const { validateFixtures, labelForKickoff } = require('../../services/fixtureBlock');
 const router = express.Router();
-
-/*
-The name an organiser sees when this batch is offered as a start date, e.g. "Fri 21 Aug". Derived
-from the kickoff rather than asked for: this form has no label field and adding one would ask
-whoever stages fixtures to name something they never see.
-
-Europe/London explicitly - a Friday 20:00 kickoff is stored as 19:00 UTC, and a server outside the
-UK would otherwise label it Friday or Thursday depending on where it happened to be running.
-*/
-const labelForKickoff = (kickoffTime) =>
-  new Date(kickoffTime).toLocaleDateString('en-GB', {
-    timeZone: 'Europe/London',
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short'
-  });
 
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('add-staged-fixtures');
