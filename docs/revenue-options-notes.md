@@ -3,33 +3,47 @@
 **Status: scratch. Not authoritative, not a decision record, safe to delete.**
 
 Written 2026-08-24 from a conversation between Andreas and Claude about whether advertising
-could fund LMSLocal alongside organiser credits. Nothing here has been built or agreed. It exists
-so the next session does not have to redo the arithmetic.
+could fund LMSLocal alongside organiser credits. Revised 2026-08-25 once Andreas answered the
+open questions. Nothing here has been built. It exists so the next session does not have to
+redo the arithmetic.
 
 ---
 
-## Waiting on Andreas
+## Settled (2026-08-25)
 
-Five open questions. Each is a decision rather than a task — none of them can be settled from the
-code, and the sections below are the arithmetic behind them.
+The first version of this file carried five open questions and treated three of them as urgent.
+Andreas has answered all five, and most of the urgency was misplaced.
 
-1. **Does the free tier change, and to what?** 20 places against 12-player competitions means the
-   median organiser never pays. The site already promises those places are "yours for good", so
-   this has to be settled before the organiser count grows, not after. Keep 20? Reduce it? First
-   competition free, later ones charged? Per season instead of per lifetime?
-2. **Do we carry advertising at all — and does that include licensed bookmakers?** Andreas's
-   position is that not being a bookmaker does not stop us advertising them. The open part is
-   whether we act on it, and how ad slots sit alongside `/help/is-it-gambling`.
-3. **Do we start collecting date of birth at registration now?** And as a real DOB or a simple
-   18+ confirmation? This is the one that cannot be applied retroactively, so it is the most
-   time-sensitive item in the file regardless of what is decided about ads.
-4. **Is local sponsorship a paid feature, a pricing tier, or bundled — and at what price?** Plus
-   the content policy question: what may an organiser put in that slot, given a bookmaker in it
-   drags the compliance problem back to us.
-5. **Has the `/help/is-it-gambling` page been read and approved?** It is live and speaks in
-   LMSLocal's voice about other people's legal exposure. It was written to the "explain, do not
-   guarantee" rule and is fully sourced, but it has not been signed off — the pub answer in
-   particular is the bluntest thing on the site.
+1. **The free tier is not locked, anywhere, and never was.** `/terms` says we may change prices
+   or introduce new charges with 30 days notice to existing customers, and §13 lets us modify
+   the terms at any time. We are free to change the tier whenever we choose. **Nothing here is
+   time-critical** — this was the previous version's central claim and it was wrong.
+2. **We carry no advertising, and are not pursuing it.** Not a rejection on principle; it is
+   not worth the compliance apparatus at current scale. Revisit if the numbers below ever
+   become real.
+3. **We deliberately do not collect date of birth, or ask for 18+ confirmation.** The current
+   priority is growing the user base, and registration is kept as frictionless as possible —
+   which has worked. See the DOB section for why this is cheaper to reverse than the first
+   version claimed.
+4. **Local sponsorship is an idea, nothing more.** Nothing built, nothing designed, no pricing.
+5. **`/help/is-it-gambling` is approved and live.**
+
+### The one thing left open
+
+**What the free tier should be once there is scale to price against.** Not urgent, not a
+decision to take at 27 organisers, and not answerable from the code. The arithmetic below is the
+reason it will eventually need an answer.
+
+### One thing worth knowing, not worth acting on
+
+The marketing copy promises more than the terms do. Eight live places say the free places are
+**"yours for good"** or free **"for as long as you run it"**:
+`pricing/page.tsx`, `pricing/layout.tsx` (×2), `SiteSchema.tsx`, `layout.tsx` (meta, ×3),
+`page.tsx`, `help/faq/page.tsx`, `register/page.tsx`.
+
+The terms govern, so this is not a legal exposure. But if the tier is ever reduced, that copy is
+what people will quote back, not the terms. Worth changing *before* a reduction rather than
+alongside one. No reason to touch it today.
 
 ---
 
@@ -87,34 +101,27 @@ Projected to Andreas's stated target of **24,000 users**, holding today's ratios
 Twenty-four thousand users producing under ten thousand pounds. The organiser model monetises
 *large* competitions; most of ours are small ones.
 
-### The bit that is time-critical
-
-The site already promises the 20 places are **"yours for good"** and **"free for as long as you
-run it"** — `/pricing`, the home page, `/help/faq`, and the SiteSchema offer. That promise is fine
-against 27 organisers and expensive against 1,500, and it cannot be withdrawn from people who
-already have it.
-
-**So the free tier is a decision to take before the growth, not after it.** Options if it needs to
-change: a smaller lifetime allowance, first competition free and later ones charged, or per-season
-rather than per-lifetime. No recommendation here — it is Andreas's call and it is a pricing
-decision, not a technical one.
+This is the argument for eventually revisiting the tier — and, if it is revisited, for asking
+whether **per-lifetime is the right unit at all**. A season is the natural cycle of the product,
+and per-season is the only version where 1,500 organisers is a business rather than a hosting
+bill. Not a recommendation to act on now; the growth matters more than the margin at this size.
 
 ---
 
-## Advertising
+## Advertising — parked
 
-At 236 monthly actives it earns roughly £20 a month and is not worth the pixels. At 24,000 it is a
-real line:
+Kept for the arithmetic, not as a plan. At 236 monthly actives it earns roughly £20 a month and
+is not worth the pixels. At 24,000 it would be a real line:
 
 - ~290,000 page views/month, two slots ≈ 580,000 impressions
 - £2 RPM ≈ **£14k/year**; £4 RPM (betting-adjacent) ≈ **£28k/year**
 - Bookmaker affiliate instead: UK CPA £25–40 per depositing customer. 1% annual conversion of 24k
   users ≈ £7k/year; 3% ≈ £21k/year
 
-So at the target scale advertising plausibly **out-earns credits** under today's competition sizes.
-Both legs need work; the ad leg currently has no foundations laid at all.
+So at the target scale advertising plausibly out-earns credits under today's competition sizes.
+That is the only reason it stays in the file. Nothing has been built and no foundations laid.
 
-### Andreas's position on gambling ads
+### Andreas's position, if it is ever revisited
 
 He is deliberately not a bookmaker and not in the money flow, but takes the view — reasonably —
 that this does not stop him carrying ads for licensed bookmakers. The tension to manage is
@@ -122,37 +129,53 @@ that this does not stop him carrying ads for licensed bookmakers. The tension to
 arrangements. Carrying betting ads does not contradict that, but the page and the ad slot should
 not sit on the same screen without thought.
 
-### Age — what the rules actually require
+### What gambling ads would require
 
 - **The 25% rule**: no medium may carry gambling ads if more than 25% of its audience is, or is
-  likely to be, under 18. It is an audience-composition test, so it needs age *data*, not a terms
-  clause.
+  likely to be, under 18. It is an audience-**composition** test.
 - **Affiliate liability sits with the operator.** The Gambling Commission holds licensees jointly
   responsible for their affiliates' content, so the bookmaker's affiliate programme is the real
   gatekeeper — they will ask how under-18s are excluded, because our non-compliance becomes their
   licence problem.
-- Nobody verifies age. The industry norm is to **age-gate at signup** and self-certify the
-  audience.
+- Nobody verifies age. The industry norm is to age-gate at signup and self-certify the audience.
+- **A real consent management platform** with categories, replacing the one-line accept/reject
+  banner in `components/CookieConsent.tsx`, before serving ads to UK/EEA traffic.
 
-`routes/register.js` collects display name, email and password only. **Adding a date of birth
-field is the single most time-sensitive item in these notes** — it can be captured from every new
-user today and cannot be applied retroactively to 24,000 existing ones.
-
-`components/CookieConsent.tsx` is a one-line accept/reject banner writing a localStorage flag.
-Serving ads to UK/EEA traffic needs a real consent management platform with categories. Same
-argument: cheap now, a retrofit later.
-
-Sources for the above:
+Sources:
 [CAP — appeal to children](https://www.asa.org.uk/advice-online/betting-and-gaming-appeal-to-children.html),
 [Gambling Commission — advertising and marketing rules](https://www.gamblingcommission.gov.uk/licensees-and-businesses/guide/advertising-marketing-rules-and-regulations),
 [CAP/BCAP under-18s guidance](https://www.asa.org.uk/news/cap-and-bcap-update-guidance-on-protecting-under-18s-in-gambling-and-lotteries-advertising.html).
 
 ---
 
-## Local sponsorship — the alternative to an ad network
+## Date of birth — deliberately not collected
 
-The structure, since it was not obvious first time round. **The money never touches LMSLocal**,
-which keeps the not-in-the-money-flow position intact.
+`routes/register.js` collects display name, email and password only. That is a choice, not an
+oversight: joining friction is the thing being optimised while the user base grows, and it has
+worked.
+
+**The first version of this file called DOB "impossible to fix later" and ranked it the most
+urgent item. That was wrong**, and it is worth writing down why so it is not re-derived:
+
+- The 25% rule is an **audience-composition** test. It asks about the shape of the audience, not
+  the DOB of every individual in it. A representative sample satisfies it — an interstitial on
+  next login, a one-off survey, analytics demographics.
+- So a later backfill is **more expensive, not impossible**. The cost is friction applied to a
+  large user base instead of a small one, which is a real cost but a payable one.
+- Collecting DOB now, for a monetisation route we have decided against, means holding personal
+  data with no current purpose. That is a data-minimisation argument **against** collecting it,
+  not merely a cost of doing so.
+
+**DOB is a prerequisite for advertising, not for growth.** It belongs in the same box as the CMP:
+built if and when ads become real, and not before.
+
+---
+
+## Local sponsorship — an idea, nothing more
+
+Nothing built, nothing designed, no pricing decided. Recorded because the structure was not
+obvious first time round. **The money never touches LMSLocal**, which keeps the
+not-in-the-money-flow position intact.
 
 1. The organiser sells the slot to a local business themselves — typically £50–150 for a season.
 2. The sponsor pays **the organiser**, directly. The organiser keeps all of it. We never see,
@@ -166,26 +189,15 @@ Why it is attractive: no ad sales, no advertiser vetting, no CPM dependency, no 
 and it sells itself ("this pays for itself five times over") in a way another credit pack does not.
 1,500 organisers at a 30% attach rate ≈ £9k/year, roughly doubling the credit line.
 
-**It needs a content policy on what may go in the slot**, or an organiser will put a bookmaker
-there and we inherit the compliance problem sideways.
+**It would need a content policy on what may go in the slot**, or an organiser will put a
+bookmaker there and we inherit the compliance problem sideways.
 
 ---
 
-## Foundations worth laying, in order
-
-1. **Date of birth at registration.** Smallest change here, and the only one impossible to fix
-   later.
-2. **Decide the free tier** before "yours for good" reaches 1,500 organisers.
-3. **A real CMP** with consent categories, replacing the current banner.
-4. **Build the slot as one component** now — a sponsor today, an ad unit later — so it is not a
-   retrofit fighting the design system.
-5. **Measure players → organisers.** Nothing tracks it today, and at 24k users that conversion is
-   the entire growth model.
-
 ## Explicitly not concluded
 
-- Whether to carry ads at all.
-- Whether the free tier changes, and to what.
-- Whether sponsorship is a paid feature, a tier, or bundled.
+- What the free tier should become, if anything, once there is scale to price against.
+- Whether local sponsorship is ever built, and if so whether it is a paid feature, a tier, or
+  bundled.
 - Any of the RPM and CPA figures above — they are industry ranges from an August 2026
   conversation, not quotes from a network.
