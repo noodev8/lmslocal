@@ -81,7 +81,7 @@ const SECTIONS: Section[] = [
             p: 'Players: nothing. Joining is free. Your organiser may run their own entry fee or kitty, which is between you and them and has nothing to do with us.'
           },
           {
-            p: 'Organisers: your first 20 places are free and yours for good, no card needed. They are shared across everything you run, not 20 per competition. Every player past that uses a credit, and credits come in packs starting at £10 for 20 more places.'
+            p: 'Organisers: 20 free places, yours for good and no card needed. They are shared across everything you run, not 20 per competition, and each player holds one for as long as their competition exists — including competitions that have finished. Every player past the 20 uses a credit, and credits come in packs starting at £10 for 20 more places.'
           }
         ]
       },
@@ -229,7 +229,7 @@ const SECTIONS: Section[] = [
         q: 'How many competitions can I run?',
         a: [
           {
-            p: 'As many as you want, all from one account. Remember the 20 free places are shared across them rather than granted to each.'
+            p: 'As many as you want, all from one account. Remember the 20 free places are shared across them rather than granted to each — including competitions that have finished, which carry on holding the places their players took.'
           }
         ]
       },
@@ -351,6 +351,20 @@ const SECTIONS: Section[] = [
         ]
       },
       {
+        q: 'Why are my free places still used when a competition has finished?',
+        a: [
+          {
+            p: 'Because a place is held by a player rather than spent on a game. Each player takes one of your 20 for as long as their competition exists, so a competition that finished last month is still holding the places its players took. That is why you can be at the limit on a brand new competition with only a handful of people in it.'
+          },
+          {
+            p: 'Your billing page lists every competition and how many places each one is holding, so you can see exactly where the 20 have gone.'
+          },
+          {
+            p: 'Deleting a competition frees the free places its players are holding. It also removes that competition’s results for good, and does not refund credits you have bought.'
+          }
+        ]
+      },
+      {
         q: 'If I remove a player, do I get their credit back?',
         a: [
           {
@@ -362,7 +376,7 @@ const SECTIONS: Section[] = [
         q: 'What happens if a player tries to join when I am full?',
         a: [
           {
-            p: 'They see a message saying the competition is full and to get in touch with you. You get a notice on your dashboard shortly afterwards, so you can buy more places or tell them where they stand.'
+            p: 'They see a message saying the competition is full and to get in touch with you. You get a notice on your dashboard shortly afterwards, so you can buy more places or tell them where they stand. Your billing page lists which of your competitions are holding your places.'
           }
         ]
       },

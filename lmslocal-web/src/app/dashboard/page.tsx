@@ -438,9 +438,14 @@ export default function DashboardPage() {
                     <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-overprint" />
                     <div>
                       <p className="text-[15px] font-medium text-ink">{blockedJoinsHeadline}</p>
+                      {/* Names the finished-competition case here, because that is the
+                          part an organiser blocked on a brand new competition cannot
+                          otherwise explain. The breakdown of which competitions hold
+                          what is one click away on /billing, where the buy button is. */}
                       <p className="text-[13px] text-ink-fade">
-                        You are at your player limit, so they were turned away. Add credits and
-                        they can join straight away with the same code.
+                        All {blockedJoins.places_used} of your credits are held by players in your
+                        competitions — including any that have finished. Add credits and they can
+                        join straight away with the same code.
                       </p>
                     </div>
                   </div>

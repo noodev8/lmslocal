@@ -104,6 +104,7 @@ const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { getPlaceUsage } = require('../services/placeUsage');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -688,26 +689,20 @@ router.post('/', verifyToken, async (req, res) => {
       `, [user_id]);
 
       if (blockedResult.rows.length > 0) {
-        // A block is history, not a state. Once the organiser buys credits the door is open again
-        // and the banner is simply wrong - it asks them to fix something they have already fixed.
-        // So recompute capacity the same way the join gate does (get-competition-by-code.js) and
-        // report nothing unless they are STILL shut. The frontend never sees a resolved block.
-        const capacityResult = await query(`
-          SELECT u.paid_credit,
-                 (SELECT COUNT(cu.id)
-                    FROM competition c
-                    LEFT JOIN competition_user cu ON cu.competition_id = c.id
-                   WHERE c.organiser_id = u.id) AS player_count
-          FROM app_user u
-          WHERE u.id = $1
-        `, [user_id]);
+        /*
+        A block is history, not a state. Once the organiser buys credits the door is open again
+        and the banner is simply wrong - it asks them to fix something they have already fixed.
+        So recompute capacity and report nothing unless they are STILL shut. The frontend never
+        sees a resolved block.
 
-        const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
-        const credits = Number(capacityResult.rows[0]?.paid_credit) || 0;
-        const playerCount = Number(capacityResult.rows[0]?.player_count) || 0;
-        const stillBlocked = playerCount >= FREE_PLAYER_LIMIT && credits < 1;
+        Through services/placeUsage.js rather than a COUNT written here. This query used to be its
+        own hand-rolled count that included bots, while the join gate excludes them - so a
+        bot-seeded organiser could be told they were full by the banner and let players in by the
+        gate on the same afternoon.
+        */
+        const usage = await getPlaceUsage(user_id);
 
-        if (stillBlocked) {
+        if (usage.is_blocked) {
           blockedJoins = {
             // Deliberately vague in the UI - see services/joinBlock.js. Repeat visits inside a
             // short window collapse to one row, but this is a floor, never an exact headcount.
@@ -716,7 +711,13 @@ router.post('/', verifyToken, async (req, res) => {
               competition_id: row.competition_id,
               name: row.competition_name,
               count: Number(row.block_count)
-            }))
+            })),
+
+            // The summary only. The banner says how many places are gone and sends them to
+            // billing for the breakdown of where - which is also where the buy button is, and
+            // so where the whole answer belongs.
+            places_used: usage.used,
+            places_limit: usage.limit
           };
         }
       }

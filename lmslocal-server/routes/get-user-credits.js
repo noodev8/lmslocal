@@ -26,6 +26,15 @@ Success Response (ALWAYS HTTP 200):
       "paid_amount": 40.00,             // number, amount paid in GBP
       "purchased_at": "2025-03-15T10:30:00Z"  // string, ISO datetime
     }
+  ],
+  "place_usage": [                      // array, which competitions hold the places, biggest first
+    {
+      "competition_id": 229,            // integer
+      "name": "Aptar",                  // string, competition name
+      "status": "COMPLETE",             // string, upper-cased competition status
+      "status_label": "Finished",       // string, human label ("" if status unrecognised)
+      "places": 8                       // integer, chargeable places this competition holds
+    }
   ]
 }
 
@@ -48,6 +57,9 @@ Business Logic:
 - Player count includes ALL players in ALL competitions owned by this organizer
 - Free tier: 20 player slots are free, counted live — a player leaving frees their slot again
 - Paid tier: slots beyond the free limit consume paid credits (1 credit per player)
+- place_usage says WHICH competitions hold those slots, including finished ones, which is the
+  part the totals cannot show. Same definition as the dashboard banner and the join_blocked
+  email — services/placeUsage.js
 =======================================================================================================================================
 */
 
@@ -56,6 +68,7 @@ const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { CREDIT_PACKS } = require('../config/credit-packs');
 const { organiserChargeableCountSql } = require('../services/botPool');
+const { getPlaceUsage } = require('../services/placeUsage');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -137,6 +150,18 @@ router.post('/', verifyToken, async (req, res) => {
 
     const purchasesResult = await query(purchasesQuery, [userId]);
 
+    /*
+    === STEP 3.5: WHERE THE PLACES WENT ===
+    The totals above say how many places are gone; this says which competitions are holding them,
+    which is the part an organiser cannot work out for themselves. A finished competition holds
+    its places exactly like a running one, so somebody blocked on a brand new competition with
+    four people in it has nothing on screen that explains it.
+
+    Same service as the dashboard banner and the join_blocked email, so all three account for the
+    same number the same way. See services/placeUsage.js.
+    */
+    const usage = await getPlaceUsage(userId);
+
     // Map pack_type to friendly pack names using CREDIT_PACKS config
     const recentPurchases = purchasesResult.rows.map(purchase => ({
       pack_type: purchase.pack_type,
@@ -156,7 +181,8 @@ router.post('/', verifyToken, async (req, res) => {
         paid_players_used: paidPlayersUsed,
         free_player_limit: FREE_PLAYER_LIMIT  // Include configurable limit for frontend
       },
-      recent_purchases: recentPurchases
+      recent_purchases: recentPurchases,
+      place_usage: usage.competitions
     });
 
   } catch (error) {

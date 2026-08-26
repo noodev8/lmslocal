@@ -1240,11 +1240,50 @@ const buildJoinBlockedEmail = (email, templateData) => {
     competition_id,
     total_blocks,
     blocked_competition_count,
+    place_usage,
     email_tracking_id,
     unsubscribe
   } = templateData;
 
   const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  /*
+  Where their credits actually are. Carried inline by services/joinBlocked.js because this email
+  is for the organiser who does not open the dashboard, and a breakdown behind a link is one they
+  will not see. Guarded because older queued rows predate the field - a backlog drained after this
+  ships must still render.
+  */
+  const usage = Array.isArray(place_usage) ? place_usage : [];
+  const usageRowsHtml = usage.map(row => `
+              <tr>
+                <td style="padding: 6px 0; color: #334155; font-size: 15px;">
+                  ${row.name}${row.status_label ? ` <span style="color: #94a3b8;">${row.status_label}</span>` : ''}
+                </td>
+                <td style="padding: 6px 0; color: #334155; font-size: 15px; text-align: right; white-space: nowrap;">
+                  ${row.places}
+                </td>
+              </tr>`).join('');
+
+  const usageHtml = usage.length === 0 ? '' : `
+            <p style="color: #334155; font-size: 16px; margin: 0 0 12px 0; line-height: 1.5;">
+              Each player holds one credit for as long as their competition exists &mdash;
+              including competitions that have finished. Yours are here:
+            </p>
+
+            <table style="width: 100%; border-collapse: collapse; margin: 0 0 24px 0;">
+              ${usageRowsHtml}
+            </table>`;
+
+  const usageTextRows = usage
+    .map(row => `  ${row.name}${row.status_label ? ` (${row.status_label})` : ''} - ${row.places}`)
+    .join('\n');
+
+  const usageText = usage.length === 0 ? '' : `
+Each player holds one credit for as long as their competition exists -
+including competitions that have finished. Yours are here:
+
+${usageTextRows}
+`;
 
   const base = process.env.PLAYER_FRONTEND_URL;
   const creditsUrl = `${base}/billing?email_id=${email_tracking_id}`;
@@ -1296,6 +1335,8 @@ const buildJoinBlockedEmail = (email, templateData) => {
               a new link &mdash; the same join code that turned them away starts working.
             </p>
 
+            ${usageHtml}
+
             <p style="color: #64748b; font-size: 14px; margin: 0 0 28px 0; line-height: 1.5;">
               If you would rather leave it there, you can. Your competition carries on exactly as
               it is with the players already in it.
@@ -1331,7 +1372,7 @@ left, so the door is shut.
 Add credits and it opens again straight away. Nothing else changes and
 nobody needs a new link - the same join code that turned them away starts
 working.
-
+${usageText}
 If you would rather leave it there, you can. Your competition carries on
 exactly as it is with the players already in it.
 

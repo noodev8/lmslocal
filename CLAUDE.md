@@ -20,7 +20,7 @@ doc first** (except the email README, see below):
 | What `/game/[id]/round` shows | `docs/round-state-machine.md` |
 | Writing to the database | `docs/testing-rules.md`, `lmslocal-server/db/README.md` |
 | Marketing artwork | `lmslocal-marketing/README.md` |
-| Admin tool, bots | `docs/admin-tool.md`, `docs/BOTS-Management.md` |
+| Bots | `docs/BOTS-Management.md` |
 
 ## Architecture
 
@@ -93,7 +93,7 @@ doc first** (except the email README, see below):
   and anything newer than the threshold are exempt). `competition.stalled_override` is a
   tri-state manual override — NULL trusts the rule, and **nothing ever writes the derived answer
   into it**. Stalled rows get their own tile and tab and are excluded from every other count.
-  Marking is not deleting. See `docs/admin-tool.md`
+  Marking is not deleting
 - **Screens**: **`/dashboard/competitions` is the landing page** — there is no Overview.
   `/dashboard` was deleted because its counts duplicated the Competitions screen and disagreed
   with it (16 active against 14 — it counted by status alone and did not exclude stalled)

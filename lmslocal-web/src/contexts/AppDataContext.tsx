@@ -29,6 +29,9 @@ interface AppDataContextType {
   blockedJoins: {
     total: number;
     competitions: { competition_id: number; name: string; count: number }[];
+    // Summary only — the breakdown of which competitions hold the credits is on /billing.
+    places_used: number;
+    places_limit: number;
   } | null;
 
   // Loading states

@@ -145,8 +145,8 @@ No password needs to be written down anywhere for testing.
     console.log(signAdminToken({ id: 1088, email: 'claude@lmslocal.invalid', display_name: 'Claude (test)' }));"
   ```
 
-  `admin-login` deliberately ignores `MASTER_PASSWORD` (see `docs/admin-tool.md`), so this is the
-  way in.
+  `admin-login` deliberately ignores `MASTER_PASSWORD` (see `routes/admin/admin-login.js`), so
+  this is the way in.
 
 - **Player routes**: `MASTER_PASSWORD` in `.env` logs in as any user via `/login`.
 

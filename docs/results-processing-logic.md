@@ -8,7 +8,7 @@ copies of one ruleset. This doc is that ruleset.
 
 Companion docs: `results-processing-performance.md` (why results push one competition at a time,
 and how to make this scale), `results-processing-correction.md` (how to change a result
-that was already processed), `admin-tool.md` (the staging and push screens).
+that was already processed).
 
 ---
 

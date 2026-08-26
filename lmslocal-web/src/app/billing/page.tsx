@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { userApi, cacheUtils } from '@/lib/api';
-import type { UserCredits, CreditBillingHistoryItem } from '@/lib/api';
+import type { UserCredits, CreditBillingHistoryItem, PlaceUsage } from '@/lib/api';
 import { LABEL, EYEBROW, PANEL, BTN_DARK } from '@/lib/design';
 
 /**
@@ -20,6 +20,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState<UserCredits | null>(null);
   const [purchases, setPurchases] = useState<CreditBillingHistoryItem[]>([]);
+  const [placeUsage, setPlaceUsage] = useState<PlaceUsage[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Credit pack configuration (matches backend config/credit-packs.js)
@@ -60,6 +61,7 @@ export default function BillingPage() {
         const creditsResponse = await userApi.getUserCredits();
         if (creditsResponse.data.return_code === 'SUCCESS' && creditsResponse.data.credits) {
           setCredits(creditsResponse.data.credits);
+          setPlaceUsage(creditsResponse.data.place_usage || []);
         } else if (creditsResponse.data.return_code === 'GUEST_USER_NO_CREDITS') {
           setError('Guest players do not have their own credits. Ask your competition organiser about a place.');
           return;
@@ -237,6 +239,59 @@ export default function BillingPage() {
             . You can add {slotsAvailable} more {slotsAvailable === 1 ? 'player' : 'players'}.
           </p>
         </section>
+
+        {/* --------------------------------------------- where the credits are
+
+            The totals above say how many credits are gone. This says which
+            competitions are holding them, which is the part an organiser
+            cannot work out for themselves — a credit is held by a player's
+            entry for as long as that competition exists, so a competition
+            that finished last month still holds its eight. Somebody blocked
+            on a brand new competition with four people in it has, without
+            this, nothing on screen that explains why.
+
+            "Where your credits are", not "have gone": they are held, not
+            spent, and the wording is the whole point.
+
+            The deletion line is deliberately flat and sits here rather than
+            in the join-blocked email — beside the buy button, at the moment
+            of the decision, so nobody pays without knowing the door exists.
+            It is not an offer, and it carries what deletion costs, because
+            for most organisers it is a bad trade. */}
+        {placeUsage.length > 0 && (
+          <section className="mt-14">
+            <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink sm:text-5xl">
+              Where your credits are
+            </h2>
+            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
+              Each player holds one credit for as long as their competition exists — including
+              competitions that have finished.
+            </p>
+
+            <dl className="mt-8 w-full max-w-md font-data text-[15px]">
+              {placeUsage.map((row) => (
+                <div
+                  key={row.competition_id}
+                  className="flex items-baseline justify-between gap-6 border-b border-ink/30 py-2.5 last:border-b-0"
+                >
+                  <dt className="text-ink">
+                    {row.name}
+                    {row.status_label && (
+                      <span className="ml-2 text-ink-fade">{row.status_label}</span>
+                    )}
+                  </dt>
+                  <dd className="tabular-nums text-ink">{row.places}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-ink-fade">
+              Deleting a competition frees the free credits its players are holding. It also
+              removes that competition&apos;s results for good, and does not refund credits you
+              have bought.
+            </p>
+          </section>
+        )}
 
         {/* ------------------------------------------------------------ packs */}
         <section className="mt-14">

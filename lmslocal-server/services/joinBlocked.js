@@ -64,6 +64,7 @@ the two disagree, the email describes something the organiser cannot find when t
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { organiserChargeableCountSql } = require('./botPool');
+const { getPlaceUsage, usageLines } = require('./placeUsage');
 
 const EMAIL_TYPE = 'join_blocked';
 
@@ -235,7 +236,23 @@ async function buildTemplateData(candidate) {
     Carried so the copy can say "your competitions" rather than naming one when several are
     affected - the same branch the dashboard headline makes.
     */
-    blocked_competition_count: Number(blocked_competition_count)
+    blocked_competition_count: Number(blocked_competition_count),
+
+    /*
+    Where their places actually went, INLINE rather than as a link. This email exists for the
+    organiser who does not open the dashboard (see the header), so a breakdown they have to click
+    through to reach is a breakdown they do not read.
+
+    Resolved at queue time with everything else, so the stored row renders the figures as they
+    stood when we decided to send. Same service as the banner and the billing panel - if the
+    email and the screen disagree, the email describes something they cannot find when they
+    follow it in.
+
+    NOT carried: the line about deletion freeing places. That sits beside the buy button on
+    /billing, at the moment of the decision - not in an unbidden email suggesting somebody
+    delete the record of a competition their players actually finished.
+    */
+    place_usage: usageLines(await getPlaceUsage(user_id))
   };
 }
 

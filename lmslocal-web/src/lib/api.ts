@@ -107,6 +107,16 @@ export interface UserCredits {
   free_player_limit: number;         // Configurable free tier limit from backend .env
 }
 
+// One competition's share of the free/paid places, for the "where did my places go" panel.
+// A place is held for as long as the competition exists, so finished competitions appear here too.
+export interface PlaceUsage {
+  competition_id: number;
+  name: string;
+  status: string;                    // Upper-cased competition status
+  status_label: string;              // Human label; empty string if the status is unrecognised
+  places: number;                    // Chargeable places this competition holds
+}
+
 export interface CreditPurchase {
   pack_type: string;                 // Pack identifier (e.g., 'popular_50')
   pack_name: string;                 // Friendly pack name
@@ -897,6 +907,10 @@ export const userApi = {
         blocked_joins?: {
           total: number;
           competitions: { competition_id: number; name: string; count: number }[];
+          // Summary only — the breakdown of WHICH competitions hold the credits lives on
+          // /billing, beside the buy button. See services/placeUsage.js.
+          places_used: number;
+          places_limit: number;
         } | null;
       }>('/get-user-dashboard', {})
     );
@@ -1051,6 +1065,7 @@ export const userApi = {
         message?: string;
         credits?: UserCredits;
         recent_purchases?: CreditPurchase[];
+        place_usage?: PlaceUsage[];
       }>('/get-user-credits', {})
     );
   },
