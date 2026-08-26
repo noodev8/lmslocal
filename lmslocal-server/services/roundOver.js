@@ -12,7 +12,10 @@ the next round's fixtures are in. A "round over" email with nothing to do next i
 player reads who went out, has nowhere to go, and has to come back later anyway. Waiting turns two
 half-emails into one that settles the last round and opens the next in the same breath.
 
-Ready when the highest FULLY PROCESSED round is followed by a round N+1 that has fixtures.
+Ready when the highest FULLY PROCESSED round is followed by a round N+1 that has fixtures AND
+round N+1 has not locked yet - see the lock clause in findCandidates. Readiness once ran until
+N+1 was itself processed, which meant the whole gap between kickoff and results being keyed, so
+a player could be handed a deadline that passed on Saturday afternoon and asked to pick.
 
 Anything else is somebody else's email. Results outstanding -> resultReminder. Settled with no
 next round staged -> fixtureReminder. Competition finished -> gameComplete.
@@ -40,6 +43,12 @@ it cost.
 MINUS ANYONE WHO HAS ALREADY PICKED IN THE NEXT ROUND (added 2026-08-25). The email's job is to
 bring the player back to the app; if they are already there and have picked, it has nothing left
 to do. The organiser is exempt - their copy is also the competition-wide report.
+
+MINUS ANYONE WHO CAN NO LONGER PICK (added 2026-08-26). Once round N+1 locks, a player still in
+and still without a pick has missed it, and the email would show them a passed deadline. Same
+two exemptions - the organiser, and eliminated players, whose copy is the news that they went
+out rather than an invitation. Eliminated players are deliberately NOT cut off at lock: this is
+their only notification, and their window is already the shortest of anyone's.
 
 Two different questions, deliberately answered from two places:
   - "did your team win?"    -> player_progress.outcome for this round
@@ -257,6 +266,39 @@ async function findCandidates(opts = {}) {
           WHERE pk.round_id = next_round.id
             AND pk.user_id = pp.player_id
         )
+      )
+
+      /*
+      AND ONLY WHILE THE NEXT ROUND CAN STILL BE ENTERED. Readiness used to hold until the next
+      round was fully PROCESSED, which left the whole gap between kickoff and results going in -
+      most of a weekend - during which this email showed fixtures and a deadline that had already
+      passed and asked the player to pick. That is the founding rule broken: not a dead end
+      because there is nothing next, but because what is next cannot be entered.
+
+      The same two exemptions as the pick clause above, and for the same reasons:
+
+        - The ORGANISER's copy is the competition-wide report, which is not a prompt to pick and
+          does not stop being true at kickoff.
+
+        - An ELIMINATED player has nothing to pick and never did. For them this is not an
+          invitation but the only notification they ever get that they went out - they hold no
+          player_progress row for the next round, so once it is processed they can never be a
+          candidate again. Cutting them off at lock would shrink the one window they have, and
+          they are already the group most likely to miss it.
+
+      So this withdraws the email from exactly the people it has become useless to: still in,
+      still not picked, and now unable to. They are told nothing instead of told wrongly, which
+      is the better of the two - a message saying what they missed is a different email, and
+      deliberately not this one.
+
+      A missing lock_time counts as OPEN. Every round carries one today, so this is a guard
+      rather than a case; silently withholding is the worse way to be wrong.
+      */
+      AND (
+        pp.player_id = c.organiser_id
+        OR cu.status <> 'active'
+        OR next_round.lock_time IS NULL
+        OR next_round.lock_time > NOW()
       )
 
       -- Once per player per round.
