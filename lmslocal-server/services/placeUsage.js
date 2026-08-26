@@ -69,6 +69,15 @@ async function getPlaceUsage(userId) {
 
   COUNT(mem.id) rather than COUNT(cu.id): the membership row exists whether or not its owner is
   chargeable, so counting memberships would count bots straight back in.
+
+  re_buys is the same hazard one step further along, and the CASE is not decoration. re_buys lives
+  on competition_user, which survives the LEFT JOIN for a bot - only `mem` goes NULL. So a plain
+  SUM(cu.re_buys) reads a bot's re-buys and adds them, putting back exactly what the line above
+  takes out. Conditioning on mem.id IS NOT NULL is what keeps this count agreeing with
+  botPool.js, which is this file's whole job (see the header).
+
+  Kept as two separate figures rather than one total: the panel this feeds has to show its
+  working, or a competition with 8 players reading 10 looks like a bug. docs/re-buys.md §4.
   */
   const result = await query(`
     SELECT
@@ -76,7 +85,8 @@ async function getPlaceUsage(userId) {
       c.id                       AS competition_id,
       c.name                     AS competition_name,
       UPPER(c.status)            AS status,
-      COUNT(mem.id)              AS places
+      COUNT(mem.id)              AS members,
+      COALESCE(SUM(CASE WHEN mem.id IS NOT NULL THEN cu.re_buys ELSE 0 END), 0) AS re_buys
     FROM app_user u
     LEFT JOIN competition c        ON c.organiser_id = u.id
     LEFT JOIN competition_user cu  ON cu.competition_id = c.id
@@ -87,7 +97,9 @@ async function getPlaceUsage(userId) {
 
     -- Biggest holder first: the competition most worth knowing about is the one holding the most,
     -- and on a blocked account that is usually the one they have forgotten they still have.
-    ORDER BY COUNT(mem.id) DESC, c.name
+    -- Orders on the total, re-buys included, so the panel is not sorted by a different number
+    -- from the one it prints.
+    ORDER BY COUNT(mem.id) + COALESCE(SUM(CASE WHEN mem.id IS NOT NULL THEN cu.re_buys ELSE 0 END), 0) DESC, c.name
   `, [userId]);
 
   /*
@@ -95,13 +107,19 @@ async function getPlaceUsage(userId) {
   also drop the no-competition row that carries the balance.
   */
   const competitions = result.rows
-    .filter(row => row.competition_id !== null && Number(row.places) > 0)
+    .filter(row => row.competition_id !== null && Number(row.members) + Number(row.re_buys) > 0)
     .map(row => ({
       competition_id: row.competition_id,
       name: row.competition_name,
       status: row.status,
       status_label: labelForStatus(row.status),
-      places: Number(row.places)
+
+      // `places` stays the total, because that is the number every existing caller sums and
+      // compares against the limit. The two parts ride alongside it for the panel to explain
+      // itself with - a caller that does not care about re-buys keeps working untouched.
+      places: Number(row.members) + Number(row.re_buys),
+      members: Number(row.members),
+      re_buys: Number(row.re_buys)
     }));
 
   const used = competitions.reduce((sum, row) => sum + row.places, 0);
@@ -128,12 +146,18 @@ async function getPlaceUsage(userId) {
  * same rows inline.
  *
  * @param {object} usage - as returned by getPlaceUsage
- * @returns {Array<object>} [{ name, places, status_label }]
+ * @returns {Array<object>} [{ name, places, members, re_buys, status_label }]
  */
 function usageLines(usage) {
   return usage.competitions.map(row => ({
     name: row.name,
     places: row.places,
+
+    // Carried so the email can break the figure down exactly as the panel does. Whether it
+    // prints them is a copy decision; having them here is what stops the two from being able
+    // to disagree, which is the failure this service exists to prevent.
+    members: row.members,
+    re_buys: row.re_buys,
     status_label: row.status_label
   }));
 }

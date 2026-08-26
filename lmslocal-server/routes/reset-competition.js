@@ -290,6 +290,15 @@ router.post('/', verifyToken, async (req, res) => {
       // rounds 1-5 of the new competition would sit below the boundary and count against nothing,
       // so a player could pick the same team five weeks running. Zero is the correct starting
       // state and it is what the column defaults to for a new member.
+      //
+      // re_buys goes back to 0 for the same reason: it counts places consumed by THIS run, and
+      // the reset has just charged for the whole field again (step 4 above). Leaving it set would
+      // bill the new run for the previous run's re-buys every time the count is taken.
+      //
+      // ORDER MATTERS AND FAILS SILENTLY IF REVERSED. calculateResetCost at line 150 counts
+      // re_buys as places, so the price must be worked out - as it is - BEFORE this runs. Move
+      // the pricing below here and every reset quietly gets cheaper than the quote the organiser
+      // agreed to. docs/re-buys.md §10.6.
       const resetPlayerResult = await client.query(`
         UPDATE competition_user
         SET paid = false,
@@ -297,6 +306,7 @@ router.post('/', verifyToken, async (req, res) => {
             status = 'active',
             lives_remaining = $2,
             teams_reset_round = 0,
+            re_buys = 0,
             joined_at = CURRENT_TIMESTAMP
         WHERE competition_id = $1
         RETURNING user_id

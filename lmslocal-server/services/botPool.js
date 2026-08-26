@@ -106,8 +106,28 @@ function chargeableMemberFilter(userAlias = 'u') {
   return `${userAlias}.email NOT LIKE '${BOT_EMAIL_LIKE}'`;
 }
 
+/*
+=======================================================================================================================================
+Re-buys
+=======================================================================================================================================
+A membership is worth one place, plus one more for every time that player has bought back in
+after being knocked out. Both counts below therefore add competition_user.re_buys.
+
+The reason it is a column and not an event: this count is LIVE. Nothing anywhere stores "this
+organiser has used 24 places" - the number is recomputed by recounting rows every time it is
+needed. Bringing a player back creates no row, so without something on the row to add, the count
+cannot see it happening and a rebuilt field is free. That is a reset by another door, which
+docs/reset-billing.md §2 already priced. See docs/re-buys.md §3.
+
+Consequence worth expecting rather than debugging: a re-buy can be what pushes an organiser past
+FREE_PLAYER_LIMIT, so it can make the NEXT ordinary joiner chargeable, and can tip
+get-competition-by-code into answering FULL. Both are correct - a place is a place, whoever is
+sitting in it.
+=======================================================================================================================================
+*/
+
 /**
- * Scalar subquery counting an organiser's chargeable memberships across ALL their competitions.
+ * Scalar subquery counting an organiser's chargeable places across ALL their competitions.
  *
  * This is the number FREE_PLAYER_LIMIT is compared against everywhere.
  *
@@ -134,7 +154,7 @@ function organiserChargeableCountSql(organiserExpr) {
   a completely different question.
   */
   return `(
-    SELECT COUNT(chg_cu.id)
+    SELECT COUNT(chg_cu.id) + COALESCE(SUM(chg_cu.re_buys), 0)
       FROM competition chg_c
       INNER JOIN competition_user chg_cu ON chg_cu.competition_id = chg_c.id
       INNER JOIN app_user chg_u ON chg_u.id = chg_cu.user_id
@@ -144,7 +164,7 @@ function organiserChargeableCountSql(organiserExpr) {
 }
 
 /**
- * An organiser's chargeable memberships across all their competitions.
+ * An organiser's chargeable places across all their competitions - memberships plus re-buys.
  *
  * @param {Object} client - a pg client inside a transaction, or the shared query helper's caller
  * @param {number} organiserId
@@ -159,7 +179,7 @@ async function countOrganiserChargeableMembers(client, organiserId) {
 }
 
 /**
- * Chargeable members of ONE competition.
+ * Chargeable places in ONE competition - members plus their re-buys.
  *
  * @param {Object} client - a pg client inside a transaction
  * @param {number} competitionId
@@ -167,7 +187,7 @@ async function countOrganiserChargeableMembers(client, organiserId) {
  */
 async function countCompetitionChargeableMembers(client, competitionId) {
   const result = await client.query(`
-    SELECT COUNT(cu.id) AS chargeable_count
+    SELECT COUNT(cu.id) + COALESCE(SUM(cu.re_buys), 0) AS chargeable_count
       FROM competition_user cu
       INNER JOIN app_user u ON u.id = cu.user_id
      WHERE cu.competition_id = $1

@@ -6,8 +6,6 @@ import Link from 'next/link';
 import {
   ArrowLeftIcon,
   TrashIcon,
-  PlusIcon,
-  MinusIcon,
   EyeIcon,
   CheckCircleIcon,
   XMarkIcon,
@@ -16,7 +14,7 @@ import {
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, adminApi, roundApi, fixtureApi, teamApi, userApi, organizerApi, Competition, Player, Team, cacheUtils } from '@/lib/api';
-import { cachePrefixes } from '@/lib/cacheKeys';
+import { cachePrefixes, cacheKeys } from '@/lib/cacheKeys';
 import { useAppData } from '@/contexts/AppDataContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useToast, ToastContainer } from '@/components/Toast';
@@ -57,10 +55,6 @@ export default function CompetitionPlayersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
 
-  // Lives management state - track pending changes before saving
-  const [pendingLivesChanges, setPendingLivesChanges] = useState<Map<number, number>>(new Map());
-  const [savingLivesChanges, setSavingLivesChanges] = useState(false);
-
   // Player status management state
   const [updatingStatus, setUpdatingStatus] = useState<Set<number>>(new Set());
 
@@ -95,6 +89,13 @@ export default function CompetitionPlayersPage() {
   const [selectedPlayerForPermissions, setSelectedPlayerForPermissions] = useState<Player | null>(null);
   const [savingPermissions, setSavingPermissions] = useState(false);
 
+  /* Bringing an eliminated player back consumes a place (docs/re-buys.md). The balance is loaded
+     so the organiser can be told the price BEFORE the button rather than by pressing it - the
+     rule from docs/reset-billing.md §5, which this reuses rather than reinventing. */
+  const [credits, setCredits] = useState<{ paid_credit: number; total_players: number; free_player_limit: number } | null>(null);
+  const [playerToBringBack, setPlayerToBringBack] = useState<{ id: number; name: string } | null>(null);
+  const [bringingBack, setBringingBack] = useState<Set<number>>(new Set());
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const deepLinkHandledRef = useRef(false);
 
@@ -115,6 +116,7 @@ export default function CompetitionPlayersPage() {
       try {
         if (!controller.signal.aborted) {
           await loadPlayers();
+          await loadCredits();
         }
       } catch (error) {
         console.error('Error initializing data:', error);
@@ -353,111 +355,32 @@ export default function CompetitionPlayersPage() {
     }
   };
 
-  // Local lives management - update UI immediately, track changes for batch save
-  const handleLivesChange = (playerId: number, operation: 'add' | 'subtract') => {
-    if (!competition || savingLivesChanges) return;
-
-    setPlayers(prev => prev.map(player => {
-      if (player.id === playerId) {
-        const currentLives = player.lives_remaining || 0; // Handle undefined case
-        const newLives = operation === 'add'
-          ? Math.min(2, currentLives + 1)
-          : Math.max(0, currentLives - 1);
-
-        // Track this change for batch save
-        setPendingLivesChanges(prevPending => {
-          const newPending = new Map(prevPending);
-          newPending.set(playerId, newLives);
-          return newPending;
-        });
-
-        return { ...player, lives_remaining: newLives };
-      }
-      return player;
-    }));
-  };
-
-  // Save all pending lives changes to the server
-  const handleSaveLivesChanges = async () => {
-    if (!competition || pendingLivesChanges.size === 0 || savingLivesChanges) return;
-
-    setSavingLivesChanges(true);
-
+  /* The organiser's place balance, for pricing a re-buy before it happens.
+     A guest or bot account gets GUEST_USER_NO_CREDITS rather than a balance - they cannot own a
+     competition, so they cannot be looking at this screen as its organiser, but a delegated admin
+     could be. Left as null in that case, which reads as "unknown" below and never as "free". */
+  const loadCredits = useCallback(async () => {
     try {
-      // Send all changes to the server sequentially
-      const results = [];
-      for (const [playerId, newLives] of pendingLivesChanges) {
-        // Find the original lives count to determine the operation
-        const originalPlayer = players.find(p => p.id === playerId);
-        if (!originalPlayer) continue;
-
-        const response = await adminApi.updatePlayerLives(
-          competition.id,
-          playerId,
-          'set',
-          newLives,
-          `Admin batch update: set to ${newLives} lives`
-        );
-
-        results.push({
-          playerId,
-          success: response.data.return_code === 'SUCCESS',
-          error: response.data.message
-        });
+      const response = await userApi.getUserCredits();
+      if (response.data.return_code === 'SUCCESS' && response.data.credits) {
+        setCredits(response.data.credits);
       }
-
-      // Check for any failures
-      const failures = results.filter(r => !r.success);
-      if (failures.length > 0) {
-        alert(`Failed to update ${failures.length} player(s). Please try again.`);
-        // Keep failed changes in pending list
-        setPendingLivesChanges(prev => {
-          const newPending = new Map();
-          failures.forEach(f => {
-            if (prev.has(f.playerId)) {
-              newPending.set(f.playerId, prev.get(f.playerId));
-            }
-          });
-          return newPending;
-        });
-      } else {
-        // All successful - clear pending changes and refresh data
-        setPendingLivesChanges(new Map());
-
-        // Clear the players cache to ensure fresh data on next load
-        cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competition.id));
-
-        // Reload fresh player data from server
-        await loadPlayers();
-      }
-
     } catch (error) {
-      console.error('Failed to save lives changes:', error);
-      alert('Failed to save lives changes. Please try again.');
-    } finally {
-      setSavingLivesChanges(false);
+      console.error('Failed to load credit balance:', error);
     }
-  };
+  }, []);
 
-  // Reset any unsaved lives changes back to original values
-  const handleCancelLivesChanges = () => {
-    if (savingLivesChanges) return;
+  /* Whether the NEXT place costs a credit. Same test the server applies (deduct-credit.js and
+     buy-player-back-in.js): the place is free while the places already used are inside the
+     allowance. Unknown balance is treated as chargeable - the confirm is the safe default, since
+     the worst case is a dialog the organiser did not need rather than a silent debit. */
+  const reBuyIsChargeable = credits === null || credits.total_players >= credits.free_player_limit;
+  const canAffordReBuy = !reBuyIsChargeable || (credits?.paid_credit ?? 0) >= 1;
 
-    // Reload the original player data to reset any pending changes
-    loadPlayers();
-    setPendingLivesChanges(new Map());
-  };
-
-  // Player status toggle - between 'active' and 'out'
-  const handleStatusToggle = async (playerId: number, currentStatus: string) => {
+  // Mark a player out. Free and instant, and deliberately not confirmed - taking someone out
+  // costs nothing and is trivially undone. Coming back is the direction that costs a place.
+  const handleMarkOut = async (playerId: number) => {
     if (!competition || updatingStatus.has(playerId)) return;
-
-    // Normalize current status (handle undefined/null as 'active')
-    const normalizedCurrentStatus = currentStatus || 'active';
-
-    // Determine new status - toggle between 'active' and 'out'
-    const newStatus = normalizedCurrentStatus === 'active' ? 'out' : 'active';
-    const statusLabel = newStatus === 'active' ? 'ACTIVE' : 'OUT';
 
     setUpdatingStatus(prev => new Set([...prev, playerId]));
 
@@ -465,27 +388,95 @@ export default function CompetitionPlayersPage() {
       const response = await adminApi.updatePlayerStatus(
         competition.id,
         playerId,
-        newStatus,
-        `Admin manually set player as ${statusLabel}`
+        'out',
+        'Admin manually set player as OUT'
       );
 
       if (response.data.return_code === 'SUCCESS') {
-        // Update the local state with new status
         setPlayers(prev => prev.map(player =>
           player.id === playerId
-            ? { ...player, status: newStatus }
+            ? { ...player, status: 'out' }
             : player
         ));
 
         // Clear the players cache to ensure fresh data on page reload
         cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competition.id));
       } else {
-        console.error(`Failed to update player status: ${response.data.message || 'Unknown error'}`);
+        showToast(response.data.message || 'Failed to update player status', 'error');
       }
     } catch (error) {
       console.error('Failed to update player status:', error);
+      showToast('Failed to update player status. Please try again.', 'error');
     } finally {
       setUpdatingStatus(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(playerId);
+        return newSet;
+      });
+    }
+  };
+
+  /* Bringing a player back in.
+
+     A bot costs nothing anywhere in the system (docs/reset-billing.md §4), so its re-buy skips
+     the dialog too - a price confirmation for a charge that will not happen is just wrong.
+
+     When the place is free the organiser sees no dialog and no mention of credits at all. That is
+     docs/reset-billing.md §7's third state, and it is why this screen feels unchanged for anyone
+     inside their allowance. */
+  const handleBringBackClick = (player: Player) => {
+    if (reBuyIsChargeable && !player.is_bot) {
+      setPlayerToBringBack({ id: player.id, name: player.display_name });
+      return;
+    }
+    performBringBack(player.id);
+  };
+
+  const performBringBack = async (playerId: number) => {
+    if (!competition || bringingBack.has(playerId)) return;
+
+    setBringingBack(prev => new Set([...prev, playerId]));
+
+    try {
+      const response = await adminApi.buyPlayerBackIn(
+        competition.id,
+        playerId,
+        'Organiser brought player back in'
+      );
+
+      const data = response.data;
+
+      if (data.return_code === 'SUCCESS') {
+        setPlayerToBringBack(null);
+
+        showToast(
+          data.credit_charged
+            ? `${data.player_name} is back in. 1 place used.`
+            : `${data.player_name} is back in.`,
+          'success'
+        );
+
+        /* The balance moved, and getUserCredits is cached for an hour - without this the price in
+           the next confirmation is last hour's number. */
+        cacheUtils.invalidateKey(cacheKeys.userCredits());
+        cacheUtils.invalidatePrefix(cachePrefixes.competitionPlayers(competition.id));
+
+        await loadPlayers();
+        await loadCredits();
+      } else if (data.return_code === 'INSUFFICIENT_CREDITS') {
+        setPlayerToBringBack(null);
+        // Named in words, not linked. docs/reset-billing.md §7 decided against sending an
+        // organiser to Stripe mid-decision and landing them back here.
+        showToast('No places left. Buy more credits from the Billing screen to bring players back.', 'error');
+        await loadCredits();
+      } else {
+        showToast(data.message || 'Failed to bring player back in', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to bring player back in:', error);
+      showToast('Failed to bring player back in. Please try again.', 'error');
+    } finally {
+      setBringingBack(prev => {
         const newSet = new Set(prev);
         newSet.delete(playerId);
         return newSet;
@@ -733,35 +724,6 @@ export default function CompetitionPlayersPage() {
           </div>
         )}
 
-        {/* Lives Changes Save/Cancel Bar - flagged as easy to miss: strengthened to an
-            overprint-bordered panel instead of a quiet indigo strip, since a navigation away
-            here used to lose the change with no warning. */}
-        {pendingLivesChanges.size > 0 && (
-          <div className={`${PANEL} mt-6 border-overprint p-4`}>
-            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-              <p className="text-[15px] font-medium text-ink">
-                {pendingLivesChanges.size} player{pendingLivesChanges.size !== 1 ? 's' : ''} with unsaved lives changes
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCancelLivesChanges}
-                  disabled={savingLivesChanges}
-                  className={`${BTN_OUTLINE} px-4 py-2 disabled:opacity-50`}
-                >
-                  Cancel changes
-                </button>
-                <button
-                  onClick={handleSaveLivesChanges}
-                  disabled={savingLivesChanges}
-                  className={`${BTN_PRIMARY} px-4 py-2 text-base disabled:opacity-50`}
-                >
-                  {savingLivesChanges ? 'Saving…' : 'Save changes'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Players List */}
         <div className={`${PANEL} mt-6 divide-y divide-ink/30`}>
           {players.map((player) => {
@@ -778,31 +740,27 @@ export default function CompetitionPlayersPage() {
 
               {/* Admin Controls Row */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                {/* Lives Control */}
-                <div className="flex items-center gap-1.5 border border-ink/30 px-2.5 py-1.5">
-                  <button
-                    onClick={() => handleLivesChange(player.id, 'subtract')}
-                    disabled={savingLivesChanges || (player.lives_remaining || 0) <= 0}
-                    title="Remove life"
-                    className="text-ink transition-colors hover:opacity-70 disabled:opacity-30"
-                  >
-                    <MinusIcon className="h-4 w-4" />
-                  </button>
-                  <span className={`min-w-[4rem] text-center font-data text-[14px] ${
-                    pendingLivesChanges.has(player.id) ? 'text-overprint' : 'text-ink'
-                  }`}>
-                    {player.lives_remaining || 0} {(player.lives_remaining || 0) === 1 ? 'life' : 'lives'}
-                    {pendingLivesChanges.has(player.id) && '*'}
-                  </span>
-                  <button
-                    onClick={() => handleLivesChange(player.id, 'add')}
-                    disabled={savingLivesChanges || (player.lives_remaining || 0) >= 2}
-                    title="Add life"
-                    className="text-ink transition-colors hover:opacity-70 disabled:opacity-30"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                  </button>
-                </div>
+                {/* Lives: shown, not edited.
+
+                    The +/- stepper was removed. In ten months of production it was used ONCE by a
+                    customer, and it was the last free way to rebuild a field: topping every player
+                    back up each round means nobody can ever be eliminated, since a player only
+                    goes out when a loss would take them below zero. A competition that cannot end
+                    is a competition that never needs paying for again.
+
+                    It also duplicated a job that now has a proper answer. Handing out a life was
+                    the informal mercy mechanism - the player whose pick was missed for a real
+                    reason. That is what "Bring back in" is for, and it is priced and recorded.
+                    Keeping both meant keeping a free, unlimited, invisible version of the thing we
+                    had just priced.
+
+                    Still displayed, because "how many lives has this player got" is a question the
+                    organiser genuinely asks when scanning the list. update-player-lives stays
+                    registered as the support route for fixing a wrongly-eliminated player.
+                    docs/re-buys.md §6. */}
+                <span className={`${LABEL} border border-ink/30 px-2.5 py-1.5 font-data text-[14px] text-ink`}>
+                  {player.lives_remaining || 0} {(player.lives_remaining || 0) === 1 ? 'life' : 'lives'}
+                </span>
 
                 {/* Set pick. Out here rather than in the menu because it is the recurring,
                     deadline-bound job on this screen - once a round, before lock - and for a
@@ -886,20 +844,44 @@ export default function CompetitionPlayersPage() {
                           </>
                         )}
 
-                        {/* Toggle Status */}
-                        <button
-                          onClick={() => {
-                            setOpenDropdownId(null);
-                            handleStatusToggle(player.id, player.status || 'active');
-                          }}
-                          disabled={updatingStatus.has(player.id)}
-                          className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock disabled:opacity-50`}
-                        >
-                          <span className="flex h-4 w-4 items-center justify-center">
-                            {(player.status || 'active') === 'active' ? '✕' : '✓'}
-                          </span>
-                          {(player.status || 'active') === 'active' ? 'Mark as out' : 'Mark as active'}
-                        </button>
+                        {/* Out, and back in again.
+
+                            Two separate items rather than one toggle, because they stopped being
+                            the same kind of action: marking someone out is free and instant,
+                            bringing them back consumes a place (docs/re-buys.md). "Bring back in"
+                            rather than "Mark as active" for the same reason - one describes a
+                            database column, the other describes what the organiser is doing and
+                            what they are spending. */}
+                        {(player.status || 'active') === 'active' ? (
+                          <button
+                            onClick={() => {
+                              setOpenDropdownId(null);
+                              handleMarkOut(player.id);
+                            }}
+                            disabled={updatingStatus.has(player.id)}
+                            className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock disabled:opacity-50`}
+                          >
+                            <span className="flex h-4 w-4 items-center justify-center">✕</span>
+                            Mark as out
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setOpenDropdownId(null);
+                              handleBringBackClick(player);
+                            }}
+                            disabled={bringingBack.has(player.id) || !canAffordReBuy}
+                            title={
+                              !canAffordReBuy
+                                ? 'No places left — buy more credits from the Billing screen'
+                                : `Bring ${player.display_name} back into the competition`
+                            }
+                            className={`${LABEL} flex w-full items-center gap-2 px-4 py-2.5 text-left text-ink transition-colors hover:bg-stock disabled:cursor-not-allowed disabled:opacity-40`}
+                          >
+                            <span className="flex h-4 w-4 items-center justify-center">✓</span>
+                            {bringingBack.has(player.id) ? 'Bringing back…' : 'Bring back in'}
+                          </button>
+                        )}
 
                         {/* Unhide - Only if hidden */}
                         {player.hidden && (
@@ -1042,6 +1024,24 @@ export default function CompetitionPlayersPage() {
         message={playerToRemove ? `Are you sure you want to remove ${playerToRemove.name} from the competition? This will delete all their picks and progress data and cannot be undone.` : ''}
         confirmText="Remove player"
         isLoading={playerToRemove ? removing.has(playerToRemove.id) : false}
+      />
+
+      {/* The price, before the button rather than by pressing it - docs/reset-billing.md §5.
+          Only ever opens when the place is actually chargeable; inside the free allowance the
+          menu item acts immediately and says nothing about credits (§7). The remaining balance is
+          named because "1 place" means nothing without it. */}
+      <ConfirmationModal
+        isOpen={playerToBringBack !== null}
+        onClose={() => setPlayerToBringBack(null)}
+        onConfirm={() => playerToBringBack && performBringBack(playerToBringBack.id)}
+        title="Bring back in"
+        message={
+          playerToBringBack
+            ? `Bringing ${playerToBringBack.name} back will use 1 place, leaving you ${Math.max(0, (credits?.paid_credit ?? 0) - 1)}. They come back in with no lives left, so the next loss puts them out again.`
+            : ''
+        }
+        confirmText="Bring back in"
+        isLoading={playerToBringBack ? bringingBack.has(playerToBringBack.id) : false}
       />
 
       {/* Set Player Pick Modal */}

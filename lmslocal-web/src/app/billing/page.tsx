@@ -263,9 +263,13 @@ export default function BillingPage() {
             <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink sm:text-5xl">
               Where your credits are
             </h2>
+            {/* Was "each player holds one credit", which stopped being true when a player could
+                buy back in after being knocked out - they then hold two. Phrased around the
+                place rather than the person, which covers both and needs no exception. */}
             <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-ink">
-              Each player holds one credit for as long as their competition exists — including
-              competitions that have finished.
+              A place is held for as long as its competition exists — including competitions that
+              have finished. Every player holds one, and one more each time they buy back in after
+              being knocked out.
             </p>
 
             <dl className="mt-8 w-full max-w-md font-data text-[15px]">
@@ -278,6 +282,16 @@ export default function BillingPage() {
                     {row.name}
                     {row.status_label && (
                       <span className="ml-2 text-ink-fade">{row.status_label}</span>
+                    )}
+
+                    {/* Only where it applies. On the overwhelming majority of rows re_buys is 0,
+                        and "8 players + 0 re-buys" is noise on a panel whose whole job is to
+                        account for one number without adding to it. */}
+                    {row.re_buys > 0 && (
+                      <span className="mt-0.5 block text-[13px] text-ink-fade">
+                        {row.members} player{row.members !== 1 ? 's' : ''} + {row.re_buys} re-buy
+                        {row.re_buys !== 1 ? 's' : ''}
+                      </span>
                     )}
                   </dt>
                   <dd className="tabular-nums text-ink">{row.places}</dd>

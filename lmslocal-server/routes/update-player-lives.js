@@ -4,6 +4,25 @@ API Route: update-player-lives
 =======================================================================================================================================
 Method: POST
 Purpose: Updates the number of lives remaining for a specific player in a competition. Allows increment/decrement operations with bounds checking.
+
+SUPPORT ROUTE - NO SCREEN CALLS THIS.
+
+The organiser's +/- stepper was removed from /game/[id]/players in Aug 2026, and the client
+helper in lmslocal-web/src/lib/api.ts went with it. Two reasons, in docs/re-buys.md §6:
+
+  1. Topping every player back up each round means NOBODY can ever be eliminated - a player only
+     goes out when a loss would take them below zero. It was the last free way to keep a
+     competition running for ever, and so the last free way to avoid paying for a new one.
+  2. Handing out a life was the informal mercy mechanism for a player whose pick was missed for a
+     real reason. /buy-player-back-in is now the formal one, priced and recorded. Keeping both
+     meant keeping a free, unlimited, invisible version of the thing we had just priced.
+
+It stays registered so support can fix a wrongly-eliminated player - the same bargain as re-buy
+refunds: one blunt rule, and the exceptions handled by a human. Its proper long-term home is
+lmslocal-admin behind admin auth, per CLAUDE.md's "admin gets its own routes"; until then this is
+a UI-only gate and worth calling that.
+
+DO NOT wire a stepper back onto the organiser's screen without reading §6 first.
 =======================================================================================================================================
 Request Payload:
 {
@@ -47,6 +66,9 @@ const { logApiCall } = require('../utils/apiLogger');
 const { verifyToken } = require('../middleware/auth');
 const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
+
+// Wording for the success message, keyed by operation.
+const PAST_TENSE = { add: 'added', subtract: 'subtracted', set: 'set' };
 
 // POST endpoint with comprehensive authentication and validation for lives management
 router.post('/', verifyToken, async (req, res) => {
@@ -189,17 +211,35 @@ router.post('/', verifyToken, async (req, res) => {
           };
       }
 
-      // Enforce reasonable bounds (0 minimum, 3 maximum)
+      /*
+      Bounds: 0 to MAX_PLAYER_LIVES, one number for the whole product.
+
+      It used to be a hard 3, from when competitions could be created with up to 3 lives. Both
+      organiser-facing screens now offer 0 or 1 only (competition/create and game/[id]/settings),
+      so 3 let this route hand out a second and third life that no competition could be configured
+      to grant.
+
+      Deriving the ceiling from the competition's own lives_per_player was tried and dropped. The
+      only competition it behaved differently for is 167, created with 2 before the option came
+      down and long since COMPLETE - nobody manages lives in a finished competition. Paying for
+      that with a rule that changes competition to competition, and cannot be stated to an
+      organiser in one sentence, was the wrong trade.
+
+      One life is the maximum, everywhere, including in a knockout competition where
+      lives_per_player is 0 and the single life is a goodwill gesture.
+      */
+      const MAX_PLAYER_LIVES = 1;
+
       if (newLives < 0) {
         throw {
           return_code: "LIVES_LIMIT_EXCEEDED",
           message: "Cannot set player lives below 0"
         };
       }
-      if (newLives > 3) {
+      if (newLives > MAX_PLAYER_LIVES) {
         throw {
           return_code: "LIVES_LIMIT_EXCEEDED",
-          message: "Cannot set player lives above 3"
+          message: `Cannot set player lives above ${MAX_PLAYER_LIVES}`
         };
       }
 
@@ -256,7 +296,9 @@ router.post('/', verifyToken, async (req, res) => {
 
       return {
         return_code: "SUCCESS",
-        message: `Player lives ${operation}ed successfully`,
+        // Past tense from a lookup, not by appending "ed" - that produced "seted" for the one
+        // operation that is not a regular verb, and "set" is the operation the UI actually uses.
+        message: `Player lives ${PAST_TENSE[operation]} successfully`,
         lives_remaining: updatedLives.lives_remaining,
         previous_lives: currentLives,
         player_name: data.player_name,

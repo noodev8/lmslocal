@@ -3,7 +3,8 @@
 API Route: update-player-status
 =======================================================================================================================================
 Method: POST
-Purpose: Updates a player's competition status between 'active' and 'eliminated' for admin management.
+Purpose: Marks a player OUT of a competition. One direction only - see the note below on why
+         bringing one back no longer happens here.
 =======================================================================================================================================
 Request Payload:
 {
@@ -36,7 +37,22 @@ Return Codes:
 "COMPETITION_NOT_FOUND"
 "UNAUTHORIZED"
 "STATUS_UNCHANGED"
+"USE_RE_BUY"              - caller asked for out -> active; that is a re-buy and it costs a place
 "SERVER_ERROR"
+=======================================================================================================================================
+Why this route no longer brings players back
+
+status holds only 'active' or 'out', so "mark as active" on an eliminated player was never a
+status correction - it WAS the way back into a competition, and it was free and unlimited. Run it
+down a 52-player list and you have rebuilt the field without consuming a place: a reset that
+nobody paid for. docs/re-buys.md §2.
+
+So out -> active is refused here and lives on /buy-player-back-in, which prices it as the place it
+is. Leaving both doors open would have made the charge advisory - the UI would call the priced one
+and anyone reading a network tab could call this one.
+
+active -> out is untouched: free, instant, no confirmation. Taking someone out costs nothing and
+an organiser should never be slowed down doing it.
 =======================================================================================================================================
 */
 
@@ -162,6 +178,18 @@ router.post('/', verifyToken, async (req, res) => {
         throw {
           return_code: "STATUS_UNCHANGED",
           message: `Player is already ${status}`
+        };
+      }
+
+      /*
+      Coming back in costs a place, and it is /buy-player-back-in that charges for it. See the
+      header block. Compared case-insensitively for the same reason that route is: a comparison
+      that silently misses here reopens the free door.
+      */
+      if (String(currentStatus || '').toLowerCase() === 'out' && status === 'active') {
+        throw {
+          return_code: "USE_RE_BUY",
+          message: "Bringing a player back in uses a place. Use buy-player-back-in."
         };
       }
 

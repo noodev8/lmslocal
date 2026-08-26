@@ -114,7 +114,13 @@ export interface PlaceUsage {
   name: string;
   status: string;                    // Upper-cased competition status
   status_label: string;              // Human label; empty string if the status is unrecognised
+
+  /* `places` is the total and the only figure that sums to the headline. `members` and `re_buys`
+     are the two halves of it, carried so the panel can show its working - a competition with 8
+     players reading 10 places looks like a bug unless it says why. docs/re-buys.md §4. */
   places: number;                    // Chargeable places this competition holds
+  members: number;                   // Chargeable players in it
+  re_buys: number;                   // Extra places consumed by players buying back in
 }
 
 export interface CreditPurchase {
@@ -801,17 +807,12 @@ export const adminApi = {
     }
   }>('/update-payment-status', { competition_id, user_id, paid, paid_amount, paid_date }),
 
-  // Lives management - allows admins to add/subtract/set player lives with audit logging
-  updatePlayerLives: (competition_id: number, player_id: number, operation: 'add' | 'subtract' | 'set', amount: number, reason?: string) => api.post<{
-    return_code: string;
-    message?: string;
-    lives_remaining?: number;        // New lives count after operation
-    previous_lives?: number;         // Lives count before operation
-    player_name?: string;           // Player display name
-    operation_performed?: string;   // Operation that was performed
-  }>('/update-player-lives', { competition_id, player_id, operation, amount, reason }),
+  /*
+  Player status management. ONE DIRECTION: this marks a player out.
 
-  // Player status management - allows admins to set players as active or out
+  Sending status 'active' for an eliminated player comes back USE_RE_BUY - bringing someone back
+  consumes a place and goes through buyPlayerBackIn below. See docs/re-buys.md §2.
+  */
   updatePlayerStatus: (competition_id: number, player_id: number, status: 'active' | 'out', reason?: string) => api.post<{
     return_code: string;
     message?: string;
@@ -819,6 +820,26 @@ export const adminApi = {
     old_status?: string;            // Previous status
     new_status?: string;            // New status
   }>('/update-player-status', { competition_id, player_id, status, reason }),
+
+  /*
+  Bring an eliminated player back in. Consumes one place, priced exactly as a join - free inside
+  the organiser's free allowance, one credit beyond it.
+
+  `credit_charged` is what the caller should react to, not the balance: it is false both when the
+  organiser is inside their allowance and when the player is a bot, and in neither case should the
+  UI say anything about credits at all (docs/reset-billing.md §7).
+  */
+  buyPlayerBackIn: (competition_id: number, player_id: number, reason?: string) => api.post<{
+    return_code: string;
+    message?: string;
+    player_name?: string;           // Player display name
+    lives_remaining?: number;       // Lives the player returns on (always 0 - back in, no cushion)
+    re_buys?: number;               // Times this player has now bought back in
+    credit_charged?: boolean;       // Whether a credit was actually taken
+    new_balance?: number;           // Organiser's paid_credit after the charge
+    places_used?: number;           // Organiser's chargeable places after the re-buy
+    credits_available?: number;     // On INSUFFICIENT_CREDITS: what they actually have
+  }>('/buy-player-back-in', { competition_id, player_id, reason }),
 };
 
 // User profile
