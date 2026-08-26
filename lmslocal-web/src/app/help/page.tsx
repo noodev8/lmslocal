@@ -48,7 +48,7 @@ const DESTINATIONS = [
     href: '/help/fundraising',
     title: 'Raising money with one',
     blurb:
-      'Why it works as a fundraiser, what a competition of a given size comes to, and the three ways clubs and pubs structure the entry fee and the prize.',
+      'Why it works as a fundraiser, what a competition of a given size comes to, the three ways clubs and pubs structure the entry fee and the prize, and whether to allow buy-backs.',
     who: 'Organisers'
   },
   {
@@ -81,6 +81,11 @@ const QUICK_ANSWERS = [
     href: '/help/faq#what-happens-when-i-run-out-of-teams',
     q: 'What if I run out of teams?',
     a: 'They all come back and you start the list again.'
+  },
+  {
+    href: '/help/faq#can-eliminated-players-rejoin',
+    q: 'Can I get back in once I am out?',
+    a: 'Only if your organiser brings you back. Some run it as a buy-back — ask them.'
   },
   {
     // Straight to pricing rather than the FAQ answer - somebody asking what it costs wants the

@@ -183,6 +183,45 @@ export default function FundraisingPage() {
         </p>
       </section>
 
+      {/* ---------------------------------------------------------------- buy-backs
+          An add-on to any of the three above rather than a fourth structure, which is why it
+          sits in its own section instead of joining that list.
+
+          No arithmetic here on purpose. The examples above multiply two stated numbers and show
+          the answer; what a competition takes in buy-backs depends on how many people are knocked
+          out and how many of them fancy another go, and we do not collect either. See the file
+          header. */}
+      <section className="mt-14 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>Buy-backs, if you want them</h2>
+
+        <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink">
+          A knocked-out player can pay in again and you can put them straight back into the
+          competition, the way a poker night lets somebody re-buy. It is the same idea as an entry
+          fee, charged twice: the pot grows, and the people who went out in week three are still
+          involved in week seven instead of having stopped thinking about it.
+        </p>
+
+        <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-ink">
+          Set the terms before you need them. What a buy-back costs is entirely yours to decide
+          &mdash; and so is how late in the competition you will still take one. Poker rooms close
+          late registration for a reason: if anybody can pay their way back in during the closing
+          weeks, reaching the end has stopped meaning much. Allowing buy-backs for the first few
+          rounds and running a straight knockout after that is the shape most people settle on.
+        </p>
+
+        <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-ink">
+          Be even-handed with it. If one person is allowed back, be ready for the next person to
+          ask, and say up front if the answer is going to be no.
+        </p>
+
+        <p className="mt-7 max-w-2xl border-l-2 border-overprint bg-stock-lit px-4 py-3 text-[16px] leading-relaxed text-ink">
+          <strong className="font-semibold">The money stays with you.</strong> We never handle
+          entry fees, buy-backs or prizes, and we do not know what you charge for any of them
+          &mdash; you collect a buy-back however you collected the entry fee, and bring the player
+          back in once it is paid.
+        </p>
+      </section>
+
       {/* ---------------------------------------------------------------- running */}
       <section className="mt-14 border-t border-ink/30 pt-10">
         <h2 className={`${HEADING} text-4xl`}>Running it well</h2>

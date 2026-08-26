@@ -66,7 +66,7 @@ const ROUND_CYCLE = [
 
 const CONTROLS = [
   'Set or change a player’s pick before the round locks',
-  'Adjust anyone’s lives, or put them back in after elimination',
+  'Bring a knocked-out player back in — useful if you run buy-backs',
   'Add players who have not got a smartphone, and remove anyone who drops out',
   'Reset the whole competition and run it again with the same players'
 ];

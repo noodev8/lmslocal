@@ -4,9 +4,9 @@ import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 export const metadata = {
   title: 'Frequently Asked Questions - LMSLocal Help',
   description:
-    'Answers to common questions about Last Man Standing: what a draw does to your pick, when picks lock, lives, resets, credits, and running a competition for your pub, workplace or club.',
+    'Answers to common questions about Last Man Standing: what a draw does to your pick, when picks lock, lives, buy-backs, resets, credits, and running a competition for your pub, workplace or club.',
   keywords:
-    'last man standing FAQ, last man standing rules, does a draw count, when do picks lock, competition rules, football sweepstake help',
+    'last man standing FAQ, last man standing rules, does a draw count, when do picks lock, last man standing buy back, rejoin after elimination, competition rules, football sweepstake help',
   alternates: { canonical: 'https://lmslocal.co.uk/help/faq' },
   openGraph: {
     title: 'Last Man Standing: Frequently Asked Questions',
@@ -190,7 +190,13 @@ const SECTIONS: Section[] = [
         q: 'Can eliminated players rejoin?',
         a: [
           {
-            p: 'Not under your own steam — elimination is final from the player’s side. Your organiser can put somebody back in by hand if they judge it fair, but that is entirely their decision, so ask rather than expect.'
+            p: 'Not under your own steam — there is no button on your side, and elimination is final unless your organiser decides otherwise. They can bring you back in, so it is worth asking rather than assuming.'
+          },
+          {
+            p: 'Some organisers run this as a buy-back, the way poker does: pay into the pot again and you are back in for another go. Whether that is offered at all, what it costs and how late you can do it are entirely your organiser’s decisions — LMSLocal is not involved in the money and cannot tell you their rules. Ask them.'
+          },
+          {
+            p: 'If you are brought back, you return with no lives left, so the next team that fails to win puts you out again. You do not get a fresh start ahead of the players who never went out.'
           },
           { p: 'A competition reset is the other route: it starts the whole thing again with everybody back in.' }
         ]
@@ -307,6 +313,9 @@ const SECTIONS: Section[] = [
           },
           {
             p: 'Once you submit, the results are final and there is no way to change them in the app. Get in touch with us and we will see what can be done. Be aware that unwinding a submitted round is not a simple edit — it has already decided who won, who lost a life and who went out, and every one of those has to be put back by hand — so it is worth checking the results carefully before you submit.'
+          },
+          {
+            p: 'If the only damage is that one player has been knocked out who should not have been, say so and we will sort it. Do not use Bring back in for that — it would use one of your places to correct a mistake that was not yours to pay for.'
           }
         ]
       },
@@ -343,10 +352,47 @@ const SECTIONS: Section[] = [
         q: 'Can I bring an eliminated player back in?',
         a: [
           {
-            p: 'Yes — a player’s in/out status is yours to set, so you can move somebody from eliminated back to active whenever you think it is the fair thing to do.'
+            p: 'Yes. On your Players screen, open the menu against their name and choose Bring back in. They go straight back into the competition and can pick in the next round.'
           },
           {
-            p: 'Treat it as an override rather than part of the game. Nothing recalculates around it, so a player brought back mid-competition can look odd in the standings and in their own history. Use it sparingly and tell your other players you have done it. If you want a genuinely clean slate for everyone, reset the competition instead.'
+            p: 'They come back with no lives left, whatever the competition started with. That puts them level with everyone who has already used theirs rather than ahead of them: the next loss puts them out again. It would not be fair on the players who never went out to hand somebody a fresh cushion on the way back in.'
+          },
+          {
+            p: 'Bringing a player back uses one place, exactly as though they were joining for the first time. Your first 20 places are free, so if you are inside that it costs you nothing and you will not be asked about it. Beyond 20 it uses a credit, and you are told the price and what you will have left before you confirm — never by pressing the button.'
+          },
+          {
+            p: 'It is worth telling your other players when you do it, whatever your reason. Somebody reappearing in the standings with no explanation is the sort of thing that causes an argument in week six.'
+          }
+        ]
+      },
+      {
+        q: 'Can I run a buy-back, like poker?',
+        a: [
+          {
+            p: 'Yes, and this is what a lot of organisers use Bring back in for. A player goes out in week three, pays into the pot again, and you put them back in. Their money grows the prize, they get another go, and your competition keeps the people who would otherwise have stopped paying attention the moment they were knocked out.'
+          },
+          {
+            p: 'How you charge for it is entirely up to you. LMSLocal never touches your players’ money — we do not take entry fees, buy-backs or prizes, and we do not know what you charge. Most organisers collect a buy-back the same way they collected the entry fee in the first place, at the bar or by bank transfer, and simply bring the player back in once it is paid.'
+          },
+          {
+            p: 'Set the rules before you need them, not after. Decide whether buy-backs are allowed at all, what they cost, and — the one people forget — how late into the competition you will still accept one. Poker rooms close late registration for a reason: if anyone can buy back in during the closing weeks, finishing has stopped meaning very much. A common shape is to allow buy-backs for the first few rounds and make it a straight knockout after that.'
+          },
+          {
+            p: 'Be even-handed about it. If you let one person buy back in, be ready to let the next person do the same, or say up front why not. The cost to you is one place per buy-back, on the same terms as any other player joining.'
+          }
+        ]
+      },
+      {
+        q: 'Can I give a player an extra life instead?',
+        a: [
+          {
+            p: 'No. Lives are set by the competition and worked out from the results — they are shown on your Players screen but you cannot hand them out.'
+          },
+          {
+            p: 'That is deliberate. If lives could be topped up each round, nobody would ever be eliminated and the competition could never finish, which is not much of a Last Man Standing. Where an organiser genuinely wants to give somebody another go, Bring back in does that job openly: it is visible, it is on the record, and everyone can see it happened.'
+          },
+          {
+            p: 'If a player has been knocked out by a result that was entered wrongly, that is our problem to fix rather than something you should be paying for. Get in touch and we will put it right.'
           }
         ]
       },
