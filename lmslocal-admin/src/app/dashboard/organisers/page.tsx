@@ -384,8 +384,8 @@ function OrganisersList() {
           </div>
         )}
 
-        {/* Four, in the order they are worth acting on: everyone, then the two lists with
-            something to do about them, then the customers to look after. */}
+        {/* Four, in the order they are worth acting on: everyone, then the customers to look
+            after, then the two lists with something to do about them. */}
         {!loading && organisers.length > 0 && (
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <FilterTile
@@ -394,6 +394,14 @@ function OrganisersList() {
               hint="running something"
               active={filter === 'all'}
               onClick={() => setFilter('all')}
+            />
+            <FilterTile
+              label="Paying"
+              value={counts.paying}
+              hint={`${counts.paying_share}% of ${counts.total} · paid in the last 12 months`}
+              tone="good"
+              active={filter === 'paying'}
+              onClick={() => setFilter('paying')}
             />
             <FilterTile
               label="No players yet"
@@ -410,14 +418,6 @@ function OrganisersList() {
               tone="warn"
               active={filter === 'quiet'}
               onClick={() => setFilter('quiet')}
-            />
-            <FilterTile
-              label="Paying"
-              value={counts.paying}
-              hint={`${counts.paying_share}% of ${counts.total} · paid in the last 12 months`}
-              tone="good"
-              active={filter === 'paying'}
-              onClick={() => setFilter('paying')}
             />
           </div>
         )}
