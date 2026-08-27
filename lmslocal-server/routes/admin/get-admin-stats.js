@@ -26,6 +26,7 @@ Success Response (ALWAYS HTTP 200):
   },
   "organisers": {
     "total": 10,                            // integer, accounts owning at least one competition
+    "live": 6,                              // integer, of those, owning one that is active or pending
     "paying": 2,                            // integer, of those, who have ever paid (credit_purchases)
     "with_active_competition": 4            // integer, of those, running something right now
   },
@@ -66,6 +67,12 @@ Data Notes:
   stalled competition is counted once, as stalled, and never also as active or setup - which is
   what makes these agree with the Competitions screen. They previously did not: 16 active here
   against 14 there. total = active + setup + complete + stalled.
+- "organisers.live" counts organisers holding a competition that is ACTIVE or PENDING and not
+  stalled - the same set of competitions "users.active" counts people in, so the organisers card
+  and the players card on the Competitions screen describe the same live platform. It is what the
+  Organisers screen lists (see get-admin-organisers), so the card and that screen agree.
+
+  "total" is cumulative and can only rise; "live" can fall, which is the point of it.
 - "inactive" (running, no picks for 30 days) was removed. "stalled" answers the same question
   better and having both invited the two to be compared.
 - Every figure here counts the REAL platform, not us. Excluded: competition 117 ("App Store",
@@ -165,8 +172,14 @@ router.get('/', verifyAdminToken, async (req, res) => {
     const liveQuery = `
       SELECT
         c.id,
+        c.organiser_id,
         LOWER(c.status)                          AS status,
         c.stalled_override,
+        -- Whether this competition's owner counts as an organiser at all. Same email exclusion
+        -- the organiser figures below use, resolved here so the live count can be taken from the
+        -- classified rows rather than from a second copy of the stalled rule in SQL.
+        (ou.id IS NOT NULL AND ou.email <> ALL($3::text[]))
+                                                 AS organiser_countable,
         ${realPlayerCountSql('c', '$1')}         AS real_player_count,
         ${pickCountSql('c')}                     AS pick_count,
         GREATEST(
@@ -177,9 +190,14 @@ router.get('/', verifyAdminToken, async (req, res) => {
           c.created_at
         )                                        AS last_activity
       FROM competition c
+      LEFT JOIN app_user ou ON ou.id = c.organiser_id
       WHERE c.id <> ALL($2::int[])
     `;
-    const liveResult = await query(liveQuery, [BOT_EMAIL_LIKE, EXCLUDED_COMPETITION_IDS]);
+    const liveResult = await query(liveQuery, [
+      BOT_EMAIL_LIKE,
+      EXCLUDED_COMPETITION_IDS,
+      EXCLUDED_EMAILS
+    ]);
 
     const classified = liveResult.rows.map((c) => ({
       ...c,
@@ -187,9 +205,20 @@ router.get('/', verifyAdminToken, async (req, res) => {
     }));
 
     // Complete competitions are excluded outright: their players finished, they did not drift.
-    const liveCompetitionIds = classified
-      .filter((c) => c.status !== 'complete' && !c.is_stalled)
-      .map((c) => c.id);
+    const liveCompetitions = classified.filter((c) => c.status !== 'complete' && !c.is_stalled);
+    const liveCompetitionIds = liveCompetitions.map((c) => c.id);
+
+    /*
+    Organisers with something live. Taken from the rows already classified above rather than
+    counted in SQL, for the same reason the competition counts are: one stalled rule, so the
+    number on the Competitions screen's organisers card is the number of rows the Organisers
+    screen lists.
+    */
+    const liveOrganiserIds = new Set(
+      liveCompetitions
+        .filter((c) => c.organiser_countable && c.organiser_id !== null)
+        .map((c) => c.organiser_id)
+    );
 
     /*
     The same breakdown the Competitions screen shows, from the same classification - a stalled
@@ -302,6 +331,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
       competitions: competitionCounts,
       organisers: {
         total: n(row.organisers_total),
+        live: liveOrganiserIds.size,
         paying: n(row.organisers_paying),
         with_active_competition: n(row.organisers_with_active)
       },

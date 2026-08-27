@@ -110,7 +110,11 @@ export interface AdminStats {
     stalled: number;
   };
   organisers: {
+    /* Cumulative: anyone who ever owned a competition. Only ever rises. */
     total: number;
+    /* Owning something ACTIVE or PENDING that is not archived - the same people the Organisers
+       screen lists, so the card and that screen show the same number. This one can fall. */
+    live: number;
     paying: number;
     with_active_competition: number;
   };

@@ -11,6 +11,15 @@ Purpose: The people behind the competitions - who they are, how to reach them, a
 Competitions are the other way into the same data. This screen answers "who is running things
 and how are they doing", the competitions screen answers "what is running and does it need
 attention". Row actions cross between them.
+
+ONLY ORGANISERS WITH SOMETHING LIVE ARE HERE - an ACTIVE or PENDING competition that is not
+archived. Somebody whose competitions have all finished or been archived is not a person to send
+an email to, and a dozen of them were padding the list and every tile on it. The filtering is
+done server-side by the one archived rule (services/competitionEngagement.js), so it cannot drift
+from the Competitions screen; the organisers card there shows exactly the number of rows here.
+
+The row figures follow the same scope, EXCEPT the money - Credits and Spend cover the whole
+account, because a place that was charged for was charged for whatever became of the competition.
 =======================================================================================================================================
 */
 
@@ -90,6 +99,11 @@ Created a competition and recruited nobody. The most actionable group on the pla
 far enough to set something up and then stalled at the one step we can actually help with.
 
 players_total already excludes bots and the organiser themselves, so 0 means what it says.
+
+Narrower than it used to be, now that archived organisers are gone: an empty competition IS
+archived once it has been quiet a week, so this finds people in their first few days rather than
+every empty competition ever created. That is the window where an email can still change the
+outcome anyway.
 */
 const isEmpty = (o: AdminOrganiser): boolean => o.competitions_total > 0 && o.players_total === 0;
 
@@ -367,7 +381,7 @@ function OrganisersList() {
             <FilterTile
               label="Organisers"
               value={counts.total}
-              hint="everyone"
+              hint="running something"
               active={filter === 'all'}
               onClick={() => setFilter('all')}
             />

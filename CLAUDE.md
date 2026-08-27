@@ -97,15 +97,20 @@ doc first** (except the email README, see below):
 - **Screens**: **`/dashboard/competitions` is the landing page** — there is no Overview.
   `/dashboard` was deleted because its counts duplicated the Competitions screen and disagreed
   with it (16 active against 14 — it counted by status alone and did not exclude stalled)
-- **Active people**: three small cards under the Competitions tiles — registered accounts holding
+- **Active people**: four small cards under the Competitions tiles — registered accounts holding
   a place in a competition that is **neither complete nor stalled**; eliminated players count.
   Which competitions those are comes from `classifyCompetition` in a first round trip, **never**
   a second copy of the stalled rule in SQL; that same pass produces the competition counts.
   Guests are excluded so `active` is a true subset of `total`, and get their own card via
-  `active_guests`. It replaced a cumulative "genuine people" count that could only ever rise and
-  so could not tell growth from churn. `competitions.inactive` is gone; stalled answers it better
-- **Organisers**: an organiser owns at least one competition. "Players" counts memberships the
-  same way the competitions screen does so the two agree; "spend" is `credit_purchases`, **never**
+  `active_guests`; `organisers.live` gets a fourth. It replaced a cumulative "genuine people"
+  count that could only ever rise and so could not tell growth from churn. `competitions.inactive` is gone; stalled answers it better
+- **Organisers**: the screen lists only organisers owning a competition that is **ACTIVE or
+  PENDING and not stalled** — filtered server-side by `classifyCompetition`, so it cannot drift
+  from the Competitions screen, whose `organisers` card shows the same number (`organisers.live`
+  from `get-admin-stats`). Every competition and player figure on a row is scoped to their
+  non-stalled competitions; **the money is not** — credits and spend cover the whole account,
+  because a place that was charged for stays charged. "Players" counts memberships the same way
+  the competitions screen does so the two agree; "spend" is `credit_purchases`, **never**
   `app_user.paid_credit`
 
 ### Marketing artwork (lmslocal-marketing/)

@@ -7,10 +7,11 @@ Purpose: List every organiser on the platform for the lmslocal-admin Organisers 
          they are, how to email them, and enough commercial and engagement context to decide
          who is worth contacting.
 
-         An organiser is anyone who owns at least one competition. People who only help run
-         someone else's competition (competition_user permission flags) are deliberately not
-         included - they did not create anything, and this screen is about the people whose
-         accounts the business relationship sits with.
+         An organiser is anyone who owns at least one competition that is LIVE - ACTIVE or
+         PENDING, and not archived. People who only help run someone else's competition
+         (competition_user permission flags) are deliberately not included - they did not create
+         anything, and this screen is about the people whose accounts the business relationship
+         sits with.
 =======================================================================================================================================
 Request Payload:
   None (GET). Authentication is by admin token in the Authorization header.
@@ -58,6 +59,21 @@ Return Codes:
 "SERVER_ERROR"              - Database error or unexpected server failure
 =======================================================================================================================================
 Data Notes:
+- ARCHIVED COMPETITIONS ARE NOT ON THIS SCREEN, in either direction:
+
+  An organiser appears at all only if they own something ACTIVE or PENDING that is not archived.
+  Somebody whose every competition is archived or finished is not a person to act on, and eleven
+  of them were padding the list and every tile on it.
+
+  Every competition and player figure on the row then counts only their NON-ARCHIVED
+  competitions, so "3 competitions" here cannot mean a 1 on the Competitions screen. Archived is
+  the one rule in services/competitionEngagement.js, evaluated in a first round trip exactly as
+  get-admin-stats does it - never a second copy written in SQL.
+
+  BILLING IS THE EXCEPTION. "chargeable_players", "credit", "credits_available",
+  "free_places_left" and "spend_12m" cover the whole account, archived competitions included,
+  because a place that was charged for was charged for whatever became of the competition. These
+  are the only figures here that will not reconcile with the competition columns beside them.
 - competition.status is uppercase ('SETUP', 'ACTIVE', 'COMPLETE'). It used to be mixed; the data
   was normalised on 2026-08-04. Every comparison here still lowercases the column first, which is
   now belt-and-braces rather than load-bearing.
@@ -102,6 +118,12 @@ const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { organiserChargeableCountSql, chargeableMemberFilter } = require('../../services/botPool');
+const {
+  BOT_EMAIL_LIKE,
+  realPlayerCountSql,
+  pickCountSql,
+  classifyCompetition
+} = require('../../services/competitionEngagement');
 const router = express.Router();
 
 // The same env var every billing path reads. Defaulted identically, so this screen cannot report
@@ -112,6 +134,52 @@ router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-admin-organisers');
 
   try {
+    /*
+    FIRST ROUND TRIP: which competitions are archived, and which are live.
+
+    Classified in JS by the shared rule rather than re-expressed in SQL, so this screen, the
+    Competitions screen and the organisers card on it can never disagree about what archived
+    means. A few dozen rows, so the extra query costs nothing.
+
+    Two lists come out of it and they are not the same thing: "live" (ACTIVE or PENDING, not
+    archived) decides who is ON this screen at all, while "not archived" - which still includes
+    finished competitions - is what the row's figures count. An organiser running one competition
+    who finished two last season should show all three, and be here because of the one.
+    */
+    const classifyQuery = `
+      SELECT
+        c.id,
+        LOWER(c.status)                          AS status,
+        c.stalled_override,
+        ${realPlayerCountSql('c', '$1')}         AS real_player_count,
+        ${pickCountSql('c')}                     AS pick_count,
+        GREATEST(
+          (SELECT MAX(p.created_at) FROM pick p
+             JOIN round r ON r.id = p.round_id WHERE r.competition_id = c.id),
+          (SELECT MAX(cu.joined_at) FROM competition_user cu WHERE cu.competition_id = c.id),
+          (SELECT MAX(r.created_at) FROM round r WHERE r.competition_id = c.id),
+          c.created_at
+        )                                        AS last_activity
+      FROM competition c
+    `;
+    const classifyResult = await query(classifyQuery, [BOT_EMAIL_LIKE]);
+
+    const classified = classifyResult.rows.map((c) => ({
+      ...c,
+      is_stalled: classifyCompetition(c).is_stalled
+    }));
+
+    const countedIds = classified.filter((c) => !c.is_stalled).map((c) => c.id);
+    const liveIds = classified
+      .filter((c) => !c.is_stalled && c.status !== 'complete')
+      .map((c) => c.id);
+
+    /*
+    An organiser with nothing live has no rows at all after this, so the query returns nobody
+    rather than everybody - which is what an empty ANY() would do if it were spelled the other
+    way round. $1 is the counted list, $2 the live one, throughout.
+    */
+
     // One query. Scalar subselects per organiser rather than a pile of GROUP BY joins, which
     // would multiply rows against each other - there are a few dozen organisers, so the repeated
     // subselects cost nothing and the shape stays readable.
@@ -125,15 +193,22 @@ router.get('/', verifyAdminToken, async (req, res) => {
         u.created_at                                                         AS signed_up_at,
         u.last_active_at,
 
-        (SELECT COUNT(*) FROM competition c WHERE c.organiser_id = u.id)     AS competitions_total,
+        -- Every competition figure is scoped to $1, the non-archived competitions. An archived
+        -- one is not something to act on, and counting it here would put a number on this screen
+        -- that the Competitions screen does not show anywhere.
         (SELECT COUNT(*) FROM competition c
-          WHERE c.organiser_id = u.id AND LOWER(c.status) = 'active')        AS competitions_active,
+          WHERE c.organiser_id = u.id AND c.id = ANY($1::int[]))             AS competitions_total,
         (SELECT COUNT(*) FROM competition c
-          WHERE c.organiser_id = u.id AND LOWER(c.status) = 'setup')         AS competitions_setup,
+          WHERE c.organiser_id = u.id AND c.id = ANY($1::int[])
+            AND LOWER(c.status) = 'active')                                  AS competitions_active,
         (SELECT COUNT(*) FROM competition c
-          WHERE c.organiser_id = u.id AND LOWER(c.status) = 'complete')      AS competitions_complete,
+          WHERE c.organiser_id = u.id AND c.id = ANY($1::int[])
+            AND LOWER(c.status) = 'setup')                                   AS competitions_setup,
         (SELECT COUNT(*) FROM competition c
-          WHERE c.organiser_id = u.id
+          WHERE c.organiser_id = u.id AND c.id = ANY($1::int[])
+            AND LOWER(c.status) = 'complete')                                AS competitions_complete,
+        (SELECT COUNT(*) FROM competition c
+          WHERE c.organiser_id = u.id AND c.id = ANY($1::int[])
             AND COALESCE(c.fixture_service, false) = true)                   AS competitions_on_fixture_service,
 
         /*
@@ -160,6 +235,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
            JOIN competition c ON c.id = cu.competition_id
            JOIN app_user pu ON pu.id = cu.user_id
           WHERE c.organiser_id = u.id
+            AND c.id = ANY($1::int[])
             AND cu.user_id <> c.organiser_id
             AND ${chargeableMemberFilter('pu')})                              AS players_total,
         (SELECT COUNT(DISTINCT cu.user_id)
@@ -167,6 +243,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
            JOIN competition c ON c.id = cu.competition_id
            JOIN app_user pu ON pu.id = cu.user_id
           WHERE c.organiser_id = u.id
+            AND c.id = ANY($1::int[])
             AND cu.user_id <> c.organiser_id
             AND ${chargeableMemberFilter('pu')})                              AS players_unique,
 
@@ -200,20 +277,25 @@ router.get('/', verifyAdminToken, async (req, res) => {
         ${organiserChargeableCountSql('u.id')}                                AS chargeable_players,
 
         (SELECT MIN(c.created_at) FROM competition c
-          WHERE c.organiser_id = u.id)                                       AS first_competition_at,
+          WHERE c.organiser_id = u.id AND c.id = ANY($1::int[]))              AS first_competition_at,
 
         (SELECT MAX(p.created_at)
            FROM pick p
            JOIN round r ON r.id = p.round_id
            JOIN competition c ON c.id = r.competition_id
-          WHERE c.organiser_id = u.id)                                       AS last_player_activity
+          WHERE c.organiser_id = u.id
+            AND c.id = ANY($1::int[]))                                       AS last_player_activity
 
       FROM app_user u
-      WHERE EXISTS (SELECT 1 FROM competition c WHERE c.organiser_id = u.id)
+      -- $2 is the LIVE list, not the counted one: owning something ACTIVE or PENDING is what
+      -- puts somebody on this screen. A finished back catalogue still shows in their columns
+      -- above, but on its own it is not a reason to contact anyone.
+      WHERE EXISTS (SELECT 1 FROM competition c
+                     WHERE c.organiser_id = u.id AND c.id = ANY($2::int[]))
       ORDER BY u.display_name NULLS LAST
     `;
 
-    const result = await query(organisersQuery);
+    const result = await query(organisersQuery, [countedIds, liveIds]);
 
     // COUNT() arrives as a string from node-postgres (bigint), NUMERIC likewise
     const n = (value) => parseInt(value, 10) || 0;

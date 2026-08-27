@@ -523,6 +523,9 @@ function CompetitionsList() {
   /* People figures for the row under the tiles. Null until they arrive, and null if they fail -
      losing them must not take the competitions list with it. */
   const [people, setPeople] = useState<AdminStats['users'] | null>(null);
+  /* Organisers holding something active or pending. Sits in the same row and arrives in the same
+     request, so it is kept beside the people figures rather than in its own state. */
+  const [organisersLive, setOrganisersLive] = useState<number | null>(null);
   const [lastViewed, setLastViewed] = useState<{ id: number; at: number } | null>(null);
   const [roundInProgressTarget, setRoundInProgressTarget] = useState<{
     competition: AdminCompetition;
@@ -691,9 +694,12 @@ function CompetitionsList() {
     */
     try {
       const stats = await adminApi.getStats();
-      setPeople(stats.return_code === 'SUCCESS' && stats.users ? stats.users : null);
+      const ok = stats.return_code === 'SUCCESS';
+      setPeople(ok && stats.users ? stats.users : null);
+      setOrganisersLive(ok && stats.organisers ? stats.organisers.live : null);
     } catch {
       setPeople(null);
+      setOrganisersLive(null);
     }
   }, []);
 
@@ -869,7 +875,7 @@ function CompetitionsList() {
           be read as that person's.
         */}
         {people && organiserId === null && (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <PeopleCard
               label="active players"
               value={people.active}
@@ -880,6 +886,23 @@ function CompetitionsList() {
               value={people.total}
               hint={`${people.new_last_30_days.toLocaleString()} new in 30 days`}
             />
+            {/*
+              Organisers sit third, not first: the row leads with the figures read most often,
+              and this one is a few dozen against a few hundred.
+
+              "Live" and not "all we have ever had", to match the Organisers screen, which lists
+              only organisers with something active or pending. A total including everyone whose
+              competitions have all finished or been archived can only ever rise, so it could
+              not tell growth from churn - the same reason "active players" replaced a cumulative
+              count. Null while it is loading or if it failed, and the card simply stays away.
+            */}
+            {organisersLive !== null && (
+              <PeopleCard
+                label="organisers"
+                value={organisersLive}
+                hint="running something active or pending"
+              />
+            )}
             <PeopleCard
               label="guests"
               value={people.active_guests}
