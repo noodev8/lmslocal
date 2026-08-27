@@ -344,15 +344,25 @@ function OrganisersList() {
   }, [organisers, search, matchesFilter, sortKey, sortDirection]);
 
   // Tile counts always reflect everyone, so they stay a stable reference point while filtering.
-  const counts = useMemo(
-    () => ({
+  const counts = useMemo(() => {
+    const paying = organisers.filter((o) => o.spend_12m > 0).length;
+    return {
       total: organisers.length,
       empty: organisers.filter(isEmpty).length,
       quiet: organisers.filter(isQuiet).length,
-      paying: organisers.filter((o) => o.spend_12m > 0).length,
-    }),
-    [organisers]
-  );
+      paying,
+      /*
+      Conversion, as a share of the organisers ON THIS SCREEN - the ones with something active or
+      pending. Not of everyone who ever created a competition: that denominator only ever grows,
+      so the percentage would fall every time an old competition was archived, which is not a
+      sales figure moving in a direction anybody should read into.
+
+      Rounded to whole points. Anything finer reads as precision that a denominator in the low
+      tens does not have.
+      */
+      paying_share: organisers.length > 0 ? Math.round((paying / organisers.length) * 100) : 0,
+    };
+  }, [organisers]);
 
   return (
     <div className="min-h-screen">
@@ -404,7 +414,7 @@ function OrganisersList() {
             <FilterTile
               label="Paying"
               value={counts.paying}
-              hint="paid in the last 12 months"
+              hint={`${counts.paying_share}% of ${counts.total} · paid in the last 12 months`}
               tone="good"
               active={filter === 'paying'}
               onClick={() => setFilter('paying')}
