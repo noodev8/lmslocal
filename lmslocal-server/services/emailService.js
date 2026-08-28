@@ -60,6 +60,21 @@ const firstName = (name) => {
  * ALL EMAILS. Anyone reading that line reasonably concluded nothing could reach a real inbox;
  * three of the live player emails always could.
  *
+ * It is now literally true: verification, password reset and the payment confirmation were the
+ * last holding their own `resend.emails.send`, and they come through here as well. What they gain is the reply-to default and one place to repoint at a new
+ * provider - NOT test mode, which needs an `options` argument none of their callers can pass;
+ * nobody can ask for a test copy of an email triggered by their own signup. This is now the ONLY place in the codebase that constructs a Resend client or
+ * calls `resend.emails.send`, which is what makes a change of provider one function rather than
+ * a search. Keep it that way - a new sender builds a payload and hands it to deliver().
+ *
+ * Two standalone CLI scripts held their own client and were deleted rather than ported:
+ * `send-reminder.js` (a one-off that mailed a hand-made CSV) and
+ * `scripts/send-competition-announcement.js`. Neither was imported by anything, and neither
+ * honoured opt-outs or carried an unsubscribe footer - running either would have mailed people
+ * who had unsubscribed. If a bulk send by hand is ever wanted again, build it on the candidate
+ * query + catalog pipeline (services/pickReminder.js is the worked example), not on a second
+ * client.
+ *
  * Test mode is now a parameter rather than a line to comment out, so it can be driven from the
  * admin screen per send, and there is one place to check rather than twelve.
  *
@@ -332,7 +347,20 @@ const sendVerificationEmail = async (email, token, displayName) => {
       LMS Local - Admin-first Last Man Standing competitions
     `;
 
-    const result = await resend.emails.send({
+    /*
+    Through deliver() like everything else, so there is one exit point to repoint if we ever
+    leave Resend, and one place where the reply-to default is applied.
+
+    No email_type tag, deliberately: this is account mail, and deliver() treats an untagged
+    payload as transactional and never suppresses it. Somebody who has muted Game or Info still
+    has to be able to verify their address.
+
+    Note this sender takes no `options`, so test mode cannot reach it - unlike the catalog
+    senders, nothing can press "send me a test copy" of a verification email, because it is
+    triggered by the recipient signing up. Same for the other three account emails below. Do not
+    add an options parameter until something actually passes one.
+    */
+    const result = await deliver({
       from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
       to: [email],
       subject: 'Verify your email address - LMS Local',
@@ -420,7 +448,9 @@ const sendPasswordResetEmail = async (email, token, displayName) => {
       LMS Local - Admin-first Last Man Standing competitions
     `;
 
-    const result = await resend.emails.send({
+    // Untagged and no options - account mail, always sent, no test mode. See
+    // sendVerificationEmail for why.
+    const result = await deliver({
       from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
       to: [email],
       subject: 'Reset your password - LMS Local',
@@ -444,104 +474,6 @@ const sendPasswordResetEmail = async (email, token, displayName) => {
 
   } catch (error) {
     console.error('Failed to send password reset email:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * Sends a magic link email for player authentication
- * @param {string} email - Recipient email address
- * @param {string} token - Magic link token
- * @param {string} displayName - Player's display name
- * @param {string} competitionName - Competition name
- * @param {string} slug - Competition slug
- * @returns {Object} Result object with success status
- */
-const sendPlayerMagicLink = async (email, token, displayName, competitionName, slug) => {
-  try {
-    const magicLinkUrl = `${process.env.PLAYER_FRONTEND_URL}/play/${slug}?token=${token}`;
-    
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Join ${competitionName} - LMS Local</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Welcome to ${competitionName}!</h1>
-          </div>
-          
-          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e9ecef;">
-            <h2 style="color: #343a40; margin-top: 0;">Hi ${firstName(displayName)}! 👋</h2>
-            
-            <p style="font-size: 16px; margin-bottom: 25px;">
-              You're ready to join <strong>${competitionName}</strong> and test your football knowledge!
-            </p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${magicLinkUrl}" 
-                 style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; font-size: 16px;">
-                🚀 Join Competition Now
-              </a>
-            </div>
-            
-            <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 25px 0;">
-              <h3 style="color: #1976d2; margin-top: 0; font-size: 16px;">What happens next?</h3>
-              <ul style="color: #424242; margin: 0; padding-left: 20px;">
-                <li>Click the button above to access your competition dashboard</li>
-                <li>Make your picks for each round</li>
-                <li>Track your progress and see results</li>
-                <li>Compete against other players!</li>
-              </ul>
-            </div>
-            
-            <p style="font-size: 14px; color: #6c757d; border-top: 1px solid #dee2e6; padding-top: 20px; margin-top: 30px;">
-              This magic link will expire in 30 minutes for security. If you didn't request to join this competition, you can safely ignore this email.
-            </p>
-          </div>
-          
-          <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #6c757d;">
-            <p>LMS Local - Admin-first Last Man Standing competitions</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    const textContent = `
-      Welcome to ${competitionName}!
-      
-      Hi ${firstName(displayName)},
-      
-      You're ready to join ${competitionName} and test your football knowledge!
-      
-      Click this link to join: ${magicLinkUrl}
-      
-      What happens next?
-      - Make your picks for each round
-      - Track your progress and see results  
-      - Compete against other players!
-      
-      This magic link will expire in 30 minutes for security.
-      
-      ---
-      LMS Local - Admin-first Last Man Standing competitions
-    `;
-
-    const result = await resend.emails.send({
-      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
-      to: [email],
-      subject: `Join ${competitionName} - LMS Local`,
-      html: htmlContent,
-      text: textContent,
-    });
-
-    return readSendResult(result);
-
-  } catch (error) {
-    console.error('Failed to send player magic link email:', error);
     return { success: false, error: error.message };
   }
 };
@@ -640,7 +572,9 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
       LMS Local - Admin-first Last Man Standing competitions
     `;
 
-    const result = await resend.emails.send({
+    // Untagged and no options - see sendVerificationEmail. A receipt for money taken is not
+    // something a preference should be able to switch off.
+    const result = await deliver({
       from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
       to: [email],
       subject: `Payment confirmed - ${planName.charAt(0).toUpperCase() + planName.slice(1)} plan activated`,
@@ -648,7 +582,6 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
       text: textContent,
     });
 
-    console.log('Payment confirmation email sent successfully:', result.id);
     return readSendResult(result);
 
   } catch (error) {
@@ -3009,193 +2942,6 @@ const sendBroadcastEmail = async (email, templateData, options = {}) => {
 };
 
 /**
- * Send results email after round completion
- * @param {string} email - User's email address
- * @param {object} templateData - Email template data including round results
- */
-const sendResultsEmail = async (email, templateData) => {
-  try {
-    // Extract template data for easier access
-    const {
-      user_display_name,
-      competition_name,
-      competition_status,
-      organizer_name,
-      round_number,
-      user_pick,
-      pick_result,
-      lives_remaining,
-      new_status,
-      active_player_count,
-      competition_id,
-      email_tracking_id
-    } = templateData;
-
-    // Determine outcome message and styling based on result
-    let outcomeMessage = '';
-    let outcomeColor = '';
-    let outcomeIcon = '';
-
-    if (pick_result === 'no_pick') {
-      outcomeMessage = 'You did not make a pick for this round.';
-      outcomeColor = '#dc2626'; // red
-      outcomeIcon = '⚠️';
-    } else if (pick_result === 'win') {
-      outcomeMessage = 'Your pick won! You advance to the next round.';
-      outcomeColor = '#16a34a'; // green
-      outcomeIcon = '✅';
-    } else if (pick_result === 'draw') {
-      outcomeMessage = 'Your pick drew. You lost a life but remain in the competition.';
-      outcomeColor = '#ea580c'; // orange
-      outcomeIcon = '⚠️';
-    } else if (pick_result === 'loss') {
-      outcomeMessage = 'Your pick lost.';
-      outcomeColor = '#dc2626'; // red
-      outcomeIcon = '❌';
-    }
-
-    // Additional status messaging - different for complete vs active competitions
-    let statusMessage = '';
-
-    // Normalize competition_status to lowercase for comparison
-    const normalizedStatus = (competition_status || '').toLowerCase();
-
-    if (normalizedStatus === 'complete') {
-      // Competition has ended - show final results
-      if (new_status === 'active') {
-        // Player survived to the end AND competition is complete
-        // This can ONLY mean they are the sole winner
-        statusMessage = '<p style="color: #16a34a; font-size: 20px; font-weight: 700; margin: 20px 0 0 0;">🏆 Congratulations! You won the competition!</p>';
-      } else {
-        // new_status === 'eliminated'
-        // Player was eliminated in final round
-        // Check if competition ended in DRAW (zero survivors)
-        // Convert to number for comparison (could be string from JSON)
-        if (parseInt(active_player_count) === 0) {
-          statusMessage = '<p style="color: #ea580c; font-size: 18px; font-weight: 600; margin: 20px 0 0 0;">Competition complete - Result: Draw! No winners.</p>';
-        } else {
-          // Someone else won, this player was eliminated
-          statusMessage = '<p style="color: #dc2626; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You have been eliminated. Competition complete.</p>';
-        }
-      }
-    } else {
-      // Normal round (competition not complete) - existing logic
-      if (new_status === 'eliminated') {
-        statusMessage = '<p style="color: #dc2626; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You have been eliminated from the competition.</p>';
-      } else if (new_status === 'active') {
-        statusMessage = `<p style="color: #16a34a; font-size: 16px; font-weight: 600; margin: 20px 0 0 0;">You are still in! Lives remaining: ${lives_remaining}</p>`;
-      }
-    }
-
-    // Build the view competition URL
-    const viewCompetitionUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}?email_id=${email_tracking_id}`;
-
-    // HTML email content - Simple format as requested
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Round ${round_number} Results - ${competition_name}</title>
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
-
-            <!-- Header -->
-            <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
-              <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
-            </div>
-
-            <!-- Main Content -->
-            <div style="padding: 40px 30px;">
-
-              <!-- Greeting -->
-              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
-
-              <!-- Main Message -->
-              <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
-                Round ${round_number} results are in.
-              </p>
-
-              <!-- Results Box -->
-              <div style="background: #f1f5f9; border-left: 4px solid ${outcomeColor}; padding: 24px; margin: 0 0 24px 0;">
-                <p style="margin: 0 0 12px 0; color: #0f172a; font-size: 15px;">
-                  <strong>${outcomeIcon} Your Pick:</strong> ${user_pick}
-                </p>
-                <p style="margin: 0; color: ${outcomeColor}; font-size: 16px; font-weight: 600;">
-                  ${outcomeMessage}
-                </p>
-                ${statusMessage}
-              </div>
-
-              <!-- Call to Action Button -->
-              <div style="margin: 40px 0;">
-                <a href="${viewCompetitionUrl}"
-                   style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
-                  View Full Results
-                </a>
-              </div>
-
-            </div>
-
-            <!-- Footer -->
-            <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-              <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-                LMS Local - Last Man Standing Competitions
-              </p>
-            </div>
-
-          </div>
-        </body>
-      </html>
-    `;
-
-    // Plain text version
-    const textContent = `
-      ${competition_name} - Round ${round_number} Results
-
-      Hi ${firstName(user_display_name)},
-
-      Round ${round_number} results are in.
-
-      ${outcomeIcon} Your Pick: ${user_pick}
-      ${outcomeMessage}
-
-      ${new_status === 'eliminated' ? 'You have been eliminated from the competition.' : `You are still in! Lives remaining: ${lives_remaining}`}
-
-      Organised by ${organizer_name}
-
-      View full results: ${viewCompetitionUrl}
-
-      Good luck in future rounds!
-
-      ---
-      LMS Local - Last Man Standing Competitions
-    `;
-
-    // Send email via Resend
-    const result = await resend.emails.send({
-      from: `${process.env.EMAIL_NAME} <${process.env.EMAIL_FROM}>`,
-      to: [email],
-      subject: `${organizer_name} (${competition_name}): Round ${round_number} Results`,
-      html: htmlContent,
-      text: textContent,
-    });
-
-    return readSendResult(result);
-
-  } catch (error) {
-    console.error('Failed to send results email:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
-
-/**
  * Build the Join Comp welcome without sending it.
  *
  * Outline row: Player | Welcome | Join Comp. One per membership, when someone joins a competition.
@@ -3914,7 +3660,6 @@ const sendContactMessage = async (message) => {
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
-  sendPlayerMagicLink,
   sendPaymentConfirmationEmail,
   buildPickReminderEmail,
   sendPickReminderEmail,
@@ -3944,7 +3689,6 @@ module.exports = {
   sendHintEmail,
   buildBroadcastEmail,
   sendBroadcastEmail,
-  sendResultsEmail,
   sendOrganiserTipEmail,
   sendOnboardingNotification,
   sendOnboardingConfirmation,
