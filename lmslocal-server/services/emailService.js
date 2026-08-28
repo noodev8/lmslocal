@@ -26,9 +26,16 @@ const { subjectFor: hintSubjectFor } = require('./hints');
 const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
 const { subjectFor: pickReminderSubjectFor } = require('./pickReminder');
 const { isOptedOut } = require('./emailPreference');
+const { query } = require('../database');
 const { formatUk, formatUkDate, formatUkDateTime } = require('./dateFormat');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+/*
+Stamped on every email_send_log row. A constant rather than a guess, so the day of the SES cutover
+can be counted per provider instead of as one undifferentiated total.
+*/
+const EMAIL_PROVIDER = 'resend';
 
 // Where a test send is redirected. Overridable so this is not a hardcoded personal address.
 const TEST_RECIPIENT = process.env.EMAIL_TEST_RECIPIENT || 'aandreou25@gmail.com';
@@ -132,20 +139,68 @@ const deliver = async (emailData, options = {}) => {
     emailData = { ...emailData, reply_to: replyTo };
   }
 
-  if (!testMode) {
-    return await resend.emails.send(emailData);
-  }
-
   /*
   Subject is prefixed as well as the recipient swapped. Test copies of an email land in the same
   inbox as real ones for whoever is testing, and without the marker there is no way to tell a
   redirected send from a genuine one after the fact.
   */
-  return await resend.emails.send({
-    ...emailData,
-    to: [testRecipient],
-    subject: `[TEST] ${emailData.subject}`
-  });
+  const payload = testMode
+    ? { ...emailData, to: [testRecipient], subject: `[TEST] ${emailData.subject}` }
+    : emailData;
+
+  const result = await resend.emails.send(payload);
+
+  await recordSend({ emailType, testMode, result });
+
+  return result;
+};
+
+/*
+One row on email_send_log per provider call, for the volume counter.
+
+WHY HERE AND NOT AT THE QUEUE. admin/get-email-volume counted email_queue rows with status='sent',
+which is every send that was QUEUED. Its own header listed what that misses: the transactional
+mail - password reset, verification, contact form, onboarding, Stripe confirmation - which is
+sent directly and never queued, and every [TEST] copy, which spends a provider send exactly like
+a real one. It called logging inside deliver() the right fix. That only became safe once deliver()
+was actually the single exit point; while five senders still called resend.emails.send directly,
+a counter here would have looked complete and quietly missed precisely the mail it was added for.
+
+WRITTEN AFTER THE CALL, deliberately, so the row records what the provider actually did rather
+than what we intended. The cost is that a process killed between the send and this insert
+undercounts by one. That is the right way round: an undercount of one is a smaller lie than a row
+claiming a send that never happened, which is the same argument emailSkip.js makes about status.
+
+SUPPRESSIONS ARE NOT LOGGED. deliver() returns before the provider call when a recipient has
+unsubscribed, so nothing was sent and no allowance was spent. This table means "we called the
+provider", and it has to keep meaning exactly that to be worth counting.
+
+RETENTION IS 90 DAYS, via scripts/prune-email-send-log.js on the crontab. Long enough to span the
+SES migration's dual-running phases, short enough that the table does not reach a gigabyte. For
+some mail - the Stripe confirmation, the contact form, onboarding - this row is the ONLY record
+that it was ever sent, so a longer window is the thing to extend if that ever matters.
+
+IT MUST NEVER BREAK A SEND. The email has already gone by the time this runs; throwing here would
+turn a delivered email into a caller-visible failure and, for a queued one, into a retry that
+sends it twice. Any error is logged and swallowed.
+*/
+const recordSend = async ({ emailType, testMode, result }) => {
+  try {
+    await query(
+      `INSERT INTO email_send_log (provider, email_type, test_mode, accepted, message_id, error)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        EMAIL_PROVIDER,
+        emailType,
+        testMode,
+        !result?.error,
+        result?.data?.id || null,
+        result?.error ? (result.error.message || result.error.name || String(result.error)) : null
+      ]
+    );
+  } catch (error) {
+    console.error('email_send_log insert failed (email itself was sent):', error.message);
+  }
 };
 
 /*

@@ -13,23 +13,32 @@ the question you ask before pressing send on a backlog of forty-four: how much o
 is already spent. That number lived only in the Resend dashboard, which means leaving the screen
 that is about to do the sending.
 
-WHAT IT COUNTS, AND WHAT IT CANNOT
+WHAT IT COUNTS
 
-email_queue rows with status = 'sent' - the same definition as the card's "sent recently" and the
-history list, so the three cannot disagree. sent_at, never email_tracking.sent_at, which DEFAULTS
-to insert time and is therefore stamped on mail that never went.
+email_send_log rows - one per provider call, written inside deliver(). See services/emailService.js
+for why the row is written after the call rather than before it.
 
-Two kinds of send are genuinely invisible here, which is why `remaining` is reported as an estimate
-and the screen says so rather than printing a bare number:
+This USED to count email_queue rows with status = 'sent', which meant it counted only what had been
+QUEUED, and two kinds of send were invisible:
 
-  - TEST SENDS. send-emails.js deliberately queues nothing in test mode, so a [TEST] copy leaves no
-    row. It still spends a Resend send.
+  - TEST SENDS. send-emails.js deliberately queues nothing in test mode, so a [TEST] copy left no
+    row. It spends a provider send like any other.
   - TRANSACTIONAL MAIL. Password reset, email verification, the contact form, onboarding and the
-    Stripe payment confirmation call emailService directly and were never queued. Low volume, but
-    not zero.
+    Stripe payment confirmation are sent directly and never queued. Low volume, but not zero.
 
-Closing those gaps means logging every send inside deliver() itself, which is the right fix and a
-larger change; until then this is an upper bound on what is left, and it is labelled as one.
+Both are now counted, which is why `remaining_estimate` is closer to a real figure than it was.
+It is still called an estimate for one honest reason: the provider's own quota day need not be the
+Europe/London day, so for the hour after UK midnight in summer the two can disagree by whatever
+went out in it.
+
+THE HANDOVER, WHICH IS WHY THIS QUERY HAS TWO SOURCES
+
+email_send_log starts empty and only knows about sends made after it existed. Counting from it
+alone would report zero for yesterday on the first day and read as an outage. So the query takes
+log rows for the period the log covers, and email_queue rows for the period before it - split at
+the log's own earliest row, so nothing is counted twice and nothing is dropped. `logging_since` is
+returned so the operator can see where the complete count starts; once it is more than two days
+old the email_queue half stops mattering and can go.
 
 DAYS ARE EUROPE/LONDON
 
@@ -58,7 +67,14 @@ Success Response (ALWAYS HTTP 200):
     "date": "2026-08-20",
     "sent": 47
   },
-  "remaining_estimate": 89             // integer, never below zero - an UPPER bound, see above
+  "remaining_estimate": 89,            // integer, never below zero
+  "logging_since": "2026-08-28T14:02:11.000Z",  // string|null, when complete per-send logging began.
+                                       //         Null until the first send is logged. Counts for
+                                       //         days before this come from email_queue and so
+                                       //         miss test and transactional sends.
+  "logging_covers_today": true         // boolean, whether the log covers the whole of today - i.e.
+                                       //         whether today's figure is complete or still part
+                                       //         counted from email_queue
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -106,22 +122,74 @@ router.post('/', verifyAdminToken, async (req, res) => {
     */
     const result = await query(`
       WITH days AS (
-        SELECT (NOW() AT TIME ZONE 'Europe/London')::date AS today
+        SELECT
+          (NOW() AT TIME ZONE 'Europe/London')::date AS today,
+          /*
+          The window start as an ABSOLUTE INSTANT, computed once and used to bound both sources.
+          Every predicate below compares sent_at to this directly rather than to a function of
+          sent_at, so both can use their index on sent_at.
+          */
+          (((NOW() AT TIME ZONE 'Europe/London')::date - 1)::timestamp AT TIME ZONE 'Europe/London') AS from_instant
+      ),
+      /*
+      Where the log's coverage starts, and therefore where email_queue's stops.
+
+      Bounded to accepted rows so it reads the same partial index the counting does - MIN over the
+      whole table cannot use idx_email_send_log_accepted_recent and degrades to a sequential scan
+      of every row ever logged, which is the one thing on this screen that would get slower with
+      volume. It is also the more accurate boundary: the log only ever CONTRIBUTES accepted rows,
+      so its coverage genuinely begins at the first of them.
+      */
+      since AS (
+        SELECT MIN(sent_at) AS from_ts FROM email_send_log WHERE accepted
+      ),
+      /*
+      The two sources, joined end to end at the log's earliest row. A queued send made after
+      logging began appears in BOTH tables, so the email_queue half is bounded strictly below
+      from_ts - that boundary is what stops it being counted twice.
+
+      BOTH HALVES ARE ALSO BOUNDED BELOW BY from_instant. Without that this reads every row either
+      table has ever held in order to answer a question about two days, and merely hopes the
+      planner pushes the outer filter down through the CTE. At a few hundred rows a day that is
+      invisible; at the volumes this is being built for it is the difference between an index
+      range scan of one day and a sequential scan of the year.
+
+      Rejected rows are excluded: the provider refused them, so they spent no allowance. Test
+      sends are NOT excluded, because they do.
+      */
+      sends AS (
+        SELECT l.sent_at
+        FROM email_send_log l, days d
+        WHERE l.accepted
+          AND l.sent_at >= d.from_instant
+        UNION ALL
+        SELECT eq.sent_at
+        FROM email_queue eq, since s, days d
+        WHERE eq.status = 'sent'
+          AND eq.sent_at IS NOT NULL
+          AND eq.sent_at >= d.from_instant
+          AND (s.from_ts IS NULL OR eq.sent_at < s.from_ts)
       )
       SELECT
         to_char(d.today, 'YYYY-MM-DD') AS today_date,
         to_char(d.today - 1, 'YYYY-MM-DD') AS yesterday_date,
+        (SELECT from_ts FROM since) AS logging_since,
+        /*
+        Whether the log covers the WHOLE of today, which is what decides if today's figure is
+        complete or still part-counted from email_queue. False on the day logging is switched on -
+        that day began before the log existed, so its earlier hours are counted the old way and
+        under-report by whatever test and transactional mail went out in them. The screen uses
+        this to decide whether to keep hedging the number.
+        */
+        (SELECT from_ts FROM since) < (d.today::timestamp AT TIME ZONE 'Europe/London') AS logging_covers_today,
         COUNT(*) FILTER (
-          WHERE (eq.sent_at AT TIME ZONE 'Europe/London')::date = d.today
+          WHERE (x.sent_at AT TIME ZONE 'Europe/London')::date = d.today
         )::int AS today_sent,
         COUNT(*) FILTER (
-          WHERE (eq.sent_at AT TIME ZONE 'Europe/London')::date = d.today - 1
+          WHERE (x.sent_at AT TIME ZONE 'Europe/London')::date = d.today - 1
         )::int AS yesterday_sent
       FROM days d
-      LEFT JOIN email_queue eq
-        ON eq.status = 'sent'
-       AND eq.sent_at IS NOT NULL
-       AND (eq.sent_at AT TIME ZONE 'Europe/London')::date >= d.today - 1
+      LEFT JOIN sends x ON TRUE
       GROUP BY d.today
     `);
 
@@ -134,7 +202,10 @@ router.post('/', verifyAdminToken, async (req, res) => {
       today: { date: row.today_date, sent: row.today_sent },
       yesterday: { date: row.yesterday_date, sent: row.yesterday_sent },
       // Clamped: an over-run reads as "none left", not as a negative number nobody can act on.
-      remaining_estimate: Math.max(0, limit - row.today_sent)
+      remaining_estimate: Math.max(0, limit - row.today_sent),
+      logging_since: row.logging_since,
+      // Null-safe: an empty log yields NULL from the comparison, which is 'no' rather than unknown.
+      logging_covers_today: row.logging_covers_today === true
     });
 
   } catch (error) {

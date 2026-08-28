@@ -1523,9 +1523,11 @@ export default function EmailsPage() {
           nothing about whether today is busy. Absent entirely if the query failed - a strip reading
           "0 sent, 100 left" because the server was down is worse than no strip.
 
-          "Estimate" is on the face of it, not hidden in the tooltip. Test sends queue nothing and
-          transactional mail was never queued, so the true headroom is this or less; the tooltip says
-          which. Once deliver() logs every send itself this can drop the hedge.
+          THE HEDGE IS NOW CONDITIONAL. It used to be permanent, because test copies queued nothing
+          and transactional mail was never queued, so the figure was always an upper bound. Both are
+          counted now - deliver() writes a row per provider call to email_send_log - so the hedge
+          drops itself once the log covers a whole day. `logging_covers_today` is false only on the
+          day logging was switched on, whose earlier hours are still counted the old way.
           */}
           {volume?.today && (
             <div className="flex items-center gap-5 border-slate-200 px-4 py-3 sm:border-l">
@@ -1539,7 +1541,13 @@ export default function EmailsPage() {
                 </p>
               </div>
 
-              <div title="Counts emails the queue actually sent. Test copies and account mail (password reset, verification, contact form) leave no queue row and are not included, so the real headroom is this or less.">
+              <div
+                title={
+                  volume.logging_covers_today
+                    ? 'Counts every send, including test copies and account mail. The provider’s quota day may not line up exactly with the UK day.'
+                    : 'Part of today was counted before per-send logging began, so test copies and account mail sent earlier today are missing. The real headroom is this or less. Accurate from tomorrow.'
+                }
+              >
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Left today</p>
                 <p
                   className={`text-lg font-semibold leading-tight ${
@@ -1550,9 +1558,10 @@ export default function EmailsPage() {
                         : 'text-slate-900'
                   }`}
                 >
-                  ~{volume.remaining_estimate ?? 0}
+                  {volume.logging_covers_today ? '' : '~'}{volume.remaining_estimate ?? 0}
                   <span className="ml-2 text-sm font-normal text-slate-500">
-                    of {volume.daily_limit ?? 0} · estimate
+                    of {volume.daily_limit ?? 0}
+                    {volume.logging_covers_today ? '' : ' · estimate'}
                   </span>
                 </p>
               </div>

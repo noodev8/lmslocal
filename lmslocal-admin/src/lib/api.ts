@@ -751,9 +751,14 @@ export type EmailHistoryResponse = ApiResponse & {
 };
 
 /*
-Today's sending against the daily allowance. `remaining_estimate` is an UPPER bound: test sends and
-transactional mail (password reset, verification, contact form) leave no email_queue row, so the
-real headroom is this or less. The screen labels it as an estimate for that reason.
+Today's sending against the daily allowance.
+
+Counted from email_send_log - one row per provider call, written inside deliver() - so test sends
+and transactional mail (password reset, verification, contact form, Stripe confirmation) are now
+included. They used to be invisible, because they leave no email_queue row.
+
+Still called an estimate for one reason: the provider's quota day need not be the Europe/London
+day, so for the hour after UK midnight in summer the two can disagree.
 */
 export type EmailVolumeResponse = ApiResponse & {
   daily_limit?: number;
@@ -761,6 +766,13 @@ export type EmailVolumeResponse = ApiResponse & {
   today?: { date: string; sent: number };
   yesterday?: { date: string; sent: number };
   remaining_estimate?: number;
+  /* When complete per-send logging began. Days before it are counted from email_queue and so
+     under-report by whatever test and transactional mail went out then. Null until the first
+     send is logged. */
+  logging_since?: string | null;
+  /* Whether the log covers the whole of today. False on the day logging is switched on, when the
+     earlier hours are still counted the old way - the screen keeps its hedge until this is true. */
+  logging_covers_today?: boolean;
 };
 
 export type SendEmailsResponse = ApiResponse & {
