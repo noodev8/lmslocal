@@ -23,6 +23,11 @@ sent_count is routinely lower than candidate_count and that is not a failure. No
 does NOT get: the crontab's ordering. Priority here is whatever the operator presses first, so a
 Round Over sent at 2pm takes the collisions from anything sent that evening.
 
+The one exception, and it is the catalog's rather than this route's: an entry carrying
+`quietExempt` is never suppressed by the quiet period, from here or from the cron. organiser_nudge
+is the only one - see services/emailQuiet.js. For that email skipped_count below is always 0, so
+sent_count and candidate_count should agree.
+
 Two modes, and they are deliberately not the same code path:
 
   test_mode true  - builds ONE email for the first candidate and sends it to the test address.

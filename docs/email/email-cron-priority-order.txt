@@ -35,6 +35,9 @@
 #50 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js promote_competition >/dev/null
 #55 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js update_scores_mid_round_tip >/dev/null
 #0 9 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js personal_names_tip >/dev/null
+#
+# Outside the morning block, and not ranked against it - see section 14 below.
+#33 9-19 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_nudge >/dev/null
 # --- LMSLocal email sweeps - end ---
 
 
@@ -64,15 +67,31 @@
 #    Top of the list because it is the only email with a hard deadline. A killed one can cost a
 #    player a life, and no other email can make that up to them.
 #
-#    RUNS AN HOUR BEFORE THE REST, and the hour is load-bearing rather than tidy. A round is only
-#    eligible inside REMINDER_WINDOW_HOURS of its lock, so under a daily cron it is chased on the
-#    one run that falls inside that window or it is never chased at all. A 12:30 Saturday kickoff
-#    locks at 11:30; running at 08:00 gives that player three and a half hours, where 11:00 would
-#    give thirty minutes. Evening locks still get eleven hours on the morning of.
+#    RUNS FIRST, because a round is only eligible inside REMINDER_WINDOW_HOURS of its lock, so
+#    under a daily cron it is chased on the one run that falls inside that window or it is never
+#    chased at all - silently.
 #
-#    Modelled against every real round of the last 60 days plus the Saturday 12:30s expected this
-#    season: a 24-hour window misses none of them at this hour. The old 12 missed every evening
-#    lock from a 07:00 GMT run. If this line moves later, check services/pickReminder.js first.
+#    THE WINDOW IS NOW 30 HOURS (was 24, changed 2026-08-28), and that is what makes this line's
+#    exact hour much less critical than it used to be. The reason is the season's shape: most
+#    fixtures are expected to be Saturday 12:30 kickoffs, locking at 11:30. Under 24 hours that
+#    lock was 26.5h away at the Friday run - outside the window, nothing sent - and 2.5h away at
+#    the Saturday one, so the commonest round of the season got its only reminder at half past
+#    nine on a Saturday morning. 30 hours moves it to the Friday, with a full day to act.
+#
+#    Only locks between roughly 09:00 and 15:00 move; evening locks are chased on the morning of
+#    exactly as before. services/pickReminder.js has the full table and the accepted cost (a
+#    Sunday early-afternoon lock is now chased a day ahead).
+#
+#    ANY HOUR FROM ABOUT 06:00 TO 09:00 GMT WORKS with a 30-hour window - a Saturday 11:30 BST lock
+#    needs only that Friday's run fall after 05:30 BST. Both 07:00 and 08:00 GMT have been live at
+#    different times and neither is wrong; do not treat a mismatch between this file and the server
+#    as a bug without checking which is intended. If this line ever moves LATER than about 09:00
+#    GMT, re-check services/pickReminder.js first.
+#
+#    KNOCK-ON TO WATCH. Sending a day earlier for morning locks means this sweep now takes its
+#    collisions on the Friday rather than the Saturday, so what it suppresses lower down the list
+#    shifts by a day too. Nothing is known to break; it has simply not been through a full weekend
+#    yet.
 # 8:00 AM
 #0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
 
@@ -151,6 +170,63 @@
 # 10:00 AM
 #0 9 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js personal_names_tip >/dev/null
 
+
+# ---------------------------------------------------------------------------------------------
+# 14. Organiser, Game - Organiser nudge | Round locks within 3h, 5+ AND 25%+ still to pick
+#     THE ONLY LINE OUTSIDE THE MORNING BLOCK, AND THE ONLY ONE EXEMPT FROM MAGIC SEND. Numbered
+#     last, but it is not ranked last - it is not ranked at all, and that is exactly why it is
+#     exempt. Everything above runs once between 09:00 and 10:00 BST, where running order IS
+#     priority. This runs hourly through the afternoon, because it fires three hours before a
+#     round locks and rounds lock at different times. An email that runs at 17:00 loses to
+#     everything that ran at 08:00 whatever line it sits on, so no position in this file could
+#     express its priority. services/emailQuiet.js carries the full argument and the test to apply
+#     before ever adding a second exemption.
+#
+#     Being exempt, moving this line changes NOTHING about what it sends. It still writes ordinary
+#     'sent' rows, so it does still take collisions FROM tomorrow morning's block - the exemption
+#     is one way only.
+#
+#     MINUTE 33 IS DELIBERATE. Hour 8 GMT holds the morning block at minutes 0, 5, 10 ... 55 and
+#     hour 9 holds it at minute 0, and two lines in the same minute cannot see each other's sends.
+#     Minute 33 is free at every hour. If the block above ever grows onto it, move THIS line.
+#
+#     STARTING AT HOUR 9, AND THE GAP IS THE DESIGN. pick_reminder runs at the top of the morning
+#     block and it works - on 28 Aug it converted 14 picks in the ninety minutes after it landed,
+#     against a baseline of one or two an hour. This email reports what is LEFT after that has had
+#     its run, so it must not start alongside it: starting in hour 8 it would quote a number the
+#     player email was still in the middle of changing, and would overlap the heaviest query on
+#     the platform while doing it. Hour 9 clears the whole block whether pick_reminder sits at
+#     07:00 or 08:00 GMT - both have been live at different times, so do not tighten this to
+#     depend on which.
+#
+#     Hours 9-19 GMT = 10:33 to 20:33 BST, hourly. A 20:00 BST lock is caught at 17:33 BST with
+#     nearly two and a half hours to act, which is the common case.
+#
+#     A MORNING LOCK IS NOT SERVED BY THIS RANGE, AND IS NOT MEANT TO BE. A 12:30 Saturday kickoff
+#     locks at 11:30 BST - the expected shape of most of this season - and three hours before that
+#     is 08:30, before the first run. Rather than move this line earlier and collide with the
+#     morning block, services/organiserNudge.js sends those the EVENING BEFORE: a lock before 2pm
+#     UK time qualifies once it is within 18 hours, so the Friday 17:33 or 18:33 run picks up
+#     Saturday's 11:30. The organiser posts in the group chat that night and the players have the
+#     evening plus Saturday morning.
+#
+#     That rule lives in the service and keys off the LOCK's time of day, not off which run this
+#     is, so this line's hours can move without touching it. What the hours must keep doing is
+#     covering the early evening - if this range is ever trimmed at the top, Saturday morning locks
+#     lose their Friday send silently.
+#
+#     KNOCK-ON WORTH WATCHING (see section 1). pick_reminder's window is 24 hours, so a Saturday
+#     11:30 lock does not reach the players until Saturday morning. The Friday-evening nudge
+#     therefore reports a number nobody has been chased about yet, and it will be a big one. That
+#     is a deliberate trade - the organiser's group chat is the better channel, so it goes first -
+#     but if these start reading as "everybody, every week", the fix is pick_reminder firing the
+#     day before, not tighter thresholds on this email.
+#
+#     Cheap to run this often. organiserNudge.hasRoundInWindow() is one indexed range scan on
+#     round.lock_time and returns nothing on most runs; the aggregate over memberships and picks is
+#     only reached when a deadline is actually near.
+# 09:03-20:03 BST, hourly
+#3 8-19 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_nudge >/dev/null
 
 # ---------------------------------------------------------------------------------------------
 # NOT ON THIS LIST, and not by oversight:

@@ -11,7 +11,7 @@ a count of five and mails eight.
 
 The eligibility rules, all in findCandidates below:
   - competition is not COMPLETE (compared case-insensitively; the column holds upper case)
-  - round has a lock time, in the future, and within REMINDER_WINDOW_HOURS (24)
+  - round has a lock time, in the future, and within REMINDER_WINDOW_HOURS (30)
   - round has fixtures
   - player is still active in the competition
   - player has a real email (guest accounts use @lms-guest.com and are excluded)
@@ -60,13 +60,53 @@ const subjectFor = (competitionName, lockTime) =>
 
 /*
 How close to the lock a round has to be before its players are chased. 3 days -> 48h (2026-08-14)
--> 12h (2026-08-18) -> 24h (2026-08-21, when this went on a daily cron).
+-> 12h (2026-08-18) -> 24h (2026-08-21, when this went on a daily cron) -> 30h (2026-08-28).
+
+WHY 30, AND WHY IT IS NOT A RETURN TO THE OLD 48
+
+24 was modelled on the rounds that existed in August, which were mostly evening locks. The season
+proper is not shaped like that: Andreas expects the MAJORITY of fixtures to be Saturday 12:30
+kickoffs, locking at 11:30.
+
+A 24-hour window handles those badly, and the arithmetic is unforgiving. At the daily 09:00 BST
+run, a Saturday 11:30 lock is 26.5 hours away on the Friday - outside 24, so nothing goes - and
+2.5 hours away on the Saturday. So the season's most common round would have had its one and only
+reminder land at half past nine on a Saturday morning, giving a player two and a half hours to
+notice it while they are out. 30 hours moves that to the Friday morning, with a full day to act.
+
+WHICH LOCKS THIS ACTUALLY CHANGES, since "wider window" sounds like everything moves. With one run
+a day, a lock is chased on the first run at or after (lock - window), so only locks falling between
+about 09:00 and 15:00 shift to the previous morning. Everything from mid-afternoon onwards is
+unaffected:
+
+  Sat 11:30 lock   was Sat 09:00 (2.5h)   now Fri 09:00 (26.5h)   <- the case this is for
+  Sun 13:00 lock   was Sun 09:00 (4h)     now Sat 09:00 (28h)
+  Sat 20:00 lock   Sat 09:00 (11h)        unchanged
+  Sun 16:00 lock   Sun 09:00 (7h)         unchanged
+
+The Sunday early-afternoon row is the cost, and it is real: that reminder now arrives a day ahead,
+which is the failure mode 48 hours was rejected for - no urgency yet, the player thinks "later",
+and the per-round queue guard means nothing follows. It is accepted because the Saturday case is
+the common one and its old behaviour was worse: 2.5 hours on a weekend morning is not a reminder,
+it is a formality.
+
+WHAT IS DIFFERENT FROM THE 48-HOUR VERSION, and the reason this is not that mistake repeated: 48
+sent EVERY round a day or more early, including the evening locks that make up the rest of the
+calendar. 30 is tuned to sit just past a morning lock's overnight gap and no further - it moves
+the mornings and leaves the evenings where they are.
+
+THE SECOND REMINDER IS STILL FORECLOSED by the per-round queue guard, and the wider window makes
+that more pointed, not less: a Friday-morning reminder for a Saturday-morning lock is the only one
+that player gets. What partly covers it is services/organiserNudge.js, which reports the stragglers
+to the ORGANISER on the Friday evening so their group chat can do what a second email cannot.
+That sequencing is the whole reason the two windows are the sizes they are - see the note there
+before changing either.
 
 The email is ONCE PER PLAYER PER ROUND, so the window is not "when may we send" - it is "when does
 the one reminder get spent". Three days out was the worst moment to spend it: no urgency yet, the
 player thinks "later", and the queue guard means nothing follows.
 
-WHY 24, AND WHY IT MUST BE WIDER THAN THE CRON INTERVAL
+WHY IT MUST BE WIDER THAN THE CRON INTERVAL - the argument that got it to 24, and still holds
 
 The 12 was chosen while a person was pressing the button, and the reasoning depended on that: the
 window only bounded who APPEARED on the admin card, and the operator decided when to actually
@@ -79,11 +119,9 @@ expected this season: at a 07:00 run, 12 hours misses 24 of 37 - every evening l
 hours out and is therefore outside the window at the only run that could catch it. 24 hours misses
 nothing at any run time between 07:00 and 11:00.
 
-THIS DOES NOT SEND ANYTHING A DAY EARLY, which is the thing 12 was protecting and the reason 48
-was rejected. At 07:00 the day BEFORE, an evening lock is 37 hours away and a Saturday 11:30 lock
-28.5 hours - both outside 24. So a round still becomes eligible on the morning of, exactly as
-before; what changes is that an early kickoff is no longer dropped on the floor. A 12:30 Saturday
-kickoff locks at 11:30 and now gets 3.5 hours' notice instead of nothing.
+That reasoning was written when 24 was the answer and it is unchanged by the move to 30; the point
+it makes is about the FLOOR, not the ceiling. Whatever this number is, it must exceed the gap
+between runs or some band of lock times qualifies at no run at all, silently.
 
 KEEP THIS ABOVE THE CRON INTERVAL. If the sweep ever runs less often than daily, this number has to
 grow with it, roughly doubled - see docs/email/email-cron-priority-order.txt for the schedule.
@@ -92,7 +130,7 @@ The bigger version - two reminders per round, one early and one close to the dea
 foreclosed by the per-round queue guard, and would need a "which reminder is this" concept rather
 than a wider window. Deliberately not built.
 */
-const REMINDER_WINDOW_HOURS = 24;
+const REMINDER_WINDOW_HOURS = 30;
 
 /**
  * Find every player who should get a pick reminder.

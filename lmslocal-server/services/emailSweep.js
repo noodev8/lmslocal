@@ -89,8 +89,19 @@ async function sendToAll(entry, candidates, options = {}) {
   const quiet = await findRecentlyEmailed();
   const skipped = [];
 
+  /*
+  A catalog entry may opt out of the quiet period. One does - organiser_nudge - and the argument
+  is in services/emailQuiet.js under WHAT IS EXEMPT, AND WHY THAT IS NOT A PRIORITY FIELD.
+
+  ONE WAY ONLY. An exempt email is never suppressed BY the quiet period, but it still writes a
+  'sent' row and so still suppresses everything after it. That asymmetry is deliberate: the
+  exemption exists because this email's priority cannot be expressed by crontab order, not
+  because the organiser should hear from us more often overall.
+  */
+  const quietExempt = entry.quietExempt === true;
+
   for (const candidate of targets) {
-    if (quiet.has(candidate.user_id)) {
+    if (!quietExempt && quiet.has(candidate.user_id)) {
       skipped.push(candidate);
       if (onProgress) onProgress({ candidate, ok: false, skipped: true });
       continue;

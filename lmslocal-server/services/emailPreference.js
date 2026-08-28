@@ -67,6 +67,13 @@ const EMAIL_GROUPS = {
   share_reminder: GROUPS.GAME,
   result_reminder: GROUPS.GAME,
   fixture_reminder: GROUPS.GAME,
+  /*
+  Game, not Info, and it is the organiser's own Game switch that silences it. It is about one
+  round of one competition and it carries a deadline, which is what Game means here - the same
+  reasoning, and the same accepted cost, as pick_reminder: turning Game off stops the chase, and
+  the players who would have been chased miss out.
+  */
+  organiser_nudge: GROUPS.GAME,
 
   // Section: Info - which now carries the welcome emails, the outline having dropped Welcome as
   // a section of its own.

@@ -25,6 +25,7 @@ const { subjectFor: roundOverSubjectFor } = require('./roundOver');
 const { subjectFor: hintSubjectFor } = require('./hints');
 const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
 const { subjectFor: pickReminderSubjectFor } = require('./pickReminder');
+const { subjectFor: organiserNudgeSubjectFor } = require('./organiserNudge');
 const { isOptedOut } = require('./emailPreference');
 const { query } = require('../database');
 const { formatUk, formatUkDate, formatUkDateTime } = require('./dateFormat');
@@ -1173,6 +1174,188 @@ const sendEmptyCompEmail = async (email, templateData, options = {}) => {
     return readSendResult(result);
   } catch (error) {
     console.error('Failed to send empty competition email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Build the organiser nudge without sending it.
+ *
+ * Outline row: Organiser | Game | Organiser nudge. A round locks within three hours and too many
+ * of this competition's players have not picked. Eligibility and the two thresholds live in
+ * services/organiserNudge.js.
+ *
+ * TWO SECTIONS, GUESTS FIRST, and the order is the point of the email rather than a layout
+ * choice. A guest has no login, so their pick is a job in the organiser's own dashboard - only
+ * they can do it, it takes a minute, and it is certain to work. Chasing real players is slow,
+ * happens off-platform and may come to nothing. Putting the certain, quick, exclusive action
+ * first is what stops the email reading as a list of other people's failures.
+ *
+ * Either section is omitted when empty. A competition with only guests outstanding gets an email
+ * that is purely a to-do list, which is correct - it is still the only warning anyone gets.
+ *
+ * THE "CORRECT AT" LINE IS NOT DECORATION. The number moves while the email is in flight: on the
+ * afternoon this was written, fourteen players picked in the ninety minutes after the morning
+ * reminder went out. An organiser who reads a bare count, chases a name off it and is told "I did
+ * that an hour ago" stops trusting the email. Stamping the time makes the staleness ours to own
+ * rather than theirs to discover.
+ *
+ * @param {string} email - recipient (the organiser)
+ * @param {object} templateData - as built by services/organiserNudge.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildOrganiserNudgeEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_id,
+    competition_name,
+    lock_time,
+    correct_at,
+    player_count,
+    outstanding_count,
+    guests,
+    players,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const base = process.env.PLAYER_FRONTEND_URL;
+  // The round screen, which is where admin-set-pick is driven from - so the guest section's
+  // button lands on the thing it is asking them to do rather than on a dashboard.
+  const roundUrl = `${base}/game/${competition_id}/round?email_id=${email_tracking_id}`;
+
+  const nameLine = (section) =>
+    section.others > 0
+      ? `${section.shown.join(', ')} and ${section.others} ${section.others === 1 ? 'other' : 'others'}`
+      : section.shown.join(', ');
+
+  const guestHtml = guests.count === 0 ? '' : `
+            <div style="margin: 0 0 28px 0; padding: 20px; background-color: #fef3c7; border-radius: 6px;">
+              <p style="color: #0f172a; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
+                ${guests.count} guest ${guests.count === 1 ? 'pick' : 'picks'} still to enter — only you can do these
+              </p>
+              <p style="color: #334155; font-size: 15px; margin: 0; line-height: 1.5;">
+                ${nameLine(guests)}
+              </p>
+            </div>`;
+
+  const playerHtml = players.count === 0 ? '' : `
+            <div style="margin: 0 0 28px 0; padding: 20px; background-color: #f1f5f9; border-radius: 6px;">
+              <p style="color: #0f172a; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
+                ${players.count} ${players.count === 1 ? 'player has' : 'players have'} not picked — worth a nudge
+              </p>
+              <p style="color: #334155; font-size: 15px; margin: 0; line-height: 1.5;">
+                ${nameLine(players)}
+              </p>
+            </div>`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Still to pick</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">Last Man Standing Competitions</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              <strong>${competition_name}</strong> locks at ${formatUkDateTime(lock_time)}, and
+              ${outstanding_count} of your ${player_count} players still have no pick.
+            </p>
+
+            ${guestHtml}
+            ${playerHtml}
+
+            <div style="margin: 0 0 24px 0;">
+              <a href="${roundUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Open the round
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              Correct at ${correct_at}. Some may have picked since — the app has the live list.
+            </p>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const guestText = guests.count === 0 ? '' : `
+${guests.count} guest ${guests.count === 1 ? 'pick' : 'picks'} still to enter - only you can do these:
+${nameLine(guests)}
+`;
+
+  const playerText = players.count === 0 ? '' : `
+${players.count} ${players.count === 1 ? 'player has' : 'players have'} not picked - worth a nudge:
+${nameLine(players)}
+`;
+
+  const textContent = `
+${organiserNudgeSubjectFor(outstanding_count, lock_time, competition_name)}
+
+Hi ${firstName(user_display_name)},
+
+${competition_name} locks at ${formatUkDateTime(lock_time)}, and ${outstanding_count} of
+your ${player_count} players still have no pick.
+${guestText}${playerText}
+Open the round:
+${roundUrl}
+
+Correct at ${correct_at}. Some may have picked since - the app has the live list.
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: organiserNudgeSubjectFor(outstanding_count, lock_time, competition_name),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [{ name: 'email_type', value: 'organiser_nudge' }]
+  };
+};
+
+/**
+ * Send the organiser nudge.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/organiserNudge.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendOrganiserNudgeEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildOrganiserNudgeEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send organiser nudge email:', error);
     return {
       success: false,
       error: error.message
@@ -3700,6 +3883,8 @@ module.exports = {
   buildJoinLmsEmail,
   sendJoinLmsEmail,
   buildEmptyCompEmail,
+  buildOrganiserNudgeEmail,
+  sendOrganiserNudgeEmail,
   sendEmptyCompEmail,
   buildJoinBlockedEmail,
   sendJoinBlockedEmail,

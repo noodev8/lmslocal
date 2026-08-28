@@ -23,11 +23,44 @@ that person NEVER gets that email. Somebody who happens to receive a Round Over 
 Saturday morning does not get their Welcome email at all. That is accepted. It is also why the row
 carries a `magic_send` flag - see below.
 
-NOTHING IS EXEMPT, deliberately. There is no per-email opt-out and no priority field, because
-there is already a priority mechanism and it is the crontab: the email at the top runs first,
-takes the collisions, and everything below it gets whoever is left. Adding a second way to express
-priority in code would be a switch that could disagree with the real one - the same argument that
-keeps the cron schedule out of services/emailCatalog.js. Priority is the operator's, per run.
+ALMOST NOTHING IS EXEMPT, and the exception proves the rule rather than weakening it.
+
+The default stands: no per-email opt-out and no priority field, because there is already a
+priority mechanism and it is the crontab - the email at the top runs first, takes the collisions,
+and everything below it gets whoever is left. Adding a second way to express priority in code
+would be a switch that could disagree with the real one, the same argument that keeps the cron
+schedule out of services/emailCatalog.js. Priority is the operator's, per run.
+
+WHAT IS EXEMPT, AND WHY THAT IS NOT A PRIORITY FIELD (2026-08-28)
+
+One catalog entry carries `quietExempt: true` - organiser_nudge, and at the time of writing it is
+the only one. It is not a promotion; it is an email the crontab's mechanism cannot rank at all.
+
+Every other sweep runs once, in a single block between 08:00 and 10:00, and within that block
+running order IS priority. organiser_nudge runs HOURLY THROUGH THE AFTERNOON, because it fires
+three hours before a round locks and rounds lock at different times. An email that runs at 17:00
+loses to everything that ran at 08:00 whatever line it occupies - so its position in the file
+expresses nothing, and the mechanism this rule defers to is simply absent for it.
+
+The collision is also near-certain rather than occasional. Eight of the thirteen crontab lines are
+organiser-facing, several recurring weekly, so an active organiser will usually have had something
+inside 48 hours. Without the exemption this email would be killed almost every time it qualified -
+silently, permanently for that round, and on the one email in the catalog whose entire value is
+that it arrives before a deadline the recipient can still act on.
+
+The quiet period's own harmlessness argument fails here too, and that is the deciding point. It
+rests on the person having had an email that "carries a link to the app, and the app is where the
+actual state lives" - true for a player being reminded to pick. organiser_nudge asks for something
+that happens OUTSIDE the app: post the names in the group chat. Nothing they received on Tuesday
+prompted that, so a second email is not a repeat of a prompt they already have.
+
+THE EXEMPTION IS ONE WAY. Applied in sendToAll: an exempt email is never suppressed by the quiet
+period, but it writes an ordinary 'sent' row and so still suppresses whatever runs after it. It
+does not increase how often an organiser hears from us in total; it changes which email wins.
+
+BEFORE ADDING A SECOND ONE, check it against the actual test above - not "this email matters" (they
+all do) but "the crontab's running order cannot express this email's priority". An email inside the
+morning block always has that mechanism available, so the honest fix there is to move its line up.
 
 WHERE IT IS APPLIED: inside sendToAll in services/emailSweep.js, which is the single path both live
 senders take - the admin Send button and the cron. Not in deliver(). deliver() knows nothing about

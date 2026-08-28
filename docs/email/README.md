@@ -86,6 +86,7 @@ on `verify-email`. It only shares the `EMAIL_VERIFICATION_URL` env var as a base
 |---|---|---|---|---|---|
 | Player | Welcome | Join Comp | `welcome` | — | — |
 | Player | Game | Pick reminder | `pick_reminder` | Y | ✅ |
+| Organiser | Game | Organiser nudge | `organiser_nudge` | — | — |
 | Organiser | Tips | Result set mid round | `update_scores_mid_round_tip` | — | — |
 | All | Welcome | Join LMS | `join_lms` | — | — |
 | Organiser | Welcome | Created Comp | `created_comp` | — | — |
@@ -567,6 +568,100 @@ to overrule.
 **Not on the cron yet, on purpose.** Operator-driven from the admin screen first, so the candidate
 list can be watched for a while before it sends unattended. It is the strongest cron candidate on
 the outline when that happens — a `crontab` line, not a code change.
+
+## Organiser nudge — the rules (built 2026-08-28)
+
+`services/organiserNudge.js`. A round locks within **3 hours** and too many of that competition's
+players still have no pick. It goes to the **organiser**, not the players.
+
+Built from a live afternoon. 233 players had a round locking at 8pm and 48 had not picked — but 21
+of those 48 sat in **one** competition of 70. A per-player reminder treats all 233 alike; this one
+lands where the concentration is. On that afternoon it would have gone to four organisers.
+
+**Two sections, guests first, and the order is the whole email.** A guest has no login
+(`add-offline-player` mints `{id}@lms-guest.com`), so a guest with no pick is not somebody to
+chase — it is a job in the organiser's own dashboard, and `pick_reminder` can never reach them for
+want of an address. **This email is the only thing that tells anyone they are outstanding.** The
+second section is the real players, to chase off-platform: most organisers have a WhatsApp group
+and it reaches people who ignore email. Guests go first because it is the action only they can
+perform, it takes a minute and it is certain to work.
+
+Bots are excluded from the names **and from the denominator** — left in, a seeded competition
+would sit permanently under the percentage gate and never be nudged, silently. Same `bot_` prefix
+test as `routes/get-unpicked-players.js`, which already draws this line.
+
+**Why 3 hours against `pick_reminder`'s 24.** The gap between the two numbers is the design. The
+player email goes out in the morning and it works — on 28 Aug it converted 14 picks in the ninety
+minutes after it landed, against a baseline of one or two an hour. An organiser nudge at the same
+hour would have quoted a number stale by lunchtime and asked somebody to chase fourteen people who
+were about to pick anyway. This waits for that email to have had its run and reports what is left.
+
+### The Saturday rule — a morning lock goes the evening before
+
+Three hours is the right number for an evening lock and the wrong one for a morning lock, which
+this season is the **normal** case: a 12:30 Saturday kickoff locks at 11:30, and most of the
+season's fixtures are expected to be exactly that.
+
+Three hours before 11:30 is 08:30 on a Saturday. Even hourly, the first run that could see it
+lands around 10:30 — **57 minutes**, while the people being chased are out. The guest half of the
+email still works; the half asking the organiser to rally real players is dead on arrival, and an
+email nobody can act on teaches them to ignore the next one.
+
+So a lock **before 2pm UK time** qualifies once it is within **18 hours** — in practice the
+previous evening. `EVENING_LOOKAHEAD_HOURS` and `MORNING_LOCK_BEFORE_HOUR`, combined with the
+3-hour rule in `dueSql`, which the cheap gate and the candidate query share so they cannot
+disagree.
+
+**It keys off the lock's time of day, not the clock the cron runs on.** Encoding "fire on the
+19:33 run" in the service would be a second copy of the schedule able to disagree with the
+crontab — the thing `emailCatalog.js` already refuses to do. The crontab's hours can move without
+touching the rule; what they must keep doing is covering the early evening.
+
+**What it trades, because it inverts the reasoning above.** `pick_reminder`'s window is 24 hours,
+so for a Saturday 11:30 lock the players are not emailed until Saturday morning — the
+Friday-evening nudge therefore reports a number **nobody has been chased about yet**, and it will
+be a big one. Accepted, and arguably the better order: the organiser's group chat is a better
+channel than our email, so it goes first and the reminder mops up. But if these start reading as
+"everybody, every week", the fix is **not** tighter thresholds here — it is that `pick_reminder`'s
+24 hours no longer suits a season of Saturday morning locks and should fire the day before.
+
+**Two thresholds, both of which must pass**: `MIN_OUTSTANDING = 5` and `MIN_OUTSTANDING_PCT = 25`.
+Percentage alone fires on a competition of two with one missing; count alone fires on 5 of 40,
+which is a normal afternoon and teaches the organiser to ignore the email.
+
+**One per competition per round**, not per organiser — two competitions stalling means two emails,
+because they are two group chats and two lists of names.
+
+**It states the time it was correct at.** The number moves while the email is in flight, so a bare
+count invites the reply "I did that an hour ago" and the next one gets ignored.
+
+### It is the only email exempt from magic send
+
+Decided 2026-08-28. `quietExempt: true` on its catalog entry, honoured in `sendToAll`. This is the
+first exemption ever granted, and `services/emailQuiet.js` carries the argument in full — read it
+before granting a second.
+
+The short version is that this is **not a promotion**. `emailQuiet.js` refuses per-email priority
+on the grounds that priority already exists and is the crontab's running order. That mechanism
+works because every other sweep runs once, inside a single morning block. This one runs **hourly
+through the afternoon**, three hours before whenever a round locks — and an email that runs at
+17:00 loses to everything that ran at 08:00 whatever line it occupies. Its position in the file
+expresses nothing, so the mechanism the rule defers to is simply absent for it.
+
+Two supporting facts. The collision is near-certain, not occasional: **eight of the thirteen
+crontab lines are organiser-facing**, so an active organiser will usually have had something inside
+48 hours, and without the exemption this would be killed almost every time it qualified — silently,
+permanently for that round. And the quiet period's harmlessness argument fails here: it rests on
+the earlier email carrying "a link to the app, where the actual state lives", which is true for a
+player being reminded to pick and false for an organiser being asked to post names in a group chat.
+
+**The exemption is one way.** It is never suppressed *by* the quiet period, but it writes an
+ordinary `sent` row and so still suppresses what runs after it. It changes which email wins, not
+how often an organiser hears from us.
+
+**The test before adding a second one** is not "this email matters" — they all do. It is "the
+crontab's running order cannot express this email's priority". Anything inside the morning block
+still has that mechanism, so the honest fix there is to move its line up.
 
 ## Broadcast from Admin — the rules (built 2026-08-11)
 

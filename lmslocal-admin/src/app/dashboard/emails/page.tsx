@@ -142,6 +142,17 @@ const OUTLINE: OutlineEmail[] = [
       'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Once per player per round. Locks is their countdown, not an elapsed time.',
   },
   {
+    key: 'organiser_nudge',
+    consumer: 'Organiser',
+    section: 'Game',
+    name: 'Organiser nudge',
+    scoped: true,
+    note: 'Locks within 3h — or the evening before, for a morning lock. 5+ and 25%+ still to pick',
+    focus: true,
+    blurb:
+      'The organiser’s half of the pick reminder, sent after the player one has had its run so the number is what is LEFT. Two sections: guest picks only they can enter (a guest has no login, so pick_reminder never reaches them), then the real players to chase in the group chat. Once per competition per round — two competitions stalling means two emails. Exempt from magic send, the only email that is.',
+  },
+  {
     key: 'game_complete',
     consumer: 'Player',
     section: 'Game',

@@ -28,6 +28,7 @@ than harmless - a preview scoped to a competition nobody in the list belongs to.
 const pickReminder = require('./pickReminder');
 const joinLms = require('./joinLms');
 const emptyComp = require('./emptyComp');
+const organiserNudge = require('./organiserNudge');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
 // gameStartReminder is not imported: unwired on purpose - see the note where its entry was.
@@ -44,6 +45,8 @@ const {
   buildJoinLmsEmail,
   sendJoinLmsEmail,
   buildEmptyCompEmail,
+  buildOrganiserNudgeEmail,
+  sendOrganiserNudgeEmail,
   sendEmptyCompEmail,
   buildCreatedCompEmail,
   sendCreatedCompEmail,
@@ -74,6 +77,23 @@ const CATALOG = {
     service: pickReminder,
     build: buildPickReminderEmail,
     send: sendPickReminderEmail
+  },
+  /*
+  The organiser's half of pick_reminder: a round locking within three hours with too many players
+  still to pick. Scoped, and the grain is the COMPETITION AND ROUND, not the organiser - somebody
+  running two competitions that both stall has two group chats to post in.
+
+  quietExempt, and it is the ONLY entry that carries it. See services/emailQuiet.js for the
+  argument; the short version is that magic send's priority mechanism is the crontab's running
+  order, and this email runs hourly in the afternoon rather than in the morning block, so no line
+  position can express its priority at all.
+  */
+  organiser_nudge: {
+    scoped: true,
+    quietExempt: true,
+    service: organiserNudge,
+    build: buildOrganiserNudgeEmail,
+    send: sendOrganiserNudgeEmail
   },
   join_lms: {
     scoped: false,
