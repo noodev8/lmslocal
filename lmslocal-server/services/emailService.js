@@ -24,7 +24,9 @@ const { subjectFor: gameCompleteSubjectFor } = require('./gameComplete');
 const { subjectFor: roundOverSubjectFor } = require('./roundOver');
 const { subjectFor: hintSubjectFor } = require('./hints');
 const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
+const { subjectFor: pickReminderSubjectFor } = require('./pickReminder');
 const { isOptedOut } = require('./emailPreference');
+const { formatUk, formatUkDate, formatUkDateTime } = require('./dateFormat');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -174,27 +176,6 @@ const COMPANY = {
  * @param {string|null} unsubscribeUrl - omit for transactional mail, which is not unsubscribable
  * @returns {{html: string, text: string}}
  */
-/**
- * A deadline, written the way an organiser reads it: "Friday 28 August, 8:00 pm".
- *
- * Europe/London explicitly. The older templates format without a timeZone, which reads the
- * server's - fine on a UK box and an hour out on anything else. A kick-off time named an hour
- * wrong in an email about a deadline is the kind of error nobody reports and everybody acts on.
- *
- * @param {string|Date} value - an ISO timestamp or Date
- * @returns {string}
- */
-const formatUkDateTime = (value) =>
-  new Date(value).toLocaleString('en-GB', {
-    timeZone: 'Europe/London',
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-
 /**
  * The note that goes above the footer on emails sent "as" the organiser.
  *
@@ -490,7 +471,7 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
   try {
     const planEmoji = planName === 'starter' ? '🚀' : '🏢';
     const formattedAmount = `£${amount.toFixed(2)}`;
-    const formattedExpiry = new Date(expiryDate).toLocaleDateString('en-GB', {
+    const formattedExpiry = formatUk(expiryDate, {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
@@ -632,15 +613,13 @@ const buildPickReminderEmail = (email, templateData) => {
     const unsubscribeUrl = unsubscribe?.url || null;
     const footer = buildEmailFooter(unsubscribeUrl);
 
-    // Format lock time to readable format
-    const lockDate = new Date(lock_time);
-    const formattedLockTime = lockDate.toLocaleDateString('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    /*
+    Europe/London, not the server's clock. This used to call toLocaleDateString with no timeZone,
+    so on a UTC host it told players their round locked at 13:00 when it locked at 2pm - an hour
+    early, every summer. Every human-facing date goes through services/dateFormat.js for exactly
+    this reason.
+    */
+    const formattedLockTime = formatUkDateTime(lock_time);
 
     // Build fixtures list HTML with teams used indicators
     const fixturesHtml = fixtures.map((f, index) => {
@@ -781,7 +760,7 @@ ${footer.text}
     return {
       from: `LMS Local <${process.env.EMAIL_FROM}>`,
       to: [email],
-      subject: `${organizer_name} (${competition_name}): Pick reminder for Round ${round_number}`,
+      subject: pickReminderSubjectFor(competition_name, lock_time),
       html: htmlContent,
       text: textContent,
       headers: {
@@ -1736,7 +1715,7 @@ const buildGameStartReminderEmail = (email, templateData) => {
   const footer = buildEmailFooter(unsubscribe?.url || null);
 
   const startDate = starts_at
-    ? new Date(starts_at).toLocaleDateString('en-GB', {
+    ? formatUk(starts_at, {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
@@ -1906,7 +1885,7 @@ const buildFixtureReminderEmail = (email, templateData) => {
   const footer = buildEmailFooter(unsubscribe?.url || null);
 
   const settledDate = settled_at
-    ? new Date(settled_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+    ? formatUkDate(settled_at)
     : null;
 
   const playersLine = `${active_player_count} player${active_player_count === 1 ? '' : 's'} ${active_player_count === 1 ? 'is' : 'are'} still in and waiting for Round ${next_round_number}.`;
@@ -2069,7 +2048,7 @@ const buildResultReminderEmail = (email, templateData) => {
   const footer = buildEmailFooter(unsubscribe?.url || null);
 
   const playedDate = last_kickoff
-    ? new Date(last_kickoff).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+    ? formatUkDate(last_kickoff)
     : null;
 
   // Three organisers land here: nothing typed in, part way, and done-but-not-processed.
@@ -2468,7 +2447,7 @@ const buildRoundOverEmail = (email, templateData) => {
   full rather than as "soon".
   */
   const deadlineText = next_deadline
-    ? new Date(next_deadline).toLocaleDateString('en-GB', {
+    ? formatUk(next_deadline, {
         weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
       })
     : null;
@@ -2976,7 +2955,7 @@ const buildWelcomeCompetitionEmail = (email, templateData) => {
   let nextRoundHtml = '';
   let nextRoundText = '';
   if (next_round_number && next_round_lock_time) {
-    const formattedDate = new Date(next_round_lock_time).toLocaleDateString('en-GB', {
+    const formattedDate = formatUk(next_round_lock_time, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',

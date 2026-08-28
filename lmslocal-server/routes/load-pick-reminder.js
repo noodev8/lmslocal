@@ -62,7 +62,7 @@ This matters here: the handler takes user_id, round_id and competition_id straig
 request body, so without that gate anyone could queue email to arbitrary users.
 See middleware/service-auth.js.
 */
-const { findCandidates, buildTemplateData } = require('../services/pickReminder');
+const { findCandidates, buildTemplateData, subjectFor } = require('../services/pickReminder');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
@@ -77,9 +77,7 @@ async function queueEmailInternal(params) {
     user_id,
     round_id,
     competition_id,
-    competition_name,
-    organizer_name,
-    round_number
+    competition_name
   } = params;
 
   try {
@@ -128,7 +126,7 @@ async function queueEmailInternal(params) {
       user_id,
       competition_id,
       'pick_reminder',
-      `${organizer_name || 'Competition Organizer'} (${competition_name}): Pick reminder for Round ${round_number}`
+      subjectFor(competition_name, templateData.lock_time)
     ]);
 
     return { success: true, queue_id: queueId };

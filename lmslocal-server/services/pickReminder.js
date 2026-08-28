@@ -27,6 +27,36 @@ emailPreference.js.
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { formatUkShort } = require('./dateFormat');
+
+/**
+ * The subject, in one place.
+ *
+ * It was written out longhand at three sites - here, the template in emailService.js and
+ * routes/load-pick-reminder.js - so the tracking row, the admin preview and the email itself
+ * each had their own copy of the same string to keep in step. Every other catalog email already
+ * imports its subject from the service that queues it; this one predates that convention.
+ *
+ * TWO THINGS CAME OUT OF IT AND ONE WENT IN.
+ *
+ * Out: the organiser's name. This was the only subject in the catalog shaped "Organiser
+ * (Competition): thing" - every other one leads with the competition, which is what the player
+ * recognises. It also meant load-pick-reminder falling back to the literal "Competition
+ * Organizer" when the name was null, so some players got a reminder from nobody. The organiser
+ * is still named in the body, where there is room to say who they are.
+ *
+ * Out: the round number, which a player in one competition already knows.
+ *
+ * In: the deadline, first. This is the one email where the deadline IS the message, and a phone
+ * shows about 40 characters of a subject - so anything after the competition name is cut on a
+ * long name, which is exactly when it is needed most. Leading with it means it survives.
+ *
+ * Safe to state a time because findCandidates already requires lock_time to be non-null and in
+ * the future, so there is no null case and no past case to render.
+ */
+const subjectFor = (competitionName, lockTime) =>
+  `Pick by ${formatUkShort(lockTime)} — ${competitionName}`;
+
 
 /*
 How close to the lock a round has to be before its players are chased. 3 days -> 48h (2026-08-14)
@@ -236,7 +266,7 @@ async function queueCandidate(candidate) {
       templateData.email_tracking_id,
       candidate.user_id,
       candidate.competition_id,
-      `${templateData.organizer_name} (${templateData.competition_name}): Pick reminder for Round ${templateData.round_number}`
+      subjectFor(templateData.competition_name, templateData.lock_time)
     ]);
 
     return { success: true, queue_id: queueResult.rows[0].id, template_data: templateData };
@@ -247,6 +277,7 @@ async function queueCandidate(candidate) {
 }
 
 module.exports = {
+  subjectFor,
   findCandidates,
   buildTemplateData,
   queueCandidate
