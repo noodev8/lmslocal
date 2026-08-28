@@ -19,7 +19,7 @@ email_queue IS the record. Every path writes a row - sent, failed, suppressed by
 skipped by the operator - so this route is a plain read of it rather than a second store that
 could disagree.
 
-WHAT THE FOUR STATUSES MEAN
+WHAT THE STATUSES MEAN
 
   sent        Resend accepted it. sent_at is when.
   failed      We tried and it did not go. error_message says why, and the row is deliberately left
@@ -27,6 +27,9 @@ WHAT THE FOUR STATUSES MEAN
   suppressed  deliver() refused it at send time - the recipient had unsubscribed.
   skipped     The operator's decision. Nothing was built and nothing was attempted; the reason is
               on template_data.
+  expired     The email stopped being TRUE between queueing and draining - a pick reminder whose
+              round has since locked. Nobody decided anything; see services/emailExpiry.js.
+  pending     Still queued, not yet drained.
 
 NOT email_tracking, deliberately. Its sent_at DEFAULTS to insert time, so it is stamped on mail
 that never went - which is how nine stale rows once all carried a timestamp. email_queue.status is
@@ -52,7 +55,8 @@ Request Payload:
 {
   "email_type": "welcome",             // string, required - which outline email
   "competition_id": 210,               // integer, optional - narrows to one competition
-  "status": "sent",                    // string, optional - one of sent|failed|suppressed|skipped
+  "status": "sent",                    // string, optional - one of
+                                       //         sent|failed|suppressed|skipped|expired|pending
   "limit": 100                         // integer, optional - default 100, capped at MAX_LIMIT
 }
 
@@ -121,7 +125,7 @@ const MAX_LIMIT = 500;
 
 // What may be asked for. Anything else is a typo, and a typo returning zero rows reads as "nothing
 // happened" rather than "you asked for a status that does not exist".
-const STATUSES = ['sent', 'failed', 'suppressed', 'skipped', 'pending'];
+const STATUSES = ['sent', 'failed', 'suppressed', 'skipped', 'expired', 'pending'];
 
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('admin/get-email-history');

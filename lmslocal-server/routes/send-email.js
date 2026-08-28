@@ -18,6 +18,9 @@ Success Response (ALWAYS HTTP 200):
   "failed_count": 1,                   // integer, number of emails that failed
   "suppressed_count": 0,               // integer, held back because the recipient has unsubscribed
                                        //          since the row was queued; marked 'suppressed'
+  "expired_count": 0,                  // integer, held back because the email stopped being true
+                                       //          before it was drained - a pick reminder whose
+                                       //          round has locked; marked 'expired'
   "skipped_stale": 0                   // integer, pending emails older than the freshness floor,
                                        //          left unsent and still visible in email_queue
 }
@@ -50,6 +53,8 @@ services/hints.js is enough. This route used to name them one by one, and the ne
 would have fallen through to "Unknown email type" and failed every row it queued.
 */
 const { HINT_TYPES } = require('../services/hints');
+const { checkExpiry } = require('../services/emailExpiry');
+const { formatUkDateTime } = require('../services/dateFormat');
 const router = express.Router();
 
 /*
@@ -115,6 +120,8 @@ router.post('/', async (req, res) => {
           : "No pending emails to send",
         sent_count: 0,
         failed_count: 0,
+        suppressed_count: 0,
+        expired_count: 0,
         skipped_stale: staleCount
       });
     }
@@ -125,6 +132,9 @@ router.post('/', async (req, res) => {
     // Held back because the recipient unsubscribed after the row was queued. Counted separately
     // so a run that suppresses half its batch does not read as a run that failed half of it.
     let suppressedCount = 0;
+    // Held back because the email itself went off between queueing and now - see
+    // services/emailExpiry.js. Its own count for the same reason as suppressedCount.
+    let expiredCount = 0;
 
     // Process each pending email
     for (const emailRecord of pendingEmails) {
@@ -132,6 +142,28 @@ router.post('/', async (req, res) => {
       const templateData = emailRecord.template_data;
 
       try {
+        /*
+        Refuse anything that has gone off since it was queued, BEFORE it is marked processing or
+        counted as an attempt - nothing was attempted, and the row is finished either way.
+
+        The case this exists for is a pick reminder drained after its round locked. The subject
+        names the deadline, so sending it late does not just arrive late, it tells the player
+        they still have time to pick when they do not.
+        */
+        const { expired, deadline } = checkExpiry(emailRecord.email_type, templateData);
+        if (expired) {
+          await query(`
+            UPDATE email_queue
+            SET status = 'expired',
+                error_message = $1
+            WHERE id = $2
+          `, [`Deadline passed ${formatUkDateTime(deadline)} before this was sent`, queueId]);
+
+          expiredCount++;
+          console.warn(`send-email: ${emailRecord.email_type} queue row ${queueId} expired at ${deadline.toISOString()}`);
+          continue;
+        }
+
         // Update status to 'processing' and increment attempts
         await query(`
           UPDATE email_queue
@@ -243,10 +275,12 @@ router.post('/', async (req, res) => {
       return_code: "SUCCESS",
       message: `Processed ${pendingEmails.length} emails: ${sentCount} sent, ${failedCount} failed`
         + (suppressedCount > 0 ? `, ${suppressedCount} suppressed (unsubscribed)` : '')
+        + (expiredCount > 0 ? `, ${expiredCount} expired (deadline passed)` : '')
         + (staleCount > 0 ? `. ${staleCount} skipped as older than ${MAX_AGE_DAYS} days.` : ''),
       sent_count: sentCount,
       failed_count: failedCount,
       suppressed_count: suppressedCount,
+      expired_count: expiredCount,
       skipped_stale: staleCount
     });
 

@@ -717,7 +717,7 @@ an email that never ran look identical.
 The window is fixed server-side and matches the card's "sent" count, so the two cannot disagree.
 Anything older is a database question, not a screen one.
 */
-export type EmailHistoryStatus = 'sent' | 'failed' | 'suppressed' | 'skipped' | 'pending';
+export type EmailHistoryStatus = 'sent' | 'failed' | 'suppressed' | 'skipped' | 'expired' | 'pending';
 
 export interface EmailHistoryRow {
   id: number;
