@@ -66,6 +66,16 @@ two, because they are two group chats and two lists of names.
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { formatUk, formatUkShort } = require('./dateFormat');
+/*
+Bots carry bot_<name>@lms-guest.com and share the guest domain, so prefix is the only thing that
+separates them from a real guest. Imported rather than restated: services/botPool.js owns what a
+bot is, and services/pickProgress.js takes it from there too. services/organiserNudge.js still
+carries its own copy, which predates the export.
+
+Excluded from every name list and from the denominator both. Left in, a seeded competition would
+report a permanently inflated "still to pick" figure that the organiser can do nothing about.
+*/
+const { BOT_EMAIL_LIKE } = require('./botPool');
 
 const EMAIL_TYPE = 'organiser_round';
 
@@ -106,16 +116,6 @@ sample. Matches services/roundOver.js, which shows the same two lists to players
 enough to make it read like a competition rather than a report.
 */
 const SAMPLE_SIZE = 5;
-
-/*
-Bots carry bot_<name>@lms-guest.com and share the guest domain, so prefix is the only thing that
-separates them. Matches services/botPool.js isBotEmail(), routes/get-unpicked-players.js and
-services/organiserNudge.js.
-
-Excluded from every name list and from the denominator both. Left in, a seeded competition would
-report a permanently inflated "still to pick" figure that the organiser can do nothing about.
-*/
-const BOT_EMAIL_LIKE = 'bot_%@lms-guest.com';
 
 /*
 The subject, in one place - the tracking row is written before the template is built and the two
