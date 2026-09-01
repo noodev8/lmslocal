@@ -1372,7 +1372,29 @@ class _DashboardPageState extends State<DashboardPage> {
                 // second — a phone card is the only thing a player sees before
                 // deciding whether to open anything, so it carries both.
                 if (competition.isParticipant) ...[
-                  if (needsPick)
+                  // Eliminated is tested first and stands alone. A knocked-out
+                  // player is never owed a pick, so `needsPick` is false and
+                  // the card used to fall through to "UP TO DATE" over this
+                  // round's picks-close time — a deadline for a round they
+                  // cannot enter, under a tick saying they were square. The
+                  // web card carries the same fact as its own status line.
+                  if (isOut) ...[
+                    Text(
+                      'ELIMINATED',
+                      style: CouponTheme.label.copyWith(
+                        color: CouponTheme.overprint,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'You are out of this competition. You can still follow '
+                      'how it finishes.',
+                      style: CouponTheme.bodyText.copyWith(
+                        fontSize: 15,
+                        color: CouponTheme.inkFade,
+                      ),
+                    ),
+                  ] else if (needsPick)
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -1534,7 +1556,16 @@ class _DashboardPageState extends State<DashboardPage> {
                             : '/competition/${competition.id}',
                         extra: competition,
                       );
-                  final label = Text(needsPick ? 'MAKE PICK' : 'ENTER');
+                  // "ENTER" reads as a way in. There isn't one once you are
+                  // out, so an eliminated card offers viewing instead, as the
+                  // web card does.
+                  final label = Text(
+                    needsPick
+                        ? 'MAKE PICK'
+                        : isOut
+                            ? 'VIEW COMPETITION'
+                            : 'ENTER',
+                  );
                   return SizedBox(
                     width: double.infinity,
                     child: needsPick
