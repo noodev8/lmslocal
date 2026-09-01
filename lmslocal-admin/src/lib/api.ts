@@ -212,6 +212,12 @@ export interface AdminCompetition {
   behind us and last_activity answers the more useful question.
   */
   start_date: string | null;
+  /*
+  The latest thing a PERSON did in this competition - a pick or a join, falling back to its own
+  created_at. Deliberately not a round arriving: a fixture push is something we do to every
+  eligible competition at once, and counting it made a pushed-to competition look busy and reset
+  quiet_days below. Defined once in services/competitionEngagement.js on the server.
+  */
   last_activity: string;
   /* Opted into the automated fixture service - the flag every push reads. */
   fixture_service: boolean;

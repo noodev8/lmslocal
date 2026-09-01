@@ -31,7 +31,7 @@ Success Response (ALWAYS HTTP 200):
       "bots_allowed": true,                      // boolean, organiser may use bots - see services/botPool.js
       "created_at": "2026-01-04T12:00:00.000Z",  // string, ISO datetime
       "start_date": "2026-08-28T19:00:00.000Z", // string or null, Round 1 lock time - null if no round yet
-      "last_activity": "2026-08-01T09:00:00.000Z",// string or null, most recent pick, falls back to created_at
+      "last_activity": "2026-08-01T09:00:00.000Z",// string, latest pick or join, falls back to created_at
       "fixture_service": true,                   // boolean, opted into the automated fixture service
       "team_list_id": 1,                         // integer, which staged fixtures it receives
       "team_list_name": "English Premier League 2026-27", // string, may be null if the list was removed
@@ -75,10 +75,16 @@ Data Notes:
 - competition.status is uppercase ('SETUP', 'ACTIVE', 'COMPLETE'). It used to be mixed; the data
   was normalised on 2026-08-04. The filter and the returned field still lowercase it, which is
   harmless and keeps this screen's API contract unchanged.
-- "last_activity" is the most recent thing that happened INSIDE this competition: the latest of
-  its picks, its joins, its rounds being created, and its own created_at. It was picks alone,
-  which showed a competition in SETUP as untouched since the day it was made however many people
-  had joined since - comp 173 read "29 June" on a day somebody joined it.
+- "last_activity" is the most recent thing a PERSON did inside this competition: the latest of its
+  picks, its joins, and its own created_at. It was picks alone, which showed a competition in
+  SETUP as untouched since the day it was made however many people had joined since - comp 173
+  read "29 June" on a day somebody joined it.
+  Rounds being created counted until 2026-09-01 and no longer do: a fixture push creates a round,
+  so a push stamped every competition it touched, and one morning's batch moved fourteen of them
+  to "today" when four had had no player activity for a week. That also reset quiet_days on the
+  competitions the stalled rule exists to catch. Defined once in
+  services/competitionEngagement.js, which is where the reasoning lives, because get-admin-stats
+  and get-admin-organisers read the same expression to classify.
   It is deliberately NOT the latest app_user.last_active_at across its members. That is a fact
   about a person, and a person carries it into every competition they are in: a COMPLETE
   competition whose organiser was on the site today working on a different one would read as
@@ -113,6 +119,7 @@ const {
   QUIET_DAYS,
   realPlayerCountSql,
   pickCountSql,
+  lastActivitySql,
   classifyCompetition
 } = require('../../services/competitionEngagement');
 const {
@@ -184,21 +191,10 @@ router.get('/', verifyAdminToken, async (req, res) => {
            FROM round r
           WHERE r.competition_id = c.id
             AND r.round_number = 1)                                           AS start_date,
-        -- Anything that happened IN this competition, not anything that happened to its members.
-        -- GREATEST ignores NULLs, and c.created_at is NOT NULL, so this always resolves.
-        GREATEST(
-          (SELECT MAX(p.created_at)
-             FROM pick p
-             JOIN round r ON r.id = p.round_id
-            WHERE r.competition_id = c.id),
-          (SELECT MAX(cu.joined_at)
-             FROM competition_user cu
-            WHERE cu.competition_id = c.id),
-          (SELECT MAX(r.created_at)
-             FROM round r
-            WHERE r.competition_id = c.id),
-          c.created_at
-        )                                                                     AS last_activity,
+        -- Things PEOPLE did in this competition - picks and joins, never a round we pushed into
+        -- it. Defined once in services/competitionEngagement.js, because it also drives
+        -- quiet_days and the two other admin routes read it.
+        ${lastActivitySql('c')}                                               AS last_activity,
         COALESCE(c.fixture_service, false)                                    AS fixture_service,
         c.team_list_id,
         tl.name                                                               AS team_list_name,

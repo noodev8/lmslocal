@@ -65,6 +65,49 @@ const pickCountSql = (comp) => `
      JOIN round r ON r.id = p.round_id
     WHERE r.competition_id = ${comp}.id)`;
 
+/*
+When something last happened IN this competition. The third input to the rule, and the one that
+decides quiet_days.
+
+IT LIVES HERE BECAUSE IT HAD THREE COPIES (2026-09-01). get-admin-competitions, get-admin-stats
+and get-admin-organisers each carried the same GREATEST spelled out, and the last two feed
+classifyCompetition directly - so an edit to one would have made the Competitions screen's stalled
+badge disagree with the tiles above it and with the Organisers screen, which is the exact drift the
+screens were consolidated to stop. One definition, three callers.
+
+WHAT COUNTS, and the line it draws: things PEOPLE did in this competition.
+
+  - the latest pick        somebody played
+  - the latest join        somebody turned up. This arm is why the expression exists at all -
+                           picks alone showed a SETUP competition as untouched since the day it
+                           was created however many people had joined since (comp 173 read
+                           "29 June" on a day somebody joined it)
+  - the competition's own created_at, so a brand new one is never "quiet since never"
+
+WHAT DOES NOT COUNT: MAX(round.created_at), removed 2026-09-01. A fixture push creates a round, so
+every push stamped every competition it touched with the push time - one morning's batch moved
+fourteen competitions to "today" when four had seen no player activity since 24-28 August. A round
+arriving is a thing WE did, on our own schedule, to every eligible competition at once; it is not
+evidence anybody is using it. And because this column drives quiet_days, the push was resetting the
+quiet clock on precisely the competitions this rule exists to catch - one we keep pushing rounds
+into that nobody ever picks in could never accumulate QUIET_DAYS.
+
+GREATEST ignores NULLs and comp.created_at is NOT NULL, so this always resolves.
+
+  @param {string} comp - the caller's competition alias, e.g. 'c'
+*/
+const lastActivitySql = (comp) => `
+  GREATEST(
+    (SELECT MAX(p.created_at)
+       FROM pick p
+       JOIN round r ON r.id = p.round_id
+      WHERE r.competition_id = ${comp}.id),
+    (SELECT MAX(cu.joined_at)
+       FROM competition_user cu
+      WHERE cu.competition_id = ${comp}.id),
+    ${comp}.created_at
+  )`;
+
 /**
  * Classify one competition.
  *
@@ -121,5 +164,6 @@ module.exports = {
   BOT_EMAIL_LIKE,
   realPlayerCountSql,
   pickCountSql,
+  lastActivitySql,
   classifyCompetition
 };

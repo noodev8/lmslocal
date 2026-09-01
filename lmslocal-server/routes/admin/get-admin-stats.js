@@ -108,6 +108,7 @@ const { verifyAdminToken } = require('../../middleware/admin-auth');
 const {
   realPlayerCountSql,
   pickCountSql,
+  lastActivitySql,
   classifyCompetition
 } = require('../../services/competitionEngagement');
 const router = express.Router();
@@ -182,13 +183,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
                                                  AS organiser_countable,
         ${realPlayerCountSql('c', '$1')}         AS real_player_count,
         ${pickCountSql('c')}                     AS pick_count,
-        GREATEST(
-          (SELECT MAX(p.created_at) FROM pick p
-             JOIN round r ON r.id = p.round_id WHERE r.competition_id = c.id),
-          (SELECT MAX(cu.joined_at) FROM competition_user cu WHERE cu.competition_id = c.id),
-          (SELECT MAX(r.created_at) FROM round r WHERE r.competition_id = c.id),
-          c.created_at
-        )                                        AS last_activity
+        ${lastActivitySql('c')}                  AS last_activity
       FROM competition c
       LEFT JOIN app_user ou ON ou.id = c.organiser_id
       WHERE c.id <> ALL($2::int[])
