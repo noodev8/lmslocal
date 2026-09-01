@@ -41,7 +41,18 @@ Success Response (ALWAYS HTTP 200):
       "is_stalled": false,                       // boolean, the tyre-kicker verdict the screen counts by
       "stalled_source": "derived",               // string, "derived" (the rule) or "admin" (marked by hand)
       "stalled_override": null,                  // boolean or null - the admin's override, null when unset
-      "stalled_reason": null                     // string or null, why it was called stalled
+      "stalled_reason": null,                    // string or null, why it was called stalled
+      "current_round": {                         // null when the competition has no round yet
+        "round_id": 554,                         // integer
+        "round_number": 3,                       // integer
+        "lock_time": "2026-09-04T19:00:00.000Z", // string, ISO datetime
+        "is_locked": false,                      // boolean, lock_time has passed
+        "players_due": 4,                        // integer, members still in, who each owe a pick
+        "picks_made": 3,                         // integer, of those, who have picked
+        "picks_outstanding": 1,                  // integer, players_due - picks_made
+        "bots_outstanding": 0,                   // integer, of those outstanding, how many are bots
+        "real_outstanding": 1                    // integer, outstanding that are actual people
+      }
     }
   ],
   "quiet_days_threshold": 7,
@@ -80,6 +91,11 @@ Data Notes:
   services/competitionEngagement.js - this route only reports it. It matters because a
   competition can reach ACTIVE with a round pushed and no pick ever made, so it sat in the
   screen's "Active" tile forever; seven of thirty rows were like that.
+- "current_round" is how far through the round in progress this competition is - the number the
+  screen shows as "3/4" and the reason the stats screen exists. Defined once in
+  services/pickProgress.js and shared with /admin/get-competition-stats, so a row and the screen
+  behind it cannot show different fractions. Note "pick_count" above is a different thing
+  entirely: every pick ever made, which only the stalled rule reads.
 - Paid status comes from "organiser_lifetime_spend" (SUM over credit_purchases), NOT from
   app_user.paid_credit. paid_credit is a current balance that can be granted without any money
   changing hands, so a badge driven off it would call non-paying accounts customers. Credit is
@@ -99,6 +115,10 @@ const {
   pickCountSql,
   classifyCompetition
 } = require('../../services/competitionEngagement');
+const {
+  currentRoundProgressLateral,
+  describePickProgress
+} = require('../../services/pickProgress');
 const router = express.Router();
 
 const VALID_STATUSES = ['setup', 'active', 'complete'];
@@ -181,10 +201,15 @@ router.get('/', verifyAdminToken, async (req, res) => {
         )                                                                     AS last_activity,
         COALESCE(c.fixture_service, false)                                    AS fixture_service,
         c.team_list_id,
-        tl.name                                                               AS team_list_name
+        tl.name                                                               AS team_list_name,
+        -- The current round and how many of its picks are in. Shared with the per-competition
+        -- stats screen (services/pickProgress.js) so the fraction on a row and the fraction on
+        -- the screen behind it cannot disagree.
+        pick_progress.*
       FROM competition c
       LEFT JOIN app_user u ON u.id = c.organiser_id
       LEFT JOIN team_list tl ON tl.id = c.team_list_id
+      ${currentRoundProgressLateral('c', '$2')}
       WHERE ($1::text IS NULL OR LOWER(c.status) = $1)
       ORDER BY last_activity DESC
     `;
@@ -219,7 +244,8 @@ router.get('/', verifyAdminToken, async (req, res) => {
         team_list_id: row.team_list_id,
         team_list_name: row.team_list_name,
         stalled_override: row.stalled_override,
-        ...engagement
+        ...engagement,
+        ...describePickProgress(row)
       };
     });
 

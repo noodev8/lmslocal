@@ -155,6 +155,31 @@ export interface LoginResponse extends ApiResponse {
 
 export type StatsResponse = ApiResponse & Partial<AdminStats>;
 
+/*
+How far through the round in progress a competition is - the picks-made-versus-owed figure.
+
+Produced once on the server (services/pickProgress.js) and returned by BOTH the competitions list
+and the per-competition stats screen, so the fraction on a row and the fraction on the screen
+behind it are the same arithmetic. Never recompute either half here.
+*/
+export interface CurrentRoundProgress {
+  round_id: number;
+  round_number: number;
+  lock_time: string;
+  /* The lock time has passed. Outstanding then means "never picked", not "still to pick". */
+  is_locked: boolean;
+  /* Members still in, each of whom owes a pick. Matches still_in_count. */
+  players_due: number;
+  /* Of those, how many have picked. */
+  picks_made: number;
+  /* players_due - picks_made. */
+  picks_outstanding: number;
+  /* Of those outstanding, how many are bots - which nobody needs to chase. */
+  bots_outstanding: number;
+  /* Outstanding that are actual people. This is the number worth acting on. */
+  real_outstanding: number;
+}
+
 export interface AdminCompetition {
   id: number;
   name: string;
@@ -211,6 +236,14 @@ export interface AdminCompetition {
   stalled_override: boolean | null;
   /* Why it was called stalled, ready to show - null when it is not. */
   stalled_reason: string | null;
+  /*
+  The round in progress and its pick progress. Null when the competition has no round at all,
+  which is every manual competition still waiting on its organiser to press Ready.
+
+  NOT to be confused with pick_count above, which is every pick ever made and is read only by
+  the stalled rule.
+  */
+  current_round: CurrentRoundProgress | null;
 }
 
 /*
@@ -591,6 +624,72 @@ export type CompetitionsResponse = ApiResponse & {
   generated_at?: string;
 };
 
+/*
+One member on the per-competition stats screen, with their pick for the CURRENT round.
+
+Eliminated members are included - they owe nothing, but "who has gone out" is part of reading a
+competition, so the screen lists them below the players still in.
+*/
+export interface CompetitionStatsPlayer {
+  user_id: number;
+  name: string | null;
+  email: string | null;
+  /* A placeholder account admin drives, not a person. Decided by the server, never by name. */
+  is_bot: boolean;
+  is_organiser: boolean;
+  /* 'active' (still in) or 'out' (eliminated). */
+  status: string;
+  lives_remaining: number;
+  /* For the current round only. */
+  has_picked: boolean;
+  picked_team: string | null;
+  picked_at: string | null;
+}
+
+/* One round of a competition's history, newest first. */
+export interface CompetitionStatsRound {
+  round_id: number;
+  round_number: number;
+  lock_time: string;
+  is_locked: boolean;
+  fixture_count: number;
+  /* Every pick row for the round, whatever became of the player who made it. */
+  picks_made: number;
+  /*
+  player_progress rows, which only exist once the round has been resulted - so this is 0 for the
+  round in progress. That is why the current round is read from current_round above and not
+  from this table.
+  */
+  players_in_at_round: number;
+  wins: number;
+  losses: number;
+  /*
+  Resulted with no pick at all - the no-shows. Comes from player_progress, because a player who
+  never picked has no pick row to count. See lmslocal-server/db/README.md.
+  */
+  missed: number;
+}
+
+export type CompetitionStatsResponse = ApiResponse & {
+  competition?: {
+    id: number;
+    name: string;
+    status: string;
+    organiser_id: number | null;
+    organiser_name: string | null;
+    organiser_email: string | null;
+    created_at: string;
+    fixture_service: boolean;
+    team_list_name: string | null;
+    player_count: number;
+    still_in_count: number;
+  };
+  current_round?: CurrentRoundProgress | null;
+  players?: CompetitionStatsPlayer[];
+  rounds?: CompetitionStatsRound[];
+  generated_at?: string;
+};
+
 export type ImpersonateResponse = ApiResponse & {
   token?: string;
   user?: { id: number; email: string; display_name: string };
@@ -834,6 +933,17 @@ export const adminApi = {
 
   getOrganisers: async (): Promise<OrganisersResponse> => {
     const response = await api.get<OrganisersResponse>('/admin/get-admin-organisers');
+    return response.data;
+  },
+
+  /*
+  Everything the per-competition stats screen shows, in one call. Deliberately fetched on entry
+  only - it is heavier than a list row and nothing on it changes while you look at it.
+  */
+  getCompetitionStats: async (competitionId: number): Promise<CompetitionStatsResponse> => {
+    const response = await api.get<CompetitionStatsResponse>('/admin/get-competition-stats', {
+      params: { competition_id: competitionId },
+    });
     return response.data;
   },
 

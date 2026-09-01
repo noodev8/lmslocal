@@ -14,6 +14,12 @@ Purpose: Drill-down from the dashboard's "Competitions" cards - every competitio
          this screen counts competitions. That verdict is the server's (see
          services/competitionEngagement.js and is_stalled on each row); this screen never
          re-derives it, it only counts and filters by it.
+
+         The name on each row opens /dashboard/competitions/[id] - the read-only stats screen,
+         which loads nothing until you go into it. Everything beyond the columns here belongs
+         there, so this screen can stay a list. The one figure that made the trip in the other
+         direction is the current round's pick progress, because it is the thing you scan for:
+         finding the competition where nobody has picked should not mean opening thirty screens.
 =======================================================================================================================================
 */
 
@@ -251,6 +257,66 @@ function PeopleCard({ label, value, hint }: { label: string; value: number; hint
         <span className="text-sm font-medium text-slate-600">{label}</span>
       </div>
       <p className="mt-0.5 text-xs text-slate-400">{hint}</p>
+    </div>
+  );
+}
+
+/*
+How far through the round in progress this competition is - picks in over players still in.
+
+THE ONE STAT ON THIS SCREEN, and the reason there is a stats screen behind it. It is here rather
+than only on the drill-down because it is what you SCAN: the competition where nobody has picked
+is worth finding without opening every row, and a fraction is small enough not to turn the list
+into a dashboard. Everything else the drill-down shows stayed there.
+
+Blank when there is nothing to say - no round yet, or nobody still in. Same discipline as "still
+in" a column to the left, which only appears once somebody is out: a cell that is always
+populated is a cell nobody reads.
+
+The numbers are the server's (services/pickProgress.js), shared with /admin/get-competition-stats
+so this cell and that screen cannot disagree. Nothing is computed here beyond choosing a colour.
+*/
+function PickProgressCell({ competition }: { competition: AdminCompetition }) {
+  const round = competition.current_round;
+
+  if (!round || round.players_due === 0) {
+    return <span className="text-slate-300">—</span>;
+  }
+
+  const { picks_made, players_due, picks_outstanding, real_outstanding, is_locked } = round;
+  const allIn = picks_outstanding === 0;
+
+  /*
+  Amber only while something can still be done about it. Once a round has locked, outstanding
+  picks are history - the lives are already gone - and colouring them as a warning would leave
+  rows demanding attention that nobody can give them.
+  */
+  const tone = allIn
+    ? 'text-emerald-600'
+    : is_locked
+      ? 'text-slate-500'
+      : 'text-amber-600 font-medium';
+
+  return (
+    <div
+      className="whitespace-nowrap tabular-nums"
+      title={
+        allIn
+          ? `Round ${round.round_number}: everyone still in has picked`
+          : is_locked
+            ? `Round ${round.round_number}: ${picks_outstanding} never picked`
+            : `Round ${round.round_number}: ${picks_outstanding} still to pick (${real_outstanding} of them people), locks ${formatDate(round.lock_time)} at ${formatTime(round.lock_time)}`
+      }
+    >
+      <span className={tone}>
+        {picks_made}
+        <span className="text-slate-300">/</span>
+        {players_due}
+      </span>
+      {/* The count that matters, spelled out only when it is not zero and not yet spent. */}
+      {!allIn && !is_locked && (
+        <div className="text-xs text-slate-400">{picks_outstanding} to pick</div>
+      )}
     </div>
   );
 }
@@ -936,6 +1002,12 @@ function CompetitionsList() {
                   <SortableHeader col={COLUMNS[1]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
                   <th className="px-4 py-3 font-semibold">Organiser</th>
                   <SortableHeader col={COLUMNS[2]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
+                  <th
+                    className="px-4 py-3 font-semibold"
+                    title="Picks in for the round currently open, out of the players still in"
+                  >
+                    Picks
+                  </th>
                   <SortableHeader col={COLUMNS[3]} sortKey={sortKey} sortDirection={sortDirection} onSort={toggleSort} />
                   <th className="px-4 py-3 font-semibold" title="Receives fixtures and results from the fixture service">
                     Auto
@@ -952,7 +1024,12 @@ function CompetitionsList() {
                     }`}
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">
-                      {c.name}
+                      <Link
+                        href={`/dashboard/competitions/${c.id}`}
+                        className="transition hover:text-indigo-600 hover:underline"
+                      >
+                        {c.name}
+                      </Link>
                       {/* Below the name and out of the way - it is only ever read deliberately,
                           when quoting a row. Same mono grey the fixtures screen uses for an id. */}
                       <div className="font-mono text-xs font-normal text-slate-400">#{c.id}</div>
@@ -993,6 +1070,7 @@ function CompetitionsList() {
                         </div>
                       )}
                     </td>
+                    <td className="px-4 py-3"><PickProgressCell competition={c} /></td>
                     {/* The exact day moves into the tooltip, since the cell now reads relatively. */}
                     <td
                       className="px-4 py-3 text-slate-500"
