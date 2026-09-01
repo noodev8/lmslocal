@@ -74,6 +74,13 @@ const EMAIL_GROUPS = {
   the players who would have been chased miss out.
   */
   organiser_nudge: GROUPS.GAME,
+  /*
+  Game, for the same reason and at the same cost as organiser_nudge above: one round of one
+  competition, carrying a deadline. It is the fuller of the two - it also reports how the last
+  round went - but that does not make it Info: an organiser who has switched Game off has said
+  they do not want the round-by-round traffic, and this is the round-by-round traffic.
+  */
+  organiser_round: GROUPS.GAME,
 
   // Section: Info - which now carries the welcome emails, the outline having dropped Welcome as
   // a section of its own.

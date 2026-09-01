@@ -153,6 +153,17 @@ const OUTLINE: OutlineEmail[] = [
       'The organiser’s half of the pick reminder, sent after the player one has had its run so the number is what is LEFT. Two sections: guest picks only they can enter (a guest has no login, so pick_reminder never reaches them), then the real players to chase in the group chat. Once per competition per round — two competitions stalling means two emails. Exempt from magic send, the only email that is.',
   },
   {
+    key: 'organiser_round',
+    consumer: 'Organiser',
+    section: 'Game',
+    name: 'Organiser round report',
+    scoped: true,
+    note: 'Locks within 30h — last round settled, plus who is still to pick',
+    focus: true,
+    blurb:
+      'The cheap alternative to Round Over: one email per competition to the organiser instead of one to every player. How the last round went — who is out, who is still in — then who has yet to pick before the next lock, guests first. Written to be forwarded into a group chat. Fires 30 hours out, alongside the pick reminder, so there is a full day to chase. Once per competition per round.',
+  },
+  {
     key: 'game_complete',
     consumer: 'Player',
     section: 'Game',

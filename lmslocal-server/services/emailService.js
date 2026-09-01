@@ -26,6 +26,16 @@ const { subjectFor: hintSubjectFor } = require('./hints');
 const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
 const { subjectFor: pickReminderSubjectFor } = require('./pickReminder');
 const { subjectFor: organiserNudgeSubjectFor } = require('./organiserNudge');
+/*
+SAMPLE_SIZE comes across as well as the subject, which none of the others need. The summary block
+says "3 players are out" and then names some of them, and whether that list is the lot or a sample
+decides whether the line reads "Bob, Sue" or "including Bob, Sue" - a difference the template
+cannot work out for itself without knowing the cap the query applied.
+*/
+const {
+  subjectFor: organiserRoundSubjectFor,
+  SAMPLE_SIZE: organiserRoundSampleSize
+} = require('./organiserRound');
 const { isOptedOut } = require('./emailPreference');
 const { query } = require('../database');
 const { formatUk, formatUkDate, formatUkDateTime } = require('./dateFormat');
@@ -1356,6 +1366,259 @@ const sendOrganiserNudgeEmail = async (email, templateData, options = {}) => {
     return readSendResult(result);
   } catch (error) {
     console.error('Failed to send organiser nudge email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * Build the organiser round report without sending it.
+ *
+ * Outline row: Organiser | Game | Organiser round report. One email per competition per round, to
+ * the organiser: how the last round went, then who has still to pick in the open one. Eligibility
+ * and the reasoning behind both halves live in services/organiserRound.js.
+ *
+ * IT IS WRITTEN TO BE FORWARDED, and that is the difference between this and every other template
+ * here. The other organiser emails ask them to go and do something in the app; the summary half of
+ * this one is a paragraph they can paste into a WhatsApp group as it stands. So it is
+ * competition-wide throughout - no "your team", no "you are still in" - even though the organiser
+ * is almost always playing too. Their own result is in the app, and mixing it in would spoil the
+ * one block that travels.
+ *
+ * THE SUMMARY LEADS AND THE CHASE FOLLOWS, which is the opposite order to buildOrganiserNudgeEmail
+ * above. That email is a last call three hours out, so it opens with the job. This one arrives a
+ * day ahead as the week's report, and the deadline is already carried by the subject line - so
+ * nothing urgent is lost by opening with the news, and the news is what gets it read.
+ *
+ * THE ALL-PICKED CASE IS A REAL BRANCH, not an empty section. "0 still to pick" as a heading over
+ * nothing reads as a broken email; a competition where everybody is in is worth one line saying so
+ * and no button.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/organiserRound.js
+ * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
+ */
+const buildOrganiserRoundEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_id,
+    competition_name,
+    round_number,
+    lock_time,
+    correct_at,
+    player_count,
+    outstanding_count,
+    guests,
+    players,
+    last_round,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  const base = process.env.PLAYER_FRONTEND_URL;
+  // The round screen, which is where admin-set-pick is driven from - so the guest section's button
+  // lands on the thing it is asking them to do rather than on a dashboard.
+  const roundUrl = `${base}/game/${competition_id}/round?email_id=${email_tracking_id}`;
+
+  const nameLine = (section) =>
+    section.others > 0
+      ? `${section.shown.join(', ')} and ${section.others} ${section.others === 1 ? 'other' : 'others'}`
+      : section.shown.join(', ');
+
+  /*
+  The tail of a summary line: the names, joined onto the count in a way that stays honest about
+  whether they are all of them. The count is always exact and the names are capped at
+  SAMPLE_SIZE, so "3 are out - Hal, Ines, Jo" and "12 still in, including Amy, Barry ..." are
+  two different sentences and the template must not print the first when it means the second.
+
+  Empty when there are no names at all, which is the zero case and also the guard against
+  string_agg returning null.
+  */
+  const namesTail = (count, sample) => {
+    if (!sample) return '.';
+    return count > organiserRoundSampleSize ? `, including ${sample}.` : ` — ${sample}.`;
+  };
+
+  const outCount = last_round ? last_round.out_count : 0;
+  /*
+  player_count, not a survivors count of its own: the people still in after the last round and the
+  people in the open round are the same set, because nothing eliminates anybody between a round
+  being processed and the next one locking. services/organiserRound.js has the full note.
+  */
+  const survivorCount = player_count;
+
+  // "0 players are out" is arithmetic; "nobody went out" is the news. A round where everybody
+  // survived is worth saying plainly, and it happens whenever the round is a full slate of wins.
+  const outLine = outCount === 0
+    ? 'Nobody went out this round.'
+    : `<strong>${outCount} ${outCount === 1 ? 'player is' : 'players are'} out</strong>${namesTail(outCount, last_round.out_sample)}`;
+
+  const summaryHtml = !last_round ? '' : `
+            <div style="margin: 0 0 28px 0; padding: 20px; background-color: #f1f5f9; border-radius: 6px;">
+              <p style="color: #0f172a; font-size: 16px; font-weight: 600; margin: 0 0 12px 0;">
+                Round ${last_round.round_number} is settled
+              </p>
+              <p style="color: #334155; font-size: 15px; margin: 0 0 8px 0; line-height: 1.5;">
+                ${outLine}
+              </p>
+              <p style="color: #334155; font-size: 15px; margin: 0; line-height: 1.5;">
+                <strong>${survivorCount} still in</strong>${namesTail(survivorCount, last_round.survivors_sample)}
+              </p>
+            </div>`;
+
+  const guestHtml = guests.count === 0 ? '' : `
+            <div style="margin: 0 0 28px 0; padding: 20px; background-color: #fef3c7; border-radius: 6px;">
+              <p style="color: #0f172a; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
+                ${guests.count} guest ${guests.count === 1 ? 'pick' : 'picks'} still to enter — only you can do these
+              </p>
+              <p style="color: #334155; font-size: 15px; margin: 0; line-height: 1.5;">
+                ${nameLine(guests)}
+              </p>
+            </div>`;
+
+  const playerHtml = players.count === 0 ? '' : `
+            <div style="margin: 0 0 28px 0; padding: 20px; background-color: #f1f5f9; border-radius: 6px;">
+              <p style="color: #0f172a; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">
+                ${players.count} ${players.count === 1 ? 'player has' : 'players have'} not picked — worth a nudge
+              </p>
+              <p style="color: #334155; font-size: 15px; margin: 0; line-height: 1.5;">
+                ${nameLine(players)}
+              </p>
+            </div>`;
+
+  const allPickedHtml = `
+            <div style="margin: 0 0 28px 0; padding: 20px; background-color: #ecfdf5; border-radius: 6px;">
+              <p style="color: #0f172a; font-size: 16px; font-weight: 600; margin: 0;">
+                All ${player_count} ${player_count === 1 ? 'player is' : 'players are'} in for round ${round_number} — nothing to chase.
+              </p>
+            </div>`;
+
+  const pickHtml = outstanding_count === 0 ? allPickedHtml : `${guestHtml}${playerHtml}`;
+
+  // No button when there is nothing to do. The link is the way to enter guest picks and see the
+  // live list; with everybody in, it would be an instruction to go and look at a finished job.
+  const buttonHtml = outstanding_count === 0 ? '' : `
+            <div style="margin: 0 0 24px 0;">
+              <a href="${roundUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Open the round
+              </a>
+            </div>`;
+
+  const correctAtHtml = outstanding_count === 0 ? '' : `
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              Correct at ${correct_at}. Some may have picked since — the app has the live list.
+            </p>`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Round ${round_number} — ${competition_name}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <!-- Header -->
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">Last Man Standing Competitions</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              Where <strong>${competition_name}</strong> stands, and what is left to do before
+              round ${round_number} locks at ${formatUkDateTime(lock_time)}.
+            </p>
+
+            ${summaryHtml}
+            ${pickHtml}
+            ${buttonHtml}
+            ${correctAtHtml}
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const summaryText = !last_round ? '' : `
+Round ${last_round.round_number} is settled.
+${outCount === 0 ? 'Nobody went out this round.' : `${outCount} ${outCount === 1 ? 'player is' : 'players are'} out${namesTail(outCount, last_round.out_sample)}`}
+${survivorCount} still in${namesTail(survivorCount, last_round.survivors_sample)}
+`;
+
+  const guestText = guests.count === 0 ? '' : `
+${guests.count} guest ${guests.count === 1 ? 'pick' : 'picks'} still to enter - only you can do these:
+${nameLine(guests)}
+`;
+
+  const playerText = players.count === 0 ? '' : `
+${players.count} ${players.count === 1 ? 'player has' : 'players have'} not picked - worth a nudge:
+${nameLine(players)}
+`;
+
+  const pickText = outstanding_count === 0
+    ? `
+All ${player_count} ${player_count === 1 ? 'player is' : 'players are'} in for round ${round_number} - nothing to chase.
+`
+    : `${guestText}${playerText}
+Open the round:
+${roundUrl}
+
+Correct at ${correct_at}. Some may have picked since - the app has the live list.
+`;
+
+  const textContent = `
+${organiserRoundSubjectFor(outstanding_count, lock_time, competition_name)}
+
+Hi ${firstName(user_display_name)},
+
+Where ${competition_name} stands, and what is left to do before round ${round_number}
+locks at ${formatUkDateTime(lock_time)}.
+${summaryText}${pickText}
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: organiserRoundSubjectFor(outstanding_count, lock_time, competition_name),
+    html: htmlContent,
+    text: textContent,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [{ name: 'email_type', value: 'organiser_round' }]
+  };
+};
+
+/**
+ * Send the organiser round report.
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/organiserRound.js
+ * @param {object} [options] - { testMode, testRecipient }, see deliver()
+ */
+const sendOrganiserRoundEmail = async (email, templateData, options = {}) => {
+  try {
+    const result = await deliver(buildOrganiserRoundEmail(email, templateData), options);
+    return readSendResult(result);
+  } catch (error) {
+    console.error('Failed to send organiser round report email:', error);
     return {
       success: false,
       error: error.message
@@ -3885,6 +4148,8 @@ module.exports = {
   buildEmptyCompEmail,
   buildOrganiserNudgeEmail,
   sendOrganiserNudgeEmail,
+  buildOrganiserRoundEmail,
+  sendOrganiserRoundEmail,
   sendEmptyCompEmail,
   buildJoinBlockedEmail,
   sendJoinBlockedEmail,

@@ -29,6 +29,7 @@ const pickReminder = require('./pickReminder');
 const joinLms = require('./joinLms');
 const emptyComp = require('./emptyComp');
 const organiserNudge = require('./organiserNudge');
+const organiserRound = require('./organiserRound');
 const createdComp = require('./createdComp');
 const joinComp = require('./joinComp');
 // gameStartReminder is not imported: unwired on purpose - see the note where its entry was.
@@ -47,6 +48,8 @@ const {
   buildEmptyCompEmail,
   buildOrganiserNudgeEmail,
   sendOrganiserNudgeEmail,
+  buildOrganiserRoundEmail,
+  sendOrganiserRoundEmail,
   sendEmptyCompEmail,
   buildCreatedCompEmail,
   sendCreatedCompEmail,
@@ -94,6 +97,36 @@ const CATALOG = {
     service: organiserNudge,
     build: buildOrganiserNudgeEmail,
     send: sendOrganiserNudgeEmail
+  },
+  /*
+  The organiser's weekly round report: how the last round went, then who has still to pick in the
+  open one. Scoped, and the grain is the COMPETITION AND ROUND, same as organiser_nudge.
+
+  IT OVERLAPS BOTH results AND organiser_nudge, AND ALL THREE STAY WIRED (Andreas, 2026-09-01).
+  That is unlike every other overlap in this file, which was resolved by unwiring one side, so the
+  reasoning is worth stating:
+
+    - Against results (Round Over): this is the CHEAP alternative. Round Over mails every player
+      every week; this mails one person per competition and asks them to carry it the rest of the
+      way. Whether a given week can afford the volume is an operator's judgement on the day, not a
+      property of the code, so both stay available and the crontab decides.
+    - Against organiser_nudge: same audience and an almost identical second half, but different
+      moments. This fires 30 hours out, alongside pick_reminder, so the organiser has a day to
+      chase; organiser_nudge fires three hours out and reports what is LEFT after the player
+      reminder has worked. One or the other on a given week, not both - and nothing here enforces
+      that, because it is a choice rather than a rule.
+
+  NOT quietExempt, and organiser_nudge's exemption is not a precedent for it. That exemption was
+  granted because organiser_nudge runs hourly through the afternoon, where crontab order cannot
+  express priority at all. This one runs inside the morning block like everything else, so the
+  mechanism it would be exempted from is present and working: if it should beat Round Over, move
+  its line up. See services/emailQuiet.js for the test.
+  */
+  organiser_round: {
+    scoped: true,
+    service: organiserRound,
+    build: buildOrganiserRoundEmail,
+    send: sendOrganiserRoundEmail
   },
   join_lms: {
     scoped: false,
