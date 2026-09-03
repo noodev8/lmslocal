@@ -849,6 +849,54 @@ function CompetitionsList() {
     return sorted;
   }, [competitions, statusParam, organiserId, search, sortKey, sortDirection]);
 
+  /*
+  A total of exactly the rows the table shows below it, so it moves with the tab, the organiser
+  scope and the search box rather than describing a different set from the one you are looking
+  at. Sits above the table rather than among the people cards, which are platform-wide and stay
+  put under a filter - a total that is meant to answer "what am I looking at right now" has to
+  shrink and grow with the table, not sit fixed above it describing everything.
+
+  "Picks" is summed only over rows with a round to pick in (same test PickProgressCell uses) -
+  a pending competition contributes players but has nothing to add to a fraction of picks made.
+
+  The tone mirrors PickProgressCell's own rule so the headline and the column it summarises never
+  disagree about what colour "still work to do" is. There is no single is_locked here - some
+  rounds in the total will be locked and some will not - so the split that matters is actionable:
+  real_outstanding (people, not bots) in a round that has NOT locked. Amber while that is above
+  zero; once every open round either locked or emptied, nothing more can change today.
+  */
+  const totals = useMemo(() => {
+    let players = 0;
+    let picksMade = 0;
+    let playersDue = 0;
+    let actionableOutstanding = 0;
+    filtered.forEach((c) => {
+      players += c.player_count;
+      if (c.current_round && c.current_round.players_due > 0) {
+        picksMade += c.current_round.picks_made;
+        playersDue += c.current_round.players_due;
+        if (!c.current_round.is_locked) {
+          actionableOutstanding += c.current_round.real_outstanding;
+        }
+      }
+    });
+    const hasPickData = playersDue > 0;
+    const allIn = hasPickData && picksMade === playersDue;
+    const tone = allIn
+      ? 'text-emerald-600'
+      : actionableOutstanding > 0
+        ? 'text-amber-600 font-medium'
+        : 'text-slate-500';
+    return {
+      players,
+      picksMade,
+      playersDue,
+      hasPickData,
+      pct: hasPickData ? Math.round((picksMade / playersDue) * 100) : 0,
+      tone
+    };
+  }, [filtered]);
+
   // Name for the "showing one organiser" banner, taken from any of their rows.
   const organiserName = useMemo(() => {
     if (organiserId === null) return null;
@@ -1061,6 +1109,33 @@ function CompetitionsList() {
 
         {filtered.length > 0 && (
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            {/*
+              The table's own headline, not a platform one - see the note on `totals` above.
+              Lives on the table rather than floating in the search row above it, and says "X
+              competitions" up front so it cannot be mistaken for the "241 active players" card:
+              that one is unique registered people across the whole live platform; this is a raw
+              sum of player_count for whatever the tab and search currently show, bots and
+              re-joins and all - the same 14 rows currently below it, no more, no fewer.
+            */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-sm">
+              <span className="text-slate-500">
+                {filtered.length} competition{filtered.length === 1 ? '' : 's'} shown
+              </span>
+              <span className="text-slate-600">
+                <span className="font-semibold tabular-nums text-slate-900">{totals.players}</span>{' '}
+                player{totals.players === 1 ? '' : 's'}
+                {totals.hasPickData && (
+                  <>
+                    {' · '}
+                    <span className={`font-semibold tabular-nums ${totals.tone}`}>
+                      {totals.picksMade}
+                      <span className="font-normal text-slate-400">/</span>
+                      {totals.playersDue} picked ({totals.pct}%)
+                    </span>
+                  </>
+                )}
+              </span>
+            </div>
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
