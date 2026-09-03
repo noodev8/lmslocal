@@ -44,6 +44,12 @@ Success Response (ALWAYS HTTP 200):
     "active": 242,                          // integer, of "total", in a competition that is live right now
     "active_guests": 15                     // integer, guests in a live competition (NOT part of "total")
   },
+  "places": {
+    "limit": 20,                            // integer, FREE_PLAYER_LIMIT - free places per ORGANISER
+    "total": 384,                           // integer, chargeable places held (memberships + re-buys)
+    "free": 233,                            // integer, of those, covered by a free allowance
+    "billable": 151                         // integer, of those, past somebody's free limit
+  },
   "generated_at": "2026-08-02T14:00:00.000Z" // string, ISO datetime this snapshot was taken
 }
 
@@ -73,6 +79,21 @@ Data Notes:
   Organisers screen lists (see get-admin-organisers), so the card and that screen agree.
 
   "total" is cumulative and can only rise; "live" can fall, which is the point of it.
+- "places" is the paid share the Competitions screen shows, as billable/total. The PLACE is the
+  unit we sell, which is what makes it a fair headline: players never pay us, and an organiser
+  under the free limit is not a failed sale but a free user behaving as designed. Counting either
+  of those as a conversion rate flatters or damns the platform for something nobody was asked to
+  do. It also falls as well as rises - a large free competition lowers it, correctly, being real
+  load earning nothing.
+
+  It counts places CONSUMED past a free allowance, NOT credits bought. The two are far apart
+  (370 bought against 151 consumed at the time of writing) because organisers buy in packs and
+  sit on the balance. Billable is the demand figure; credit_purchases is the revenue figure.
+  Do not present one as the other.
+
+  Registered accounts in no competition hold no place and are in neither half - correctly, since
+  no allowance is consumed and nobody is charged for them. The gap between users.total and
+  users.active is where they show up.
 - "inactive" (running, no picks for 30 days) was removed. "stalled" answers the same question
   better and having both invited the two to be compared.
 - Every figure here counts the REAL platform, not us. Excluded: competition 117 ("App Store",
@@ -111,6 +132,7 @@ const {
   lastActivitySql,
   classifyCompetition
 } = require('../../services/competitionEngagement');
+const { getPlatformPlaceTotals } = require('../../services/placeUsage');
 const router = express.Router();
 
 // Competition 117 ("App Store") is ours, created for the store listing screenshots. The
@@ -316,6 +338,15 @@ router.get('/', verifyAdminToken, async (req, res) => {
       EXCLUDED_COMPETITION_IDS,
       liveCompetitionIds
     ]);
+
+    /*
+    Places, from services/placeUsage.js - the same arithmetic the join gate runs for one
+    organiser, summed. Deliberately not written here: see the header of getPlatformPlaceTotals.
+    */
+    const places = await getPlatformPlaceTotals({
+      excludedCompetitionIds: EXCLUDED_COMPETITION_IDS,
+      excludedEmails: EXCLUDED_EMAILS
+    });
     const row = result.rows[0];
 
     // COUNT() comes back as a string from node-postgres (bigint), so coerce for the client
@@ -344,6 +375,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
         active: n(row.users_active),
         active_guests: n(row.users_active_guests)
       },
+      places,
       generated_at: new Date().toISOString()
     });
 

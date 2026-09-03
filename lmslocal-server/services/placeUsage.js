@@ -53,8 +53,14 @@ const labelForStatus = (status) => STATUS_LABELS[String(status || '').toUpperCas
  * @param {number} userId - the organiser
  * @returns {Promise<object>} { limit, used, remaining, credits, is_blocked, competitions[] }
  */
+/*
+The free allowance, read in one place. Both callers below need it and an organiser's gate must not
+be able to sit at a different number from the platform figure reporting on that same gate.
+*/
+const freePlayerLimit = () => parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
+
 async function getPlaceUsage(userId) {
-  const FREE_PLAYER_LIMIT = parseInt(process.env.FREE_PLAYER_LIMIT) || 20;
+  const FREE_PLAYER_LIMIT = freePlayerLimit();
 
   /*
   One round trip for both halves. The breakdown and the total have to come from the same read, or
@@ -138,6 +144,68 @@ async function getPlaceUsage(userId) {
   };
 }
 
+/*
+=======================================================================================================================================
+Platform totals
+=======================================================================================================================================
+The same arithmetic as getPlaceUsage, summed across everyone, for the admin Competitions screen.
+
+WHY IT LIVES HERE and not in the admin route: the place is the unit we sell, and "how many places
+are billable" has to be the same question the join gate answers for one organiser. A second copy
+in the route would be free to drift from the gate - and the figure would then be reporting on a
+rule the product does not actually enforce.
+
+GROUPED BY ORGANISER, and that is load-bearing. The allowance is 20 per ORGANISER across
+everything they run, not 20 per competition, so the split cannot be taken competition by
+competition or from a platform-wide total. Summing LEAST/GREATEST per organiser is the only shape
+that gives each of them exactly one allowance.
+
+Bots are excluded by chargeableMemberFilter, as everywhere. Guests are NOT: a guest occupies a
+place and is charged for like anyone else, which is the whole reason the gate counts them.
+*/
+
+/**
+ * Free against billable places across the whole platform.
+ *
+ * @param {object} [options]
+ * @param {number[]} [options.excludedCompetitionIds] - competitions to leave out (ours)
+ * @param {string[]} [options.excludedEmails] - organiser accounts to leave out (ours)
+ * @returns {Promise<object>} { limit, total, free, billable }
+ */
+async function getPlatformPlaceTotals({ excludedCompetitionIds = [], excludedEmails = [] } = {}) {
+  const FREE_PLAYER_LIMIT = freePlayerLimit();
+
+  const result = await query(`
+    WITH per_organiser AS (
+      SELECT
+        c.organiser_id,
+        COUNT(mem.id) + COALESCE(SUM(CASE WHEN mem.id IS NOT NULL THEN cu.re_buys ELSE 0 END), 0)
+          AS places
+      FROM competition c
+      JOIN app_user o                ON o.id = c.organiser_id
+      LEFT JOIN competition_user cu  ON cu.competition_id = c.id
+      LEFT JOIN app_user mem         ON mem.id = cu.user_id
+                                    AND ${chargeableMemberFilter('mem')}
+      WHERE c.id <> ALL($1::int[])
+        AND o.email <> ALL($2::text[])
+      GROUP BY c.organiser_id
+    )
+    SELECT
+      COALESCE(SUM(places), 0)                          AS total,
+      COALESCE(SUM(LEAST(places, $3::int)), 0)          AS free,
+      COALESCE(SUM(GREATEST(places - $3::int, 0)), 0)   AS billable
+    FROM per_organiser
+  `, [excludedCompetitionIds, excludedEmails, FREE_PLAYER_LIMIT]);
+
+  const row = result.rows[0] || {};
+  return {
+    limit: FREE_PLAYER_LIMIT,
+    total: Number(row.total) || 0,
+    free: Number(row.free) || 0,
+    billable: Number(row.billable) || 0
+  };
+}
+
 /**
  * The breakdown as plain lines, for the email.
  *
@@ -164,6 +232,7 @@ function usageLines(usage) {
 
 module.exports = {
   getPlaceUsage,
+  getPlatformPlaceTotals,
   usageLines,
   labelForStatus,
   STATUS_LABELS

@@ -246,13 +246,31 @@ People, under the competition tiles.
 Deliberately smaller and deliberately not a button. The four tiles above are controls - they
 filter the list - and these are not; making them the same size would invite a click that does
 nothing. Lighter type, no gradient rule, tighter padding, but the same grid so the edges line up.
+
+Four cards is the budget, and it is the tiles' column count that sets it. Adding a fifth meant a
+fifth column here and lost that alignment, so "paid places" arriving cost "registered" its place
+rather than widening the row - see the note where it stood. Anything new has to displace
+something, which is the point: this row mixes live people with an all-time share already, and a
+sixth figure is a sixth chance to read two of them as one population.
 */
-function PeopleCard({ label, value, hint }: { label: string; value: number; hint: string }) {
+function PeopleCard({
+  label,
+  value,
+  hint,
+  // A unit stuck to the figure, for the one card that is not a count of things. Rendered inside
+  // the same span so it cannot wrap away from its number.
+  unit = '',
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  unit?: string;
+}) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
       <div className="flex items-baseline gap-2">
         <span className="text-lg font-semibold tabular-nums text-slate-900">
-          {value.toLocaleString()}
+          {value.toLocaleString()}{unit}
         </span>
         <span className="text-sm font-medium text-slate-600">{label}</span>
       </div>
@@ -589,9 +607,12 @@ function CompetitionsList() {
   /* People figures for the row under the tiles. Null until they arrive, and null if they fail -
      losing them must not take the competitions list with it. */
   const [people, setPeople] = useState<AdminStats['users'] | null>(null);
-  /* Organisers holding something active or pending. Sits in the same row and arrives in the same
-     request, so it is kept beside the people figures rather than in its own state. */
-  const [organisersLive, setOrganisersLive] = useState<number | null>(null);
+  /* Organisers holding something active or pending, and how many of those have paid. Sits in the
+     same row and arrives in the same request, so it is kept beside the people figures rather
+     than in its own state. */
+  const [organisers, setOrganisers] = useState<AdminStats['organisers'] | null>(null);
+  /* Free against billable places, for the paid-share card. Same request again. */
+  const [places, setPlaces] = useState<AdminStats['places'] | null>(null);
   const [lastViewed, setLastViewed] = useState<{ id: number; at: number } | null>(null);
   const [roundInProgressTarget, setRoundInProgressTarget] = useState<{
     competition: AdminCompetition;
@@ -762,10 +783,12 @@ function CompetitionsList() {
       const stats = await adminApi.getStats();
       const ok = stats.return_code === 'SUCCESS';
       setPeople(ok && stats.users ? stats.users : null);
-      setOrganisersLive(ok && stats.organisers ? stats.organisers.live : null);
+      setOrganisers(ok && stats.organisers ? stats.organisers : null);
+      setPlaces(ok && stats.places ? stats.places : null);
     } catch {
       setPeople(null);
-      setOrganisersLive(null);
+      setOrganisers(null);
+      setPlaces(null);
     }
   }, []);
 
@@ -947,11 +970,17 @@ function CompetitionsList() {
               value={people.active}
               hint={`of ${people.total.toLocaleString()} registered, in a live competition`}
             />
-            <PeopleCard
-              label="registered"
-              value={people.total}
-              hint={`${people.new_last_30_days.toLocaleString()} new in 30 days`}
-            />
+            {/*
+              "Registered" (cumulative accounts, with new-in-30-days as its hint) stood here and
+              was removed. It could only ever rise, so it could not tell growth from churn - the
+              same objection that retired the cumulative "genuine people" count and /dashboard
+              itself. Its useful half survives: the active-players hint above still says what
+              share of the register is playing.
+
+              Its hint was also quietly misleading. "228 new in 30 days" was true and read as
+              current growth, but only 2 of those landed in the last week - an August burst that
+              had already stopped.
+            */}
             {/*
               Organisers sit third, not first: the row leads with the figures read most often,
               and this one is a few dozen against a few hundred.
@@ -962,11 +991,48 @@ function CompetitionsList() {
               not tell growth from churn - the same reason "active players" replaced a cumulative
               count. Null while it is loading or if it failed, and the card simply stays away.
             */}
-            {organisersLive !== null && (
+            {organisers !== null && (
               <PeopleCard
                 label="organisers"
-                value={organisersLive}
+                value={organisers.live}
                 hint="running something active or pending"
+              />
+            )}
+            {/*
+              The paid share, and the only money on this screen.
+
+              Counted in PLACES, not people, because the place is what we sell - and that is the
+              only unit that makes the fraction fair. Players never pay us, so a "% of players
+              paying" would describe hundreds of people as customers who bought nothing. And an
+              organiser under the free limit is not a failed sale, so a "% of organisers paying"
+              damns the platform for something nobody has been asked to do yet.
+
+              It also falls, which the alternatives could not: a large free competition lowers it,
+              correctly, being real load that earns nothing.
+
+              Places CONSUMED past a free allowance, NOT credits bought - organisers buy in packs
+              and sit on the balance, so the two are far apart. This card is demand; revenue is a
+              different figure and does not belong under a row of player counts.
+
+              THE PERCENTAGE LEADS, and the raw counts are demoted to the hint, because this is
+              the one card on the row not counting live people. It showed 151 of 384 beside "241
+              active players" and the two invited a comparison that cannot be made: 384 is
+              PLACES, all-time, guests included; 241 is registered PEOPLE in a live competition.
+              Bridging them takes four steps - drop 24 guest places, drop 35 second memberships
+              held by the same person, drop 84 people whose competitions have all finished.
+
+              The all-time scope is not fixable and must not be "fixed". A finished competition
+              still holds its places and still consumes the organiser's free 20 - that is what
+              the join gate enforces, and services/placeUsage.js exists to say so. Scoping this
+              to live competitions would sit better beside its neighbours and be wrong about
+              money. A share does not invite the subtraction; a count does.
+            */}
+            {places !== null && places.total > 0 && (
+              <PeopleCard
+                label="paid places"
+                value={Math.round((places.billable / places.total) * 100)}
+                unit="%"
+                hint={`${places.billable.toLocaleString()} of ${places.total.toLocaleString()} places held, finished comps included`}
               />
             )}
             <PeopleCard
