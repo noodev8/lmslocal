@@ -168,6 +168,43 @@ export interface LoginResponse extends ApiResponse {
 export type StatsResponse = ApiResponse & Partial<AdminStats>;
 
 /*
+The Growth screen: the figures BEHIND the platform rather than the ones on it.
+
+Kept apart from AdminStats on purpose. The admin Overview was deleted for restating the
+Competitions screen's counts and disagreeing with them, so nothing here repeats a headline from
+that screen - the funnel stops at "took part" and the live player count stays where it is. Where
+the two do touch, on places, both routes call the same server service, so they cannot drift.
+*/
+export interface AdminGrowth {
+  signups: {
+    /* Registered accounts only. A guest is created by joining and dies with its competition, so
+       counting one as a signup would make the funnel move with competitions rather than people. */
+    registered: number;
+    /* Ever joined OR ran a competition - organising is taking part. */
+    took_part: number;
+    never: number;
+    /* The part that matters: a signup from last week who has not joined is mid-flight, one from
+       four months ago is gone, and the two must not be read as the same person. */
+    never_over_90_days: number;
+    new_last_30_days: number;
+    new_last_7_days: number;
+  };
+  /*
+  EXCLUDES archived competitions (the Competitions screen's label for "stalled") - a tyre kicker
+  never earned anything and should not count as demand. UNLIKE that screen's "active" card, this
+  is not restricted to live-only: a finished competition still held its places and still consumed
+  the organiser's free 20 while it ran, so only the archived rows are cut, not COMPLETE ones too.
+  */
+  places: AdminStats['places'];
+  /* Pounds actually taken, trailing 12 months - not lifetime, so the figure reads as current. Not
+     app_user.paid_credit, which is a balance and can be granted without a sale. */
+  revenue_12mo: number;
+  generated_at: string;
+}
+
+export type GrowthResponse = ApiResponse & Partial<AdminGrowth>;
+
+/*
 How far through the round in progress a competition is - the picks-made-versus-owed figure.
 
 Produced once on the server (services/pickProgress.js) and returned by BOTH the competitions list
@@ -939,6 +976,11 @@ export const adminApi = {
 
   getStats: async (): Promise<StatsResponse> => {
     const response = await api.get<StatsResponse>('/admin/get-admin-stats');
+    return response.data;
+  },
+
+  getGrowth: async (): Promise<GrowthResponse> => {
+    const response = await api.get<GrowthResponse>('/admin/get-admin-growth');
     return response.data;
   },
 

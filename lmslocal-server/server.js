@@ -129,6 +129,7 @@ const getPushTargetsRoute = require('./routes/admin/get-push-targets');
 const clearStagedBatchRoute = require('./routes/admin/clear-staged-batch');
 const adminLoginRoute = require('./routes/admin/admin-login');
 const getAdminStatsRoute = require('./routes/admin/get-admin-stats');
+const getAdminGrowthRoute = require('./routes/admin/get-admin-growth');
 
 // Shared-secret auth for machine-invoked routes (the email pipeline)
 const { verifyServiceToken } = require('./middleware/service-auth');
@@ -510,6 +511,7 @@ gated by BOT_MAGIC_2025, which those same public pages shipped in the browser bu
 */
 app.use('/admin/admin-login', adminLoginRoute);
 app.use('/admin/get-admin-stats', getAdminStatsRoute);
+app.use('/admin/get-admin-growth', getAdminGrowthRoute);
 app.use('/admin/get-admin-competitions', getAdminCompetitionsRoute);
 app.use('/admin/get-admin-organisers', getAdminOrganisersRoute);
 app.use('/admin/get-competition-stats', getCompetitionStatsRoute);

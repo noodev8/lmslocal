@@ -35,10 +35,18 @@ import { clearSession, getAdmin } from '@/lib/api';
 Competitions is first because it is now the landing page. The Overview that used to sit here was
 deleted: its competition counts duplicated the Competitions screen and disagreed with it, and its
 people figures moved onto that screen as a second row of cards. One screen, one set of numbers.
+
+Growth is NOT that screen coming back, and the difference is the rule it is built to: it carries
+only figures the Competitions screen does not - the signup funnel, and paid places restricted to
+non-archived competitions, over a 12-month revenue window - and where the two touch, on places,
+both read the same server service rather than each counting for themselves. Overview's failure
+was two implementations of one question, not the existence of a second page. Anything added there
+has to pass the same test.
 */
 const NAV = [
   { href: '/dashboard/competitions', label: 'Competitions' },
   { href: '/dashboard/organisers', label: 'Organisers' },
+  { href: '/dashboard/growth', label: 'Growth' },
   { href: '/dashboard/fixtures', label: 'Fixtures' },
   { href: '/dashboard/bots', label: 'Bots' },
   { href: '/dashboard/emails', label: 'Emails' },

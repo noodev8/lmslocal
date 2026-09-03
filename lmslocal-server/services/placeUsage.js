@@ -168,13 +168,21 @@ place and is charged for like anyone else, which is the whole reason the gate co
  * Free against billable places across the whole platform.
  *
  * @param {object} [options]
- * @param {number[]} [options.excludedCompetitionIds] - competitions to leave out (ours)
+ * @param {number[]} [options.excludedCompetitionIds] - competitions to leave out (ours, and any
+ *   the caller wants excluded for its own reasons - e.g. archived/stalled ones)
  * @param {string[]} [options.excludedEmails] - organiser accounts to leave out (ours)
  * @returns {Promise<object>} { limit, total, free, billable }
  */
 async function getPlatformPlaceTotals({ excludedCompetitionIds = [], excludedEmails = [] } = {}) {
   const FREE_PLAYER_LIMIT = freePlayerLimit();
 
+  /*
+  No "organisers past the limit who paid" figure here, and deliberately so - it was tried and
+  removed. Reaching the free limit and not having credits IS the join gate blocking new players;
+  an organiser cannot sit past the limit unpaid, so "X of X paid" can only ever read 100% and says
+  nothing. The number worth having is how many ever reach the limit at all, and that already
+  exists one level up as billable > 0 - it does not need a second query here.
+  */
   const result = await query(`
     WITH per_organiser AS (
       SELECT
