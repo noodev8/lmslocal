@@ -413,6 +413,9 @@ this is about one named competition, so the operator picks it.
   cooldown. The queue check is on user + competition + type.
 - `@lms-guest.com` addresses are excluded, which is what keeps guests and bots out
 - has not opted out of `player.game`
+- **the competition is not archived** — no exemption, and this is the email that tests that rule.
+  Because it fires once ever, archiving before it goes suppresses the result permanently. Decided
+  anyway, 2026-09-04: see "No exemptions, and `game_complete` is the one that tests it" below.
 
 **The outcome is derived, not stored.** Survivors are `competition_user.status = 'active'` when
 the competition is COMPLETE, and the count decides which of three emails this is:
@@ -766,30 +769,71 @@ Pick reminder is the worked example — copy its shape. For each new email, in t
    and `buildTemplateData(candidate)`. Eligibility goes here and **nowhere else** — the preview
    and the send must read the same definition or the screen will offer a count the send
    contradicts.
-3. **Compose the opt-out clause**, never hand-write it:
+3. **Compose the archived clause**, never hand-write it:
+   ```js
+   AND ${notArchivedSql('c')}
+   ```
+   from `services/competitionEngagement.js`. Skip it only if the email has no competition at all
+   — `join_lms` is the sole case. See "Archived competitions get no email" below.
+4. **Compose the opt-out clause**, never hand-write it:
    ```js
    AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$2' })}
    ```
    with `groupFor('<email_type>')` as the bind value. The group is already defined for all
    fourteen emails in `EMAIL_GROUPS`.
-4. **Put the unsubscribe link in the template data** at queue time, so a queued email still
+5. **Put the unsubscribe link in the template data** at queue time, so a queued email still
    renders correctly if sent later:
    ```js
    const token = await getOrCreateToken(user_id);
    const unsubscribe = token ? unsubscribeLinks(token, groupFor('<email_type>')) : null;
    ```
-5. **Split build from send** in `emailService.js` — `buildXEmail()` returning the payload,
+6. **Split build from send** in `emailService.js` — `buildXEmail()` returning the payload,
    `sendXEmail()` calling `deliver()` with it. The admin preview renders the real template, so a
    sender that builds and sends in one function cannot be previewed.
-6. **Use `buildEmailFooter(unsubscribeUrl)`** and spread `unsubscribe.headers` into the send.
-7. **Add one entry to `services/emailCatalog.js`**, with `scoped` set correctly, and flip
+7. **Use `buildEmailFooter(unsubscribeUrl)`** and spread `unsubscribe.headers` into the send.
+8. **Add one entry to `services/emailCatalog.js`**, with `scoped` set correctly, and flip
    `wired: true` on its row in the admin screen's `OUTLINE`. The three admin routes read the
    catalog and need no edit.
-8. **Test with test mode on**, then check `email_queue` is still empty for it. Ask Andreas which
+9. **Test with test mode on**, then check `email_queue` is still empty for it. Ask Andreas which
    competition to test a scoped email against — never reuse an id from this doc.
 
 **Do not** add a stored copy of eligibility, a second unsubscribe mechanism, or a template that
 builds its own footer. Each of those has already been removed once.
+
+## Archived competitions get no email
+
+**Built 2026-09-04.** An admin archives a competition on `/dashboard/competitions` and it goes
+quiet everywhere — no reminders, no hints, no round reports, nothing. `competition.archived_at`
+is the whole test, composed into every competition-scoped candidate query as
+`notArchivedSql('c')` from `services/competitionEngagement.js`.
+
+**Compose it, never write the condition by hand**, for the same reason `notOptedOutSql()` exists:
+it is in twelve queries, and twelve copies is twelve chances for one to be missed when the rule
+changes. `join_lms` is the only service without it — platform-wide, no competition to test.
+
+**It was the reason archiving stopped being derived.** Archived used to be a calculated verdict
+(no real players *or* no picks, quiet 7 days) that could only be evaluated in JavaScript, so no
+candidate query could have asked the question at all. Making it a column is what let the email
+side read it.
+
+### No exemptions, and `game_complete` is the one that tests it
+
+`game_complete` was argued for as an exception and refused (Andreas, 2026-09-04). The case for
+exempting it is real: it fires once ever, so archiving a finished competition before it goes
+suppresses those players' result permanently, and nine of the ten competitions archived at the
+time were `COMPLETE`.
+
+The answer: *"I have archived them for a reason. I can bring them back but it's not for the logic
+to decide."* Archiving carries an intent this code cannot see, and un-archiving is one click. A
+rule that overrides the human on the email it judges most deserving is exactly the behaviour that
+moving archiving out of a calculation was meant to end.
+
+So there is nothing to add here. **If an email should still reach an archived competition, that
+is a conversation about un-archiving it, not a condition in a query.**
+
+Measured on the live data the day it went in, with the filter stubbed off: it holds back 11
+recipients across `game_complete` (5), `personal_names_tip` (3), `results` (2) and
+`result_reminder` (1).
 
 ## Unsubscribe: grouped by SECTION
 
