@@ -28,6 +28,7 @@ emailPreference.js.
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { formatUkShort } = require('./dateFormat');
+const { notArchivedSql } = require('./competitionEngagement');
 
 /**
  * The subject, in one place.
@@ -160,6 +161,8 @@ async function findCandidates(opts = {}) {
     INNER JOIN round r
       ON r.competition_id = c.id
       AND UPPER(c.status) != 'COMPLETE'
+      -- Archived competitions get no email at all. See notArchivedSql.
+      AND ${notArchivedSql('c')}
 
     INNER JOIN competition_user cu
       ON cu.competition_id = c.id

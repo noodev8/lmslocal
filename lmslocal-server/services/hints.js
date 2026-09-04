@@ -33,6 +33,7 @@ There is no backfill guard and no cooldown beyond the above: a hint is sent once
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { notArchivedSql } = require('./competitionEngagement');
 
 // No organiser gets two hints closer together than this, whatever their offsets say.
 const HINT_SPACING_DAYS = 7;
@@ -158,6 +159,8 @@ async function findCandidatesFor(hintKey) {
       AND u.email NOT LIKE '%@lms-guest.com'
 
     WHERE UPPER(c.status) != 'COMPLETE'
+      -- Archived competitions get no email at all. See notArchivedSql.
+      AND ${notArchivedSql('c')}
       AND c.created_at <= NOW() - ($1 || ' days')::interval
       ${hint.extraSql ? `AND (${hint.extraSql})` : ''}
 

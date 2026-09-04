@@ -44,6 +44,12 @@ doc first** (except the email README, see below):
   - `services/emailService.js` — **`deliver()` is the single exit point**, with test mode as a
     parameter. Never call `resend.emails.send` directly; seven senders once did, which is why a
     banner reading `ALL EMAILS REDIRECTED` was true of only five of them.
+  - **An archived competition gets no email, with no exemptions** (2026-09-04). Compose
+    `notArchivedSql()` from `services/competitionEngagement.js` into every candidate query, never
+    the condition by hand. `game_complete` was argued for as an exception — it is once-ever, so
+    archiving suppresses the players' result permanently — and refused: archiving has a reason
+    behind it the code cannot see, and un-archiving is one click. `join_lms` is the only service
+    without it, being platform-wide with no competition at all.
   - `services/emailPreference.js` — the one definition of opt-outs. Compose the candidate query's
     exclusion with `notOptedOutSql()`, never by hand. Preferences group by **consumer × section**,
     and **an absent row means subscribed**.

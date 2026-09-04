@@ -46,6 +46,7 @@ names. Andreas's call, 2026-08-28.
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { formatUk, formatUkShort } = require('./dateFormat');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'organiser_nudge';
 
@@ -260,6 +261,8 @@ async function findCandidates(opts = {}) {
         AND p.round_id = r.id
 
       WHERE UPPER(c.status) != 'COMPLETE'
+        -- Archived competitions get no email at all. See notArchivedSql.
+        AND ${notArchivedSql('c')}
         AND r.lock_time IS NOT NULL
         AND r.lock_time > NOW()
         AND ${dueSql('r.lock_time', '$3', '$7', '$8')}

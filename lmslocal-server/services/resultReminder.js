@@ -32,6 +32,7 @@ it is; see buildResultReminderEmail.
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'result_reminder';
 
@@ -116,6 +117,8 @@ async function findCandidates() {
 
     WHERE c.fixture_service = false
       AND UPPER(c.status) != 'COMPLETE'
+      -- Archived competitions get no email at all. See notArchivedSql.
+      AND ${notArchivedSql('c')}
 
       -- Something is outstanding on this round.
       AND last_round.fixture_count > 0

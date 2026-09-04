@@ -39,6 +39,7 @@ exclude the organiser because there "players" means "other people".
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'game_complete';
 
@@ -146,6 +147,14 @@ async function findCandidates(opts = {}) {
       AND u.email NOT LIKE '%@lms-guest.com'
 
     WHERE UPPER(c.status) = 'COMPLETE'
+
+      /*
+      Archived competitions get no email, and this one is the case that was argued over:
+      game_complete is once-ever, so archiving before it goes suppresses the players' result
+      permanently. Andreas's call, 2026-09-04, and the right one - archiving has a reason
+      behind it that this code cannot see, and un-archiving is one click. See notArchivedSql.
+      */
+      AND ${notArchivedSql('c')}
 
       -- Once ever, per player per competition. No cooldown: a competition finishes once.
       AND NOT EXISTS (

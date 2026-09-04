@@ -63,6 +63,7 @@ plenty for that.
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'results';
 
@@ -232,6 +233,9 @@ async function findCandidates(opts = {}) {
       AND u.email NOT LIKE '%@lms-guest.com'
 
     WHERE
+      -- Archived competitions get no email at all. See notArchivedSql.
+      ${notArchivedSql('c')} AND
+
       /*
       The readiness rule, and now the ONLY arm of it: the next round is staged.
 

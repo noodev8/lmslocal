@@ -43,6 +43,7 @@ are owed today - so no history can accumulate for this to work through.
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'fixture_reminder';
 
@@ -119,6 +120,8 @@ async function findCandidates() {
 
     WHERE c.fixture_service = false
       AND UPPER(c.status) != 'COMPLETE'
+      -- Archived competitions get no email at all. See notArchivedSql.
+      AND ${notArchivedSql('c')}
 
       -- Settled: fixtures exist and every one has been processed. A round still carrying an
       -- unprocessed fixture is waiting on results, which is Result reminder's job.

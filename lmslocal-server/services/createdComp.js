@@ -30,6 +30,7 @@ code and join link are the content, framed as the thing to forward.
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'created_comp';
 
@@ -101,7 +102,10 @@ async function findCandidates(opts = {}) {
     -- Once per competition, ever. Covers sent, failed AND skipped rows, so pressing send twice
     -- does not congratulate the same organiser twice - and so the 16 competitions marked as sent
     -- in Aug 2026 can never come back. This one clause is the whole no-backfill rule now.
-    WHERE NOT EXISTS (
+    -- Archived competitions get no email at all. See notArchivedSql.
+    WHERE ${notArchivedSql('c')}
+
+      AND NOT EXISTS (
         SELECT 1 FROM email_queue eq
         WHERE eq.competition_id = c.id
           AND eq.email_type = '${EMAIL_TYPE}'

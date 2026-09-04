@@ -2,9 +2,10 @@
 =======================================================================================================================================
 services/competitionEngagement.js — the facts the admin screens show about how alive a competition is
 =======================================================================================================================================
-Purpose: SQL fragments for "how much has actually happened in this competition" — real players,
-         picks ever made, and when a person last did something. Shared by the three admin routes
-         so a figure on one screen means the same as the figure on another.
+Purpose: What the platform knows about a competition's life — whether it has been archived, and
+         how much has actually happened in it. Shared by the admin routes, so a figure on one
+         screen means the same as the figure on another, and by every email candidate query, so
+         archiving silences a competition everywhere at once.
 
 THIS FILE NO LONGER DECIDES ANYTHING (2026-09-04). It used to carry classifyCompetition, a derived
 "stalled" rule — no real players or no picks, quiet 7 days — which the Competitions, Stats and
@@ -32,6 +33,25 @@ that the calculation was doing work nobody wanted done.
 */
 
 const { BOT_EMAIL_LIKE } = require('./botPool');
+
+/*
+ARCHIVED COMPETITIONS GET NO EMAIL. Compose this into a candidate query's WHERE clause; never
+write the condition by hand, for the same reason notOptedOutSql() exists — twelve copies of one
+rule is twelve chances for one of them to be forgotten when it changes.
+
+NO EXEMPTIONS, INCLUDING game_complete (Andreas, 2026-09-04). That one was argued for: it is
+once-ever, so suppressing it permanently robs the players of their result, and nine of the ten
+competitions archived at the time were COMPLETE. The answer was that archiving is a decision with
+a reason behind it, the reason is not visible to this code, and an organiser can always
+un-archive. A rule that overrides the human on the one email it judges most deserving is exactly
+the behaviour the archived_at column was created to remove.
+
+So this is the whole test. If an email should still go to an archived competition, that is a
+conversation about un-archiving it, not a condition to add here.
+
+  @param {string} comp - the caller's competition alias, e.g. 'c'
+*/
+const notArchivedSql = (comp) => `${comp}.archived_at IS NULL`;
 
 /*
 SQL fragments for the facts the screens display. Correlated on an alias the caller supplies, and
@@ -107,6 +127,7 @@ function quietDays(lastActivity) {
 
 module.exports = {
   BOT_EMAIL_LIKE,
+  notArchivedSql,
   realPlayerCountSql,
   pickCountSql,
   lastActivitySql,

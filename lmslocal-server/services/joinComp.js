@@ -28,6 +28,7 @@ comms email. The rules, all in findCandidates below:
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { notArchivedSql } = require('./competitionEngagement');
 
 /*
 The email_type stays 'welcome'. It is what email_preference and EMAIL_GROUPS already map to
@@ -102,6 +103,8 @@ async function findCandidates(opts = {}) {
       -- The organiser joining their own competition as a player is not a new member to welcome.
       -- They created it, and created_comp is their email.
       AND c.organiser_id != cu.user_id
+      -- Archived competitions get no email at all. See notArchivedSql.
+      AND ${notArchivedSql('c')}
 
     INNER JOIN app_user u
       ON u.id = cu.user_id

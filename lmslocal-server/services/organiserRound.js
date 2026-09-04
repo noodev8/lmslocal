@@ -76,6 +76,7 @@ Excluded from every name list and from the denominator both. Left in, a seeded c
 report a permanently inflated "still to pick" figure that the organiser can do nothing about.
 */
 const { BOT_EMAIL_LIKE } = require('./botPool');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'organiser_round';
 
@@ -164,6 +165,8 @@ async function findCandidates(opts = {}) {
       INNER JOIN round r
         ON r.competition_id = c.id
       WHERE UPPER(c.status) != 'COMPLETE'
+        -- Archived competitions get no email at all. See notArchivedSql.
+        AND ${notArchivedSql('c')}
         AND r.lock_time IS NOT NULL
         AND r.lock_time > NOW()
         AND r.lock_time <= NOW() + ($2 || ' hours')::interval

@@ -33,6 +33,7 @@ competitions has two of them to fill.
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'empty_comp';
 
@@ -125,6 +126,8 @@ async function findCandidates(opts = {}) {
     JOIN app_user u ON u.id = c.organiser_id
 
     WHERE UPPER(c.status) != 'COMPLETE'
+      -- Archived competitions get no email at all. See notArchivedSql.
+      AND ${notArchivedSql('c')}
 
       -- Old enough to have been shared by now. See NUDGE_AFTER_DAYS.
       AND c.created_at < NOW() - ($1 || ' days')::interval

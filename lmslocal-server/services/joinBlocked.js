@@ -65,6 +65,7 @@ const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { organiserChargeableCountSql } = require('./botPool');
 const { getPlaceUsage, usageLines } = require('./placeUsage');
+const { notArchivedSql } = require('./competitionEngagement');
 
 const EMAIL_TYPE = 'join_blocked';
 
@@ -149,6 +150,8 @@ async function findCandidates() {
 
     -- A finished competition cannot take the player anyway, so its blocks are no reason to buy.
     WHERE UPPER(c.status) != 'COMPLETE'
+      -- Archived competitions get no email at all. See notArchivedSql.
+      AND ${notArchivedSql('c')}
 
       AND u.email IS NOT NULL
       AND u.email != ''
