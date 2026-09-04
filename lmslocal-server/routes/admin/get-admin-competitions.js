@@ -37,11 +37,9 @@ Success Response (ALWAYS HTTP 200):
       "team_list_name": "English Premier League 2026-27", // string, may be null if the list was removed
       "real_player_count": 23,                   // integer, members who are neither the organiser nor a bot
       "pick_count": 41,                          // integer, picks ever made across every round
-      "quiet_days": 3,                           // integer, whole days since last_activity
-      "is_stalled": false,                       // boolean, the tyre-kicker verdict the screen counts by
-      "stalled_source": "derived",               // string, "derived" (the rule) or "admin" (marked by hand)
-      "stalled_override": null,                  // boolean or null - the admin's override, null when unset
-      "stalled_reason": null,                    // string or null, why it was called stalled
+      "quiet_days": 3,                           // integer, whole days since last_activity - shown, never acted on
+      "is_archived": false,                      // boolean, an admin archived it - the screen counts by this
+      "archived_at": null,                       // string or null, ISO datetime the archive decision was made
       "current_round": {                         // null when the competition has no round yet
         "round_id": 554,                         // integer
         "round_number": 3,                       // integer
@@ -55,7 +53,6 @@ Success Response (ALWAYS HTTP 200):
       }
     }
   ],
-  "quiet_days_threshold": 7,
   "generated_at": "2026-08-02T14:00:00.000Z"
 }
 
@@ -81,10 +78,10 @@ Data Notes:
   read "29 June" on a day somebody joined it.
   Rounds being created counted until 2026-09-01 and no longer do: a fixture push creates a round,
   so a push stamped every competition it touched, and one morning's batch moved fourteen of them
-  to "today" when four had had no player activity for a week. That also reset quiet_days on the
-  competitions the stalled rule exists to catch. Defined once in
+  to "today" when four had had no player activity for a week - and quiet_days, which is read off
+  this, is exactly the column an admin scans to decide what to archive. Defined once in
   services/competitionEngagement.js, which is where the reasoning lives, because get-admin-stats
-  and get-admin-organisers read the same expression to classify.
+  and get-admin-organisers show the same figure.
   It is deliberately NOT the latest app_user.last_active_at across its members. That is a fact
   about a person, and a person carries it into every competition they are in: a COMPLETE
   competition whose organiser was on the site today working on a different one would read as
@@ -92,16 +89,18 @@ Data Notes:
 - "fixture_service" is the flag every push reads. The fixtures screen filters this list by it to
   show which competitions a push will actually reach, and the opt-in toggle writes it through
   /admin/set-fixture-service.
-- "is_stalled" is the tyre-kicker verdict: nobody but the organiser ever did anything and it has
-  gone quiet. The rule, the exemptions and the manual override all live in
-  services/competitionEngagement.js - this route only reports it. It matters because a
-  competition can reach ACTIVE with a round pushed and no pick ever made, so it sat in the
-  screen's "Active" tile forever; seven of thirty rows were like that.
+- "is_archived" is competition.archived_at being set, and nothing else. Until 2026-09-04 it was
+  "is_stalled", a DERIVED verdict - no real players or no picks, quiet 7 days - which this route
+  computed in JS because the rule could not be expressed in SQL without a second copy of it. An
+  admin now presses Archive and that is the whole rule. The facts the old rule turned on are still
+  returned - real_player_count, pick_count, quiet_days - because spotting what to archive is the
+  job they now do on their own, as columns rather than as a verdict.
 - "current_round" is how far through the round in progress this competition is - the number the
   screen shows as "3/4" and the reason the stats screen exists. Defined once in
   services/pickProgress.js and shared with /admin/get-competition-stats, so a row and the screen
   behind it cannot show different fractions. Note "pick_count" above is a different thing
-  entirely: every pick ever made, which only the stalled rule reads.
+  entirely: every pick ever made, shown so a competition nobody has ever played is obvious at a
+  glance.
 - Paid status comes from "organiser_lifetime_spend" (SUM over credit_purchases), NOT from
   app_user.paid_credit. paid_credit is a current balance that can be granted without any money
   changing hands, so a badge driven off it would call non-paying accounts customers. Credit is
@@ -116,11 +115,10 @@ const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { BOT_EMAIL_LIKE, BOT_ORGANISER_IDS } = require('../../services/botPool');
 const {
-  QUIET_DAYS,
   realPlayerCountSql,
   pickCountSql,
   lastActivitySql,
-  classifyCompetition
+  quietDays
 } = require('../../services/competitionEngagement');
 const {
   currentRoundProgressLateral,
@@ -176,11 +174,12 @@ router.get('/', verifyAdminToken, async (req, res) => {
            JOIN app_user bu ON bu.id = cu.user_id
           WHERE cu.competition_id = c.id
             AND bu.email LIKE $2)                                             AS bot_count,
-        -- The two facts the stalled rule turns on. Kept as their own columns rather than
-        -- folded into a boolean here so the screen can show the working, not just the verdict.
+        -- How much has actually happened here. Nothing branches on these any more; they are the
+        -- signal an admin reads before deciding whether to archive, which is why they are still
+        -- worth the subselects.
         ${realPlayerCountSql('c', '$2')}                                       AS real_player_count,
         ${pickCountSql('c')}                                                   AS pick_count,
-        c.stalled_override,
+        c.archived_at,
         c.created_at,
         -- Round 1's lock time is the competition's start: the moment picks close and it is
         -- under way. Only meaningful while status is 'setup' - once it has started, the date
@@ -213,7 +212,6 @@ router.get('/', verifyAdminToken, async (req, res) => {
     const result = await query(competitionsQuery, [statusFilter, BOT_EMAIL_LIKE]);
 
     const competitions = result.rows.map((row) => {
-      const engagement = classifyCompetition(row);
       return {
         id: row.id,
         name: row.name,
@@ -239,8 +237,9 @@ router.get('/', verifyAdminToken, async (req, res) => {
         fixture_service: row.fixture_service === true,
         team_list_id: row.team_list_id,
         team_list_name: row.team_list_name,
-        stalled_override: row.stalled_override,
-        ...engagement,
+        archived_at: row.archived_at,
+        is_archived: row.archived_at !== null,
+        quiet_days: quietDays(row.last_activity),
         ...describePickProgress(row)
       };
     });
@@ -248,7 +247,6 @@ router.get('/', verifyAdminToken, async (req, res) => {
     return res.json({
       return_code: 'SUCCESS',
       competitions,
-      quiet_days_threshold: QUIET_DAYS,
       generated_at: new Date().toISOString()
     });
 

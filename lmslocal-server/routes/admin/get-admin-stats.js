@@ -22,7 +22,7 @@ Success Response (ALWAYS HTTP 200):
     "setup": 4,                             // integer, created but not started (labelled "Pending")
     "active": 14,                           // integer, currently running
     "complete": 4,                          // integer, finished
-    "stalled": 7                            // integer, tyre kickers - see services/competitionEngagement.js
+    "archived": 7                           // integer, archived by an admin - see set-competition-archived
   },
   "organisers": {
     "total": 10,                            // integer, accounts owning at least one competition
@@ -69,12 +69,14 @@ Data Notes:
 - competition.status is uppercase ('SETUP', 'ACTIVE', 'COMPLETE'). It used to be mixed; the data
   was normalised on 2026-08-04. Every comparison here still lowercases the column first, which is
   now belt-and-braces rather than load-bearing.
-- The competition counts come from classifyCompetition, NOT from counting statuses in SQL. A
-  stalled competition is counted once, as stalled, and never also as active or setup - which is
-  what makes these agree with the Competitions screen. They previously did not: 16 active here
-  against 14 there. total = active + setup + complete + stalled.
+- An ARCHIVED competition is counted once, as archived, and never also as active or setup - which
+  is what makes these agree with the Competitions screen. They previously did not: 16 active here
+  against 14 there. total = active + setup + complete + archived.
+  Archived is competition.archived_at, an admin's decision. Until 2026-09-04 it was a derived
+  "stalled" rule that had to be evaluated in JS, which forced this route to fetch and classify
+  every competition before it could ask its real question; that round trip is gone.
 - "organisers.live" counts organisers holding a competition that is ACTIVE or PENDING and not
-  stalled - the same set of competitions "users.active" counts people in, so the organisers card
+  archived - the same set of competitions "users.active" counts people in, so the organisers card
   and the players card on the Competitions screen describe the same live platform. It is what the
   Organisers screen lists (see get-admin-organisers), so the card and that screen agree.
 
@@ -94,7 +96,7 @@ Data Notes:
   Registered accounts in no competition hold no place and are in neither half - correctly, since
   no allowance is consumed and nobody is charged for them. The gap between users.total and
   users.active is where they show up.
-- "inactive" (running, no picks for 30 days) was removed. "stalled" answers the same question
+- "inactive" (running, no picks for 30 days) was removed. "archived" answers the same question
   better and having both invited the two to be compared.
 - Every figure here counts the REAL platform, not us. Excluded: competition 117 ("App Store",
   ours), the accounts brookfieldcomfort@gmail.com and lmslocal8@gmail.com, and bots (email
@@ -106,14 +108,12 @@ Data Notes:
   being read as an audience figure when most of it was the back catalogue - one completed
   competition of 52 sat inside it for months.
 - "active" is a strict subset of "total": registered people holding a membership in a competition
-  that is neither complete nor stalled. Eliminated players count - they are real people in a
-  competition that is still running. Which competitions those are comes from
-  services/competitionEngagement.js via a first round trip, NOT from a second copy of the stalled
-  rule written in SQL.
+  that is neither complete nor archived. Eliminated players count - they are real people in a
+  competition that is still running.
 - "active" and "players_in_live_competition" are close but not the same and will not match. The
-  older figure counts SETUP or ACTIVE by status alone, so it includes stalled competitions;
+  older figure counts SETUP or ACTIVE by status alone, so it includes archived competitions;
   "active" excludes them. Prefer "active" - the dashboard reads it, and the difference between
-  the two is exactly the stalled players.
+  the two is exactly the players in archived competitions.
 - Guests (non-bot '%@lms-guest.com') are counted as PLAYERS but not as ACCOUNTS, and are
   reported on their own as users.guests. A guest is a real person, so they belong in
   participation; but the account is created by joining and is tied to that one competition, so
@@ -126,12 +126,6 @@ const express = require('express');
 const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const {
-  realPlayerCountSql,
-  pickCountSql,
-  lastActivitySql,
-  classifyCompetition
-} = require('../../services/competitionEngagement');
 const { getPlatformPlaceTotals } = require('../../services/placeUsage');
 const router = express.Router();
 
@@ -163,7 +157,7 @@ const REAL_COMP = `cu.competition_id <> ALL($2::int[])`;
 ACTIVE PEOPLE - the count this screen exists for.
 
 Active = holds a membership in a competition that is LIVE right now: not complete, and not
-stalled. Being eliminated still counts. Somebody knocked out in round 3 of a competition that is
+archived. Being eliminated still counts. Somebody knocked out in round 3 of a competition that is
 still running is a real player who turned up, and the moment they stop counting is the moment the
 competition ends, not the moment they lose.
 
@@ -172,11 +166,9 @@ organised, or been seen in 30 days. Two problems with that: it counted people wh
 once and vanished (70 of 346 had not been seen in a month), and being cumulative it could only
 ever rise, so it could not tell growth from churn. Active can fall, which is the point of it.
 
-Which competitions are live is NOT decided here. The stalled rule lives in
-services/competitionEngagement.js and this route runs classifyCompetition over the same facts the
-admin Competitions screen uses, in a first round trip, then counts memberships against the ids
-that survive. A second implementation in SQL would drift from the screen within a month - the
-whole table is a few dozen rows, so the extra query is the cheap way to stay honest.
+Which competitions are live is settled in the first query above, from competition.archived_at and
+status, and this query counts memberships against the ids that survive. It used to need a whole
+extra round trip to work that out - see the note on liveQuery.
 
 Guests are excluded, so "active" and "total" describe the same population - registered accounts -
 and one is a true subset of the other. Guests in a live competition are real people and are
@@ -188,47 +180,46 @@ router.get('/', verifyAdminToken, async (req, res) => {
 
   try {
     /*
-    First round trip: which competitions are live. Classified in JS by the shared rule rather
-    than re-expressed in SQL, so this screen and the Competitions screen can never disagree
-    about what "stalled" means.
+    Which competitions are live, and the counts by status.
+
+    ONE QUERY, and it can be one query because "archived" is a column. Until 2026-09-04 this was a
+    first round trip: the rule was derived - no real players or no picks, quiet 7 days - and could
+    only be evaluated in JS, so this route pulled every competition with three correlated
+    subselects attached, classified the rows in Node, and only then asked what it wanted to know.
+    Two other admin routes did the same dance for the same reason. Archiving by hand removes it.
+
+    Two lists come out and they are not the same thing: "live" (ACTIVE or PENDING, not archived)
+    is what the people cards count members of, while the status breakdown covers everything not
+    archived, finished competitions included.
     */
     const liveQuery = `
       SELECT
         c.id,
         c.organiser_id,
         LOWER(c.status)                          AS status,
-        c.stalled_override,
-        -- Whether this competition's owner counts as an organiser at all. Same email exclusion
-        -- the organiser figures below use, resolved here so the live count can be taken from the
-        -- classified rows rather than from a second copy of the stalled rule in SQL.
-        (ou.id IS NOT NULL AND ou.email <> ALL($3::text[]))
-                                                 AS organiser_countable,
-        ${realPlayerCountSql('c', '$1')}         AS real_player_count,
-        ${pickCountSql('c')}                     AS pick_count,
-        ${lastActivitySql('c')}                  AS last_activity
+        (c.archived_at IS NOT NULL)              AS is_archived,
+        -- Whether this competition's owner counts as an organiser at all. Resolved here so the
+        -- live count can be taken from these rows rather than counted a second time in SQL.
+        (ou.id IS NOT NULL AND ou.email <> ALL($1::text[]))
+                                                 AS organiser_countable
       FROM competition c
       LEFT JOIN app_user ou ON ou.id = c.organiser_id
       WHERE c.id <> ALL($2::int[])
     `;
     const liveResult = await query(liveQuery, [
-      BOT_EMAIL_LIKE,
-      EXCLUDED_COMPETITION_IDS,
-      EXCLUDED_EMAILS
+      EXCLUDED_EMAILS,
+      EXCLUDED_COMPETITION_IDS
     ]);
 
-    const classified = liveResult.rows.map((c) => ({
-      ...c,
-      is_stalled: classifyCompetition(c).is_stalled
-    }));
+    const classified = liveResult.rows;
 
     // Complete competitions are excluded outright: their players finished, they did not drift.
-    const liveCompetitions = classified.filter((c) => c.status !== 'complete' && !c.is_stalled);
+    const liveCompetitions = classified.filter((c) => c.status !== 'complete' && !c.is_archived);
     const liveCompetitionIds = liveCompetitions.map((c) => c.id);
 
     /*
-    Organisers with something live. Taken from the rows already classified above rather than
-    counted in SQL, for the same reason the competition counts are: one stalled rule, so the
-    number on the Competitions screen's organisers card is the number of rows the Organisers
+    Organisers with something live. Taken from the rows above rather than counted again in SQL, so
+    the number on the Competitions screen's organisers card is the number of rows the Organisers
     screen lists.
     */
     const liveOrganiserIds = new Set(
@@ -238,27 +229,27 @@ router.get('/', verifyAdminToken, async (req, res) => {
     );
 
     /*
-    The same breakdown the Competitions screen shows, from the same classification - a stalled
-    competition is counted once, as stalled, and never also as active or setup. Counting by
-    status alone is what made this screen say 16 active where that one said 14.
+    The same breakdown the Competitions screen shows - an archived competition is counted once, as
+    archived, and never also as active or setup. Counting by status alone is what made this screen
+    say 16 active where that one said 14.
 
     "setup" keeps its stored name here; the screens label it "Pending".
     */
     const competitionCounts = {
       total: classified.length,
-      active: classified.filter((c) => !c.is_stalled && c.status === 'active').length,
-      setup: classified.filter((c) => !c.is_stalled && c.status === 'setup').length,
-      complete: classified.filter((c) => !c.is_stalled && c.status === 'complete').length,
-      stalled: classified.filter((c) => c.is_stalled).length
+      active: classified.filter((c) => !c.is_archived && c.status === 'active').length,
+      setup: classified.filter((c) => !c.is_archived && c.status === 'setup').length,
+      complete: classified.filter((c) => !c.is_archived && c.status === 'complete').length,
+      archived: classified.filter((c) => c.is_archived).length
     };
 
     // One round trip. These are small aggregates over small tables, so a single query with
     // scalar subselects beats four sequential ones.
     const statsQuery = `
       SELECT
-        -- Competition counts are NOT here - see competitionCounts above. They come from the
-        -- classified rows so that "active" means the same thing on this screen as it does on
-        -- the Competitions screen.
+        -- Competition counts are NOT here - see competitionCounts above, taken from the same
+        -- rows as the live list so that "active" means the same thing on this screen as it does
+        -- on the Competitions screen.
 
         -- Organisers. "Organiser" means owning a competition, matching get-admin-organisers -
         -- helping run someone else's does not count. "Paying" is a real purchase, never
@@ -320,7 +311,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
           WHERE ${REAL_USER} AND ${IS_GUEST})                                     AS users_guests,
 
         -- People holding a membership in a competition that is live right now. $3 is the list
-        -- of those competitions, settled in JS above by the one stalled rule.
+        -- of those competitions, settled by the first query above.
         (SELECT COUNT(DISTINCT cu.user_id)
            FROM competition_user cu
            JOIN app_user u ON u.id = cu.user_id

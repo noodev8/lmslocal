@@ -66,12 +66,11 @@ Data Notes:
   "never".
 - "never_over_90_days" is the part that matters. A new signup who has not joined anything is
   mid-flight; one from four months ago is gone, and the two must not be read as the same person.
-- "places" EXCLUDES archived competitions (the admin Competitions screen's label for "stalled" -
-  services/competitionEngagement.js). Classified the same way that screen classifies them, in a
-  first round trip, so this cannot disagree with what a click on the Archived tile shows. Unlike
-  get-admin-stats's "active" figure, this is NOT restricted to live-only (SETUP/ACTIVE) - a
+- "places" EXCLUDES archived competitions - competition.archived_at, the same column the admin
+  Competitions screen reads, so this cannot disagree with what a click on the Archived tile shows.
+  Unlike get-admin-stats's "active" figure, this is NOT restricted to live-only (SETUP/ACTIVE) - a
   finished competition still holds its places and still consumed the organiser's free 20 while it
-  ran, and dropping COMPLETE would understate that. Only the tyre-kicker rows are cut.
+  ran, and dropping COMPLETE would understate that. Only archived rows are cut.
 - "revenue_12mo" is credit_purchases.paid_amount, trailing 12 months only - money actually taken,
   not app_user.paid_credit, which is a balance and can be granted. Older purchases are real
   revenue too but are left out of the headline so it reads as current, not lifetime.
@@ -91,12 +90,6 @@ const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { getPlatformPlaceTotals } = require('../../services/placeUsage');
-const {
-  realPlayerCountSql,
-  pickCountSql,
-  lastActivitySql,
-  classifyCompetition
-} = require('../../services/competitionEngagement');
 const router = express.Router();
 
 // Kept in step with get-admin-stats. See the note there - these are the reason the two screens
@@ -104,32 +97,24 @@ const router = express.Router();
 const EXCLUDED_COMPETITION_IDS = [117];
 const EXCLUDED_EMAILS = ['brookfieldcomfort@gmail.com', 'lmslocal8@gmail.com'];
 const GUEST_EMAIL_LIKE = '%@lms-guest.com';
-const BOT_EMAIL_LIKE = 'bot_%@lms-guest.com';
 
 router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-admin-growth');
 
   try {
     /*
-    First round trip: which competitions are archived. Read from competitionEngagement's own
-    inputs and classified in JS by the shared rule, exactly as get-admin-stats does for "stalled" -
-    see that route's header for why a second copy in SQL is the thing that made screens disagree.
+    Which competitions are archived. One column, read the same way every other admin screen reads
+    it. This was a first round trip pulling three correlated subselects so the derived rule could
+    be run in JS; the rule is gone (see services/competitionEngagement.js) and archived is now a
+    decision somebody made.
     */
-    const archivedQuery = `
-      SELECT
-        c.id,
-        LOWER(c.status)                     AS status,
-        c.stalled_override,
-        ${realPlayerCountSql('c', '$1')}     AS real_player_count,
-        ${pickCountSql('c')}                 AS pick_count,
-        ${lastActivitySql('c')}              AS last_activity
-      FROM competition c
-      WHERE c.id <> ALL($2::int[])
-    `;
-    const archivedResult = await query(archivedQuery, [BOT_EMAIL_LIKE, EXCLUDED_COMPETITION_IDS]);
-    const archivedIds = archivedResult.rows
-      .filter((c) => classifyCompetition(c).is_stalled)
-      .map((c) => c.id);
+    const archivedResult = await query(`
+      SELECT c.id
+        FROM competition c
+       WHERE c.archived_at IS NOT NULL
+         AND c.id <> ALL($1::int[])
+    `, [EXCLUDED_COMPETITION_IDS]);
+    const archivedIds = archivedResult.rows.map((c) => c.id);
 
     /*
     The funnel. Both are small aggregates over small tables, so scalar subselects beat sequential

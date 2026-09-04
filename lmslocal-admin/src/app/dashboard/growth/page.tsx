@@ -11,7 +11,9 @@ WHY A SECOND SCREEN AT ALL, given the Overview was deleted for being one.
 
 Overview did not die because a second screen is wrong. It died because its counts DUPLICATED the
 Competitions screen and DISAGREED with it - 16 active against 14 - and the disagreement came from
-a second implementation of the stalled rule written in SQL. Two copies of one question.
+a second implementation, in SQL, of the rule deciding which competitions were real. Two copies of
+one question. (That rule is now a column, competition.archived_at, which is one of the reasons it
+went - see services/competitionEngagement.js.)
 
 So this screen is built to the rule that failure implies, and the rule is the point:
 

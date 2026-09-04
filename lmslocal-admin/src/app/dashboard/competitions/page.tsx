@@ -8,12 +8,19 @@ Purpose: Drill-down from the dashboard's "Competitions" cards - every competitio
          platform with organiser, player count, and last activity, filterable by status and,
          via ?organiser=<id> from the Organisers screen, down to one person's competitions.
 
-         The status tiles count REAL competitions only. A competition nobody but its organiser
-         ever touched - the tyre kickers - is pulled out into its own "Stalled" tile and tab, so
-         the headline figures stop flattering us. People figures live on the overview, not here;
-         this screen counts competitions. That verdict is the server's (see
-         services/competitionEngagement.js and is_stalled on each row); this screen never
-         re-derives it, it only counts and filters by it.
+         The status tiles count REAL competitions only. Anything archived is pulled out into its
+         own "Archived" tile and tab, so the headline figures stop flattering us - a competition
+         nobody but its organiser ever touched used to sit in "Active" forever. People figures
+         live on the overview, not here; this screen counts competitions.
+
+         ARCHIVED IS A DECISION SOMEBODY MADE, not a calculation (2026-09-04). It was derived -
+         no real players or no picks, quiet 7 days - and is now competition.archived_at, set by
+         the flag button on each row.
+
+         What replaced the rule is already on the screen: "Last activity" is the same signal the
+         rule read, it is the DEFAULT SORT, and descending puts the deadest competitions in front
+         of you - which is the point at which a person decides, rather than a threshold. Do not
+         turn that column back into a verdict.
 
          The name on each row opens /dashboard/competitions/[id] - the read-only stats screen,
          which loads nothing until you go into it. Everything beyond the columns here belongs
@@ -35,7 +42,6 @@ import {
   ClipboardIcon,
   CheckIcon,
   FlagIcon,
-  ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
 import { FlagIcon as FlagSolidIcon } from '@heroicons/react/24/solid';
 import AdminHeader from '@/components/AdminHeader';
@@ -711,23 +717,21 @@ function CompetitionsList() {
   };
 
   /*
-  Mark a competition as a tyre kicker, clear that mark, or hand the row back to the rule.
+  Archive a competition, or bring it back.
 
-  Three states rather than two, because "not stalled" and "the rule has not called it stalled"
-  are different claims. Sending an explicit false rescues a genuine slow-burner from the
-  calculation permanently; sending null says the admin no longer wants to disagree with it, and
-  the row goes back to being judged like everything else. Without that third option every row an
-  admin ever touched would be frozen on the day they touched it.
+  Two states, not three. There used to be a third - "hand this row back to the rule" - because
+  archived was DERIVED and an admin could only override the calculation. There is no calculation
+  now, so there is nothing to hand back to: archived is on or off.
 
-  No optimistic update here, unlike the fixture-service switch. Marking a row moves it to a
+  No optimistic update here, unlike the fixture-service switch. Archiving a row moves it to a
   different tab, so the honest feedback is the row leaving the list once the server has agreed -
   flipping it locally first would make it vanish and then reappear on failure.
   */
-  const handleSetStalled = async (competition: AdminCompetition, stalled: boolean | null) => {
+  const handleSetArchived = async (competition: AdminCompetition, archived: boolean) => {
     setMarkingId(competition.id);
     setError('');
     try {
-      const result = await adminApi.setCompetitionStalled(competition.id, stalled);
+      const result = await adminApi.setCompetitionArchived(competition.id, archived);
       if (result.return_code === 'SUCCESS') {
         await load();
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
@@ -819,18 +823,18 @@ function CompetitionsList() {
   };
 
   /*
-  "stalled" is a tab, not a status - a stalled competition still has a real status underneath.
+  "archived" is a tab, not a status - an archived competition still has a real status underneath.
   So it is filtered as its own view AND excluded from every other one, including Total. Leaving
   the rows in the status tabs while pulling them out of the counts would be the worst of both:
   tiles that disagree with the list beneath them.
   */
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
-    const stalledTab = statusParam === 'stalled';
+    const archivedTab = statusParam === 'archived';
     const matches = competitions.filter((c) =>
-      (stalledTab
-        ? c.is_stalled
-        : !c.is_stalled && (statusParam === 'all' || c.status === statusParam)) &&
+      (archivedTab
+        ? c.is_archived
+        : !c.is_archived && (statusParam === 'all' || c.status === statusParam)) &&
       (organiserId === null || c.organiser_id === organiserId) &&
       (c.name.toLowerCase().includes(term) ||
         (c.organiser_email || '').toLowerCase().includes(term) ||
@@ -913,12 +917,12 @@ function CompetitionsList() {
   );
 
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { active: 0, setup: 0, complete: 0, stalled: 0 };
+    const counts: Record<string, number> = { active: 0, setup: 0, complete: 0, archived: 0 };
     scoped.forEach((c) => {
-      // A stalled competition is counted once, as stalled, and nowhere else. Competition 176
+      // An archived competition is counted once, as archived, and nowhere else. Competition 176
       // reached ACTIVE with a round pushed and not one pick ever made, and sat in the "Active"
-      // tile from 16 July - that number was the reason for all of this.
-      if (c.is_stalled) counts.stalled += 1;
+      // tile from 16 July - that number was the reason this tab exists at all.
+      if (c.is_archived) counts.archived += 1;
       else counts[c.status] = (counts[c.status] || 0) + 1;
     });
     return counts;
@@ -988,13 +992,11 @@ function CompetitionsList() {
               onClick={() => setStatus('complete')}
             />
             <StatusTile
-              // Display only. The value, the ?status= parameter and everything on the server
-              // stay "stalled" - see services/competitionEngagement.js for what it means.
               label="Archived"
-              value={statusCounts.stalled}
+              value={statusCounts.archived}
               tone="warn"
-              active={statusParam === 'stalled'}
-              onClick={() => setStatus('stalled')}
+              active={statusParam === 'archived'}
+              onClick={() => setStatus('archived')}
             />
           </div>
         )}
@@ -1004,7 +1006,7 @@ function CompetitionsList() {
           and the tiles count competitions - and because nothing here filters anything.
 
           "Active" means the same thing in both rows: in a competition that is neither complete
-          nor stalled. A player eliminated from a running competition still counts; they stop
+          nor archived. A player eliminated from a running competition still counts; they stop
           counting when it ends, not when they lose.
 
           Hidden while the page is scoped to one organiser - these are platform-wide figures, and
@@ -1174,12 +1176,14 @@ function CompetitionsList() {
                       {/* Below the name and out of the way - it is only ever read deliberately,
                           when quoting a row. Same mono grey the fixtures screen uses for an id. */}
                       <div className="font-mono text-xs font-normal text-slate-400">#{c.id}</div>
-                      {/* The working behind the verdict, shown only in the Stalled tab - that is
-                          the view where you are deciding whether to believe it. Everywhere else
-                          it would be a line of explanation on a row nobody is questioning. */}
-                      {c.is_stalled && statusParam === 'stalled' && c.stalled_reason && (
+                      {/* When it was archived, shown only in the Archived tab - the view where
+                          you are deciding whether that decision still holds. Everywhere else it
+                          would be a line of explanation on a row nobody is questioning. */}
+                      {c.is_archived && statusParam === 'archived' && c.archived_at && (
                         <div className="mt-0.5 text-xs font-normal text-amber-700">
-                          {c.stalled_reason}
+                          Archived {new Date(c.archived_at).toLocaleDateString('en-GB', {
+                            day: 'numeric', month: 'short', year: 'numeric'
+                          })}
                         </div>
                       )}
                     </td>
@@ -1236,33 +1240,23 @@ function CompetitionsList() {
                         >
                           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                         </button>
-                        {/* Back to the rule. Only offered where there is an override to drop -
-                            on an untouched row it would be a button that does nothing. */}
-                        {c.stalled_override !== null && (
-                          <button
-                            onClick={() => handleSetStalled(c, null)}
-                            disabled={markingId === c.id}
-                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
-                            title={`Overridden by hand (${c.stalled_override ? 'marked archived' : 'marked not archived'}) - click to judge it by the rule again`}
-                          >
-                            <ArrowUturnLeftIcon className="h-4 w-4" />
-                          </button>
-                        )}
+                        {/* No "back to the rule" button any more - there is no rule to go back
+                            to. Archive and unarchive are the whole of it. */}
                         <button
-                          onClick={() => handleSetStalled(c, !c.is_stalled)}
+                          onClick={() => handleSetArchived(c, !c.is_archived)}
                           disabled={markingId === c.id}
                           className={`rounded-lg p-1.5 transition disabled:opacity-50 ${
-                            c.is_stalled
+                            c.is_archived
                               ? 'text-amber-600 hover:bg-emerald-50 hover:text-emerald-600'
                               : 'text-slate-400 hover:bg-amber-50 hover:text-amber-600'
                           }`}
                           title={
-                            c.is_stalled
+                            c.is_archived
                               ? 'Unarchive - count this competition again'
                               : 'Archive and take it out of the counts'
                           }
                         >
-                          {c.is_stalled ? (
+                          {c.is_archived ? (
                             <FlagSolidIcon className="h-4 w-4" />
                           ) : (
                             <FlagIcon className="h-4 w-4" />

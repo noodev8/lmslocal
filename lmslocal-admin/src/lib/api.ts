@@ -105,9 +105,9 @@ export interface AdminStats {
     setup: number;
     active: number;
     complete: number;
-    /* Tyre kickers. Counted once, here, and never also as active or setup - so the four
+    /* Archived by an admin. Counted once, here, and never also as active or setup - so the four
        sum to total and agree with the Competitions screen's tiles. */
-    stalled: number;
+    archived: number;
   };
   organisers: {
     /* Cumulative: anyone who ever owned a competition. Only ever rises. */
@@ -130,7 +130,7 @@ export interface AdminStats {
     new_last_30_days: number;
     guests: number;
     /*
-    In a competition that is live right now - neither complete nor stalled. Eliminated players
+    In a competition that is live right now - neither complete nor archived. Eliminated players
     count: they are real people in a competition that is still running. A strict subset of
     "total". The rule is the server's, and which competitions are live comes from the same
     definition the Competitions screen uses.
@@ -279,24 +279,22 @@ export interface AdminCompetition {
   /* Whole days since last_activity. */
   quiet_days: number;
   /*
-  The tyre-kicker verdict, and the one thing this screen counts by: nobody but the organiser ever
-  did anything and it has gone quiet. Defined once on the server in
-  services/competitionEngagement.js - never re-derive it here, or the tiles and the tab will
-  drift apart.
+  Archived by an admin, and the one thing this screen counts by. It is competition.archived_at
+  being set and nothing else - there is no rule behind it any more, so there is nothing here that
+  could drift from the server.
+
+  quiet_days, real_player_count and pick_count above are what you read to DECIDE whether to
+  archive. Never turn them back into a verdict in this file; that calculation used to be the rule
+  and moving it to a human is the whole point of the column.
   */
-  is_stalled: boolean;
-  /* "derived" when the rule decided, "admin" when someone overrode it. */
-  stalled_source: 'derived' | 'admin';
-  /* The stored override: true forces stalled, false forces real, null trusts the rule. */
-  stalled_override: boolean | null;
-  /* Why it was called stalled, ready to show - null when it is not. */
-  stalled_reason: string | null;
+  is_archived: boolean;
+  /* When the decision was made. Null when it is not archived. */
+  archived_at: string | null;
   /*
   The round in progress and its pick progress. Null when the competition has no round at all,
   which is every manual competition still waiting on its organiser to press Ready.
 
-  NOT to be confused with pick_count above, which is every pick ever made and is read only by
-  the stalled rule.
+  NOT to be confused with pick_count above, which is every pick ever made.
   */
   current_round: CurrentRoundProgress | null;
 }
@@ -674,8 +672,6 @@ export type SetBotPickResponse = ApiResponse & {
 
 export type CompetitionsResponse = ApiResponse & {
   competitions?: AdminCompetition[];
-  /* Days of silence the server's rule requires before it will call a competition stalled. */
-  quiet_days_threshold?: number;
   generated_at?: string;
 };
 
@@ -1022,16 +1018,16 @@ export const adminApi = {
   },
 
   /*
-  Override the derived tyre-kicker judgement. Pass null to stop overriding and go back to
-  trusting the rule - which is why the argument is boolean | null rather than a plain boolean.
+  Archive a competition, or bring it back. A plain boolean: archived is a decision somebody made,
+  not an override of a calculation, so there is no third "stop overriding" state to express.
   */
-  setCompetitionStalled: async (
+  setCompetitionArchived: async (
     competitionId: number,
-    stalled: boolean | null
-  ): Promise<ApiResponse & { stalled_override?: boolean | null }> => {
-    const response = await api.post<ApiResponse & { stalled_override?: boolean | null }>(
-      '/admin/set-competition-stalled',
-      { competition_id: competitionId, stalled }
+    archived: boolean
+  ): Promise<ApiResponse & { archived_at?: string | null }> => {
+    const response = await api.post<ApiResponse & { archived_at?: string | null }>(
+      '/admin/set-competition-archived',
+      { competition_id: competitionId, archived }
     );
     return response.data;
   },

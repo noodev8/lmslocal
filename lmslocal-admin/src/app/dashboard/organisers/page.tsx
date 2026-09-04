@@ -15,8 +15,8 @@ attention". Row actions cross between them.
 ONLY ORGANISERS WITH SOMETHING LIVE ARE HERE - an ACTIVE or PENDING competition that is not
 archived. Somebody whose competitions have all finished or been archived is not a person to send
 an email to, and a dozen of them were padding the list and every tile on it. The filtering is
-done server-side by the one archived rule (services/competitionEngagement.js), so it cannot drift
-from the Competitions screen; the organisers card there shows exactly the number of rows here.
+done server-side off competition.archived_at, the same column the Competitions screen reads, so
+the two cannot drift; the organisers card there shows exactly the number of rows here.
 
 The row figures follow the same scope, EXCEPT the money - Credits and Spend cover the whole
 account, because a place that was charged for was charged for whatever became of the competition.
@@ -100,10 +100,12 @@ far enough to set something up and then stalled at the one step we can actually 
 
 players_total already excludes bots and the organiser themselves, so 0 means what it says.
 
-Narrower than it used to be, now that archived organisers are gone: an empty competition IS
-archived once it has been quiet a week, so this finds people in their first few days rather than
-every empty competition ever created. That is the window where an email can still change the
-outcome anyway.
+THIS GROUP WIDENED ON 2026-09-04 and it is worth knowing why before reading the number. Archiving
+used to be derived, and an empty competition qualified automatically once it had been quiet a
+week - so this only ever found people in their first few days, the window where an email can still
+change the outcome. Archiving is now a decision somebody makes, so a competition nobody joined in
+July stays here until it is archived by hand. If this count looks high, the answer is usually the
+Archived flag on the Competitions screen rather than a sudden crop of empty competitions.
 */
 const isEmpty = (o: AdminOrganiser): boolean => o.competitions_total > 0 && o.players_total === 0;
 

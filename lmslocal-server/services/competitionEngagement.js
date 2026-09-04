@@ -1,51 +1,42 @@
 /*
 =======================================================================================================================================
-services/competitionEngagement.js — is this competition real, or is somebody kicking tyres?
+services/competitionEngagement.js — the facts the admin screens show about how alive a competition is
 =======================================================================================================================================
-A competition that reaches ACTIVE and is then abandoned never leaves the "Active" tile. Comp 176
-sat there from 16 July with one member (its own organiser) and not a single pick ever made, and
-comp 179 the same from 1 August. Seven of thirty rows were like that, which made the headline
-counts on the admin Competitions screen wrong in the flattering direction.
+Purpose: SQL fragments for "how much has actually happened in this competition" — real players,
+         picks ever made, and when a person last did something. Shared by the three admin routes
+         so a figure on one screen means the same as the figure on another.
 
-THE RULE, in one place because the count, the tab and the badge must never disagree:
+THIS FILE NO LONGER DECIDES ANYTHING (2026-09-04). It used to carry classifyCompetition, a derived
+"stalled" rule — no real players or no picks, quiet 7 days — which the Competitions, Stats and
+Organisers screens each ran to work out what to count. That rule is gone, replaced by
+competition.archived_at: an admin presses Archive, and archived is what that means.
 
-  A competition is STALLED when nobody but the organiser has done anything, and it has gone
-  quiet. Concretely - no real players (members who are neither the organiser nor a bot) OR no
-  pick ever made, AND nothing has happened for QUIET_DAYS.
+Why the rule went, since it was doing a real job. It was invented because the counts flattered —
+seven of thirty rows sat in the "Active" tile having never seen a pick. But it could only ever be
+evaluated in JavaScript (it needs three facts and a clock), and "never a second copy in SQL" then
+forced every consumer into a first round trip over the whole competition table before it could ask
+its actual question. One column removes all three copies of that dance, and makes the same answer
+available to anything else that needs it — the email candidate queries being the reason this came
+up at all, since none of them could have run the JS rule.
 
-Three deliberate exemptions:
+What replaced the rule's OTHER job — pointing at the dead ones so somebody notices — is the numbers
+below, shown on the Competitions screen as a sortable "quiet Nd" column. DERIVE TO INFORM, NEVER TO
+DECIDE. That split is the whole design: a calculation that only ever renders can be wrong without
+costing anything, which is what let the decision move to a human without losing the signal.
 
-- COMPLETE competitions are never stalled. It ran, it finished, it is history - and a two-player
-  competition that went the distance is exactly the thing this must not throw away.
-- Anything that has been quiet for less than QUIET_DAYS is "new": too early to judge. An
-  organiser who signs up on the Friday and recruits over the weekend is not a tyre kicker on the
-  Saturday.
-- competition.stalled_override, when set, wins outright - see below.
-
-The signal is this blunt because the data is: every genuine competition on the platform had picks
-within days of being created, and every dead one had none at all. Player counts alone would not
-do it (comp 226 had 24 members before it started), and last-activity alone would not either (a
-mid-season competition between gameweeks is quiet and perfectly healthy).
-
-MANUAL OVERRIDE. competition.stalled_override is a tri-state: NULL trusts the calculation, true
-forces stalled, false forces real. It exists because no rule survives contact with the real
-world in both directions - a slow-burn competition that is genuinely coming needs rescuing from
-the calculation, and an obvious write-off inside the quiet window needs condemning before it.
-It is an override, not a cache: nothing writes the derived answer into it.
+The tri-state override went with it. archived_at is a timestamp or it is nothing; there is no
+"cleared by an admin" case to represent. The false leg — rescue a competition the rule has
+wrongly written off — was never used on a single row, which is the clearest evidence there was
+that the calculation was doing work nobody wanted done.
 =======================================================================================================================================
 */
 
 const { BOT_EMAIL_LIKE } = require('./botPool');
 
-// How long a competition must have shown no sign of life before the calculation will call it.
-// Seven days: long enough that a weekend of recruiting is not misread, short enough that the
-// counts are honest within a week rather than a month.
-const QUIET_DAYS = 7;
-
 /*
-SQL fragments for the two facts the rule needs beyond what the competitions query already has.
-Correlated on an alias the caller supplies, and taking the bind placeholder holding BOT_EMAIL_LIKE
-by name ($2, $3...) so the caller keeps ownership of both its FROM clause and its parameter list.
+SQL fragments for the facts the screens display. Correlated on an alias the caller supplies, and
+taking the bind placeholder holding BOT_EMAIL_LIKE by name ($2, $3...) so the caller keeps
+ownership of both its FROM clause and its parameter list.
 
 "Real" players exclude the organiser (who is a member of their own competition in almost every
 case, so a member count of 1 means nobody came) and bots (placeholder seeding, never evidence
@@ -66,14 +57,12 @@ const pickCountSql = (comp) => `
     WHERE r.competition_id = ${comp}.id)`;
 
 /*
-When something last happened IN this competition. The third input to the rule, and the one that
-decides quiet_days.
+When something last happened IN this competition, which the screen turns into "quiet Nd".
 
 IT LIVES HERE BECAUSE IT HAD THREE COPIES (2026-09-01). get-admin-competitions, get-admin-stats
-and get-admin-organisers each carried the same GREATEST spelled out, and the last two feed
-classifyCompetition directly - so an edit to one would have made the Competitions screen's stalled
-badge disagree with the tiles above it and with the Organisers screen, which is the exact drift the
-screens were consolidated to stop. One definition, three callers.
+and get-admin-organisers each carried the same GREATEST spelled out. It drove the stalled rule
+then and only drives a column now, but the reason for one definition is unchanged: two screens
+showing a different "last activity" for the same competition is a bug either way.
 
 WHAT COUNTS, and the line it draws: things PEOPLE did in this competition.
 
@@ -88,9 +77,7 @@ WHAT DOES NOT COUNT: MAX(round.created_at), removed 2026-09-01. A fixture push c
 every push stamped every competition it touched with the push time - one morning's batch moved
 fourteen competitions to "today" when four had seen no player activity since 24-28 August. A round
 arriving is a thing WE did, on our own schedule, to every eligible competition at once; it is not
-evidence anybody is using it. And because this column drives quiet_days, the push was resetting the
-quiet clock on precisely the competitions this rule exists to catch - one we keep pushing rounds
-into that nobody ever picks in could never accumulate QUIET_DAYS.
+evidence anybody is using it.
 
 GREATEST ignores NULLs and comp.created_at is NOT NULL, so this always resolves.
 
@@ -109,61 +96,19 @@ const lastActivitySql = (comp) => `
   )`;
 
 /**
- * Classify one competition.
+ * Whole days since a person last did anything here. Display only — nothing branches on it.
  *
- * @param {object} row
- * @param {string} row.status            - lowercased competition status
- * @param {number} row.real_player_count - members who are neither the organiser nor a bot
- * @param {number} row.pick_count        - picks ever made, across every round
- * @param {string|Date} row.last_activity
- * @param {boolean|null} row.stalled_override
- * @returns {{is_stalled: boolean, stalled_source: 'derived'|'admin', stalled_reason: string|null, quiet_days: number}}
+ * @param {string|Date} lastActivity - the value of lastActivitySql for this row
+ * @returns {number}
  */
-function classifyCompetition(row) {
-  const lastActivity = new Date(row.last_activity);
-  const quietDays = Math.floor((Date.now() - lastActivity.getTime()) / 86400000);
-
-  const realPlayers = Number(row.real_player_count) || 0;
-  const picks = Number(row.pick_count) || 0;
-
-  // Reasons are assembled even when an override is in force, so the screen can show what the
-  // calculation thought alongside the admin's decision to disagree with it.
-  const nobodyCame = realPlayers === 0;
-  const nothingPlayed = picks === 0;
-
-  const derivedStalled =
-    row.status !== 'complete' &&
-    quietDays >= QUIET_DAYS &&
-    (nobodyCame || nothingPlayed);
-
-  const isStalled = typeof row.stalled_override === 'boolean'
-    ? row.stalled_override
-    : derivedStalled;
-
-  let reason = null;
-  if (typeof row.stalled_override === 'boolean') {
-    reason = row.stalled_override ? 'Marked by an admin' : 'Cleared by an admin';
-  } else if (derivedStalled) {
-    // Both halves can be true at once; say the stronger one, since "nobody joined" explains
-    // "nothing was played" but not the other way round.
-    reason = nobodyCame
-      ? `Nobody joined, quiet ${quietDays}d`
-      : `No picks ever made, quiet ${quietDays}d`;
-  }
-
-  return {
-    is_stalled: isStalled,
-    stalled_source: typeof row.stalled_override === 'boolean' ? 'admin' : 'derived',
-    stalled_reason: reason,
-    quiet_days: quietDays
-  };
+function quietDays(lastActivity) {
+  return Math.floor((Date.now() - new Date(lastActivity).getTime()) / 86400000);
 }
 
 module.exports = {
-  QUIET_DAYS,
   BOT_EMAIL_LIKE,
   realPlayerCountSql,
   pickCountSql,
   lastActivitySql,
-  classifyCompetition
+  quietDays
 };

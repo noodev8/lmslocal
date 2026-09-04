@@ -87,28 +87,34 @@ doc first** (except the email README, see below):
   credit, no free place, in every counting query, via `services/botPool.js`. Still confined to the
   organisers listed there, but for a product reason not a billing one: a customer's competition
   filling with fake entrants means real players facing opponents who are not people
-- **Tyre kickers**: a competition can reach `ACTIVE` with a round pushed and no pick ever made, so
-  the status counts flattered us — seven of thirty rows. `services/competitionEngagement.js` is
-  the **one** definition of stalled (no real players **or** no picks, and quiet 7 days; `COMPLETE`
-  and anything newer than the threshold are exempt). `competition.stalled_override` is a
-  tri-state manual override — NULL trusts the rule, and **nothing ever writes the derived answer
-  into it**. Stalled rows get their own tile and tab and are excluded from every other count.
-  Marking is not deleting
+- **Archiving**: a competition can reach `ACTIVE` with a round pushed and no pick ever made, so
+  the status counts flattered us — seven of thirty rows. Archived rows get their own tile and tab
+  and are excluded from every other count. **Marking is not deleting.**
+  **`competition.archived_at` is a decision an admin made, never a calculation** (2026-09-04).
+  `/admin/set-competition-archived` is the only writer. It replaced a derived "stalled" rule (no
+  real players **or** no picks, quiet 7 days) plus a tri-state `stalled_override`: the rule could
+  only be evaluated in JS, and "never a second copy in SQL" then forced `get-admin-stats`,
+  `get-admin-competitions` and `get-admin-organisers` each into a first round trip over the whole
+  table before they could ask their real question. All three are gone; so is the override's
+  "rescue" leg, which was never used on a single row.
+  **Derive to inform, never to decide** — the signal the rule read is still on the screen as the
+  "Last activity" column, which is the default sort. Do not turn it back into a verdict.
+  `services/competitionEngagement.js` now only holds the display fragments
 - **Screens**: **`/dashboard/competitions` is the landing page** — there is no Overview.
   `/dashboard` was deleted because its counts duplicated the Competitions screen and disagreed
-  with it (16 active against 14 — it counted by status alone and did not exclude stalled)
+  with it (16 active against 14 — it counted by status alone and did not exclude archived)
 - **Active people**: four small cards under the Competitions tiles — registered accounts holding
-  a place in a competition that is **neither complete nor stalled**; eliminated players count.
-  Which competitions those are comes from `classifyCompetition` in a first round trip, **never**
-  a second copy of the stalled rule in SQL; that same pass produces the competition counts.
+  a place in a competition that is **neither complete nor archived**; eliminated players count.
+  Which competitions those are comes from the same query that produces the competition counts, so
+  the two cannot disagree.
   Guests are excluded so `active` is a true subset of `total`, and get their own card via
   `active_guests`; `organisers.live` gets a fourth. It replaced a cumulative "genuine people"
-  count that could only ever rise and so could not tell growth from churn. `competitions.inactive` is gone; stalled answers it better
+  count that could only ever rise and so could not tell growth from churn. `competitions.inactive` is gone; archived answers it better
 - **Organisers**: the screen lists only organisers owning a competition that is **ACTIVE or
-  PENDING and not stalled** — filtered server-side by `classifyCompetition`, so it cannot drift
+  PENDING and not archived** — filtered server-side on `archived_at`, so it cannot drift
   from the Competitions screen, whose `organisers` card shows the same number (`organisers.live`
   from `get-admin-stats`). Every competition and player figure on a row is scoped to their
-  non-stalled competitions; **the money is not** — credits and spend cover the whole account,
+  non-archived competitions; **the money is not** — credits and spend cover the whole account,
   because a place that was charged for stays charged. "Players" counts memberships the same way
   the competitions screen does so the two agree; "spend" is `credit_purchases`, **never**
   `app_user.paid_credit`

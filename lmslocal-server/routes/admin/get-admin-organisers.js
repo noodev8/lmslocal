@@ -67,8 +67,8 @@ Data Notes:
 
   Every competition and player figure on the row then counts only their NON-ARCHIVED
   competitions, so "3 competitions" here cannot mean a 1 on the Competitions screen. Archived is
-  the one rule in services/competitionEngagement.js, evaluated in a first round trip exactly as
-  get-admin-stats does it - never a second copy written in SQL.
+  competition.archived_at - an admin pressed Archive - so this screen and the Competitions screen
+  read the same column and cannot drift.
 
   BILLING IS THE EXCEPTION. "chargeable_players", "credit", "credits_available",
   "free_places_left" and "spend_12m" cover the whole account, archived competitions included,
@@ -107,7 +107,7 @@ Data Notes:
   charging and nearly all of its members are bots.
 - "last_active_at" is the organiser's own last session; "last_player_activity" is the newest pick
   by anyone in their competitions. An organiser who has gone quiet while their players have not
-  reads very differently from one whose whole competition has stalled.
+  reads very differently from one whose whole competition has gone quiet.
 - No pagination. This is a per-account roll-up over a table in the low hundreds; the admin screen
   sorts and filters the full list client-side.
 =======================================================================================================================================
@@ -118,13 +118,7 @@ const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { organiserChargeableCountSql, chargeableMemberFilter } = require('../../services/botPool');
-const {
-  BOT_EMAIL_LIKE,
-  realPlayerCountSql,
-  pickCountSql,
-  lastActivitySql,
-  classifyCompetition
-} = require('../../services/competitionEngagement');
+const { BOT_EMAIL_LIKE } = require('../../services/competitionEngagement');
 const router = express.Router();
 
 // The same env var every billing path reads. Defaulted identically, so this screen cannot report
@@ -136,37 +130,32 @@ router.get('/', verifyAdminToken, async (req, res) => {
 
   try {
     /*
-    FIRST ROUND TRIP: which competitions are archived, and which are live.
+    Which competitions are archived, and which are live.
 
-    Classified in JS by the shared rule rather than re-expressed in SQL, so this screen, the
-    Competitions screen and the organisers card on it can never disagree about what archived
-    means. A few dozen rows, so the extra query costs nothing.
+    ONE QUERY, and only because archived is a column. This was a first round trip until
+    2026-09-04: archived was DERIVED, could only be evaluated in JS, and had to be classified here
+    before the real query could run - the same dance get-admin-stats and get-admin-competitions
+    each carried, all three to avoid a second copy of the rule in SQL. There is no rule to copy
+    now.
 
     Two lists come out of it and they are not the same thing: "live" (ACTIVE or PENDING, not
     archived) decides who is ON this screen at all, while "not archived" - which still includes
     finished competitions - is what the row's figures count. An organiser running one competition
     who finished two last season should show all three, and be here because of the one.
     */
-    const classifyQuery = `
+    const classifyResult = await query(`
       SELECT
         c.id,
-        LOWER(c.status)                          AS status,
-        c.stalled_override,
-        ${realPlayerCountSql('c', '$1')}         AS real_player_count,
-        ${pickCountSql('c')}                     AS pick_count,
-        ${lastActivitySql('c')}                  AS last_activity
+        LOWER(c.status)             AS status,
+        (c.archived_at IS NOT NULL) AS is_archived
       FROM competition c
-    `;
-    const classifyResult = await query(classifyQuery, [BOT_EMAIL_LIKE]);
+    `);
 
-    const classified = classifyResult.rows.map((c) => ({
-      ...c,
-      is_stalled: classifyCompetition(c).is_stalled
-    }));
+    const classified = classifyResult.rows;
 
-    const countedIds = classified.filter((c) => !c.is_stalled).map((c) => c.id);
+    const countedIds = classified.filter((c) => !c.is_archived).map((c) => c.id);
     const liveIds = classified
-      .filter((c) => !c.is_stalled && c.status !== 'complete')
+      .filter((c) => !c.is_archived && c.status !== 'complete')
       .map((c) => c.id);
 
     /*
