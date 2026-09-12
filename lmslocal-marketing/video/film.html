@@ -59,8 +59,9 @@
       over them: a drawn pointer and a click ring, because a pick shown as a
       straight cut reads as the screen changing by itself.
 
-      The head and tail fade through #veil, matched to the stock. Without them
-      the film opened on a half-built frame and stopped dead on the end card.
+      The head fades up through #veil, matched to the stock, because the film
+      otherwise opened on a half-built frame. There is no tail fade - see
+      seek().
     -->
 
     <div id="stage" class="bg-stock font-body text-ink">
@@ -126,9 +127,9 @@
       <section class="scene" data-scene="5"></section>
       <section class="scene" data-scene="6"></section>
 
-      <!-- The top and tail. One element over everything, matched to the stock
-           so the film opens out of the paper and closes back into it rather
-           than cutting from nothing to a half-built frame. -->
+      <!-- The opening fade. One element over everything, matched to the stock,
+           so the film opens out of the paper rather than cutting from nothing
+           to a half-built frame. It is not used at the tail. -->
       <div id="veil" class="pointer-events-none absolute inset-0 z-10 bg-stock"></div>
 
       <!-- ========================================== SCENE 7 - end card -->
@@ -268,12 +269,12 @@
         const u = t - cut.from;                    // time within the scene
         scenes.forEach((s) => s.classList.toggle('on', +s.dataset.scene === cut.n));
 
-        // Fade up at the head, down at the tail. Whichever is stronger wins,
-        // so the two can never fight over the same frame.
-        $('veil').style.opacity = Math.max(
-          1 - p(t, 0, 620),
-          p(t, DURATION - 900, 900)
-        );
+        // Fade up at the head only. There is deliberately no tail fade: a
+        // browser holds the last frame when a video ends, so fading out left
+        // the player sitting on an empty rectangle once it finished. Ending on
+        // the end card means the headline and the URL stay on screen
+        // afterwards, which is the one moment a viewer might act on them.
+        $('veil').style.opacity = 1 - p(t, 0, 620);
 
         if (cut.n === 0) {
           const m = p(u, 150, 520);

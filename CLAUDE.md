@@ -196,6 +196,27 @@ the user is organiser **or** participant, with role-specific fields.
   `joinLookupLimit` 30 req/min on the public `/get-competition-by-code`
 - CORS: localhost:3000-3003 plus `CLIENT_URL`. Helmet CSP allows unsafe-inline for React dev
 
+### Ignore files: one of each, at the repo root
+
+**There is exactly one `.gitignore` and one `.vercelignore`, both at the repo root. Never add a
+second — put the rule in the root file.** The only exception is the six generated `.gitignore`
+files under `lmslocal-flutter/`, one per platform folder: they cover build output the root file
+does not, and `flutter create` writes them back anyway.
+
+`.vercelignore` at the root applies to **every** Vercel project built from this repo, whichever
+Root Directory it uses — so a per-app copy buys nothing and drifts. `lmslocal-admin` had one, a
+byte-for-byte copy down to a comment claiming it lived at the root, and it was already out of step.
+
+**`.gitignore` is git's file, not Vercel's** — Vercel never reads it. Rules apply from the root
+down to every subdirectory, so one file covers both apps no matter how they deploy.
+
+This is not tidiness. `*.mp4` in the root `.vercelignore` silently deleted
+`lmslocal-web/public/promo.mp4` before every build: the file was committed and intact, the build
+succeeded, the poster beside it served, and the video 404ed. An excluded file is
+**indistinguishable from one that never existed** — it returns the same 404 with the same Etag as
+a path that has never been used — and nothing in the build log mentions it. When a committed file
+is missing in production, **read the root `.vercelignore` first**.
+
 ## Database access
 
 **Before writing anything, read `docs/testing-rules.md`.** This is the **live production

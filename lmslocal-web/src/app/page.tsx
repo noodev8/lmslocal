@@ -310,8 +310,13 @@ export default function LandingPage() {
             </div>
 
             <div>
+              {/*
+              bg-stock because a <video> paints black wherever it has no frame - before load, and
+              in any letterbox if the element and the file ever disagree on aspect. Black is the
+              one colour that has no business on this page.
+              */}
               <video
-                className="block w-full border border-ink/30"
+                className="block w-full border border-ink/30 bg-stock"
                 controls
                 playsInline
                 preload="metadata"
