@@ -37,6 +37,8 @@ ai-brief/           Prompts for generating artwork with an image model instead o
                     laying it out here. Clubs only so far. See ai-brief/README.md.
 video/              film.html is the film; storyboard-landlord.html is the plan it
                     was approved from. shots/ holds the app screenshots it cuts to.
+                    higgsfield.md is the thinking on a second, cartoon promo made
+                    with an outside AI tool. Nothing bought or briefed yet.
 out/                Exported PDFs and PNGs. Git-ignored — scratch.
 press/              PDFs actually sent to a printer. Tracked. See press/README.md.
 ```
