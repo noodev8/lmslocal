@@ -254,6 +254,29 @@ server.listen(PORT, async () => {
     process.exit(1);
   }
 
+  // --publish also writes the copy the website serves. Same reasoning as
+  // make-png.js and the OG images: for the site the deployed file is the
+  // deliverable, and an export sitting in out/ waiting to be copied by hand
+  // goes stale the first time the film changes and the copy does not.
+  if (process.argv.includes('--publish')) {
+    const pub = path.resolve(ROOT, '../lmslocal-web/public');
+    if (!fs.existsSync(pub)) {
+      console.error(`No such folder: ${pub}`);
+      process.exit(1);
+    }
+    fs.copyFileSync(DEST, path.join(pub, 'promo.mp4'));
+
+    // The poster is the title card at rest, not frame 0 - frame 0 is the veil,
+    // so a still of it is a blank rectangle.
+    await run('ffmpeg', [
+      '-y', '-loglevel', 'error',
+      '-i', path.join(FRAME_DIR, String(Math.round(fps * 2.5)).padStart(5, '0') + '.png'),
+      '-q:v', '3',
+      path.join(pub, 'promo-poster.jpg'),
+    ]);
+    console.log('  published to lmslocal-web/public/ — commit promo.mp4 and promo-poster.jpg');
+  }
+
   const kb = (fs.statSync(DEST).size / 1024).toFixed(0);
   console.log('');
   console.log(`  ${DEST}`);

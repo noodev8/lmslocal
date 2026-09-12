@@ -82,13 +82,6 @@
             </p>
           </div>
 
-          <!-- The offer, quietly, so the price is known from the first card
-               without competing with the headline. The end card says it loud.
-               font-display rather than font-data: a price is not something a
-               person filled in. -->
-          <p id="s0offer" class="font-display text-[40px] font-bold uppercase tracking-[0.14em] text-ink-fade">
-            20 players free · no card
-          </p>
         </div>
       </section>
 
@@ -149,13 +142,21 @@
             Run your own<br />last man<br />standing
           </p>
           <div id="s7rule" class="mt-[40px] h-[6px] bg-ink"></div>
-          <p id="s7free" class="mt-[40px] font-display text-[66px] font-bold uppercase leading-none text-overprint">
-            20 players free
+          <!--
+          NO PRICES, NO OFFERS, NOTHING DATED - deliberately, 12 Sep 2026. This card read
+          "20 players free / No card. Matches and results included." Both are true today and
+          both are things that change, and changing them means re-rendering and re-uploading a
+          film wherever it has been posted. The homepage carries the offer beside its own CTA,
+          where editing it is one line. Anything on this card has to be true for as long as the
+          film is in circulation.
+
+          The eyebrow repeats the opening card word for word, which is what makes the two read
+          as a pair rather than as a title and a sign-off.
+          -->
+          <p id="s7free" class="mt-[40px] font-display text-[52px] font-bold uppercase tracking-[0.14em] leading-none text-overprint">
+            For pubs, clubs and teams
           </p>
-          <p id="s7sub" class="mt-[16px] font-body text-[40px] text-ink-fade">
-            No card. Matches and results included.
-          </p>
-          <p id="s7url" class="mt-auto font-data text-[46px] font-bold">lmslocal.co.uk</p>
+          <p id="s7url" class="mt-auto font-data text-[56px] font-bold">lmslocal.co.uk</p>
         </div>
       </section>
     </div>
@@ -282,7 +283,6 @@
           const h = p(u, 1000, 700);
           $('s0head').style.opacity = h;
           $('s0head').style.transform = `translateY(${(1 - h) * 26}px)`;
-          $('s0offer').style.opacity = p(u, 1850, 520);
         }
 
         if (cut.n === 1) {
@@ -379,8 +379,7 @@
           const f = p(u, 900, 460);
           $('s7free').style.opacity = f;
           $('s7free').style.transform = `translateY(${(1 - f) * 16}px)`;
-          $('s7sub').style.opacity = p(u, 1180, 460);
-          $('s7url').style.opacity = p(u, 1450, 520);
+          $('s7url').style.opacity = p(u, 1300, 560);
         }
       }
 

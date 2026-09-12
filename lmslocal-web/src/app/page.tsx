@@ -273,6 +273,59 @@ export default function LandingPage() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
+      {/* The film: proof the hero's promise is a real product              */}
+      {/* ---------------------------------------------------------------- */}
+      {/*
+      Sits between the promise and the money on purpose. The hero claims it pays for itself and
+      the Docket below works out what that would be worth - a reader who has not yet seen that
+      the thing exists is being asked to do arithmetic about a product they are still taking on
+      trust. Forty seconds of the real screens in between answers that.
+
+      Not in the hero. The survival sheet up there reads in about a second and a video cannot,
+      and a hero that has to load 4MB before it means anything is a worse hero.
+
+      Click to play, not autoplay: it is 41 seconds, it is silent, and a page that starts moving
+      on arrival is the thing people scroll past. preload="metadata" keeps the 4MB off the first
+      paint - only the poster is fetched until someone presses play.
+      */}
+      <section className="border-y border-ink/30 bg-stock-lit">
+        {/*
+        Two columns rather than a heading above a 620px player: the film is square, so stacked
+        inside a max-w-6xl container it left half the row empty and read as an unfinished section.
+        */}
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+            <div>
+              <p className={`${EYEBROW} text-overprint`}>See it working</p>
+              <h2 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
+                Forty seconds, start to finish
+              </h2>
+              <p className="mt-5 text-xl leading-relaxed text-ink">
+                Setting one up, getting your players in, and a round playing out. Every screen is
+                the real thing &mdash; nothing here is a mock-up.
+              </p>
+              <p className="mt-5 text-[15px] leading-relaxed text-ink-fade">
+                No sound &mdash; the captions carry it.
+              </p>
+            </div>
+
+            <div>
+              <video
+                className="block w-full border border-ink/30"
+                controls
+                playsInline
+                preload="metadata"
+                poster="/promo-poster.jpg"
+              >
+                <source src="/promo.mp4" type="video/mp4" />
+                Your browser cannot play this video.
+              </video>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
       {/* The money, straight after the promise that mentions it            */}
       {/* ---------------------------------------------------------------- */}
       <section className="border-y border-ink/30 bg-stock-deep">
