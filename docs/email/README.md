@@ -445,20 +445,70 @@ no round number.
 and the reason the others exist.
 
 **It is not ready when the round ends. It is ready when the round ends AND the next round's
-fixtures are in** — or when the competition has finished. Andreas's rule, and the right one: a
-"round over" email with nothing to do next is a dead end, and the player would have to come back
-later anyway. Waiting means one email that both settles the last round and opens the next.
+fixtures are in.** Andreas's rule, and the right one: a "round over" email with nothing to do next
+is a dead end, and the player would have to come back later anyway. Waiting means one email that
+both settles the last round and opens the next.
 
-Ready when the highest **fully processed** round (fixtures exist, all `processed`) is followed by
-either:
+Ready when the highest **fully processed** round `N` (fixtures exist, all `processed`) is followed
+by a round `N+1` that **has fixtures** and **has not locked yet**.
 
-- a round `N+1` that **has fixtures** — the competition continues, or
-- competition status **COMPLETE** — somebody won, or nobody did
+There used to be a second arm — *or competition status `COMPLETE`* — and it was the whole overlap
+with **Game complete**: the final round being processed fired both, so anyone who reached the end
+got two emails naming the same winner. **Removed 2026-08-14.** Game complete owns a competition
+ending, for everybody who took part rather than just the finalists; this email owns "a round ended
+and the next one is open". The cost, accepted: a final-round player is no longer told their own
+last pick and how it went. They watched that match; the winner is the part they need.
+
+Dropping it also made the founding rule true by construction rather than by a branch — "never a
+dead end" now holds because a next round is the only thing that qualifies.
 
 **Recipients are read from `player_progress`**, one row per player per round, which is exactly
 "who was in this round". Players eliminated in an earlier round fall out naturally and are not
 told about a round they had no part in. `NO-PICK` is a real row there (`chosen_team = 'NO-PICK'`,
 outcome `LOSE`), so somebody who forgot to pick is still told what it cost them.
+
+Two subtractions from that list:
+
+- **Anyone who has already picked in round `N+1`** (2026-08-25). The email's job is to bring the
+  player back to the app; somebody who is already there and has picked has nothing left to act on.
+  **The organiser is exempt here** — their copy carries the competition-wide report, which is not
+  about picking at all, and they are usually first in, so keying their own pick would silently cost
+  them the one email that tells them how the round went.
+- **Everyone, once round `N+1` locks** (2026-08-26, made absolute 2026-09-12). **No exemptions**,
+  and that is the point of it — see below.
+
+### The cut-off: the email dies when the round it opens kicks off
+
+Once `N+1` locks, a player still in and still without a pick has missed it, and the email would
+hand them a deadline that has passed. Two groups were exempt from that and both exemptions rotted
+the same way, so both are gone.
+
+**Eliminated players** were exempt because this is their only notification and lock was said to
+shrink an already short window. The window was never short: a round settles on the Sunday night and
+the next locks the following Saturday.
+
+**The organiser** was exempt because their report "does not stop being true at kickoff". True on
+the Monday. Not true six days later, when the survivor counts it quotes are about to be overwritten
+by a round already being played — and the organiser needs an email about a round less than anyone,
+having keyed the results themselves.
+
+What both bought was an offer to send that **never expired**: a card on the admin screen still
+proposing, a week on, to announce a round that had since been played. That is what prompted this —
+47 candidates across 12 competitions on a round settled six days earlier, every one of them an
+organiser or an eliminated player. **Being late is a fact about the send, not about the reader**,
+so it cannot be argued away one group at a time.
+
+The cost, accepted: if nobody presses the button before lock, nobody is told at all — an eliminated
+player never learns by email that they went out. Silence is the better of the two. By then they
+have watched a round play out without them and the news has told itself; an email arriving after
+that is not news, it is a system admitting it was late.
+
+**The queue-to-send gap is separate and still covered**, and now matters more, being the only way a
+locked round can reach a reader at all: queueing and sending are two operator presses, so
+`buildRoundOverEmail` re-reads the lock time when it builds and drops the deadline, the fixture
+list and the pick button if it has passed. A row queued at lunchtime on a Saturday and drained
+after three is the case. It is **not** in `services/emailExpiry.js`, deliberately — that is for
+email whose content becomes actively *wrong*, and this degrades to "Round N is under way" instead.
 
 **Three things in every send**, per Andreas's spec:
 
@@ -468,16 +518,28 @@ outcome `LOSE`), so somebody who forgot to pick is still told what it cost them.
    loses and stays in.
 2. **A sample of who is in and who is out**, not the full list — a 100-player competition would
    otherwise send a 100-line email. Counts are exact, names are capped at five a side.
-3. **What happens next**: the next round's fixtures and the deadline, or — if the competition is
-   over — who won, or that it ended with nobody left.
+3. **What happens next**: the next round's fixtures and the deadline — or, for a reader who cannot
+   act on them (knocked out, or reading after lock), the heading alone and "Round N is under way".
+
+Plus a fourth for the organiser: **an organiser block on the copy they were already getting**,
+rather than a second email. Every organiser plays in their own competition, so a separate send
+would have been 80% the same words and would have raced this one under magic send
+(`services/emailQuiet.js` kills whichever of two emails to one person comes second inside 48
+hours), leaving which one they received to be decided by whichever button the operator pressed
+first. The block does **not** list who has yet to pick: the competition page has that live, where
+an emailed list is stale the moment somebody picks.
 
 Once per player per round (`email_queue.round_id` carries the round), group `game`.
 
-**Known overlap, flagged not fixed.** For the final round this and **Game complete** both announce
-the winner, so a player who reached the end gets two emails saying the same thing. Both were asked
-for. The clean resolution is for Game complete to skip anyone who was in the final round — it
-exists to reach the long-since-eliminated — but that is a change to a built email and wants
-deciding rather than assuming.
+**The overlap with Game complete is fixed**, not outstanding — see the readiness rule above. The
+resolution was to remove a rule rather than add one. The alternative considered was Game complete
+skipping anyone who was in the final round, which would have meant one email reaching into
+`player_progress` to work out who it was *not* for.
+
+`buildTemplateData` still emits `competition_complete`, `winner_names` and `is_draw`, and they are
+now always false/null — a candidate must have a next round staged, and a `COMPLETE` competition has
+none. They are kept only because the template reads all three and a missing key renders differently
+from a false one. Remove them together when that template is next touched.
 
 ## Hints — the rules (built 2026-08-11)
 
