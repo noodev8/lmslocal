@@ -306,5 +306,5 @@ server.listen(PORT, async () => {
   console.log(`  ${kb} KB · ${SIZE}x${SIZE} · ${(frames / fps).toFixed(1)}s`);
   console.log('');
   console.log('  out/ is scratch and git-ignored - re-render rather than archiving this.');
-  console.log('  Check before posting: the join code in the QR shot is a live competition.');
+  console.log('  Check the QR in the invite scene still scans - it is ~155px in the frame.');
 });
