@@ -65,6 +65,33 @@
 
     <div id="stage" class="bg-stock font-body text-ink">
 
+      <!-- ========================================== SCENE 0 - title -->
+      <section class="scene" data-scene="0">
+        <div class="flex h-full flex-col p-[88px]">
+          <p id="s0mast" class="font-display text-[38px] font-bold uppercase tracking-[0.3em]">
+            LMSLocal
+          </p>
+          <div id="s0rule" class="mt-[18px] h-[6px] bg-ink"></div>
+
+          <div class="flex flex-1 flex-col justify-center">
+            <p id="s0eye" class="font-display text-[34px] font-bold uppercase tracking-[0.22em] text-overprint">
+              For pubs, clubs and teams
+            </p>
+            <p id="s0head" class="mt-[30px] font-display text-[112px] font-extrabold uppercase leading-[0.92]">
+              Run your own<br />last man<br />standing
+            </p>
+          </div>
+
+          <!-- The offer, quietly, so the price is known from the first card
+               without competing with the headline. The end card says it loud.
+               font-display rather than font-data: a price is not something a
+               person filled in. -->
+          <p id="s0offer" class="font-display text-[40px] font-bold uppercase tracking-[0.14em] text-ink-fade">
+            20 players free · no card
+          </p>
+        </div>
+      </section>
+
       <!-- ========================================== SCENE 1 - the sheet -->
       <section class="scene" data-scene="1">
         <div class="flex h-full flex-col p-[80px]">
@@ -114,8 +141,12 @@
       <!-- ========================================== SCENE 7 - end card -->
       <section class="scene" data-scene="7">
         <div class="flex h-full flex-col justify-center p-[88px]">
+          <!-- Deliberately word-for-word the opening card. It was "run last man
+               standing at the bar" and the near-miss read as a mistake rather
+               than as a frame: same words top and tail is a bookend, almost the
+               same words is a wobble. "At the bar" survives in scene 2. -->
           <p id="s7h" class="font-display text-[104px] font-extrabold uppercase leading-[0.92]">
-            Run last man<br />standing<br />at the bar
+            Run your own<br />last man<br />standing
           </p>
           <div id="s7rule" class="mt-[40px] h-[6px] bg-ink"></div>
           <p id="s7free" class="mt-[40px] font-display text-[66px] font-bold uppercase leading-none text-overprint">
@@ -136,18 +167,19 @@
        * below hardcodes a duration.
        * ---------------------------------------------------------------- */
       const CUT = [
-        { n: 1, from: 0,     to: 3800  },
-        { n: 2, from: 3800,  to: 6800  },
-        { n: 3, from: 6800,  to: 11800,
+        { n: 0, from: 0,     to: 4200  },
+        { n: 1, from: 4200,  to: 10000 },
+        { n: 2, from: 10000, to: 13300 },
+        { n: 3, from: 13300, to: 18300,
                  cap: 'Setting up takes about five minutes',
                  shots: ['create-details.png'], switchAt: [0] },
-        { n: 4, from: 11800, to: 17300,
+        { n: 4, from: 18300, to: 23800,
                  cap: 'We add the matches and the results.\n@You just invite players.',
                  shots: ['create-rules.png'], switchAt: [0] },
-        { n: 5, from: 17300, to: 22800,
+        { n: 5, from: 23800, to: 29300,
                  cap: 'Send them a link, a code or the QR.\n@Or add them as guests yourself.',
                  shots: ['invite-qr.png', 'invite-guests.png'], switchAt: [0, 3100] },
-        { n: 6, from: 22800, to: 29800,
+        { n: 6, from: 29300, to: 36300,
                  cap: 'They pick on their phones.\n@Eliminations sort themselves out.',
                  shots: ['pick-before.png', 'pick-after.png', 'standings.png'],
                  switchAt: [0, 1450, 4400],
@@ -158,7 +190,7 @@
                  // Target is the Arsenal row, in percent of the shot box.
                  cursor: { from: [34, 24], to: [74.5, 62], moveAt: 150, moveLen: 1050,
                            clickAt: 1250, hideAt: 4150 } },
-        { n: 7, from: 29800, to: 34800 },
+        { n: 7, from: 36300, to: 41300 },
       ];
       const DURATION = CUT[CUT.length - 1].to;
 
@@ -242,13 +274,24 @@
           p(t, DURATION - 900, 900)
         );
 
+        if (cut.n === 0) {
+          const m = p(u, 150, 520);
+          $('s0mast').style.opacity = m;
+          $('s0rule').style.width = (p(u, 450, 620) * 100) + '%';
+          $('s0eye').style.opacity = p(u, 750, 460);
+          const h = p(u, 1000, 700);
+          $('s0head').style.opacity = h;
+          $('s0head').style.transform = `translateY(${(1 - h) * 26}px)`;
+          $('s0offer').style.opacity = p(u, 1850, 520);
+        }
+
         if (cut.n === 1) {
-          $('s1rule').style.width = (p(u, 400, 500) * 100) + '%';
+          $('s1rule').style.width = (p(u, 500, 600) * 100) + '%';
 
           // Rows arrive top to bottom, 90ms apart, so the eye is led down the
           // sheet rather than having the whole block appear at once.
           [...$('s1rows').children].forEach((row, i) => {
-            const a = p(u, 700 + i * 90, 420);
+            const a = p(u, 900 + i * 130, 480);
             row.style.opacity = a;
             row.style.transform = `translateY(${(1 - a) * 14}px)`;
           });
@@ -256,24 +299,27 @@
           // The two strikes, then the tally. The tally changes ON the strike
           // landing, not after it, so cause and effect read as one event.
           document.querySelectorAll('[data-strike]').forEach((s, i) => {
-            const g = p(u, 1650 + i * 620, 340);
+            const g = p(u, 2300 + i * 750, 380);
             s.style.width = '100%';
             s.style.transform = `scaleX(${g})`;
             // Multiply by the row's own arrival, never replace it: assigning
             // opacity here overrode the stagger above and the two struck rows
             // turned up before the rest of the sheet existed.
             const row = s.closest('div');
-            const arrived = p(u, 700 + (1 + i * 2) * 90, 420);
+            const arrived = p(u, 900 + (1 + i * 2) * 130, 480);
             row.style.opacity = arrived * (1 - g * 0.55);
           });
-          $('s1tally').textContent = u >= 2270 ? '9' : u >= 1650 ? '10' : '11';
+          // Part-way through each strike, not at its start: at the slower pace
+          // the count dropped while the name was still unmarked, which read as
+          // the number being wrong rather than as the strike causing it.
+          $('s1tally').textContent = u >= 3270 ? '9' : u >= 2520 ? '10' : '11';
         }
 
         if (cut.n === 2) {
-          const a = p(u, 100, 600);
+          const a = p(u, 200, 700);
           $('s2a').style.opacity = a;
           $('s2a').style.transform = `translateY(${(1 - a) * 22}px)`;
-          const b = p(u, 1100, 520);
+          const b = p(u, 1500, 620);
           $('s2b').style.opacity = b;
           // Overshoots to 1.0 from slightly small - the only scale move in the
           // film, and it is on the line the whole thing is built around.

@@ -221,8 +221,6 @@ Rules that are easy to get wrong:
   reads as a camera move instead of a click.
 - **Silent, with captions burned in.** Facebook autoplays muted. A voiceover can be muxed in later
   without re-rendering the picture; captions cannot.
-- **No stock photography.** Everything on screen is the real product or the brand. A generic pub
-  interior would be the one untrue thing in it.
 - **Check the join code before posting.** The QR in the invite scene scans to a real competition
   and its code is legible on screen.
 

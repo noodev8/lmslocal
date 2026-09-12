@@ -2954,11 +2954,31 @@ const buildRoundOverEmail = (email, templateData) => {
     : null;
 
   /*
-  The next round's matches are for people who have to pick from them. Someone knocked out is being
-  shown a list they cannot use, under a deadline that is not theirs - so they get the heading and
-  nothing else, and the button below already points them at the table rather than the pick screen.
+  HAS THE NEXT ROUND ALREADY LOCKED? Derived here, at send time, rather than carried on
+  template_data - the row is queued by one operator press and drained by another, so a flag baked
+  in at queue time would say "open" about a round that kicked off in between.
+
+  Only two kinds of recipient can reach this branch. services/roundOver.js withdraws every active
+  player once the next round locks, and exempts exactly the organiser and the eliminated. The
+  eliminated already read the same degraded copy via `survived`; this is what makes it true for
+  the ORGANISER too, whose exemption is meant to keep their competition-wide report flowing, not
+  to hand them a deadline that has passed and a pick button that no longer works.
   */
-  const fixtureLines = survived && !competition_complete
+  const nextRoundLocked = next_deadline ? new Date(next_deadline) <= new Date() : false;
+
+  /*
+  Is the round below still the reader's to enter? Everything actionable hangs off this rather than
+  off `survived` alone - a surviving organiser after lock is in the same position as somebody
+  knocked out, as far as this email is allowed to ask of them.
+  */
+  const canStillPick = survived && !competition_complete && !nextRoundLocked;
+
+  /*
+  The next round's matches are for people who have to pick from them. Someone knocked out - or
+  anybody reading after lock - is being shown a list they cannot use, under a deadline that is not
+  theirs, so they get the heading and nothing else.
+  */
+  const fixtureLines = canStillPick
     ? (next_fixtures || []).map((f) => `${f.home} v ${f.away}`)
     : [];
 
@@ -2977,10 +2997,11 @@ const buildRoundOverEmail = (email, templateData) => {
   } else {
     nextHeading = `Round ${next_round_number}`;
     /*
-    "Picks close" is a deadline the reader can act on. It is not one for somebody already out, so
-    they are told the round is running and left to watch it.
+    "Picks close" is a deadline the reader can act on. It is not one for somebody already out, nor
+    for anybody reading after the round locked, so both are told the round is running and left to
+    watch it. Stating a deadline that has passed is the one thing worse than stating none.
     */
-    nextBody = !survived
+    nextBody = !canStillPick
       ? `Round ${next_round_number} is under way.`
       : deadlineText
         ? `Picks close ${deadlineText}.`
@@ -3009,8 +3030,18 @@ const buildRoundOverEmail = (email, templateData) => {
   be the wrong words if it ever fires.
   */
   const organiserBlock = is_organiser && !competition_complete;
-  const organiserLine = `Round ${next_round_number} is open for your ${survivors_count} ${survivors_count === 1 ? 'player' : 'players'}. You can see who has picked and who has not on the competition page.`;
+  /*
+  "Open" and "under way" are different jobs. Before lock the organiser is being pointed at who has
+  yet to pick, which is something they can still chase. After lock there is nobody left to chase -
+  the picks are in or they are not - so the same sentence would be a false statement about their
+  own competition, which is the one thing an organiser will notice.
+  */
+  const organiserLine = nextRoundLocked
+    ? `Round ${next_round_number} is under way for your ${survivors_count} ${survivors_count === 1 ? 'player' : 'players'}. You can see how they picked on the competition page.`
+    : `Round ${next_round_number} is open for your ${survivors_count} ${survivors_count === 1 ? 'player' : 'players'}. You can see who has picked and who has not on the competition page.`;
   const organiserUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}?email_id=${email_tracking_id}`;
+  // Same link either way; only what it promises changes.
+  const organiserLinkLabel = nextRoundLocked ? 'See the round' : 'Check pick progress';
 
   const actionUrl = competition_complete
     ? `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/standings?email_id=${email_tracking_id}`
@@ -3018,7 +3049,7 @@ const buildRoundOverEmail = (email, templateData) => {
 
   const buttonLabel = competition_complete
     ? 'See the final table'
-    : survived
+    : canStillPick
     ? `Make your Round ${next_round_number} pick`
     : 'See how it finishes';
 
@@ -3080,7 +3111,7 @@ const buildRoundOverEmail = (email, templateData) => {
               <p style="color: #334155; font-size: 15px; margin: 0 0 16px 0;">${organiserLine}</p>
               <a href="${organiserUrl}"
                  style="display: inline-block; color: #475569; font-weight: 600; font-size: 15px; text-decoration: underline;">
-                Check pick progress
+                ${organiserLinkLabel}
               </a>
             </div>
             ` : ''}
@@ -3122,7 +3153,7 @@ YOU ARE RUNNING THIS ONE
 
 ${organiserLine}
 
-Check pick progress:
+${organiserLinkLabel}:
 ${organiserUrl}
 ` : ''}
 ${footer.text}
