@@ -760,14 +760,19 @@ function ResultsTab({
 // ======================================================================================
 
 /*
-Results go out per competition rather than in one sweep, and the admin drives it by hand: press
-a row, wait, read what came back, press the next.
+Results go out per competition: one request, one transaction, one competition. Press a row, wait,
+read what came back, press the next - or press Push all and it does exactly that for you, in turn.
 
-Two reasons it is not one button. Processing time scales with player count, so a batch of large
-competitions could exceed the 60s proxy timeout in total while no single competition comes near
-it - and the old all-competitions route ran the whole batch in ONE transaction, so a timeout
-anywhere rolled every competition back and nobody got their results. Splitting it means nothing
-compounds and a failure is confined to one competition.
+That split is the point and it survives Push all. Processing time scales with player count, so a
+batch of large competitions could exceed the 60s proxy timeout in total while no single
+competition comes near it - and the old all-competitions route ran the whole batch in ONE
+transaction, so a timeout anywhere rolled every competition back and nobody got their results.
+Push all is a client-side loop over the per-competition route, never a revival of the plural one:
+nothing compounds, and a failure is still confined to the competition it happened to.
+
+What Push all removes is the clicking, which is the only part that was ever costing anything - a
+gameweek where everything kicks off at once is one confirm per result and then one press, instead
+of one press per competition per result.
 
 Clearing the staged batch is its own button because the fixture_load rows have to survive until
 the last competition has taken them - see clear-staged-batch.js.
@@ -776,6 +781,17 @@ the last competition has taken them - see clear-staged-batch.js.
 type PushOutcome =
   | { ok: true; data: PushOneResponse }
   | { ok: false; message: string };
+
+/*
+Whether pressing Push would actually do anything. results_to_push counts entered results this
+competition has not had yet; fixtures_unprocessed is a push that wrote results but never settled
+them, which pressing again finishes. Anything else and the push returns ALREADY_PUSHED, so the
+button has no business being live.
+
+Shared by the row button and Push all, so the run does exactly the set of competitions the screen
+is offering - one definition, not a filter that can drift from what is on the buttons.
+*/
+const needsPush = (t: PushTarget) => t.results_to_push > 0 || t.fixtures_unprocessed > 0;
 
 function PushResultsPanel({
   teamList,
@@ -792,6 +808,7 @@ function PushResultsPanel({
   const [stagedResulted, setStagedResulted] = useState(0);
   const [pushingId, setPushingId] = useState<number | null>(null);
   const [outcomes, setOutcomes] = useState<Record<number, PushOutcome>>({});
+  const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
   const [clearing, setClearing] = useState(false);
   const [outstanding, setOutstanding] = useState<ClearBatchResponse['competitions'] | null>(null);
 
@@ -816,38 +833,105 @@ function PushResultsPanel({
     load();
   }, [load, resultedCount]);
 
-  const handlePush = async (target: PushTarget) => {
-    setPushingId(target.competition_id);
-    setNotice(null);
+  /*
+  One competition, start to finish. Returns how it went so a bulk run can tally it and decide
+  whether to carry on - 'auth' is the only answer that should stop the run, because the api
+  interceptor is already redirecting to /login and every further request would 401 into the void.
+  */
+  const pushOne = async (competitionId: number): Promise<'ok' | 'failed' | 'auth'> => {
+    setPushingId(competitionId);
     try {
-      const result = await adminApi.pushResultsToCompetition(target.competition_id);
+      const result = await adminApi.pushResultsToCompetition(competitionId);
       if (result.return_code === 'SUCCESS') {
-        setOutcomes((prev) => ({ ...prev, [target.competition_id]: { ok: true, data: result } }));
-      } else if (result.return_code === 'ALREADY_PUSHED') {
-        setOutcomes((prev) => ({
-          ...prev,
-          [target.competition_id]: { ok: true, data: { return_code: result.return_code } },
-        }));
-      } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
-        setOutcomes((prev) => ({
-          ...prev,
-          [target.competition_id]: { ok: false, message: result.message || 'Push failed.' },
-        }));
+        setOutcomes((prev) => ({ ...prev, [competitionId]: { ok: true, data: result } }));
+        return 'ok';
       }
-      await load();
+      if (result.return_code === 'ALREADY_PUSHED') {
+        setOutcomes((prev) => ({
+          ...prev,
+          [competitionId]: { ok: true, data: { return_code: result.return_code } },
+        }));
+        return 'ok';
+      }
+      if (result.return_code === 'UNAUTHORIZED' || result.return_code === 'TOKEN_EXPIRED') {
+        return 'auth';
+      }
+      setOutcomes((prev) => ({
+        ...prev,
+        [competitionId]: { ok: false, message: result.message || 'Push failed.' },
+      }));
+      return 'failed';
     } catch {
       // A dropped connection usually means the server finished anyway - it commits whether or
       // not anyone is still listening. Say so rather than calling it a failure.
       setOutcomes((prev) => ({
         ...prev,
-        [target.competition_id]: {
+        [competitionId]: {
           ok: false,
           message: 'Lost contact while pushing. Refresh to check - it may already be done.',
         },
       }));
-      await load();
+      return 'failed';
     } finally {
       setPushingId(null);
+    }
+  };
+
+  const handlePush = async (target: PushTarget) => {
+    setNotice(null);
+    await pushOne(target.competition_id);
+    await load();
+  };
+
+  /*
+  Push all - the same per-competition route, pressed for you, in order.
+
+  Deliberately sequential, and deliberately not a server-side "do them all" route. Awaiting each
+  push before starting the next keeps every property the per-competition split was introduced for:
+  one competition per transaction, so a timeout confines itself to that competition and nothing
+  rolls back around it; one request in flight, so a gameweek's worth of pushes cannot take the
+  20-connection pool - each push holds a transaction open for as long as its player count needs -
+  and starve the live site while the admin watches a spinner.
+
+  A failure does not stop the run. The competitions are independent, the route is safe to re-press
+  (it writes only where result IS NULL and processes only where processed IS NULL), so a bad row
+  is left red with a Retry button and the remaining competitions still get their results.
+  */
+  const handlePushAll = async () => {
+    // Snapshot before the first push: `load()` runs at the end, so `targets` is stable through
+    // the loop, but reading from a snapshot makes that a fact rather than a hope.
+    const queue = targets ? targets.filter(needsPush) : [];
+    if (queue.length === 0) return;
+
+    setNotice(null);
+    setBulk({ done: 0, total: queue.length });
+
+    let pushed = 0;
+    let failed = 0;
+
+    for (const target of queue) {
+      const outcome = await pushOne(target.competition_id);
+      if (outcome === 'auth') break;
+      if (outcome === 'ok') pushed++;
+      else failed++;
+      setBulk({ done: pushed + failed, total: queue.length });
+    }
+
+    setBulk(null);
+    await load();
+
+    // One reload, one notice, at the end. Reloading between pushes would re-render the list
+    // under the operator on every step for a number they are already watching on the button.
+    if (failed === 0) {
+      setNotice({
+        tone: 'success',
+        text: `Results pushed to ${pushed} competition${pushed === 1 ? '' : 's'}.`,
+      });
+    } else {
+      setNotice({
+        tone: 'error',
+        text: `${pushed} pushed, ${failed} failed. The failed competitions are marked below - press Retry on each.`,
+      });
     }
   };
 
@@ -896,6 +980,7 @@ function PushResultsPanel({
   }
 
   const anyResults = stagedResulted > 0;
+  const pending = targets.filter(needsPush);
 
   /*
   Clearing is blocked outright until every competition is settled, rather than warned about.
@@ -914,8 +999,25 @@ function PushResultsPanel({
   return (
     <div className="mt-8">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-900">Push results</h2>
+
+          {/* Offered only when there is more than one competition to do. On a single row it would
+              be a second button doing what the one beside it does, which is a choice to make
+              rather than a shortcut. The count is on the face of it because it is the thing worth
+              knowing before pressing: how many competitions this is about to settle. */}
+          {pending.length > 1 && (
+            <button
+              type="button"
+              onClick={handlePushAll}
+              disabled={pushingId !== null || bulk !== null || clearing}
+              className={`${PUSH_BUTTON} w-auto ${PUSH_BUTTON_READY}`}
+            >
+              {bulk
+                ? `Pushing ${Math.min(bulk.done + 1, bulk.total)} of ${bulk.total}...`
+                : `Push all ${pending.length}`}
+            </button>
+          )}
         </div>
 
         {/* Only the case that stops you pressing anything. A part-entered batch is the ordinary
@@ -931,14 +1033,10 @@ function PushResultsPanel({
             const isPushing = pushingId === target.competition_id;
             const outcome = outcomes[target.competition_id];
             const finished = target.fixtures_pending === 0 && target.fixtures_unprocessed === 0;
-            /*
-            Whether pressing Push would actually do anything. results_to_push counts entered
-            results this competition has not had yet; fixtures_unprocessed is a push that wrote
-            results but never settled them, which pressing again finishes. Anything else and the
-            push returns ALREADY_PUSHED, so the button has no business being live.
-            */
-            const needsPush = target.results_to_push > 0 || target.fixtures_unprocessed > 0;
-            const disabled = pushingId !== null || !needsPush;
+            const rowNeedsPush = needsPush(target);
+            // bulk is checked alongside pushingId because pushingId goes briefly null between
+            // competitions in a run, and a row must not become pressable in that gap.
+            const disabled = pushingId !== null || bulk !== null || !rowNeedsPush;
 
             /*
             A competition finished before this session opened collapses to one line with no
@@ -947,7 +1045,7 @@ function PushResultsPanel({
             waiting. A row pushed in THIS session keeps its full height: those numbers are the
             outcome of what just happened and are the reason to look.
             */
-            if (!needsPush && !outcome) {
+            if (!rowNeedsPush && !outcome) {
               return (
                 <li
                   key={target.competition_id}
@@ -1039,9 +1137,9 @@ function PushResultsPanel({
                       title={
                         !anyResults
                           ? 'Enter at least one result first.'
-                          : !needsPush
+                          : !rowNeedsPush
                             ? 'Nothing new to push to this competition.'
-                            : pushingId !== null
+                            : pushingId !== null || bulk !== null
                               ? 'Another competition is being pushed.'
                               : undefined
                       }
@@ -1065,7 +1163,7 @@ function PushResultsPanel({
           <button
             type="button"
             onClick={() => handleClear(false)}
-            disabled={clearing || pushingId !== null || !canClear}
+            disabled={clearing || pushingId !== null || bulk !== null || !canClear}
             title={!canClear ? 'Every competition needs its results pushed first.' : undefined}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
