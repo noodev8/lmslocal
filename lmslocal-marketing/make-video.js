@@ -289,11 +289,30 @@ server.listen(PORT, async () => {
       path.join(pub, 'promo.mp4'),
     ]);
 
-    // The poster is the title card at rest, not frame 0 - frame 0 is the veil,
-    // so a still of it is a blank rectangle.
+    /*
+     * The poster is a real app screen - the pick list with a team chosen - and
+     * not the title card it used to be. The film sits in the landing page hero
+     * now, so its still state IS the hero's main image, and the point of moving
+     * it there was that the hero was previously showing a drawn survival sheet
+     * rather than the product. A title card would have put a second headline
+     * beside the h1 and shown the product no better than the illustration did.
+     *
+     * Not frame 0 either: frame 0 is the opening veil, so a still of it is a
+     * blank rectangle.
+     */
+    const POSTER_AT = 32;
     await run('ffmpeg', [
       '-y', '-loglevel', 'error',
-      '-i', path.join(FRAME_DIR, String(Math.round(fps * 2.5)).padStart(5, '0') + '.png'),
+      '-i', path.join(FRAME_DIR, String(Math.round(fps * POSTER_AT)).padStart(5, '0') + '.png'),
+      /*
+       * The caption band is cropped off the bottom and replaced with plain
+       * stock. The browser draws its control bar across the bottom of the
+       * element, which landed exactly on the band and cut the caption in half.
+       * Leaving stock there gives the controls somewhere quiet to sit, and the
+       * poster is a clean product screen rather than a frame with half a
+       * sentence on it. Same square size, so nothing shifts when it plays.
+       */
+      '-vf', 'crop=1080:880:0:0,pad=1080:1080:0:0:color=0xDDE1D6',
       '-q:v', '3',
       path.join(pub, 'promo-poster.jpg'),
     ]);
