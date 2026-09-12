@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — promo video storyboard, landlord</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <style>
+      body { margin: 0; padding: 2.5rem; background: #8b8f86; }
+      /* Frames are authored at true 1080x1080 so what is approved here is what
+         renders. The wrapper scales them down for reading; never author at the
+         scaled size or the type sizes will not survive the render. */
+      .shrink { width: 497px; height: 497px; overflow: hidden; flex-shrink: 0; }
+      .frame { width: 1080px; height: 1080px; transform: scale(0.46); transform-origin: top left; overflow: hidden; }
+      .cap { position: absolute; left: 0; right: 0; bottom: 0; }
+    </style>
+  </head>
+
+  <body class="font-body">
+    <!--
+      STORYBOARD — 25s promo for audience C (landlord / venue) in
+      docs/marketing-strategy.md. Not artwork: this is the approval document and
+      the input to the render script. Each .frame is a real 1080x1080 canvas.
+
+      Voice follows the landing-page copy rules, same as a5-landlord.html:
+        - every "you" is the landlord; players are always third person
+        - "matches", never "fixtures"
+        - no invented numbers, no social proof, no countdown urgency
+
+      Matches and results loading themselves IS claimed here, scene 6. The
+      fixture service is given to new organisers as part of the package, so it
+      is true for everyone who sees this. Recut that scene if that changes.
+
+      The spine is the leaflet's line, because it is already the best sentence
+      we have for this audience: "You used to keep that on a sheet behind the
+      bar - now it keeps itself."
+
+      SILENT BY DESIGN. Facebook autoplays muted, so captions are burned in and
+      carry the whole argument. A voiceover can be added later without
+      re-rendering the picture; captions cannot be added later without it.
+
+      Two kinds of scene, produced differently:
+        MOTION - HTML/CSS animation, rendered frame-by-frame through Chrome the
+                 way make-png.js already drives it, then assembled with ffmpeg.
+        SCREEN - real captured footage of the actual app. Not a mockup. This is
+                 the half that does the persuading; the motion scenes only set
+                 it up and land it.
+    -->
+
+    <div class="mx-auto max-w-[1180px]">
+      <p class="font-display text-[13px] font-bold uppercase tracking-[0.22em] text-white/70">
+        Storyboard · draft 1
+      </p>
+      <h1 class="mt-1 font-display text-[38px] font-extrabold uppercase leading-none text-white">
+        Run it at the bar — 25 seconds
+      </h1>
+      <p class="mt-3 max-w-[760px] text-[15px] leading-relaxed text-white/85">
+        Audience C, the landlord. Silent, captions burned in. Primary canvas 1080×1080 for the
+        square feed; the same seven scenes re-lay out to 1080×1920 for a story once these are
+        signed off. Scenes marked <strong class="text-white">SCREEN</strong> are real captured
+        footage of the app, not artwork.
+      </p>
+
+      <div class="mt-10 space-y-7">
+
+        <!-- ============================================= SCENE 1 — MOTION -->
+        <div class="flex gap-7">
+          <div class="shrink">
+            <div class="frame relative bg-stock text-ink">
+              <div class="flex h-full flex-col p-[80px]">
+                <p class="font-display text-[30px] font-bold uppercase tracking-[0.2em] text-overprint">
+                  Premier League · Round 4
+                </p>
+                <div class="mt-[14px] h-[6px] w-full bg-ink"></div>
+                <div class="mt-[46px] space-y-[26px] font-data text-[44px]">
+                  <div class="flex justify-between"><span>Dave M.</span><span class="text-ink-fade">Arsenal</span></div>
+                  <div class="flex justify-between line-through decoration-overprint decoration-[5px] opacity-45"><span>Sarah K.</span><span>Brighton</span></div>
+                  <div class="flex justify-between"><span>Tom B.</span><span class="text-ink-fade">Leeds</span></div>
+                  <div class="flex justify-between line-through decoration-overprint decoration-[5px] opacity-45"><span>Priya N.</span><span>Newcastle</span></div>
+                  <div class="flex justify-between"><span>Mick R.</span><span class="text-ink-fade">Everton</span></div>
+                </div>
+                <div class="mt-auto">
+                  <p class="font-display text-[150px] font-extrabold leading-[0.85]">9</p>
+                  <p class="font-display text-[34px] font-bold uppercase tracking-[0.2em] text-ink-fade">left in</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 pt-1 text-white">
+            <p class="font-display text-[15px] font-bold uppercase tracking-[0.2em] text-white/60">
+              1 · 0:00–0:03 · Motion
+            </p>
+            <h2 class="mt-1 font-display text-[27px] font-extrabold uppercase leading-tight">The sheet behind the bar</h2>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              Opens on the thing being replaced, drawn as the survival sheet the leaflet already
+              uses — typewriter data, names and teams, red strikes through the ones who are out.
+            </p>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              <strong>Motion:</strong> two names strike through one after the other and the tally
+              counts 11 → 9. No caption yet; the frame explains itself and a landlord recognises it
+              in well under a second, which is all a muted scroll gives us.
+            </p>
+          </div>
+        </div>
+
+        <!-- ============================================= SCENE 2 — MOTION -->
+        <div class="flex gap-7">
+          <div class="shrink">
+            <div class="frame relative bg-stock text-ink">
+              <div class="flex h-full flex-col justify-center p-[88px]">
+                <p class="font-display text-[62px] font-semibold uppercase leading-[1.04] text-ink-fade">
+                  You used to keep<br />that behind<br />the bar.
+                </p>
+                <p class="mt-[52px] font-display text-[86px] font-extrabold uppercase leading-[0.98] text-overprint">
+                  Now it keeps<br />itself.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 pt-1 text-white">
+            <p class="font-display text-[15px] font-bold uppercase tracking-[0.2em] text-white/60">
+              2 · 0:03–0:06 · Motion
+            </p>
+            <h2 class="mt-1 font-display text-[27px] font-extrabold uppercase leading-tight">The turn</h2>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              The leaflet's line, split across the cut. The sheet from scene 1 slides up and out as
+              the first half sets; the second half lands in overprint red on its own beat.
+            </p>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              This is the whole argument and it is delivered by second six. Everything after it is
+              evidence.
+            </p>
+          </div>
+        </div>
+
+        <!-- ============================================= SCENE 3 — SCREEN -->
+        <div class="flex gap-7">
+          <div class="shrink">
+            <div class="frame relative bg-ink">
+              <div class="flex h-full flex-col">
+                <div class="flex flex-1 items-center justify-center">
+                  <div class="w-[660px] border-[5px] border-dashed border-white/30 p-[44px] text-center">
+                    <p class="font-display text-[30px] font-bold uppercase tracking-[0.2em] text-white/55">Screen capture</p>
+                    <p class="mt-[22px] font-body text-[34px] leading-snug text-white/85">
+                      Creating the competition — name, then straight through to a live competition
+                    </p>
+                  </div>
+                </div>
+                <div class="cap bg-stock-lit px-[70px] py-[52px]">
+                  <p class="font-display text-[52px] font-bold uppercase leading-tight text-ink">
+                    Setting up takes about five minutes
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 pt-1 text-white">
+            <p class="font-display text-[15px] font-bold uppercase tracking-[0.2em] text-white/60">
+              3 · 0:06–0:09 · Screen
+            </p>
+            <h2 class="mt-1 font-display text-[27px] font-extrabold uppercase leading-tight">Starting one</h2>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              Real footage, sped up, cursor visible. The claim is the leaflet's "about five minutes",
+              and the clip has to be honest about it — if setup turns out to take longer than that
+              on camera, the caption changes rather than the edit hiding it.
+            </p>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              <strong>Caption band:</strong> stock-lit, bottom-anchored, same position for every
+              screen scene so the eye stops moving and stays on the UI.
+            </p>
+          </div>
+        </div>
+
+        <!-- ============================================= SCENE 4 — SCREEN -->
+        <div class="flex gap-7">
+          <div class="shrink">
+            <div class="frame relative bg-ink">
+              <div class="flex h-full flex-col">
+                <div class="flex flex-1 items-center justify-center">
+                  <div class="w-[660px] border-[5px] border-dashed border-white/30 p-[44px] text-center">
+                    <p class="font-display text-[30px] font-bold uppercase tracking-[0.2em] text-white/55">Screen capture</p>
+                    <p class="mt-[22px] font-body text-[34px] leading-snug text-white/85">
+                      Settings — entry fee, prize, lives, who it is open to
+                    </p>
+                  </div>
+                </div>
+                <div class="cap bg-stock-lit px-[70px] py-[52px]">
+                  <p class="font-display text-[52px] font-bold uppercase leading-tight text-ink">
+                    You choose the entry,<br />the prize and who it's for
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 pt-1 text-white">
+            <p class="font-display text-[15px] font-bold uppercase tracking-[0.2em] text-white/60">
+              4 · 0:09–0:13 · Screen
+            </p>
+            <h2 class="mt-1 font-display text-[27px] font-extrabold uppercase leading-tight">Your competition, your rules</h2>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              Bounded exactly the way the leaflets bound it — entry, prize and who it is open to are
+              things <em>you</em> control. The video never suggests a split, a recommended pot or an
+              amount, because designing the scheme reads as us operating it (terms section 6,
+              strategy section 5).
+            </p>
+          </div>
+        </div>
+
+        <!-- ============================================= SCENE 5 — SCREEN -->
+        <div class="flex gap-7">
+          <div class="shrink">
+            <div class="frame relative bg-ink">
+              <div class="flex h-full flex-col">
+                <div class="flex flex-1 items-center justify-center">
+                  <div class="w-[660px] border-[5px] border-dashed border-white/30 p-[44px] text-center">
+                    <p class="font-display text-[30px] font-bold uppercase tracking-[0.2em] text-white/55">Screen capture</p>
+                    <p class="mt-[22px] font-body text-[34px] leading-snug text-white/85">
+                      The join code on screen, then the player list filling up
+                    </p>
+                  </div>
+                </div>
+                <div class="cap bg-stock-lit px-[70px] py-[52px]">
+                  <p class="font-display text-[52px] font-bold uppercase leading-tight text-ink">
+                    They join with a code.<br />They pick on their phones.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 pt-1 text-white">
+            <p class="font-display text-[15px] font-bold uppercase tracking-[0.2em] text-white/60">
+              5 · 0:13–0:17 · Screen
+            </p>
+            <h2 class="mt-1 font-display text-[27px] font-extrabold uppercase leading-tight">Getting them in</h2>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              The join code held on screen, then names appearing in the list. This is the moment
+              that answers "so how do my lot actually get on it" — the question that kills the
+              conversation at the bar.
+            </p>
+          </div>
+        </div>
+
+        <!-- ============================================= SCENE 6 — SCREEN -->
+        <div class="flex gap-7">
+          <div class="shrink">
+            <div class="frame relative bg-ink">
+              <div class="flex h-full flex-col">
+                <div class="flex flex-1 items-center justify-center">
+                  <div class="w-[660px] border-[5px] border-dashed border-white/30 p-[44px] text-center">
+                    <p class="font-display text-[30px] font-bold uppercase tracking-[0.2em] text-white/55">Screen capture</p>
+                    <p class="mt-[22px] font-body text-[34px] leading-snug text-white/85">
+                      Results landing, standings updating, players knocked out
+                    </p>
+                  </div>
+                </div>
+                <div class="cap bg-stock-lit px-[70px] py-[52px]">
+                  <p class="font-display text-[52px] font-bold uppercase leading-tight text-ink">
+                    Matches and results load themselves.<br />
+                    <span class="text-overprint">Eliminations sort themselves out.</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 pt-1 text-white">
+            <p class="font-display text-[15px] font-bold uppercase tracking-[0.2em] text-white/60">
+              6 · 0:17–0:21 · Screen
+            </p>
+            <h2 class="mt-1 font-display text-[27px] font-extrabold uppercase leading-tight">It runs itself</h2>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              Two lines on two beats, closing the loop opened in scene 1 — the same strike-through,
+              now happening without anyone holding a pen.
+            </p>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              <strong>The fixture service is in the pitch</strong> — decided 12 Sep 2026. An
+              earlier draft left matches-and-results out because the service is technically opt-in
+              and priced, and that was too cautious: it is given to every new organiser as part of
+              the package, so for anyone watching this it is simply true. It is also the strongest
+              thing we do for a landlord and leaving it out sold the product short.
+            </p>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              The one thing to watch is shelf life, not honesty — the day it stops being included,
+              this scene needs recutting, exactly as the printed artwork carrying "free right now"
+              does.
+            </p>
+          </div>
+        </div>
+
+        <!-- ============================================= SCENE 7 — MOTION -->
+        <div class="flex gap-7">
+          <div class="shrink">
+            <div class="frame relative bg-stock text-ink">
+              <div class="flex h-full flex-col justify-center p-[88px]">
+                <p class="font-display text-[104px] font-extrabold uppercase leading-[0.92]">
+                  Run last man<br />standing<br />at the bar
+                </p>
+                <div class="mt-[40px] h-[6px] w-full bg-ink"></div>
+                <p class="mt-[40px] font-display text-[66px] font-bold uppercase leading-none text-overprint">
+                  20 players free
+                </p>
+                <p class="mt-[16px] font-body text-[40px] text-ink-fade">
+                  No card. Matches and results included.
+                </p>
+                <p class="mt-auto font-data text-[46px] font-bold">lmslocal.co.uk</p>
+              </div>
+            </div>
+          </div>
+          <div class="flex-1 pt-1 text-white">
+            <p class="font-display text-[15px] font-bold uppercase tracking-[0.2em] text-white/60">
+              7 · 0:21–0:25 · Motion
+            </p>
+            <h2 class="mt-1 font-display text-[27px] font-extrabold uppercase leading-tight">End card</h2>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              The leaflet's headline, the only two figures worth carrying, and the URL. Held four
+              seconds — long enough to read twice, because a muted viewer reads slower.
+            </p>
+            <p class="mt-2 text-[15px] leading-relaxed text-white/85">
+              <strong>Open question:</strong> whether this card carries a tracking path the way the
+              leaflet's QR does (<span class="font-data">/bar-a</span>). A plain
+              <span class="font-data">lmslocal.co.uk</span> is typed more reliably but produces no
+              number, and the leaflet's whole measurement argument says the number matters.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================================================= PRODUCTION NOTE -->
+      <div class="mt-12 border-t-[3px] border-white/30 pt-7 text-white">
+        <h2 class="font-display text-[24px] font-extrabold uppercase">Notes for the render</h2>
+        <ul class="mt-3 max-w-[860px] list-disc space-y-2 pl-5 text-[15px] leading-relaxed text-white/85">
+          <li>
+            25s total, 30fps, 750 frames. Motion scenes render through Chrome's virtual time budget
+            the way <span class="font-data">make-png.js</span> already drives it, so frame 200 is
+            always the same pixels and a re-render is reproducible.
+          </li>
+          <li>
+            Screen scenes are captured separately at 1920×1080 and cropped to square on the action —
+            capturing at square loses the app's layout entirely.
+          </li>
+          <li>
+            <strong>Silent.</strong> No music in v1: a licensed track can be muxed in later with
+            ffmpeg without touching the picture.
+          </li>
+          <li>
+            Facebook's feed caps usefully at about 30s for this kind of post, so 25s leaves headroom
+            and nothing needs cutting if a scene runs long in the edit.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>

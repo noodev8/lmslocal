@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>LMSLocal — landlord promo, 1080×1080</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../_shared/brand.js"></script>
+    <style>
+      html, body { margin: 0; background: #8b8f86; }
+      /* The canvas is a fixed 1080 square because that is the delivered size.
+         make-video.js sizes the Chrome viewport to match and captures this node
+         directly, so anything outside it never reaches a frame. */
+      #stage {
+        width: 1080px;
+        height: 1080px;
+        position: relative;
+        overflow: hidden;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: none;
+      }
+      .scene.on { display: block; }
+      /* Struck-out rows draw their own rule rather than using line-through, so
+         the strike can be animated across the row instead of just appearing. */
+      .strike {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        height: 5px;
+        background: #C8341E;
+        transform-origin: left center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!--
+      The film itself, 25s at 1080x1080. Rendered by make-video.js.
+
+      DETERMINISTIC BY CONSTRUCTION. There are no CSS animations and no
+      timers anywhere in this file: every moving property is written by
+      seek(t), which is a pure function of the timestamp. The renderer calls
+      seek(frame / FPS * 1000) and screenshots, so frame 412 is identical on
+      every run and on every machine. CSS keyframes plus a virtual time budget
+      was the obvious alternative and is not reproducible - fonts, layout and
+      the compositor all settle at slightly different moments, and a frame
+      caught mid-settle differs run to run.
+
+      That also means you can scrub it by hand. Open this page and call
+      seek(8200) from the console to see exactly what the renderer will draw
+      at 8.2 seconds.
+
+      Scenes 3-6 are placeholders. The real app footage is captured separately
+      and dropped in over these; the caption bands are final and animate here
+      so the reading rhythm can be judged before any filming happens.
+    -->
+
+    <div id="stage" class="bg-stock font-body text-ink">
+
+      <!-- ========================================== SCENE 1 - the sheet -->
+      <section class="scene" data-scene="1">
+        <div class="flex h-full flex-col p-[80px]">
+          <p class="font-display text-[30px] font-bold uppercase tracking-[0.2em] text-overprint">
+            Premier League · Round 4
+          </p>
+          <div id="s1rule" class="mt-[14px] h-[6px] bg-ink"></div>
+
+          <div class="mt-[46px] space-y-[26px] font-data text-[44px]" id="s1rows">
+            <div class="relative flex justify-between"><span>Dave M.</span><span class="text-ink-fade">Arsenal</span></div>
+            <div class="relative flex justify-between"><span>Sarah K.</span><span class="text-ink-fade">Brighton</span><i class="strike" data-strike="0"></i></div>
+            <div class="relative flex justify-between"><span>Tom B.</span><span class="text-ink-fade">Leeds</span></div>
+            <div class="relative flex justify-between"><span>Priya N.</span><span class="text-ink-fade">Newcastle</span><i class="strike" data-strike="1"></i></div>
+            <div class="relative flex justify-between"><span>Mick R.</span><span class="text-ink-fade">Everton</span></div>
+          </div>
+
+          <div class="mt-auto">
+            <p id="s1tally" class="font-display text-[150px] font-extrabold leading-[0.85]">11</p>
+            <p class="font-display text-[34px] font-bold uppercase tracking-[0.2em] text-ink-fade">left in</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== SCENE 2 - the turn -->
+      <section class="scene" data-scene="2">
+        <div class="flex h-full flex-col justify-center p-[88px]">
+          <p id="s2a" class="font-display text-[62px] font-semibold uppercase leading-[1.04] text-ink-fade">
+            You used to keep<br />that behind<br />the bar.
+          </p>
+          <p id="s2b" class="mt-[52px] font-display text-[86px] font-extrabold uppercase leading-[0.98] text-overprint">
+            Now it keeps<br />itself.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================================= SCENES 3-6 - captured footage -->
+      <section class="scene" data-scene="3"></section>
+      <section class="scene" data-scene="4"></section>
+      <section class="scene" data-scene="5"></section>
+      <section class="scene" data-scene="6"></section>
+
+      <!-- ========================================== SCENE 7 - end card -->
+      <section class="scene" data-scene="7">
+        <div class="flex h-full flex-col justify-center p-[88px]">
+          <p id="s7h" class="font-display text-[104px] font-extrabold uppercase leading-[0.92]">
+            Run last man<br />standing<br />at the bar
+          </p>
+          <div id="s7rule" class="mt-[40px] h-[6px] bg-ink"></div>
+          <p id="s7free" class="mt-[40px] font-display text-[66px] font-bold uppercase leading-none text-overprint">
+            20 players free
+          </p>
+          <p id="s7sub" class="mt-[16px] font-body text-[40px] text-ink-fade">
+            No card. Matches and results included.
+          </p>
+          <p id="s7url" class="mt-auto font-data text-[46px] font-bold">lmslocal.co.uk</p>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      /* ------------------------------------------------------------------
+       * The cut. Every scene is [start, end) in milliseconds.
+       * Changing a number here is the only way to retime the film; nothing
+       * below hardcodes a duration.
+       * ---------------------------------------------------------------- */
+      const CUT = [
+        { n: 1, from: 0,     to: 3000  },
+        { n: 2, from: 3000,  to: 6000  },
+        { n: 3, from: 6000,  to: 11000,
+                 cap: 'Setting up takes about five minutes',
+                 shots: ['create-details.png'], switchAt: [0] },
+        { n: 4, from: 11000, to: 16500,
+                 cap: 'We add the matches and the results.\n@You just invite players.',
+                 shots: ['create-rules.png'], switchAt: [0] },
+        { n: 5, from: 16500, to: 22000,
+                 cap: 'Send them a link, a code or the QR.\n@Or add them as guests yourself.',
+                 shots: ['invite-qr.png', 'invite-guests.png'], switchAt: [0, 3100] },
+        { n: 6, from: 22000, to: 29000,
+                 cap: 'They pick on their phones.\n@Eliminations sort themselves out.',
+                 shots: ['pick-before.png', 'pick-after.png', 'standings.png'],
+                 switchAt: [0, 1450, 4400],
+                 // The pointer is the only thing in the film that is not a
+                 // screenshot or a caption. It exists because the pick was the
+                 // one beat that read as a cut rather than an action: two
+                 // near-identical screens swapping with nothing to explain why.
+                 // Target is the Arsenal row, in percent of the shot box.
+                 cursor: { from: [34, 24], to: [74.5, 62], moveAt: 150, moveLen: 1050,
+                           clickAt: 1250, hideAt: 4150 } },
+        { n: 7, from: 29000, to: 34000 },
+      ];
+      const DURATION = CUT[CUT.length - 1].to;
+
+      /* Ease-out cubic. Everything decelerates into place; nothing in this
+         film eases in, because a caption that accelerates away from rest
+         reads as a wobble at 30fps. */
+      const ease = (x) => 1 - Math.pow(1 - x, 3);
+      const clamp = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+
+      /* Progress through a window that starts at `at` and lasts `len`.
+         Before it, 0; after it, 1. This is the only timing primitive. */
+      const p = (t, at, len) => ease(clamp((t - at) / len));
+
+      /* Build the four app scenes from CUT, so a caption and its shot only ever
+         exist in one place. The shots are real screenshots of the live site,
+         cropped to the app's own column - see video/shots/. */
+      for (const c of CUT.filter((c) => c.cap)) {
+        const el = document.querySelector(`[data-scene="${c.n}"]`);
+        el.className = 'scene bg-stock-deep';
+        const lines = c.cap.split('\n').map((l) =>
+          l.startsWith('@')
+            ? `<span class="text-overprint">${l.slice(1)}</span>`
+            : l
+        ).join('<br />');
+        const imgs = c.shots.map((src, i) =>
+          // object-contain, not cover. The shots are different shapes and cover
+          // crops the sides off the wide ones - the standings lost its whole
+          // left column that way. Contained, every shot is whole and the stock
+          // behind it reads as a deliberate mount.
+          //
+          // The opaque wrapper is what makes the second shot replace the first
+          // rather than blend with it: a contained image letterboxes, so fading
+          // a bare <img> in over another leaves the one underneath showing
+          // through the bars.
+          `<div data-shot="${i}" class="absolute inset-0 bg-stock-deep">
+             <img src="shots/${src}" class="h-full w-full object-contain" />
+           </div>`
+        ).join('');
+        // The pointer and its click ring. Drawn rather than captured, because a
+        // real cursor does not appear in a screenshot at all.
+        const cursor = !c.cursor ? '' : `
+          <div id="ring${c.n}" class="pointer-events-none absolute h-[86px] w-[86px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[5px] border-overprint"></div>
+          <svg id="cur${c.n}" class="pointer-events-none absolute" width="42" height="56" viewBox="0 0 24 32">
+            <path d="M2 2 L2 25 L8.5 19 L12.5 29 L16.5 27 L12.5 17.5 L20.5 17.5 Z"
+                  fill="#1C2620" stroke="#F2F3EC" stroke-width="1.8" stroke-linejoin="round" />
+          </svg>`;
+
+        el.innerHTML = `
+          <div class="flex h-full flex-col">
+            <div id="shot${c.n}" class="relative flex-1 overflow-hidden">${imgs}${cursor}</div>
+            <div id="cap${c.n}" class="bg-stock-lit px-[70px] py-[52px]">
+              <p class="font-display text-[52px] font-bold uppercase leading-tight text-ink">${lines}</p>
+            </div>
+          </div>`;
+      }
+
+      /* The renderer waits on this before the first frame. document.fonts.ready
+         is not enough once there are images: an undecoded screenshot paints as
+         nothing, and the first second of every app scene came out blank. */
+      window.READY = Promise.all(
+        [...document.images].map((img) => img.decode().catch(() => {}))
+      );
+
+      const $ = (id) => document.getElementById(id);
+      const scenes = [...document.querySelectorAll('.scene')];
+
+      /* ------------------------------------------------------------------
+       * seek(t) - draw the film at exactly t milliseconds.
+       * Pure: same t always produces the same pixels.
+       * ---------------------------------------------------------------- */
+      function seek(t) {
+        t = clamp(t / DURATION) * DURATION;
+        const cut = CUT.find((c) => t >= c.from && t < c.to) || CUT[CUT.length - 1];
+        const u = t - cut.from;                    // time within the scene
+        scenes.forEach((s) => s.classList.toggle('on', +s.dataset.scene === cut.n));
+
+        if (cut.n === 1) {
+          $('s1rule').style.width = (p(u, 0, 500) * 100) + '%';
+
+          // Rows arrive top to bottom, 90ms apart, so the eye is led down the
+          // sheet rather than having the whole block appear at once.
+          [...$('s1rows').children].forEach((row, i) => {
+            const a = p(u, 300 + i * 90, 420);
+            row.style.opacity = a;
+            row.style.transform = `translateY(${(1 - a) * 14}px)`;
+          });
+
+          // The two strikes, then the tally. The tally changes ON the strike
+          // landing, not after it, so cause and effect read as one event.
+          document.querySelectorAll('[data-strike]').forEach((s, i) => {
+            const at = 1250 + i * 620;
+            const g = p(u, at, 340);
+            s.style.width = '100%';
+            s.style.transform = `scaleX(${g})`;
+            s.closest('div').style.opacity = 1 - g * 0.55;
+          });
+          $('s1tally').textContent = u >= 1870 ? '9' : u >= 1250 ? '10' : '11';
+        }
+
+        if (cut.n === 2) {
+          const a = p(u, 100, 600);
+          $('s2a').style.opacity = a;
+          $('s2a').style.transform = `translateY(${(1 - a) * 22}px)`;
+          const b = p(u, 1100, 520);
+          $('s2b').style.opacity = b;
+          // Overshoots to 1.0 from slightly small - the only scale move in the
+          // film, and it is on the line the whole thing is built around.
+          $('s2b').style.transform = `translateY(${(1 - b) * 26}px) scale(${0.94 + b * 0.06})`;
+        }
+
+        if (cut.cap) {
+          const band = $('cap' + cut.n), shot = $('shot' + cut.n);
+          const len = cut.to - cut.from;
+
+          const a = p(u, 120, 460);
+          band.style.transform = `translateY(${(1 - a) * 100}%)`;
+
+          // A slow push-in over the whole scene. 3% is deliberately almost
+          // invisible: enough that a still screenshot does not read as a
+          // freeze, not enough to notice as a zoom.
+          const imgs = [...shot.querySelectorAll('[data-shot]')];
+          const push = 1 + (u / len) * 0.03;
+
+          // Each shot appears at its own switchAt. The switch is fast - 180ms,
+          // read as a cut with a soft edge rather than a dissolve: a long
+          // cross-fade between two screens overlays two sets of text and both
+          // become unreadable for half a second.
+          imgs.forEach((img, i) => {
+            img.style.transform = `scale(${push})`;
+            img.style.opacity = i === 0 ? p(u, 0, 400) : p(u, cut.switchAt[i], 180);
+          });
+
+          if (cut.cursor) {
+            const c = cut.cursor;
+            const m = p(u, c.moveAt, c.moveLen);
+            const x = c.from[0] + (c.to[0] - c.from[0]) * m;
+            const y = c.from[1] + (c.to[1] - c.from[1]) * m;
+            const gone = p(u, c.hideAt, 300);
+
+            const cur = $('cur' + cut.n);
+            cur.style.left = x + '%';
+            cur.style.top = y + '%';
+            cur.style.opacity = p(u, 0, 300) * (1 - gone);
+
+            // The ring expands and fades once, on the click. Nothing loops:
+            // a pulsing ring on a still screen reads as a broken animation.
+            const k = clamp((u - c.clickAt) / 420);
+            const ring = $('ring' + cut.n);
+            ring.style.left = c.to[0] + '%';
+            ring.style.top = c.to[1] + '%';
+            ring.style.transform = `translate(-50%, -50%) scale(${0.3 + k * 0.9})`;
+            ring.style.opacity = k > 0 && k < 1 ? (1 - k) * 0.9 : 0;
+          }
+        }
+
+        if (cut.n === 7) {
+          const h = p(u, 100, 620);
+          $('s7h').style.opacity = h;
+          $('s7h').style.transform = `translateY(${(1 - h) * 24}px)`;
+          $('s7rule').style.width = (p(u, 620, 520) * 100) + '%';
+          const f = p(u, 900, 460);
+          $('s7free').style.opacity = f;
+          $('s7free').style.transform = `translateY(${(1 - f) * 16}px)`;
+          $('s7sub').style.opacity = p(u, 1180, 460);
+          $('s7url').style.opacity = p(u, 1450, 520);
+        }
+      }
+
+      window.seek = seek;
+      window.FILM_DURATION = DURATION;
+      seek(0);
+    </script>
+  </body>
+</html>
