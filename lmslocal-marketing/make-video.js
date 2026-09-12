@@ -264,7 +264,30 @@ server.listen(PORT, async () => {
       console.error(`No such folder: ${pub}`);
       process.exit(1);
     }
-    fs.copyFileSync(DEST, path.join(pub, 'promo.mp4'));
+    /*
+     * The web copy is encoded separately rather than copied, at a much higher
+     * crf. The master in out/ stays at crf 18 because Facebook re-encodes
+     * whatever it is given and you want its input clean; the site serves the
+     * file to a browser as-is and wants it small.
+     *
+     * crf 28 is a quarter the size of crf 18 here - 4012 KB down to ~1000 KB -
+     * and the two are indistinguishable at 1:1 on a moving frame of the
+     * densest small text in the film. That is not a general claim about crf 28:
+     * this film is flat colour, sharp type and almost no motion, which x264
+     * handles far better than the live action those defaults are meant for.
+     * Re-check by eye if the film ever gains photography.
+     */
+    await run('ffmpeg', [
+      '-y', '-loglevel', 'error',
+      '-framerate', String(fps),
+      '-i', path.join(FRAME_DIR, '%05d.png'),
+      '-c:v', 'libx264',
+      '-pix_fmt', 'yuv420p',
+      '-crf', '28',
+      '-preset', 'slow',
+      '-movflags', '+faststart',
+      path.join(pub, 'promo.mp4'),
+    ]);
 
     // The poster is the title card at rest, not frame 0 - frame 0 is the veil,
     // so a still of it is a blank rectangle.
