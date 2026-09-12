@@ -44,11 +44,23 @@ MINUS ANYONE WHO HAS ALREADY PICKED IN THE NEXT ROUND (added 2026-08-25). The em
 bring the player back to the app; if they are already there and have picked, it has nothing left
 to do. The organiser is exempt - their copy is also the competition-wide report.
 
-MINUS ANYONE WHO CAN NO LONGER PICK (added 2026-08-26). Once round N+1 locks, a player still in
-and still without a pick has missed it, and the email would show them a passed deadline. Same
-two exemptions - the organiser, and eliminated players, whose copy is the news that they went
-out rather than an invitation. Eliminated players are deliberately NOT cut off at lock: this is
-their only notification, and their window is already the shortest of anyone's.
+MINUS EVERYONE ONCE ROUND N+1 LOCKS (added 2026-08-26, widened 2026-09-12). A player still in and
+still without a pick has missed it, and the email would show them a passed deadline. The ORGANISER
+is the single exemption: their copy is the competition-wide report, which does not stop being true
+at kickoff - and services/emailService.js reads the lock time again at send time so their copy says
+"under way" rather than naming a deadline that has gone.
+
+Eliminated players were exempt too until 2026-09-12, on the reasoning that this is their only
+notification and their window was the shortest of anyone's. The second half was simply wrong: a
+round settles on the Sunday night and the next locks the following Saturday, so their window was
+close to six days, not a sliver. What the exemption actually bought was an email that could still
+be sent a week late, after the round it opens had been played - which is what it looked like on
+the admin screen, an offer to send that never expired. It now expires with everybody else's.
+
+The cost, accepted: if nobody presses the button before lock, an eliminated player is never told
+they went out at all. Silence is the better of the two. By then they have watched a round play out
+without them and the news has told itself; an email arriving after that is not news, it is a
+system admitting it was late.
 
 Two different questions, deliberately answered from two places:
   - "did your team win?"    -> player_progress.outcome for this round
@@ -279,28 +291,26 @@ async function findCandidates(opts = {}) {
       passed and asked the player to pick. That is the founding rule broken: not a dead end
       because there is nothing next, but because what is next cannot be entered.
 
-      The same two exemptions as the pick clause above, and for the same reasons:
+      ONE exemption, the ORGANISER: their copy is the competition-wide report, which is not a
+      prompt to pick and does not stop being true at kickoff. The template re-reads the lock time
+      when the row is drained, so what they get after lock says the round is under way instead of
+      naming a deadline and offering a pick button - see buildRoundOverEmail.
 
-        - The ORGANISER's copy is the competition-wide report, which is not a prompt to pick and
-          does not stop being true at kickoff.
+      ELIMINATED PLAYERS ARE NO LONGER EXEMPT (2026-09-12). They were, on the grounds that this is
+      their only notification and that lock would shrink an already short window. The window was
+      never short - Sunday night to the following Saturday - and the exemption's real effect was an
+      offer to send that never expired, still sitting on the admin screen a week later proposing to
+      announce a round that had since been played. See the header block for the cost.
 
-        - An ELIMINATED player has nothing to pick and never did. For them this is not an
-          invitation but the only notification they ever get that they went out - they hold no
-          player_progress row for the next round, so once it is processed they can never be a
-          candidate again. Cutting them off at lock would shrink the one window they have, and
-          they are already the group most likely to miss it.
-
-      So this withdraws the email from exactly the people it has become useless to: still in,
-      still not picked, and now unable to. They are told nothing instead of told wrongly, which
-      is the better of the two - a message saying what they missed is a different email, and
-      deliberately not this one.
+      So this withdraws the email from everyone it has become useless to. They are told nothing
+      instead of told wrongly, which is the better of the two - a message saying what they missed
+      is a different email, and deliberately not this one.
 
       A missing lock_time counts as OPEN. Every round carries one today, so this is a guard
       rather than a case; silently withholding is the worse way to be wrong.
       */
       AND (
         pp.player_id = c.organiser_id
-        OR cu.status <> 'active'
         OR next_round.lock_time IS NULL
         OR next_round.lock_time > NOW()
       )
