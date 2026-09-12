@@ -14,3 +14,13 @@ docs/
 *.mov
 *.avi
 server-check.txt
+
+# ...except the promo the landing page actually plays. The globs above exist to keep stray
+# recordings out of a deploy, and they did that job silently to lmslocal-web/public/promo.mp4
+# as well: the file was committed, the build succeeded, the poster beside it served fine, and
+# the video 404ed because it had been deleted before the build ever ran. Nothing in the build
+# log says so - "Collected static files" reports success either way.
+#
+# Negation only works because no parent directory of this path is excluded above. If
+# lmslocal-web/ were ever listed here, this line would stop working and could not be made to.
+!lmslocal-web/public/*.mp4
