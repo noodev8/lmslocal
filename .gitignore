@@ -138,3 +138,29 @@ lmslocal-marketing/list/pool.json
 lmslocal-marketing/list/pool.csv
 lmslocal-marketing/list/batch-*.csv
 lmslocal-marketing/list/__pycache__/
+
+# ---------------------------------------------------------------------------
+# Next.js app rules, folded in from lmslocal-web/.gitignore and
+# lmslocal-admin/.gitignore when those were deleted. Both were near-copies of
+# the create-next-app default and of each other, and everything else they
+# listed - node_modules/, .next/, out/, .env*, .vercel, *.log, .DS_Store - was
+# already covered above. One file per app meant three places to keep in step
+# and no reason for any of them to differ.
+#
+# The six .gitignore files under lmslocal-flutter/ are deliberately NOT folded
+# in here: they are generated scaffolding, one per platform folder, they cover
+# build output this file says nothing about, and `flutter create` writes them
+# back anyway.
+# ---------------------------------------------------------------------------
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+build/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
