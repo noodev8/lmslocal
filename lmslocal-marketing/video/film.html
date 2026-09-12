@@ -37,7 +37,9 @@
 
   <body>
     <!--
-      The film itself, 25s at 1080x1080. Rendered by make-video.js.
+      The film itself, 1080x1080. Rendered by make-video.js. The length is
+      whatever CUT below adds up to - do not repeat it here, it has already
+      gone stale once.
 
       DETERMINISTIC BY CONSTRUCTION. There are no CSS animations and no
       timers anywhere in this file: every moving property is written by
@@ -52,9 +54,13 @@
       seek(8200) from the console to see exactly what the renderer will draw
       at 8.2 seconds.
 
-      Scenes 3-6 are placeholders. The real app footage is captured separately
-      and dropped in over these; the caption bands are final and animate here
-      so the reading rhythm can be judged before any filming happens.
+      Scenes 3-6 are real screenshots of the live site, cropped to the app's
+      own column, in shots/. Scene 6 is the only one that animates anything
+      over them: a drawn pointer and a click ring, because a pick shown as a
+      straight cut reads as the screen changing by itself.
+
+      The head and tail fade through #veil, matched to the stock. Without them
+      the film opened on a half-built frame and stopped dead on the end card.
     -->
 
     <div id="stage" class="bg-stock font-body text-ink">
@@ -100,6 +106,11 @@
       <section class="scene" data-scene="5"></section>
       <section class="scene" data-scene="6"></section>
 
+      <!-- The top and tail. One element over everything, matched to the stock
+           so the film opens out of the paper and closes back into it rather
+           than cutting from nothing to a half-built frame. -->
+      <div id="veil" class="pointer-events-none absolute inset-0 z-10 bg-stock"></div>
+
       <!-- ========================================== SCENE 7 - end card -->
       <section class="scene" data-scene="7">
         <div class="flex h-full flex-col justify-center p-[88px]">
@@ -125,18 +136,18 @@
        * below hardcodes a duration.
        * ---------------------------------------------------------------- */
       const CUT = [
-        { n: 1, from: 0,     to: 3000  },
-        { n: 2, from: 3000,  to: 6000  },
-        { n: 3, from: 6000,  to: 11000,
+        { n: 1, from: 0,     to: 3800  },
+        { n: 2, from: 3800,  to: 6800  },
+        { n: 3, from: 6800,  to: 11800,
                  cap: 'Setting up takes about five minutes',
                  shots: ['create-details.png'], switchAt: [0] },
-        { n: 4, from: 11000, to: 16500,
+        { n: 4, from: 11800, to: 17300,
                  cap: 'We add the matches and the results.\n@You just invite players.',
                  shots: ['create-rules.png'], switchAt: [0] },
-        { n: 5, from: 16500, to: 22000,
+        { n: 5, from: 17300, to: 22800,
                  cap: 'Send them a link, a code or the QR.\n@Or add them as guests yourself.',
                  shots: ['invite-qr.png', 'invite-guests.png'], switchAt: [0, 3100] },
-        { n: 6, from: 22000, to: 29000,
+        { n: 6, from: 22800, to: 29800,
                  cap: 'They pick on their phones.\n@Eliminations sort themselves out.',
                  shots: ['pick-before.png', 'pick-after.png', 'standings.png'],
                  switchAt: [0, 1450, 4400],
@@ -147,7 +158,7 @@
                  // Target is the Arsenal row, in percent of the shot box.
                  cursor: { from: [34, 24], to: [74.5, 62], moveAt: 150, moveLen: 1050,
                            clickAt: 1250, hideAt: 4150 } },
-        { n: 7, from: 29000, to: 34000 },
+        { n: 7, from: 29800, to: 34800 },
       ];
       const DURATION = CUT[CUT.length - 1].to;
 
@@ -224,13 +235,20 @@
         const u = t - cut.from;                    // time within the scene
         scenes.forEach((s) => s.classList.toggle('on', +s.dataset.scene === cut.n));
 
+        // Fade up at the head, down at the tail. Whichever is stronger wins,
+        // so the two can never fight over the same frame.
+        $('veil').style.opacity = Math.max(
+          1 - p(t, 0, 620),
+          p(t, DURATION - 900, 900)
+        );
+
         if (cut.n === 1) {
-          $('s1rule').style.width = (p(u, 0, 500) * 100) + '%';
+          $('s1rule').style.width = (p(u, 400, 500) * 100) + '%';
 
           // Rows arrive top to bottom, 90ms apart, so the eye is led down the
           // sheet rather than having the whole block appear at once.
           [...$('s1rows').children].forEach((row, i) => {
-            const a = p(u, 300 + i * 90, 420);
+            const a = p(u, 700 + i * 90, 420);
             row.style.opacity = a;
             row.style.transform = `translateY(${(1 - a) * 14}px)`;
           });
@@ -238,13 +256,17 @@
           // The two strikes, then the tally. The tally changes ON the strike
           // landing, not after it, so cause and effect read as one event.
           document.querySelectorAll('[data-strike]').forEach((s, i) => {
-            const at = 1250 + i * 620;
-            const g = p(u, at, 340);
+            const g = p(u, 1650 + i * 620, 340);
             s.style.width = '100%';
             s.style.transform = `scaleX(${g})`;
-            s.closest('div').style.opacity = 1 - g * 0.55;
+            // Multiply by the row's own arrival, never replace it: assigning
+            // opacity here overrode the stagger above and the two struck rows
+            // turned up before the rest of the sheet existed.
+            const row = s.closest('div');
+            const arrived = p(u, 700 + (1 + i * 2) * 90, 420);
+            row.style.opacity = arrived * (1 - g * 0.55);
           });
-          $('s1tally').textContent = u >= 1870 ? '9' : u >= 1250 ? '10' : '11';
+          $('s1tally').textContent = u >= 2270 ? '9' : u >= 1650 ? '10' : '11';
         }
 
         if (cut.n === 2) {
