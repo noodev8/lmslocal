@@ -44,23 +44,31 @@ MINUS ANYONE WHO HAS ALREADY PICKED IN THE NEXT ROUND (added 2026-08-25). The em
 bring the player back to the app; if they are already there and have picked, it has nothing left
 to do. The organiser is exempt - their copy is also the competition-wide report.
 
-MINUS EVERYONE ONCE ROUND N+1 LOCKS (added 2026-08-26, widened 2026-09-12). A player still in and
-still without a pick has missed it, and the email would show them a passed deadline. The ORGANISER
-is the single exemption: their copy is the competition-wide report, which does not stop being true
-at kickoff - and services/emailService.js reads the lock time again at send time so their copy says
-"under way" rather than naming a deadline that has gone.
+MINUS EVERYONE ONCE ROUND N+1 LOCKS (added 2026-08-26, made absolute 2026-09-12). THE EMAIL DIES
+WHEN THE ROUND IT OPENS KICKS OFF. No exemptions, and that is the point of it - the two that used
+to be here both rotted the same way.
 
-Eliminated players were exempt too until 2026-09-12, on the reasoning that this is their only
-notification and their window was the shortest of anyone's. The second half was simply wrong: a
-round settles on the Sunday night and the next locks the following Saturday, so their window was
-close to six days, not a sliver. What the exemption actually bought was an email that could still
-be sent a week late, after the round it opens had been played - which is what it looked like on
-the admin screen, an offer to send that never expired. It now expires with everybody else's.
+Eliminated players were exempt because this is their only notification and lock was said to shrink
+an already short window. The window was never short: a round settles on the Sunday night and the
+next locks the following Saturday.
 
-The cost, accepted: if nobody presses the button before lock, an eliminated player is never told
-they went out at all. Silence is the better of the two. By then they have watched a round play out
-without them and the news has told itself; an email arriving after that is not news, it is a
-system admitting it was late.
+The organiser was exempt because their copy carries the competition-wide report, which was held not
+to stop being true at kickoff. True on the Monday. Not true six days later, when the survivor
+counts it quotes are about to be overwritten by a round already being played - and the organiser
+needs an email about a round less than anyone, having keyed the results themselves.
+
+What both bought was an offer to send that never expired: a card on the admin screen still
+proposing, a week on, to announce a round that had since been played. BEING LATE IS A FACT ABOUT
+THE SEND, NOT ABOUT THE READER, so it cannot be argued away one group at a time.
+
+The cost, accepted: if nobody presses the button before lock, nobody is told at all - an eliminated
+player never learns by email that they went out. Silence is the better of the two. By then they
+have watched a round play out without them and the news has told itself; an email arriving after
+that is not news, it is a system admitting it was late.
+
+The queue-to-send gap is a separate matter and is still covered: a row can be queued while the
+round is open and drained after it locks, so services/emailService.js re-reads the lock time when
+it builds the email and drops the deadline, the fixture list and the pick button if it has passed.
 
 Two different questions, deliberately answered from two places:
   - "did your team win?"    -> player_progress.outcome for this round
@@ -291,16 +299,24 @@ async function findCandidates(opts = {}) {
       passed and asked the player to pick. That is the founding rule broken: not a dead end
       because there is nothing next, but because what is next cannot be entered.
 
-      ONE exemption, the ORGANISER: their copy is the competition-wide report, which is not a
-      prompt to pick and does not stop being true at kickoff. The template re-reads the lock time
-      when the row is drained, so what they get after lock says the round is under way instead of
-      naming a deadline and offering a pick button - see buildRoundOverEmail.
+      NO EXEMPTIONS (2026-09-12). Both of the ones that used to be here are gone, and they went for
+      the same reason rather than two:
 
-      ELIMINATED PLAYERS ARE NO LONGER EXEMPT (2026-09-12). They were, on the grounds that this is
-      their only notification and that lock would shrink an already short window. The window was
-      never short - Sunday night to the following Saturday - and the exemption's real effect was an
-      offer to send that never expired, still sitting on the admin screen a week later proposing to
-      announce a round that had since been played. See the header block for the cost.
+        - ELIMINATED PLAYERS were exempt because this is their only notification and lock was said
+          to shrink an already short window. The window was never short - a round settles on the
+          Sunday night and the next locks the following Saturday.
+
+        - The ORGANISER was exempt because their copy is the competition-wide report, which was
+          held not to stop being true at kickoff. True on the Monday. Not true six days later,
+          when the survivor counts it quotes are about to be overwritten by a round already being
+          played - and the organiser is the one person who needs an email about a round least,
+          having keyed the results themselves.
+
+      What both exemptions actually bought was an offer to send that never expired: a card on the
+      admin screen still proposing, a week on, to announce a round that had since been played.
+      Being late is a fact about the send, not about the reader, so it cannot be argued away one
+      group at a time. The rule states itself now - THE EMAIL DIES WHEN THE ROUND IT OPENS KICKS
+      OFF - and a rule with no exemptions is one that cannot rot at the edges.
 
       So this withdraws the email from everyone it has become useless to. They are told nothing
       instead of told wrongly, which is the better of the two - a message saying what they missed
@@ -310,8 +326,7 @@ async function findCandidates(opts = {}) {
       rather than a case; silently withholding is the worse way to be wrong.
       */
       AND (
-        pp.player_id = c.organiser_id
-        OR next_round.lock_time IS NULL
+        next_round.lock_time IS NULL
         OR next_round.lock_time > NOW()
       )
 

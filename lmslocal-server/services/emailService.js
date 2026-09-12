@@ -2958,11 +2958,11 @@ const buildRoundOverEmail = (email, templateData) => {
   template_data - the row is queued by one operator press and drained by another, so a flag baked
   in at queue time would say "open" about a round that kicked off in between.
 
-  Only two kinds of recipient can reach this branch. services/roundOver.js withdraws every active
-  player once the next round locks, and exempts exactly the organiser and the eliminated. The
-  eliminated already read the same degraded copy via `survived`; this is what makes it true for
-  the ORGANISER too, whose exemption is meant to keep their competition-wide report flowing, not
-  to hand them a deadline that has passed and a pick button that no longer works.
+  services/roundOver.js will not select anybody once the next round has locked - no exemptions since
+  2026-09-12 - so this covers the window between the two presses only. That window is real: a row
+  queued at lunchtime on a Saturday and drained after three o'clock would otherwise name a deadline
+  that has gone and offer a pick button that no longer works, which is the exact thing the
+  candidate rule exists to prevent.
   */
   const nextRoundLocked = next_deadline ? new Date(next_deadline) <= new Date() : false;
 
