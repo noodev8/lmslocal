@@ -1,7 +1,7 @@
 # lmslocal-marketing
 
-Print and social artwork: leaflets, Facebook posts, anything that ends up as a PDF or a PNG
-rather than a page on the site.
+Print and social artwork: leaflets, Facebook posts, anything that ends up as a PDF, a PNG or an
+MP4 rather than a page on the site.
 
 **This folder is not part of any app.** It has no `package.json`, no build step, no
 `node_modules`, and nothing here is imported by `lmslocal-web`, `lmslocal-admin` or the server.
@@ -20,6 +20,7 @@ and is reachable by URL, so a half-finished leaflet would be live on the interne
 ```
 make-pdf.js         Build a print-ready PDF from a leaflet. Start here.
 make-png.js         Render an OG image to lmslocal-web/public/. Tiles only.
+make-video.js       Render video/film.html to an MP4 in out/. Video only.
 _shared/brand.js    Tailwind token config + Google Fonts. Load on every page.
 _shared/print.css   Print rules, screen preview desk, trim/safe guides. Leaflets only.
 _shared/bleed.js    `?bleed` print-shop mode: sheet +3mm per side. Leaflets only.
@@ -34,6 +35,8 @@ leaflet/            Print artwork. a5-test.html is the pipeline reference.
 social/             Fixed-size tiles for Facebook etc. See social/README.md.
 ai-brief/           Prompts for generating artwork with an image model instead of
                     laying it out here. Clubs only so far. See ai-brief/README.md.
+video/              film.html is the film; storyboard-landlord.html is the plan it
+                    was approved from. shots/ holds the app screenshots it cuts to.
 out/                Exported PDFs and PNGs. Git-ignored — scratch.
 press/              PDFs actually sent to a printer. Tracked. See press/README.md.
 ```
@@ -182,6 +185,49 @@ Facebook sizes are fixed pixel canvases, so a 1:1 screenshot is already native r
 
 Screenshot at device pixel ratio 1 — on a HiDPI screen use Chrome DevTools' device toolbar and
 set DPR to 1, or the tile comes out 2160px and Facebook re-compresses it.
+
+## Making a video
+
+```bash
+cd lmslocal-marketing
+node make-video.js           # out/promo-landlord.mp4
+node make-video.js --fast    # half frame rate, for a quick look while editing
+```
+
+There is one film so far: `video/film.html`, 1080×1080, for the landlord audience. The length is
+whatever the `CUT` array at the top of that file adds up to — **retime it there and nowhere else.**
+
+**It is rendered a frame at a time, not screen-recorded.** `film.html` contains no CSS animations
+and no timers: it exposes `seek(t)`, a pure function of the timestamp, and `make-video.js` steps
+time by hand, screenshots each frame through the DevTools protocol, and hands the lot to ffmpeg.
+So a given frame is identical on every run and on every machine. A recorder captures whatever the
+machine managed to paint, which drops frames under load and makes an animation problem
+indistinguishable from a busy laptop.
+
+That also means you can scrub it: open the page and call `seek(8200)` in the console to see
+exactly what the renderer will draw at 8.2 seconds.
+
+Same font trap as the leaflets — the film is served over http and the render waits on
+`document.fonts.ready`, plus `window.READY` for the screenshots. An undecoded image paints as
+nothing, and the first second of every app scene came out blank before that wait existed.
+
+**ffmpeg is required** and is the only tool here that needs installing beyond Chrome.
+
+Rules that are easy to get wrong:
+
+- **Scenes 3–6 are real screenshots of the live site**, in `video/shots/`, cropped to the app's
+  own column. Re-shoot them when a screen changes rather than editing the crop.
+- **A before/after pair must share an identical crop** (`pick-before` / `pick-after`), or the swap
+  reads as a camera move instead of a click.
+- **Silent, with captions burned in.** Facebook autoplays muted. A voiceover can be muxed in later
+  without re-rendering the picture; captions cannot.
+- **No stock photography.** Everything on screen is the real product or the brand. A generic pub
+  interior would be the one untrue thing in it.
+- **Check the join code before posting.** The QR in the invite scene scans to a real competition
+  and its code is legible on screen.
+
+Anything longer than about 35s should be a second film with more in it, not this one stretched —
+a still screen held nine seconds reads as a fault. It can share `shots/`.
 
 ## Brand
 
