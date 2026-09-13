@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Wordmark from '@/components/public/Wordmark';
+import PublicFooter from '@/components/public/PublicFooter';
 import Docket from '@/components/landing/Docket';
 import { LABEL, EYEBROW, TICK } from '@/lib/design';
 
@@ -629,37 +630,79 @@ export default function LandingPage() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      {/* Footer                                                            */}
+      {/* Free to take away                                                 */}
       {/* ---------------------------------------------------------------- */}
-      <footer className="bg-ink">
-        <div className="mx-auto max-w-6xl border-t border-stock/25 px-4 py-9 sm:px-6">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-            <span className="font-display text-xl uppercase tracking-[0.1em] text-stock/85">
-              LMSLocal
-            </span>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
-              {[
-                { href: '/terms', label: 'Terms' },
-                { href: '/privacy', label: 'Privacy' },
-                { href: '/help', label: 'Help' },
-                { href: '/pricing', label: 'Pricing' },
-              ].map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`${LABEL} text-stock/65 transition-colors hover:text-stock`}
+      {/*
+        Deliberately the LAST thing before the footer, and deliberately not in the hero.
+
+        These are the two downloads, and they are a genuine alternative to signing up - a
+        spreadsheet is what somebody uses INSTEAD of us. Put high on the page that competes
+        with "Start one - free" at the moment somebody is deciding, which is the one place we
+        should not be handing out the other option. Put here it reaches the reader who has
+        scrolled the whole page and not signed up, and for that reader a download they remember
+        us by beats a bounce.
+
+        It also earns its place on merit: the home page is the only page Google reliably crawls
+        (a site: search in Sept 2026 returned nine URLs for the entire domain), so an in-body
+        link from here is the strongest internal signal we can give these pages.
+      */}
+      <section className="border-t border-ink/30 bg-stock">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+          <p className={`${EYEBROW} text-overprint`}>Free to take away</p>
+          <h2 className="mt-4 max-w-2xl font-display text-4xl font-semibold uppercase leading-[0.9] text-ink sm:text-5xl">
+            Running one yourself?
+          </h2>
+          <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-ink">
+            Take these whether you use LMSLocal or not. No sign-up, no email address, nothing to
+            hand over.
+          </p>
+
+          <ul className="mt-9 grid gap-px border border-ink/30 bg-ink/30 sm:grid-cols-3">
+            {[
+              {
+                href: '/last-man-standing-rules.pdf',
+                label: 'The rules, printed',
+                blurb: 'One A4 page with blanks for your entry fee, prize and deadline. Pin it up.',
+                download: true
+              },
+              {
+                href: '/last-man-standing-template',
+                label: 'A spreadsheet',
+                blurb: 'Team dropdowns, a teams-used count and a check that catches a duplicate pick.',
+                download: false
+              },
+              {
+                href: '/help/how-to-play',
+                label: 'How it all works',
+                blurb: 'The full rules, what a draw does, lives, and running out of teams.',
+                download: false
+              }
+            ].map((item) => (
+              <li key={item.href} className="bg-stock-lit">
+                <a
+                  href={item.href}
+                  {...(item.download ? { download: true } : {})}
+                  className="flex h-full flex-col p-6 transition-colors hover:bg-stock focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
                 >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-          <div className="mt-7 space-y-1 text-[14px] leading-relaxed text-stock/60">
-            <p>&copy; 2026 LMSLocal. Operated by Noodev8 Ltd, company number 16222537.</p>
-            <p>3 Cumberland Place, Welshpool, SY21 7SB.</p>
-          </div>
+                  <span className="font-display text-2xl uppercase tracking-[0.02em] text-ink">
+                    {item.label}
+                  </span>
+                  <span className="mt-3 text-[16px] leading-relaxed text-ink">{item.blurb}</span>
+                  <span className={`${LABEL} mt-4 text-overprint`}>Get it &rarr;</span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
-      </footer>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Footer. The shared component, not a copy - this page carried its   */}
+      {/* own hand-written one, which had already drifted: the product links */}
+      {/* added to PublicFooter never reached the home page, the one page    */}
+      {/* whose links matter most.                                          */}
+      {/* ---------------------------------------------------------------- */}
+      <PublicFooter />
     </div>
   );
 }
