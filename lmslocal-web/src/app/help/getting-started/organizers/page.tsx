@@ -2,14 +2,14 @@ import Link from 'next/link';
 import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 export const metadata = {
-  title: 'Getting Started for Organisers - LMSLocal Help',
+  title: 'How to Set Up a Last Man Standing Competition | LMSLocal',
   description:
     'How to set up and run a Last Man Standing competition for your pub, workplace or club: creating it, choosing who runs the fixtures, inviting players, and what happens each round.',
   keywords:
     'run last man standing, last man standing organiser, pub competition, workplace sweepstake, set up last man standing',
   alternates: { canonical: 'https://lmslocal.co.uk/help/getting-started/organizers' },
   openGraph: {
-    title: 'Getting Started for Organisers',
+    title: 'How to set up a Last Man Standing competition',
     description: 'Set up a Last Man Standing competition for your pub, workplace or club in about five minutes.',
     type: 'article'
   }

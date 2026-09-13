@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 export const metadata = {
-  title: 'Frequently Asked Questions - LMSLocal Help',
+  title: 'Last Man Standing FAQ - Rules, Picks and Running One | LMSLocal',
   description:
     'Answers to common questions about Last Man Standing: what a draw does to your pick, when picks lock, lives, buy-backs, resets, credits, and running a competition for your pub, workplace or club.',
   keywords:
@@ -99,6 +99,17 @@ const SECTIONS: Section[] = [
     id: 'playing',
     title: 'Playing',
     faqs: [
+      {
+        q: 'How do you win at Last Man Standing?',
+        a: [
+          {
+            p: 'By being the last player left, which usually means surviving longer than everyone else rather than picking cleverly. Nobody can pick a winner every week, and the competition is designed so that skill runs out: you cannot use the same team twice until you have used them all, so the strong teams disappear from everyone at roughly the same rate.'
+          },
+          {
+            p: 'The one real decision is whether to spend your best teams early or save them. Spending early buys safe passage through the opening rounds and leaves you thin later; saving them means riskier picks now against a kinder endgame. Neither is right, and a draw you did not see coming beats both.'
+          }
+        ]
+      },
       {
         q: 'How do I join a competition?',
         a: [
@@ -202,10 +213,10 @@ const SECTIONS: Section[] = [
         ]
       },
       {
-        q: 'How are ties handled?',
+        q: 'What happens if everyone goes out in the same round?',
         a: [
           {
-            p: 'If the last remaining players are all eliminated in the same round, nobody is left standing and they share the win. How that translates into a prize is for your organiser to decide — commonly the pot is split, or the competition is reset and run again.'
+            p: 'The competition ends with no winner, and LMSLocal records it that way — it is a real ending rather than an error, and everyone is told. What happens to the prize is your organiser’s call: commonly the pot is shared between everyone knocked out in that last round, or the competition is reset and run again.'
           }
         ]
       },
@@ -223,6 +234,20 @@ const SECTIONS: Section[] = [
     id: 'organising',
     title: 'Running a competition',
     faqs: [
+      {
+        q: 'How do I run a Last Man Standing competition?',
+        a: [
+          {
+            p: 'Set the competition up, send people a join link, and let each round play out. You choose whether there is an entry fee and what the prize is; we never touch that money. The first twenty player places are free and there is no card to enter.'
+          },
+          {
+            p: 'Week to week there is very little to do. The matches arrive in the round already, players pick on their own phones, results land after full time and the eliminations follow without anybody working them out by hand. A round update is written for you to paste into WhatsApp.'
+          },
+          {
+            p: 'The decisions worth making before round one are what a missed pick costs, when picks lock, and what happens if everyone goes out at once. All three are answered further down this page.'
+          }
+        ]
+      },
       {
         q: 'How many players can join?',
         a: [
@@ -639,6 +664,8 @@ export default function FAQPage() {
             { href: '/help/how-to-play', label: 'The full rules of Last Man Standing' },
             { href: '/help/getting-started/organizers', label: 'Setting up your first competition' },
             { href: '/help/getting-started/players', label: 'Joining and playing' },
+            { href: '/last-man-standing-template', label: 'A free spreadsheet template' },
+            { href: '/app', label: 'The iPhone and Android app' },
             { href: '/pricing', label: 'What credits cost' }
           ].map((link) => (
             <li key={link.href}>
