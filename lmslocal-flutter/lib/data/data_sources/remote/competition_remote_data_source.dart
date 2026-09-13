@@ -302,7 +302,7 @@ class CompetitionRemoteDataSource {
         '/get-unpicked-players',
         data: {
           'competition_id': competitionId,
-          if (roundId != null) 'round_id': roundId,
+          'round_id': ?roundId,
         },
       );
 
