@@ -17,7 +17,8 @@ const PAGES = [
   { href: '/app', label: 'The app' },
   { href: '/last-man-standing-for-pubs', label: 'For pubs' },
   { href: '/last-man-standing-at-work', label: 'At work' },
-  { href: '/last-man-standing-for-clubs', label: 'For clubs' }
+  { href: '/last-man-standing-for-clubs', label: 'For clubs' },
+  { href: '/last-man-standing-template', label: 'Free template' }
 ];
 
 const LINKS = [

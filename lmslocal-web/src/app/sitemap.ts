@@ -29,6 +29,7 @@ const ROUTES: Route[] = [
   { path: '/last-man-standing-for-pubs', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/last-man-standing-at-work', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/last-man-standing-for-clubs', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.9 },
+  { path: '/last-man-standing-template', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/help', lastModified: '2026-08-21', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/help/how-to-play', lastModified: '2026-08-21', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/help/faq', lastModified: '2026-08-24', changeFrequency: 'monthly', priority: 0.7 },

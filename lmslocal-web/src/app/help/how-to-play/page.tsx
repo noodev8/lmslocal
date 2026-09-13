@@ -2,14 +2,14 @@ import Link from 'next/link';
 import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 export const metadata = {
-  title: 'How to Play Last Man Standing - LMSLocal Help',
+  title: 'Last Man Standing Rules - How to Play | LMSLocal',
   description:
     'The rules of Last Man Standing. Pick one team to win each round: if they win you go through, if they lose or draw it costs you. Draws, lives, regulation time and running out of teams, explained.',
   keywords:
     'last man standing rules, how to play last man standing, does a draw count, football elimination game, premier league last man standing',
   alternates: { canonical: 'https://lmslocal.co.uk/help/how-to-play' },
   openGraph: {
-    title: 'How to Play Last Man Standing',
+    title: 'Last Man Standing rules',
     description: 'Pick one team each week to win. If they lose or draw, it costs you. The complete rules.',
     type: 'article'
   }
