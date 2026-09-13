@@ -6,14 +6,14 @@ import { LABEL, EYEBROW, HEADING, PANEL, TICK, BTN_PRIMARY, BTN_DARK } from '@/l
 export const metadata = {
   title: 'Last Man Standing App for iPhone and Android | LMSLocal',
   description:
-    'Free Last Man Standing football app for players: join with a code, pick one team a round and follow the standings. Organisers run the competition in a browser, with nothing to install.',
+    'Free to download and free to play. Join a Last Man Standing football competition with a code, pick one team a round and follow the standings. Organisers set up in a browser, with nothing to install.',
   keywords:
     'last man standing app, last man standing football app, lms app, last man standing app free, football survivor app, last man standing iphone android',
   alternates: { canonical: 'https://lmslocal.co.uk/app' },
   openGraph: {
     title: 'The Last Man Standing app',
     description:
-      'Free player apps for iPhone and Android. Join with a code, pick one team a round, follow the standings. Organisers run it in a browser.',
+      'Free to download and free to play on iPhone and Android. Join with a code, pick one team a round, follow the standings. Organisers set up in a browser.',
     url: 'https://lmslocal.co.uk/app',
     type: 'website'
   },
@@ -21,7 +21,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'The Last Man Standing app',
     description:
-      'Free player apps for iPhone and Android. Join with a code, pick one team a round, follow the standings.'
+      'Free to download and free to play on iPhone and Android. Join with a code, pick one team a round, follow the standings.'
   }
 };
 
@@ -72,7 +72,7 @@ const QUESTIONS = [
   },
   {
     q: 'Does it cost anything?',
-    a: 'The app is free for players, with no ads and nothing to buy inside it. Organisers start free too: the first twenty player places cost nothing and there is no card to enter.'
+    a: 'No. It is free to download and free to play, with no ads and nothing to buy inside it. Setting up a competition is free to start as well - the first twenty player places cost nothing and there is no card to enter.'
   },
   {
     q: 'Do players have to install it?',
@@ -108,9 +108,9 @@ export default function AppPage() {
           Standing app
         </h1>
         <p className="mt-6 max-w-xl text-xl leading-relaxed text-ink">
-          Free for players. Join with a code, pick one team a round, and follow the standings as the
-          results come in. Setting a competition up is done in a browser &mdash; there is nothing for
-          an organiser to install.
+          Free to download and free to play. Join with a code, pick one team a round, and follow the
+          standings as the results come in. Setting a competition up is done in a browser &mdash;
+          there is nothing for an organiser to install either.
         </p>
 
         {/* ------------------------------------------------------------ the player block */}
