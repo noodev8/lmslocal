@@ -44,10 +44,30 @@ const courierPrime = Courier_Prime({
   display: "swap",
 });
 
+/*
+  TITLE AND DESCRIPTION ARE TUNED FOR CLICK-THROUGH, NOT FOR US.
+
+  Search Console, Sept 2026: the two highest-impression terms were "last man standing football"
+  (648 impressions, average position 7.6) and "lms football" (306, position 5.5), converting at
+  1.7% and 0.7%. At those positions 5-8% is normal. The old title led with "Run a Last Man
+  Standing Competition That Raises Money" and never said "football" - people scan the results
+  for their own words, did not see them, and scrolled past a result they were already ranking
+  for. Impressions were never the problem; the snippet was.
+
+  So the title leads with the phrase people type, not with the brand. LMSLocal means nothing to
+  a stranger yet, and putting it first spends the most valuable characters on a word nobody is
+  searching for.
+
+  Keep "football" in the title. If you rewrite this, check the query report first
+  (scripts/seo/gsc_client.py, property sc-domain:lmslocal.co.uk) rather than guessing - and
+  remember the fixture service is opt-in per competition, so the description says fixtures
+  "can be" supplied. Stating it flat would be the universal-claim mistake docs/design-system.md
+  warns about, in the one place Google quotes us verbatim.
+*/
 export const metadata: Metadata = {
-  title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
-  description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, for as long as you run it.",
-  keywords: "last man standing, run a last man standing competition, pub fundraiser, club fundraising, football competition, sweepstake alternative, competition management, elimination game",
+  title: "Run a Last Man Standing Football Competition | LMSLocal",
+  description: "Set up a Last Man Standing football competition for your pub, club or workplace. Twenty player places free, for good. Fixtures and results can be supplied for you.",
+  keywords: "last man standing, last man standing football, last man standing app, run a last man standing competition, lms football, pub fundraiser, club fundraising, football competition, sweepstake alternative, competition management, elimination game",
   authors: [{ name: "LMSLocal" }],
   creator: "LMSLocal",
   publisher: "LMSLocal",
@@ -56,7 +76,10 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
+    // Share cards, not search results: no "| LMSLocal" tail, and the description stays the
+    // money one, because a link pasted into WhatsApp is read by someone who was sent it rather
+    // than someone scanning ten competing snippets.
+    title: "Run a Last Man Standing Football Competition",
     description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, for as long as you run it.",
     url: "https://lmslocal.co.uk",
     siteName: "LMSLocal",
@@ -66,12 +89,12 @@ export const metadata: Metadata = {
       url: "/og-image.png",
       width: 1200,
       height: 630,
-      alt: "LMSLocal - Run a Last Man Standing Competition That Raises Money"
+      alt: "LMSLocal - Run a Last Man Standing Football Competition"
     }]
   },
   twitter: {
     card: "summary_large_image",
-    title: "LMSLocal - Run a Last Man Standing Competition That Raises Money",
+    title: "Run a Last Man Standing Football Competition",
     description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, for as long as you run it.",
     images: ["/og-image.png"],
   },
