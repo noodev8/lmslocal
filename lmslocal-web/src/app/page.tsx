@@ -61,7 +61,7 @@ const WEEKEND = [
     when: 'Midweek',
     what: 'The new round goes up',
     detail:
-      'Switch our fixture service on and the round is built from the real fixture list and dropped straight into your competition. Leave it off and you enter your own fixtures instead.',
+      'The round is built from the real fixture list and dropped straight into your competition, which is how most competitions run. If you would rather key your own fixtures, you still can.',
   },
   {
     when: 'Friday, Saturday',
@@ -73,7 +73,7 @@ const WEEKEND = [
     when: 'Full time',
     what: 'Results go in',
     detail:
-      'Either they arrive with the fixtures, or you enter the scores yourself. Either way the eliminations follow on their own — nobody works out who is still in by hand.',
+      'They arrive on their own once the matches finish, or you enter the scores yourself if you are running your own fixtures. Either way the eliminations follow — nobody works out who is still in by hand.',
   },
   {
     when: 'Sunday / Monday',
@@ -116,7 +116,7 @@ const PLAYER_RULES = [
 ];
 
 const INCLUDED = [
-  '20 player places, free, however long you run',
+  '20 player places, free, no card needed',
   'Your own join code or link to hand out',
   'A printable A4 poster for the venue',
   'Eliminations worked out for you, either way',
@@ -531,8 +531,7 @@ export default function LandingPage() {
             on the noticeboard
           </h2>
           <p className="mt-6 max-w-lg text-xl leading-relaxed text-stock/85">
-            Twenty player places, free, for as long as you like. You only pay once you go past
-            twenty.
+            Twenty player places, free. You only pay once you go past twenty.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
             <Link

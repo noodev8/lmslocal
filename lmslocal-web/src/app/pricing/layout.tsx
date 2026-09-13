@@ -13,12 +13,12 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Pricing - Last Man Standing Competitions from £0 | LMSLocal',
   description:
-    'Twenty player places free for as long as you run it, no card needed. After that, packs from £10 for 20 more places. No subscription, no cut of your entry fees - what your players pay you is yours.',
+    'Twenty player places free, no card needed. After that, packs from £10 for 20 more places. No subscription, no cut of your entry fees - what your players pay you is yours.',
   alternates: { canonical: 'https://lmslocal.co.uk/pricing' },
   openGraph: {
     title: 'LMSLocal Pricing - start free, pay by the place',
     description:
-      'Your first 20 player places are free and yours for good. Packs from £10 after that, no subscription, and we take nothing from your entry fees.',
+      'Your first 20 player places are free. Packs from £10 after that, no subscription, and we take nothing from your entry fees.',
     url: 'https://lmslocal.co.uk/pricing',
     type: 'website'
   },
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'LMSLocal Pricing - start free, pay by the place',
     description:
-      'Your first 20 player places are free and yours for good. Packs from £10 after that, no subscription, and we take nothing from your entry fees.'
+      'Your first 20 player places are free. Packs from £10 after that, no subscription, and we take nothing from your entry fees.'
   }
 };
 

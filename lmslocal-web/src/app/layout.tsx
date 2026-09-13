@@ -59,14 +59,19 @@ const courierPrime = Courier_Prime({
   searching for.
 
   Keep "football" in the title. If you rewrite this, check the query report first
-  (scripts/seo/gsc_client.py, property sc-domain:lmslocal.co.uk) rather than guessing - and
-  remember the fixture service is opt-in per competition, so the description says fixtures
-  "can be" supplied. Stating it flat would be the universal-claim mistake docs/design-system.md
-  warns about, in the one place Google quotes us verbatim.
+  (scripts/seo/gsc_client.py, property sc-domain:lmslocal.co.uk) rather than guessing.
+
+  Two claims are deliberately worded to promise nothing about the future (Andreas, 2026-09-13).
+  The free tier says "First twenty player places free" and NOT "free for good" - neither the
+  twenty nor the free is fixed, and a snippet promising permanence is the one that gets quoted
+  back at us. The fixture service is stated flat rather than hedged, because ~99% of new
+  organisers take it and it is not currently charged for; it is still per-competition in the
+  data model, so anything more specific than "handled for you" belongs on the pricing page,
+  where it can change, and not in metadata.
 */
 export const metadata: Metadata = {
   title: "Run a Last Man Standing Football Competition | LMSLocal",
-  description: "Set up a Last Man Standing football competition for your pub, club or workplace. Twenty player places free, for good. Fixtures and results can be supplied for you.",
+  description: "Set up a Last Man Standing football competition for your pub, club or workplace. Fixtures and results handled for you. First twenty player places free.",
   keywords: "last man standing, last man standing football, last man standing app, run a last man standing competition, lms football, pub fundraiser, club fundraising, football competition, sweepstake alternative, competition management, elimination game",
   authors: [{ name: "LMSLocal" }],
   creator: "LMSLocal",

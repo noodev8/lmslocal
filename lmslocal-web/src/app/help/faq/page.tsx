@@ -81,7 +81,7 @@ const SECTIONS: Section[] = [
             p: 'Players: nothing. Joining is free. Your organiser may run their own entry fee or kitty, which is between you and them and has nothing to do with us.'
           },
           {
-            p: 'Organisers: 20 free places, yours for good and no card needed. They are shared across everything you run, not 20 per competition, and each player holds one for as long as their competition exists — including competitions that have finished. Every player past the 20 uses a credit, and credits come in packs starting at £10 for 20 more places.'
+            p: 'Organisers: 20 free places, no card needed. They are shared across everything you run, not 20 per competition, and each player holds one for as long as their competition exists — including competitions that have finished. Every player past the 20 uses a credit, and credits come in packs starting at £10 for 20 more places.'
           }
         ]
       },
@@ -281,7 +281,7 @@ const SECTIONS: Section[] = [
         q: 'Who supplies the fixtures and results?',
         a: [
           {
-            p: 'Either us or you. Where we cover the league your competition is using, you are offered the choice as you create it. Where we do not cover it, you run the fixtures yourself.'
+            p: 'Us, normally. Where we cover the league your competition is using you are offered the service as you create it, and almost every new organiser takes it. Where we do not cover the league, you run the fixtures yourself.'
           },
           {
             p: 'Do it for me — we add each round’s fixtures and enter the results as they come in. You pick a start date up front, round 1 is there from the moment the competition exists, and your job is just to get people to join.'

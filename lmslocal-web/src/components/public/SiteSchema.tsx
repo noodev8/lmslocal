@@ -57,9 +57,9 @@ const SCHEMA = {
       isPartOf: { '@id': WEBSITE_ID },
       inLanguage: 'en-GB',
       description:
-        'Set up and run a Last Man Standing competition: players pick one team to win each round, a loss or a draw costs them, and the last player standing takes the prize. Fixtures and results can be supplied for you or entered yourself.',
+        'Set up and run a Last Man Standing competition: players pick one team to win each round, a loss or a draw costs them, and the last player standing takes the prize. Fixtures and results are handled for you on the leagues we cover, or you can enter your own.',
       featureList: [
-        'Automatic fixtures and results for covered leagues',
+        'Fixtures and results handled for you on the leagues we cover',
         'Ready-made WhatsApp invites, social images and a join QR code',
         'One team per round, no team twice',
         'Lives, so one bad week need not end a run',
@@ -69,7 +69,7 @@ const SCHEMA = {
         {
           '@type': 'Offer',
           name: 'Free tier',
-          description: '20 player places, shared across every competition you run, yours for good with no card needed.',
+          description: '20 player places, shared across every competition you run, with no card needed.',
           price: '0',
           priceCurrency: 'GBP',
           url: 'https://lmslocal.co.uk/pricing'

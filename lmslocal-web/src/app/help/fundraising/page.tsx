@@ -151,8 +151,8 @@ export default function FundraisingPage() {
         </div>
 
         <p className="mt-6 max-w-2xl border-l-2 border-ink/40 bg-stock-lit px-4 py-3 text-[16px] leading-relaxed text-ink">
-          Against that, what the tool costs you. Your first twenty player places are free and stay
-          free; after that, packs start at &pound;10 for twenty more and there is no subscription.
+          Against that, what the tool costs you. Your first twenty player places are free; after
+          that, packs start at &pound;10 for twenty more and there is no subscription.
           Places are counted per player per competition, so running a second competition &mdash; or
           resetting this one for another go &mdash; draws on them again.
         </p>

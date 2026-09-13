@@ -92,8 +92,7 @@ export default function OrganizersGettingStartedPage() {
       <p className={`${EYEBROW} text-overprint`}>For organisers</p>
       <h1 className={`${HEADING} mt-4 text-5xl sm:text-6xl`}>Setting up a competition</h1>
       <p className="mt-6 max-w-xl text-xl leading-relaxed text-ink">
-        About five minutes from a standing start. Your first twenty player places are free and stay
-        free, so you can have the whole thing running before you decide whether to spend anything.
+        About five minutes from a standing start. Your first twenty player places are free, so you can have the whole thing running before you decide whether to spend anything.
       </p>
 
       {/* -------------------------------------------------------------- the setup */}

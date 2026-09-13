@@ -11,7 +11,7 @@ import { LABEL, EYEBROW, TICK } from '@/lib/design';
  */
 
 const PACKS = [
-  { name: 'Free tier', note: 'Yours for good, no card needed', credits: '20 places', price: '£0', saving: null },
+  { name: 'Free tier', note: 'No card needed', credits: '20 places', price: '£0', saving: null },
   { name: 'Starter pack', note: 'A few more places', credits: '+20 places', price: '£10', saving: null },
   { name: 'Popular pack', note: 'For regular competitions', credits: '+50 places', price: '£20', saving: 'Save 20%' },
   { name: 'Best value pack', note: 'For venues and busy organisers', credits: '+120 places', price: '£40', saving: 'Save 33%' }
@@ -57,7 +57,7 @@ export default function PricingPage() {
             Pay when you grow.
           </h1>
           <p className="mt-6 max-w-xl text-xl leading-relaxed text-ink">
-            Twenty player places are free and always yours. Beyond that, each extra player uses
+            Twenty player places are free. Beyond that, each extra player uses
             one place as they join.
           </p>
 

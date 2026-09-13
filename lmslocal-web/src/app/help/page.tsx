@@ -150,7 +150,7 @@ export default function HelpHomePage() {
         <p className={`${EYEBROW} text-overprint`}>Not started yet?</p>
         <h2 className={`${HEADING} mt-3 text-3xl`}>Set one up in five minutes</h2>
         <p className="mt-3 max-w-lg text-[17px] leading-relaxed text-ink">
-          Twenty player places are free and stay free. There is no card to enter and nothing to
+          Twenty player places are free. There is no card to enter and nothing to
           install &mdash; yours or your players&apos;.
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
