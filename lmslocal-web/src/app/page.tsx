@@ -61,7 +61,7 @@ const WEEKEND = [
     when: 'Midweek',
     what: 'The new round goes up',
     detail:
-      'The round is built from the real fixture list and dropped straight into your competition, which is how most competitions run. If you would rather key your own fixtures, you still can.',
+      'The round is built from the real fixture list and dropped straight into your competition, which is how most competitions run. If you would rather put the matches in yourself, you still can.',
   },
   {
     when: 'Friday, Saturday',
@@ -73,7 +73,7 @@ const WEEKEND = [
     when: 'Full time',
     what: 'Results go in',
     detail:
-      'They arrive on their own once the matches finish, or you enter the scores yourself if you are running your own fixtures. Either way the eliminations follow — nobody works out who is still in by hand.',
+      'They arrive on their own once the matches finish, or you enter the scores yourself if you are putting the matches in. Either way the eliminations follow — nobody works out who is still in by hand.',
   },
   {
     when: 'Sunday / Monday',
