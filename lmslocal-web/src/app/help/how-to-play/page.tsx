@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_DARK } from '@/lib/design';
 
 export const metadata = {
   title: 'Last Man Standing Rules - How to Play | LMSLocal',
@@ -99,6 +99,46 @@ export default function HowToPlayPage() {
         Pick one team to win, each round. If they win, you go through. If they lose or draw, it
         costs you. Keep going until you are the only one left.
       </p>
+
+      {/*
+        The printable sheet, high on the page rather than tucked at the bottom.
+
+        "Last man standing rules pdf" turns up in Google's "people also search for" on more than
+        one query here, and one of the pages ranking for it is somebody's rules PDF sitting in blob
+        storage. A PDF is its own indexable document, so this is a second thing that can rank for
+        the rules rather than an attachment to this one - which is why it gets a real position on
+        the page and a row in the sitemap.
+
+        Built by scripts/make-rules-pdf.js. Rerun that after editing scripts/rules-pdf/rules.html.
+      */}
+      <div className="mt-8 flex flex-wrap items-center gap-4">
+        <a href="/last-man-standing-rules.pdf" download className={`${BTN_PRIMARY} inline-block px-6 py-3 text-xl`}>
+          Print the rules
+        </a>
+        <Link href="/last-man-standing-template" className={`${BTN_DARK} inline-block px-6 py-3 text-xl`}>
+          Free spreadsheet
+        </Link>
+      </div>
+      <p className={`${LABEL} mt-4 text-ink-fade`}>
+        One page, A4 &middot; blanks for your entry fee, prize and deadline &middot; free to copy
+      </p>
+
+      {/* ------------------------------------------------------------ what it is */}
+      <section className="mt-12 border-t border-ink/30 pt-10">
+        <h2 className={`${HEADING} text-4xl`}>What is a Last Man Standing competition?</h2>
+        <p className="mt-4 text-[17px] leading-relaxed text-ink">
+          A Last Man Standing competition is a football survival game played over several weeks.
+          Everybody taking part picks one team each round to win their match. Anyone whose team wins
+          goes through to the next round; anyone whose team draws or loses is knocked out. The catch
+          is that you cannot pick the same team twice, so the safe choices run out as the weeks go
+          on, and the last player left wins.
+        </p>
+        <p className="mt-4 text-[17px] leading-relaxed text-ink">
+          It is also called Last Man Standing football, LMS, or a survivor competition, and it is
+          the game pubs, workplaces and clubs run through a season &mdash; usually on the Premier
+          League, though any league with a fixture list works the same way.
+        </p>
+      </section>
 
       {/* ------------------------------------------------------------ win / go out */}
       <section className="mt-12 border-t border-ink/30 pt-10">

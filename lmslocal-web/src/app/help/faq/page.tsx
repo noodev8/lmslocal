@@ -103,10 +103,10 @@ const SECTIONS: Section[] = [
         q: 'How do you win at Last Man Standing?',
         a: [
           {
-            p: 'By being the last player left, which usually means surviving longer than everyone else rather than picking cleverly. Nobody can pick a winner every week, and the competition is designed so that skill runs out: you cannot use the same team twice until you have used them all, so the strong teams disappear from everyone at roughly the same rate.'
+            p: 'By being the last player left — and in a competition of any size that is a genuine achievement rather than a lucky streak. Surviving ten rounds means reading form and injuries, knowing which sides travel badly, and spotting the week where the obvious pick is a trap.'
           },
           {
-            p: 'The one real decision is whether to spend your best teams early or save them. Spending early buys safe passage through the opening rounds and leaves you thin later; saving them means riskier picks now against a kinder endgame. Neither is right, and a draw you did not see coming beats both.'
+            p: 'What makes it a game of judgement rather than chance is the squeeze. Everyone starts with the same teams, and every round you spend one of them for good, so the question is never simply who will win — it is which win you can afford to use now. Burn the strong sides early and the later rounds have nothing safe left in them. Hoard them and you may not reach the rounds you were saving them for. The player still standing at the end got that order right more often than anybody else did.'
           }
         ]
       },

@@ -128,11 +128,13 @@ export default function TemplatePage() {
           <a href={FILE} download className={`${BTN_PRIMARY} inline-block px-7 py-3.5 text-2xl`}>
             Download the sheet
           </a>
-          <Link href="/help/how-to-play" className={`${BTN_DARK} inline-block px-7 py-3.5 text-2xl`}>
-            The rules
-          </Link>
+          <a href="/last-man-standing-rules.pdf" download className={`${BTN_DARK} inline-block px-7 py-3.5 text-2xl`}>
+            Print the rules
+          </a>
         </div>
-        <p className={`${LABEL} mt-4 text-ink-fade`}>Excel .xlsx &middot; opens in Google Sheets &middot; free</p>
+        <p className={`${LABEL} mt-4 text-ink-fade`}>
+          Excel .xlsx &middot; opens in Google Sheets &middot; rules sheet is a one-page PDF &middot; both free
+        </p>
 
         <section className="mt-14 border-t border-ink/30 pt-10">
           <h2 className={`${HEADING} text-4xl`}>What is in it</h2>
@@ -226,7 +228,7 @@ export default function TemplatePage() {
           <p className={`${LABEL} text-ink-fade`}>Also worth reading</p>
           <ul className="mt-3 flex flex-wrap gap-x-7 gap-y-2">
             {[
-              { href: '/help/how-to-play', label: 'The rules' },
+              { href: '/help/how-to-play', label: 'The full rules' },
               { href: '/last-man-standing-at-work', label: 'At work' },
               { href: '/last-man-standing-for-pubs', label: 'For pubs' },
               { href: '/help/is-it-gambling', label: 'Is it gambling?' }

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<!-- Chrome takes the PDF's document Title from this tag, and that title is what Google shows when
+     the PDF itself ranks. It is the one piece of PDF metadata --print-to-pdf lets us set, so it
+     carries the search phrase rather than a filename. -->
+<title>Last Man Standing Rules</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700&family=Instrument+Sans:wght@400;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 14mm 15mm; }
+
+  :root {
+    --ink: #1C2620;
+    --ink-fade: #5A6560;
+    --overprint: #C0392B;
+    --rule: rgba(28,38,32,0.3);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Instrument Sans', system-ui, sans-serif;
+    color: var(--ink);
+    font-size: 10.2pt;
+    line-height: 1.45;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1, h2, .display {
+    font-family: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+    text-transform: uppercase;
+    font-weight: 700;
+    line-height: 0.9;
+    margin: 0;
+  }
+  h1 { font-size: 34pt; letter-spacing: 0.01em; }
+  h2 { font-size: 14pt; margin-bottom: 5pt; }
+
+  .eyebrow {
+    font-size: 7.5pt; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.16em; color: var(--overprint);
+  }
+  .masthead { border-bottom: 1.6pt solid var(--ink); padding-bottom: 7pt; }
+  .lede { max-width: 125mm; margin-top: 6pt; color: var(--ink); }
+
+  section { margin-top: 12pt; padding-top: 9pt; border-top: 0.6pt solid var(--rule); }
+  section:first-of-type { border-top: none; }
+
+  ol.rules { margin: 0; padding-left: 0; list-style: none; counter-reset: r; }
+  ol.rules li { counter-increment: r; display: flex; gap: 8pt; margin-bottom: 6pt; }
+  ol.rules li::before {
+    content: counter(r);
+    flex: 0 0 auto;
+    width: 15pt; height: 15pt;
+    background: var(--overprint); color: #fff;
+    font-family: 'Big Shoulders Display', sans-serif; font-weight: 700;
+    font-size: 10pt; line-height: 15pt; text-align: center;
+  }
+  ol.rules strong { font-weight: 600; }
+
+  /* The fill-in panel. A printed form wants somebody's handwriting in it - this is the part a
+     landlord actually pins up, and it is why the sheet beats a web page for this job. */
+  .fill { border: 1pt solid var(--ink); padding: 8pt 10pt 10pt; margin-top: 4pt; }
+  .fill .row { display: flex; align-items: baseline; gap: 6pt; margin-top: 7pt; }
+  .fill .row:first-of-type { margin-top: 2pt; }
+  .fill .label {
+    font-size: 7.5pt; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--ink-fade); flex: 0 0 33mm;
+  }
+  .fill .line { flex: 1 1 auto; border-bottom: 0.6pt dotted var(--rule); height: 13pt; }
+
+  .two { display: flex; gap: 11mm; }
+  .two > div { flex: 1 1 0; min-width: 0; }
+
+  .decide p { margin: 2pt 0 7pt; }
+  .decide .q { font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 9.4pt; }
+
+  footer {
+    margin-top: 13pt; padding-top: 7pt; border-top: 1.6pt solid var(--ink);
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10pt;
+  }
+  footer .site { font-family: 'Big Shoulders Display', sans-serif; font-size: 13pt; letter-spacing: 0.08em; }
+  footer .note { font-size: 8.6pt; color: var(--ink-fade); text-align: right; max-width: 105mm; }
+</style>
+</head>
+<body>
+
+  <div class="masthead">
+    <p class="eyebrow" style="margin:0 0 4pt">Print this out and pin it up</p>
+    <h1>Last Man Standing</h1>
+    <p class="lede" style="margin-bottom:0">
+      One team a round. Win and you carry on, draw or lose and you are out. The rules below are the
+      ones almost everybody plays by &mdash; fill in the blanks and your competition is defined.
+    </p>
+  </div>
+
+  <section>
+    <h2>The rules</h2>
+    <ol class="rules">
+      <li><span><strong>Pick one team a round</strong> to win their match. You pick before the deadline; after it, your pick is locked.</span></li>
+      <li><span><strong>If your team wins, you go through.</strong> If they draw or lose, you are out.</span></li>
+      <li><span><strong>Results count on regulation time only</strong> &mdash; ninety minutes plus stoppage. Extra time and penalties do not count.</span></li>
+      <li><span><strong>You cannot pick the same team twice.</strong> Once you have used every team, they all become available again and you carry on.</span></li>
+      <li><span><strong>The last player left wins.</strong> If everybody still in goes out in the same round, nobody is left standing &mdash; agree in advance what that means for the pot.</span></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="two">
+      <div>
+        <h2>Your competition</h2>
+        <div class="fill">
+          <div class="row"><span class="label">Competition</span><span class="line"></span></div>
+          <div class="row"><span class="label">Entry fee</span><span class="line"></span></div>
+          <div class="row"><span class="label">Prize</span><span class="line"></span></div>
+          <div class="row"><span class="label">Picks lock</span><span class="line"></span></div>
+          <div class="row"><span class="label">Run by</span><span class="line"></span></div>
+        </div>
+      </div>
+      <div class="decide">
+        <h2>Decide before round one</h2>
+        <p class="q">A missed pick?</p>
+        <p>Somebody will forget. Agree now whether that is elimination or the loss of a life, and say so out loud.</p>
+        <p class="q">A postponed match?</p>
+        <p>Usual practice is that the pick does not count and the player carries on, but cannot use that team again.</p>
+        <p class="q">Everyone out at once?</p>
+        <p>Either the pot is shared between everyone knocked out in that round, or the round is replayed.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Lives, if you want them</h2>
+    <p style="margin:2pt 0 0;max-width:160mm">
+      Giving each player a life or two means one bad weekend does not end their run. It makes a
+      competition last longer and keeps more people interested for more of it, which is usually what
+      you want with a smaller group. Decide the number before you start and put it in the box above.
+    </p>
+  </section>
+
+  <footer>
+    <span class="site">lmslocal.co.uk</span>
+    <span class="note">
+      Free to print, copy and hand round &mdash; no permission needed. If the admin stops being fun,
+      LMSLocal runs the matches, the results and the eliminations for you.
+    </span>
+  </footer>
+
+</body>
+</html>
