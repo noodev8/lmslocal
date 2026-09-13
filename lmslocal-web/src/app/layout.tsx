@@ -85,7 +85,7 @@ export const metadata: Metadata = {
     // money one, because a link pasted into WhatsApp is read by someone who was sent it rather
     // than someone scanning ten competing snippets.
     title: "Run a Last Man Standing Football Competition",
-    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, for as long as you run it.",
+    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, no card needed.",
     url: "https://lmslocal.co.uk",
     siteName: "LMSLocal",
     locale: "en_GB",
@@ -100,7 +100,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Run a Last Man Standing Football Competition",
-    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, for as long as you run it.",
+    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, no card needed.",
     images: ["/og-image.png"],
   },
   robots: {

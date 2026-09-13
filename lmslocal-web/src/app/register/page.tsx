@@ -68,7 +68,7 @@ export default function RegisterPage() {
     <AuthShell
       eyebrow="Get started"
       title="Create your account"
-      intro="Twenty player places, free, for as long as you run it. No card needed to start."
+      intro="Twenty player places, free. No card needed to start."
       footer={
         <>
           Already have an account? <AuthLink href="/login">Sign in</AuthLink>
