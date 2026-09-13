@@ -83,6 +83,10 @@ dependencies {
     // AndroidX Core library for edge-to-edge support (Android 15 compatibility)
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
+    // Play In-App Review, called from MainActivity. Hand-wired rather than via the
+    // `in_app_review` package, whose newest release does not build under AGP 9 —
+    // see the note in lib/core/services/review_prompt.dart.
+    implementation("com.google.android.play:review-ktx:2.0.2")
 }
 
 flutter {

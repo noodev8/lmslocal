@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lmslocal_flutter/core/constants/app_constants.dart';
 import 'package:lmslocal_flutter/core/game/round_state.dart';
+import 'package:lmslocal_flutter/core/services/review_prompt.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/competition_remote_data_source.dart';
@@ -200,6 +201,22 @@ class _CompetitionHomePageState extends State<CompetitionHomePage> {
             myOutcome = await _fetchOutcome(
               competition.id,
               currentRound.roundNumber,
+            );
+
+            // The one moment we ask for a store review: this round has settled
+            // and this player won it. Here rather than anywhere else because
+            // this is the only place that holds all three facts at once — the
+            // round is complete, the player is still in, and the outcome is
+            // known. `ReviewPrompt` carries the rest of the rules and its own
+            // once-per-competition gate, so a rebuild or a pull-to-refresh
+            // reaching this line again asks nothing.
+            await ReviewPrompt.maybeAsk(
+              competitionId: competition.id,
+              roundNumber: currentRound.roundNumber,
+              // A win, never merely `isStillIn`: surviving on a lost life is
+              // bad news, and an eliminated player never reaches this branch
+              // at all.
+              survivedCleanly: myOutcome == PickOutcome.won,
             );
           }
         }

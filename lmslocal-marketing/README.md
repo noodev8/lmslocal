@@ -33,8 +33,9 @@ leaflet/            Print artwork. a5-test.html is the pipeline reference.
                     printed code and its QR in assets/ must change together.
                     a5-landlord-post is the only double-sided piece — see below.
 social/             Fixed-size tiles for Facebook etc. See social/README.md.
-ai-brief/           Prompts for generating artwork with an image model instead of
-                    laying it out here. Clubs only so far. See ai-brief/README.md.
+ai-brief/           Briefs for work an outside AI tool has to make, because the
+                    pipelines here cannot draw people. The cartoon promo so far.
+                    See ai-brief/README.md.
 video/              film.html is the film; storyboard-landlord.html is the plan it
                     was approved from. shots/ holds the app screenshots it cuts to.
                     higgsfield.md is the thinking on a second, cartoon promo made

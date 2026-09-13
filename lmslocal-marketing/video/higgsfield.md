@@ -96,7 +96,10 @@ Sources: [CLI access](https://higgsfield.ai/creator-hub/help-center/mcp-cli/how-
   being programmatic buys consistent naming, files landing straight on disk, and a reproducible
   run.
 - **Local, Claude, free** — assembly. Cutting clips, burning captions, flipping the real
-  screenshots in, ffmpeg.
+  screenshots in, ffmpeg. **The dialogue is laid in here too, never generated with the video** —
+  lip-sync is the least reliable thing these tools do, and keeping voice out of the generation
+  means it can be recast or re-read without re-rendering a frame. See `../ai-brief/cartoon-promo.md`
+  §6.
 
 **Do not let Claude burn credits on the part that is free in a browser.** That is the one way to
 waste the month.
@@ -117,9 +120,11 @@ than re-crop if a screen has changed since.
 ## Before buying
 
 1. Settle the Soul question above — it decides Plus vs Ultra.
-2. Write the shot list and character brief **first**. Day one of the subscription should be
-   generating, not deciding what to generate. This is free and it is the highest-leverage thing
-   available. It belongs in `ai-brief/`.
+2. ~~Write the shot list and character brief **first**.~~ **Done 2026-09-12** —
+   `../ai-brief/cartoon-promo.md` has the story, the beat sheet, the dialogue, the three
+   characters and a shot list. Day one of the subscription is generating **shot 10**, the
+   recurring bar, because that is where consistency either holds or the film's structure has to
+   change.
 3. Confirm prices on the live page; the ones above were mid-promotion.
 
 ## During the month
@@ -132,8 +137,8 @@ than re-crop if a screen has changed since.
 
 ## Loose end
 
-`README.md` describes an `ai-brief/` folder that **does not exist and has never been tracked**.
-Writing the brief there would make that sentence true; otherwise the reference should go. A
+`README.md` described an `ai-brief/` folder that did not exist and had never been tracked. The
+brief was written there on 2026-09-12, so the reference is now true. A
 "No stock photography" rule was removed from that README on 2026-09-12 — it was written by
 Claude, not by Andreas, and had started being quoted back at him as though it were his own
 constraint. Watch for others of the same kind.
