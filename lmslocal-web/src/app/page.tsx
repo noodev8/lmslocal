@@ -49,12 +49,22 @@ players figure from 110 to 84 and read as going backwards.
 
 Excludes organisers 50 and 862, which are ours, and excludes bots from the player count. Counting
 our own seeded competition would put 22 accounts we drive into a number whose only job is to be
-believable. Last counted 2026-08-18.
+believable. Players counts one person once however many competitions they are in, and includes
+the 27 added by an organiser rather than signed up themselves - they are playing.
+
+Last counted 2026-09-16:
+  SELECT COUNT(*) FROM competition WHERE organiser_id NOT IN (50,862);
+  SELECT COUNT(DISTINCT organiser_id) FROM competition WHERE organiser_id NOT IN (50,862);
+  SELECT COUNT(DISTINCT cu.user_id) FROM competition_user cu
+    JOIN competition c ON c.id = cu.competition_id
+    JOIN app_user u ON u.id = cu.user_id
+   WHERE c.organiser_id NOT IN (50,862)
+     AND u.email NOT LIKE 'bot_%@lms-guest.com';
 */
 const TALLY = [
-  { value: '18', label: 'competitions' },
-  { value: '16', label: 'organisers' },
-  { value: '161', label: 'players' },
+  { value: '34', label: 'competitions' },
+  { value: '30', label: 'organisers' },
+  { value: '360', label: 'players' },
 ];
 
 const WEEKEND = [
@@ -84,44 +94,32 @@ const WEEKEND = [
   },
 ];
 
+/*
+No price line on either card. This section answers "who keys the fixtures", and the two answers
+do not cost the same, so a price beside each read as the reason to choose one - which it is not.
+Pricing is one thing for the whole product and is stated on /pricing and in "Included either way"
+below.
+*/
 const TWO_WAYS = [
   {
     title: 'We run the fixtures',
-    price: '20 credits a competition',
-    flag: 'Free right now',
     detail:
       'Each round arrives already built, with results and eliminations following after full time. Best if you want it off your hands. Available on the leagues we cover.',
   },
   {
     title: 'You run the fixtures',
-    price: 'Always free',
-    flag: null,
     detail:
       'You enter the fixtures and results yourself, round by round. Best if you want your own rounds, your own teams, or simply like holding the reins.',
   },
 ];
 
-const PLAYER_RULES = [
-  {
-    text: 'They pick one team each round from the fixtures.',
-    strong: 'one team',
-  },
-  {
-    text: 'That team wins and they stay in. A draw or a defeat and they are out.',
-    strong: 'they are out',
-  },
-  {
-    text: 'They can never pick the same team twice, so it gets harder every round.',
-    strong: 'same team twice',
-  },
-];
 
 const INCLUDED = [
   '20 player places, free, no card needed',
   'Your own join code or link to hand out',
   'A printable A4 poster for the venue',
   'Eliminations worked out for you, either way',
-  'No card to start, no subscription, ever',
+  'No card to start, no subscription',
 ];
 
 export default function LandingPage() {
@@ -355,14 +353,6 @@ export default function LandingPage() {
               <h4 className="font-display text-2xl uppercase tracking-[0.03em] text-ink">
                 {way.title}
               </h4>
-              <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className={`${LABEL} text-ink-fade`}>{way.price}</span>
-                {way.flag && (
-                  <span className={`${LABEL} bg-overprint px-2 py-1 text-stock-lit`}>
-                    {way.flag}
-                  </span>
-                )}
-              </p>
               <p className="mt-3 text-[17px] leading-relaxed text-ink">{way.detail}</p>
             </div>
           ))}
@@ -398,13 +388,14 @@ export default function LandingPage() {
       {/* Offline players — the objection that decides it for a lot of      */}
       {/* venues, and the thing existing organisers rate most               */}
       {/*                                                                   */}
-      {/* "Big Ben", not "Old Ben" (2026-08-18). The earlier name explained  */}
+      {/* "Terry", not "Big Ben" or "Old Ben". The oldest name explained     */}
       {/* itself faster, which is why it was chosen, but it classified the   */}
       {/* person it was meant to include. Plenty of people who avoid an app  */}
       {/* are wary of technology rather than old, and being filed under      */}
       {/* "old" is its own reason to opt out — so the heading was creating   */}
-      {/* an objection in the section that exists to remove one. Big Ben     */}
-      {/* reads as an ordinary nickname beside "doesn't use the app".        */}
+      {/* an objection in the section that exists to remove one. A plain     */}
+      {/* first name reads as somebody's regular beside "doesn't use the     */}
+      {/* app", and carries no nickname to decode.                           */}
       {/* Do not put an age word back.                                      */}
       {/*                                                                   */}
       {/* "Doesn't use the app", not "hasn't got a smartphone", for the same */}
@@ -419,11 +410,11 @@ export default function LandingPage() {
             <div>
               <p className={`${EYEBROW} text-overprint`}>Everyone plays</p>
               <h2 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
-                Big Ben doesn&rsquo;t use the app
+                Terry doesn&rsquo;t use the app
               </h2>
               <p className="mt-6 max-w-lg text-xl leading-relaxed text-ink">
-                He is still in it. Add him yourself and he is on the sheet with everybody else. Each
-                round he tells you his team and you put it in for him.
+                Add him yourself and he is on the sheet with everybody else. Each round he tells
+                you his team and you put it in.
               </p>
               <p className="mt-4 max-w-lg text-xl leading-relaxed text-ink">
                 No email address, no app, nothing for him to set up &mdash; and he can win the whole
@@ -444,7 +435,7 @@ export default function LandingPage() {
                   <span className="font-data text-[13px] text-ink-fade">picked on the app</span>
                 </li>
                 <li className="flex items-baseline justify-between gap-3">
-                  <span className="font-data text-[15px] text-ink">Big Ben</span>
+                  <span className="font-data text-[15px] text-ink">Terry M.</span>
                   <span className="font-data text-[13px] text-overprint">you put his in</span>
                 </li>
               </ul>
@@ -453,39 +444,6 @@ export default function LandingPage() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* The game itself, described as something your players do           */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="border-b border-ink/30 bg-stock-lit">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-          <h2 className="font-display text-4xl font-semibold uppercase leading-[0.9] text-ink sm:text-5xl">
-            What your players do
-          </h2>
-          <div className="mt-7 grid gap-8 sm:grid-cols-3">
-            {PLAYER_RULES.map((rule) => {
-              const [before, after] = rule.text.split(rule.strong);
-              return (
-                <p key={rule.text} className="text-xl leading-relaxed text-ink">
-                  {before}
-                  <strong
-                    className={`font-semibold ${
-                      rule.strong === 'they are out' ? 'text-overprint' : ''
-                    }`}
-                  >
-                    {rule.strong}
-                  </strong>
-                  {after}
-                </p>
-              );
-            })}
-          </div>
-          <p className="mt-8 border-t border-ink/30 pt-5 text-[16px] text-ink-fade">
-            Results stand on regulation time, 90 minutes plus stoppages. The last one standing takes
-            the prize.
-          </p>
         </div>
       </section>
 
@@ -500,6 +458,16 @@ export default function LandingPage() {
             </h2>
             <p className="mt-5 max-w-md text-xl leading-relaxed text-ink">
               LMSLocal is new. Everything that has run on it so far, counted honestly:
+            </p>
+            {/*
+              Named causes, not a claim about how much was raised - we never see the money, so a
+              total would be invented. "Among others" covers the rest without listing venues who
+              have not been asked.
+            */}
+            <p className="mt-5 max-w-md text-xl leading-relaxed text-ink">
+              Some have raised money for a good cause &mdash; an under-12s football team, a local
+              foodbank, among others. The organiser sets the entry fee and keeps all of it; we
+              never take a cut.
             </p>
             <p className="mt-5 max-w-md text-[16px] leading-relaxed text-ink-fade">
               There are no reviews on this page because we have not earned any yet. When an
@@ -649,8 +617,14 @@ export default function LandingPage() {
       <section className="border-t border-ink/30 bg-stock">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
           <p className={`${EYEBROW} text-overprint`}>Free to take away</p>
+          {/*
+            "On paper", not "yourself". Both downloads are for somebody running a competition
+            WITHOUT us, and "yourself" is the word this site uses for doing your own fixtures ON
+            the platform ("You run the fixtures"), so it read as a feature rather than the
+            alternative it is. Paper and a spreadsheet are what these actually are.
+          */}
           <h2 className="mt-4 max-w-2xl font-display text-4xl font-semibold uppercase leading-[0.9] text-ink sm:text-5xl">
-            Running one yourself?
+            Running one on paper instead?
           </h2>
           <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-ink">
             Take these whether you use LMSLocal or not. No sign-up, no email address, nothing to
