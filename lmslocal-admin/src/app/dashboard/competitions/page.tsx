@@ -220,12 +220,14 @@ const TILE_TONES = {
 function StatusTile({
   label,
   value,
+  hint,
   tone = 'neutral',
   active,
   onClick,
 }: {
   label: string;
   value: number;
+  hint?: string;
   tone?: keyof typeof TILE_TONES;
   active: boolean;
   onClick: () => void;
@@ -242,6 +244,7 @@ function StatusTile({
       <p className="mt-1.5 text-2xl font-semibold tabular-nums text-slate-900">
         {value.toLocaleString()}
       </p>
+      {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
     </button>
   );
 }
@@ -834,7 +837,14 @@ function CompetitionsList() {
     const matches = competitions.filter((c) =>
       (archivedTab
         ? c.is_archived
-        : !c.is_archived && (statusParam === 'all' || c.status === statusParam)) &&
+        : !c.is_archived &&
+          (statusParam === 'all' ||
+            c.status === statusParam ||
+            // A finished competition has nowhere else to be seen now that it has no tile of its
+            // own, and it is still the admin's to archive - so it rides along with Active, wearing
+            // its own pill, until they do. The Active tile counts it too, or the tile and the list
+            // below it would disagree.
+            (statusParam === 'active' && c.status === 'complete'))) &&
       (organiserId === null || c.organiser_id === organiserId) &&
       (c.name.toLowerCase().includes(term) ||
         (c.organiser_email || '').toLowerCase().includes(term) ||
@@ -917,6 +927,10 @@ function CompetitionsList() {
   );
 
   const statusCounts = useMemo(() => {
+    // No "complete" tile: a finished competition wears its pill in the list and waits to be
+    // archived, which is a decision an admin makes. Counting it in its own tile made the end of a
+    // competition look like a state needing attention, when the only thing left to do is archive
+    // it. The count is still kept, to fold into Active and be named in its hint.
     const counts: Record<string, number> = { active: 0, setup: 0, complete: 0, archived: 0 };
     scoped.forEach((c) => {
       // An archived competition is counted once, as archived, and nowhere else. Competition 176
@@ -969,10 +983,15 @@ function CompetitionsList() {
         )}
 
         {!loading && scoped.length > 0 && (
-          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
             <StatusTile
               label="Active"
-              value={statusCounts.active}
+              value={statusCounts.active + statusCounts.complete}
+              hint={
+                statusCounts.complete > 0
+                  ? `includes ${statusCounts.complete} complete, not yet archived`
+                  : undefined
+              }
               tone="good"
               active={statusParam === 'active'}
               onClick={() => setStatus('active')}
@@ -983,13 +1002,6 @@ function CompetitionsList() {
               tone="default"
               active={statusParam === 'setup'}
               onClick={() => setStatus('setup')}
-            />
-            <StatusTile
-              label="Complete"
-              value={statusCounts.complete}
-              tone="neutral"
-              active={statusParam === 'complete'}
-              onClick={() => setStatus('complete')}
             />
             <StatusTile
               label="Archived"
@@ -1005,9 +1017,11 @@ function CompetitionsList() {
           People. A separate, quieter row rather than a fifth tile, because these count humans
           and the tiles count competitions - and because nothing here filters anything.
 
-          "Active" means the same thing in both rows: in a competition that is neither complete
-          nor archived. A player eliminated from a running competition still counts; they stop
-          counting when it ends, not when they lose.
+          "Active" here counts people in a competition that is neither complete nor archived: a player
+          eliminated from a running competition still counts; they stop counting when it ends, not
+          when they lose. It is deliberately NOT the same set as the Active tile above, which now
+          carries finished competitions waiting to be archived - a finished competition has no
+          active players, so folding them in would inflate this.
 
           Hidden while the page is scoped to one organiser - these are platform-wide figures, and
           sitting them under a banner reading "showing competitions run by X" would invite them to
