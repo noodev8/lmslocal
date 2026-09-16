@@ -27,13 +27,14 @@ costs the list screen nothing, which is the reason this is a separate screen at 
 =======================================================================================================================================
 */
 
-import { useState, useEffect, useCallback, use } from 'react';
+import { useState, useEffect, useCallback, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowPathIcon,
   CheckCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon,
+  EyeIcon,
   LockClosedIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
@@ -189,8 +190,32 @@ Who has picked and who has not, for the current round.
 
 Sorted with the people you are waiting on at the top, because that is the only reason to read
 this list. Eliminated members sink to the bottom whatever they did - they owe nothing.
+
+The team a player chose reads as "Picked" until you tap it, and then shows for REVEAL_MS before
+hiding itself again. Who has picked is the reporting question this screen answers; what they picked
+is somebody's live hand in a running competition, so looking at one is a deliberate act and looking
+at all of them is not offered. Nothing is remembered - reopening the screen starts hidden.
 */
+const REVEAL_MS = 5000;
+
 function PlayerList({ players, isLocked }: { players: CompetitionStatsPlayer[]; isLocked: boolean }) {
+  const [revealed, setRevealed] = useState<number[]>([]);
+  /* Timers are keyed by player so a second tap restarts that row's clock rather than stacking. */
+  const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => Object.values(pending).forEach(clearTimeout);
+  }, []);
+
+  const reveal = (userId: number) => {
+    clearTimeout(timers.current[userId]);
+    setRevealed((ids) => (ids.includes(userId) ? ids : [...ids, userId]));
+    timers.current[userId] = setTimeout(() => {
+      delete timers.current[userId];
+      setRevealed((ids) => ids.filter((id) => id !== userId));
+    }, REVEAL_MS);
+  };
   const rank = (p: CompetitionStatsPlayer) => {
     if (p.status !== 'active') return 3;
     return p.has_picked ? 2 : 1;
@@ -238,7 +263,21 @@ function PlayerList({ players, isLocked }: { players: CompetitionStatsPlayer[]; 
                 </td>
                 <td className="px-4 py-3">
                   {p.has_picked ? (
-                    <span className={out ? '' : 'text-slate-900'}>{p.picked_team}</span>
+                    revealed.includes(p.user_id) ? (
+                      <span className={out ? '' : 'text-slate-900'}>{p.picked_team}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => reveal(p.user_id)}
+                        title="Tap to show this pick for a few seconds"
+                        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm hover:bg-slate-100 ${
+                          out ? 'text-slate-400' : 'text-slate-500'
+                        }`}
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                        Picked
+                      </button>
+                    )
                   ) : out ? (
                     /* An eliminated player not picking is the expected state, not a gap. */
                     <span className="text-slate-300">—</span>
