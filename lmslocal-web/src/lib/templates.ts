@@ -63,6 +63,9 @@ First round locks [PICK_DEADLINE].`
     name: 'Pick Reminder',
     category: 'pick_reminder',
     tone: 'gentle',
+    // [GAME_URL], never the bare home page: a reminder that lands a player on the marketing site
+    // asks them to find their own way back to the competition, which is the whole thing this
+    // message exists to save them. Same rule as the pre-launch template's [JOIN_URL].
     content: `⚽ [COMP_NAME] - Round [ROUND_NUMBER]
 
 ⏰ Round locks: [PICK_DEADLINE]
@@ -70,8 +73,8 @@ First round locks [PICK_DEADLINE].`
 📅 Fixtures:
 [FIXTURES]
 
-Make your pick before the deadline!
-https://lmslocal.co.uk
+Make your pick before the deadline:
+[GAME_URL]
 
 Good luck! 👍`
   },
