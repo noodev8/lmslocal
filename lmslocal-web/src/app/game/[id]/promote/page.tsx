@@ -37,6 +37,11 @@ interface PromoteData {
     is_locked: boolean;
     fixture_count: number;
     completed_fixtures: number;
+    still_to_play?: Array<{
+      home_team: string;
+      away_team: string;
+      kickoff?: string | null;
+    }>;
     next_round_info: {
       exists: boolean;
       round_number?: number;
@@ -260,10 +265,22 @@ export default function PromotePage() {
       : data.current_round?.round_number || null;
 
     // Fill template with data
+    /*
+      For a results message, the survivor count has to describe the round being reported, not the
+      moment the organiser pressed copy. total_active_players is live, so in a part-played round it
+      already has Saturday's casualties removed from a message headed with last round's number.
+      Round statistics give the consistent figure: everyone who started that round, less those it
+      eliminated - a player who lost a life is still in.
+    */
+    const survivorsAfterRound = template.category === 'round_update' && roundStats
+      ? roundStats.total_players - roundStats.eliminated
+      : data.player_stats.total_active_players;
+
     const filledTemplate = replaceTemplateVariables(template.content, {
       competition_name: data.competition.name,
       round_number: roundNumberToUse,
-      players_remaining: data.player_stats.total_active_players,
+      players_remaining: survivorsAfterRound,
+      still_to_play: data.current_round?.still_to_play || [],
       players_eliminated: data.player_stats.players_eliminated_this_round,
       top_players: data.top_players,
       pick_deadline: data.current_round?.lock_time_formatted || null,

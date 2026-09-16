@@ -34,6 +34,13 @@ Success Response (ALWAYS HTTP 200):
     "is_locked": false,                // boolean, whether round is currently locked
     "fixture_count": 10,               // integer, number of fixtures in round
     "completed_fixtures": 0,           // integer, fixtures with results
+    "still_to_play": [                 // array, fixtures in this round with no result yet (empty when the round is done)
+      {
+        "home_team": "Burnley",        // string, home team name
+        "away_team": "Everton",        // string, away team name
+        "kickoff": "Monday 8pm"        // string, kickoff in UK time (null if not set)
+      }
+    ],
     "next_round_info": {               // object, information about next round
       "exists": true,                  // boolean, whether next round exists
       "round_number": 6,               // integer, next round number (if exists)
@@ -217,6 +224,48 @@ router.post('/', verifyToken, async (req, res) => {
       const fixture_count = parseInt(fixtureResult.rows[0].count);
       const completed_fixtures = parseInt(fixtureResult.rows[0].completed);
 
+      /*
+        The fixtures in this round nobody has a result for yet.
+
+        A round is routinely part-played - a Saturday slate with one match on the Monday - and the
+        results message the organiser sends on the Sunday reads as though everything is settled.
+        Handing the outstanding fixtures back lets that message say what is still to come instead
+        of going quiet about it.
+      */
+      const stillToPlayResult = await query(
+        `SELECT home_team, away_team, kickoff_time
+         FROM fixture
+         WHERE round_id = $1 AND result IS NULL
+         ORDER BY kickoff_time ASC NULLS LAST, id ASC`,
+        [round.id]
+      );
+
+      const kickoffFormatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/London',
+        weekday: 'long',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      });
+
+      const still_to_play = stillToPlayResult.rows.map(fixture => {
+        let kickoff = null;
+        if (fixture.kickoff_time) {
+          const parts = kickoffFormatter.formatToParts(new Date(fixture.kickoff_time));
+          const weekday = parts.find(part => part.type === 'weekday').value;
+          const hour24 = parseInt(parts.find(part => part.type === 'hour').value);
+          const minute = parseInt(parts.find(part => part.type === 'minute').value);
+          const hour12 = hour24 % 12 || 12;
+          const ampm = hour24 >= 12 ? 'pm' : 'am';
+          kickoff = `${weekday} ${minute > 0 ? `${hour12}:${minute.toString().padStart(2, '0')}` : hour12}${ampm}`;
+        }
+        return {
+          home_team: fixture.home_team,
+          away_team: fixture.away_team,
+          kickoff
+        };
+      });
+
       // Format lock time in UK timezone (e.g., "Friday 25 Oct at 3pm" or "Friday 25 Oct at 12:30pm")
       let lock_time_formatted = null;
       if (lockTime) {
@@ -316,6 +365,7 @@ router.post('/', verifyToken, async (req, res) => {
         is_locked,
         fixture_count,
         completed_fixtures,
+        still_to_play,
         next_round_info
       };
     }

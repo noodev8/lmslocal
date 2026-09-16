@@ -18,6 +18,7 @@
  * - [JOIN_CODE] - Competition invite code
  * - [JOIN_URL] - Full join URL (for pre-launch)
  * - [GAME_URL] - Direct game URL (for active competitions)
+ * - [STILL_TO_PLAY] - Fixtures in the current round with no result yet (whole line disappears when there are none)
  * - [TOTAL_PLAYERS] - Total players who ever joined
  * - [PLAYERS_WITHOUT_PICKS] - Count of players who haven't picked
  * - [PICK_PERCENTAGE] - Percentage of players who have picked
@@ -86,12 +87,17 @@ Good luck! 👍`
     id: 'round_results',
     name: 'Round Results',
     category: 'round_update',
+    // [PLAYERS_REMAINING] is the survivor count for the round named above, not a live one, and
+    // [STILL_TO_PLAY] names any fixture in the current round that has not been played. A round is
+    // routinely part-played - a Saturday slate with one match on the Monday - and this message
+    // used to read as though everything was settled while somebody's team had not kicked off.
     content: `💥 Round [ROUND_NUMBER] Results
 
 [ROUND_STATS]
 [UNLUCKY_PICK]
 
 [PLAYERS_REMAINING] survivors remain
+[STILL_TO_PLAY]
 
 [SURVIVORS_LABEL]
 [TOP_3_PLAYERS]
@@ -167,6 +173,37 @@ View final standings: [GAME_URL]`
 ];
 
 /**
+ * The "still to play" line, or nothing at all.
+ *
+ * One line, never a fixture list. The point is only to stop the message reading as final while
+ * somebody's team has not kicked off, and a player who wants the detail has the standings link at
+ * the foot of the message. A single outstanding match is worth naming, since that is the common
+ * case - a Saturday round with one game held over to the Monday - and knowing which one answers
+ * the question the line raises.
+ *
+ * Returns an empty string when every fixture in the round has a result, and the replacement
+ * swallows the blank line with it.
+ */
+function formatStillToPlay(fixtures: Array<{
+  home_team: string;
+  away_team: string;
+  kickoff?: string | null;
+}>): string {
+  if (!fixtures || fixtures.length === 0) return '';
+
+  if (fixtures.length === 1) {
+    const only = fixtures[0];
+    const tie = `${only.home_team} v ${only.away_team}`;
+    return `\n\u23F3 Still to play: ${only.kickoff ? `${tie}, ${only.kickoff}` : tie}`;
+  }
+
+  // With several outstanding, the latest kickoff is the useful fact: it is when this round settles.
+  const last = [...fixtures].reverse().find(fixture => fixture.kickoff);
+  const tail = last ? `, last one ${last.kickoff}` : '';
+  return `\n\u23F3 ${fixtures.length} games still to play${tail}`;
+}
+
+/**
  * Format upcoming fixtures for display (without results)
  */
 function formatFixtures(fixtures: Array<{
@@ -238,6 +275,7 @@ export function replaceTemplateVariables(
     join_code: string;
     join_url: string;
     game_url: string;
+    still_to_play?: Array<{ home_team: string; away_team: string; kickoff?: string | null }>;
     total_players: number;
     players_without_picks: number;
     pick_percentage: number;
@@ -282,6 +320,10 @@ export function replaceTemplateVariables(
   result = result.replace(/\[JOIN_CODE\]/g, data.join_code);
   result = result.replace(/\[JOIN_URL\]/g, data.join_url);
   result = result.replace(/\[GAME_URL\]/g, data.game_url);
+  // Takes the preceding newline with it when there is nothing still to play, so the finished-round
+  // message keeps its spacing.
+  result = result.replace(/\n\[STILL_TO_PLAY\]/g, formatStillToPlay(data.still_to_play || []));
+  result = result.replace(/\[STILL_TO_PLAY\]/g, '');
   result = result.replace(/\[TOTAL_PLAYERS\]/g, data.total_players.toString());
   result = result.replace(/\[PLAYERS_WITHOUT_PICKS\]/g, data.players_without_picks.toString());
   result = result.replace(/\[PICK_PERCENTAGE\]/g, data.pick_percentage.toString());
