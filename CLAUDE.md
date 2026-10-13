@@ -264,8 +264,12 @@ Table names are **singular**: `competition`, `round`, `pick`, `team`, `team_list
   was **dropped in Aug 2026** — it duplicated derivable state and had **three** rebuild
   implementations carrying **two** different definitions. `services/allowedTeams.js` is now the
   only definition; **do not reintroduce a stored copy**
-- **Lock**: when all players have picked, or at the admin-set time — there is no automatic buffer
-  before kickoff
+- **Lock**: at the admin-set `round.lock_time` and nothing else — there is no automatic buffer
+  before kickoff. **Auto-lock on "everyone has picked" is disabled**: it is coded in
+  `utils/roundLocking.js` but `checkAndLockRoundIfComplete` returns `AUTO_LOCK_DISABLED` from the
+  first line and the rest of the function is deliberately unreachable, kept for re-enabling —
+  waiting for the first kickoff is more exciting. So a full round stays open, and deleting a pick
+  reopens picking for that player
 - **Outcome**: win = advance; draw or loss = eliminated; missed pick = life lost. Judged on
   **regulation time only** (90 minutes + stoppage)
 - Players join by competition slug or access code
