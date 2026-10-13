@@ -107,12 +107,6 @@ export default function HelpLayout({ children }: { children: React.ReactNode }) 
                   >
                     Send a message
                   </Link>
-                  <a
-                    href="tel:+447818443886"
-                    className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint`}
-                  >
-                    Or call 07818 443886
-                  </a>
                 </div>
               </aside>
             )}

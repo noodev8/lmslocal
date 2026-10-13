@@ -36,19 +36,7 @@ export default function SupportPage() {
         directly, usually the same day.
       </p>
 
-      {/* Pick up the phone, if that suits better */}
-      <div className="mt-9 grid gap-4 sm:grid-cols-2">
-        <div className="border border-ink/30 bg-stock-lit p-5">
-          <h2 className={`${LABEL} text-ink-fade`}>Call us</h2>
-          <a
-            href="tel:+447818443886"
-            className="mt-2 block font-display text-3xl uppercase tracking-[0.03em] text-ink transition-colors hover:text-overprint"
-          >
-            07818 443886
-          </a>
-          <p className="mt-2 text-[15px] text-ink-fade">Andreas, 11am to 5pm.</p>
-        </div>
-
+      <div className="mt-9 max-w-md">
         <div className="border border-ink/30 bg-stock-lit p-5">
           <h2 className={`${LABEL} text-ink-fade`}>Email us</h2>
           <a
