@@ -1,0 +1,6 @@
+# Flutter writes LF. With core.autocrlf=true on Windows the checkout is CRLF, so every
+# `flutter pub get` rewrote the generated plugin registrants to LF and git showed seven files
+# modified with no content change. Pinning the folder to LF makes the checkout match what
+# Flutter writes. text=auto, not text: the folder holds binaries (icons, images) that a plain
+# `text` rule would corrupt.
+lmslocal-flutter/** text=auto eol=lf
