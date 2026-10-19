@@ -48,8 +48,8 @@ import {
   FixtureTeamList,
   FixtureBlock,
   BlockFixtureInput,
-  StagePushOutcome,
 } from '@/lib/api';
+import { describeStage } from '@/lib/stage-summary';
 import { ukTimeToUtcIso } from '@/lib/uk-time';
 
 type Notice = { tone: 'success' | 'info' | 'error'; text: string } | null;
@@ -495,33 +495,6 @@ function BlockForm({
 // One block in the list
 // ======================================================================================
 
-/*
-What Stage did, in one line. Skipped competitions are named with their reason because "why didn't
-that one get its fixtures?" is the next question, and the answer is usually an organiser who has
-not pressed Ready - normal, not a fault. Only a failure, or a push that never ran, is a warning.
-*/
-function stagedNotice(label: string, competitions: StagePushOutcome[] | null): Notice {
-  if (competitions === null) {
-    return {
-      tone: 'error',
-      text: `"${label}" is staged, but sending it to competitions did not run. Push them from the Fixtures screen.`,
-    };
-  }
-
-  const pushed = competitions.filter((c) => c.outcome === 'pushed').length;
-  const notSent = competitions
-    .filter((c) => c.outcome !== 'pushed')
-    .map((c) => `${c.name} (${c.reason ?? 'not sent'})`);
-  const failed = competitions.some((c) => c.outcome === 'failed');
-
-  return {
-    tone: failed ? 'error' : 'success',
-    text:
-      `"${label}" is staged and sent to ${pushed} of ${competitions.length} competition${competitions.length === 1 ? '' : 's'}.` +
-      (notSent.length > 0 ? ` Not sent: ${notSent.join('; ')}.` : ''),
-  };
-}
-
 function BlockCard({
   block,
   pendingBatch,
@@ -567,7 +540,8 @@ function BlockCard({
     try {
       const result = await adminApi.promoteFixtureBlock(block.id);
       if (result.return_code === 'SUCCESS') {
-        setNotice(stagedNotice(block.label, result.competitions ?? null));
+        const { failed, text } = describeStage(block.label, result.competitions ?? null);
+        setNotice({ tone: failed ? 'error' : 'success', text });
         onChanged();
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not stage that block.' });

@@ -273,7 +273,30 @@ both create round 1 — `round` has no unique constraint on `(competition_id, ro
 Archived competitions are pushed like any other. Archiving hides a competition from the admin's
 view; it does not stop it playing.
 
-Closing the gameweek (**Clear staged batch**) is unchanged and still manual.
+**The last results push closes the gameweek and sends the next one** (2026-10-19, same day). The
+operator's routine was push results → close → Stage, and each arrow was a press with nothing to
+decide: closing is refused until every competition holding the batch has every result pushed and
+processed, which is exactly the moment both of the later steps are safe. So:
+
+- After any results push (Push all or one row), the Results screen reloads the list and, if every
+  competition is settled, closes the gameweek itself. On the screen, not the server: two pushes
+  finishing together inside the server could each still see the other as unfinished, and neither
+  would close; the screen pushes one at a time. A part-resulted weekend never closes - Saturday's
+  push leaves Sunday's fixtures pending.
+- `clear-staged-batch`, once the close commits, stages the **next block** — the soonest unstaged
+  one with fixtures and a kickoff still ahead, the same rule the calendar uses to offer Stage —
+  and pushes it, through the same function Stage uses (`services/stageBlock.js`). Nothing on the
+  calendar means it just closes.
+- **A forced close sends nothing.** Forcing means a competition is unfinished — usually a postponed
+  match, which can never get a result because a result is only home win, away win or draw. That
+  is the operator's judgement call, and publishing the next round on top of it is not.
+
+What this gives up: a result pushed wrongly now has the next round out within seconds, so a
+player wrongly eliminated also misses that round's pick until fixed by hand. A pushed result could
+never be corrected from staging anyway; the window this closes was the minutes between pushing and
+pressing Stage.
+
+Stage on the calendar stays, for a block keyed after the gameweek closed.
 
 **Net keying effort is unchanged.** Each gameweek is typed once, into the calendar, then promoted
 with a button — the typing that happens today just happens earlier. The only genuine extra is the

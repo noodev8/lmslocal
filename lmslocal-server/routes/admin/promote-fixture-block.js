@@ -96,58 +96,13 @@ Data Notes:
 */
 
 const express = require('express');
-const { query, transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { loadBlockContext } = require('../../services/fixtureBlock');
-const { getFixturePushCandidates, pushFixturesToCompetition } = require('../../services/fixtureService');
+const { stageBlock } = require('../../services/stageBlock');
 const router = express.Router();
 
-/**
- * Pushes the batch just staged to every competition the candidate list calls eligible, one
- * transaction each. Never throws: every competition comes back as pushed, skipped or failed.
- */
-async function pushToEligible(teamListId) {
-  const { competitions: candidates } = await getFixturePushCandidates({ query }, teamListId);
-  const outcomes = [];
-
-  // Sequential, not Promise.all - they share the pool with every live request, and the whole
-  // run is a dozen short transactions.
-  for (const candidate of candidates) {
-    const row = {
-      competition_id: candidate.competition_id,
-      name: candidate.name,
-      outcome: 'skipped',
-      round_number: null,
-      round_action: null,
-      reason: candidate.reason,
-    };
-
-    if (candidate.eligible) {
-      try {
-        const pushed = await transaction((client) => pushFixturesToCompetition(client, candidate.competition_id));
-        row.outcome = 'pushed';
-        row.round_number = pushed.round_number;
-        row.round_action = pushed.round_action;
-      } catch (error) {
-        // NOT_ELIGIBLE here means something changed since the list was read - a round started
-        // through Ready a moment ago - which is a skip with a reason, not a failure.
-        if (error.message === 'NOT_ELIGIBLE') {
-          row.reason = error.reason || 'No longer eligible';
-        } else {
-          console.error('promote-fixture-block push failed:', candidate.competition_id, error.message);
-          row.outcome = 'failed';
-          row.reason = 'Push failed - try it from the Fixtures screen';
-        }
-      }
-    }
-
-    outcomes.push(row);
-  }
-
-  return outcomes;
-}
-
+// The work is in services/stageBlock.js, shared with clear-staged-batch, which stages the next
+// block itself when a gameweek closes.
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('promote-fixture-block');
 
@@ -161,120 +116,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
       });
     }
 
-    // ========================================
-    // STEP 1: The block must exist and not already be out
-    // ========================================
-    const context = await loadBlockContext(block_id);
-
-    if (!context) {
-      return res.json({
-        return_code: 'BLOCK_NOT_FOUND',
-        message: 'That block no longer exists'
-      });
-    }
-
-    if (context.staged_at) {
-      return res.json({
-        return_code: 'ALREADY_PROMOTED',
-        message: 'This block has already been staged'
-      });
-    }
-
-    // ========================================
-    // STEP 2: One batch at a time - the same rule add-staged-fixtures enforces
-    // ========================================
-    const pendingResult = await query(
-      'SELECT COUNT(*) AS count FROM fixture_load WHERE team_list_id = $1',
-      [context.team_list_id]
-    );
-
-    if (parseInt(pendingResult.rows[0].count, 10) > 0) {
-      return res.json({
-        return_code: 'PENDING_BATCH',
-        message: `${context.team_list_name} already has a staged batch. Push it to every competition and clear it before staging this one.`
-      });
-    }
-
-    // ========================================
-    // STEP 3: The block must have fixtures, and they must still be ahead of us
-    // ========================================
-    const itemsResult = await query(`
-      SELECT home_team_short, away_team_short, kickoff_time
-      FROM fixture_block_item
-      WHERE block_id = $1
-      ORDER BY kickoff_time
-    `, [block_id]);
-
-    if (itemsResult.rows.length === 0) {
-      return res.json({
-        return_code: 'VALIDATION_ERROR',
-        message: 'That block has no fixtures in it'
-      });
-    }
-
-    // Ordered by kickoff, so the first row carries the lock time.
-    const lockTime = itemsResult.rows[0].kickoff_time;
-
-    if (new Date(lockTime) <= new Date()) {
-      return res.json({
-        return_code: 'KICKOFF_PASSED',
-        message: 'The first kick off in this block has already passed, so it would create a round nobody could pick in.'
-      });
-    }
-
-    // ========================================
-    // STEP 4: Copy into fixture_load and mark the block as gone, together
-    // ========================================
-    await transaction(async (client) => {
-      for (const item of itemsResult.rows) {
-        await client.query(`
-          INSERT INTO fixture_load
-            (team_list_id, league, home_team_short, away_team_short, kickoff_time, opens_gameweek,
-             source_block_id)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [
-          context.team_list_id,
-          context.team_list_name,       // league - the list's own name, as add-staged-fixtures does
-          item.home_team_short,
-          item.away_team_short,
-          item.kickoff_time,
-          // Carried from the block rather than re-asked. Whoever keyed the block already
-          // answered this, and answering it twice invites the two disagreeing.
-          context.opens_gameweek,
-          // What lets the push find the provisional rounds already created against this block
-          // and reconcile them, instead of giving those competitions a second round 1.
-          block_id
-        ]);
-      }
-
-      await client.query(
-        'UPDATE fixture_block SET staged_at = NOW() WHERE id = $1',
-        [block_id]
-      );
-    });
-
-    // ========================================
-    // STEP 5: Push to every eligible competition, each on its own
-    // ========================================
-    // A failure reading the candidate list must not turn a committed stage into SERVER_ERROR -
-    // the operator would try again and be told it is already staged. null, not [], so the
-    // screen can tell "the push never ran" from "nobody was eligible".
-    let competitions = null;
-    try {
-      competitions = await pushToEligible(context.team_list_id);
-    } catch (error) {
-      console.error('promote-fixture-block candidate list failed:', error.message);
-    }
-
-    return res.json({
-      return_code: 'SUCCESS',
-      block_id,
-      fixtures_staged: itemsResult.rows.length,
-      team_list_id: context.team_list_id,
-      lock_time: lockTime,
-      pushed_count: competitions ? competitions.filter((c) => c.outcome === 'pushed').length : 0,
-      competitions
-    });
+    return res.json(await stageBlock(block_id));
 
   } catch (error) {
     console.error('promote-fixture-block error:', error.message);

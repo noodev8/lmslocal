@@ -553,6 +553,10 @@ export type ClearBatchResponse = ApiResponse & {
   blocks_deleted?: number;
   forced?: boolean;
   competitions?: { competition_id: number; name: string; fixtures_pending: number; fixtures_unprocessed: number }[];
+  /* The next calendar block, staged and sent by an unforced close. null when forced or nothing to stage. */
+  next_block?: (PromoteFixtureBlockResponse & { label: string }) | null;
+  /* Why next_block is null, in words for a person. */
+  next_block_note?: string | null;
 };
 
 export type SetFixtureServiceResponse = ApiResponse & {

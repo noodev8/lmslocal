@@ -46,6 +46,7 @@ import {
   PushFixturesOneResponse,
   ClearBatchResponse,
 } from '@/lib/api';
+import { describeStage } from '@/lib/stage-summary';
 
 type Tab = 'fixtures' | 'results';
 
@@ -797,6 +798,15 @@ is offering - one definition, not a filter that can drift from what is on the bu
 */
 const needsPush = (t: PushTarget) => t.results_to_push > 0 || t.fixtures_unprocessed > 0;
 
+/*
+Every competition holding the batch has every result pushed and processed - the same test the
+server's clear guard makes. A fixture with no result yet counts as pending on every competition,
+so a part-resulted weekend is never settled. Shared by the close button and the automatic close
+after a push, so the screen cannot close on a different rule from the one it shows.
+*/
+const isSettled = (list: PushTarget[]) =>
+  list.length > 0 && list.every((t) => t.fixtures_pending === 0 && t.fixtures_unprocessed === 0);
+
 function PushResultsPanel({
   teamList,
   resultedCount,
@@ -810,18 +820,23 @@ function PushResultsPanel({
 }) {
   const [targets, setTargets] = useState<PushTarget[] | null>(null);
   const [stagedResulted, setStagedResulted] = useState(0);
+  const [stagedTotal, setStagedTotal] = useState(0);
   const [pushingId, setPushingId] = useState<number | null>(null);
   const [outcomes, setOutcomes] = useState<Record<number, PushOutcome>>({});
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
   const [clearing, setClearing] = useState(false);
   const [outstanding, setOutstanding] = useState<ClearBatchResponse['competitions'] | null>(null);
 
-  const load = useCallback(async () => {
+  /* Returns the fresh list as well as storing it, so a push can decide on it without a render. */
+  const load = useCallback(async (): Promise<PushTarget[] | null> => {
     try {
       const result = await adminApi.getPushTargets(teamList.id);
       if (result.return_code === 'SUCCESS') {
-        setTargets(result.competitions || []);
+        const competitions = result.competitions || [];
+        setTargets(competitions);
         setStagedResulted(result.staged_resulted || 0);
+        setStagedTotal(result.staged_total || 0);
+        return competitions;
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not load the competitions waiting for this batch.' });
         setTargets([]);
@@ -830,6 +845,7 @@ function PushResultsPanel({
       setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
       setTargets([]);
     }
+    return null;
   }, [teamList.id, setNotice]);
 
   // Reloads when a result is confirmed, so the "x of y results in" line stays truthful.
@@ -884,7 +900,8 @@ function PushResultsPanel({
   const handlePush = async (target: PushTarget) => {
     setNotice(null);
     await pushOne(target.competition_id);
-    await load();
+    const fresh = await load();
+    if (fresh && isSettled(fresh)) await handleClear(false, true);
   };
 
   /*
@@ -922,7 +939,18 @@ function PushResultsPanel({
     }
 
     setBulk(null);
-    await load();
+    const fresh = await load();
+
+    /*
+    The push that settled the last competition closes the gameweek, and the close stages and sends
+    the next block (clear-staged-batch). Nothing to decide at either step - the guard is the same
+    test - so asking would only be a press to forget, as Stage once was. Its notice replaces the
+    one below, and says what the pushes did too.
+    */
+    if (fresh && isSettled(fresh)) {
+      await handleClear(false, true);
+      return;
+    }
 
     // One reload, one notice, at the end. Reloading between pushes would re-render the list
     // under the operator on every step for a number they are already watching on the button.
@@ -939,7 +967,8 @@ function PushResultsPanel({
     }
   };
 
-  const handleClear = async (force: boolean) => {
+  /* auto: called by a push that settled the last competition, not by the button. */
+  const handleClear = async (force: boolean, auto = false) => {
     setClearing(true);
     setNotice(null);
     try {
@@ -949,15 +978,23 @@ function PushResultsPanel({
         // The notice renders above the tabs, and this button is at the foot of twelve
         // competitions - so the confirmation appeared off-screen behind the operator.
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        /*
-        Reports what happened, and stops there. The next action lives in exactly one place - the
-        empty state this clear is about to reveal - because two routes to the same screen read as
-        two different decisions to make.
-        */
-        setNotice({
-          tone: 'success',
-          text: `Gameweek closed — ${result.rows_cleared} staged fixtures cleared and taken off the calendar.`,
-        });
+
+        const closed = auto
+          ? 'Every competition has its results, so the gameweek is closed.'
+          : `Gameweek closed — ${result.rows_cleared} staged fixtures cleared and taken off the calendar.`;
+
+        // What happened to the next block: sent (with who did not get it), refused, or not tried.
+        const next = result.next_block;
+        let tail: { failed: boolean; text: string };
+        if (next && next.return_code === 'SUCCESS') {
+          tail = describeStage(next.label, next.competitions ?? null);
+        } else if (next) {
+          tail = { failed: true, text: `"${next.label}" was not staged: ${next.message || next.return_code}` };
+        } else {
+          tail = { failed: false, text: result.next_block_note || '' };
+        }
+
+        setNotice({ tone: tail.failed ? 'error' : 'success', text: `${closed} ${tail.text}`.trim() });
         onBatchCleared();
       } else if (result.return_code === 'OUTSTANDING_COMPETITIONS') {
         setOutstanding(result.competitions || []);
@@ -998,7 +1035,9 @@ function PushResultsPanel({
   resolved by hand - and the dialog below still exists for a client view that has gone stale.
   */
   const unsettled = targets.filter((t) => t.fixtures_pending > 0 || t.fixtures_unprocessed > 0);
-  const canClear = unsettled.length === 0;
+  const canClear = isSettled(targets);
+  // Every staged fixture has its result, so the next push is the one that closes the gameweek.
+  const lastPush = stagedTotal > 0 && stagedResulted === stagedTotal && pending.length > 0;
 
   return (
     <div className="mt-8">
@@ -1029,6 +1068,16 @@ function PushResultsPanel({
         {!anyResults && (
           <div className="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
             No results entered yet.
+          </div>
+        )}
+
+        {/* Said before the press, not after: this push does more than push results, and the
+            operator should not learn that from the notice. Not a confirm - there is nothing to
+            decide that the guard has not already decided. */}
+        {lastPush && (
+          <div className="border-b border-slate-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+            Every result is in. Pushing them closes this gameweek and sends the next one on the
+            calendar to every competition that can take it.
           </div>
         )}
 
@@ -1161,7 +1210,7 @@ function PushResultsPanel({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-xs text-slate-500">
             {canClear
-              ? 'Every competition has this gameweek’s results. Close it to stage the next block.'
+              ? 'Every competition has this gameweek’s results. Closing it sends the next block on the calendar.'
               : `${unsettled.length} competition${unsettled.length === 1 ? '' : 's'} still to push before this gameweek can be closed.`}
           </p>
           <button
@@ -1188,7 +1237,7 @@ function PushResultsPanel({
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Some competitions are unfinished</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Clearing now leaves these without their results. Push them first unless you know they no longer need this batch.
+                  Clearing now leaves these without their results. Push them first unless you know they no longer need this batch. Nothing is sent next - stage the next block from the calendar.
                 </p>
               </div>
             </div>

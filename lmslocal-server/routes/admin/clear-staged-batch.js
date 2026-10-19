@@ -14,6 +14,12 @@ Purpose: Empties fixture_load for one team list, which is what allows the next b
 
          The model is otherwise unchanged: only one staged batch at a time per team list, and
          add-staged-fixtures stays blocked until this route empties the table.
+
+         An unforced close then STAGES AND SENDS THE NEXT BLOCK (2026-10-19), through the same
+         services/stageBlock.js that Stage uses. The guard below is exactly the condition that
+         makes that safe - every competition has every result - so pressing Stage afterwards was a
+         formality. The Results screen also calls this route itself after the push that settles
+         the last competition, so a gameweek ends and the next begins with no press at all.
 =======================================================================================================================================
 Request Payload:
 {
@@ -27,7 +33,14 @@ Success Response (ALWAYS HTTP 200):
   "rows_cleared": 10,                       // integer, fixture_load rows deleted
   "blocks_deleted": 1,                      // integer, calendar blocks the batch came from, now gone
   "forced": false,                          // boolean, whether the outstanding-work guard was overridden
-  "message": "Staged batch cleared"
+  "message": "Staged batch cleared",
+  "next_block": {                           // object or null - null when forced or nothing to stage
+    "block_id": 12,                         // integer
+    "label": "Fri 23 Oct",                  // string
+    ...                                     // the full promote-fixture-block response: return_code,
+                                            //   fixtures_staged, pushed_count, competitions, message
+  },
+  "next_block_note": "Nothing on the calendar to stage" // string or null, why next_block is null
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -58,6 +71,15 @@ Why the guard, and why it can be overridden:
 
   force exists because the admin can legitimately know better: a competition may have been taken
   off the fixture service mid-batch, or its round resolved by hand.
+
+  A FORCED close sends nothing next. Forcing means a competition is unfinished - usually a
+  postponed match, which can never get a result - and that is a judgement call; publishing the
+  next round on top of it is not this route's to make. Stage it from the calendar.
+
+  The close commits BEFORE the next block is staged, and a failed stage does not undo it: the
+  gameweek is over either way, and Stage on the calendar is the retry. A stage refusal (say the
+  next block's kickoff has passed) comes back inside next_block as its own return_code, so the
+  close itself still reads SUCCESS.
 =======================================================================================================================================
 */
 
@@ -65,6 +87,7 @@ const express = require('express');
 const { transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
+const { findNextBlock, stageBlock } = require('../../services/stageBlock');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
@@ -170,12 +193,34 @@ router.post('/', verifyAdminToken, async (req, res) => {
       return { rows_cleared: deleteResult.rowCount, blocks_deleted: blocksDeleted };
     });
 
+    // The close has committed. Anything below reports into next_block rather than failing it.
+    let nextBlock = null;
+    let nextBlockNote = null;
+
+    if (forced) {
+      nextBlockNote = 'Forced close - nothing sent. Stage the next block from the calendar.';
+    } else {
+      try {
+        const next = await findNextBlock(teamListId);
+        if (next) {
+          nextBlock = { label: next.label, ...(await stageBlock(next.block_id)) };
+        } else {
+          nextBlockNote = 'Nothing on the calendar to stage - key the next gameweek.';
+        }
+      } catch (error) {
+        console.error('clear-staged-batch next block failed:', error.message);
+        nextBlockNote = 'Could not stage the next block - stage it from the calendar.';
+      }
+    }
+
     return res.json({
       return_code: 'SUCCESS',
       rows_cleared: result.rows_cleared,
       blocks_deleted: result.blocks_deleted,
       forced,
-      message: 'Staged batch cleared'
+      message: 'Staged batch cleared',
+      next_block: nextBlock,
+      next_block_note: nextBlockNote
     });
 
   } catch (error) {

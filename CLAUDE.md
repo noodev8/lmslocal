@@ -311,10 +311,13 @@ codebase** — delete it from `.env` if still there. Both plural routes
 **unregistered**, and kept on disk as frozen references — do not edit them or wire them back up.
 
 **One staged batch at a time per team list** — `fixture_load` itself is the pending batch, and
-staging refuses while it is non-empty. Closing the gameweek (**Gameweek complete — press to
-continue**, the Results tab) is a deliberate step because the staged rows must survive until every
-competition has been pushed to individually; it refuses while any competition is unfinished, unless
-forced. **It also deletes the calendar block the batch came from** — a played gameweek is not kept,
+staging refuses while it is non-empty. Closing the gameweek is a separate step from pushing results
+because the staged rows must survive until every competition has been pushed to individually; it
+refuses while any competition is unfinished, unless forced. **The Results screen closes it itself**
+after the push that settles the last competition (2026-10-19), and an unforced close **stages and
+sends the next calendar block** (`services/stageBlock.js`, shared with Stage). So the operator's
+whole gameweek is: confirm results → Push all. A forced close sends nothing — see
+`docs/competition-start.md` §7. **It also deletes the calendar block the batch came from** — a played gameweek is not kept,
 since the record of what was played is the `fixture` rows on each competition, which are
 independent copies (nothing references `fixture_block_item`, and `fixture` carries no foreign keys
 at all). It clears `round.source_block_id` on that block first: the FK is `NO ACTION`, so a round
