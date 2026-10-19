@@ -72,8 +72,8 @@ Two things read blocks:
 
 - **Competition creation** — offers up to three upcoming blocks as start dates and creates round 1
   from the chosen one, immediately.
-- **The admin promote button** — copies a block into `fixture_load` when its kickoffs are
-  confirmed, which is where today's flow picks up unchanged.
+- **The admin promote button** (Stage) — copies a block into `fixture_load` when its kickoffs are
+  confirmed, then pushes it to every eligible competition (§7).
 
 ### Provisional, then confirmed
 
@@ -249,8 +249,31 @@ both honest.
   `fixture_load` is non-empty for that team list, which is the existing rule enforced in the
   existing place.
 
-After promotion the operator continues on the current fixtures screen: push per competition,
-then **Clear staged batch**. Nothing about that flow changes.
+**Stage pushes too** (2026-10-19). Originally the operator went on to the Fixtures screen after
+promoting and pushed each competition by hand — and forgot to once, believing the previous step
+had done it. Every press there was a formality: the operator stages only after closing the last
+gameweek, which is refused until every competition has its results, so at that moment every
+live competition can take the batch and `evaluateCompetition` refuses the ones that cannot.
+
+So once the copy commits, promote runs the candidate list and calls `pushFixturesToCompetition`
+for each eligible competition, **each in its own transaction**, the same shape as
+`set-competition-ready`. The stage stands whatever the pushes do; the response lists every
+competition as pushed, skipped (with the rule that stopped it) or failed. The Fixtures screen
+keeps its per-competition buttons as the fallback for anything skipped and later fixed.
+
+What this gives up is the per-competition press as a review step. The review is now the block
+itself — keyed days ahead, visible on the calendar, editable until staged — and a confirm dialog
+on Stage that says it sends. **Stage cannot be undone**: a competition that has the round refuses
+a second push, so a wrong fixture after Stage is fixed by hand per competition.
+
+`pushFixturesToCompetition` locks the competition row (`FOR UPDATE`) before evaluating. With pushes
+no longer one operator's clicks, an organiser pressing Ready during a Stage could otherwise have
+both create round 1 — `round` has no unique constraint on `(competition_id, round_number)`.
+
+Archived competitions are pushed like any other. Archiving hides a competition from the admin's
+view; it does not stop it playing.
+
+Closing the gameweek (**Clear staged batch**) is unchanged and still manual.
 
 **Net keying effort is unchanged.** Each gameweek is typed once, into the calendar, then promoted
 with a button — the typing that happens today just happens earlier. The only genuine extra is the
@@ -264,7 +287,7 @@ one-off backlog of getting two or three gameweeks in front of us at the start.
 | `POST /admin/add-fixture-block` | create a block with its items |
 | `POST /admin/update-fixture-block` | edit an unpromoted block |
 | `POST /admin/delete-fixture-block` | delete an unpromoted, unbound block |
-| `POST /admin/promote-fixture-block` | copy into `fixture_load`, stamp `staged_at` |
+| `POST /admin/promote-fixture-block` | copy into `fixture_load`, stamp `staged_at`, push to every eligible competition |
 
 Admin token on all of them (`middleware/admin-auth.js`), standard header format, always HTTP 200.
 

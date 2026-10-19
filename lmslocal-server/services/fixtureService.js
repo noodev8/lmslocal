@@ -285,9 +285,14 @@ async function getFixturePushCandidates(client, teamListId) {
  * @returns {Promise<object>} what was created, for the admin screen to report
  */
 async function pushFixturesToCompetition(client, competitionId) {
+  // FOR UPDATE serialises two pushes to the same competition - Stage pushing everyone while an
+  // organiser presses Ready, say. round has no unique (competition_id, round_number), so without
+  // it both could evaluate "no round" and both insert round 1. The second waits here, then sees
+  // the first's round and is refused as round_in_progress.
   const competitionResult = await client.query(
     `SELECT id, name, status, team_list_id, ready_at, fixture_service
-     FROM competition WHERE id = $1`,
+     FROM competition WHERE id = $1
+     FOR UPDATE`,
     [competitionId]
   );
 

@@ -446,11 +446,23 @@ export type SaveFixtureBlockResponse = ApiResponse & {
   fixtures_added?: number;
 };
 
+export type StagePushOutcome = {
+  competition_id: number;
+  name: string;
+  outcome: 'pushed' | 'skipped' | 'failed';
+  round_number: number | null;
+  round_action: 'created' | 'populated' | 'reconciled' | null;
+  reason: string | null;
+};
+
 export type PromoteFixtureBlockResponse = ApiResponse & {
   block_id?: number;
   fixtures_staged?: number;
   team_list_id?: number;
   lock_time?: string;
+  pushed_count?: number;
+  /* null when the stage committed but the push could not run at all. */
+  competitions?: StagePushOutcome[] | null;
 };
 
 export type StagedResultsResponse = ApiResponse & {
@@ -1129,8 +1141,8 @@ export const adminApi = {
     return response.data;
   },
 
-  // The handover into the existing flow: after this, push per competition on the fixtures
-  // screen and then clear the batch, exactly as before.
+  // Stages the block AND pushes it to every eligible competition, one transaction each. SUCCESS
+  // means staged - read `competitions` for who got it. Results and clearing are unchanged.
   promoteFixtureBlock: async (blockId: number): Promise<PromoteFixtureBlockResponse> => {
     const response = await api.post<PromoteFixtureBlockResponse>('/admin/promote-fixture-block', {
       block_id: blockId,

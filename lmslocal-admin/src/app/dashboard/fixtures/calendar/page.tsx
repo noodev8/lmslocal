@@ -4,11 +4,11 @@
 =======================================================================================================================================
 Fixture Calendar
 =======================================================================================================================================
-Purpose: Key blocks of fixtures weeks ahead of them going out, and promote one into the staging
-         table when its kickoffs are confirmed.
+Purpose: Key blocks of fixtures weeks ahead of them going out, and stage one - which also sends it
+         to every eligible competition - when its kickoffs are confirmed.
 
   fixture_block  --Stage-->  fixture_load  --push-->  round + fixture
-  (this screen)              (Fixtures screen, unchanged)
+  (this screen)              (both done by Stage; the Fixtures screen is the per-row fallback)
 
 Why this is a separate screen from Fixtures, rather than another tab on it:
 
@@ -19,8 +19,10 @@ nothing in it until an operator staged and the organiser pressed Ready, and ever
 recruited in the meantime landed on an empty screen.
 
 Blocks are the calendar. Several may exist at once, they are provisional, and they can be edited
-until the moment they are staged. Nothing here pushes anything to a competition - promoting hands
-the block to the Fixtures screen, and the rest of the flow is untouched.
+until the moment they are staged. Staging is the one press that reaches competitions: it copies
+the block into fixture_load and pushes it to every competition that can take it (2026-10-19 -
+pushing each one by hand afterwards was a formality, and was forgotten once). Results and closing
+the gameweek stay on the Fixtures screen.
 
 See docs/competition-start.md.
 =======================================================================================================================================
@@ -46,6 +48,7 @@ import {
   FixtureTeamList,
   FixtureBlock,
   BlockFixtureInput,
+  StagePushOutcome,
 } from '@/lib/api';
 import { ukTimeToUtcIso } from '@/lib/uk-time';
 
@@ -492,6 +495,33 @@ function BlockForm({
 // One block in the list
 // ======================================================================================
 
+/*
+What Stage did, in one line. Skipped competitions are named with their reason because "why didn't
+that one get its fixtures?" is the next question, and the answer is usually an organiser who has
+not pressed Ready - normal, not a fault. Only a failure, or a push that never ran, is a warning.
+*/
+function stagedNotice(label: string, competitions: StagePushOutcome[] | null): Notice {
+  if (competitions === null) {
+    return {
+      tone: 'error',
+      text: `"${label}" is staged, but sending it to competitions did not run. Push them from the Fixtures screen.`,
+    };
+  }
+
+  const pushed = competitions.filter((c) => c.outcome === 'pushed').length;
+  const notSent = competitions
+    .filter((c) => c.outcome !== 'pushed')
+    .map((c) => `${c.name} (${c.reason ?? 'not sent'})`);
+  const failed = competitions.some((c) => c.outcome === 'failed');
+
+  return {
+    tone: failed ? 'error' : 'success',
+    text:
+      `"${label}" is staged and sent to ${pushed} of ${competitions.length} competition${competitions.length === 1 ? '' : 's'}.` +
+      (notSent.length > 0 ? ` Not sent: ${notSent.join('; ')}.` : ''),
+  };
+}
+
 function BlockCard({
   block,
   pendingBatch,
@@ -510,6 +540,8 @@ function BlockCard({
 }) {
   const [busy, setBusy] = useState<'promote' | 'delete' | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  /* Stage reaches customers and cannot be taken back, so it asks first - see handlePromote. */
+  const [confirmingStage, setConfirmingStage] = useState(false);
 
   const staged = block.staged_at !== null;
   /*
@@ -535,10 +567,7 @@ function BlockCard({
     try {
       const result = await adminApi.promoteFixtureBlock(block.id);
       if (result.return_code === 'SUCCESS') {
-        setNotice({
-          tone: 'success',
-          text: `"${block.label}" is staged — ${result.fixtures_staged} fixtures. Push it to each competition on the Fixtures screen.`,
-        });
+        setNotice(stagedNotice(block.label, result.competitions ?? null));
         onChanged();
       } else if (result.return_code !== 'UNAUTHORIZED' && result.return_code !== 'TOKEN_EXPIRED') {
         setNotice({ tone: 'error', text: result.message || 'Could not stage that block.' });
@@ -547,6 +576,7 @@ function BlockCard({
       setNotice({ tone: 'error', text: `Could not reach ${apiBaseUrl}.` });
     } finally {
       setBusy(null);
+      setConfirmingStage(false);
     }
   };
 
@@ -647,9 +677,9 @@ function BlockCard({
             {isNext && (
               <button
                 type="button"
-                onClick={handlePromote}
+                onClick={() => setConfirmingStage(true)}
                 disabled={promoteBlocker !== null || busy !== null}
-                title={promoteBlocker ?? 'Copy into the staging table, ready to push'}
+                title={promoteBlocker ?? 'Stage and send to every competition that can take it'}
                 className="ml-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
               >
                 {busy === 'promote' ? 'Staging...' : 'Stage'}
@@ -696,6 +726,38 @@ function BlockCard({
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
               >
                 {busy === 'delete' ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmingStage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-slate-900">Stage and send &quot;{block.label}&quot;?</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Its {block.fixtures.length} fixture{block.fixtures.length === 1 ? '' : 's'} go to every
+              competition that can take them, straight away, and their players are notified.
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              This cannot be undone. A wrong fixture afterwards has to be fixed by hand in each
+              competition.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmingStage(false)}
+                disabled={busy !== null}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePromote}
+                disabled={busy !== null}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {busy === 'promote' ? 'Sending...' : 'Stage and send'}
               </button>
             </div>
           </div>

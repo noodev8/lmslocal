@@ -95,7 +95,8 @@ doc first** (except the email README, see below):
   filling with fake entrants means real players facing opponents who are not people
 - **Archiving**: a competition can reach `ACTIVE` with a round pushed and no pick ever made, so
   the status counts flattered us — seven of thirty rows. Archived rows get their own tile and tab
-  and are excluded from every other count. **Marking is not deleting.**
+  and are excluded from every other count. **Marking is not deleting** — an archived competition
+  still receives fixtures and results like any other (2026-10-19); archiving only hides it.
   **`competition.archived_at` is a decision an admin made, never a calculation** (2026-09-04).
   `/admin/set-competition-archived` is the only writer. It replaced a derived "stalled" rule (no
   real players **or** no picks, quiet 7 days) plus a tri-state `stalled_override`: the rule could
@@ -293,8 +294,11 @@ Staging: `/admin/add-staged-fixtures`, `get-staged-results`, `set-staged-result`
 all of it (`middleware/admin-auth.js`) — the old `12221` access code and the `BOT_MAGIC_2025` body
 secret are gone from this path, the latter having shipped in the public web bundle.
 
-**Everything goes out one competition at a time.** Fixtures:
-`/admin/get-fixture-push-targets` + `/admin/push-fixtures-to-competition`. Results:
+**Everything goes out one competition at a time** — one transaction each. Fixtures: **Stage pushes
+them itself** (2026-10-19) — `promote-fixture-block` loops `pushFixturesToCompetition` over every
+eligible competition, each in its own transaction, and reports pushed / skipped / failed.
+`/admin/get-fixture-push-targets` + `/admin/push-fixtures-to-competition` remain as the per-row
+fallback on the Fixtures tab. Stage cannot be undone, so it confirms first. Results:
 `/admin/get-push-targets` + `/admin/push-results-to-competition`, then `/admin/clear-staged-batch`
 once every competition has been pushed. All **singular**. The two halves became per-competition
 for different reasons — *results*: processing scales with player count and the old route did the
@@ -384,8 +388,8 @@ column** from the old "wait N weeks" question — nothing reads or writes it.
 is coming AND the batch going out now. Its one-batch-at-a-time rule is right for the second and
 made the first impossible, which is why a new competition sat empty while its organiser recruited.
 Blocks are the calendar: several at once, provisional, editable, keyed by hand weeks ahead.
-**Stage** copies one into `fixture_load` (`/admin/promote-fixture-block`) and everything
-downstream is unchanged. Routes: `/admin/get-fixture-blocks`, `add-fixture-block`,
+**Stage** copies one into `fixture_load` (`/admin/promote-fixture-block`) and pushes it to every
+eligible competition; results and closing the gameweek are unchanged. Routes: `/admin/get-fixture-blocks`, `add-fixture-block`,
 `update-fixture-block`, `delete-fixture-block`, `promote-fixture-block`. Team validation is shared
 with `add-staged-fixtures` via `services/fixtureBlock.js`, so a block cannot pass when keyed and
 fail when promoted.

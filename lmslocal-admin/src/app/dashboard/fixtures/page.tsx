@@ -265,6 +265,10 @@ function FixturesTab({
 // ======================================================================================
 
 /*
+THE FALLBACK, since 2026-10-19: Stage on the calendar now pushes every eligible competition itself
+(promote-fixture-block), so after a normal stage nothing is eligible and this panel hides. It is
+here for a competition that was skipped and has since been fixed - press its row.
+
 Fixtures go out per competition, driven by hand: press a row, read what came back, press the
 next. It used to be one button that swept every subscribed competition, and the only thing
 keeping a mis-staged batch away from real customers was FIXTURE_SERVICE_TEST_MODE - an env var

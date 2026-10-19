@@ -3,14 +3,14 @@
 API Route: promote-fixture-block
 =======================================================================================================================================
 Method: POST
-Purpose: Copy a calendar block into fixture_load, making it the batch going out. This is the
-         handover point between the two halves of the fixture system.
+Purpose: Copy a calendar block into fixture_load, making it the batch going out, then push it to
+         every competition that may take it. This is the handover point between the two halves
+         of the fixture system.
 
            fixture_block  --promote-->  fixture_load  --push-->  round + fixture
            (calendar, weeks ahead)      (batch, one at a time)   (per competition)
 
-         Everything downstream of this call is unchanged: push per competition from the fixtures
-         screen, then Clear staged batch. See docs/competition-start.md.
+         Results and Clear staged batch are unchanged. See docs/competition-start.md §7.
 =======================================================================================================================================
 Request Payload:
 {
@@ -23,7 +23,19 @@ Success Response (ALWAYS HTTP 200):
   "block_id": 7,                             // integer
   "fixtures_staged": 10,                     // integer, rows written to fixture_load
   "team_list_id": 1,                         // integer, which list's batch this now is
-  "lock_time": "2026-08-29T14:00:00Z"        // string, earliest kickoff - the round's lock time
+  "lock_time": "2026-08-29T14:00:00Z",       // string, earliest kickoff - the round's lock time
+  "pushed_count": 13,                        // integer, competitions that now have the round
+  "competitions": [                          // array, every competition subscribed to the list -
+                                             //   null if the push could not run at all
+    {
+      "competition_id": 172,                 // integer
+      "name": "EKRR AFC",                    // string
+      "outcome": "pushed",                   // string, pushed|skipped|failed
+      "round_number": 4,                     // integer or null, the round it got (pushed only)
+      "round_action": "created",             // string or null, created|populated|reconciled
+      "reason": null                         // string or null, why not, in words for a person
+    }
+  ]
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -66,6 +78,20 @@ Data Notes:
 - staged_at is stamped in the same transaction as the copy. A block that reached fixture_load but
   was still marked provisional could be promoted twice, which would double every fixture in the
   round.
+
+- THE PUSH (2026-10-19). Pushing each competition by hand from the Fixtures screen was a
+  formality - staging follows closing the last gameweek, which is refused until every competition
+  has its results, so every live competition can take the batch - and it was forgotten once. The
+  candidate list is the same one that screen shows and evaluateCompetition is re-run inside each
+  push, so this sends to exactly the rows that screen would have offered.
+
+  Each competition is its own transaction, after the stage has committed - the same shape as
+  set-competition-ready. The stage stands whatever the pushes do, and one failure stays with the
+  competition it happened to. A failed or skipped competition is reported, not retried; the
+  Fixtures screen's per-row button is the fallback.
+
+  SUCCESS therefore means "staged", not "every competition has it". Read `competitions`.
+  Archived competitions are pushed like any other - archiving only hides them from the admin.
 =======================================================================================================================================
 */
 
@@ -74,7 +100,53 @@ const { query, transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { loadBlockContext } = require('../../services/fixtureBlock');
+const { getFixturePushCandidates, pushFixturesToCompetition } = require('../../services/fixtureService');
 const router = express.Router();
+
+/**
+ * Pushes the batch just staged to every competition the candidate list calls eligible, one
+ * transaction each. Never throws: every competition comes back as pushed, skipped or failed.
+ */
+async function pushToEligible(teamListId) {
+  const { competitions: candidates } = await getFixturePushCandidates({ query }, teamListId);
+  const outcomes = [];
+
+  // Sequential, not Promise.all - they share the pool with every live request, and the whole
+  // run is a dozen short transactions.
+  for (const candidate of candidates) {
+    const row = {
+      competition_id: candidate.competition_id,
+      name: candidate.name,
+      outcome: 'skipped',
+      round_number: null,
+      round_action: null,
+      reason: candidate.reason,
+    };
+
+    if (candidate.eligible) {
+      try {
+        const pushed = await transaction((client) => pushFixturesToCompetition(client, candidate.competition_id));
+        row.outcome = 'pushed';
+        row.round_number = pushed.round_number;
+        row.round_action = pushed.round_action;
+      } catch (error) {
+        // NOT_ELIGIBLE here means something changed since the list was read - a round started
+        // through Ready a moment ago - which is a skip with a reason, not a failure.
+        if (error.message === 'NOT_ELIGIBLE') {
+          row.reason = error.reason || 'No longer eligible';
+        } else {
+          console.error('promote-fixture-block push failed:', candidate.competition_id, error.message);
+          row.outcome = 'failed';
+          row.reason = 'Push failed - try it from the Fixtures screen';
+        }
+      }
+    }
+
+    outcomes.push(row);
+  }
+
+  return outcomes;
+}
 
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('promote-fixture-block');
@@ -181,12 +253,27 @@ router.post('/', verifyAdminToken, async (req, res) => {
       );
     });
 
+    // ========================================
+    // STEP 5: Push to every eligible competition, each on its own
+    // ========================================
+    // A failure reading the candidate list must not turn a committed stage into SERVER_ERROR -
+    // the operator would try again and be told it is already staged. null, not [], so the
+    // screen can tell "the push never ran" from "nobody was eligible".
+    let competitions = null;
+    try {
+      competitions = await pushToEligible(context.team_list_id);
+    } catch (error) {
+      console.error('promote-fixture-block candidate list failed:', error.message);
+    }
+
     return res.json({
       return_code: 'SUCCESS',
       block_id,
       fixtures_staged: itemsResult.rows.length,
       team_list_id: context.team_list_id,
-      lock_time: lockTime
+      lock_time: lockTime,
+      pushed_count: competitions ? competitions.filter((c) => c.outcome === 'pushed').length : 0,
+      competitions
     });
 
   } catch (error) {
