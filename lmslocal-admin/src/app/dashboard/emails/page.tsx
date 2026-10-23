@@ -172,10 +172,10 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Game',
     name: 'Organiser round report',
     scoped: true,
-    note: 'Locks within 30h — last round settled, plus who is still to pick',
+    note: 'Locks in 12–30h — last round settled, plus who is still to pick',
     focus: true,
     blurb:
-      'The cheap alternative to Round Over: one email per competition to the organiser instead of one to every player. How the last round went — who is out, who is still in — then who has yet to pick before the next lock, guests first. Written to be forwarded into a group chat. Fires 30 hours out, alongside the pick reminder, so there is a full day to chase. Once per competition per round.',
+      'The cheap alternative to Round Over: one email per competition to the organiser instead of one to every player. How the last round went — who is out, who is still in — then who has yet to pick before the next lock, guests first. Written to be forwarded into a group chat. Offered from 30 hours before the lock until 12 hours before it, so there is a day to chase — after that Organiser nudge covers the final stretch. Once per competition per round.',
   },
   {
     key: 'game_complete',

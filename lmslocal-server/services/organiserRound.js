@@ -104,6 +104,14 @@ is wanted on a given week, organiser_nudge is the email to run instead.
 const REPORT_WINDOW_HOURS = 30;
 
 /*
+And not inside the last 12 hours (2026-10-23). The report's point is a day to chase at leisure;
+offered at 2pm for an 8pm lock, after the player reminders had just gone, it was a stale list
+competing with organiser_nudge, which owns the final 3 hours and reports only what is left. So
+the window is 30h to 12h out - long enough for a daily run to catch every lock once.
+*/
+const REPORT_CUTOFF_HOURS = 12;
+
+/*
 How many names are listed per outstanding section before it says "and N others". Same number and
 same reasoning as organiserNudge: the list exists to be pasted into a group chat, and forty names
 are pasted nowhere. The full list is a tap away in the app, which is also the only place it is
@@ -170,6 +178,8 @@ async function findCandidates(opts = {}) {
         AND r.lock_time IS NOT NULL
         AND r.lock_time > NOW()
         AND r.lock_time <= NOW() + ($2 || ' hours')::interval
+        -- Too close to the lock to be worth chasing from - see REPORT_CUTOFF_HOURS.
+        AND r.lock_time > NOW() + ($5 || ' hours')::interval
         -- A round with no fixtures cannot be picked in, so nobody is outstanding for it.
         AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
         AND ($3::int IS NULL OR c.id = $3::int)
@@ -364,7 +374,8 @@ async function findCandidates(opts = {}) {
     groupFor(EMAIL_TYPE),        // $1
     String(REPORT_WINDOW_HOURS), // $2
     competition_id,              // $3
-    BOT_EMAIL_LIKE               // $4
+    BOT_EMAIL_LIKE,              // $4
+    String(REPORT_CUTOFF_HOURS)  // $5
   ]);
 
   return result.rows;
