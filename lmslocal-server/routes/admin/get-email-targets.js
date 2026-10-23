@@ -13,7 +13,8 @@ about to press send, and 0 would be a lie about the second.
 
 THREE NUMBERS, NOT ONE
 
-  waiting        candidates from findCandidates - people who qualify and have no queue row
+  waiting        who a live send would email now - candidates from findCandidates, less anyone
+                 the 48-hour quiet period would mark as sent instead (services/emailQuiet.js)
   sent_recently  actually delivered in the last SENT_WINDOW_DAYS days
   competitions   how many distinct competitions the waiting recipients span
 
@@ -43,7 +44,7 @@ Success Response (ALWAYS HTTP 200):
   "counts": {
     "welcome": {
       "waiting": 3,                    // integer, qualify now
-      "sent_recently": 1,              // integer, delivered in the last 30 days
+      "sent_recently": 1,              // integer, delivered in the last 7 days
       "competitions": 2                // integer, competitions the waiting span; 0 when unscoped
     }
   }
@@ -69,14 +70,16 @@ const { query } = require('../../database');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { CATALOG } = require('../../services/emailCatalog');
 const { logApiCall } = require('../../utils/apiLogger');
+const { findRecentlyEmailed, wouldSend } = require('../../services/emailQuiet');
 
 const router = express.Router();
 
 /*
-How far back "sent" looks. Thirty days is enough to answer "is this email actually going out" -
-which is the question - without turning the card into a history page.
+How far back "sent" looks. Seven days - one gameweek - so a weekly email shows roughly the last
+round's volume. 30 until 2026-10-23; it answered "is this email going out at all" while they were
+being wired, and once live that stopped being the question. Older is a database question.
 */
-const SENT_WINDOW_DAYS = 30;
+const SENT_WINDOW_DAYS = 7;
 
 router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('admin/get-email-targets');
@@ -132,11 +135,14 @@ router.post('/', verifyAdminToken, async (req, res) => {
     filter makes each one wider than it used to be. One at a time keeps a page load off the
     connection pool's limit.
     */
+    // One quiet-period query for every email counted, not one each.
+    const quiet = await findRecentlyEmailed();
+
     const counts = {};
     for (const [emailType, entry] of wanted) {
-      const candidates = await entry.service.findCandidates(
+      const candidates = wouldSend(entry, await entry.service.findCandidates(
         entry.scoped && scopeId ? { competition_id: scopeId } : {}
-      );
+      ), quiet);
 
       counts[emailType] = {
         waiting: candidates.length,

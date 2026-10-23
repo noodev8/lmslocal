@@ -107,6 +107,14 @@ interface OutlineEmail {
   focus?: boolean;
   /** Shown on the card only. What this email is, in a sentence. */
   blurb?: string;
+  /**
+   * Send order when it has people waiting, 1 first. The 48-hour quiet period means whichever of
+   * two emails reaches a person first is the one they get, so order decides who gets what. Only
+   * the emails that compete carry one; the rest sort by waiting as before.
+   */
+  priority?: number;
+  /** Why it goes in that slot. Shown on the card while anyone is waiting. */
+  priorityReason?: string;
 }
 
 /*
@@ -140,6 +148,9 @@ const OUTLINE: OutlineEmail[] = [
     focus: true,
     blurb:
       'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Once per player per round. Locks is their countdown, not an elapsed time.',
+    priority: 2,
+    priorityReason:
+      'After Welcome Join Comp. A newcomer the welcome already told about the deadline is skipped by the 48-hour quiet period; everyone else is chased. Useless once the round locks.',
   },
   {
     key: 'organiser_nudge',
@@ -286,6 +297,9 @@ const OUTLINE: OutlineEmail[] = [
     focus: true,
     blurb:
       'What a player gets after joining someone else’s competition. Once per membership, ever. The organiser is excluded — they get Welcome Created Comp instead.',
+    priority: 1,
+    priorityReason:
+      'Before the pick reminder. While a round is open it carries the pick deadline, so it does both jobs — sent second, the quiet period would drop it, and once dropped it never goes.',
   },
   {
     key: 'created_comp',
@@ -487,16 +501,28 @@ function FocusCard({
     );
   }, [correction]);
 
+  /* Badged only while someone is waiting - a "send first" on an empty card is an instruction with
+     nothing to act on. */
+  const due = email.priority !== undefined && (count?.waiting ?? 0) > 0;
+
   return (
-    <section className="rounded-xl border-2 border-indigo-200 bg-white shadow-sm">
+    <section className={`rounded-xl border-2 bg-white shadow-sm ${due ? 'border-amber-300' : 'border-indigo-200'}`}>
       <div className="flex flex-wrap items-start justify-between gap-6 px-5 py-4">
         <div className="max-w-lg">
           <div className="flex items-center gap-2">
+            {due && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+                Send {email.priority === 1 ? '1st' : email.priority === 2 ? '2nd' : `#${email.priority}`}
+              </span>
+            )}
             <h3 className="font-semibold text-slate-900">{email.name}</h3>
             <SectionTag section={email.section} />
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">{email.key}</code>
           </div>
           {email.blurb && <p className="mt-1.5 text-sm text-slate-600">{email.blurb}</p>}
+          {due && email.priorityReason && (
+            <p className="mt-1.5 text-sm font-medium text-amber-800">{email.priorityReason}</p>
+          )}
           {error && <p className="mt-1.5 text-sm text-red-700">{error}</p>}
         </div>
 
@@ -509,7 +535,7 @@ function FocusCard({
               )}
               {/* Without this, an email showing zero waiting is ambiguous: caught up, or never
                   sending at all. Review is where the names behind it are. */}
-              <Stat value={count.sent_recently} label="sent" />
+              <Stat value={count.sent_recently} label="sent · 7 days" />
             </>
           ) : (
             <p className="pt-2 text-sm text-slate-400">{loading ? 'Counting…' : 'Not counted yet'}</p>
@@ -561,7 +587,7 @@ it is handled, so an email that is up to date and one that never ran both show z
 type PanelTab = 'waiting' | 'history';
 
 /*
-What actually went out, in the last thirty days. Sends only.
+What actually went out, in the last seven days. Sends only.
 
 ONLY SENDS. The tab is called Sent and shows exactly that - one question, one answer. Marked rows
 outnumber real sends 105 to 3 on `welcome` and would bury them; failures and suppressions are
@@ -569,7 +595,7 @@ real but rare, and mixing four statuses under one heading meant a status column,
 a footnote explaining that most of the list was never emailed at all. All of it is still on
 email_queue for db/query.js when a failure needs chasing.
 
-THIRTY DAYS, fixed server-side, matching the card's "sent" count so the two cannot disagree.
+SEVEN DAYS, fixed server-side, matching the card's "sent" count so the two cannot disagree.
 
 No opens or clicks. email_tracking has the columns but nothing fills them - there is no Resend
 webhook here - and a column of permanent zeros reads as "nobody opens our email" rather than "we
@@ -597,7 +623,7 @@ function HistoryTab({
   if (rows.length === 0) {
     return (
       <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        Nothing sent in the last 30 days.
+        Nothing sent in the last 7 days.
       </p>
     );
   }
@@ -607,7 +633,7 @@ function HistoryTab({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate-600">
           <span className="font-medium text-slate-900">{sent.toLocaleString()}</span>{' '}
-          {sent === 1 ? 'email' : 'emails'} sent in the last 30 days
+          {sent === 1 ? 'email' : 'emails'} sent in the last 7 days
         </p>
         <button
           onClick={onRefresh}
@@ -1392,12 +1418,18 @@ export default function EmailsPage() {
 
   useEffect(() => {
     if (!pendingSort || FOCUS.some((e) => stats[e.key] === undefined)) return;
+    /* Prioritised emails with people waiting go above everything, in their own order - send order
+       is the decision, and the waiting count does not know about the quiet period. */
+    const rank = (row: { key: string; waiting: number }) => {
+      const p = OUTLINE.find((e) => e.key === row.key)?.priority;
+      return p !== undefined && row.waiting > 0 ? p : Infinity;
+    };
     setOrder(
       FOCUS.map((e, index) => ({ key: e.key, index, ...stats[e.key] }))
         /* Waiting first - the screen becomes a queue of work. Then `sent`, so that among the
            emails with nobody waiting the ones actually running sit above the ones that have never
            sent anything, which is the difference between caught up and not wired up. */
-        .sort((a, b) => b.waiting - a.waiting || b.sent - a.sent || a.index - b.index)
+        .sort((a, b) => rank(a) - rank(b) || b.waiting - a.waiting || b.sent - a.sent || a.index - b.index)
         .map((row) => row.key)
     );
     setPendingSort(false);

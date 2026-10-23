@@ -86,4 +86,15 @@ function checkExpiry(emailType, templateData, now = new Date()) {
   return { expired: deadline <= now, deadline };
 }
 
-module.exports = { checkExpiry, EXPIRES_AT };
+/*
+How old the moment behind a welcome can be before it is no longer sent - a join for Welcome Join
+Comp, a signup for Welcome Join LMS, a creation for Welcome Created Comp. Added 2026-10-23.
+
+A BACKSTOP, NOT THE RULE. "Once ever" is enforced by email_queue rows alone, so a cleared or
+damaged email_queue would make every active member, account and competition a candidate again -
+hundreds of welcomes to people who joined months ago. This caps that at four days' worth. A
+welcome later than four days is stale anyway, and losing one is preferred to sending too many.
+*/
+const WELCOME_MAX_AGE_DAYS = 4;
+
+module.exports = { checkExpiry, EXPIRES_AT, WELCOME_MAX_AGE_DAYS };

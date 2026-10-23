@@ -29,6 +29,7 @@ code and join link are the content, framed as the thing to forward.
 */
 
 const { query } = require('../database');
+const { WELCOME_MAX_AGE_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
 
@@ -104,6 +105,8 @@ async function findCandidates(opts = {}) {
     -- in Aug 2026 can never come back. This one clause is the whole no-backfill rule now.
     -- Archived competitions get no email at all. See notArchivedSql.
     WHERE ${notArchivedSql('c')}
+      -- Backstop against a cleared email_queue - see WELCOME_MAX_AGE_DAYS.
+      AND c.created_at > NOW() - ($3 || ' days')::interval
 
       AND NOT EXISTS (
         SELECT 1 FROM email_queue eq
@@ -116,7 +119,7 @@ async function findCandidates(opts = {}) {
       AND ($2::int IS NULL OR c.id = $2)
 
     ORDER BY c.created_at, c.id
-  `, [groupFor(EMAIL_TYPE), competition_id]);
+  `, [groupFor(EMAIL_TYPE), competition_id, String(WELCOME_MAX_AGE_DAYS)]);
 
   return result.rows;
 }

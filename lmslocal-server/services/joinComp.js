@@ -27,6 +27,7 @@ comms email. The rules, all in findCandidates below:
 */
 
 const { query } = require('../database');
+const { WELCOME_MAX_AGE_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
 
@@ -116,6 +117,8 @@ async function findCandidates(opts = {}) {
       ON org.id = c.organiser_id
 
     WHERE cu.status = 'active'
+      -- Backstop against a cleared email_queue - see WELCOME_MAX_AGE_DAYS.
+      AND cu.joined_at > NOW() - ($3 || ' days')::interval
       -- Once per membership, ever. Covers sent, failed AND skipped rows, so pressing send twice
       -- does not welcome the same player twice - and so the 104 memberships marked as sent in
       -- Aug 2026 can never come back. This one clause is the whole no-backfill rule now.
@@ -131,7 +134,7 @@ async function findCandidates(opts = {}) {
       AND ($2::int IS NULL OR c.id = $2)
 
     ORDER BY cu.joined_at, cu.user_id
-  `, [groupFor(EMAIL_TYPE), competition_id]);
+  `, [groupFor(EMAIL_TYPE), competition_id, String(WELCOME_MAX_AGE_DAYS)]);
 
   return result.rows;
 }

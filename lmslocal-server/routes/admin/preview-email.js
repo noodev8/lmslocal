@@ -28,7 +28,8 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "recipient_count": 3,                // integer, how many would be sent
+  "recipient_count": 3,                // integer, how many a live send would email - quiet period
+                                       //   already taken off, as are their rows below
   "recipients": [                      // array, capped at MAX_LISTED, or MAX_LISTED_SCOPED on a
                                        //   scoped email type
     {
@@ -69,6 +70,7 @@ const express = require('express');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { entryFor } = require('../../services/emailCatalog');
 const { logApiCall } = require('../../utils/apiLogger');
+const { findRecentlyEmailed, wouldSend } = require('../../services/emailQuiet');
 
 const router = express.Router();
 
@@ -188,7 +190,15 @@ router.post('/', verifyAdminToken, async (req, res) => {
     */
     const scopeId = entry.scoped && Number.isInteger(competition_id) ? competition_id : null;
 
-    const candidates = await entry.service.findCandidates(scopeId ? { competition_id: scopeId } : {});
+    /*
+    Less the quiet period, so the list and count are who a live send would email - the same number
+    as the card, and the one send-emails checks expected_count against.
+    */
+    const candidates = wouldSend(
+      entry,
+      await entry.service.findCandidates(scopeId ? { competition_id: scopeId } : {}),
+      await findRecentlyEmailed()
+    );
 
     const listCap = entry.scoped ? MAX_LISTED_SCOPED : MAX_LISTED;
 

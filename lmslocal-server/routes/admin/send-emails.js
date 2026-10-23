@@ -89,6 +89,7 @@ const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { entryFor } = require('../../services/emailCatalog');
 const { sendTest, sendToAll } = require('../../services/emailSweep');
 const { logApiCall } = require('../../utils/apiLogger');
+const { findRecentlyEmailed, wouldSend } = require('../../services/emailQuiet');
 
 const router = express.Router();
 
@@ -158,14 +159,21 @@ router.post('/', verifyAdminToken, async (req, res) => {
     Skipped when an explicit list was given - that list is its own statement of who, and it has
     already been intersected with the live candidates above. Test mode is exempt too: it sends one
     email to the test address whatever the count is.
+
+    The screen shows who would actually be emailed (services/emailQuiet.js wouldSend), so that is
+    the number compared - not the full candidate list, which still goes to sendToAll so the held
+    are marked as sent exactly as before.
     */
-    if (!testMode && !Array.isArray(recipients) && Number.isInteger(expected_count) && expected_count !== candidates.length) {
-      return res.json({
-        return_code: 'COUNT_CHANGED',
-        message: `${expected_count} ${expected_count === 1 ? 'was' : 'were'} on screen but ${candidates.length} qualify now. Refresh and look again.`,
-        expected_count,
-        actual_count: candidates.length
-      });
+    if (!testMode && !Array.isArray(recipients) && Number.isInteger(expected_count)) {
+      const onScreen = wouldSend(entry, candidates, await findRecentlyEmailed()).length;
+      if (expected_count !== onScreen) {
+        return res.json({
+          return_code: 'COUNT_CHANGED',
+          message: `${expected_count} ${expected_count === 1 ? 'was' : 'were'} on screen but ${onScreen} qualify now. Refresh and look again.`,
+          expected_count,
+          actual_count: onScreen
+        });
+      }
     }
 
     if (targets.length === 0) {

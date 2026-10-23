@@ -26,6 +26,7 @@ left NULL on both the queue and the tracking row.
 */
 
 const { query } = require('../database');
+const { WELCOME_MAX_AGE_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 
 const EMAIL_TYPE = 'join_lms';
@@ -124,6 +125,8 @@ async function findCandidates() {
       -- Long enough after signing up to know whether they were going to start anything. See
       -- SETTLING_HOURS: registration itself cannot tell us, so the question is asked later.
       AND u.created_at < NOW() - ($1 || ' hours')::interval
+      -- Backstop against a cleared email_queue - see WELCOME_MAX_AGE_DAYS.
+      AND u.created_at > NOW() - ($3 || ' days')::interval
 
       -- One welcome, not two. Anyone who joined or created a competition is welcomed by THAT
       -- email instead. Read off the competition tables rather than off email_queue on purpose,
@@ -152,7 +155,7 @@ async function findCandidates() {
       AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'NULL::int', groupParam: '$2' })}
 
     ORDER BY u.created_at, u.id
-  `, [String(SETTLING_HOURS), groupFor(EMAIL_TYPE)]);
+  `, [String(SETTLING_HOURS), groupFor(EMAIL_TYPE), String(WELCOME_MAX_AGE_DAYS)]);
 
   return result.rows;
 }

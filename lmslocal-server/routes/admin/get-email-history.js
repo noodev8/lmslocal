@@ -3,7 +3,7 @@
 API Route: admin/get-email-history
 =======================================================================================================================================
 Method: POST
-Purpose: What has actually happened for one email over the LAST THIRTY DAYS - who it went to, when,
+Purpose: What has actually happened for one email over the LAST SEVEN DAYS - who it went to, when,
          and what became of the rows that did not go. The other half of the Emails screen, which
          until now could only answer "who is still waiting".
 
@@ -39,7 +39,7 @@ Opens and clicks are NOT reported. email_tracking carries the columns, but nothi
 there is no Resend webhook on this platform, so all 328 rows read zero. A column of permanent
 zeros beside real numbers reads as "nobody opens our email" rather than "we do not measure it".
 
-THIRTY DAYS, FIXED, WITH NO WAY TO ASK FOR MORE
+SEVEN DAYS, FIXED, WITH NO WAY TO ASK FOR MORE
 
 This is the operational window - "is this email running, and did last night's send go" - and it
 matches SENT_WINDOW_DAYS on the card, so the number on the card and the list behind it cannot
@@ -68,7 +68,7 @@ Success Response (ALWAYS HTTP 200):
     "skipped": 105
   },
   "total": 108,                        // integer, rows in the window for this email + competition
-  "window_days": 30,                   // integer, how far back this looked
+  "window_days": 7,                    // integer, how far back this looked
   "rows": [                            // array, newest first, capped at limit
     {
       "id": 354,                       // integer, email_queue.id
@@ -113,11 +113,11 @@ const { logApiCall } = require('../../utils/apiLogger');
 const router = express.Router();
 
 /*
-How far back this looks, fixed and not a parameter. Deliberately the same 30 days as
+How far back this looks, fixed and not a parameter. Deliberately the same 7 days as
 SENT_WINDOW_DAYS in get-email-targets, so the "sent" number on the card and the list behind it are
 answering the same question over the same period. Older than this is a database question.
 */
-const WINDOW_DAYS = 30;
+const WINDOW_DAYS = 7;
 
 // Enough to scroll a real send without pulling the whole queue into a browser.
 const DEFAULT_LIMIT = 100;

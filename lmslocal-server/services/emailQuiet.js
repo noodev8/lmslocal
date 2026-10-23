@@ -126,9 +126,31 @@ async function findRecentlyEmailed() {
   return new Set(result.rows.map((r) => r.user_id));
 }
 
+/**
+ * The candidates a live send would actually email - everyone, less those the quiet period would
+ * mark as sent instead.
+ *
+ * What the admin screen counts and lists (2026-10-23). It used to show every candidate, so after
+ * a welcome went out the pick reminder still read 33 waiting and then "Sent 24 of 33" - the
+ * operator wants the number that will go, not a second number to reconcile against it. The held
+ * are deliberately not reported at all: still marked by the send, just not on the screen.
+ *
+ * Takes the quiet set rather than fetching it, so a caller counting several emails pays for one
+ * query.
+ *
+ * @param {object} entry - the catalog entry; quietExempt entries are never filtered
+ * @param {Array} candidates - from entry.service.findCandidates
+ * @param {Set<number>} quiet - from findRecentlyEmailed
+ */
+function wouldSend(entry, candidates, quiet) {
+  if (entry.quietExempt === true) return candidates;
+  return candidates.filter((c) => !quiet.has(c.user_id));
+}
+
 module.exports = {
   QUIET_PERIOD_HOURS,
   MAGIC_SEND_MARK,
   MAGIC_SEND_REASON,
-  findRecentlyEmailed
+  findRecentlyEmailed,
+  wouldSend
 };
