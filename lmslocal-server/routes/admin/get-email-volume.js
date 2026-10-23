@@ -51,6 +51,17 @@ THE LIMIT IS CONFIGURATION, NOT A CONSTANT
 
 RESEND_DAILY_LIMIT in .env, defaulting to 100 - the free tier's allowance today. It moves on a plan
 change, and a hardcoded 100 would then quietly under-report the headroom rather than fail visibly.
+RESEND_MONTHLY_LIMIT likewise, defaulting to 3,000 - the free tier's other allowance.
+
+THE LAST 30 DAYS, AGAINST THE MONTHLY LIMIT (2026-10-23)
+
+Resend caps the month as well as the day, across everything sent. This used to be read off the
+30-day "sent" count on each card on the Emails screen, which never added up to it: the cards count
+email_queue only, so transactional mail was missing, and they now look back 7 days anyway.
+
+Rolling 30 days, from email_send_log alone, not Resend's billing month. The log has covered every
+send since 2026-08-28, so it is complete for the window without the email_queue half above. Rolling
+is the stricter of the two - near the reset it can only over-state what has been used.
 =======================================================================================================================================
 Request Payload:
 {}                                     // none - always the whole platform, always today
@@ -68,6 +79,8 @@ Success Response (ALWAYS HTTP 200):
     "sent": 47
   },
   "remaining_estimate": 89,            // integer, never below zero
+  "monthly_limit": 3000,               // integer, sends allowed per month on the current plan
+  "last_30_days_sent": 374,            // integer, accepted sends in the rolling last 30 days
   "logging_since": "2026-08-28T14:02:11.000Z",  // string|null, when complete per-send logging began.
                                        //         Null until the first send is logged. Counts for
                                        //         days before this come from email_queue and so
@@ -102,9 +115,11 @@ const router = express.Router();
 // than reporting a headroom of NaN.
 const DEFAULT_DAILY_LIMIT = 100;
 
-const dailyLimit = () => {
-  const configured = Number(process.env.RESEND_DAILY_LIMIT);
-  return Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : DEFAULT_DAILY_LIMIT;
+const DEFAULT_MONTHLY_LIMIT = 3000;
+
+const limitFrom = (name, fallback) => {
+  const configured = Number(process.env[name]);
+  return Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : fallback;
 };
 
 router.post('/', verifyAdminToken, async (req, res) => {
@@ -187,14 +202,19 @@ router.post('/', verifyAdminToken, async (req, res) => {
         )::int AS today_sent,
         COUNT(*) FILTER (
           WHERE (x.sent_at AT TIME ZONE 'Europe/London')::date = d.today - 1
-        )::int AS yesterday_sent
+        )::int AS yesterday_sent,
+        -- Reads idx_email_send_log_accepted_recent, so it stays a range scan of 30 days.
+        (
+          SELECT COUNT(*)::int FROM email_send_log
+          WHERE accepted AND sent_at >= NOW() - INTERVAL '30 days'
+        ) AS last_30_days_sent
       FROM days d
       LEFT JOIN sends x ON TRUE
       GROUP BY d.today
     `);
 
     const row = result.rows[0];
-    const limit = dailyLimit();
+    const limit = limitFrom('RESEND_DAILY_LIMIT', DEFAULT_DAILY_LIMIT);
 
     return res.json({
       return_code: 'SUCCESS',
@@ -203,6 +223,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
       yesterday: { date: row.yesterday_date, sent: row.yesterday_sent },
       // Clamped: an over-run reads as "none left", not as a negative number nobody can act on.
       remaining_estimate: Math.max(0, limit - row.today_sent),
+      monthly_limit: limitFrom('RESEND_MONTHLY_LIMIT', DEFAULT_MONTHLY_LIMIT),
+      last_30_days_sent: row.last_30_days_sent,
       logging_since: row.logging_since,
       // Null-safe: an empty log yields NULL from the comparison, which is 'no' rather than unknown.
       logging_covers_today: row.logging_covers_today === true

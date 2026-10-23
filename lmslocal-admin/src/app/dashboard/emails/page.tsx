@@ -1623,6 +1623,27 @@ export default function EmailsPage() {
                   </span>
                 </p>
               </div>
+
+              {/* Amber from 80%: a month is too long a window to notice only at the limit. */}
+              {volume.monthly_limit !== undefined && volume.last_30_days_sent !== undefined && (
+                <div title="Every send in the last 30 days, against the provider's monthly allowance. Rolling, so near the billing reset it can only over-state what has been used.">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Last 30 days</p>
+                  <p
+                    className={`text-lg font-semibold leading-tight ${
+                      volume.last_30_days_sent >= volume.monthly_limit
+                        ? 'text-red-700'
+                        : volume.last_30_days_sent >= volume.monthly_limit * 0.8
+                          ? 'text-amber-700'
+                          : 'text-slate-900'
+                    }`}
+                  >
+                    {volume.last_30_days_sent.toLocaleString()}
+                    <span className="ml-2 text-sm font-normal text-slate-500">
+                      of {volume.monthly_limit.toLocaleString()}
+                    </span>
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

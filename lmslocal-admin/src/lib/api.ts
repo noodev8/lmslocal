@@ -939,6 +939,9 @@ export type EmailVolumeResponse = ApiResponse & {
   /* Whether the log covers the whole of today. False on the day logging is switched on, when the
      earlier hours are still counted the old way - the screen keeps its hedge until this is true. */
   logging_covers_today?: boolean;
+  monthly_limit?: number;
+  /* Rolling 30 days from the send log, not the provider's billing month - the stricter of the two. */
+  last_30_days_sent?: number;
 };
 
 export type SendEmailsResponse = ApiResponse & {
