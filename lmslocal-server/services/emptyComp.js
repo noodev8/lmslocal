@@ -32,6 +32,7 @@ competitions has two of them to fill.
 */
 
 const { query } = require('../database');
+const { ONE_OFF_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
 
@@ -131,6 +132,8 @@ async function findCandidates(opts = {}) {
 
       -- Old enough to have been shared by now. See NUDGE_AFTER_DAYS.
       AND c.created_at < NOW() - ($1 || ' days')::interval
+      -- ...and not long after. See ONE_OFF_WINDOW_DAYS.
+      AND c.created_at > NOW() - ($1 || ' days')::interval - ($5 || ' days')::interval
 
       -- Nobody answered. The organiser's own row is excluded by id, not allowed for by a
       -- threshold, so "nobody has joined" in the copy is exactly true rather than nearly true.
@@ -167,7 +170,7 @@ async function findCandidates(opts = {}) {
       AND ($4::int IS NULL OR c.id = $4::int)
 
     ORDER BY c.created_at, c.id
-  `, [String(NUDGE_AFTER_DAYS), groupFor(EMAIL_TYPE), BOT_EMAIL_LIKE, competition_id]);
+  `, [String(NUDGE_AFTER_DAYS), groupFor(EMAIL_TYPE), BOT_EMAIL_LIKE, competition_id, String(ONE_OFF_WINDOW_DAYS)]);
 
   return result.rows;
 }

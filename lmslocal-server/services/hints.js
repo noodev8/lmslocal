@@ -32,6 +32,7 @@ There is no backfill guard and no cooldown beyond the above: a hint is sent once
 */
 
 const { query } = require('../database');
+const { ONE_OFF_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
 
@@ -162,6 +163,8 @@ async function findCandidatesFor(hintKey) {
       -- Archived competitions get no email at all. See notArchivedSql.
       AND ${notArchivedSql('c')}
       AND c.created_at <= NOW() - ($1 || ' days')::interval
+      -- ...and not long after. See ONE_OFF_WINDOW_DAYS.
+      AND c.created_at > NOW() - ($1 || ' days')::interval - ($5 || ' days')::interval
       ${hint.extraSql ? `AND (${hint.extraSql})` : ''}
 
       -- Once per organiser per hint, ever. Not scoped to the competition: the same person does
@@ -185,7 +188,7 @@ async function findCandidatesFor(hintKey) {
 
     -- Oldest competition per organiser: the one they are most likely to think of as theirs.
     ORDER BY c.organiser_id, c.created_at, c.id
-  `, [String(hint.afterDays), HINT_TYPES, String(HINT_SPACING_DAYS), groupFor(hintKey)]);
+  `, [String(hint.afterDays), HINT_TYPES, String(HINT_SPACING_DAYS), groupFor(hintKey), String(ONE_OFF_WINDOW_DAYS)]);
 
   return result.rows.map((row) => ({ ...row, hint_key: hintKey }));
 }

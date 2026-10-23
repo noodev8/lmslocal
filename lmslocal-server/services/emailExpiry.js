@@ -97,4 +97,15 @@ welcome later than four days is stale anyway, and losing one is preferred to sen
 */
 const WELCOME_MAX_AGE_DAYS = 4;
 
-module.exports = { checkExpiry, EXPIRES_AT, WELCOME_MAX_AGE_DAYS };
+/*
+The same backstop for the other once-ever emails - Game complete, the hints and Empty
+Competition - measured from the moment each becomes due rather than from its trigger's age.
+Each is only sent inside this window after becoming eligible, so missing the window (nobody
+pressed send that week) means it never goes. Accepted: too few beats too many.
+
+Together with WELCOME_MAX_AGE_DAYS this is what makes pruning email_queue safe: rows older than
+the longest window can be deleted without bringing anybody back as a candidate.
+*/
+const ONE_OFF_WINDOW_DAYS = 7;
+
+module.exports = { checkExpiry, EXPIRES_AT, WELCOME_MAX_AGE_DAYS, ONE_OFF_WINDOW_DAYS };

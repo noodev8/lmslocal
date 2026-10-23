@@ -38,6 +38,7 @@ exclude the organiser because there "players" means "other people".
 */
 
 const { query } = require('../database');
+const { ONE_OFF_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
 
@@ -149,6 +150,16 @@ async function findCandidates(opts = {}) {
     WHERE UPPER(c.status) = 'COMPLETE'
 
       /*
+      Finished recently - see ONE_OFF_WINDOW_DAYS. competition has no completed_at, so the last
+      result recorded stands in for when it finished: the competition completes when that round
+      is processed. Without this, a pruned email_queue resends to every player of every finished
+      competition ever.
+      */
+      AND (
+        SELECT MAX(pp.created_at) FROM player_progress pp WHERE pp.competition_id = c.id
+      ) > NOW() - ($3 || ' days')::interval
+
+      /*
       Archived competitions get no email, and this one is the case that was argued over:
       game_complete is once-ever, so archiving before it goes suppresses the players' result
       permanently. Andreas's call, 2026-09-04, and the right one - archiving has a reason
@@ -171,7 +182,7 @@ async function findCandidates(opts = {}) {
       AND ($1::int IS NULL OR c.id = $1)
 
     ORDER BY c.id, u.id
-  `, [competition_id, groupFor(EMAIL_TYPE)]);
+  `, [competition_id, groupFor(EMAIL_TYPE), String(ONE_OFF_WINDOW_DAYS)]);
 
   return result.rows;
 }
