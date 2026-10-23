@@ -184,6 +184,9 @@ const OUTLINE: OutlineEmail[] = [
     focus: true,
     blurb:
       'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all.',
+    priority: 3,
+    priorityReason:
+      'After the pick reminder, which carries a lost life. Once ever and only for 4 days after the final round, so do not leave it — anyone the quiet period holds back is lost for good.',
   },
   /*
   Game Start reminder is deliberately absent, dropped 2026-08-14 alongside Share reminder and for
