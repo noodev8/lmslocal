@@ -108,13 +108,15 @@ interface OutlineEmail {
   /** Shown on the card only. What this email is, in a sentence. */
   blurb?: string;
   /**
-   * Send order when it has people waiting, 1 first. The 48-hour quiet period means whichever of
-   * two emails reaches a person first is the one they get, so order decides who gets what. Only
-   * the emails that compete carry one; the rest sort by waiting as before.
+   * Send order, 1 first. The 48-hour quiet period gives each person one email per 48 hours, so
+   * whichever reaches them first is the one they get - order decides who gets what. Agreed
+   * 2026-10-23, on two rules: an email goes ahead of one whose job it also does (Welcome and Round
+   * Over both carry the pick deadline, so they precede the pick reminder), and otherwise ahead of
+   * one that costs less to lose. Players 1-4, organisers 5-14 - organisers play in their own
+   * competitions, so player emails take their slot too. Organiser nudge is last because it is
+   * exempt from the quiet period, so its place changes nothing.
    */
   priority?: number;
-  /** Why it goes in that slot. Shown on the card while anyone is waiting. */
-  priorityReason?: string;
 }
 
 /*
@@ -127,6 +129,7 @@ spreadsheet this replaced; it just no longer decides anything.
 const OUTLINE: OutlineEmail[] = [
   {
     key: 'results',
+    priority: 2,
     consumer: 'Player',
     section: 'Game',
     name: 'Round Over',
@@ -139,6 +142,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'pick_reminder',
+    priority: 3,
     consumer: 'Player',
     section: 'Game',
     name: 'Pick reminder',
@@ -148,12 +152,10 @@ const OUTLINE: OutlineEmail[] = [
     focus: true,
     blurb:
       'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Once per player per round. Locks is their countdown, not an elapsed time.',
-    priority: 2,
-    priorityReason:
-      'After Welcome Join Comp. A newcomer the welcome already told about the deadline is skipped by the 48-hour quiet period; everyone else is chased. Useless once the round locks.',
   },
   {
     key: 'organiser_nudge',
+    priority: 15,
     consumer: 'Organiser',
     section: 'Game',
     name: 'Organiser nudge',
@@ -165,6 +167,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'organiser_round',
+    priority: 9,
     consumer: 'Organiser',
     section: 'Game',
     name: 'Organiser round report',
@@ -176,6 +179,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'game_complete',
+    priority: 4,
     consumer: 'Player',
     section: 'Game',
     name: 'Game complete',
@@ -184,9 +188,6 @@ const OUTLINE: OutlineEmail[] = [
     focus: true,
     blurb:
       'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all.',
-    priority: 3,
-    priorityReason:
-      'After the pick reminder, which carries a lost life. Once ever and only for 4 days after the final round, so do not leave it — anyone the quiet period holds back is lost for good.',
   },
   /*
   Game Start reminder is deliberately absent, dropped 2026-08-14 alongside Share reminder and for
@@ -214,6 +215,7 @@ const OUTLINE: OutlineEmail[] = [
   */
   {
     key: 'result_reminder',
+    priority: 6,
     consumer: 'Organiser',
     section: 'Game',
     name: 'Result reminder',
@@ -225,6 +227,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'fixture_reminder',
+    priority: 7,
     consumer: 'Organiser',
     section: 'Game',
     name: 'Fixture reminder',
@@ -243,6 +246,7 @@ const OUTLINE: OutlineEmail[] = [
   */
   {
     key: 'promote_competition',
+    priority: 11,
     consumer: 'Organiser',
     section: 'Info',
     name: 'Hint - Promote competition',
@@ -254,6 +258,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'update_scores_mid_round_tip',
+    priority: 12,
     consumer: 'Organiser',
     section: 'Info',
     name: 'Hint - Result set mid round',
@@ -265,6 +270,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'personal_names_tip',
+    priority: 13,
     consumer: 'Organiser',
     section: 'Info',
     name: 'Hint - Personal names',
@@ -281,6 +287,7 @@ const OUTLINE: OutlineEmail[] = [
   */
   {
     key: 'join_blocked',
+    priority: 8,
     consumer: 'Organiser',
     section: 'Info',
     name: 'Join Blocked',
@@ -292,6 +299,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'welcome',
+    priority: 1,
     consumer: 'Player',
     section: 'Info',
     name: 'Welcome Join Comp',
@@ -300,12 +308,10 @@ const OUTLINE: OutlineEmail[] = [
     focus: true,
     blurb:
       'What a player gets after joining someone else’s competition. Once per membership, ever. The organiser is excluded — they get Welcome Created Comp instead.',
-    priority: 1,
-    priorityReason:
-      'Before the pick reminder. While a round is open it carries the pick deadline, so it does both jobs — sent second, the quiet period would drop it, and once dropped it never goes.',
   },
   {
     key: 'created_comp',
+    priority: 5,
     consumer: 'Organiser',
     section: 'Info',
     name: 'Welcome Created Comp',
@@ -317,6 +323,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'join_lms',
+    priority: 14,
     consumer: 'All',
     section: 'Info',
     name: 'Welcome Join LMS',
@@ -328,6 +335,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'empty_comp',
+    priority: 10,
     consumer: 'Organiser',
     section: 'Info',
     name: 'Empty Competition',
@@ -504,8 +512,7 @@ function FocusCard({
     );
   }, [correction]);
 
-  /* Badged only while someone is waiting - a "send first" on an empty card is an instruction with
-     nothing to act on. */
+  /* Numbered only while someone is waiting - an order on an empty card is nothing to act on. */
   const due = email.priority !== undefined && (count?.waiting ?? 0) > 0;
 
   return (
@@ -514,8 +521,11 @@ function FocusCard({
         <div className="max-w-lg">
           <div className="flex items-center gap-2">
             {due && (
-              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
-                Send {email.priority === 1 ? '1st' : email.priority === 2 ? '2nd' : `#${email.priority}`}
+              <span
+                title="Send order - lowest number first"
+                className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold tabular-nums text-white"
+              >
+                {email.priority}
               </span>
             )}
             <h3 className="font-semibold text-slate-900">{email.name}</h3>
@@ -523,9 +533,6 @@ function FocusCard({
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">{email.key}</code>
           </div>
           {email.blurb && <p className="mt-1.5 text-sm text-slate-600">{email.blurb}</p>}
-          {due && email.priorityReason && (
-            <p className="mt-1.5 text-sm font-medium text-amber-800">{email.priorityReason}</p>
-          )}
           {error && <p className="mt-1.5 text-sm text-red-700">{error}</p>}
         </div>
 
@@ -1390,7 +1397,10 @@ export default function EmailsPage() {
   /* What each card last counted, reported back as it counts. Only used for the ordering below. */
   const [stats, setStats] = useState<Record<string, { waiting: number; sent: number }>>({});
   const noteCount = useCallback(
-    (key: string, stat: { waiting: number; sent: number }) => setStats((prev) => ({ ...prev, [key]: stat })),
+    (key: string, stat: { waiting: number; sent: number }) => {
+      setStats((prev) => ({ ...prev, [key]: stat }));
+      setPendingSort(true);
+    },
     []
   );
 
@@ -1403,12 +1413,13 @@ export default function EmailsPage() {
   );
 
   /*
-  ONLY REFRESH ALL REORDERS. The cards are counted asynchronously, so sorting on every count made a
-  card jump under the cursor of whoever had just pressed its own Count button - and moving the
-  thing somebody is looking at is worse than a stale order.
+  EVERY COUNT REORDERS (2026-10-23). It used to be Refresh all only, so a card did not jump under
+  the cursor of whoever had just pressed its own Count. That was the right call while the order was
+  only "most waiting first"; it is now the send order, and a stale send order is the worse failure -
+  sending one email changes another's count through the quiet period.
 
-  So `order` is a snapshot, taken once every card has reported after a Refresh all, and nothing
-  else touches it. An empty snapshot is outline order.
+  Applied once every card has reported at least once, so the first Refresh all still settles in one
+  move. Before that, outline order.
   */
   const [order, setOrder] = useState<string[]>([]);
   const [pendingSort, setPendingSort] = useState(false);
@@ -1421,17 +1432,15 @@ export default function EmailsPage() {
 
   useEffect(() => {
     if (!pendingSort || FOCUS.some((e) => stats[e.key] === undefined)) return;
-    /* Prioritised emails with people waiting go above everything, in their own order - send order
-       is the decision, and the waiting count does not know about the quiet period. */
+    /* Emails with people waiting, in send order, above everything with nobody waiting. */
     const rank = (row: { key: string; waiting: number }) => {
       const p = OUTLINE.find((e) => e.key === row.key)?.priority;
       return p !== undefined && row.waiting > 0 ? p : Infinity;
     };
     setOrder(
       FOCUS.map((e, index) => ({ key: e.key, index, ...stats[e.key] }))
-        /* Waiting first - the screen becomes a queue of work. Then `sent`, so that among the
-           emails with nobody waiting the ones actually running sit above the ones that have never
-           sent anything, which is the difference between caught up and not wired up. */
+        /* Among the emails with nobody waiting, the ones actually running sit above the ones that
+           have never sent anything, which is the difference between caught up and not wired up. */
         .sort((a, b) => rank(a) - rank(b) || b.waiting - a.waiting || b.sent - a.sent || a.index - b.index)
         .map((row) => row.key)
     );
@@ -1509,7 +1518,6 @@ export default function EmailsPage() {
   const refreshCounts = () => {
     if (REMAINING.length > 0 && competitionId !== null) loadCounts(competitionId);
     loadVolume();
-    /* The one gesture that reorders. Applied once every card has reported back. */
     setPendingSort(true);
     setReloadTokens((prev) => {
       const next = { ...prev };
@@ -1518,13 +1526,6 @@ export default function EmailsPage() {
     });
   };
 
-  /* Only the card that was acted on. A send from one card cannot change another's count. */
-  const refreshCard = (key: string) => {
-    setReloadTokens((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
-    /* A send from a card spends the allowance, so the strip has to move with it - otherwise the
-       budget is only ever right until the first thing you do with it. */
-    loadVolume();
-  };
 
   return (
     <div className="min-h-screen">
@@ -1783,7 +1784,9 @@ export default function EmailsPage() {
           scopeAll={open.scopeAll}
           testMode={testMode}
           onClose={() => setOpen(null)}
-          onChanged={() => (open.scopeAll ? refreshCard(open.email.key) : refreshCounts())}
+          /* Every card, not just this one: a live send puts its recipients into the quiet period, which
+              takes them off every other card's count. */
+          onChanged={refreshCounts}
           onWaiting={noteWaiting}
         />
       )}
