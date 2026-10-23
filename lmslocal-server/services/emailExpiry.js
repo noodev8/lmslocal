@@ -113,4 +113,21 @@ round is old news, the same judgement as the welcomes.
 */
 const GAME_COMPLETE_WINDOW_DAYS = 4;
 
-module.exports = { checkExpiry, EXPIRES_AT, WELCOME_MAX_AGE_DAYS, ONE_OFF_WINDOW_DAYS, GAME_COMPLETE_WINDOW_DAYS };
+/*
+Round Over, the same four days, counted from when it became READY - the later of the round
+settling and the next round being created - not from the settle alone. It waits for the next
+round's fixtures, which can land more than four days after the settle (an international break, a
+slow organiser), and a window counted from the settle would kill it before it was ever due.
+Without this, a stalled competition whose next round never locks would get its old Round Over
+again after a prune of email_queue.
+*/
+const ROUND_OVER_WINDOW_DAYS = 4;
+
+module.exports = {
+  checkExpiry,
+  EXPIRES_AT,
+  WELCOME_MAX_AGE_DAYS,
+  ONE_OFF_WINDOW_DAYS,
+  GAME_COMPLETE_WINDOW_DAYS,
+  ROUND_OVER_WINDOW_DAYS
+};

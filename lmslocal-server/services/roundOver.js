@@ -82,6 +82,7 @@ plenty for that.
 */
 
 const { query } = require('../database');
+const { ROUND_OVER_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
 
@@ -230,7 +231,7 @@ async function findCandidates(opts = {}) {
     no next round and still qualifies - the readiness test below is what enforces the rule.
     */
     LEFT JOIN LATERAL (
-      SELECT r.id, r.round_number, r.lock_time
+      SELECT r.id, r.round_number, r.lock_time, r.created_at
       FROM round r
       WHERE r.competition_id = c.id
         AND r.round_number = last_round.round_number + 1
@@ -330,6 +331,10 @@ async function findCandidates(opts = {}) {
         OR next_round.lock_time > NOW()
       )
 
+      -- Became ready recently - see ROUND_OVER_WINDOW_DAYS. GREATEST skips the NULL next round
+      -- of a finished competition, leaving the settle.
+      AND GREATEST(last_round.settled_at, next_round.created_at) > NOW() - ($3 || ' days')::interval
+
       -- Once per player per round.
       AND NOT EXISTS (
         SELECT 1 FROM email_queue eq
@@ -346,7 +351,7 @@ async function findCandidates(opts = {}) {
       AND ($1::int IS NULL OR c.id = $1)
 
     ORDER BY c.id, u.id
-  `, [competition_id, groupFor(EMAIL_TYPE)]);
+  `, [competition_id, groupFor(EMAIL_TYPE), String(ROUND_OVER_WINDOW_DAYS)]);
 
   return result.rows;
 }
