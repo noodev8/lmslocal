@@ -22,6 +22,7 @@ comms email. The rules, all in findCandidates below:
   - not the organiser of the competition they joined (they get created_comp instead)
   - real email (guest and bot accounts both use @lms-guest.com)
   - no welcome already queued for this member and competition, whatever its status
+  - has not made a pick in this competition yet
   - not opted out of player.welcome, per services/emailPreference.js
 =======================================================================================================================================
 */
@@ -127,6 +128,23 @@ async function findCandidates(opts = {}) {
         WHERE eq.user_id = cu.user_id
           AND eq.competition_id = c.id
           AND eq.email_type = '${EMAIL_TYPE}'
+      )
+      /*
+      Already picked -> not sent (2026-10-24). The welcome's job is getting a new member to their
+      first pick; once they have made it, the email is late at best. While the round is still open
+      it is wrong outright - "Round 1 is open, make your pick" with a "Make your first pick" button,
+      to someone who has. And sending it starts their quiet period, which can permanently kill
+      their first Round Over, the email that matters more to them. Seen on three Friday-evening
+      joins who picked before the lock and only surfaced the next morning.
+
+      Deliberately no condition on whether a round is open: picked is the whole test. A member who
+      joined a competition with no round yet has no pick, so still gets welcomed.
+      */
+      AND NOT EXISTS (
+        SELECT 1 FROM pick pk
+        INNER JOIN round r ON r.id = pk.round_id
+        WHERE pk.user_id = cu.user_id
+          AND r.competition_id = c.id
       )
       -- Opt-outs, defined once in services/emailPreference.js
       AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$1' })}
