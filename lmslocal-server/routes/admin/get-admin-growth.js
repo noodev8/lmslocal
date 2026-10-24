@@ -3,8 +3,8 @@
 API Route: get-admin-growth
 =======================================================================================================================================
 Method: GET
-Purpose: The figures behind the platform rather than the ones on it - the signup funnel and paid
-         places, for the lmslocal-admin Growth screen.
+Purpose: The figures behind the platform rather than the ones on it - the organiser funnel, the
+         signup funnel and paid places, for the lmslocal-admin Growth screen.
 
          SEPARATE FROM get-admin-stats ON PURPOSE, and the separation is a rule, not a filing
          decision. The admin Overview screen was deleted because its counts duplicated the
@@ -31,9 +31,33 @@ Success Response (ALWAYS HTTP 200):
     "new_last_30_days": 228,                // integer, registered in the last 30 days
     "new_last_7_days": 2                    // integer, registered in the last 7 days
   },
+  "organisers": {
+    "growing_at": 10,                       // integer, players that make an organiser "growing"
+    "winner_above": 20,                     // integer, FREE_PLAYER_LIMIT - a winner ran a bigger competition
+    "funnel": {
+      "created": 59,                        // integer, ever created a competition (deleted ones included)
+      "ran": 27,                            // integer, of those, one with picks and 2+ real players
+      "growing": 12,                        // integer, of those, reached growing_at real players
+      "winners": 5,                         // integer, of those, more than winner_above real players
+      "paid": 5                             // integer, of those, ever paid (credit_purchases)
+    },
+    "by_month": [                           // array, every month from the first to now, by first competition
+      { "month": "2026-08", "created": 19, "ran": 15, "growing": 7, "winners": 2, "paid": 2 }
+    ],
+    "winners": [                            // array, one per winner, most paid first
+      {
+        "organiser_id": 1003,               // integer
+        "display_name": "Sam",              // string
+        "best_players": 60,                 // integer, real players in their biggest competition
+        "paid": 50,                         // number, pounds, lifetime
+        "live": true,                       // boolean, has a SETUP or ACTIVE competition not archived
+        "first_month": "2026-06"            // string, YYYY-MM of their first competition
+      }
+    ]
+  },
   "places": {
     "limit": 20,                            // integer, FREE_PLAYER_LIMIT, free places per ORGANISER
-    "total": 283,                           // integer, chargeable places held in non-archived competitions
+    "total": 283,                           // integer, chargeable places held, archived competitions included
     "free": 213,                            // integer, of those, covered by a free allowance
     "billable": 70                          // integer, of those, past somebody's free limit
   },
@@ -66,11 +90,16 @@ Data Notes:
   "never".
 - "never_over_90_days" is the part that matters. A new signup who has not joined anything is
   mid-flight; one from four months ago is gone, and the two must not be read as the same person.
-- "places" EXCLUDES archived competitions - competition.archived_at, the same column the admin
-  Competitions screen reads, so this cannot disagree with what a click on the Archived tile shows.
-  Unlike get-admin-stats's "active" figure, this is NOT restricted to live-only (SETUP/ACTIVE) - a
-  finished competition still holds its places and still consumed the organiser's free 20 while it
-  ran, and dropping COMPLETE would understate that. Only archived rows are cut.
+- "organisers" is the funnel the screen leads with (2026-10-24): which organisers become winners,
+  the ones running a competition bigger than the free allowance - every one of whom has paid. A
+  signup funnel counts players, and players are not who decides whether this is worth running.
+  Size and "ran" come only from competitions that still exist; a deleted competition dates its
+  organiser through audit_log but its members are gone. A winner is judged on the biggest single
+  competition, not the organiser's total, because that is the group they actually brought.
+- "places" INCLUDES archived competitions (2026-10-24 - it used to cut them). Finished
+  competitions are archived too, including the winners' biggest, so cutting them hid most of the
+  paid places, and the join gate counts them anyway. Not restricted to live-only either - a
+  finished competition still consumed the organiser's free 20.
 - "revenue_12mo" is credit_purchases.paid_amount, trailing 12 months only - money actually taken,
   not app_user.paid_credit, which is a balance and can be granted. Older purchases are real
   revenue too but are left out of the headline so it reads as current, not lifetime.
@@ -89,8 +118,85 @@ const express = require('express');
 const { query } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { getPlatformPlaceTotals } = require('../../services/placeUsage');
+const { getPlatformPlaceTotals, freePlayerLimit } = require('../../services/placeUsage');
+const { chargeableMemberFilter } = require('../../services/botPool');
 const router = express.Router();
+
+/*
+The rung below a winner. Not derived from the free limit on purpose: it marks the group nearest to
+becoming a winner - a second season, or a bigger group - and should not move if pricing does.
+*/
+const GROWING_PLAYERS = 10;
+
+/**
+ * Roll the per-organiser rows into the funnel, the months and the winners list.
+ *
+ * Each step is a subset of "created" but NOT necessarily of the step before - an organiser can
+ * buy credits before they are ever blocked - so the screen measures every step against the top.
+ *
+ * @param {Array<object>} rows - one per organiser, from the query in the route
+ * @param {number} winnerAbove - FREE_PLAYER_LIMIT: a winner ran a competition bigger than this
+ * @returns {object} { growing_at, winner_above, funnel, by_month[], winners[] }
+ */
+function summariseOrganisers(rows, winnerAbove) {
+  const empty = () => ({ created: 0, ran: 0, growing: 0, winners: 0, paid: 0 });
+  const funnel = empty();
+  const months = new Map();
+  const winners = [];
+
+  for (const row of rows) {
+    const best = parseInt(row.best_players, 10) || 0;
+    const paid = Number(row.paid) || 0;
+    const steps = {
+      created: true,
+      ran: row.ran,
+      growing: best >= GROWING_PLAYERS,
+      winners: best > winnerAbove,
+      paid: paid > 0
+    };
+
+    if (!months.has(row.first_month)) months.set(row.first_month, empty());
+    const month = months.get(row.first_month);
+    for (const [key, hit] of Object.entries(steps)) {
+      if (hit) {
+        funnel[key] += 1;
+        month[key] += 1;
+      }
+    }
+
+    if (steps.winners) {
+      winners.push({
+        organiser_id: row.organiser_id,
+        display_name: row.display_name,
+        best_players: best,
+        paid,
+        live: row.live,
+        first_month: row.first_month
+      });
+    }
+  }
+
+  /*
+  Every month from the first to now, including empty ones. Winners arrive with the season, and a
+  run of empty months is the finding - leaving the gaps out would hide it.
+  */
+  const by_month = [];
+  const keys = [...months.keys()].sort();
+  if (keys.length > 0) {
+    const now = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' }).slice(0, 7);
+    let [y, m] = keys[0].split('-').map(Number);
+    for (let key = keys[0]; key <= now; ) {
+      by_month.push({ month: key, ...(months.get(key) || empty()) });
+      m += 1;
+      if (m > 12) { m = 1; y += 1; }
+      key = `${y}-${String(m).padStart(2, '0')}`;
+    }
+  }
+
+  winners.sort((a, b) => b.paid - a.paid || b.best_players - a.best_players);
+
+  return { growing_at: GROWING_PLAYERS, winner_above: winnerAbove, funnel, by_month, winners };
+}
 
 // Kept in step with get-admin-stats. See the note there - these are the reason the two screens
 // describe the same platform.
@@ -102,20 +208,6 @@ router.get('/', verifyAdminToken, async (req, res) => {
   logApiCall('get-admin-growth');
 
   try {
-    /*
-    Which competitions are archived. One column, read the same way every other admin screen reads
-    it. This was a first round trip pulling three correlated subselects so the derived rule could
-    be run in JS; the rule is gone (see services/competitionEngagement.js) and archived is now a
-    decision somebody made.
-    */
-    const archivedResult = await query(`
-      SELECT c.id
-        FROM competition c
-       WHERE c.archived_at IS NOT NULL
-         AND c.id <> ALL($1::int[])
-    `, [EXCLUDED_COMPETITION_IDS]);
-    const archivedIds = archivedResult.rows.map((c) => c.id);
-
     /*
     The funnel. Both are small aggregates over small tables, so scalar subselects beat sequential
     queries.
@@ -160,15 +252,89 @@ router.get('/', verifyAdminToken, async (req, res) => {
     const row = result.rows[0];
 
     /*
-    Places from the service, not from a query written here - the same call get-admin-stats makes,
-    with the archived ids added to its exclusion list so this figure answers "how are we doing
-    with the competitions that are actually alive or finished cleanly", not inflated by tyre
-    kickers who never paid for anything they held.
+    Places from the service, not from a query written here - the same call get-admin-stats makes.
+
+    Archived competitions are COUNTED (2026-10-24). They used to be cut, to keep tyre kickers out,
+    but finished competitions are archived too - including the biggest ones the winners ran - so
+    cutting them took most of the paid places off the figure meant to show them. The join gate
+    counts archived rows as well, so this now agrees with what organisers were actually charged
+    against. A tyre kicker's handful of places sits inside their free 20 and adds nothing billable.
     */
     const places = await getPlatformPlaceTotals({
-      excludedCompetitionIds: EXCLUDED_COMPETITION_IDS.concat(archivedIds),
+      excludedCompetitionIds: EXCLUDED_COMPETITION_IDS,
       excludedEmails: EXCLUDED_EMAILS
     });
+
+    /*
+    The organiser funnel: one row per organiser, rolled up in JS below into the totals, the
+    months and the winners list, so the three cannot disagree with each other.
+
+    The start date comes from audit_log as well as from competition, because deleting a finished
+    competition to reuse the free places is an allowed route - competition alone would date that
+    organiser from their latest competition, not their first. Size and "ran" can only come from
+    competitions that still exist: a deleted one's members and picks are gone with it.
+
+    Size counts people, not places - re-buys are billing, and the question here is how big a group
+    the organiser brought. Bots are excluded the same way the join gate excludes them.
+    */
+    const organiserResult = await query(`
+      WITH created AS (
+        SELECT a.user_id AS organiser_id, a.created_at
+          FROM audit_log a
+         WHERE a.action = 'Competition Created'
+           AND (a.competition_id IS NULL OR a.competition_id <> ALL($2::int[]))
+        UNION ALL
+        SELECT c.organiser_id, c.created_at
+          FROM competition c
+         WHERE c.id <> ALL($2::int[])
+      ),
+      comp AS (
+        SELECT
+          c.organiser_id,
+          COUNT(mem.id) AS players,
+          EXISTS (SELECT 1 FROM round r JOIN pick p ON p.round_id = r.id
+                   WHERE r.competition_id = c.id) AS ran,
+          (c.archived_at IS NULL AND UPPER(c.status) IN ('SETUP', 'ACTIVE')) AS live
+        FROM competition c
+        LEFT JOIN competition_user cu ON cu.competition_id = c.id
+        LEFT JOIN app_user mem        ON mem.id = cu.user_id
+                                     AND ${chargeableMemberFilter('mem')}
+        WHERE c.id <> ALL($2::int[])
+        GROUP BY c.id
+      ),
+      sized AS (
+        SELECT organiser_id,
+               -- Two players, not one: the organiser alone, picking against nobody, has not run anything
+               bool_or(ran AND players >= 2) AS ran,
+               MAX(players)                  AS best_players,
+               bool_or(live)                 AS live
+          FROM comp
+         GROUP BY organiser_id
+      ),
+      paid AS (
+        SELECT user_id, SUM(paid_amount) AS paid
+          FROM credit_purchases
+         WHERE paid_amount > 0
+         GROUP BY user_id
+      )
+      SELECT
+        o.organiser_id,
+        u.display_name,
+        to_char(MIN(o.created_at) AT TIME ZONE 'Europe/London', 'YYYY-MM') AS first_month,
+        COALESCE(BOOL_OR(s.ran), false)        AS ran,
+        COALESCE(MAX(s.best_players), 0)       AS best_players,
+        COALESCE(BOOL_OR(s.live), false)       AS live,
+        COALESCE(MAX(p.paid), 0)               AS paid
+      FROM created o
+      JOIN app_user u     ON u.id = o.organiser_id
+      LEFT JOIN sized s   ON s.organiser_id = o.organiser_id
+      LEFT JOIN paid p    ON p.user_id = o.organiser_id
+      WHERE u.email <> ALL($1::text[])
+      GROUP BY o.organiser_id, u.display_name
+    `, [EXCLUDED_EMAILS, EXCLUDED_COMPETITION_IDS]);
+
+    const winnerAbove = freePlayerLimit();
+    const organisers = summariseOrganisers(organiserResult.rows, winnerAbove);
 
     // COUNT() and SUM() come back as strings from node-postgres (bigint/numeric), so coerce.
     const n = (value) => parseInt(value, 10) || 0;
@@ -183,6 +349,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
         new_last_30_days: n(row.new_last_30_days),
         new_last_7_days: n(row.new_last_7_days)
       },
+      organisers,
       places,
       // Money, so not an integer. Kept as a number of pounds for the client to format.
       revenue_12mo: Number(row.revenue_12mo) || 0,

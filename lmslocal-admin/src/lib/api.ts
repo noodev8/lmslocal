@@ -190,16 +190,45 @@ export interface AdminGrowth {
     new_last_7_days: number;
   };
   /*
-  EXCLUDES archived competitions (the Competitions screen's label for "stalled") - a tyre kicker
-  never earned anything and should not count as demand. UNLIKE that screen's "active" card, this
-  is not restricted to live-only: a finished competition still held its places and still consumed
-  the organiser's free 20 while it ran, so only the archived rows are cut, not COMPLETE ones too.
+  Who becomes a winner: an organiser whose biggest competition had more real players than the free
+  allowance. Each funnel step is a subset of "created" but not always of the step before - credits
+  can be bought before a block - so the screen measures every step against the top.
+  */
+  organisers: {
+    growing_at: number;
+    winner_above: number;
+    funnel: AdminOrganiserFunnel;
+    /* Every month from the first to now, empty ones included, by first competition created. */
+    by_month: (AdminOrganiserFunnel & { month: string })[];
+    winners: {
+      organiser_id: number;
+      display_name: string;
+      best_players: number;
+      /* Pounds, lifetime. */
+      paid: number;
+      /* Has a SETUP or ACTIVE competition that is not archived. */
+      live: boolean;
+      first_month: string;
+    }[];
+  };
+  /*
+  INCLUDES archived competitions (2026-10-24). Finished ones are archived too, the winners'
+  biggest among them, so cutting archived rows hid most of the paid places - and the join gate
+  counts them anyway.
   */
   places: AdminStats['places'];
   /* Pounds actually taken, trailing 12 months - not lifetime, so the figure reads as current. Not
      app_user.paid_credit, which is a balance and can be granted without a sale. */
   revenue_12mo: number;
   generated_at: string;
+}
+
+export interface AdminOrganiserFunnel {
+  created: number;
+  ran: number;
+  growing: number;
+  winners: number;
+  paid: number;
 }
 
 export type GrowthResponse = ApiResponse & Partial<AdminGrowth>;

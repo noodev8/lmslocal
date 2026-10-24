@@ -241,6 +241,7 @@ function usageLines(usage) {
 module.exports = {
   getPlaceUsage,
   getPlatformPlaceTotals,
+  freePlayerLimit,
   usageLines,
   labelForStatus,
   STATUS_LABELS

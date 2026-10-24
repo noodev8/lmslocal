@@ -4,8 +4,15 @@
 =======================================================================================================================================
 Admin Growth
 =======================================================================================================================================
-Purpose: The figures behind the platform rather than the ones on it - where signups leak, how
-         much of what we hold is paid for, and revenue over the last year.
+Purpose: The figures behind the platform rather than the ones on it - which organisers become
+         winners, where signups leak, how much of what we hold is paid for, and revenue over the
+         last year.
+
+WINNERS LEAD (2026-10-24). A winner is an organiser whose biggest competition outgrew the free
+allowance, and every one so far has paid. Small groups play free and bring players in; winners
+are the business. The question this screen exists for is whether enough of them are arriving to
+be worth carrying on, so the organiser funnel sits above everything else and is counted by the
+month an organiser started - winners arrive with the season, and the empty months are the point.
 
 WHY A SECOND SCREEN AT ALL, given the Overview was deleted for being one.
 
@@ -26,7 +33,7 @@ So this screen is built to the rule that failure implies, and the rule is the po
      testing) and an organiser-level paywall stat were both tried here and cut - the first was
      too much for one screen, the second could only ever read 100% (an organiser cannot sit past
      the free limit without paying, since that is exactly what the join gate blocks on) and so
-     said nothing. Two panels, not four.
+     said nothing.
 
 The screen is read-only and fetched once on entry. Nothing here changes while you look at it.
 =======================================================================================================================================
@@ -115,6 +122,7 @@ export default function GrowthPage() {
       if (
         response.return_code === 'SUCCESS' &&
         response.signups &&
+        response.organisers &&
         response.places &&
         response.revenue_12mo !== undefined
       ) {
@@ -141,6 +149,13 @@ export default function GrowthPage() {
   const money = (pounds: number) =>
     pounds.toLocaleString('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
 
+  // '2026-08' -> 'Aug 2026'. Built by hand: new Date('2026-08') parses as UTC midnight and can
+  // land in July once a local offset is applied.
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split('-').map(Number);
+    return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1]} ${y}`;
+  };
+
   return (
     <div className="min-h-screen">
       <AdminHeader title="Growth" backHref="/dashboard/competitions">
@@ -165,6 +180,104 @@ export default function GrowthPage() {
 
         {growth && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="lg:col-span-2">
+              <Panel
+                title="Organisers"
+                note={`Everyone who ever created a competition, deleted ones included. A winner ran one with more than ${growth.organisers.winner_above} real players. Size comes from competitions that still exist.`}
+              >
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div>
+                    {(
+                      [
+                        ['Created a competition', 'created', 'Ever pressed create, whatever happened next'],
+                        ['Ran it', 'ran', 'Picks made, with at least two real players'],
+                        [`Reached ${growth.organisers.growing_at}+ players`, 'growing', 'Nearest to becoming a winner — a second season or a bigger group'],
+                        [`Winners — ${growth.organisers.winner_above + 1}+ players`, 'winners', 'Outgrew the free allowance'],
+                        ['Paid', 'paid', 'Ever bought credits'],
+                      ] as const
+                    ).map(([label, key, hint]) => (
+                      <FunnelStep
+                        key={key}
+                        label={label}
+                        value={growth.organisers.funnel[key]}
+                        of={growth.organisers.funnel.created}
+                        hint={hint}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Winners
+                      </h3>
+                      {growth.organisers.winners.length === 0 ? (
+                        <p className="mt-2 text-sm text-slate-500">None yet.</p>
+                      ) : (
+                        <table className="mt-2 w-full text-sm">
+                          <thead>
+                            <tr className="text-left text-xs text-slate-400">
+                              <th className="pb-1 font-medium">Organiser</th>
+                              <th className="pb-1 text-right font-medium">Biggest</th>
+                              <th className="pb-1 text-right font-medium">Paid</th>
+                              <th className="pb-1 text-right font-medium">Started</th>
+                              <th className="pb-1 text-right font-medium">Running now</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {growth.organisers.winners.map((w) => (
+                              <tr key={w.organiser_id}>
+                                <td className="py-1.5 text-slate-800">{w.display_name}</td>
+                                <td className="py-1.5 text-right tabular-nums">{w.best_players}</td>
+                                <td className="py-1.5 text-right tabular-nums">{money(w.paid)}</td>
+                                <td className="py-1.5 text-right tabular-nums text-slate-500">{monthLabel(w.first_month)}</td>
+                                <td className="py-1.5 text-right text-slate-500">{w.live ? 'Yes' : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+
+                    {/*
+                      By the month an organiser started, so a row is a cohort: the August row
+                      shows what August's newcomers have become since, and keeps changing as
+                      they grow. Newest first - the question is always about the recent ones.
+                    */}
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        By month started
+                      </h3>
+                      <table className="mt-2 w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-xs text-slate-400">
+                            <th className="pb-1 font-medium">Month</th>
+                            <th className="pb-1 text-right font-medium">Created</th>
+                            <th className="pb-1 text-right font-medium">Ran</th>
+                            <th className="pb-1 text-right font-medium">{growth.organisers.growing_at}+</th>
+                            <th className="pb-1 text-right font-medium">Winners</th>
+                            <th className="pb-1 text-right font-medium">Paid</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 tabular-nums">
+                          {[...growth.organisers.by_month].reverse().map((m) => (
+                            <tr key={m.month} className={m.created === 0 ? 'text-slate-300' : 'text-slate-700'}>
+                              <td className="py-1.5">{monthLabel(m.month)}</td>
+                              <td className="py-1.5 text-right">{m.created}</td>
+                              <td className="py-1.5 text-right">{m.ran}</td>
+                              <td className="py-1.5 text-right">{m.growing}</td>
+                              <td className={`py-1.5 text-right ${m.winners > 0 ? 'font-semibold text-slate-900' : ''}`}>{m.winners}</td>
+                              <td className="py-1.5 text-right">{m.paid}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </Panel>
+            </div>
+
             {/*
               The funnel. It STOPS at "took part" by design - the live player count is the
               Competitions screen's card and repeating it here is exactly what killed Overview.
@@ -207,7 +320,7 @@ export default function GrowthPage() {
             */}
             <Panel
               title="Places & revenue"
-              note={`Non-archived competitions only — a tyre kicker never earned anything and should not count as demand. ${growth.places.limit} free per organiser, counted across everything they run.`}
+              note={`Every competition still on the platform, archived included — finished ones are archived too, and they are where the paid places are. ${growth.places.limit} free per organiser, counted across everything they run.`}
             >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Figure
