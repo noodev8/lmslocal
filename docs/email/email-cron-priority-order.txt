@@ -11,33 +11,40 @@
 # the times, and ask Claude to align it - it sets the times, keeps the section below in step and
 # rewrites the reasoning on each line.
 #
-# Times are GMT, the server clock. Each line below carries its BST equivalent in a comment.
+# THE ORDER FOLLOWS `priority` ON THE OUTLINE (lmslocal-admin/src/app/dashboard/emails/page.tsx),
+# realigned 2026-10-24. The admin Emails screen numbers every email by it, so if the two disagree
+# the screen is describing a send order the cron does not run. Change one, change the other.
+#
+# Times are GMT, the server clock. Each line below carries its BST equivalent in a comment - and
+# BST ends 25 Oct 2026, after which UK time IS the server clock and the labels read an hour late.
 #
 # NO TWO LINES IN THE SAME MINUTE. That is the one hard rule: the 48-hour check reads email_queue,
 # and a row only exists once the send has happened, so two runs at the same moment cannot see each
 # other. Anything else is free - a line can run several times a day, and the gaps need not be even.
+#
+# FIVE MINUTES APART IS ENOUGH, measured 2026-10-24: the largest sweep in the previous 30 days was
+# Round Over, 102 emails in 79 seconds. A run still sending when the next one starts is the same
+# blindness as sharing a minute, so if a sweep ever grows past a few minutes, widen the gap after it.
 #
 # `>/dev/null` throws away the run summary; what went out is in Resend and on the admin Emails
 # screen. stderr is left alone on purpose, so a misspelt email type or a failed send still shouts.
 # Add `2>&1` for silence, knowing a typo would then fail quietly every day.
 
 # --- LMSLocal email sweeps - start ---
-#0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
-#2 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_round >/dev/null
-#5 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
-#10 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
-#15 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_blocked >/dev/null
-#20 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js welcome >/dev/null
-#25 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js created_comp >/dev/null
-#30 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_lms >/dev/null
-#35 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js result_reminder >/dev/null
-#40 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js fixture_reminder >/dev/null
-#45 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js empty_comp >/dev/null
-#50 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js promote_competition >/dev/null
-#55 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js update_scores_mid_round_tip >/dev/null
-#0 9 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js personal_names_tip >/dev/null
-#
-# Outside the morning block, and not ranked against it - see section 15 below.
+#0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js welcome >/dev/null
+#5 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
+#10 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
+#15 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
+#20 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js created_comp >/dev/null
+#25 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js result_reminder >/dev/null
+#30 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js fixture_reminder >/dev/null
+#35 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_blocked >/dev/null
+#40 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_round >/dev/null
+#45 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js empty_comp >/dev/null
+#50 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js promote_competition >/dev/null
+#55 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js update_scores_mid_round_tip >/dev/null
+#0 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js personal_names_tip >/dev/null
+#5 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_lms >/dev/null
 #33 9-19 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_nudge >/dev/null
 # --- LMSLocal email sweeps - end ---
 
@@ -48,8 +55,8 @@
 #
 # WHY THE ORDER MATTERS. Magic send (services/emailQuiet.js) marks anyone emailed in the last 48
 # hours as sent rather than emailing them again, so whichever email runs first takes the collisions
-# and the ones after it get whoever is left. Nothing is exempt: moving a line up is the only way to
-# promote an email, and there is no priority setting in the code, on purpose.
+# and the ones after it get whoever is left. Only organiser_nudge is exempt (section 15); for
+# everything else, moving a line up is the only way to promote an email.
 #
 # A '#' switches one off - no edit, no commit, no deploy, no restart. `crontab -l` is the only
 # honest answer to what is running; the admin screen cannot see this file.
@@ -58,22 +65,47 @@
 #   node scripts/email-sweep.js <type> --dry-run     lists who qualifies, marks declines with [48h]
 #   node scripts/email-sweep.js <type> --test        one sample to the test address, writes nothing
 #
-# The order here is a STARTING SUGGESTION, not a finding. It ranks by how much damage a killed
-# email does, and by whether losing it is permanent (once-ever) or merely a deferral (a recurring
-# nudge that comes round again). Real sends will beat that reasoning - move things as you learn.
+# THE TWO RULES THE ORDER WAS AGREED ON (2026-10-23): an email goes ahead of one whose job it also
+# does - Welcome and Round Over both carry the pick deadline, so they precede the pick reminder -
+# and otherwise ahead of one that costs less to lose. Players 1-4, organisers 5-14: organisers play
+# in their own competitions, so player emails take their slot too. Real sends will beat that
+# reasoning - move things as you learn, here and on the outline together.
 
 
 # ---------------------------------------------------------------------------------------------
-# 1. Player, Game - Pick reminder | Round locks within 24 hours, no pick made
-#    Top of the list because it is the only email with a hard deadline. A killed one can cost a
-#    player a life, and no other email can make that up to them.
+# 1. Player, Info - Welcome Join Comp | New joins, not yet picked
+#    Once ever, and nothing replaces a killed welcome. First because it does the pick reminder's
+#    job as well: it names the open round and its deadline. Since 2026-10-24 it is only offered to
+#    a member who has NOT picked yet (services/joinComp.js), so it never spends a player's quiet
+#    period on someone who is already in - which would otherwise cost them their Round Over.
+# 8:00 AM
+#0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js welcome >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 2. Player, Game - Round Over | Round settled + next fixtures in
+#    The one email every player gets every week, and the biggest single sender - so it is also the
+#    email that will take the most collisions FROM the ones below it. Watch that. Above the pick
+#    reminder because it carries the next round's deadline too.
 #
-#    RUNS FIRST, because a round is only eligible inside REMINDER_WINDOW_HOURS of its lock, so
-#    under a daily cron it is chased on the one run that falls inside that window or it is never
-#    chased at all - silently.
+#    IT AND THE ORGANISER ROUND REPORT (section 9) ARE ALTERNATIVES, and this is the only pair on
+#    the list that is. Run one or the other, the choice made week by week. If you run BOTH, this
+#    line now wins for the organiser: they are a player in their own competition, so a Round Over
+#    to them kills their round report for that week. (Before 2026-10-24 the report ran second and
+#    won.) The other players are unaffected either way.
+# 8:05 AM
+#5 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 3. Player, Game - Pick reminder | Round locks within 30 hours, no pick made
+#    The only email with a hard deadline. A killed one can cost a player a life. Third, not first,
+#    because the two above it carry the same deadline: anyone they kill out of this has just been
+#    told when picks close.
 #
-#    THE WINDOW IS NOW 30 HOURS (was 24, changed 2026-08-28), and that is what makes this line's
-#    exact hour much less critical than it used to be. The reason is the season's shape: most
+#    THE HOUR MATTERS, the position within the block much less. A round is only eligible inside
+#    REMINDER_WINDOW_HOURS of its lock, so under a daily cron it is chased on the one run that
+#    falls inside that window or it is never chased at all - silently.
+#
+#    THE WINDOW IS 30 HOURS (was 24, changed 2026-08-28). The reason is the season's shape: most
 #    fixtures are expected to be Saturday 12:30 kickoffs, locking at 11:30. Under 24 hours that
 #    lock was 26.5h away at the Friday run - outside the window, nothing sent - and 2.5h away at
 #    the Saturday one, so the commonest round of the season got its only reminder at half past
@@ -84,150 +116,122 @@
 #    Sunday early-afternoon lock is now chased a day ahead).
 #
 #    ANY HOUR FROM ABOUT 06:00 TO 09:00 GMT WORKS with a 30-hour window - a Saturday 11:30 BST lock
-#    needs only that Friday's run fall after 05:30 BST. Both 07:00 and 08:00 GMT have been live at
-#    different times and neither is wrong; do not treat a mismatch between this file and the server
-#    as a bug without checking which is intended. If this line ever moves LATER than about 09:00
-#    GMT, re-check services/pickReminder.js first.
-#
-#    KNOCK-ON TO WATCH. Sending a day earlier for morning locks means this sweep now takes its
-#    collisions on the Friday rather than the Saturday, so what it suppresses lower down the list
-#    shifts by a day too. Nothing is known to break; it has simply not been through a full weekend
-#    yet.
-# 8:00 AM
-#0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
-
-# ---------------------------------------------------------------------------------------------
-# 2. Organiser, Game - Organiser round report | Locks within 30h, last round + who is still to pick
-#    IT AND ROUND OVER ARE ALTERNATIVES, and this is the only pair on the list that is. Round Over
-#    below mails every player every week and is the biggest sender on the platform; this mails one
-#    person per competition and asks them to carry it into their group chat. Run one or the other:
-#    both wired, neither unwired, and the choice made here week by week.
-#
-#    If you run BOTH, magic send decides for the organiser and this line wins - it runs first, and
-#    the organiser is a player in their own competition, so their Round Over copy is killed. The
-#    other players still get theirs. Nothing is broken by that; it is just worth knowing which way
-#    it falls before doing it by accident.
-#
-#    DIRECTLY BELOW pick_reminder AND ABOVE EVERYTHING ELSE, because it is the same round and the
-#    same window - 30 hours, the same number, deliberately, so both fire on the same run for the
-#    same lock. Above the hints and the two settlement chases because it carries a deadline and
-#    they do not: an organiser killed out of this loses the one email that could still change the
-#    outcome of a round, where a killed hint comes round again.
-#
-#    MINUTE 2, so it does not share pick_reminder's minute - two lines in the same minute cannot
-#    see each other's sends. It reads picks that pick_reminder's run has not yet converted, which
-#    is expected and is the trade services/organiserRound.js states in full: the number is who has
-#    not picked YET, not what is left. If a short near-final list is what is wanted, that is
-#    organiser_nudge in section 15, not a change to this line.
-#
-#    NO BACKLOG TO CLEAR before switching it on. Candidacy is a lock time in the next 30 hours, so
-#    nothing historical can ever qualify however long this sits off.
-# 8:02 AM
-#2 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_round >/dev/null
-
-# ---------------------------------------------------------------------------------------------
-# 3. Player, Game - Round Over | Round settled + next fixtures in
-#    The one email every player gets every week, and the biggest single sender - so it is also the
-#    email that will take the most collisions FROM the ones below it. Watch that.
-# 9:05 AM
-#5 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
+#    needs only that Friday's run fall after 05:30 BST. 07:00, 07:10 and 08:00 GMT have all been
+#    used; none is wrong. If this line ever moves LATER than about 09:00 GMT, re-check
+#    services/pickReminder.js first.
+# 8:10 AM
+#10 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
 
 # ---------------------------------------------------------------------------------------------
 # 4. Player, Game - Game complete | Everyone who took part, once
 #    Once ever, and the end of the story. Nothing else tells them who won.
-# 9:10 AM
-#10 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
+# 8:15 AM
+#15 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 5. Organiser, Info - Join Blocked | Blocked join in last 7 days, still shut
-#    The only email on the list that is about money: an organiser at the free limit is losing
-#    players who tried to join. Killing it trades a sale for an email credit.
-# 9:15 AM
-#15 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_blocked >/dev/null
-
-# ---------------------------------------------------------------------------------------------
-# 6. Player, Info - Welcome Join Comp | New joins only
-#    Once ever. A killed welcome is never replaced by anything.
-# 9:20 AM
-#20 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js welcome >/dev/null
-
-# ---------------------------------------------------------------------------------------------
-# 7. Organiser, Info - Welcome Created Comp | New competitions only
+# 5. Organiser, Info - Welcome Created Comp | New competitions only
 #    Once ever, and it carries the join code - the one payload the app does not push at them.
-# 9:25 AM
-#25 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js created_comp >/dev/null
+#    Top of the organiser emails.
+# 8:20 AM
+#20 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js created_comp >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 8. All, Info - Welcome Join LMS | New signups only
-#    Once ever.
-# 9:30 AM
-#30 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_lms >/dev/null
-
-# ---------------------------------------------------------------------------------------------
-# 9. Organiser, Game - Result reminder | Round played 36h+, unsettled
+# 6. Organiser, Game - Result reminder | Round played 36h+, unsettled
 #    Recurring, so a kill defers it rather than ending it - but a whole competition of players is
 #    waiting on this one organiser, which is why it sits above the other chases.
-# 9:35 AM
-#35 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js result_reminder >/dev/null
+# 8:25 AM
+#25 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js result_reminder >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 10. Organiser, Game - Fixture reminder | Last round settled 3+ days
+# 7. Organiser, Game - Fixture reminder | Last round settled 3+ days
 #    The other half of result_reminder. Recurring, same 7-day cooldown.
-# 9:40 AM
-#40 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js fixture_reminder >/dev/null
+# 8:30 AM
+#30 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js fixture_reminder >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 11. Organiser, Info - Empty Competition | Empty after 7 days
+# 8. Organiser, Info - Join Blocked | Blocked join in last 7 days, still shut
+#    The only email on the list that is about money: an organiser at the free limit is losing
+#    players who tried to join. Killing it trades a sale for an email credit - but it is guarded
+#    to recur (7-day cooldown, 3 ever), so a kill defers it rather than ending it.
+# 8:35 AM
+#35 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_blocked >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 9. Organiser, Game - Organiser round report | Locks in 12-30h, last round + who is still to pick
+#    The cheap alternative to Round Over - see section 2 for how the two interact if both run.
+#    One email per competition to the organiser, asking them to carry it into their group chat.
+#
+#    THE SAME MORNING RUN AS pick_reminder, by design: its window opens at 30 hours, the same
+#    number, so both fire on the same morning for the same lock. Since c9052c1 it stops 12 hours
+#    before the lock, leaving the final stretch to organiser_nudge.
+#
+#    It reads picks after pick_reminder's run has landed but before many have converted - the
+#    number is who has not picked YET, the trade services/organiserRound.js states in full. If a
+#    short near-final list is what is wanted, that is organiser_nudge in section 15.
+#
+#    NO BACKLOG TO CLEAR before switching it on. Candidacy is a lock time in the next 30 hours, so
+#    nothing historical can ever qualify however long this sits off.
+# 8:40 AM
+#40 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_round >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 10. Organiser, Info - Empty Competition | Empty after 7 days
 #     Once per competition. Note the grain: somebody with two empty competitions has two to fill,
-#     but magic send now gives them only the first - the second is marked as sent in the same run.
-# 9:45 AM
-#45 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js empty_comp >/dev/null
+#     but magic send gives them only the first - the second is marked as sent in the same run.
+# 8:45 AM
+#45 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js empty_comp >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 12. Organiser, Info - Hint: Promote competition | 3 days after creating, once ever
+# 11. Organiser, Info - Hint: Promote competition | 3 days after creating, once ever
 #     Hints are lessons rather than events and are already spaced a week apart among themselves,
-#     so they lose least by being at the bottom.
-# 9:50 AM
-#50 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js promote_competition >/dev/null
+#     so they lose least by being near the bottom.
+# 8:50 AM
+#50 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js promote_competition >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 13. Organiser, Info - Hint: Result set mid round | 7 days, manual comps with fixtures
-# 9:55 AM
-#55 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js update_scores_mid_round_tip >/dev/null
+# 12. Organiser, Info - Hint: Result set mid round | 7 days, manual comps with fixtures
+# 8:55 AM
+#55 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js update_scores_mid_round_tip >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 14. Organiser, Info - Hint: Personal names | 14 days, every competition
-# 10:00 AM
-#0 9 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js personal_names_tip >/dev/null
+# 13. Organiser, Info - Hint: Personal names | 14 days, every competition
+# 9:00 AM
+#0 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js personal_names_tip >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 14. All, Info - Welcome Join LMS | New signups only
+#     Once ever, but last of the morning: it carries no competition and no deadline. Somebody who
+#     signed up to join or create a competition gets that competition's welcome (1 or 5) first,
+#     which says more; losing this one to it is the intended outcome, not a collision to fix.
+# 9:05 AM
+#5 8 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js join_lms >/dev/null
 
 
 # ---------------------------------------------------------------------------------------------
 # 15. Organiser, Game - Organiser nudge | Round locks within 3h, 5+ AND 25%+ still to pick
 #     THE ONLY LINE OUTSIDE THE MORNING BLOCK, AND THE ONLY ONE EXEMPT FROM MAGIC SEND. Numbered
 #     last, but it is not ranked last - it is not ranked at all, and that is exactly why it is
-#     exempt. Everything above runs once between 09:00 and 10:00 BST, where running order IS
+#     exempt. Everything above runs once between 08:00 and 09:05 BST, where running order IS
 #     priority. This runs hourly through the afternoon, because it fires three hours before a
 #     round locks and rounds lock at different times. An email that runs at 17:00 loses to
-#     everything that ran at 08:00 whatever line it sits on, so no position in this file could
-#     express its priority. services/emailQuiet.js carries the full argument and the test to apply
-#     before ever adding a second exemption.
+#     everything that ran in the morning whatever line it sits on, so no position in this file
+#     could express its priority. services/emailQuiet.js carries the full argument and the test to
+#     apply before ever adding a second exemption.
 #
 #     Being exempt, moving this line changes NOTHING about what it sends. It still writes ordinary
 #     'sent' rows, so it does still take collisions FROM tomorrow morning's block - the exemption
 #     is one way only.
 #
-#     MINUTE 33 IS DELIBERATE. Hour 8 GMT holds the morning block at minutes 0, 5, 10 ... 55 and
-#     hour 9 holds it at minute 0, and two lines in the same minute cannot see each other's sends.
+#     MINUTE 33 IS DELIBERATE. The morning block holds hour 7 GMT at minutes 0, 5, 10 ... 55 and
+#     hour 8 at minutes 0 and 5, and two lines in the same minute cannot see each other's sends.
 #     Minute 33 is free at every hour. If the block above ever grows onto it, move THIS line.
 #
-#     STARTING AT HOUR 9, AND THE GAP IS THE DESIGN. pick_reminder runs at the top of the morning
-#     block and it works - on 28 Aug it converted 14 picks in the ninety minutes after it landed,
-#     against a baseline of one or two an hour. This email reports what is LEFT after that has had
-#     its run, so it must not start alongside it: starting in hour 8 it would quote a number the
-#     player email was still in the middle of changing, and would overlap the heaviest query on
-#     the platform while doing it. Hour 9 clears the whole block whether pick_reminder sits at
-#     07:00 or 08:00 GMT - both have been live at different times, so do not tighten this to
-#     depend on which.
+#     STARTING AT HOUR 9, AND THE GAP IS THE DESIGN. pick_reminder works - on 28 Aug it converted
+#     14 picks in the ninety minutes after it landed, against a baseline of one or two an hour.
+#     This email reports what is LEFT after that has had its run, so it must not start alongside
+#     it: it would quote a number the player email was still in the middle of changing, and would
+#     overlap the heaviest query on the platform while doing it. Hour 9 GMT is about two hours
+#     after pick_reminder's 07:10 - do not pull it earlier without moving that too.
 #
 #     Hours 9-19 GMT = 10:33 to 20:33 BST, hourly. A 20:00 BST lock is caught at 17:33 BST with
 #     nearly two and a half hours to act, which is the common case.
@@ -245,18 +249,15 @@
 #     covering the early evening - if this range is ever trimmed at the top, Saturday morning locks
 #     lose their Friday send silently.
 #
-#     KNOCK-ON WORTH WATCHING (see section 1). pick_reminder's window is 24 hours, so a Saturday
-#     11:30 lock does not reach the players until Saturday morning. The Friday-evening nudge
-#     therefore reports a number nobody has been chased about yet, and it will be a big one. That
-#     is a deliberate trade - the organiser's group chat is the better channel, so it goes first -
-#     but if these start reading as "everybody, every week", the fix is pick_reminder firing the
-#     day before, not tighter thresholds on this email.
+#     With pick_reminder's 30-hour window, a Saturday 11:30 lock has been chased on the Friday
+#     morning before this Friday-evening nudge runs, so the number it reports is what is left after
+#     the players' own reminder - which is what it is for.
 #
 #     Cheap to run this often. organiserNudge.hasRoundInWindow() is one indexed range scan on
 #     round.lock_time and returns nothing on most runs; the aggregate over memberships and picks is
 #     only reached when a deadline is actually near.
-# 09:03-20:03 BST, hourly
-#3 8-19 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_nudge >/dev/null
+# 10:33 AM - 8:33 PM BST, hourly
+#33 9-19 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_nudge >/dev/null
 
 # ---------------------------------------------------------------------------------------------
 # NOT ON THIS LIST, and not by oversight:
