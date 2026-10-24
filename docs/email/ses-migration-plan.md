@@ -4,8 +4,9 @@
 there is something concrete to say yes or no to on a named date, rather than re-deriving the
 argument every time the Resend bill comes up.
 
-**This does not change `docs/email/README.md`.** That file describes what we actually send and how
-it is wired. If any of this is ever built, that is when the README changes.
+**This changes nothing about what we send.** That is the `OUTLINE` in the admin Emails screen and
+`services/emailCatalog.js`; only `deliver()` in `services/emailService.js` would change if any of
+this is ever built.
 
 ---
 

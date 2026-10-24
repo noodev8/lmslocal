@@ -56,7 +56,7 @@ reminders together. The gain is a page a person reads in five seconds and an out
 the code exactly.
 
 Any row still holding one of the old dotted keys is dead - getPreferences only looks for these
-two - so the change needs its migration run against email_preference. See docs/email/README.md.
+two - so the change needed its migration run against email_preference.
 */
 const EMAIL_GROUPS = {
   // Section: Game
@@ -111,7 +111,8 @@ const EMAIL_GROUPS = {
   treats it as transactional and never suppresses it. That is the right default for password
   resets and the wrong one for a broadcast.
 
-  broadcast_organiser was dropped rather than built (docs/email/README.md), so its mapping went
+  broadcast_organiser was dropped rather than built (the reasons are beside the OUTLINE in
+  lmslocal-admin's Emails screen), so its mapping went
   with it - if it is ever revived, add the mapping back in the same commit as the sender.
   */
   broadcast_admin: GROUPS.INFO,

@@ -1,6 +1,6 @@
 -- =====================================================================================
 -- Mark the pre-CUTOFF Join Comp and Created Comp backlogs as sent (status 'skipped')
--- Run once, 2026-08-14. See docs/email/README.md, "Mark as sent".
+-- Run once, 2026-08-14.
 -- =====================================================================================
 -- The third and fourth of these, after db/mark-join-lms-backlog-skipped.sql. Same move:
 -- the CUTOFF constant in each service excluded a backlog by DATE, in code, invisibly -

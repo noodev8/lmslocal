@@ -357,7 +357,7 @@ What it needs:
 - **Honesty in the standings.** A player who bought back in is marked as such. Nobody should have
   to wonder why a name reappeared.
 - **Email**: the eliminated-player mail gains the window when it is open, and it is a natural
-  `emailCatalog.js` entry. Follow `docs/email/README.md`.
+  `emailCatalog.js` entry. Follow the shape of `services/pickReminder.js`.
 
 None of this changes the billing. That is the point of doing §3-§5 first.
 

@@ -10,7 +10,7 @@ none created. Anyone who did either is welcomed by that instead (`welcome` per m
 `created_comp` per competition), and never gets this one. Decision 2026-08-14, see below.
 
 Nothing in routes/register.js triggers this. Sending is operator-driven from the admin Emails
-screen, like every other comms email - see docs/email/README.md, "Sending is manual". Registration
+screen, like every other comms email. Registration
 therefore never depends on Resend being up, and every send can be previewed and test-sent first.
 
 The eligibility rules, all in findCandidates below:

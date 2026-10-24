@@ -18,9 +18,9 @@ warn about. Before, there was nothing to name.
 NOT a replacement for gameStartReminder, and the two can never overlap: that one requires a
 competition with no rounds at all, this one requires round 1 to exist and be about to lock.
 
-Read docs/email/README.md before changing any of this, and change the doc first. Its rules were
-written alongside the code rather than agreed first, which is the wrong way round - treat them as
-a proposal to correct.
+Unwired since 2026-08-14 - services/emailCatalog.js says why. Its rules were written alongside
+the code rather than agreed first, which is the wrong way round - if it is ever re-wired, treat
+them as a proposal to correct.
 =======================================================================================================================================
 */
 

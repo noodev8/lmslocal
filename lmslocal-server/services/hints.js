@@ -55,7 +55,7 @@ const HINTS = {
     /*
     Everything named here exists on /game/[id]/promote today. Deliberately does NOT mention
     broadcasting a message to members: Broadcast from Organiser was dropped rather than deferred
-    (docs/email/README.md), so there is nothing to teach, and a hint teaching a feature that does
+    (see the OUTLINE in lmslocal-admin's Emails screen), so there is nothing to teach, and a hint teaching a feature that does
     not exist is worse than no hint at all.
     */
     body: [

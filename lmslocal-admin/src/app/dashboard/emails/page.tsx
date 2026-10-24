@@ -210,7 +210,7 @@ const OUTLINE: OutlineEmail[] = [
   window, so it demanded an operator at the screen on a particular evening.
 
   The moment is real; email is the wrong channel for it. A notice on the organiser's own dashboard
-  reaches the disengaged organiser this was aimed at, with no send window. See docs/email/README.md.
+  reaches the disengaged organiser this was aimed at, with no send window.
   Service and template are still on disk, unwired.
   */
   {
@@ -345,10 +345,23 @@ const OUTLINE: OutlineEmail[] = [
     blurb:
       'The follow-up to Welcome Created Comp: a competition set up a week ago that nobody has joined. Asks whether they still mean to run it and invites a reply — it gives no advice, because we cannot tell from here whether they went off the idea, are waiting on someone, or are stuck on something we could fix in a sentence. One per competition ever. Counts people other than the organiser, and counts guests as players but never bots.',
   },
-  // The outline's BROADCAST block is deliberately absent from this table. Broadcast from Admin
-  // lives on its own screen - the message is typed rather than derived, so there is nothing here
-  // to preview or count, and the header button is the way in. Broadcast from Organiser was
-  // dropped, not deferred - see docs/email/README.md. Do not re-add either row.
+  /*
+  The outline's BROADCAST block is deliberately absent from this table. Do not re-add either row.
+
+  Broadcast from Admin lives on its own screen - the message is typed rather than derived, so there
+  is nothing here to preview or count, and the header button is the way in.
+
+  Broadcast from Organiser was DROPPED, not deferred - Andreas's call, recorded so it is not
+  re-proposed. Email is for reaching someone who is not looking, and a player in a live competition
+  already comes back every week and already gets Round Over, Pick reminder and Game complete. The
+  cost was never the compose box: free text from a customer, sent from our domain, brings rate
+  limiting (per competition, and a share of the Resend allowance the deadline emails need), a
+  latency we cannot honour ("sent" while half the players get it on Thursday), complaints landing
+  on us rather than on whoever wrote it, and an opt-out at the wrong grain - muting one chatty
+  organiser would mean muting Info platform-wide. If anything replaces it, it is a notice on the
+  competition dashboard, and not competition.description, which is the join page's sales pitch and
+  is collapsed exactly when a message would need to be loud.
+  */
 ];
 
 /*

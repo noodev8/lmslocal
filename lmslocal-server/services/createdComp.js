@@ -9,14 +9,14 @@ Sent once per competition, to the person who created it. Competition-scoped, so 
 picker chooses which one - there is exactly one recipient per press.
 
 Nothing in routes/create-competition.js triggers this. Sending is operator-driven from the admin
-Emails screen like every other comms email; see docs/email/README.md.
+Emails screen like every other comms email.
 
 The eligibility rules, all in findCandidates below:
   - organiser has a real email (guest and bot accounts both use @lms-guest.com)
   - no created_comp already queued for this competition, whatever its status
   - not opted out of organiser.welcome, per services/emailPreference.js
 
-The email branches on whether round 1 already exists (see docs/email/README.md). It normally does:
+The email branches on whether round 1 already exists. It normally does:
 a fixture-service competition is created against a calendar block and gets its first round in the
 same transaction, so the date - and the fact that joining closes on it - is the lead. Only a
 competition still waiting on the Ready button gets the older "press Ready" copy.
@@ -170,7 +170,9 @@ async function buildTemplateData(candidate) {
     /*
     When round 1 kicks off, which is also when joining closes. Resolved at queue time like
     everything else here, so the stored template_data renders on its own later. A provisional
-    lock can move when the block is confirmed; see docs/email/README.md for why that is accepted.
+    lock can move when the block is confirmed, so a row left pending for days could name a stale
+    time. Accepted: the admin screen queues and sends in one pass, and resolving at send time
+    instead would break the preview, which renders from the stored template_data.
     */
     starts_at: starts_at || null,
     user_id

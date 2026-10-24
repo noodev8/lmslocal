@@ -362,9 +362,8 @@ without one it is what stops an emptied competition taking the next staged batch
   explicitly; it is the thing the organiser is actually deciding and today nothing says so.
 - **Replaces the Ready reminder** — a share nudge two days before lock: *"Round 1 kicks off
   Saturday. You have 6 players. Last chance to share your link."* Same slot in
-  `services/emailCatalog.js`, better job. Follow `services/pickReminder.js`'s shape and
-  `docs/email/README.md` — one eligibility definition, used by the batch route, the preview and
-  the send.
+  `services/emailCatalog.js`, better job. Follow `services/pickReminder.js`'s shape — one
+  eligibility definition, used by the batch route, the preview and the send.
 - **Organiser dashboard** — "Round 1 starts Sat 29 Aug · 6 players · players can join until
   kick-off" in place of the Ready card.
 - **Player join and dashboard** — the fixtures and the deadline. A joining player can pick
@@ -409,10 +408,11 @@ Each step is deployable on its own; nothing is user-visible until step 4.
 5. ~~Email: welcome rewrite, `gameStartReminder` retired, share nudge added.~~ **Done** —
    `created_comp` branches on whether round 1 exists, `services/shareReminder.js` is new.
    `gameStartReminder` was **not** retired: it chases competitions with no rounds, which a
-   block-started one never is, so it excludes them already. See `docs/email/README.md`.
+   block-started one never is, so it excludes them already.
 
-   `share_reminder`'s outline row was added on 2026-08-14, after the fact — see
-   `docs/email/README.md` for why that order was wrong.
+   `share_reminder`'s outline row was added on 2026-08-14, after the fact — the wrong order, since
+   the outline is meant to come first. Both emails have since been unwired; `services/emailCatalog.js`
+   says why.
 6. ~~Docs: `CLAUDE.md`'s fixture-service section, `docs/round-state-machine.md`.~~ **Done.**
 
 **All six steps built.** What is left is not in this plan: nobody has clicked through the wizard or

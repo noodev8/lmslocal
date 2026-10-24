@@ -1,8 +1,8 @@
 # Email Operations
 
-How to actually send email. For what we send and why, see `README.md` and the `OUTLINE` array in
+How to actually send email. For what we send and why, see the `OUTLINE` array in
 `lmslocal-admin/src/app/dashboard/emails/page.tsx` — the authoritative list, and the admin Emails
-screen itself.
+screen itself — and the header of each email's service in `lmslocal-server/services/`.
 
 ## Test mode
 

@@ -9,11 +9,10 @@ fixtures.
 ## Docs to read first
 
 Each of these is authoritative for its area — **read it before changing that area, and change the
-doc first** (except the email README, see below):
+doc first**. Email has no doc of this kind — see **Email** below.
 
 | Area | Doc |
 |---|---|
-| Anything that sends email | `docs/email/README.md` |
 | Any screen's visual language | `docs/design-system.md` |
 | Which teams a player may pick | `docs/allowed-teams.md` |
 | The forward fixture calendar / competition start | `docs/competition-start.md` |
@@ -35,12 +34,16 @@ doc first** (except the email README, see below):
   drift from what is displayed, and a row with no `emailCatalog.js` entry shows greyed out.
   Replaced `docs/email/email-outline.xlsx`, deleted 2026-08-19 — a spreadsheet nobody opens while
   working stops being true, and it made every email a three-place edit.
-  `docs/email/README.md` maps that list onto the code and has a step-by-step for wiring the next one.
-  - **Do not update that README as a matter of course** (rule set 2026-08-14). It was written
-    while the design was being settled, when "change the doc first" was right. The shape is agreed
-    now, and a doc edit on every tweak buries the decisions worth keeping. **Ask, and update it
-    when Andreas agrees** — a real decision, a changed rule, a trap someone would re-discover. Not
-    a button label or a count that moved.
+  - **The rules live in the code, not in a doc.** Each email's eligibility and the reasoning
+    behind it are in the header and `findCandidates` of its service in `services/`; the dropped
+    emails' reasons sit beside the `OUTLINE` and in `emailCatalog.js`. `docs/email/README.md` was
+    deleted 2026-10-24: it had drifted from the code in several places at once (a retired
+    `CUTOFF` still stated as a rule, unwired emails listed as wired), so it was misleading rather
+    than merely stale. A changed rule goes in the service's comment, with the date and the why.
+    `docs/email/email-operations.md` (how to send) and `email-cron-priority-order.txt` remain.
+  - **The 48-hour quiet period** (`services/emailQuiet.js`) kills rather than holds: a second
+    email to the same person inside 48h is marked sent, and every once-ever email is then lost to
+    them for good. `priority` on the `OUTLINE` is the send order that decides who wins
   - `services/emailService.js` — **`deliver()` is the single exit point**, with test mode as a
     parameter. Never call `resend.emails.send` directly; seven senders once did, which is why a
     banner reading `ALL EMAILS REDIRECTED` was true of only five of them.
@@ -51,8 +54,8 @@ doc first** (except the email README, see below):
     behind it the code cannot see, and un-archiving is one click. `join_lms` is the only service
     without it, being platform-wide with no competition at all.
   - `services/emailPreference.js` — the one definition of opt-outs. Compose the candidate query's
-    exclusion with `notOptedOutSql()`, never by hand. Preferences group by **consumer × section**,
-    and **an absent row means subscribed**.
+    exclusion with `notOptedOutSql()`, never by hand. Preferences group by **section** — Game and
+    Info, the outline's two — and **an absent row means subscribed**.
   - `services/pickReminder.js` — the worked example: one definition of eligibility used by the
     batch route, the admin preview and the send. Copy this shape; `services/joinLms.js` is the
     second built to it.
@@ -61,7 +64,10 @@ doc first** (except the email README, see below):
     competition at all.
   - Unsubscribe is an **opaque token on `app_user`**, not a JWT — the old one was signed with
     `JWT_SECRET`, so killing a leaked link meant logging out every user.
-  - Operator-driven from `lmslocal-admin` → Emails. **No scheduler, by design.**
+  - Sent from `lmslocal-admin` → Emails, or by `scripts/email-sweep.js <email_type>` on the VPS
+    crontab — the paste-ready block, in priority order, is `docs/email/email-cron-priority-order.txt`.
+    Both take the same path (`sendToAll` in `services/emailSweep.js`) and re-derive candidates
+    on every run, so a rule changed in `findCandidates` applies to both at once.
 - **Dependency override**: `package.json` pins `uuid` to `^11.1.1`. It is transitive via
   `gaxios`/`teeny-request` under `firebase-admin`, which resolve to `uuid@9` and carry
   GHSA-w5hq-g745-h8pq. The vulnerable path (v3/v5/v6 with a `buf` argument) is unreachable — both

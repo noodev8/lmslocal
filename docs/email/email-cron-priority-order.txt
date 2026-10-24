@@ -266,7 +266,7 @@
 #   game_start_reminder       UNWIRED 2026-08-14. Built, then dropped - email is the wrong channel
 #   share_reminder            UNWIRED 2026-08-14. for an organiser who has already disengaged.
 #                             Both still on disk with their rules intact. See
-#                             services/emailCatalog.js and docs/email/README.md.
+#                             services/emailCatalog.js.
 #
 # Account mail (verification, password reset) never goes near this file or magic send - it is sent
 # at the moment it is needed and carries no email_type tag, so nothing can suppress it.

@@ -197,7 +197,7 @@ const CATALOG = {
 
   The moment is real - a competition about to start with nobody in it - but email is the wrong
   channel, because the organiser who needs it is the disengaged one. A notice on their own
-  dashboard reaches them with no send window. See docs/email/README.md.
+  dashboard reaches them with no send window.
 
   services/shareReminder.js and its template stay on disk with their rules intact. Re-wiring is
   this entry back; do not rebuild it from scratch.

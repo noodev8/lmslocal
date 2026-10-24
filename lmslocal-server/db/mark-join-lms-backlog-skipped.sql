@@ -1,6 +1,6 @@
 -- =====================================================================================
 -- Mark the pre-CUTOFF Join LMS backlog as sent (status 'skipped')
--- Run once, 2026-08-14. See docs/email/README.md, "Mark as sent".
+-- Run once, 2026-08-14.
 -- =====================================================================================
 -- Every account that existed before joinLms.js's CUTOFF gets a 'skipped' row: no email
 -- was built and none was sent, but the once-ever guard
