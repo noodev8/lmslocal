@@ -260,11 +260,15 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 6. Back to SETUP. invite_code is absent from the SET list on purpose - see step 3.
       //    ready_at goes back to null so the fixture service waits to be told again - see the header.
+      //    winner_id goes too: a reset game has no winner, and leaving the last run's left 226 and
+      //    239 naming one while ACTIVE (found 2026-10-25). Screens gate on COMPLETE, so it was
+      //    latent - but any reader that doesn't would announce a winner mid-game.
       const updatedCompetitionResult = await client.query(`
         UPDATE competition
         SET status = 'SETUP',
             created_at = CURRENT_TIMESTAMP,
-            ready_at = NULL
+            ready_at = NULL,
+            winner_id = NULL
         WHERE id = $1
         RETURNING id, name, status, invite_code, created_at
       `, [competition_id]);
