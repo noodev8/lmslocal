@@ -1199,6 +1199,36 @@ function SendPanel({
                           Select organisers ({organiserKeys.length})
                         </button>
                       )}
+                      {/* A random share of the list, for a day when Resend's 100-a-day limit will
+                          not cover everyone: send to a slice, and the rest are still waiting for
+                          the next run. Random rather than the first N because the list is sorted,
+                          and the top of it would win every time. Replaces the selection like the
+                          buttons beside it. Draws from the LISTED rows only - on a truncated list
+                          that is the first page, not the whole count. */}
+                      {recipients.length > 1 && (
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            const pct = Number(e.target.value);
+                            if (!pct) return;
+                            const keys = recipients.map(keyOf);
+                            for (let i = keys.length - 1; i > 0; i--) {
+                              const j = Math.floor(Math.random() * (i + 1));
+                              [keys[i], keys[j]] = [keys[j], keys[i]];
+                            }
+                            setSelected(new Set(keys.slice(0, Math.max(1, Math.round((keys.length * pct) / 100)))));
+                          }}
+                          className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-sm text-slate-500"
+                          aria-label="Select a random share"
+                        >
+                          <option value="">Random…</option>
+                          {[10, 20, 25, 50].map((p) => (
+                            <option key={p} value={p}>
+                              {p}% ({Math.max(1, Math.round((recipients.length * p) / 100))})
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       <button
                         onClick={() => setSelected(allSelected ? new Set() : new Set(recipients.map(keyOf)))}
                         className="text-sm text-slate-500 underline-offset-2 hover:underline"
