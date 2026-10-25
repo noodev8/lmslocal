@@ -12,8 +12,9 @@
 # rewrites the reasoning on each line.
 #
 # THE ORDER FOLLOWS `priority` ON THE OUTLINE (lmslocal-admin/src/app/dashboard/emails/page.tsx),
-# realigned 2026-10-24. The admin Emails screen numbers every email by it, so if the two disagree
-# the screen is describing a send order the cron does not run. Change one, change the other.
+# realigned 2026-10-24, Game complete moved above Round Over 2026-10-25. The admin Emails screen
+# numbers every email by it, so if the two disagree the screen is describing a send order the
+# cron does not run. Change one, change the other.
 #
 # Times are GMT, the server clock. Each line below carries its BST equivalent in a comment - and
 # BST ends 25 Oct 2026, after which UK time IS the server clock and the labels read an hour late.
@@ -32,9 +33,9 @@
 
 # --- LMSLocal email sweeps - start ---
 #0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js welcome >/dev/null
-#5 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
-#10 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
-#15 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
+#5 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
+#10 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
+#15 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
 #20 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js created_comp >/dev/null
 #25 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js result_reminder >/dev/null
 #30 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js fixture_reminder >/dev/null
@@ -82,7 +83,21 @@
 #0 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js welcome >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 2. Player, Game - Round Over | Round settled + next fixtures in
+# 2. Player, Game - Game complete | Everyone who took part, once
+#    Once ever, and the end of the story. Nothing else tells them who won.
+#
+#    ABOVE ROUND OVER SINCE 2026-10-25 (was 4th), on the second rule: whichever wins a collision,
+#    the loser's cost is very different. A killed Game complete is permanent - that player never
+#    hears who won. A killed Round Over is one week's news, and the pick reminder still reaches
+#    them later in the week, outside the 48 hours. It also expires first: GAME_COMPLETE_WINDOW_DAYS
+#    is 4, while Round Over lives until the next round locks. The two only meet on the weekend a
+#    gameweek settles - a player in one competition that just finished and another that carries
+#    on - which is exactly when both are out. On 25 Oct that was 1 person of 190.
+# 8:05 AM
+#5 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
+
+# ---------------------------------------------------------------------------------------------
+# 3. Player, Game - Round Over | Round settled + next fixtures in
 #    The one email every player gets every week, and the biggest single sender - so it is also the
 #    email that will take the most collisions FROM the ones below it. Watch that. Above the pick
 #    reminder because it carries the next round's deadline too.
@@ -92,14 +107,14 @@
 #    line now wins for the organiser: they are a player in their own competition, so a Round Over
 #    to them kills their round report for that week. (Before 2026-10-24 the report ran second and
 #    won.) The other players are unaffected either way.
-# 8:05 AM
-#5 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
+# 8:10 AM
+#10 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js results >/dev/null
 
 # ---------------------------------------------------------------------------------------------
-# 3. Player, Game - Pick reminder | Round locks within 30 hours, no pick made
-#    The only email with a hard deadline. A killed one can cost a player a life. Third, not first,
-#    because the two above it carry the same deadline: anyone they kill out of this has just been
-#    told when picks close.
+# 4. Player, Game - Pick reminder | Round locks within 30 hours, no pick made
+#    The only email with a hard deadline. A killed one can cost a player a life. Not first,
+#    because Welcome and Round Over above it carry the same deadline: anyone they kill out of this
+#    has just been told when picks close.
 #
 #    THE HOUR MATTERS, the position within the block much less. A round is only eligible inside
 #    REMINDER_WINDOW_HOURS of its lock, so under a daily cron it is chased on the one run that
@@ -117,16 +132,10 @@
 #
 #    ANY HOUR FROM ABOUT 06:00 TO 09:00 GMT WORKS with a 30-hour window - a Saturday 11:30 BST lock
 #    needs only that Friday's run fall after 05:30 BST. 07:00, 07:10 and 08:00 GMT have all been
-#    used; none is wrong. If this line ever moves LATER than about 09:00 GMT, re-check
+#    used, and 07:15 now; none is wrong. If this line ever moves LATER than about 09:00 GMT, re-check
 #    services/pickReminder.js first.
-# 8:10 AM
-#10 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
-
-# ---------------------------------------------------------------------------------------------
-# 4. Player, Game - Game complete | Everyone who took part, once
-#    Once ever, and the end of the story. Nothing else tells them who won.
 # 8:15 AM
-#15 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js game_complete >/dev/null
+#15 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js pick_reminder >/dev/null
 
 # ---------------------------------------------------------------------------------------------
 # 5. Organiser, Info - Welcome Created Comp | New competitions only
@@ -231,7 +240,7 @@
 #     This email reports what is LEFT after that has had its run, so it must not start alongside
 #     it: it would quote a number the player email was still in the middle of changing, and would
 #     overlap the heaviest query on the platform while doing it. Hour 9 GMT is about two hours
-#     after pick_reminder's 07:10 - do not pull it earlier without moving that too.
+#     after pick_reminder's 07:15 - do not pull it earlier without moving that too.
 #
 #     Hours 9-19 GMT = 10:33 to 20:33 BST, hourly. A 20:00 BST lock is caught at 17:33 BST with
 #     nearly two and a half hours to act, which is the common case.

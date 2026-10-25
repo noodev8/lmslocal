@@ -112,7 +112,9 @@ interface OutlineEmail {
    * whichever reaches them first is the one they get - order decides who gets what. Agreed
    * 2026-10-23, on two rules: an email goes ahead of one whose job it also does (Welcome and Round
    * Over both carry the pick deadline, so they precede the pick reminder), and otherwise ahead of
-   * one that costs less to lose. Players 1-4, organisers 5-14 - organisers play in their own
+   * one that costs less to lose. Game complete moved above Round Over 2026-10-25 by the second
+   * rule: it is once-ever and expires in days, Round Over recurs weekly and a lost one is still
+   * followed by the pick reminder. Players 1-4, organisers 5-14 - organisers play in their own
    * competitions, so player emails take their slot too. Organiser nudge is last because it is
    * exempt from the quiet period, so its place changes nothing.
    */
@@ -129,7 +131,7 @@ spreadsheet this replaced; it just no longer decides anything.
 const OUTLINE: OutlineEmail[] = [
   {
     key: 'results',
-    priority: 2,
+    priority: 3,
     consumer: 'Player',
     section: 'Game',
     name: 'Round Over',
@@ -142,7 +144,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'pick_reminder',
-    priority: 3,
+    priority: 4,
     consumer: 'Player',
     section: 'Game',
     name: 'Pick reminder',
@@ -179,7 +181,7 @@ const OUTLINE: OutlineEmail[] = [
   },
   {
     key: 'game_complete',
-    priority: 4,
+    priority: 2,
     consumer: 'Player',
     section: 'Game',
     name: 'Game complete',
