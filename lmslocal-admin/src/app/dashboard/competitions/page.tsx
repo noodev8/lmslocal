@@ -271,7 +271,7 @@ function PeopleCard({
   unit = '',
 }: {
   label: string;
-  value: number;
+  value: number | undefined;
   hint: string;
   unit?: string;
 }) {
@@ -279,7 +279,9 @@ function PeopleCard({
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
       <div className="flex items-baseline gap-2">
         <span className="text-lg font-semibold tabular-nums text-slate-900">
-          {value.toLocaleString()}{unit}
+          {/* Admin deploys on push but the server is deployed by hand, so a new figure can reach
+              this screen before the route that supplies it. Show a dash rather than crash. */}
+          {value == null ? '–' : value.toLocaleString()}{unit}
         </span>
         <span className="text-sm font-medium text-slate-600">{label}</span>
       </div>
