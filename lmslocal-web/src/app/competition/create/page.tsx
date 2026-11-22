@@ -51,7 +51,7 @@ const DEFAULT_ENDING: Record<MatchdayEndRule, number> = { points: 100, rounds: 1
 
 export default function CreateCompetitionPage() {
   const router = useRouter();
-  const { refreshCompetitions } = useAppData();
+  const { refreshCompetitions, user } = useAppData();
   const [teamLists, setTeamLists] = useState<TeamList[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -88,6 +88,31 @@ export default function CreateCompetitionPage() {
   // mistake an organiser cannot undo: it is fixed at creation.
   const [gameType, setGameType] = useState<GameType | null>(null);
   const isMatchday = gameType === 'matchday';
+
+  // Matchday is in preview (services/gameType.js). Anyone who can only create Last Man Standing
+  // gets the wizard exactly as it was - three steps, no "Which game?" - because a question with one
+  // answer is not a question, and a customer must not meet a game that is not ready.
+  //
+  // Hidden until the server says otherwise: the safe default is the old wizard. If the answer
+  // arrives after an organiser has started typing, they keep the wizard they are using.
+  const offersGameChoice = user?.can_create_games?.includes('matchday') === true;
+  const nameTyped = Boolean(watchedValues.name);
+  useEffect(() => {
+    if (offersGameChoice) {
+      // The answer came after the wizard had already skipped the question - put it back, unless
+      // they have begun the details, in which case "Back: Game" is there if they want it.
+      if (!nameTyped) {
+        setStep(current => (current === 2 ? 1 : current));
+        setGameType(current => (current === 'lms' ? null : current));
+      }
+      return;
+    }
+    setGameType('lms');
+    setStep(current => (current === 1 ? 2 : current));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offersGameChoice]);
+  const visibleSteps = offersGameChoice ? STEPS : STEPS.slice(1);
+  const stepOffset = offersGameChoice ? 0 : 1;
   const [endRule, setEndRule] = useState<MatchdayEndRule>('points');
   const [endValue, setEndValue] = useState<string>(String(DEFAULT_ENDING.points));
   const endValueNumber = Number(endValue);
@@ -238,16 +263,16 @@ export default function CreateCompetitionPage() {
         {/* Progress Steps */}
         <div className="mt-6">
           <div className="flex items-center">
-            {STEPS.map((label, i) => {
-              const num = i + 1;
+            {visibleSteps.map((label, i) => {
+              const num = i + 1 + stepOffset;
               return (
                 <div key={label} className="flex flex-1 items-center last:flex-none">
                   <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center border font-display text-sm ${
                     step >= num ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 text-ink-fade'
                   }`}>
-                    {num}
+                    {i + 1}
                   </div>
-                  {num < STEPS.length && (
+                  {i + 1 < visibleSteps.length && (
                     <div className={`mx-2 h-px flex-1 sm:mx-4 ${step > num ? 'bg-ink' : 'bg-ink/20'}`} />
                   )}
                 </div>
@@ -255,7 +280,7 @@ export default function CreateCompetitionPage() {
             })}
           </div>
           <div className="mt-2 flex justify-between px-1">
-            {STEPS.map((label) => (
+            {visibleSteps.map((label) => (
               <span key={label} className={`${LABEL} flex-1 text-center text-ink-fade first:text-left last:text-right`}>
                 {label}
               </span>
@@ -468,13 +493,15 @@ export default function CreateCompetitionPage() {
               </div>
 
               <div className="mt-6 flex flex-col justify-between gap-3 sm:mt-8 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className={`${BTN_OUTLINE} order-2 justify-center px-6 py-3 sm:order-1`}
-                >
-                  Back: Game
-                </button>
+                {offersGameChoice ? (
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className={`${BTN_OUTLINE} order-2 justify-center px-6 py-3 sm:order-1`}
+                  >
+                    Back: Game
+                  </button>
+                ) : <span className="order-2 sm:order-1" />}
                 <button
                   type="button"
                   onClick={() => setStep(3)}

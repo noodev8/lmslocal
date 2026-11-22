@@ -37,6 +37,33 @@ const GAME_TYPES = {
 };
 
 /*
+MATCHDAY IS IN PREVIEW (2026-11-22). Only these organisers may create one; everyone else creates
+Last Man Standing exactly as before, and never sees the question. Enforced in create-competition
+and reported to the web as user.can_create_games on get-user-dashboard, so the wizard hides its
+"Which game?" step from anyone who could not use the answer.
+
+LAUNCHING IS SETTING THIS TO null (everyone), not deleting the gate. It is in code rather than
+.env because opening a game to every customer should be a reviewed commit with its own deploy,
+not an edit on the VPS that leaves no trace - the same choice BOT_ORGANISER_IDS made.
+
+What preview does NOT hide: competitions that already exist. A player invited into a test
+Matchday competition plays it like anyone would; the gate is on creating one.
+*/
+const MATCHDAY_PREVIEW_ORGANISER_IDS = [50];
+
+/**
+ * The games this user may create a competition in. LMS always.
+ *
+ * @param {number} userId
+ * @returns {string[]}
+ */
+function gamesUserCanCreate(userId) {
+  const matchdayOpen = MATCHDAY_PREVIEW_ORGANISER_IDS === null
+    || MATCHDAY_PREVIEW_ORGANISER_IDS.includes(userId);
+  return matchdayOpen ? ['lms', 'matchday'] : ['lms'];
+}
+
+/*
 LMS-ONLY. Compose into the WHERE clause of any query whose rules or words are Last Man Standing's:
 every scoped email's candidate query, above all, since their copy talks about picks and lives.
 
@@ -105,6 +132,7 @@ const NOT_LMS_RESPONSE = {
 
 module.exports = {
   GAME_TYPES,
+  gamesUserCanCreate,
   isLmsSql,
   clientGameTypes,
   isLmsCompetition,

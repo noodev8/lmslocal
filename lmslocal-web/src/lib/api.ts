@@ -114,6 +114,8 @@ export interface User {
   display_name: string;
   name?: string;
   is_managed?: boolean;
+  /** Games this user may create. Matchday is listed only while they are in its preview. */
+  can_create_games?: GameType[];
 }
 
 // Credit system interfaces (PAYG model)
@@ -1029,6 +1031,7 @@ export const userApi = {
           display_name: string;
           email: string;
           email_verified: boolean;
+          can_create_games?: GameType[];
         };
         competitions?: Competition[];
         latest_round_stats?: {

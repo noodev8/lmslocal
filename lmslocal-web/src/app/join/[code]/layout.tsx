@@ -20,9 +20,15 @@ import type { Metadata } from 'next';
  * already uses ("You have been invited").
  */
 
-const TITLE = "You've been invited to a Last Man Standing competition";
+/*
+ * GAME-NEUTRAL (2026-11-22). An invite can be to Last Man Standing or to Matchday
+ * (docs/matchday.md), and this copy is fixed - see above for why it is not looked up per
+ * competition. Naming either game here would describe the other one wrongly, so it names
+ * neither; the page names the game the moment it opens.
+ */
+const TITLE = "You've been invited to a football competition";
 const DESCRIPTION =
-  'Pick one team each round to win. If they lose or draw, you are out. Last one standing takes it. Enter your invite code to join.';
+  'Football, every gameweek. Open the link to see the competition and how it is played, then join with your invite code.';
 
 /*
  * Its own image, not the site-wide one — same reason as the copy. Source and
@@ -36,7 +42,7 @@ const IMAGE = {
   url: '/og-join.png',
   width: 1200,
   height: 630,
-  alt: 'Last Man Standing — pick one team each round. Win and you go through. Draw or lose and you are out.',
+  alt: 'LMSLocal — you have been invited to join a football competition.',
 };
 
 export async function generateMetadata({

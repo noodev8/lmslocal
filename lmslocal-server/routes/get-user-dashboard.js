@@ -15,7 +15,9 @@ Success Response (ALWAYS HTTP 200):
     "id": 1,                                    // integer, user ID
     "display_name": "John Smith",               // string, user's global display name
     "email": "john@example.com",                // string, user's email
-    "email_verified": true                      // boolean, email verification status
+    "email_verified": true,                     // boolean, email verification status
+    "can_create_games": ["lms"]                 // string[], games this user may create - Matchday only
+                                                //   while in preview (services/gameType.js)
   },
   "competitions": [
     {
@@ -117,7 +119,7 @@ const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { getPlaceUsage } = require('../services/placeUsage');
-const { clientGameTypes } = require('../services/gameType');
+const { clientGameTypes, gamesUserCanCreate } = require('../services/gameType');
 const { getMatchdayTables } = require('../services/matchdayTable');
 const router = express.Router();
 
@@ -748,7 +750,9 @@ router.post('/', verifyToken, async (req, res) => {
       id: user_id,
       display_name: userDataResult.rows[0].display_name,
       email: userDataResult.rows[0].email,
-      email_verified: userDataResult.rows[0].email_verified
+      email_verified: userDataResult.rows[0].email_verified,
+      // The create wizard asks "Which game?" only when there is more than one answer.
+      can_create_games: gamesUserCanCreate(user_id)
     } : null;
 
     // === PLAYERS TURNED AWAY BY THE CREDIT LIMIT ===

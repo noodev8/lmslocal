@@ -72,6 +72,8 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"            - Includes an unknown game_type, a Matchday competition without the
                                fixture service, and a missing or out-of-range end_rule / end_value
+"FORBIDDEN"                   - A game this organiser may not create yet (Matchday is in preview -
+                               gamesUserCanCreate in services/gameType.js)
 "FIXTURE_SERVICE_UNAVAILABLE" - Fixture service requested for a team list we do not stage fixtures for
 "START_BLOCK_UNAVAILABLE"    - The chosen start date was promoted, edited or deleted since the form loaded
 "START_BLOCK_TOO_SOON"       - The chosen start date is now inside the lead time
@@ -85,6 +87,7 @@ const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { createRoundFromBlock } = require('../services/fixtureBlock');
 const { endingProblem } = require('../services/matchdayScoring');
+const { gamesUserCanCreate } = require('../services/gameType');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -133,6 +136,15 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "Unknown game type"
+      });
+    }
+
+    // Matchday is in preview: refused for everyone not on the list, even from a client that sends
+    // it. The wizard hides the question from them, so this is the backstop, not the gate's face.
+    if (!gamesUserCanCreate(organiser_id).includes(gameType)) {
+      return res.json({
+        return_code: "FORBIDDEN",
+        message: "That game isn't available yet"
       });
     }
 

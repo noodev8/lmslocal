@@ -5,7 +5,15 @@ For every match in a gameweek a player backs one team: **win +3, draw +1, loss �
 a league table of points.
 
 **Status: phases 1–3 built, 2026-11-22 — playable on the web end to end** (§10). Not yet: the
-admin game column, Matchday emails, the app. "Matchday" is a working name; see §11.
+admin game column, Matchday emails, the app.
+
+**IN PREVIEW: only organiser 50 can create a Matchday competition.** `MATCHDAY_PREVIEW_ORGANISER_IDS`
+in `services/gameType.js`. Everyone else gets the create wizard exactly as before - three steps, no
+"Which game?" - and `create-competition` refuses `matchday` from them with `FORBIDDEN`. The web
+learns which games a user may create from `user.can_create_games` on `get-user-dashboard`.
+**Launching is setting that constant to `null`**, in a commit of its own. What customers do see
+meanwhile: the game's name ("Last Man Standing") above each competition on the dashboard and as a
+row on the join page, and the game-neutral invite preview. "Matchday" is a working name; see §11.
 
 This doc is the contract. When a new scenario turns up ("what does a postponed match score?",
 "what does the app show a Matchday player?"), answer it here first, then change the code to
@@ -438,11 +446,11 @@ companies printed on different coloured stock) is a design-system decision. If i
    buttons and arrow keys were), and `next build` (it would have overwritten a dev server running
    in the same folder; type-check and lint pass).
 
-   **Open:**
-   - The join link's preview (`join/[code]/layout.tsx`) is fixed LMS copy and an LMS image:
-     a Matchday invite in WhatsApp previews as Last Man Standing. Needs neutral wording or a
-     server-side lookup, which that layout avoids on purpose. A decision, not a bug.
-   - The promote page and leaflets have not been checked for LMS wording.
+   **The invite preview is game-neutral** (2026-11-22): `join/[code]/layout.tsx` and
+   `lmslocal-marketing/social/og-join.html` (rebuilt `og-join.png`) name neither game, because
+   the preview is static and one link can be to either. The page names the game on opening.
+
+   **Open:** the promote page and leaflets have not been checked for LMS wording.
 4. **Admin.** Game column and filter on the Competitions screen. (The push row report went in
    with phase 2.)
 5. **Matchday emails.** Then the app, by sending `X-Game-Types` from a new version.
