@@ -29,10 +29,11 @@ not knowing which game they are in or what to do next, not the server work.
 | What a player does | For each fixture in the round, predicts the home team or the away team to win. A draw cannot be predicted |
 | Scoring | Predicted team wins **+3**, draw **+1**, predicted team loses **−1** |
 | Skipping | Allowed. An unpredicted fixture scores **0**. There is no penalty for skipping, unlike LMS's missed pick |
+| Scoring kept | **3 / 1 / −1, decided 2026-11-22.** 3 / 1 / 0 was proposed (nothing ever negative, no floor needed) and declined. A total is never negative; a −1 on a lost match and a negative round score can still show |
 | Floor | **Applied after each round**: `total = max(0, previous total + round score)`. A total is never shown below 0 and there is no hidden debt below it |
 | Lock | **One lock for the whole gameweek**, at `round.lock_time`, the same as LMS. Predictions can be changed until then |
 | Joining | **Exactly the LMS rule**: open until round 1 locks, then closed. See §6 |
-| Ending | Set by the organiser at creation, from a fixed list: **first to 10, 20 or 40 points**, or **highest total after 3, 7 or 10 rounds** (`ENDING_CHOICES`, 2026-11-22). See §5.3 |
+| Ending | **A number of rounds**, set by the organiser from a fixed list: **4, 6 or 8**, default 6. Most points after the last round wins (`ENDING_CHOICES`, 2026-11-22). Points targets were withdrawn — §1.3 |
 | Tie-break | Total, then **most wins**, then **most predictions made**. Still level → the win is shared |
 | Fixtures and results | **Fixture service only**, always. There is no organiser-managed Matchday |
 | Pricing | The same as LMS: one player is one place |
@@ -56,11 +57,28 @@ The expected value of predicting a team is at least 0 for nearly any match: even
 0 points does not reward cherry-picking, and "most predictions made" as the second tie-break
 rewards the players who fill in the whole coupon.
 
-### 1.3 Deferred: nobody should pull out of reach
+### 1.3 Why the ending is a number of rounds (2026-11-22)
 
-A player who gets well ahead under first-to-N can make the rest of the game pointless for
-everyone else. The scoring will be reworked to keep the table competitive. **Not decided, not in
-version 1**, but keep the scoring in one place (§5) so the change lands in one place.
+"First to N points" was offered at first and withdrawn the same day. Simulated (ten matches a
+round, twelve players, a mix of favourite-pickers and coin-flippers, 0–3 skips a round), one
+player's round scores a median of about 11:
+
+| Target | Rounds, median | 90% of games |
+|---|---|---|
+| First to 10 | 1 | 1 |
+| First to 20 | 1 | 1–2 |
+| First to 40 | 3 | 2–3 |
+| First to 80 | 5 | 4–6 |
+| First to 100 | 7 | 6–7 |
+
+So the targets on offer (10, 20, 40) ended the game in the first weekend or two, and a target long
+enough to matter is a number nobody can picture. A race also has no length anyone can tell players
+in advance, and a runaway leader ends it early for everyone. A number of rounds is a date in the
+diary, cannot be gamed, and matches LMS, which usually lasts about six rounds. Over six rounds the
+top two finish level on points in about 1 game in 20, which the tie-break settles.
+
+The two test competitions made before this (275, 281) keep `end_rule = 'points'`, and the
+completion check still ends them; nothing new can choose it.
 
 ---
 
@@ -71,16 +89,16 @@ in an email subject, in a push notification. So the words in one column **never 
 other game's screens or emails**.
 
 **No betting words, in either game** (2026-11-22): never "back", "backed" or "backing" a team.
-It reads as gambling. A chosen team is "predicted"; the deck's buttons say "ARS to win".
+It reads as gambling. A chosen team is "predicted"; the cards ask "Who wins?".
 
 | | Last Man Standing | Matchday |
 |---|---|---|
 | The choice | pick | prediction; "predict the winner" |
-| The action | Make your pick | Fill in your coupon |
+| The action | Make your pick | Make your predictions |
 | Where you stand | still in / out, lives | points, position |
 | What a result does | survived / eliminated | +3 / +1 / −1 |
 | The board | standings | the table |
-| How it ends | last one standing | first to N points / after N rounds |
+| How it ends | last one standing | most points after N rounds |
 
 LMS copy that says "pick" stays as it is. New Matchday copy is checked against this table.
 
@@ -126,8 +144,8 @@ cannot see Matchday data at all.
 | Column | Type | Notes |
 |---|---|---|
 | `game_type` | varchar, not null, default `'lms'` | `CHECK (game_type IN ('lms','matchday'))` |
-| `end_rule` | varchar, null | `'points'` or `'rounds'`. Null for LMS |
-| `end_value` | integer, null | The target points or the number of rounds |
+| `end_rule` | varchar, null | `'rounds'`. `'points'` survives on two old test rows only (§1.3). Null for LMS |
+| `end_value` | integer, null | The number of rounds: 4, 6 or 8 |
 
 `competition_end_rule_check`: an LMS row carries neither value, a Matchday row must carry both
 (`end_value > 0`). `create-competition` and `update-competition` also hold them to the fixed
@@ -222,8 +240,8 @@ and must not become a third copy.
 
 Checked **only once every fixture in the round is processed**, the same gate LMS uses:
 
-- **`points`**: if anyone's total is ≥ `end_value`, the game is complete.
 - **`rounds`**: if this was round `end_value`, the game is complete.
+- **`points`** (two old test rows only, §1.3): if anyone's total is ≥ `end_value`.
 
 The winner is the top of the table by total, then wins, then predictions made. A tie on all
 three is a shared win: `winner_id` is left null, which already means "no single winner" for LMS
@@ -286,7 +304,7 @@ changed for this. The server guarantees they are never shown a game they cannot 
 |---|---|
 | `get-user-dashboard` | Competitions of a game the client did not declare are **left out**. The app's dashboard already has its "open on the web" card |
 | `get-competition-by-code` | Unchanged, `SUCCESS`. The old app treats any other code as "We could not check that code", which is wrong here |
-| `join-competition-by-code` | Refuses with **`GAME_NOT_SUPPORTED`** and a message naming the game and saying to join on the web. The app shows the join route's `message` verbatim (`join_page.dart`), so the player is told the truth |
+| `join-competition-by-code` | Refuses with **`GAME_NOT_SUPPORTED`** and a message naming the game and saying to open lmslocal.co.uk in a browser and join **with the code**, which it quotes. Not "use the link": an installed app claims `/join/*`, so tapping the invite link again reopens the app. The app shows the join route's `message` verbatim (`join_page.dart`), so the player is told the truth |
 | Push notifications | No `mobile_notification_queue` rows for Matchday competitions. FCM's only reader is the app |
 
 The `/join/*` app deep link (not yet built, `docs/flutter-migration.md`) lands on the same join
@@ -309,24 +327,37 @@ into a Matchday competition.
 - **Dashboard card**: the game's name is the eyebrow on every competition card, both games, so
   the difference is visible in a list. The main line is game-specific:
   - LMS: "Still in · pick needed"
-  - Matchday: "4th of 12 · 23 pts" and "7 of 10 predicted · locks Sat 12:30"
+  - Matchday: "4th of 12 · 23 pts", then **made or not made, never a count**: "Make your
+    predictions by Sat 12:30" in the same overprint box as LMS's pick prompt while nothing is
+    predicted, "✓ Predictions made · locks Sat 12:30" once anything is. Skipping is allowed, so a
+    player who predicted seven of ten has done what the round asks. No round number.
+  - The game's name is an ink **stamp** (a bordered label) above the competition name, not a
+    faint eyebrow. Not a colour per game: the palette has no spare ink — open, §11.
 - **Create wizard**: step one is **"Which game?"**, two large choices with one sentence each,
   before anything else is asked. Matchday adds the ending (first to N points / after N rounds).
 - **Join page** (`/join/...`): the headline names the game, with one line on how it is scored,
   before the Join button. This is where a player first forms a picture of the game.
 - **Inside a competition**: the game name appears in the header of every page.
 
-### 8.2 Entry: a card deck, then the coupon
+### 8.2 Entry: a strip of cards, and nothing else (revised 2026-11-22)
 
-- One card per fixture: the two teams, and "Win +3 · Draw +1 · Lose −1".
-- **Home**, **Away** and **Skip** are always visible as buttons. Swiping is a shortcut, never the
-  only way: desktop has no swipe, and a gesture alone is not accessible.
-- The deck shows its position ("3 of 10").
-- After the last card, the player lands on **the coupon**: every fixture, the team predicted or
-  "not predicted", each editable until lock. The coupon, not the deck, is the game's home while
-  the round is open; the deck is how you fill it in. A player who returns mid-week sees what they
-  have done and what is missing.
-- After lock: the coupon shows the predictions; as results come in, each row gets its points.
+- **One view.** A strip of cards, one per match, is how predictions are made, checked, and — after
+  the lock — how results are seen. The whole-coupon sheet was dropped: fewer options.
+- **The two teams are the buttons.** Home team first, no Home / Away labels and no fixture line
+  above them saying the same thing twice.
+- **Tap a team to predict it; the strip moves to the next match. Tap it again to take it back** —
+  that is how a match is skipped. There is no Skip button.
+- **Moving between cards never chooses anything.** The strip is a native horizontal scroller with
+  snap points: a finger swipes it, a trackpad scrolls it, a mouse has Previous / Next and the arrow
+  keys. Nothing detects the device, and no copy says "swipe".
+- **A tracker** above the strip: one segment per match, green once predicted, tap to jump to it.
+  It opens on the first match still to predict.
+- **The scoring line is on the cards in round 1 only.** It stays on the competition's home screen
+  and under the table.
+- After lock, each card shows the result and, for a prediction, Won / Drew / Lost and its points.
+- **Done**, a full-width button to the dashboard, on the last match and on every match once all
+  are predicted. Red while the round is open, ink after the lock. With matches left unpredicted it
+  says how many, and that they score 0. Nothing to save: every tap was saved as it was made.
 - Other players' predictions are **hidden until lock**, as LMS picks are
   (`get-standings-group.js`: own pick, or the round is locked).
 
@@ -345,7 +376,7 @@ of players × rounds - a hundred players over a 38-round season is under 4,000 r
 
 - `/game/[id]/page.tsx` branches **once**, at the top, to an LMS home or a Matchday home
   component.
-- Matchday pages: `/game/[id]/coupon` (the deck and the coupon) and `/game/[id]/table`.
+- Matchday pages: `/game/[id]/coupon` (the cards, §8.2) and `/game/[id]/table`.
 - LMS player pages (`pick`, `standings`, `player-results`) redirect to the game home when opened
   on a Matchday competition.
 - Shared organiser pages (`players`, `settings`, `promote`) stay shared, minus the LMS-only
@@ -401,7 +432,7 @@ companies printed on different coloured stock) is a design-system decision. If i
    ACTION. `services/matchdayTable.js` (totals, floor, tie-break; `rankTable` is pure) and
    `services/matchdayScoring.js` (settling, completion). The push branches after its claim, so a
    Matchday competition finishes like any other and no longer holds the gameweek close open.
-   Routes: `set-prediction`, `clear-prediction` (the deck's Skip; idempotent),
+   Routes: `set-prediction`, `clear-prediction` (tapping a predicted team again; idempotent),
    `get-predictions` (the coupon) and `get-matchday-table`. `create-competition` takes
    `game_type`, `end_rule`, `end_value`, and refuses Matchday without the fixture service.
    Predictions are deleted wherever picks are (both competition deletes, reset, remove-player,
@@ -451,6 +482,22 @@ companies printed on different coloured stock) is a design-system decision. If i
    wizard's error also showed only on the details step, behind the Back button; it now shows on
    review, where the submit is.
 
+   **Revised 2026-11-22, the same evening**, after the first look: endings are rounds only
+   (§1.3); the deck and the coupon became one strip of cards (§8.2); the dashboard card says made /
+   not made and drops the round number (§8.1); W/D/L on the table and the Won/Lost word on a card
+   are read from the result, not from the points, so changing the scoring cannot mislabel them;
+   the co-organiser permissions "Manage results" / "Manage fixtures" are hidden on Matchday and
+   on every fixture-service competition, keeping any grant already stored. Found while testing:
+   the players page showed a Matchday competition as LMS (lives, Set pick, Mark as out) whenever
+   it was opened before the dashboard data loaded - `get-competition-players` did not return
+   `game_type`; it now returns it and `fixture_service`.
+   **Tested** in a browser on test competitions 275 and 281: predicting (saves, moves on, tracker
+   turns green), changing, taking back by a second tap (no move), opening on the first match still
+   to predict, a sideways scroll moving cards without choosing, a quick Previous after a tap not
+   being overridden by the move on, the dashboard card before and after, the table's W/D/L,
+   settings saving 6 rounds, the permissions dialog, and the app's join refusal quoting the code.
+   **Not tested:** a real finger on a phone.
+
    **Tested** in a browser against a local server: dashboard, home, deck, coupon (change and
    skip), a partial push and a settled round, table, the wizard to review, join page signed out,
    settings, the LMS home, the redirect. **Not tested:** swiping with a real finger (the deck's
@@ -472,6 +519,7 @@ companies printed on different coloured stock) is a design-system decision. If i
 
 | Question | Notes |
 |---|---|
+| A colour per game | Asked for on the dashboard, 2026-11-22. The game name is an ink stamp for now. The palette has no spare ink (`overprint` = action / out, `moss` = still in / won), so a game colour is a new token — the same decision as the paper tint below |
 | The name | "Matchday" is a working name. Common football word: fine inside LMS Local, hard to own on its own. Alternatives raised: The Coupon, Full Card, Every Match |
 | Keeping the table competitive | §1.3 — deferred to after version 1 |
 | A paper tint for Matchday | §8.5 — a design-system decision |

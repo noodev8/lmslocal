@@ -140,13 +140,19 @@ router.post('/', verifyToken, async (req, res) => {
       // they can act on - go to the web - instead of, say, that the competition has started.
       // The public lookup (get-competition-by-code) deliberately stays SUCCESS: the app reads any
       // other code there as "we could not check that code", which would be untrue.
+      //
+      // The message carries the code because the invite link is no way out: an installed app
+      // claims /join/* (AndroidManifest.xml, apple-app-site-association), so tapping the link
+      // again just reopens this screen. Typing lmslocal.co.uk into a browser does not, and the
+      // web dashboard's "Join a competition" takes the code.
       if (!clientGameTypes(req).includes(data.game_type)) {
         const gameName = GAME_TYPES[data.game_type];
+        const what = gameName
+          ? `${data.competition_name} is a ${gameName} competition, which this app cannot show yet.`
+          : `${data.competition_name} cannot be shown in this app yet.`;
         throw {
           return_code: "GAME_NOT_SUPPORTED",
-          message: gameName
-            ? `${data.competition_name} is a ${gameName} competition, which this app cannot show yet. Join it on the web at lmslocal.co.uk.`
-            : `${data.competition_name} cannot be shown in this app yet. Join it on the web at lmslocal.co.uk.`
+          message: `${what} Open lmslocal.co.uk in your browser, sign in and join with the code ${code}.`
         };
       }
 

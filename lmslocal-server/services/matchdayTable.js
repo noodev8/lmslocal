@@ -27,7 +27,7 @@ a shared position, and at the end of the game a shared win.
 "Predictions made" counts SETTLED predictions - those with points. At the end of the game every
 prediction is settled except one whose match was never played (fixture_id cleared by a
 reconcile, or a postponement fixed by hand to 0), so the count is the number of matches the
-player backed that counted. Mid-round it is the number counted so far, which is what the table is
+player predicted that counted. Mid-round it is the number counted so far, which is what the table is
 showing alongside it.
 =======================================================================================================================================
 */
@@ -85,14 +85,20 @@ async function getMatchdayTables(competitionIds, { client } = {}) {
       WHERE r.competition_id = ANY($1::integer[])
       GROUP BY r.id, r.competition_id, r.round_number
     ),
+    -- Won / drew / lost are read from the match result, never from the points: they describe what
+    -- happened, and points describe what it was worth. Counting "points = 3" as a win would
+    -- quietly break the day the scoring changes. A settled prediction with no result (a
+    -- postponement fixed by hand to 0) is none of the three.
     scores AS (
       SELECT p.user_id, p.round_id,
-             COALESCE(SUM(p.points), 0)                AS points,
-             COUNT(*) FILTER (WHERE p.points = 3)      AS wins,
-             COUNT(*) FILTER (WHERE p.points = 1)      AS draws,
-             COUNT(*) FILTER (WHERE p.points = -1)     AS losses,
-             COUNT(p.points)                           AS settled
+             COALESCE(SUM(p.points), 0)                                                  AS points,
+             COUNT(*) FILTER (WHERE p.points IS NOT NULL AND f.result = p.team)          AS wins,
+             COUNT(*) FILTER (WHERE p.points IS NOT NULL AND f.result = 'DRAW')          AS draws,
+             COUNT(*) FILTER (WHERE p.points IS NOT NULL AND f.result <> 'DRAW'
+                                                         AND f.result <> p.team)         AS losses,
+             COUNT(p.points)                                                             AS settled
       FROM prediction p
+      LEFT JOIN fixture f ON f.id = p.fixture_id
       WHERE p.competition_id = ANY($1::integer[])
       GROUP BY p.user_id, p.round_id
     )

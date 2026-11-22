@@ -103,7 +103,7 @@ export default function MatchdayTablePage() {
           </div>
           {ending && (
             <div className="text-right">
-              <p className={`${LABEL} text-ink-fade`}>How it ends</p>
+              <p className={`${LABEL} text-ink-fade`}>Game length</p>
               <p className="text-[15px] text-ink">{ending}</p>
             </div>
           )}

@@ -27,6 +27,12 @@ AND be named with the TEST prefix below. Organiser 50 also owns real competition
 (db/README.md), so ownership alone is not enough; the name is the test competition
 saying so itself.
 
+EXCEPT MATCHDAY WHILE IT IS IN PREVIEW (2026-11-22): any Matchday competition of organiser 50's
+qualifies, whatever its name. In preview only he can create one (services/gameType.js) and every
+one is a test, so the name proved nothing and was one more thing to remember. The exemption ends
+by itself at launch, when matchdayInPreview() turns false - from then a Matchday competition can
+be real, and needs the TEST name like any other.
+
 ONE THING IT CANNOT STOP: a test competition on the fixture service is a real competition to the
 push. Once its sandbox round is processed, the next time the operator presses Stage - or a
 calendar block is pushed - it is eligible for the real batch like any other, and gets that round.
@@ -66,6 +72,7 @@ const { query, transaction, closePool } = require('../database');
 const { BOT_ORGANISER_IDS } = require('../services/botPool');
 const { signAdminToken } = require('../middleware/admin-auth');
 const { getMatchdayTable } = require('../services/matchdayTable');
+const { matchdayInPreview } = require('../services/gameType');
 
 // A test competition is named "TEST", or starts with the word "TEST" ("TEST Matchday"). A whole
 // word, so "TESTAMENT FC" is not one. Case-sensitive on purpose: it is a label someone typed
@@ -103,10 +110,13 @@ async function loadTestCompetition(competitionId) {
   if (!competition) {
     throw new Error(`No competition ${competitionId}`);
   }
-  if (!BOT_ORGANISER_IDS.includes(competition.organiser_id) || !TEST_NAME.test(competition.name)) {
+  const previewMatchday = competition.game_type === 'matchday' && matchdayInPreview();
+  if (!BOT_ORGANISER_IDS.includes(competition.organiser_id)
+      || !(TEST_NAME.test(competition.name) || previewMatchday)) {
     throw new Error(
       `Competition ${competitionId} ("${competition.name}") is not a test competition. `
-      + `It must be organised by ${BOT_ORGANISER_IDS.join('/')} and named "TEST" or "TEST ...".`
+      + `It must be organised by ${BOT_ORGANISER_IDS.join('/')} and named "TEST" or "TEST ..." `
+      + `(a Matchday competition needs no name while Matchday is in preview).`
     );
   }
   return competition;

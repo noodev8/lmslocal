@@ -24,7 +24,11 @@ Success Response (ALWAYS HTTP 200):
     "eliminated_count": 2,                // integer, number of eliminated players
     "invite_code": "1234",                // string, competition join code
     "current_round": 3,                   // integer, current round number
-    "total_rounds": 10                    // integer, total rounds created
+    "total_rounds": 10,                   // integer, total rounds created
+    "game_type": "lms",                   // string, 'lms' or 'matchday' - the page hides lives and
+                                          //   picks for Matchday (docs/matchday.md §8.4)
+    "fixture_service": true               // boolean, we supply fixtures and results - the page then
+                                          //   hides the manage fixtures / results permissions
   },
   "pagination": {
     "current_page": 1,                    // integer, current page number
@@ -103,6 +107,8 @@ router.post('/', verifyToken, async (req, res) => {
         c.name,
         c.organiser_id,
         c.invite_code,
+        c.game_type,
+        c.fixture_service,
         -- Get current round number from latest round
         (SELECT MAX(round_number) FROM round WHERE competition_id = c.id) as current_round,
         -- Get total rounds count
@@ -286,7 +292,11 @@ router.post('/', verifyToken, async (req, res) => {
       invite_code: competitionData.invite_code,
       current_round: competitionData.current_round || 0,
       total_rounds: parseInt(competitionData.total_rounds) || 0,
-      is_organiser: competitionData.organiser_id === user_id
+      is_organiser: competitionData.organiser_id === user_id,
+      // The players page reads these when it is opened before the dashboard data has loaded - a
+      // link or a refresh. Without them it fell back to showing a Matchday competition as LMS.
+      game_type: competitionData.game_type,
+      fixture_service: competitionData.fixture_service === true
     };
 
     // Build pagination object

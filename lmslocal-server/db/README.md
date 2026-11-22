@@ -71,7 +71,8 @@ against a customer's competition mails real people.**
   only — test Matchday with real accounts.
 - **Play rounds with `scripts/sandbox-round.js`**, never the calendar or Stage — those are shared
   by every customer on the team list. It only touches a competition owned by 50 **and** named
-  `TEST` or `TEST ...`, settles results through the real `/admin/push-results-to-competition`, and
+  `TEST` or `TEST ...` — except a Matchday competition while Matchday is in preview, which needs
+  no name, since only 50 can create one then. It settles results through the real `/admin/push-results-to-competition`, and
   uses odd-second kickoffs so test rounds never appear in the live Results push. A competition
   created through the wizard starts on the live calendar — run `adopt` first. Usage is in the
   script header. Delete test competitions when done.

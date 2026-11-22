@@ -7,7 +7,7 @@ Purpose: The Matchday half of step 3 of routes/admin/push-results-to-competition
          unlocked round, claims the unprocessed fixtures - and then hands the claimed fixtures
          here instead of to the Last Man Standing elimination code. docs/matchday.md §5.
 
-THE SCORING RULE LIVES HERE AND NOWHERE ELSE: backed team wins +3, draw +1, backed team loses -1.
+THE SCORING RULE LIVES HERE AND NOWHERE ELSE: predicted team wins +3, draw +1, predicted team loses -1.
 The rework the user has asked for later (docs/matchday.md §1.3, nobody pulling out of reach) is a
 change to this file and matchdayTable.js, not a hunt through routes.
 
@@ -117,36 +117,39 @@ async function settleMatchdayRound(client, { competitionId, roundId, roundNumber
 }
 
 /*
-The endings an organiser may choose (decided 2026-11-22): a fixed list, not a free number, so every
-Matchday competition is one of six recognisable games rather than "first to 37". The web offers the
-same lists from lmslocal-web/src/lib/games.ts - change both together.
+THE ENDING IS A NUMBER OF ROUNDS, from a fixed list (decided 2026-11-22). Points targets were
+withdrawn the same day, for two reasons:
 
-Rough scale, for whoever revisits these: ten matches a round, and a player who picks favourites
-might average something like 1.5 points a match, so a round can be worth 15 or so. On that guess
-"first to 10" can end in round 1.
+  - They were far too short. Simulated with ten matches a round, twelve players and a mix of
+    favourite-pickers and coin-flippers, one player's round scores a median of about 11, so
+    "first to 10" and "first to 20" ended in round 1 and "first to 40" in round 3. A target long
+    enough to matter (about 100 for six rounds) is a number nobody can picture.
+  - A race to a target has a length nobody can tell players in advance, and a runaway leader
+    ends it early for everyone. A number of rounds is a date in the diary, like a season.
+
+Last Man Standing usually lasts about six rounds, so six is the default, with four and eight
+either side. The web offers the same list from lmslocal-web/src/lib/games.ts - change both together.
+
+end_rule 'points' is still valid in the column, and settleMatchdayRound still ends such a game,
+for the two test competitions created before this. Nothing new can choose it.
 */
 const ENDING_CHOICES = {
-  points: [10, 20, 40],
-  rounds: [3, 7, 10]
+  rounds: [4, 6, 8]
 };
 
 /**
  * What is wrong with a proposed ending, or null if nothing is. The one definition, used by
  * create-competition and update-competition so the two cannot accept different games.
  *
- * @param {any} endRule - 'points' or 'rounds'
- * @param {any} endValue - one of ENDING_CHOICES[endRule]
+ * @param {any} endRule - must be 'rounds'
+ * @param {any} endValue - one of ENDING_CHOICES.rounds
  * @returns {string|null} a message an organiser can act on
  */
 function endingProblem(endRule, endValue) {
-  if (endRule !== 'points' && endRule !== 'rounds') {
-    return 'Choose how the game ends: a points target or a number of rounds';
-  }
-  if (!ENDING_CHOICES[endRule].includes(Number(endValue))) {
-    // "10, 20 or 40"
-    const choices = ENDING_CHOICES[endRule];
-    const listed = `${choices.slice(0, -1).join(', ')} or ${choices[choices.length - 1]}`;
-    return endRule === 'rounds' ? `Choose ${listed} rounds` : `Choose a target of ${listed} points`;
+  const choices = ENDING_CHOICES.rounds;
+  if (endRule !== 'rounds' || !choices.includes(Number(endValue))) {
+    // "4, 6 or 8"
+    return `Choose how many rounds the game lasts: ${choices.slice(0, -1).join(', ')} or ${choices[choices.length - 1]}`;
   }
   return null;
 }

@@ -13,7 +13,7 @@ import {
   CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 import { competitionApi, teamApi, cacheUtils, CreateCompetitionRequest, StartOption, GameType, MatchdayEndRule } from '@/lib/api';
-import { GAME_NAMES, GAME_SUMMARIES, MATCHDAY_SCORING, DEFAULT_ENDING, endingLabel } from '@/lib/games';
+import { GAME_NAMES, GAME_SUMMARIES, MATCHDAY_SCORING, DEFAULT_ROUNDS, endingLabel } from '@/lib/games';
 import EndingChooser from '@/components/matchday/EndingChooser';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
@@ -113,9 +113,8 @@ export default function CreateCompetitionPage() {
   }, [offersGameChoice]);
   const visibleSteps = offersGameChoice ? STEPS : STEPS.slice(1);
   const stepOffset = offersGameChoice ? 0 : 1;
-  const [endRule, setEndRule] = useState<MatchdayEndRule>('points');
-  // From a fixed list (ENDING_CHOICES), so there is nothing to validate here.
-  const [endValue, setEndValue] = useState<number>(DEFAULT_ENDING.points);
+  // A number of rounds, from a fixed list (ROUND_CHOICES), so there is nothing to validate here.
+  const [endValue, setEndValue] = useState<number>(DEFAULT_ROUNDS);
 
   // The fixture service only pushes to team lists we stage fixtures for, so the offer is hidden
   // entirely on lists it does not cover rather than shown and then rejected on submit.
@@ -171,7 +170,7 @@ export default function CreateCompetitionPage() {
         organiser_joins_as_player: data.organiser_joins_as_player,
         fixture_service: usingFixtureService,
         game_type: gameType ?? 'lms',
-        ...(isMatchday ? { end_rule: endRule, end_value: endValue } : {}),
+        ...(isMatchday ? { end_rule: 'rounds' as MatchdayEndRule, end_value: endValue } : {}),
         // Only when there is one to send. Omitted, the server falls back to the Ready button
         // rather than refusing, so an empty calendar never blocks a competition being created.
         ...(usingFixtureService && startOption ? { start_block_id: startOption.block_id } : {})
@@ -533,12 +532,8 @@ export default function CreateCompetitionPage() {
                     </div>
 
                     <div>
-                      <p className={`${LABEL} mb-3 text-ink-fade`}>How it ends</p>
-                      <EndingChooser
-                        rule={endRule}
-                        value={endValue}
-                        onChange={(rule, value) => { setEndRule(rule); setEndValue(value); }}
-                      />
+                      <p className={`${LABEL} mb-3 text-ink-fade`}>How many rounds</p>
+                      <EndingChooser value={endValue} onChange={setEndValue} />
                       <p className="mt-2 text-[13px] text-ink-fade">
                         Level at the top? More wins goes ahead, then more predictions made. You can
                         change this until round 1 kicks off.
@@ -745,8 +740,8 @@ export default function CreateCompetitionPage() {
                     </div>
                     {isMatchday ? (
                       <div className="flex justify-between gap-3 py-2">
-                        <dt className="text-ink-fade">How it ends</dt>
-                        <dd className="text-right text-ink">{endingLabel(endRule, endValue)}</dd>
+                        <dt className="text-ink-fade">Game length</dt>
+                        <dd className="text-right text-ink">{endingLabel('rounds', endValue)}</dd>
                       </div>
                     ) : (
                       <div className="flex justify-between gap-3 py-2">
@@ -794,7 +789,7 @@ export default function CreateCompetitionPage() {
                           <>
                             <li>
                               Round 1 is already there &mdash; anyone you invite can{' '}
-                              {isMatchday ? 'fill in their coupon' : 'pick'} straight away
+                              {isMatchday ? 'make their predictions' : 'pick'} straight away
                             </li>
                             <li>
                               Get your players in before {formatLockTime(startOption.lock_time)}, when

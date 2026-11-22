@@ -38,6 +38,10 @@ export default function CompetitionPlayersPage() {
   // Matchday keeps payment, hiding and removal, and drops everything about lives and picks: nobody
   // is out in a league table, and predictions are the player's own (docs/matchday.md §8.4).
   const isMatchday = competition?.game_type === 'matchday';
+  // Fixtures and results are ours on an automated competition - every Matchday one, and nearly
+  // every LMS one now - so letting a player "manage" them grants nothing. The two permissions are
+  // only offered where the organiser enters matches by hand.
+  const offersMatchPermissions = !isMatchday && competition?.fixture_service !== true;
 
   // Use AppDataProvider context to avoid redundant API calls
   const { competitions } = useAppData();
@@ -1161,9 +1165,15 @@ export default function CompetitionPlayersPage() {
                 setSavingPermissions(true);
 
                 const formData = new FormData(e.currentTarget);
+                // Hidden boxes keep what is stored, rather than reading as unticked and clearing a
+                // grant made back when the competition took its matches by hand.
                 const permissions = {
-                  manage_results: formData.get('manage_results') === 'on',
-                  manage_fixtures: formData.get('manage_fixtures') === 'on',
+                  manage_results: offersMatchPermissions
+                    ? formData.get('manage_results') === 'on'
+                    : selectedPlayerForPermissions.manage_results || false,
+                  manage_fixtures: offersMatchPermissions
+                    ? formData.get('manage_fixtures') === 'on'
+                    : selectedPlayerForPermissions.manage_fixtures || false,
                   manage_players: formData.get('manage_players') === 'on',
                   manage_promote: formData.get('manage_promote') === 'on',
                 };
@@ -1200,6 +1210,7 @@ export default function CompetitionPlayersPage() {
               }}
               className="space-y-4"
             >
+              {offersMatchPermissions && (<>
               {/* Manage Results Permission */}
               <label className="flex cursor-pointer items-start gap-3">
                 <input
@@ -1227,6 +1238,7 @@ export default function CompetitionPlayersPage() {
                   <div className="text-[13px] text-ink-fade">Add and modify fixtures</div>
                 </div>
               </label>
+              </>)}
 
               {/* Manage Players Permission */}
               <label className="flex cursor-pointer items-start gap-3">

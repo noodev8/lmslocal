@@ -1,39 +1,38 @@
 'use client';
 
 /*
-/game/[id]/coupon - a Matchday player's coupon for a round (docs/matchday.md §8.2).
+/game/[id]/coupon - a Matchday player's predictions for a round (docs/matchday.md §8.2).
 
-Two views of one thing:
-  - THE DECK: one card per match, Home / Away / Skip. How a coupon gets filled in - quick on a
-    phone, one decision at a time. Swiping is a shortcut; the buttons are always there, because a
-    desktop has no swipe and a gesture alone is not accessible.
-  - THE COUPON: every match on one sheet, with what was predicted. The game's home while a round is
-    open: a player who comes back mid-week sees what is done and what is missing, and can change
-    any of it until the lock.
+ONE VIEW: A STRIP OF CARDS, one per match, with a tracker above it (2026-11-22). There used to be
+a second view, the whole coupon as a sheet of rows; it was dropped to leave a player one way to do
+the one thing. A player predicts, checks and, after the lock, sees results on the same cards.
 
-The deck opens by itself only when nothing has been predicted yet. After the last card, or any time
-a player leaves it, they land on the coupon.
+  - TAP A TEAM to predict it. The strip then moves to the next match. Tapping the team already
+    predicted takes the prediction back, which is how a match is skipped: there is no Skip button.
+  - MOVING BETWEEN CARDS NEVER CHOOSES ANYTHING. The strip is a native horizontal scroller with
+    snap points, so a finger swipes it, a trackpad scrolls it, and a mouse uses the arrows or the
+    tracker. Nothing here asks which device it is on, and no copy tells anyone to swipe - which
+    makes no sense on a laptop.
+  - THE TRACKER is one segment per match, green once predicted, and a tap on one jumps to that card.
+    It answers "how many are left, and which" without a count to read.
 
 Each answer is saved as it is given (set-prediction), so a player who stops halfway keeps what
-they did. Saving is not optimistic: the card moves on once the server has the answer, because a
+they did. Saving is not optimistic: the card changes once the server has the answer, because a
 prediction that silently failed would cost real points.
 */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { MatchdayCoupon, MatchdayFixture, matchdayApi } from '@/lib/api';
 import { useCompetitionGate } from '@/hooks/useCompetitionGate';
 import CompetitionUnavailable from '@/components/CompetitionUnavailable';
-import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_DARK, BTN_OUTLINE } from '@/lib/design';
 import { GAME_NAMES, MATCHDAY_SCORING, formatKickoff, outcomeWord, signedPoints } from '@/lib/games';
 
-// How far a card must be dragged before it counts as an answer. Far enough that scrolling the page
-// with a thumb never chooses a team by accident.
-const SWIPE_THRESHOLD_PX = 90;
-
-type Side = 'home' | 'away';
+// Long enough to see the team turn green before the strip moves on, short enough not to wait for.
+const ADVANCE_DELAY_MS = 350;
 
 export default function CouponPage() {
   const params = useParams();
@@ -47,11 +46,20 @@ export default function CouponPage() {
   const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [busyFixture, setBusyFixture] = useState<number | null>(null);
+  const [current, setCurrent] = useState(0);
 
-  // The deck: the fixture ids to go through, and where we are in them. Null means the coupon view.
-  const [deck, setDeck] = useState<number[] | null>(null);
-  const [deckIndex, setDeckIndex] = useState(0);
-  const deckOpenedOnce = useRef(false);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const placedOnce = useRef(false);
+  const reducedMotion = useRef(false);
+  // The move to the next card after a prediction is saved, while it is pending. Any other move
+  // cancels it: a player who taps a team and then straight away taps Previous or the tracker meant
+  // to go there, and must not be carried forward a moment later.
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return () => { if (advanceTimer.current) clearTimeout(advanceTimer.current); };
+  }, []);
 
   // A Matchday screen only. The LMS pick screen is the other game's; the reverse redirect lives
   // there (docs/matchday.md §8.4).
@@ -69,10 +77,10 @@ export default function CouponPage() {
         setCoupon(res.data);
         setLoadError('');
       } else {
-        setLoadError(res.data.message || 'This coupon could not be loaded.');
+        setLoadError(res.data.message || 'These predictions could not be loaded.');
       }
     } catch {
-      setLoadError('This coupon could not be loaded. Check your connection and try again.');
+      setLoadError('These predictions could not be loaded. Check your connection and try again.');
     }
   }, [competitionId, requestedRound]);
 
@@ -80,88 +88,102 @@ export default function CouponPage() {
     if (competition?.game_type === 'matchday') load();
   }, [competition?.game_type, load]);
 
+  // Another round is another strip: start it from scratch.
+  useEffect(() => {
+    placedOnce.current = false;
+  }, [requestedRound]);
+
   const round = coupon?.round ?? null;
   const open = round !== null && !round.locked && coupon?.is_player === true;
   const fixtures = useMemo(() => coupon?.fixtures ?? [], [coupon]);
 
-  // Open the deck by itself the first time, and only when the coupon is untouched - someone who
-  // has already predicted six matches came back to see or change them, not to start over.
-  useEffect(() => {
-    if (!coupon || deckOpenedOnce.current) return;
-    deckOpenedOnce.current = true;
-    if (open && coupon.predicted === 0 && fixtures.length > 0) {
-      setDeck(fixtures.map(f => f.fixture_id));
-      setDeckIndex(0);
+  const goTo = useCallback((index: number, smooth = true) => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    if (advanceTimer.current) {
+      clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
     }
-  }, [coupon, open, fixtures]);
+    const clamped = Math.max(0, Math.min(index, fixtures.length - 1));
+    strip.scrollTo({ left: clamped * strip.clientWidth, behavior: smooth && !reducedMotion.current ? 'smooth' : 'auto' });
+    setCurrent(clamped);
+  }, [fixtures.length]);
+
+  // Open on the first match still to predict, so a player who comes back mid-week lands on what is
+  // missing rather than on match 1. Once only: after that, where they are is where they put it.
+  useEffect(() => {
+    if (!coupon || placedOnce.current || fixtures.length === 0) return;
+    placedOnce.current = true;
+    const firstMissing = open ? fixtures.findIndex(f => f.my_team === null) : -1;
+    // After paint, so the strip has a width to scroll by.
+    requestAnimationFrame(() => goTo(firstMissing > 0 ? firstMissing : 0, false));
+  }, [coupon, open, fixtures, goTo]);
+
+  // Keep the tracker in step with the strip however it was moved: a swipe, a trackpad, a key.
+  const onStripScroll = () => {
+    const strip = stripRef.current;
+    if (!strip || strip.clientWidth === 0) return;
+    const index = Math.round(strip.scrollLeft / strip.clientWidth);
+    if (index !== current) setCurrent(index);
+  };
+
+  // Arrow keys move between cards - never choose. Choosing is always a tap on a team.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowLeft') goTo(current - 1);
+      if (e.key === 'ArrowRight') goTo(current + 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [current, goTo]);
 
   const updateFixture = (fixtureId: number, myTeam: string | null) => {
-    setCoupon(current => {
-      if (!current) return current;
-      const next = current.fixtures.map(f => (f.fixture_id === fixtureId ? { ...f, my_team: myTeam } : f));
-      return { ...current, fixtures: next, predicted: next.filter(f => f.my_team !== null).length };
+    setCoupon(state => {
+      if (!state) return state;
+      const next = state.fixtures.map(f => (f.fixture_id === fixtureId ? { ...f, my_team: myTeam } : f));
+      return { ...state, fixtures: next, predicted: next.filter(f => f.my_team !== null).length };
     });
   };
 
   const handleSaveFailure = (code: string | undefined, message: string | undefined) => {
     if (code === 'ROUND_LOCKED') {
       setSaveError('This round has locked - predictions can no longer change.');
-      setDeck(null);
       load();
     } else {
       setSaveError(message || 'That did not save. Try again.');
     }
   };
 
-  /** Choose a side. Returns true once the server has it. */
-  const chooseTeam = async (fixture: MatchdayFixture, side: Side): Promise<boolean> => {
-    const team = side === 'home' ? fixture.home_team_short : fixture.away_team_short;
-    if (fixture.my_team === team) return true;
+  /**
+   * A tap on a team. The team already predicted is taken back (the match then scores 0); any other
+   * is predicted, and the strip moves on to the next match.
+   */
+  const tapTeam = async (index: number, team: string) => {
+    const fixture = fixtures[index];
+    if (!fixture || busyFixture !== null) return;
+    const takingBack = fixture.my_team === team;
     setBusyFixture(fixture.fixture_id);
     setSaveError('');
     try {
-      const res = await matchdayApi.setPrediction(fixture.fixture_id, team);
-      if (res.data.return_code === 'SUCCESS') {
-        updateFixture(fixture.fixture_id, team);
-        return true;
+      const res = takingBack
+        ? await matchdayApi.clearPrediction(fixture.fixture_id)
+        : await matchdayApi.setPrediction(fixture.fixture_id, team);
+      if (res.data.return_code !== 'SUCCESS') {
+        handleSaveFailure(res.data.return_code, res.data.message);
+        return;
       }
-      handleSaveFailure(res.data.return_code, res.data.message);
-      return false;
+      updateFixture(fixture.fixture_id, takingBack ? null : team);
+      if (!takingBack && index + 1 < fixtures.length) {
+        advanceTimer.current = setTimeout(() => {
+          advanceTimer.current = null;
+          goTo(index + 1);
+        }, ADVANCE_DELAY_MS);
+      }
     } catch {
       setSaveError('That did not save. Check your connection and try again.');
-      return false;
     } finally {
       setBusyFixture(null);
-    }
-  };
-
-  /** Skip a match: clears any prediction on it, so it scores 0. */
-  const skipFixture = async (fixture: MatchdayFixture): Promise<boolean> => {
-    if (fixture.my_team === null) return true;
-    setBusyFixture(fixture.fixture_id);
-    setSaveError('');
-    try {
-      const res = await matchdayApi.clearPrediction(fixture.fixture_id);
-      if (res.data.return_code === 'SUCCESS') {
-        updateFixture(fixture.fixture_id, null);
-        return true;
-      }
-      handleSaveFailure(res.data.return_code, res.data.message);
-      return false;
-    } catch {
-      setSaveError('That did not save. Check your connection and try again.');
-      return false;
-    } finally {
-      setBusyFixture(null);
-    }
-  };
-
-  const advanceDeck = () => {
-    if (!deck) return;
-    if (deckIndex + 1 >= deck.length) {
-      setDeck(null);
-    } else {
-      setDeckIndex(deckIndex + 1);
     }
   };
 
@@ -178,7 +200,7 @@ export default function CouponPage() {
           <span className={`${LABEL} text-ink-fade`}>{GAME_NAMES.matchday}</span>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
+      <main className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
     </div>
   );
 
@@ -201,7 +223,7 @@ export default function CouponPage() {
     );
   }
 
-  if (!round) {
+  if (!round || fixtures.length === 0) {
     return shell(
       <div className={`${PANEL} p-6 text-center`}>
         <p className={EYEBROW}>No round yet</p>
@@ -211,48 +233,19 @@ export default function CouponPage() {
     );
   }
 
-  // ------------------------------------------------------------------ the deck
-  if (deck && open) {
-    const fixture = fixtures.find(f => f.fixture_id === deck[deckIndex]);
-    if (fixture) {
-      return shell(
-        <>
-          {saveError && <ErrorLine message={saveError} />}
-          <DeckCard
-            key={fixture.fixture_id}
-            fixture={fixture}
-            position={deckIndex + 1}
-            count={deck.length}
-            busy={busyFixture === fixture.fixture_id}
-            onChoose={async (side) => { if (await chooseTeam(fixture, side)) advanceDeck(); }}
-            onSkip={async () => { if (await skipFixture(fixture)) advanceDeck(); }}
-            onPrevious={deckIndex > 0 ? () => setDeckIndex(deckIndex - 1) : null}
-          />
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setDeck(null)}
-              className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-[6px] hover:text-ink`}
-            >
-              See the whole coupon
-            </button>
-          </div>
-        </>
-      );
-    }
-  }
-
-  // ------------------------------------------------------------------ the coupon
-  const unpredicted = fixtures.filter(f => f.my_team === null).map(f => f.fixture_id);
   const settledCount = fixtures.filter(f => f.settled).length;
   const roundPoints = fixtures.reduce((sum, f) => sum + (f.my_points ?? 0), 0);
+  const allPredicted = coupon.predicted === fixtures.length;
+  // The scoring is explained once, in round 1. By round 2 everyone playing has seen it, and it is
+  // still on the competition's home screen and under the table.
+  const explainScoring = round.round_number === 1;
 
   return shell(
     <>
       <div className="mb-5 flex items-end justify-between gap-3">
         <div>
           <p className={EYEBROW}>Round {round.round_number}</p>
-          <h1 className={`${HEADING} mt-1 text-3xl`}>{coupon.is_player ? 'Your coupon' : 'The coupon'}</h1>
+          <h1 className={`${HEADING} mt-1 text-3xl`}>{coupon.is_player ? 'Your predictions' : 'The matches'}</h1>
         </div>
         <div className="text-right">
           <p className={`${LABEL} text-ink-fade`}>{round.locked ? 'Locked' : 'Locks'}</p>
@@ -262,51 +255,120 @@ export default function CouponPage() {
 
       {saveError && <ErrorLine message={saveError} />}
 
-      {/* Where this coupon stands, in one line, and the way back into the deck while there is
-          anything left to predict. */}
-      <div className={`${PANEL} mb-4 flex flex-wrap items-center justify-between gap-3 p-4`}>
-        <p className="text-[17px] text-ink">
-          {!coupon.is_player
-            ? 'You organise this one without playing.'
-            : open
-              ? <><span className="font-data">{coupon.predicted}</span> of {coupon.total_fixtures} predicted</>
-              : settledCount === 0
-                ? <>You predicted <span className="font-data">{coupon.predicted}</span> of {coupon.total_fixtures}. Matches in play.</>
-                : <>This round: <span className="font-data">{signedPoints(roundPoints)}</span>
-                    <span className="text-ink-fade"> &middot; {settledCount} of {coupon.total_fixtures} results in</span></>}
-        </p>
-        {open && unpredicted.length > 0 && (
-          <button
-            type="button"
-            onClick={() => { setDeck(unpredicted); setDeckIndex(0); }}
-            className={`${BTN_PRIMARY} px-5 py-2.5 text-base`}
-          >
-            {coupon.predicted === 0 ? 'Start the cards' : `Predict the other ${unpredicted.length}`}
-          </button>
-        )}
-      </div>
+      {/* The tracker. Segments, not a count: a player sees at a glance how many are left and
+          where. Green means predicted; the word is in each segment's label for a screen reader. */}
+      {coupon.is_player && (
+        <div className="mb-2 flex gap-1" role="tablist" aria-label="Matches">
+          {fixtures.map((f, index) => {
+            const done = f.my_team !== null;
+            return (
+              <button
+                key={f.fixture_id}
+                type="button"
+                role="tab"
+                aria-selected={index === current}
+                aria-label={`Match ${index + 1}: ${f.home_team} v ${f.away_team}, ${done ? 'predicted' : 'not predicted'}`}
+                onClick={() => goTo(index)}
+                className="group flex-1 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
+              >
+                <span
+                  className={`block h-2 rounded-full transition-colors ${
+                    done ? 'bg-moss' : 'bg-ink/15 group-hover:bg-ink/30'
+                  } ${index === current ? 'ring-2 ring-ink ring-offset-2 ring-offset-stock' : ''}`}
+                />
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      <div className={`${PANEL} divide-y divide-ink/30`}>
-        {fixtures.map(fixture => (
-          <CouponRow
+      {/* One line on where the round stands. */}
+      <p className="mb-4 text-[15px] text-ink-fade">
+        {!coupon.is_player
+          ? 'You organise this one without playing.'
+          : open
+            ? allPredicted
+              ? <>All {fixtures.length} predicted. You can change any of them until the lock.</>
+              : coupon.predicted === 0
+                ? 'Tap the team you think will win.'
+                : <><span className="font-data text-ink">{fixtures.length - coupon.predicted}</span> still to predict.</>
+            : settledCount === 0
+              ? <>You predicted {coupon.predicted} of {fixtures.length}. Matches in play.</>
+              : <>This round: <span className="font-data text-ink">{signedPoints(roundPoints)}</span> &middot; {settledCount} of {fixtures.length} results in</>}
+      </p>
+
+      {/* The strip. Native scrolling with snap points: a swipe or a trackpad moves it, nothing
+          chooses a team but a tap. */}
+      <div
+        ref={stripRef}
+        onScroll={onStripScroll}
+        className="flex snap-x snap-mandatory overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {fixtures.map((fixture, index) => (
+          <div
             key={fixture.fixture_id}
-            fixture={fixture}
-            editable={open}
-            busy={busyFixture === fixture.fixture_id}
-            onChoose={(side) => chooseTeam(fixture, side)}
-            onSkip={() => skipFixture(fixture)}
-          />
+            className="w-full flex-none snap-center pb-2 pr-2"
+          >
+            <MatchCard
+              fixture={fixture}
+              position={index + 1}
+              count={fixtures.length}
+              editable={open}
+              busy={busyFixture === fixture.fixture_id}
+              explainScoring={explainScoring && open}
+              onTap={(team) => tapTeam(index, team)}
+            />
+          </div>
         ))}
       </div>
 
-      {open && (
-        <p className="mt-5 text-center text-[15px] text-ink-fade">
-          {MATCHDAY_SCORING}. A match you skip scores nothing either way.
-        </p>
+      {/* Previous / next, for a mouse. A finger has the swipe, but these cost nothing there. */}
+      <div className="mt-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => goTo(current - 1)}
+          disabled={current === 0}
+          className={`${LABEL} flex items-center gap-1 text-ink transition-colors hover:text-ink-fade disabled:invisible`}
+        >
+          <ChevronLeftIcon className="h-4 w-4" /> Previous
+        </button>
+        <span className="font-data text-[13px] text-ink-fade">{current + 1} of {fixtures.length}</span>
+        <button
+          type="button"
+          onClick={() => goTo(current + 1)}
+          disabled={current >= fixtures.length - 1}
+          className={`${LABEL} flex items-center gap-1 text-ink transition-colors hover:text-ink-fade disabled:invisible`}
+        >
+          Next <ChevronRightIcon className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Done. On the last match the strip has nowhere left to go, and a player who has finished
+          should not have to hunt for the small back link in the header. Shown on any card once
+          every match is predicted, too. It goes to the dashboard, where they came from. Red while
+          the round is open - finishing is the screen's next action - and ink once it is locked,
+          when it is only the way out. Nothing to save: every tap was saved as it was made. */}
+      {(current === fixtures.length - 1 || (open && allPredicted)) && (
+        <div className="mt-6 text-center">
+          {open && !allPredicted && (
+            <p className="mb-3 text-[15px] text-ink-fade">
+              <span className="font-data text-ink">{fixtures.length - coupon.predicted}</span>{' '}
+              {fixtures.length - coupon.predicted === 1 ? 'match' : 'matches'} not predicted &mdash; they score 0.
+              You can come back to them until the lock.
+            </p>
+          )}
+          <Link
+            href="/dashboard"
+            className={`${open ? BTN_PRIMARY : BTN_DARK} block w-full px-6 py-3.5 text-xl`}
+          >
+            Done
+          </Link>
+        </div>
       )}
 
       {/* Earlier rounds. A link per direction rather than a picker: looking back is occasional. */}
-      <div className="mt-6 flex items-center justify-between">
+      <div className="mt-8 flex items-center justify-between border-t border-ink/30 pt-4">
         {round.round_number > 1 ? (
           <Link href={`/game/${competitionId}/coupon?round=${round.round_number - 1}`} className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px]`}>
             &larr; Round {round.round_number - 1}
@@ -328,42 +390,21 @@ function ErrorLine({ message }: { message: string }) {
   return <p className="mb-4 border-l-2 border-overprint bg-stock-lit px-4 py-3 text-[15px] text-ink">{message}</p>;
 }
 
-/** One team as a tile, in the style of the LMS pick screen so the two read as one product. */
-function TeamTile({
-  name, chosen, disabled, onClick, label,
+/**
+ * One match. The two teams ARE the choice - no Home / Away buttons under a fixture line, which said
+ * the same thing twice. Home team first, as a fixture is always written.
+ */
+function MatchCard({
+  fixture, position, count, editable, busy, explainScoring, onTap,
 }: {
-  name: string; chosen: boolean; disabled: boolean; onClick: () => void; label: string;
+  fixture: MatchdayFixture;
+  position: number;
+  count: number;
+  editable: boolean;
+  busy: boolean;
+  explainScoring: boolean;
+  onTap: (team: string) => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={chosen}
-      aria-label={`${label}: ${name}${chosen ? ' (predicted)' : ''}`}
-      className={`relative flex min-h-[64px] flex-1 items-center justify-center border p-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
-        chosen
-          ? 'border-2 border-moss bg-moss-wash'
-          : disabled
-            ? 'cursor-default border-ink/15'
-            : 'cursor-pointer border-ink/30 hover:border-ink disabled:cursor-wait'
-      }`}
-    >
-      {chosen && (
-        <span className={`${LABEL} absolute left-0 top-0 bg-moss px-2 py-1 text-[11px] text-stock-lit`}>Predicted</span>
-      )}
-      <span className="text-sm font-medium leading-tight text-ink sm:text-base">{name}</span>
-    </button>
-  );
-}
-
-function CouponRow({
-  fixture, editable, busy, onChoose, onSkip,
-}: {
-  fixture: MatchdayFixture; editable: boolean; busy: boolean; onChoose: (side: Side) => void; onSkip: () => void;
-}) {
-  const homeChosen = fixture.my_team === fixture.home_team_short;
-  const awayChosen = fixture.my_team === fixture.away_team_short;
   const resultText = fixture.result === null
     ? null
     : fixture.result === 'DRAW'
@@ -371,179 +412,84 @@ function CouponRow({
       : `${fixture.result === fixture.home_team_short ? fixture.home_team : fixture.away_team} won`;
 
   return (
-    <div className="p-3 sm:p-4">
-      <div className="flex items-center gap-2 sm:gap-4">
-        <TeamTile name={fixture.home_team} label="Home" chosen={homeChosen} disabled={!editable || busy} onClick={() => onChoose('home')} />
-        <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>v</span>
-        <TeamTile name={fixture.away_team} label="Away" chosen={awayChosen} disabled={!editable || busy} onClick={() => onChoose('away')} />
+    // The one print-offset shadow in the system belongs to "the sheet", and a card is exactly that.
+    <div className={`${PANEL} p-5 shadow-[4px_4px_0_0_rgba(28,38,32,0.16)] sm:p-6`}>
+      <div className="flex items-baseline justify-between">
+        <p className={`${LABEL} text-ink-fade`}>Match {position} of {count}</p>
+        <p className="font-data text-[13px] text-ink-fade">{formatKickoff(fixture.kickoff_time)}</p>
       </div>
 
-      {/* One statement per row (design-system §8): what it meant for you if you predicted a team,
-          otherwise what happened. Every state carries its word as well as its colour. */}
-      <div className="mt-2 flex items-center justify-between gap-3 text-[13px]">
-        <span className="font-data text-ink-fade">{formatKickoff(fixture.kickoff_time)}</span>
+      {editable && <p className={`${LABEL} mt-4 text-center text-ink`}>Who wins?</p>}
+
+      <div className="mt-4 space-y-2">
+        <TeamButton
+          name={fixture.home_team}
+          chosen={fixture.my_team === fixture.home_team_short}
+          editable={editable}
+          busy={busy}
+          onClick={() => onTap(fixture.home_team_short)}
+        />
+        <p className={`${LABEL} text-center text-ink-fade`}>v</p>
+        <TeamButton
+          name={fixture.away_team}
+          chosen={fixture.my_team === fixture.away_team_short}
+          editable={editable}
+          busy={busy}
+          onClick={() => onTap(fixture.away_team_short)}
+        />
+      </div>
+
+      {/* One statement under the teams (design-system §8). Every state carries its word as well as
+          its colour. */}
+      <div className="mt-4 min-h-[20px] text-center text-[13px]">
         {busy ? (
           <span className="text-ink-fade">Saving&hellip;</span>
         ) : fixture.settled && fixture.my_team !== null && fixture.my_points !== null ? (
-          <span className="flex items-center gap-1.5">
-            <span className={`h-2 w-2 flex-none rounded-full ${
-              fixture.my_points > 1 ? 'bg-moss' : fixture.my_points < 0 ? 'bg-overprint' : 'bg-ink/40'
-            }`} />
-            <span className={`${LABEL} text-ink`}>{outcomeWord(fixture.my_points)}</span>
+          <span className="inline-flex items-center gap-1.5">
+            {resultText && <span className="text-ink-fade">{resultText} &middot;</span>}
+            <span className={`${LABEL} text-ink`}>{outcomeWord(fixture.my_team, fixture.result)}</span>
             <span className="font-data text-ink">{signedPoints(fixture.my_points)}</span>
           </span>
         ) : resultText ? (
           <span className="text-ink-fade">{resultText}{fixture.my_team === null ? ' · not predicted' : ''}</span>
-        ) : editable && fixture.my_team !== null ? (
-          <button
-            type="button"
-            onClick={onSkip}
-            disabled={busy}
-            className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-[4px] hover:text-ink`}
-          >
-            Skip this one
-          </button>
+        ) : editable ? (
+          fixture.my_team !== null
+            ? <span className="text-ink-fade">Tap it again to take it back</span>
+            : explainScoring
+              ? <span className={`${LABEL} text-ink`}>{MATCHDAY_SCORING}</span>
+              : null
         ) : fixture.my_team === null ? (
-          <span className="text-ink-fade">{editable ? 'Not predicted' : 'Not predicted · scores 0'}</span>
+          <span className="text-ink-fade">Not predicted &middot; scores 0</span>
         ) : null}
       </div>
     </div>
   );
 }
 
-/**
- * One match as a card. Buttons for Home, Away and Skip are the controls; dragging the card left
- * (towards the home team) or right (towards the away team) is a shortcut, as are the arrow keys.
- */
-function DeckCard({
-  fixture, position, count, busy, onChoose, onSkip, onPrevious,
+function TeamButton({
+  name, chosen, editable, busy, onClick,
 }: {
-  fixture: MatchdayFixture;
-  position: number;
-  count: number;
-  busy: boolean;
-  onChoose: (side: Side) => void;
-  onSkip: () => void;
-  onPrevious: (() => void) | null;
+  name: string; chosen: boolean; editable: boolean; busy: boolean; onClick: () => void;
 }) {
-  const [dragX, setDragX] = useState(0);
-  const dragStart = useRef<number | null>(null);
-  const reducedMotion = useRef(false);
-
-  useEffect(() => {
-    reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }, []);
-
-  // Arrow keys, for a keyboard on a desktop: left chooses the home team, right the away team.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (busy) return;
-      if (e.key === 'ArrowLeft') onChoose('home');
-      if (e.key === 'ArrowRight') onChoose('away');
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [busy, onChoose]);
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (busy || e.pointerType === 'mouse') return; // a mouse has the buttons; dragging is for thumbs
-    dragStart.current = e.clientX;
-    // Keep the drag ours if the thumb wanders off the card, or the release is never seen.
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (dragStart.current === null) return;
-    setDragX(e.clientX - dragStart.current);
-  };
-  const onPointerEnd = () => {
-    if (dragStart.current === null) return;
-    dragStart.current = null;
-    const dx = dragX;
-    setDragX(0);
-    if (dx <= -SWIPE_THRESHOLD_PX) onChoose('home');
-    else if (dx >= SWIPE_THRESHOLD_PX) onChoose('away');
-  };
-
-  const leaning: Side | null = dragX <= -SWIPE_THRESHOLD_PX / 2 ? 'home' : dragX >= SWIPE_THRESHOLD_PX / 2 ? 'away' : null;
-  const homeChosen = fixture.my_team === fixture.home_team_short;
-  const awayChosen = fixture.my_team === fixture.away_team_short;
-
   return (
-    <div className="mx-auto max-w-md">
-      <div className="mb-3 flex items-baseline justify-between">
-        <p className={`${LABEL} text-ink-fade`}>Match {position} of {count}</p>
-        <p className="font-data text-[13px] text-ink-fade">{formatKickoff(fixture.kickoff_time)}</p>
-      </div>
-
-      {/* The card. The one print-offset shadow in the system belongs to "the sheet", and a card
-          held in the hand is exactly that. touch-action: pan-y keeps vertical scrolling native
-          while a horizontal drag is ours. */}
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerEnd}
-        onPointerCancel={onPointerEnd}
-        style={{
-          transform: reducedMotion.current ? undefined : `translateX(${dragX}px) rotate(${dragX / 30}deg)`,
-          touchAction: 'pan-y',
-        }}
-        className={`${PANEL} select-none p-6 shadow-[4px_4px_0_0_rgba(28,38,32,0.16)] ${dragX === 0 ? 'transition-transform duration-200' : ''}`}
-      >
-        <p className={`${LABEL} text-center text-ink-fade`}>Who wins?</p>
-
-        <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <p className={`text-center font-data text-xl leading-tight ${leaning === 'home' ? 'text-moss' : 'text-ink'}`}>{fixture.home_team}</p>
-          <span className={`${LABEL} text-ink-fade`}>v</span>
-          <p className={`text-center font-data text-xl leading-tight ${leaning === 'away' ? 'text-moss' : 'text-ink'}`}>{fixture.away_team}</p>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onChoose('home')}
-            aria-pressed={homeChosen}
-            className={`rounded-sm border px-3 py-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait ${
-              homeChosen ? 'border-2 border-moss bg-moss-wash' : 'border-ink hover:bg-ink hover:text-stock-lit'
-            }`}
-          >
-            <span className={`${LABEL} block`}>Home</span>
-            <span className="mt-0.5 block text-[13px]">{fixture.home_team_short} to win</span>
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onChoose('away')}
-            aria-pressed={awayChosen}
-            className={`rounded-sm border px-3 py-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait ${
-              awayChosen ? 'border-2 border-moss bg-moss-wash' : 'border-ink hover:bg-ink hover:text-stock-lit'
-            }`}
-          >
-            <span className={`${LABEL} block`}>Away</span>
-            <span className="mt-0.5 block text-[13px]">{fixture.away_team_short} to win</span>
-          </button>
-        </div>
-
-        <p className={`${LABEL} mt-5 text-center text-ink`}>{MATCHDAY_SCORING}</p>
-        {busy && <p className="mt-2 text-center text-[13px] text-ink-fade">Saving&hellip;</p>}
-      </div>
-
-      <div className="mt-4 flex items-center justify-between">
-        {onPrevious ? (
-          <button type="button" onClick={onPrevious} disabled={busy} className={`${LABEL} text-ink-fade hover:text-ink`}>
-            &larr; Previous
-          </button>
-        ) : <span />}
-        <button
-          type="button"
-          onClick={onSkip}
-          disabled={busy}
-          className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px] hover:text-ink-fade`}
-        >
-          Skip &mdash; scores 0
-        </button>
-      </div>
-      <p className="mt-3 text-center text-[13px] text-ink-fade">Swipe the card towards a team, or use the buttons.</p>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!editable || busy}
+      aria-pressed={chosen}
+      aria-label={`${name}${chosen ? ' (your prediction - tap to take it back)' : ' to win'}`}
+      className={`relative flex min-h-[64px] w-full items-center justify-center border px-4 py-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+        chosen
+          ? 'border-2 border-moss bg-moss-wash'
+          : !editable
+            ? 'cursor-default border-ink/15'
+            : 'cursor-pointer border-ink/30 hover:border-ink disabled:cursor-wait'
+      }`}
+    >
+      {chosen && (
+        <span className={`${LABEL} absolute left-0 top-0 bg-moss px-2 py-1 text-[11px] text-stock-lit`}>Your prediction</span>
+      )}
+      <span className="font-data text-xl leading-tight text-ink">{name}</span>
+    </button>
   );
 }

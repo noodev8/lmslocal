@@ -31,11 +31,10 @@ Request Payload:
   "game_type": "matchday",                     // string, optional - 'lms' (default) or 'matchday'.
                                                //   Fixed at creation; see docs/matchday.md. Matchday
                                                //   requires fixture_service: true
-  "end_rule": "points",                        // string, Matchday only, required there - 'points'
-                                               //   (first to end_value) or 'rounds' (best after end_value)
-  "end_value": 20                              // integer, Matchday only, required there - the target
-                                               //   points (10, 20 or 40) or the number of rounds
-                                               //   (3, 7 or 10): ENDING_CHOICES in matchdayScoring.js
+  "end_rule": "rounds",                        // string, Matchday only, required there - 'rounds',
+                                               //   the only choice ('points' withdrawn 2026-11-22)
+  "end_value": 6                               // integer, Matchday only, required there - the number
+                                               //   of rounds (4, 6 or 8): ENDING_CHOICES in matchdayScoring.js
 }
 
 Success Response (ALWAYS HTTP 200):

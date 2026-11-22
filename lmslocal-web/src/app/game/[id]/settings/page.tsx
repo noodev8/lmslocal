@@ -73,8 +73,8 @@ export default function CompetitionSettings() {
     lives_per_player: 0,
     no_team_twice: true,
     prize_structure: '',
-    // Matchday's ending (docs/matchday.md §4.1). The value is a string while it is being typed.
-    end_rule: 'points' as MatchdayEndRule,
+    // Matchday's ending (docs/matchday.md §4.1): a number of rounds.
+    end_rule: 'rounds' as MatchdayEndRule,
     end_value: 0,
   });
   const isMatchday = competition?.game_type === 'matchday';
@@ -133,7 +133,7 @@ export default function CompetitionSettings() {
               lives_per_player: competition.lives_per_player || 0,
               no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
               prize_structure: competition.prize_structure || '',
-              end_rule: (competition.end_rule as MatchdayEndRule) || 'points',
+              end_rule: (competition.end_rule as MatchdayEndRule) || 'rounds',
               end_value: competition.end_value ?? 0,
             });
           }
@@ -854,7 +854,7 @@ export default function CompetitionSettings() {
                 {hasStarted
                   ? 'These settings cannot be changed after the competition has started.'
                   : isMatchday
-                    ? 'You can change how the game ends until round 1 kicks off.'
+                    ? 'You can change how many rounds it lasts until round 1 kicks off.'
                     : 'Configure the rules for your competition before players start making picks.'
                 }
               </p>
@@ -864,21 +864,22 @@ export default function CompetitionSettings() {
               {/* How a Matchday game ends - the one rule this game lets the organiser set. */}
               {isMatchday && (
                 <div>
-                  <p className={`${LABEL} mb-3 text-ink-fade`}>How it ends</p>
+                  <p className={`${LABEL} mb-3 text-ink-fade`}>How many rounds</p>
                   {hasStarted ? (
                     <p className="text-[17px] text-ink">{endingLabel(competition?.end_rule, competition?.end_value)}</p>
                   ) : (
                     <>
+                      {/* Nothing shows as chosen on one of the two old test competitions with a
+                          points target: it is not on the list, and saving leaves it alone unless
+                          a number of rounds is picked here. */}
                       <EndingChooser
-                        rule={formData.end_rule}
-                        value={formData.end_value}
-                        onChange={(rule, value) => {
-                          setFormData(prev => ({ ...prev, end_rule: rule, end_value: value }));
+                        value={formData.end_rule === 'rounds' ? formData.end_value : 0}
+                        onChange={(rounds) => {
+                          setFormData(prev => ({ ...prev, end_rule: 'rounds', end_value: rounds }));
                           if (success) setSuccess(false);
                           if (error) setError(null);
                         }}
                       />
-                      <p className="mt-2 text-[13px] text-ink-fade">Judged at the end of each round.</p>
                     </>
                   )}
                 </div>

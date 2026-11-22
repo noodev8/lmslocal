@@ -505,8 +505,15 @@ export default function DashboardPage() {
                           <div className="min-w-0 flex-1">
                             {/* The game first, on every card of both games: in a list of
                                 competitions it is the one thing that tells a player which rules
-                                they are playing by (docs/matchday.md §8.1). */}
-                            <p className={`${LABEL} mb-1 text-ink-fade`}>{gameName(competition.game_type)}</p>
+                                they are playing by (docs/matchday.md §8.1). A stamp rather than a
+                                faint eyebrow, so it is read before the name. Ink, not a colour per
+                                game: the palette has no spare ink (design-system §2), and a fourth
+                                is a design-system decision, open in docs/matchday.md §11. */}
+                            <p className="mb-1.5">
+                              <span className={`${LABEL} inline-block border border-ink px-1.5 py-0.5 text-[11px] text-ink`}>
+                                {gameName(competition.game_type)}
+                              </span>
+                            </p>
                             {editingNameId === competition.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -564,7 +571,9 @@ export default function DashboardPage() {
 
                         {/* Matchday: where you stand, then what to do next. Its own lines rather
                             than the LMS ones reworded - nobody is "Active" or "Eliminated" in a
-                            league table, and the prompt is a coupon, not a pick. */}
+                            league table, and the prompt is predictions, not a pick.
+                            Made or not made, never "7 of 10": skipping a match is allowed, so a
+                            player who predicted seven has done what the round asks of them. */}
                         {isMatchday && competition.is_participant && standing && standing.position !== null && !competitionStatus.isComplete && (
                           <p className="mb-3 font-display text-2xl uppercase tracking-[0.03em] text-ink">
                             {ordinal(standing.position)}
@@ -583,12 +592,12 @@ export default function DashboardPage() {
                               <div className="mb-3 flex items-center gap-2 border border-overprint px-3 py-2">
                                 <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-overprint" />
                                 <span className={`${LABEL} text-ink`}>
-                                  Fill in your coupon{lockDeadlineText(roundState) ? ` by ${lockDeadlineText(roundState)}` : ''}
+                                  Make your predictions{lockDeadlineText(roundState) ? ` by ${lockDeadlineText(roundState)}` : ''}
                                 </span>
                               </div>
                             ) : (
-                              <p className={`${LABEL} mb-3 text-ink`}>
-                                {standing?.predicted ?? 0} of {competition.total_fixtures ?? 0} predicted
+                              <p className={`${LABEL} mb-3 text-moss`}>
+                                &#10003; Predictions made
                                 {lockDeadlineText(roundState) && (
                                   <span className="text-ink-fade"> &middot; locks {lockDeadlineText(roundState)}</span>
                                 )}
@@ -599,9 +608,7 @@ export default function DashboardPage() {
                           ) : roundState.phase === 'COMPLETE' ? (
                             <p className={`${LABEL} mb-3 text-ink-fade`}>Round settled &middot; next round soon</p>
                           ) : (
-                            <p className={`${LABEL} mb-3 text-ink-fade`}>
-                              Matches in play &middot; {standing?.predicted ?? 0} predicted
-                            </p>
+                            <p className={`${LABEL} mb-3 text-ink-fade`}>Matches in play</p>
                           )
                         )}
 
@@ -656,7 +663,9 @@ export default function DashboardPage() {
                               ? `${standing?.players ?? competition.player_count ?? 0} playing`
                               : `${competition.player_count || 0} active`}
                           </span>
-                          {competition.current_round && (
+                          {/* No round number on a Matchday card: it is a league table, and the
+                              position above says where they stand. */}
+                          {competition.current_round && !isMatchday && (
                             <span className="flex items-center gap-1.5">
                               <ChartBarIcon className="h-4 w-4" />
                               Round {competition.current_round}

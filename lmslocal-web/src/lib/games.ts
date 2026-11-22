@@ -35,7 +35,8 @@ export const GAME_SUMMARIES: Record<GameType, string> = {
 export const MATCHDAY_POINTS = { win: 3, draw: 1, loss: -1 } as const;
 export const MATCHDAY_SCORING = 'Win +3 · Draw +1 · Lose −1';
 
-/** "First to 100 points" / "10 rounds". */
+/** "6 rounds". "First to 20 points" survives only for the two test competitions made before
+ * points targets were withdrawn (ENDING_CHOICES below). */
 export function endingLabel(rule?: MatchdayEndRule | null, value?: number | null): string {
   if (!rule || !value) return '';
   return rule === 'points' ? `First to ${value} points` : `${value} round${value === 1 ? '' : 's'}`;
@@ -60,13 +61,18 @@ export function signedPoints(points: number): string {
   return '0';
 }
 
-/** The word for a settled prediction. Every state carries its word (design-system §8). */
-export function outcomeWord(points: number | null): string {
-  if (points === null) return '';
-  if (points === MATCHDAY_POINTS.win) return 'Won';
-  if (points === MATCHDAY_POINTS.draw) return 'Drew';
-  if (points === MATCHDAY_POINTS.loss) return 'Lost';
-  return 'Void';
+/**
+ * The word for a settled prediction. Every state carries its word (design-system §8).
+ *
+ * Read from the match result, never from the points: the points say what a result was worth, and
+ * would make every word wrong the day the scoring changes. No result on a settled prediction is a
+ * postponement fixed by hand.
+ */
+export function outcomeWord(myTeam: string | null, result: string | null): string {
+  if (myTeam === null) return '';
+  if (result === null) return 'Void';
+  if (result === 'DRAW') return 'Drew';
+  return result === myTeam ? 'Won' : 'Lost';
 }
 
 /**
@@ -84,12 +90,10 @@ export function formatKickoff(iso: string): string {
 }
 
 /**
- * The endings an organiser may choose, and the one preselected. A fixed list, not a free number.
- * The server enforces the same lists (ENDING_CHOICES in lmslocal-server/services/matchdayScoring.js)
- * - change both together.
+ * How many rounds a Matchday game lasts: the organiser's only choice of ending, from a fixed list.
+ * Points targets were withdrawn 2026-11-22 - simulated, "first to 20" ended in round 1 - and the
+ * reasoning is in lmslocal-server/services/matchdayScoring.js, which enforces the same list.
+ * Change both together. Six is the default because Last Man Standing usually lasts about six.
  */
-export const ENDING_CHOICES: Record<MatchdayEndRule, number[]> = {
-  points: [10, 20, 40],
-  rounds: [3, 7, 10],
-};
-export const DEFAULT_ENDING: Record<MatchdayEndRule, number> = { points: 20, rounds: 7 };
+export const ROUND_CHOICES = [4, 6, 8] as const;
+export const DEFAULT_ROUNDS = 6;

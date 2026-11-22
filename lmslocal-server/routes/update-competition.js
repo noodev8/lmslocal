@@ -16,8 +16,8 @@ Request Payload:
   "prize_structure": "Winner takes all",    // string, optional - Prize distribution (max 500 chars, can be updated anytime)
   "lives_per_player": 1,                   // integer, optional - 0 (knockout) or 1 (only if not started)
   "no_team_twice": false,                  // boolean, optional - Allow team reuse setting (only if not started)
-  "end_rule": "rounds",                    // string, optional, Matchday only - 'points' or 'rounds' (only if not started)
-  "end_value": 10                          // integer, optional, Matchday only - target or round count (only if not started)
+  "end_rule": "rounds",                    // string, optional, Matchday only - 'rounds', the only choice (only if not started)
+  "end_value": 6                           // integer, optional, Matchday only - 4, 6 or 8 rounds (only if not started)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -30,7 +30,7 @@ Success Response (ALWAYS HTTP 200):
     "description": "New description",              // string, updated competition description
     "lives_per_player": 1,                        // integer, current lives per player setting
     "no_team_twice": false,                       // boolean, current team reuse setting
-    "end_rule": null,                             // string|null, Matchday: 'points' or 'rounds'
+    "end_rule": null,                             // string|null, Matchday: 'rounds' ('points' on two old test rows)
     "end_value": null,                            // integer|null, Matchday: the target or round count
     "has_started": false,                         // boolean, indicates if competition has started
     "updated_at": "2025-09-06T10:30:00.000Z"     // string, ISO datetime when competition was last updated

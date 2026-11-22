@@ -63,6 +63,11 @@ function gamesUserCanCreate(userId) {
   return matchdayOpen ? ['lms', 'matchday'] : ['lms'];
 }
 
+/** True until Matchday is launched to everyone. */
+function matchdayInPreview() {
+  return MATCHDAY_PREVIEW_ORGANISER_IDS !== null;
+}
+
 /*
 LMS-ONLY. Compose into the WHERE clause of any query whose rules or words are Last Man Standing's:
 every scoped email's candidate query, above all, since their copy talks about picks and lives.
@@ -133,6 +138,7 @@ const NOT_LMS_RESPONSE = {
 module.exports = {
   GAME_TYPES,
   gamesUserCanCreate,
+  matchdayInPreview,
   isLmsSql,
   clientGameTypes,
   isLmsCompetition,

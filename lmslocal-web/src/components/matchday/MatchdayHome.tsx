@@ -154,7 +154,7 @@ export default function MatchdayHome({ competition }: { competition: Competition
               <p className={EYEBROW}>Round 1</p>
               <p className="mt-2 text-[17px] text-ink">Waiting for the first round&apos;s matches.</p>
               <p className="mt-1 text-[15px] text-ink-fade">
-                We add them for you &mdash; they&apos;ll appear here, and everyone can fill in their coupon.
+                We add them for you &mdash; they&apos;ll appear here, and everyone can make their predictions.
               </p>
             </div>
           ) : roundOpen ? (
@@ -169,24 +169,21 @@ export default function MatchdayHome({ competition }: { competition: Competition
                   <p className="mt-3 text-[15px] text-ink-fade">
                     Locks {formatKickoff(round.lock_time)}. Change any of them until then.
                   </p>
-                  {/* Primary while there is something left to do; once every match is predicted it
-                      steps down, because the screen's one red action should mean "this is on you". */}
+                  {/* Red only while nothing is predicted, the same rule as the dashboard card: the
+                      screen's one red action means "this is on you". A player who has predicted
+                      some and skipped the rest has made their predictions - skipping is allowed. */}
                   <Link
                     href={`/game/${competitionId}/coupon`}
                     className={`mt-5 inline-block ${
-                      coupon.predicted < coupon.total_fixtures ? `${BTN_PRIMARY} px-6 py-3 text-base` : BTN_OUTLINE
+                      coupon.predicted === 0 ? `${BTN_PRIMARY} px-6 py-3 text-base` : BTN_OUTLINE
                     }`}
                   >
-                    {coupon.predicted === 0
-                      ? 'Fill in your coupon'
-                      : coupon.predicted < coupon.total_fixtures
-                        ? 'Finish your coupon'
-                        : 'Check your coupon'}
+                    {coupon.predicted === 0 ? 'Make your predictions' : 'Your predictions'}
                   </Link>
                 </>
               ) : (
                 <>
-                  <p className="mt-2 text-[17px] text-ink">{coupon.total_fixtures} matches on the coupon.</p>
+                  <p className="mt-2 text-[17px] text-ink">{coupon.total_fixtures} matches this round.</p>
                   <p className="mt-1 text-[15px] text-ink-fade">
                     Players can predict until {formatKickoff(round.lock_time)}.
                   </p>
@@ -210,7 +207,7 @@ export default function MatchdayHome({ competition }: { competition: Competition
                     {resultsIn > 0 && <> &middot; <span className="font-data text-ink">{signedPoints(roundPoints)}</span> this round so far</>}
                   </p>
                   <Link href={`/game/${competitionId}/coupon`} className={`${BTN_OUTLINE} mt-4 inline-block`}>
-                    Your coupon
+                    Your predictions
                   </Link>
                 </>
               )}

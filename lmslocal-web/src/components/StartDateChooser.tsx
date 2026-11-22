@@ -146,7 +146,7 @@ export default function StartDateChooser({
           {!compact && (
             <p className="mb-3 text-[13px] text-ink-fade">
               Your first round is ready and waiting the moment your competition exists, so anyone you
-              invite can {gameType === 'matchday' ? 'fill in their coupon' : 'make their pick'} straight away.
+              invite can {gameType === 'matchday' ? 'make their predictions' : 'make their pick'} straight away.
             </p>
           )}
 
