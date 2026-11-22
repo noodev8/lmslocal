@@ -144,6 +144,12 @@ router.post('/', verifyToken, async (req, res) => {
       // =====================================================================
 
       const removalResult = await transaction(async (client) => {
+        // 0. Matchday predictions, the same as remove-player.js.
+        await client.query(
+          `DELETE FROM prediction WHERE user_id = $1 AND competition_id = $2`,
+          [user_id, competition_id]
+        );
+
         // 1. Delete all picks for this player in this competition
         const picksDeleteQuery = `
           DELETE FROM pick

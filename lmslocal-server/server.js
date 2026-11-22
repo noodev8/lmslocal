@@ -53,6 +53,11 @@ const getFixturesRoute = require('./routes/get-fixtures');
 // const joinCompetitionBySlugRoute = require('./routes/join-competition-by-slug'); // DISABLED - using single login
 // const getPlayerCurrentRoundRoute = require('./routes/get-player-current-round'); // DISABLED - not used in web frontend
 const setPickRoute = require('./routes/set-pick');
+// Matchday, the second game (docs/matchday.md). LMS routes above refuse its competitions.
+const setPredictionRoute = require('./routes/set-prediction');
+const clearPredictionRoute = require('./routes/clear-prediction');
+const getPredictionsRoute = require('./routes/get-predictions');
+const getMatchdayTableRoute = require('./routes/get-matchday-table');
 const adminSetPickRoute = require('./routes/admin-set-pick');
 const updatePlayerLivesRoute = require('./routes/update-player-lives');
 const updatePlayerStatusRoute = require('./routes/update-player-status');
@@ -411,6 +416,10 @@ app.use('/get-fixtures', getFixturesRoute);
 // app.use('/join-competition-by-slug', joinCompetitionBySlugRoute); // DISABLED - using single login
 // app.use('/get-player-current-round', getPlayerCurrentRoundRoute); // DISABLED - not used in web frontend
 app.use('/set-pick', setPickRoute);
+app.use('/set-prediction', setPredictionRoute);
+app.use('/clear-prediction', clearPredictionRoute);
+app.use('/get-predictions', getPredictionsRoute);
+app.use('/get-matchday-table', getMatchdayTableRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/update-player-lives', updatePlayerLivesRoute);
 app.use('/update-player-status', updatePlayerStatusRoute);

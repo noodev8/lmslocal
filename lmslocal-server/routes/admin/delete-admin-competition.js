@@ -123,7 +123,10 @@ router.post('/', verifyAdminToken, async (req, res) => {
       const progressCount = parseInt(progressCountResult.rows[0].progress_count) || 0;
 
 
-      // Delete child records before parents, respecting foreign key order
+      // Delete child records before parents, respecting foreign key order.
+      // Matchday predictions first: they hold NO ACTION foreign keys to fixture, round and competition.
+      await client.query(`DELETE FROM prediction WHERE competition_id = $1`, [competition_id]);
+
       await client.query(`
         DELETE FROM pick
         WHERE round_id IN (

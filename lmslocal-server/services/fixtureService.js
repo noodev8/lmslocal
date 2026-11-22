@@ -354,6 +354,12 @@ async function pushFixturesToCompetition(client, competitionId) {
     // charged a life for it. Cleared here and re-pointed after the new fixtures are in.
     await client.query(`UPDATE pick SET fixture_id = NULL WHERE round_id = $1`, [targetRoundId]);
 
+    // Matchday predictions point at the same fixture rows, and here it is not merely a matter of
+    // matching later: prediction.fixture_id is a NO ACTION foreign key, so leaving them set would
+    // fail the DELETE below and roll back the whole push for this competition. Cleared here and
+    // re-pointed by team after the insert, exactly like picks. docs/matchday.md §4.3.
+    await client.query(`UPDATE prediction SET fixture_id = NULL WHERE round_id = $1`, [targetRoundId]);
+
     // source_block_id is cleared with the same statement that moves the lock time: once the
     // confirmed batch is in, this round is no longer provisional and must not be reconciled a
     // second time. Leaving it set made a repeat push look like another confirmation.
@@ -433,6 +439,30 @@ async function pushFixturesToCompetition(client, competitionId) {
        WHERE p.round_id = $1
          AND f.round_id = $1
          AND (f.home_team_short = p.team OR f.away_team_short = p.team)`,
+      [targetRoundId]
+    );
+
+    // The same for Matchday predictions. One left with fixture_id NULL - its team no longer
+    // plays this round - is never settled and scores 0, which is the rule for a match that is
+    // not played (docs/matchday.md §5.4).
+    //
+    // DISTINCT ON because a re-keyed fixture can bring together two teams the player had backed
+    // in two different matches. Both would land on one fixture and break the unique
+    // (user_id, fixture_id) index, failing this push. The later of the two wins; the other is
+    // left NULL like any prediction on a match that is no longer there.
+    await client.query(
+      `UPDATE prediction p
+       SET fixture_id = m.fixture_id
+       FROM (
+         SELECT DISTINCT ON (p2.user_id, f.id) p2.id, f.id AS fixture_id
+         FROM prediction p2
+         JOIN fixture f
+           ON f.round_id = p2.round_id
+          AND (f.home_team_short = p2.team OR f.away_team_short = p2.team)
+         WHERE p2.round_id = $1
+         ORDER BY p2.user_id, f.id, p2.updated_at DESC
+       ) m
+       WHERE p.id = m.id`,
       [targetRoundId]
     );
   }

@@ -223,6 +223,12 @@ router.post('/', verifyToken, async (req, res) => {
       // STEP 3: Atomic removal of all player-related data with detailed tracking
       // Order is important: remove dependent records first, then parent records
       
+      // 0. Matchday predictions - the player's row in the table goes with them.
+      await client.query(
+        `DELETE FROM prediction WHERE user_id = $1 AND competition_id = $2`,
+        [player_id, competition_id]
+      );
+
       // 1. Delete all picks for this player in this competition (cascade through all rounds)
       const picksDeleteQuery = `
         DELETE FROM pick 

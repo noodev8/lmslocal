@@ -180,6 +180,46 @@ receive email, and they are obviously not real people to anyone looking at the s
 `docs/reset-billing.md` §4. So a bot-filled competition is not a way to test anything about
 billing: to the counting queries those players are not there at all.
 
+**Bots play Last Man Standing only.** A Matchday competition refuses them
+(`COMPETITION_NOT_ELIGIBLE`, `docs/matchday.md` §9), so Matchday is tested with real accounts,
+usually Andreas's own as the single player.
+
+## Playing rounds in a test competition: `scripts/sandbox-round.js`
+
+The hard part of testing a game end to end is fixtures and results. The real route — the
+calendar, Stage, `fixture_load`, the admin Results screen — is **shared by every customer on the
+team list**: one staged batch, pushed to every eligible competition, closed for all of them at
+once. A test cannot use it without putting fake fixtures in front of real players or holding up
+their gameweek close.
+
+The script gives a test competition rounds of its own instead (2026-11-22):
+
+```bash
+# from lmslocal-server/, with the server you are testing running (default http://localhost:3015)
+node scripts/sandbox-round.js open   <id> [--fixtures 10] [--lock-minutes 30]
+node scripts/sandbox-round.js lock   <id>
+node scripts/sandbox-round.js result <id> [HADH...] [--only 3] [--api http://localhost:3115]
+node scripts/sandbox-round.js status <id>
+```
+
+- **It touches only the named competition's own `round` and `fixture` rows** — never
+  `fixture_load`, the calendar, another competition, or anyone's picks or predictions. Those are
+  made through the API or the app, as a player would.
+- **Results are processed by the real `/admin/push-results-to-competition`**, called with a
+  1088 token, so a test round is settled by the code that settles a real one.
+- **Kickoffs have odd seconds** (`:17.017`). Every real kickoff is on a whole minute and the admin
+  screens find a competition's place in the live batch by matching kickoff times, so a test round
+  never shows in the Results push list and never holds the close open.
+- **Fenced twice:** organiser 50 **and** a name starting `TEST ` (capital, then a space).
+  Ownership alone is not enough, for the reason above.
+- **What it cannot stop:** a test competition on the fixture service is a real competition to
+  the push. Once its sandbox round is processed it is eligible for the next real Stage like any
+  other. Harmless — it only affects the test competition — but delete test competitions when done.
+
+Create the competition through `create-competition` as Andreas, named `TEST ...`, rather than
+borrowing one. That still needs his say-so in the session, like any write (the rule above): he
+gave it on 2026-11-22 for that session's Matchday work, which is not standing permission.
+
 ## When something needs more than the sandbox
 
 Say what you need and why, and wait. A blocked test reported honestly is worth more than a test

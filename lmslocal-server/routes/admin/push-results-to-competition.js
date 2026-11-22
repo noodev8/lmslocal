@@ -6,6 +6,10 @@ Method: POST
 Purpose: Pushes the staged results in fixture_load to ONE competition and processes them
          (eliminations, no-pick penalties, competition completion).
 
+         TWO GAMES, ONE PUSH (docs/matchday.md §5.2). Writing results, the lock check and the
+         claim are game-agnostic and run for both. After the claim a Matchday competition is
+         handed to services/matchdayScoring.js; everything below that point is Last Man Standing.
+
          1. Updates fixture.result for this competition only, from the staged scores
          2. Processes those results: outcomes, player_progress, lives, no-picks, completion
          3. Does NOT touch fixture_load - see "Why the staging table is left alone" below
@@ -63,6 +67,23 @@ Success Response (ALWAYS HTTP 200):
   "message": "Results pushed and processed"
 }
 
+Success Response for a Matchday competition (ALWAYS HTTP 200) - no eliminations, so different
+figures:
+{
+  "return_code": "SUCCESS",
+  "game_type": "matchday",
+  "competition_id": 149,
+  "fixtures_updated": 10,
+  "fixtures_processed": 10,
+  "predictions_settled": 84,                // integer, predictions given points by this push
+  "round_settled": true,                    // boolean, every fixture in the round is now processed
+  "competition_status": "active",           // string, "active", "ACTIVE" or "COMPLETE"
+  "leader": { "display_name": "Sam", "total": 34 },   // object or null, top of the table
+  "winners": ["Sam"],                       // string[], first place when this push ended the game
+                                            //   (more than one is a shared win); empty otherwise
+  "message": "Results pushed and processed"
+}
+
 Error Response (ALWAYS HTTP 200):
 {
   "return_code": "ERROR_TYPE",
@@ -74,7 +95,7 @@ Return Codes:
 "MISSING_FIELDS"            - competition_id absent or not an integer
 "COMPETITION_NOT_FOUND"     - No competition with that id
 "NOT_SUBSCRIBED"            - Competition has fixture_service = false; the organiser owns its results
-"GAME_NOT_SUPPORTED"        - Competition is not Last Man Standing; nothing here can score it yet
+"GAME_NOT_SUPPORTED"        - Competition is a game this route cannot score
 "NO_RESULTS_TO_PUSH"        - Nothing staged in fixture_load with both scores filled in
 "ALREADY_PUSHED"            - Nothing left to do: no fixture matched, and none awaits processing
 "NO_ROUNDS"                 - Competition has no rounds yet
@@ -90,6 +111,7 @@ const { transaction } = require('../../database');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { promoteCompetitionIfStarted } = require('../../services/competitionStatus');
+const { settleMatchdayRound } = require('../../services/matchdayScoring');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
@@ -130,11 +152,10 @@ router.post('/', verifyAdminToken, async (req, res) => {
         throw new Error('NOT_SUBSCRIBED');
       }
 
-      // Step 3 below is Last Man Standing: lives, eliminations, the no-pick penalty, last player
-      // standing. Run against another game's competition it would knock its players out. Refused
-      // before step 1 so nothing is written either - the results stay staged, and the push that
-      // can score the game picks them up. docs/matchday.md §5.2 replaces this with a dispatch.
-      if (competition.game_type !== 'lms') {
+      // The games this route can score. Step 3 branches on game_type, and anything not listed
+      // would fall through to the LMS elimination code and knock its players out - so a future
+      // game is refused before step 1, with nothing written, until it has a branch of its own.
+      if (!['lms', 'matchday'].includes(competition.game_type)) {
         throw new Error('GAME_NOT_SUPPORTED');
       }
 
@@ -265,6 +286,43 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
       const fixturesToProcess = unprocessedResults.rows.filter(fixture => claimedIds.has(fixture.id));
       const fixtureIds = fixturesToProcess.map(fixture => fixture.id);
+
+      // === MATCHDAY BRANCHES HERE ===
+      // Everything above is the same for both games. Everything below this block - lives,
+      // eliminations, the no-pick penalty, last player standing - is Last Man Standing only.
+      if (competition.game_type === 'matchday') {
+        const settled = await settleMatchdayRound(client, { competitionId, roundId, roundNumber, fixtureIds });
+
+        // After the completion check, as for LMS below: the promotion only moves SETUP, so a
+        // competition this push has just finished is left COMPLETE.
+        let matchdayStatus = settled.competition_status;
+        if (await promoteCompetitionIfStarted(client, competitionId)) {
+          matchdayStatus = 'ACTIVE';
+        }
+
+        await client.query(`
+          INSERT INTO audit_log (competition_id, user_id, action, details)
+          VALUES ($1, NULL, 'Fixture Service Processed Results', $2)
+        `, [
+          competitionId,
+          `Matchday: processed ${fixtureIds.length} fixtures in Round ${roundNumber}. `
+            + `${settled.predictions_settled} predictions settled`
+            + (settled.winners.length > 0 ? `. Game complete - won by ${settled.winners.join(', ')}` : '')
+        ]);
+
+        return {
+          game_type: 'matchday',
+          competition_id: competitionId,
+          competition_name: competition.name,
+          fixtures_updated: fixturesUpdated,
+          fixtures_processed: fixtureIds.length,
+          predictions_settled: settled.predictions_settled,
+          round_settled: settled.round_settled,
+          competition_status: matchdayStatus,
+          leader: settled.leader,
+          winners: settled.winners
+        };
+      }
 
       let playersEliminated = 0;
       let noPickPenalties = 0;

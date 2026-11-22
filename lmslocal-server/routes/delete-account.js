@@ -183,6 +183,9 @@ router.post('/', verifyToken, async (req, res) => {
         for (const comp of organizedCompsResult.rows) {
           const competitionId = comp.id;
           
+          // Matchday predictions first: they hold NO ACTION foreign keys to fixture, round and competition.
+          await client.query('DELETE FROM prediction WHERE competition_id = $1', [competitionId]);
+
           // Delete all picks for rounds in this competition
           await client.query('DELETE FROM pick WHERE round_id IN (SELECT id FROM round WHERE competition_id = $1)', [competitionId]);
           
@@ -220,7 +223,9 @@ router.post('/', verifyToken, async (req, res) => {
         deletionCounts.competitions_organized = deleteCompetitionsResult.rowCount || 0;
       }
 
-      // 2. Delete user's personal data (picks, memberships, etc.)
+      // 2. Delete user's personal data (picks, memberships, etc.). Matchday predictions too -
+      // their user_id foreign key would otherwise refuse the account delete below.
+      await client.query('DELETE FROM prediction WHERE user_id = $1', [user_id]);
       const deletePicksResult = await client.query('DELETE FROM pick WHERE user_id = $1', [user_id]);
       deletionCounts.picks_made = deletePicksResult.rowCount || 0;
 

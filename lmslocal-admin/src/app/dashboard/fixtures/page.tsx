@@ -1160,6 +1160,18 @@ function PushResultsPanel({
                         </span>
                       ) : outcome && !outcome.ok ? (
                         <span className="text-red-600">{outcome.message}</span>
+                      ) : outcome?.ok && outcome.data.game_type === 'matchday' ? (
+                        // Matchday has no eliminations to report - the settled count, and who
+                        // leads or has won, is the equivalent line. docs/matchday.md §5.1.
+                        <span className="text-emerald-700">
+                          {outcome.data.predictions_settled} predictions settled
+                          <span className="mx-1 text-slate-300">·</span>
+                          {outcome.data.winners && outcome.data.winners.length > 0
+                            ? `won by ${outcome.data.winners.join(', ')}`
+                            : outcome.data.leader
+                              ? `${outcome.data.leader.display_name} leads on ${outcome.data.leader.total}`
+                              : 'no players'}
+                        </span>
                       ) : outcome?.ok && outcome.data.fixtures_processed !== undefined ? (
                         <span className="text-emerald-700">
                           {outcome.data.players_eliminated} eliminated

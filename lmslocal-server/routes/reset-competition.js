@@ -225,6 +225,9 @@ router.post('/', verifyToken, async (req, res) => {
 
       // 5. Delete all competition game data in proper order (respecting foreign key constraints)
       
+      // Matchday predictions first: they hold NO ACTION foreign keys to fixture, round and competition.
+      await client.query(`DELETE FROM prediction WHERE competition_id = $1`, [competition_id]);
+
       // Delete picks (references round_id and user_id)
       const deletedPicksResult = await client.query(`
         DELETE FROM pick 

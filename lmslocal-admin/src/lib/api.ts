@@ -577,6 +577,11 @@ export type PushOneResponse = ApiResponse & {
   no_pick_penalties?: number;
   competition_status?: string;
   active_players_remaining?: number;
+  /* Matchday only (docs/matchday.md §5.1): nobody is eliminated, so the row reports the table. */
+  game_type?: 'lms' | 'matchday';
+  predictions_settled?: number;
+  leader?: { display_name: string; total: number } | null;
+  winners?: string[];
 };
 
 export type ClearBatchResponse = ApiResponse & {

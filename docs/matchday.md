@@ -4,8 +4,8 @@ A second game type, played alongside Last Man Standing on the same fixtures, rou
 For every match in a gameweek a player backs one team: **win +3, draw +1, loss −1**. The result is
 a league table of points.
 
-**Status: phase 1 (guardrails) built, 2026-11-22; no Matchday game yet** — see §10. "Matchday" is a
-working name; see §11.
+**Status: phases 1 and 2 built, 2026-11-22 — the server plays the game end to end; no screens
+yet** (§10). "Matchday" is a working name; see §11.
 
 This doc is the contract. When a new scenario turns up ("what does a postponed match score?",
 "what does the app show a Matchday player?"), answer it here first, then change the code to
@@ -118,10 +118,12 @@ cannot see Matchday data at all.
 | `end_rule` | varchar, null | `'points'` or `'rounds'`. Null for LMS |
 | `end_value` | integer, null | The target points or the number of rounds |
 
-`CHECK (game_type = 'lms' OR (end_rule IN ('points','rounds') AND end_value > 0))`.
+`competition_end_rule_check`: an LMS row carries neither value, a Matchday row must carry both
+(`end_value > 0`). `create-competition` also bounds them: 1–1000 points, 1–38 rounds.
 
-`end_rule` / `end_value` are editable **until round 1 locks**, the same window as joining, and
-fixed after. Players joined knowing how it ends.
+`end_rule` / `end_value` are to be editable **until round 1 locks**, the same window as joining,
+and fixed after: players joined knowing how it ends. **Not built yet** — `update-competition`
+does not take them. It arrives with the settings screen that offers it, in phase 3.
 
 The LMS columns (`lives_per_player`, `no_team_twice`, `competition_user.lives_remaining`,
 `teams_reset_round`, `re_buys`) are left at their defaults and **never read** for Matchday.
@@ -137,7 +139,7 @@ The LMS columns (`lives_per_player`, `no_team_twice`, `competition_user.lives_re
 | `fixture_id` | integer, **null** | Null only between a reconcile clearing it and re-pointing it — §4.3 |
 | `user_id` | integer, not null | |
 | `team` | varchar, not null | Team short code, the same values as `fixture.result` |
-| `points` | integer, null | Null until the fixture is settled; then 3, 1 or −1 |
+| `points` | integer, null | Null until the fixture is settled; then 3, 1 or −1. The CHECK also allows 0, for the hand fix of a postponed match (§5.4) |
 | `created_at` / `updated_at` | timestamptz | |
 
 `UNIQUE (user_id, fixture_id)`. A changed prediction is an update, not a second row.
@@ -373,14 +375,33 @@ companies printed on different coloured stock) is a design-system decision. If i
    `GAME_NOT_SUPPORTED` before writing anything; phase 2 replaces that with the dispatch.
    **Deploy the server before the web**: the web's new header fails every preflight against a
    server without it in CORS `allowedHeaders`.
-2. **Server.** `end_rule` / `end_value`, the `prediction` table, the reconcile and delete paths
-   (§4.3), `set-prediction` / `get-predictions`, `matchdayScoring.js`, `matchdayTable.js`, the
-   step 3 dispatch, completion, `create-competition` taking `game_type`. Check
-   `get-push-targets` and the automatic gameweek close: until the dispatch exists, a Matchday
-   competition is a push target that can never finish, which would hold the close open.
+2. **Server. Built 2026-11-22.** Migration `db/migrations/2026-11-22-matchday-prediction.sql`
+   (**applied**): `end_rule` / `end_value` and the `prediction` table, its foreign keys NO
+   ACTION. `services/matchdayTable.js` (totals, floor, tie-break; `rankTable` is pure) and
+   `services/matchdayScoring.js` (settling, completion). The push branches after its claim, so a
+   Matchday competition finishes like any other and no longer holds the gameweek close open.
+   Routes: `set-prediction`, `clear-prediction` (the deck's Skip; idempotent),
+   `get-predictions` (the coupon) and `get-matchday-table`. `create-competition` takes
+   `game_type`, `end_rule`, `end_value`, and refuses Matchday without the fixture service.
+   Predictions are deleted wherever picks are (both competition deletes, reset, remove-player,
+   leaving before the start, account deletion), and cleared and re-pointed by team in the
+   calendar reconcile — the later prediction wins when two backed teams are re-keyed into one
+   fixture. The admin Results row reports "N predictions settled · X leads on 34".
+   **Tested** end to end on test competitions under organiser 50, through the real routes and
+   the real results push, with `scripts/sandbox-round.js` supplying rounds and results (see
+   `docs/testing-rules.md`): predictions made, changed, cleared, refused after lock and after
+   the game ended; a partial push showing a provisional total floored at 0; a round crossing
+   the target mid-round and completing only when settled; the rounds ending; reset, both
+   deletes, remove-player and leaving with predictions in place; the reconcile SQL in a
+   rolled-back transaction; and LMS through the changed push (a lost pick, a missed pick).
+   **Not tested:** account deletion (reviewed only), and a real Stage push into a Matchday
+   competition — the push path is game-agnostic and unchanged.
+   **Not yet:** the dashboard's Matchday fields (position, total, "7 of 10 predicted") — with
+   the dashboard card in phase 3.
 3. **Web.** Create wizard, join page, dashboard card, the coupon and the table, the home branch,
    the redirects.
-4. **Admin.** Game column, push row report.
+4. **Admin.** Game column and filter on the Competitions screen. (The push row report went in
+   with phase 2.)
 5. **Matchday emails.** Then the app, by sending `X-Game-Types` from a new version.
 
 ---

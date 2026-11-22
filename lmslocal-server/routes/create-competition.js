@@ -28,6 +28,13 @@ Request Payload:
                                                //   comes from, chosen from /get-competition-start-options.
                                                //   Fixture-service competitions only; omitting it
                                                //   falls back to the older Ready-button flow.
+  "game_type": "matchday",                     // string, optional - 'lms' (default) or 'matchday'.
+                                               //   Fixed at creation; see docs/matchday.md. Matchday
+                                               //   requires fixture_service: true
+  "end_rule": "points",                        // string, Matchday only, required there - 'points'
+                                               //   (first to end_value) or 'rounds' (best after end_value)
+  "end_value": 100                             // integer, Matchday only, required there - the target
+                                               //   points (1-1000) or the number of rounds (1-38)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -43,6 +50,9 @@ Success Response (ALWAYS HTTP 200):
     "lives_per_player": 1,                     // integer, lives per player
     "no_team_twice": true,                     // boolean, team reuse prevention
     "fixture_service": true,                   // boolean, subscribed to the automated fixture service
+    "game_type": "lms",                        // string, 'lms' or 'matchday'
+    "end_rule": null,                          // string or null, Matchday only
+    "end_value": null,                         // integer or null, Matchday only
     "invite_code": "45678",                    // string, 5-digit invite code. Competitions
                                                // created before this change keep their 4 digits.
     "created_at": "2025-01-01T12:00:00.000Z",  // string, ISO datetime when created
@@ -60,7 +70,8 @@ Error Response (ALWAYS HTTP 200):
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
-"VALIDATION_ERROR"
+"VALIDATION_ERROR"            - Includes an unknown game_type, a Matchday competition without the
+                               fixture service, and a missing or out-of-range end_rule / end_value
 "FIXTURE_SERVICE_UNAVAILABLE" - Fixture service requested for a team list we do not stage fixtures for
 "START_BLOCK_UNAVAILABLE"    - The chosen start date was promoted, edited or deleted since the form loaded
 "START_BLOCK_TOO_SOON"       - The chosen start date is now inside the lead time
@@ -77,7 +88,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, fixture_service, start_block_id } = req.body;
+    const { name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, team_list_id, lives_per_player, no_team_twice, organiser_joins_as_player, fixture_service, start_block_id, game_type, end_rule, end_value } = req.body;
     const organiser_id = req.user.id;
 
     // Which calendar block round 1 comes from. Optional: an older client will not send it, and
@@ -112,6 +123,48 @@ router.post('/', verifyToken, async (req, res) => {
         return_code: "VALIDATION_ERROR",
         message: "Lives per player must be 0 or 1"
       });
+    }
+
+    // Which game (docs/matchday.md). Absent is LMS, so every client that predates Matchday creates
+    // exactly what it always did. Fixed from here on: update-competition does not take it.
+    const gameType = game_type === undefined || game_type === null ? 'lms' : game_type;
+    if (!['lms', 'matchday'].includes(gameType)) {
+      return res.json({
+        return_code: "VALIDATION_ERROR",
+        message: "Unknown game type"
+      });
+    }
+
+    // How a Matchday game ends. LMS ends when one player is left, so it carries neither value -
+    // whatever a client sends is dropped rather than stored, and the table's CHECK constraint
+    // refuses an LMS row that has one.
+    let endRule = null;
+    let endValue = null;
+    if (gameType === 'matchday') {
+      // Matchday is always on the fixture service (docs/matchday.md §1): there is no organiser
+      // results screen for ten matches a week, and nothing else would ever settle the round.
+      if (fixture_service !== true) {
+        return res.json({
+          return_code: "VALIDATION_ERROR",
+          message: "Matchday competitions use the fixture service"
+        });
+      }
+
+      endRule = end_rule;
+      endValue = Number(end_value);
+      // Upper bounds are sanity, not rules: 38 is a Premier League season, and 1000 points is
+      // beyond anything a season produces at roughly 15 a gameweek.
+      const maxValue = endRule === 'rounds' ? 38 : 1000;
+      if (!['points', 'rounds'].includes(endRule) || !Number.isInteger(endValue) || endValue < 1 || endValue > maxValue) {
+        return res.json({
+          return_code: "VALIDATION_ERROR",
+          message: endRule === 'rounds'
+            ? "Number of rounds must be between 1 and 38"
+            : endRule === 'points'
+              ? "Target points must be between 1 and 1000"
+              : "Choose how the game ends: a points target or a number of rounds"
+        });
+      }
     }
 
     // Validate venue_name length if provided
@@ -286,9 +339,12 @@ router.post('/', verifyToken, async (req, res) => {
               fixture_service,
               fixture_service_price_paid,
               fixture_service_granted_at,
+              game_type,
+              end_rule,
+              end_value,
               created_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, $19, $20, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SETUP', $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, CURRENT_TIMESTAMP)
             RETURNING *
           `, [
             name.trim(),
@@ -313,7 +369,10 @@ router.post('/', verifyToken, async (req, res) => {
             // than the 20-credit list price. This is what tells a grandfathered competition apart from a
             // paying one once charging begins.
             wantsFixtureService ? 0.00 : null,
-            wantsFixtureService ? new Date() : null
+            wantsFixtureService ? new Date() : null,
+            gameType,
+            endRule,
+            endValue
           ]);
 
           await client.query('RELEASE SAVEPOINT invite_code_attempt');
@@ -434,6 +493,9 @@ router.post('/', verifyToken, async (req, res) => {
         lives_per_player: result.competition.lives_per_player,
         no_team_twice: result.competition.no_team_twice,
         fixture_service: result.competition.fixture_service,
+        game_type: result.competition.game_type,
+        end_rule: result.competition.end_rule,
+        end_value: result.competition.end_value,
         invite_code: result.competition.invite_code,
         created_at: result.competition.created_at,
         organiser_id: result.competition.organiser_id,

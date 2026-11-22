@@ -145,6 +145,9 @@ router.post('/', verifyToken, async (req, res) => {
       // 4. Delete all competition data in proper order to respect foreign key constraints
       // Order is critical: child records must be deleted before parent records
 
+      // Matchday predictions first: they hold NO ACTION foreign keys to fixture, round and competition.
+      await client.query(`DELETE FROM prediction WHERE competition_id = $1`, [competition_id]);
+
       // Delete picks first (references round_id and user_id)
       await client.query(`
         DELETE FROM pick 

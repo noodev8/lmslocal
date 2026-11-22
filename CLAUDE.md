@@ -251,6 +251,10 @@ node db/query.js "SELECT ..."     # read-only (enforced by a READ ONLY transacti
 node db/write.js "UPDATE ..."     # writes: one transaction, --dry-run, no-WHERE guard
 ```
 
+**To play rounds in a test competition, use `scripts/sandbox-round.js`**, never the calendar or
+Stage: those are shared by every customer on the team list. It gives a competition named `TEST ...`
+rounds of its own and settles them through the real results push — `docs/testing-rules.md`.
+
 `lmslocal-server/db/README.md` is the front door — it also lists the data landmines (the
 `competition.status` casing inconsistency, what `fixture.result` actually holds, why
 `player_progress` has more rows than `pick`), each of which costs an hour if met cold.

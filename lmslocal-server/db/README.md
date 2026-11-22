@@ -113,9 +113,16 @@ node db/query.js "SELECT column_name, data_type, is_nullable FROM information_sc
 | `team` / `team_list` | master team list per competition type |
 | `fixture_load` | staging table the fixture service pushes from |
 | `audit_log` | system audit trail — written by route logic, not by hand |
+| `prediction` | **Matchday only** — one row per player per fixture backed; `points` null until settled. Not `pick`, deliberately. Totals are derived (`services/matchdayTable.js`), never stored. See `docs/matchday.md` |
 | `email_queue` / `email_tracking` / `email_preference` | outbound email pipeline |
 
 ## Gotchas that will cost you an hour
+
+**`competition.game_type` says which game: `'lms'` or `'matchday'`.** Almost every rule in this
+file and in the routes is Last Man Standing's — `pick`, lives, `player_progress`, eliminations.
+A Matchday competition has none of those: its players stay `'active'`, its lives are never read,
+and its picks are rows in `prediction`. Filter on `game_type = 'lms'` before reading LMS figures
+across competitions. `docs/matchday.md`.
 
 **`competition.status` is uppercase — `'SETUP'`, `'ACTIVE'`, `'COMPLETE'`.** It was not always:
 production carried a mix, because `get-user-dashboard` wrote `'active'` in lower case while
