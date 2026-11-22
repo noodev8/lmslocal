@@ -7,7 +7,7 @@ import Home from '../page';
  *
  * Same shape as /club-a and /club-b — see the comment in /club-a for why the
  * variants render the homepage rather than a page of their own, and why the
- * path is the measurement. docs/marketing-mailshot.md §7.
+ * path is the measurement.
  *
  * Named for the audience, not the sheet: this is the pub sheet, where club-a
  * and club-b are an A/B pair of the same club sheet. There is no /bar-b yet.

@@ -138,7 +138,6 @@ export default function RootLayout({
             Vercel Web Analytics. Counts page views by path, which is what makes
             the mailshot measurable: /club-a, /club-b and /bar-a are reached
             only by scanning a leaflet, so their view counts are scan counts.
-            See docs/marketing-mailshot.md §7.
 
             Cookieless and stores no personal data, so it sits outside
             CookieConsent deliberately rather than behind it.

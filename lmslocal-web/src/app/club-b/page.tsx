@@ -7,7 +7,7 @@ import Home from '../page';
  *
  * Identical to /club-a on purpose — see the comment there for why both
  * variants land on the homepage rather than on a page of their own, and why
- * the path is the measurement. docs/marketing-mailshot.md §7.
+ * the path is the measurement.
  */
 
 export const metadata: Metadata = {

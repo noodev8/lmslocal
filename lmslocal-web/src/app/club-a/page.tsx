@@ -17,8 +17,6 @@ import Home from '../page';
  * custom events and UTM parameters are Pro features — which is why this is a
  * distinct route rather than a query string on /.
  *
- * See docs/marketing-mailshot.md §7.
- *
  * noindex because this serves the same content as /, and two indexed copies
  * of the homepage compete with each other. Crawler hits would also land in
  * the scan count and inflate it. Note the page is NOT disallowed in

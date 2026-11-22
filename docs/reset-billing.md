@@ -31,7 +31,7 @@ That is wrong, and the reason is in §2.
 The product sells **slots**, which are *spent*. The code implements **seats**, which are
 *occupied*. The two agree right up until a competition is reset, and then they diverge completely.
 
-`docs/marketing-strategy.md:26` states the intended rule: *"A place is consumed when a player
+The pricing rule: *"A place is consumed when a player
 joins beyond the free twenty, and is not returned when they leave."* Consumed. Spent. Gone.
 
 But the counting query is a **live** count:
@@ -50,8 +50,7 @@ competition every August for ten years and it is still 180.
 slots were spent on the previous run. This is the whole point of pricing in slots rather than
 seats, and reset is the one place the implementation forgets it.
 
-It is also the exact customer the strategy doc names as the business.
-`docs/marketing-strategy.md:31-33`: *"Revenue does not come from one big competition — it comes
+It is also the exact customer the business depends on: *"Revenue does not come from one big competition — it comes
 from organisers who run repeatedly. A 60-player pub comp is £20 to us, once. That same landlord
 running a comp every few weeks is the actual business."* Reset **is** that landlord running again,
 and it is currently the only repeat path that bills nothing.
@@ -91,7 +90,7 @@ taken in full, nothing is deleted, nothing is reset, and no credit moves.
 Worth stating so nobody "fixes" it later. The twenty free places are a permanent, live-counted
 allowance across the organiser's account — not twenty free players per competition and not twenty
 free players per run. An organiser whose only competition is 12 players can reset it for ever
-without paying, which is correct and intended (`marketing-strategy.md:34`: *"Under 20 players is
+without paying, which is correct and intended (*"Under 20 players is
 free forever… they are the top of the funnel, not a leak."*).
 
 ---
@@ -314,15 +313,7 @@ What needs covering:
 
 ## 9. Documentation to correct alongside
 
-- **`services/botPool.js`** — header line 11 and the comment block at 18-32. Both currently
-  explain a billing policy that this change reverses. See §4.
-- **`docs/BOTS-Management.md`** — check for the same billing rationale repeated there.
-- **`CLAUDE.md`** — the admin-tool section states bots are billed *"with no bot exclusion"* as the
-  reason they are confined to our own organisers. That becomes wrong on both counts.
-- **`docs/marketing-strategy.md:26-27`** — *"A place is consumed… and is not returned when they
-  leave."* Broader than the code, which does return one via the SETUP refund. Worth tightening.
-- **`reset-competition.js` header block** — the route grows a return code and a cost. The header
-  is the contract and has to say so.
+Done.
 
 ---
 
