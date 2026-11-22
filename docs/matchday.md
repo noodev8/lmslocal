@@ -370,11 +370,13 @@ companies printed on different coloured stock) is a design-system decision. If i
    `db/migrations/2026-11-22-competition-game-type.sql`, **applied** — all 50 rows `'lms'`),
    `services/gameType.js`, the CORS header, `isLmsSql()` in every email service, the bot and LMS
    route refusals (§7.3, plus `buy-player-back-in`, `organizer-set-result` and
-   `organizer-add-fixtures`), the notification guard, the dashboard and join filters, and the web
-   sending `X-Game-Types: lms`. `push-results-to-competition` refuses a non-LMS competition with
-   `GAME_NOT_SUPPORTED` before writing anything; phase 2 replaces that with the dispatch.
-   **Deploy the server before the web**: the web's new header fails every preflight against a
-   server without it in CORS `allowedHeaders`.
+   `organizer-add-fixtures`), the notification guard, and the dashboard and join filters.
+   `push-results-to-competition` refused a non-LMS competition until phase 2's dispatch.
+   **The web does not send `X-Game-Types` yet**: it starts when `'matchday'` joins
+   `GAME_TYPES_SHOWN` in phase 3, and **the server must be live before that web deploy** — the
+   header fails every preflight against a server without it in CORS `allowedHeaders`. (It was
+   sent as `lms` at first; withdrawn the same day, since it changed nothing and made the first
+   deploy order-sensitive.)
 2. **Server. Built 2026-11-22.** Migration `db/migrations/2026-11-22-matchday-prediction.sql`
    (**applied**): `end_rule` / `end_value` and the `prediction` table, its foreign keys NO
    ACTION. `services/matchdayTable.js` (totals, floor, tie-break; `rankTable` is pure) and

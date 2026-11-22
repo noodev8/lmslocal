@@ -24,17 +24,22 @@ The games this client can show, sent on every request as X-Game-Types. The serve
 game's competitions out of the dashboard and refuses to join this client to one, so a game is
 added here only once its screens exist - 'matchday' with its phase 3 (docs/matchday.md §7, §10).
 
-DEPLOY THE SERVER FIRST whenever this header changes how it is sent. It must be in the server's
-CORS allowedHeaders: every request here is preflighted (Content-Type: application/json sees to
-that), and a preflight naming an unlisted header fails - which takes down every call, not just
-the ones that read it.
+Only sent once it says more than 'lms'. No header already means LMS only, so sending 'lms' alone
+changes nothing - and costs a deploy-order hazard: the header must be in the server's CORS
+allowedHeaders, every request here is preflighted (Content-Type: application/json sees to that),
+and a preflight naming an unlisted header fails EVERY call, not just the ones that read it. So
+it starts going out when 'matchday' is added, and the server has to be live before that web
+deploy. Check with:
+  curl -si -X OPTIONS <api>/get-user-dashboard -H "Origin: https://www.lmslocal.co.uk"
+    -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: x-game-types"
+and look for X-Game-Types in Access-Control-Allow-Headers.
 */
 const GAME_TYPES_SHOWN = ['lms'];
 
 const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
-    'X-Game-Types': GAME_TYPES_SHOWN.join(','),
+    ...(GAME_TYPES_SHOWN.length > 1 ? { 'X-Game-Types': GAME_TYPES_SHOWN.join(',') } : {}),
   },
 });
 
