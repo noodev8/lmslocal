@@ -164,3 +164,11 @@ build/
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+
+# ---------------------------------------------------------------------------
+# Local AI tooling: the impeccable design skill's install (.agents/, its lock file) and its
+# working folder (.impeccable/). Per-machine, not project code.
+# ---------------------------------------------------------------------------
+.agents/
+.impeccable/
+skills-lock.json
