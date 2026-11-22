@@ -31,6 +31,7 @@ No test framework. Verify with a build/type check, and against the API with the 
 | Touching the database, testing anything that writes | `lmslocal-server/db/README.md` |
 | Any web screen's look, and user-facing copy | `docs/design-system.md` |
 | Matchday | `docs/matchday.md` |
+| Matchday in the Flutter app | `docs/matchday-app.md` |
 | Which teams a player may pick | `docs/allowed-teams.md` |
 | How a competition gets its first round; the fixture calendar | `docs/competition-start.md` |
 | What `/game/[id]/round` shows | `docs/round-state-machine.md` |

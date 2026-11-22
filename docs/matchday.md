@@ -538,7 +538,9 @@ route's round query against one, not through the screens: no open Matchday round
    **Open:** the promote page and leaflets have not been checked for LMS wording.
 4. **Admin.** Game column and filter on the Competitions screen. (The push row report went in
    with phase 2.)
-5. **Matchday emails.** Then the app, by sending `X-Game-Types` from a new version.
+5. **Matchday emails.** Then the app, by sending `X-Game-Types` from a new version. **Everything
+   the app needs to know is in `docs/matchday-app.md`** (2026-11-22): the header switch, where the
+   app branches, the routes, and each screen as built and agreed on the web.
 
 ---
 
