@@ -6,9 +6,8 @@ particular route implements it. Two routes implement it today (`organizer-proces
 manual competitions, the admin results push for `fixture_service` ones) and they are deliberate
 copies of one ruleset. This doc is that ruleset.
 
-Companion docs: `results-processing-performance.md` (why results push one competition at a time,
-and how to make this scale), `results-processing-correction.md` (how to change a result
-that was already processed).
+Companion doc: `results-processing-correction.md` (how to change a result that was already
+processed).
 
 ---
 

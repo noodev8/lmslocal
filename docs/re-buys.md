@@ -1,7 +1,7 @@
 # Re-buys
 
-**Status: agreed, not built. Written 26 Aug 2026.** Nothing in here has shipped. §11 is the build
-list; §10 is what has to be exercised before it goes near a customer.
+**Status: Stage 1 built** (`routes/buy-player-back-in.js`, `competition_user.re_buys`). Stage 2
+(§8, the player-facing re-buy window) is not built. Written 26 Aug 2026.
 
 Companion to `docs/reset-billing.md`, and that doc should be read first — this one closes a hole
 in it and reuses its arithmetic wholesale. Where the two touch, reset-billing is the older
@@ -382,7 +382,7 @@ None of this changes the billing. That is the point of doing §3-§5 first.
 
 ## 10. Testing
 
-`docs/testing-rules.md` applies: **live production database, no staging copy.** Ask which
+`lmslocal-server/db/README.md` applies: **live production database, no staging copy.** Ask which
 competition to test against — organiser 50 owns real competitions as well as the sandbox, so
 ownership is not permission. Do not top up `paid_credit` from a script; Andreas sets it by hand.
 

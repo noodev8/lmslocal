@@ -646,7 +646,7 @@ and that screen has nothing else on it.
 **Verified on the phone**: arrow and hardware back from "MAKE PICK" both reach the main dashboard;
 from the competition dashboard's pick block, both return to that dashboard. The results and waiting
 screens were not exercised on the device — neither test competition had a locked round, and forcing
-one means writing to the database (see `docs/testing-rules.md`).
+one means writing to the database (see `lmslocal-server/db/README.md`).
 
 ---
 

@@ -584,13 +584,6 @@ Nothing further about that path is owned by this doc.
 
 ## 10. Testing
 
-Per `docs/testing-rules.md`, this is the live production database. Competition **199** (organiser
-50) is the sandbox; **200** and **204** are also organiser 50 and in `SETUP`, which covers the open
-case. 199 is `ACTIVE`, which covers the started case.
-
-The `FULL` case needs an organiser at the free limit with no credits and cannot be reproduced on
-199 without touching billing state — test that path against the lookup logic directly rather than
-by manufacturing it in the database.
-
-Do not create test competitions under any other organiser. 170 belongs to a customer and is one
-keystroke from 199.
+`lmslocal-server/db/README.md` applies — live production database, ask which competition to test
+against. The `FULL` case needs an organiser at the free limit with no credits; test it against the
+lookup logic directly rather than manufacturing it in the database.

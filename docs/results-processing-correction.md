@@ -1,18 +1,16 @@
 # Changing a Result After Processing
 
-How to correct a result that was entered wrongly and has already been processed. The third of
-three: `results-processing-logic.md` says what the process does,
-`results-processing-performance.md` says how to make it scale, this says how to change your mind.
+How to correct a result that was entered wrongly and has already been processed. Companion to
+`results-processing-logic.md`, which says what the process does; this says how to change your mind.
 
-**Status:** written 2026-08-05. Implemented as `lmslocal-server/scripts/correct-result.js` the
-same day and exercised end to end against competition 199 (organiser 50).
+**Status:** built — `lmslocal-server/scripts/correct-result.js`. Written 2026-08-05.
 
 ```bash
 # from lmslocal-server/
 node scripts/correct-result.js --fixture 1909 --result DRAW            # assess, writes nothing
 node scripts/correct-result.js --fixture 1909 --result DRAW --apply    # re-assess, then write
 node scripts/correct-result.js --teams ARS-COV --kickoff "2026-08-21 19:00" --result DRAW
-node scripts/correct-result.js --verify [--competition 199]            # section 7 health check
+node scripts/correct-result.js --verify [--competition <id>]            # section 7 health check
 ```
 
 Today this is a support path: an organiser reports a mistake, the platform operator runs it. The

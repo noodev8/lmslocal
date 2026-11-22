@@ -77,10 +77,9 @@ permissions still gets an honest picture instead of an empty screen.
   The client-side outcome vocabulary is a separate thing, converted at the boundary.
 - `processed` is a **timestamp or null**, not a boolean. `processed !== null` means the round's
   eliminations for that fixture have been applied.
-- `lockTime` doubles as kickoff. Every fixture in a round shares one, which is why a real
-  gameweek spread over Fri–Sun is pushed as several batches (see CLAUDE.md).
-- `competition.status` casing is inconsistent in the database. Don't reach for it here — use
-  `is_complete` off the dashboard payload.
+- `lockTime` doubles as kickoff. Every fixture in a round shares one: a whole gameweek is one
+  calendar block with one kick-off time.
+- Don't reach for `competition.status` here — use `is_complete` off the dashboard payload.
 
 ---
 
@@ -619,4 +618,4 @@ moment the sentence answers a real question.
 
 - `docs/design-system.md` — the visual language and the copy rules
 - `docs/results-processing-logic.md` — what "process results" actually does
-- `CLAUDE.md` → Fixture & Result Management — how the fixture service pushes
+- `CLAUDE.md` → Fixtures and results — how the fixture service pushes

@@ -24,7 +24,7 @@ real gameweek's close open.
 
 FENCED TWICE. The competition must be organised by an account in BOT_ORGANISER_IDS (organiser 50)
 AND be named with the TEST prefix below. Organiser 50 also owns real competitions
-(docs/testing-rules.md), so ownership alone is not enough; the name is the test competition
+(db/README.md), so ownership alone is not enough; the name is the test competition
 saying so itself.
 
 ONE THING IT CANNOT STOP: a test competition on the fixture service is a real competition to the
@@ -35,7 +35,7 @@ when done.
 
 PROCESSING GOES THROUGH THE REAL ROUTE. `result` writes the results and then POSTs to
 /admin/push-results-to-competition on a running server (default http://localhost:3015), with an
-admin token signed as the testing account 1088 (docs/testing-rules.md). That route writes nothing
+admin token signed as the testing account 1088 (db/README.md). That route writes nothing
 from fixture_load here - no staged row matches an odd-second kickoff - and settles the round from
 the results already on the fixtures, which is the path it keeps for exactly that case. So the code
 that settles a test round is the code that settles a real one. The server must be running the
@@ -72,7 +72,7 @@ const { getMatchdayTable } = require('../services/matchdayTable');
 // deliberately, not one a customer will arrive at by accident.
 const TEST_NAME = /^TEST(\s|$)/;
 
-// docs/testing-rules.md: the identity admin tokens are signed as during testing, so audit_log
+// db/README.md: the identity admin tokens are signed as during testing, so audit_log
 // tells test writes from real ones.
 const TESTING_ADMIN = { id: 1088, email: 'claude@lmslocal.invalid', display_name: 'Claude (test)' };
 

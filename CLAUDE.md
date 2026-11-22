@@ -1,440 +1,140 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) when working in this repository.
+LMSLocal runs football prediction competitions for pub landlords, workplaces and clubs.
+Admin-first: an organiser sets a competition up and runs it against real fixtures. Two game
+types: **Last Man Standing** (`game_type = 'lms'`) and **Matchday** (`'matchday'`, in preview).
 
-LMSLocal is a "Last Man Standing" competition platform for pub landlords, workplace organizers and
-club managers. Admin-first: organisers set up and run elimination competitions against real
-fixtures.
+## Repo
 
-## Docs to read first
+| Folder | What | Port |
+|---|---|---|
+| `lmslocal-server/` | Node + Express + PostgreSQL API | 3015 |
+| `lmslocal-web/` | Next.js 15 / React 19 / TypeScript strict / Tailwind — players and organisers | 3000 |
+| `lmslocal-admin/` | Next.js admin tool; no backend of its own, calls `/admin/*` on the server | 3001 |
+| `lmslocal-flutter/` | Player-only mobile app (Provider), same API and JWT | — |
+| `lmslocal-marketing/` | Leaflets and social tiles; plain HTML, no build. Read its README before printing | — |
 
-Each of these is authoritative for its area — **read it before changing that area, and change the
-doc first**. Email has no doc of this kind — see **Email** below.
+```bash
+npm run dev            # server (nodemon), web, admin
+npm run build          # web/admin: production build incl. type check
+npm run lint           # web/admin
+npx tsc --noEmit       # web/admin: type check only
+```
+
+No test framework. Verify with a build/type check, and against the API with the scripts in
+`lmslocal-server/db/README.md`. Deploy steps: `docs/deploy.txt`.
+
+## Read before changing
 
 | Area | Doc |
 |---|---|
-| Any screen's visual language | `docs/design-system.md` |
+| Touching the database, testing anything that writes | `lmslocal-server/db/README.md` |
+| Any web screen's look, and user-facing copy | `docs/design-system.md` |
+| Matchday | `docs/matchday.md` |
 | Which teams a player may pick | `docs/allowed-teams.md` |
-| The forward fixture calendar / competition start | `docs/competition-start.md` |
+| How a competition gets its first round; the fixture calendar | `docs/competition-start.md` |
 | What `/game/[id]/round` shows | `docs/round-state-machine.md` |
-| Writing to the database | `docs/testing-rules.md`, `lmslocal-server/db/README.md` |
-| Marketing artwork | `lmslocal-marketing/README.md` |
+| Joining a competition | `docs/player-onboarding.md` |
+| Results processing / correcting a result | `docs/results-processing-logic.md`, `docs/results-processing-correction.md` |
+| Billing for resets and re-buys | `docs/reset-billing.md`, `docs/re-buys.md` |
 | Bots | `docs/BOTS-Management.md` |
-| Matchday, the second game type (planned) | `docs/matchday.md` |
+| Sending email | `docs/email/email-operations.md` |
 
-## Architecture
+Code comments cite these docs by section (`§3`). Keep section numbers stable when editing them.
 
-### Backend (lmslocal-server/)
-- Node.js + Express, PostgreSQL with connection pooling, port **3015**
-- **Auth**: JWT + bcrypt. **Keep tokens simple** — only `user_id`, `email`, `display_name`;
-  fetch anything else from the database when needed. Middleware: `middleware/auth.js` (player),
-  `middleware/admin-auth.js`, `middleware/service-auth.js`
-- **Security**: Helmet, CORS, rate limiting, input validation
-- **Email**: Resend. The **`OUTLINE` array in `lmslocal-admin/src/app/dashboard/emails/page.tsx`**
-  is the authoritative list of what we send — it is also the admin Emails screen, so it cannot
-  drift from what is displayed, and a row with no `emailCatalog.js` entry shows greyed out.
-  Replaced `docs/email/email-outline.xlsx`, deleted 2026-08-19 — a spreadsheet nobody opens while
-  working stops being true, and it made every email a three-place edit.
-  - **The rules live in the code, not in a doc.** Each email's eligibility and the reasoning
-    behind it are in the header and `findCandidates` of its service in `services/`; the dropped
-    emails' reasons sit beside the `OUTLINE` and in `emailCatalog.js`. `docs/email/README.md` was
-    deleted 2026-10-24: it had drifted from the code in several places at once (a retired
-    `CUTOFF` still stated as a rule, unwired emails listed as wired), so it was misleading rather
-    than merely stale. A changed rule goes in the service's comment, with the date and the why.
-    `docs/email/email-operations.md` (how to send) and `email-cron-priority-order.txt` remain.
-  - **The 48-hour quiet period** (`services/emailQuiet.js`) kills rather than holds: a second
-    email to the same person inside 48h is marked sent, and every once-ever email is then lost to
-    them for good. `priority` on the `OUTLINE` is the send order that decides who wins
-  - `services/emailService.js` — **`deliver()` is the single exit point**, with test mode as a
-    parameter. Never call `resend.emails.send` directly; seven senders once did, which is why a
-    banner reading `ALL EMAILS REDIRECTED` was true of only five of them.
-  - **An archived competition gets no email, with no exemptions** (2026-09-04). Compose
-    `notArchivedSql()` from `services/competitionEngagement.js` into every candidate query, never
-    the condition by hand. `game_complete` was argued for as an exception — it is once-ever, so
-    archiving suppresses the players' result permanently — and refused: archiving has a reason
-    behind it the code cannot see, and un-archiving is one click. `join_lms` is the only service
-    without it, being platform-wide with no competition at all.
-  - **Every competition email is Last Man Standing's** (2026-11-22). Compose `isLmsSql()` from
-    `services/gameType.js` into the candidate query beside `notArchivedSql()`: the copy talks
-    about picks and lives, and another game (`docs/matchday.md`) must never receive it. Only
-    `join_lms` and `join_blocked` go without — neither is about a game.
-  - `services/emailPreference.js` — the one definition of opt-outs. Compose the candidate query's
-    exclusion with `notOptedOutSql()`, never by hand. Preferences group by **section** — Game and
-    Info, the outline's two — and **an absent row means subscribed**.
-  - `services/pickReminder.js` — the worked example: one definition of eligibility used by the
-    batch route, the admin preview and the send. Copy this shape; `services/joinLms.js` is the
-    second built to it.
-  - `services/emailCatalog.js` — **which emails are wired, in one list**, read by the three admin
-    routes. Adding an email is one entry, not three edits. `scoped` says whether it needs a
-    competition at all.
-  - Unsubscribe is an **opaque token on `app_user`**, not a JWT — the old one was signed with
-    `JWT_SECRET`, so killing a leaked link meant logging out every user.
-  - Sent from `lmslocal-admin` → Emails, or by `scripts/email-sweep.js <email_type>` on the VPS
-    crontab — the paste-ready block, in priority order, is `docs/email/email-cron-priority-order.txt`.
-    Both take the same path (`sendToAll` in `services/emailSweep.js`) and re-derive candidates
-    on every run, so a rule changed in `findCandidates` applies to both at once.
-- **Dependency override**: `package.json` pins `uuid` to `^11.1.1`. It is transitive via
-  `gaxios`/`teeny-request` under `firebase-admin`, which resolve to `uuid@9` and carry
-  GHSA-w5hq-g745-h8pq. The vulnerable path (v3/v5/v6 with a `buf` argument) is unreachable — both
-  callers use `v4()` with no arguments — so this keeps `npm audit` at zero rather than patching a
-  live hole. Remove it once firebase-admin ships on `uuid` >= 11.1.1; verify FCM still sends.
+## The database is production
 
-### Frontend (lmslocal-web/)
-- Next.js 15.5, React 19, TypeScript 5 (strict), Tailwind + PostCSS, port **3000**
-- Axios client `src/lib/api.ts` — organised by domain (`authApi`, `playerApi`, `competitionApi`…),
-  full request/response types, interceptors for JWT injection and 401 → localStorage cleanup
-- No global state manager: local state, localStorage, and `AppDataContext` as the single source of
-  truth for competition data. Request caching in `src/lib/cache.ts`
-- React Hook Form for forms, `@heroicons/react` for icons. `@/*` maps to `./src/*`
-- **Design system**: `docs/design-system.md` — the "pools coupon" language (tinted stock, two
-  inks, signage caps, typewriter for filled-in data). Class constants in `src/lib/design.ts`,
-  colour/font tokens in `tailwind.config.js`, shared chrome in `src/components/public/`. Every
-  signed-out page is built to it, as are the dashboard, the game screens, competition setup and
-  billing; **`/profile` and `lmslocal-admin` are not**. `grep -rl "@/lib/design" src/app` is the
-  honest answer. §10 covers migrating a screen. It also carries the copy rules: "you"
-  always means the organiser, no invented testimonials, never state opt-in features as universal.
+There is **no staging copy** — development talks to the live database. Read
+`lmslocal-server/db/README.md` before any write. In short: reads are free; **ask which
+competition to test against** and never reuse an id from a doc, memory or earlier session;
+organiser 50 (Andreas) owning it is necessary, not sufficient. Use `node db/query.js` /
+`node db/write.js` from `lmslocal-server/`; there is deliberately no MCP server. No schema file
+exists — query `information_schema`. Table names are singular (`app_user`, not `users`).
 
-### Admin tool (lmslocal-admin/)
-- Next.js 15.5.9, React 19, TypeScript 5, port **3001**. No backend of its own — calls the same
-  Express server under `/admin/*`
-- **Auth**: normal LMSLocal credentials, but a separate login route, a separate signing key
-  (`JWT_ADMIN_SECRET`), a `scope: "admin"` claim, and a live `app_user.is_admin` check
-- **Rule: never add an admin bypass to an existing player route** — admin gets its own routes
-- **Bots**: placeholder players for seeding a competition. **A bot is never chargeable** — no
-  credit, no free place, in every counting query, via `services/botPool.js`. Still confined to the
-  organisers listed there, but for a product reason not a billing one: a customer's competition
-  filling with fake entrants means real players facing opponents who are not people
-- **Archiving**: a competition can reach `ACTIVE` with a round pushed and no pick ever made, so
-  the status counts flattered us — seven of thirty rows. Archived rows get their own tile and tab
-  and are excluded from every other count. **Marking is not deleting** — an archived competition
-  still receives fixtures and results like any other (2026-10-19); archiving only hides it.
-  **`competition.archived_at` is a decision an admin made, never a calculation** (2026-09-04).
-  `/admin/set-competition-archived` is the only writer. It replaced a derived "stalled" rule (no
-  real players **or** no picks, quiet 7 days) plus a tri-state `stalled_override`: the rule could
-  only be evaluated in JS, and "never a second copy in SQL" then forced `get-admin-stats`,
-  `get-admin-competitions` and `get-admin-organisers` each into a first round trip over the whole
-  table before they could ask their real question. All three are gone; so is the override's
-  "rescue" leg, which was never used on a single row.
-  **Derive to inform, never to decide** — the signal the rule read is still on the screen as the
-  "Last activity" column, which is the default sort. Do not turn it back into a verdict.
-  `services/competitionEngagement.js` now only holds the display fragments
-- **Screens**: **`/dashboard/competitions` is the landing page** — there is no Overview.
-  `/dashboard` was deleted because its counts duplicated the Competitions screen and disagreed
-  with it (16 active against 14 — it counted by status alone and did not exclude archived)
-- **Active people**: four small cards under the Competitions tiles — registered accounts holding
-  a place in a competition that is **neither complete nor archived**; eliminated players count.
-  Which competitions those are comes from the same query that produces the competition counts, so
-  the two cannot disagree.
-  Guests are excluded so `active` is a true subset of `total`, and get their own card via
-  `active_guests`; `organisers.live` gets a fourth. It replaced a cumulative "genuine people"
-  count that could only ever rise and so could not tell growth from churn. `competitions.inactive` is gone; archived answers it better
-- **Organisers**: the screen lists only organisers owning a competition that is **ACTIVE or
-  PENDING and not archived** — filtered server-side on `archived_at`, so it cannot drift
-  from the Competitions screen, whose `organisers` card shows the same number (`organisers.live`
-  from `get-admin-stats`). Every competition and player figure on a row is scoped to their
-  non-archived competitions; **the money is not** — credits and spend cover the whole account,
-  because a place that was charged for stays charged. "Players" counts memberships the same way
-  the competitions screen does so the two agree; "spend" is `credit_purchases`, **never**
-  `app_user.paid_credit`
+## API conventions (server)
 
-### Marketing artwork (lmslocal-marketing/)
-- Leaflets and social tiles — anything ending as a PDF or PNG rather than a page on the site.
-  Plain HTML + Tailwind CDN, **no build step, no `package.json`**, imported by nothing
-- **Never print by hand.** `node make-pdf.js <leaflet>` is the only supported route, because two
-  failures are invisible until the leaflets are printed: a `file://` page **silently falls back to
-  Arial** for two of the three brand fonts, and print shops **reject live fonts**, wanting text as
-  outlines. The script serves over http and runs Ghostscript to fix both. `--home` for your own
-  printer
-- **Bleed**: `?bleed` (`_shared/bleed.js`) grows the sheet 3mm per side. The print-shop build uses
-  it automatically. Handoff is "154 × 216mm, 3mm bleed, trims to A5"
-- **`out/` is scratch and git-ignored; `press/` is tracked** and holds only PDFs a printer actually
-  ran, because a reprint has to match the original
-- Brand tokens in `_shared/brand.js` **duplicate `lmslocal-web/tailwind.config.js`** — change both
+- One route per file, lowercase-hyphenated (`set-pick.js`). POST for mutations, GET for reads.
+- **Always HTTP 200**, with `return_code` in every response. Reuse the existing codes — the
+  frontends match on the strings: `SUCCESS`, `MISSING_FIELDS`, `INVALID_*`, `*_NOT_FOUND`,
+  `UNAUTHORIZED` (not signed in), `FORBIDDEN` (signed in, not allowed), `SERVER_ERROR`.
+- Every route opens with the standard header block (purpose, method, payload, responses, every
+  return code). Copy the format from `routes/get-user-credits.js`.
+- `const { query, transaction } = require('../database');` — never the pool directly.
+  Parameterised SQL only. No N+1: join or batch.
+- Log through `utils/apiLogger.js` as surrounding routes do.
+- Comments explain **why**, not what.
+- Secrets come from `.env` (both `lmslocal-server/` and `lmslocal-web/` have one). The repo is
+  public: no credentials in tracked files. Say so if a new env var is needed.
+- JWT payload stays `user_id`, `email`, `display_name`; fetch anything else from the DB.
+- **Admin gets its own `/admin/*` routes** (separate `JWT_ADMIN_SECRET`, live `is_admin` check).
+  Never add an admin bypass to a player route.
+- CORS allows only the origins in `CLIENT_URL` — a local frontend on an unlisted port is refused.
 
-### Mobile (lmslocal-flutter/)
-Flutter/Dart, Provider for state, offline-capable player dashboard, same backend JWT.
-`flutter pub get`, `dart run build_runner build`.
+## Web
 
-## Development commands
+- API client `src/lib/api.ts`, grouped by domain with full types; caching in `src/lib/cache.ts`;
+  competition data via `AppDataContext`. No global state library. `@/*` → `./src/*`.
+- Design system: class constants in `src/lib/design.ts`, tokens in `tailwind.config.js`, shared
+  chrome in `src/components/public/`. New or reworked web screens are built to it; `/profile` and
+  the admin tool are not on it yet.
 
-```bash
-# lmslocal-server/
-npm run dev        # nodemon
-npm start          # production
+## Game rules (LMS)
 
-# lmslocal-web/ (and lmslocal-admin/)
-npm run dev        # hot reload, port 3000 (admin: 3001)
-npm run build      # production build, includes type checking
-npm run lint       # ESLint
-npx tsc --noEmit   # type check only
-```
+- One team per round, no reuse until every team has been used, then all return. Availability is
+  **derived from the player's own picks** in `services/allowedTeams.js` — the only stored state
+  is `competition_user.teams_reset_round`. Do not reintroduce a stored copy.
+- A round locks at `round.lock_time` and nothing else. Auto-lock when everyone has picked is
+  deliberately disabled (`utils/roundLocking.js`).
+- Win advances; draw or loss eliminates; a missed pick costs a life. Regulation time only.
+- LMS-only routes refuse a Matchday competition with `FORBIDDEN`. Matchday has no picks, lives
+  or eliminations — see `docs/matchday.md`.
 
-No test framework is configured.
+## Fixtures and results
 
-## API standards
+- `competition.fixture_service` is fixed at creation: **true** = we supply fixtures and results
+  via the admin tool; **false** = the organiser enters them on `/game/[id]/round`
+  (`src/lib/roundState.ts`, `organizer-*` routes). Change it only in the database, on request.
+- Fixture service flow: a gameweek is keyed as a block on the admin **calendar** (the only place
+  fixtures are entered) → **Stage** copies it into `fixture_load` and pushes it to every eligible
+  competition, one transaction each → results are confirmed and pushed per competition → the push
+  that settles the last competition closes the gameweek and stages the next block.
+- Whether a competition is ready for a round is `evaluateCompetition` in
+  `services/fixtureService.js` — the single rule for both the admin screen and the push. The
+  first-round rules (`ready_at`, start blocks, lead times) are in `docs/competition-start.md`.
+- To play rounds in a **test** competition use `scripts/sandbox-round.js`, never the calendar or
+  Stage — those are shared by every customer.
 
-- **POST for mutations, GET for retrieval.** One route file per function — never combine
-  endpoints. Lowercase-with-hyphens filenames (`set-pick.js`), not underscores
-- **ALWAYS return HTTP 200**, including for errors — status carried in `return_code`. An HTTP
-  error status can cause an unhandled rejection and crash the frontend
-- **Every response includes `return_code`.** Reuse the existing vocabulary rather than inventing a
-  synonym, since the frontend checks these strings: `SUCCESS`, `MISSING_FIELDS`, `INVALID_*`
-  (`INVALID_EMAIL`…), `*_NOT_FOUND` / `NOT_FOUND`, `UNAUTHORIZED` (not authenticated), `FORBIDDEN`
-  (authenticated, not permitted), `SERVER_ERROR`
-- **Header block**: every route opens with the standard comment block — purpose, method, request
-  payload, success and error responses, and **every** return code it can emit. Copy the format
-  verbatim from a recent route such as `routes/get-user-credits.js`, separator lines included
-- **Logging**: through `utils/apiLogger.js` (requests, responses, timing) — match the surrounding
-  pattern
-- **Queries**: `const { query, transaction } = require('../database');` — both come from
-  `database.js`, there is no `utils/transaction.js`. Never touch the pool directly. Always
-  parameterized, never string-interpolated. **No N+1** — JOIN or batch instead of looping lookups
-- **Comments**: explain **why**, not what — the non-obvious constraint, the reason for an
-  ordering, the edge case guarded. Do not narrate code that already reads clearly
-- **Secrets**: never hardcoded. Read from `.env` via `process.env`, and say so if a new variable
-  is needed
+## Email
 
-`/get-user-dashboard` is the current exemplar: one unified endpoint returning competitions where
-the user is organiser **or** participant, with role-specific fields.
+- Every email leaves through `deliver()` in `services/emailService.js`. Never call Resend
+  directly. Email is live: triggering a send for a customer competition mails real people.
+- What we send, and its priority, is the `OUTLINE` in
+  `lmslocal-admin/src/app/dashboard/emails/page.tsx`. Which emails are wired is
+  `services/emailCatalog.js` — adding one is a catalog entry plus a service.
+- Each email's eligibility and reasoning live in its service's header and `findCandidates`;
+  record rule changes there with the date and the why. `services/pickReminder.js` is the shape
+  to copy.
+- Every candidate query composes `notOptedOutSql()` (`emailPreference.js`), and every
+  competition email also `notArchivedSql()` (`competitionEngagement.js`) and `isLmsSql()`
+  (`gameType.js`). Never write these conditions by hand. Archived competitions get no email,
+  with no exceptions.
+- The 48-hour quiet period (`services/emailQuiet.js`) drops a second email rather than delaying
+  it; `priority` on the `OUTLINE` decides which wins. Under-sending is preferred to over-sending.
 
-## Environment
+## Admin rules
 
-- `.env` files exist in **both** `lmslocal-server/` and `lmslocal-web/` — check both
-- Required: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `PORT`, `JWT_SECRET`
-- Optional: `CLIENT_URL` (CORS), `NODE_ENV`, `RESEND_API_KEY`, `NEXT_PUBLIC_API_URL` (frontend API
-  endpoint), `MASTER_PASSWORD` (dev only — log in as any user for testing)
-- Pool: max 20 connections, 30s idle timeout, 2s connection timeout
-- Rate limits: general 1000 req/15min; DB-intensive 50 req/10sec keyed by IP + path;
-  `joinLookupLimit` 30 req/min on the public `/get-competition-by-code`
-- CORS: the origins in `CLIENT_URL` (comma-separated), plus same-origin. There is no built-in
-  localhost range - a local web server on a port not listed there is refused. Helmet CSP allows
-  unsafe-inline for React dev
+- **A bot is never chargeable** — no credit, no free place — in every counting query, via
+  `services/botPool.js`. Bots are confined to the organisers in `BOT_ORGANISER_IDS`.
+- `competition.archived_at` is a decision an admin makes (`/admin/set-competition-archived`),
+  never something calculated. Archived competitions still get fixtures and results, but are
+  excluded from every count and every email. Show activity signals; do not turn them into a rule.
+- Organiser spend is `credit_purchases`, never `app_user.paid_credit`.
 
-### Ignore files: one of each, at the repo root
+## Repo housekeeping
 
-**There is exactly one `.gitignore` and one `.vercelignore`, both at the repo root. Never add a
-second — put the rule in the root file.** The only exception is the six generated `.gitignore`
-files under `lmslocal-flutter/`, one per platform folder: they cover build output the root file
-does not, and `flutter create` writes them back anyway.
-
-`.vercelignore` at the root applies to **every** Vercel project built from this repo, whichever
-Root Directory it uses — so a per-app copy buys nothing and drifts. `lmslocal-admin` had one, a
-byte-for-byte copy down to a comment claiming it lived at the root, and it was already out of step.
-
-**`.gitignore` is git's file, not Vercel's** — Vercel never reads it. Rules apply from the root
-down to every subdirectory, so one file covers both apps no matter how they deploy.
-
-This is not tidiness. `*.mp4` in the root `.vercelignore` silently deleted
-`lmslocal-web/public/promo.mp4` before every build: the file was committed and intact, the build
-succeeded, the poster beside it served, and the video 404ed. An excluded file is
-**indistinguishable from one that never existed** — it returns the same 404 with the same Etag as
-a path that has never been used — and nothing in the build log mentions it. When a committed file
-is missing in production, **read the root `.vercelignore` first**.
-
-## Database access
-
-**Before writing anything, read `docs/testing-rules.md`.** This is the **live production
-database** and there is no staging copy. **Organiser 50** (`aandreou25@gmail.com`) owns the
-sandbox; every other competition belongs to a customer and is read-only unless the user names it
-in that session.
-
-**Ask which competition to test against — never reuse an id from a doc, a memory or an earlier
-session.** Andreas creates a test competition, works through it and deletes it, so the sandbox is
-a different competition week to week. No id is recorded here deliberately: competition 199 was
-named as the sandbox in older docs and no longer exists, and its replacement will go the same way.
-Organiser 50 is necessary but **not sufficient** — he also owns real competitions — so the answer
-has to come from him, not from an ownership check.
-
-**There is no MCP server for this project, deliberately.** Use the scripts, run from
-`lmslocal-server/`:
-
-```bash
-node db/query.js "SELECT ..."     # read-only (enforced by a READ ONLY transaction)
-node db/write.js "UPDATE ..."     # writes: one transaction, --dry-run, no-WHERE guard
-```
-
-**To play rounds in a test competition, use `scripts/sandbox-round.js`**, never the calendar or
-Stage: those are shared by every customer on the team list. It gives a competition named `TEST` / `TEST ...`
-rounds of its own and settles them through the real results push — `docs/testing-rules.md`.
-
-`lmslocal-server/db/README.md` is the front door — it also lists the data landmines (the
-`competition.status` casing inconsistency, what `fixture.result` actually holds, why
-`player_progress` has more rows than `pick`), each of which costs an hour if met cold.
-
-**Schema**: no checked-in schema file — ask the database, which is never out of date:
-
-```bash
-node db/query.js "SELECT column_name, data_type, is_nullable FROM information_schema.columns
-                  WHERE table_name='competition' ORDER BY ordinal_position"
-```
-
-Table names are **singular**: `competition`, `round`, `pick`, `team`, `team_list`, `fixture`,
-`fixture_load`, `fixture_block` / `fixture_block_item`, `app_user` (not `users`),
-`competition_user` (membership, lives, admin flags), `player_progress` (outcomes by round),
-`credit_purchases`, `audit_log`.
-
-## Competition game logic
-
-### Player rules
-- **Picks**: one team per round, no reuse across rounds — until every team has been used, when
-  they all come back. What a player may still pick is **derived from their own picks**, not
-  stored; the only stored state is `competition_user.teams_reset_round`. The `allowed_teams` table
-  was **dropped in Aug 2026** — it duplicated derivable state and had **three** rebuild
-  implementations carrying **two** different definitions. `services/allowedTeams.js` is now the
-  only definition; **do not reintroduce a stored copy**
-- **Lock**: at the admin-set `round.lock_time` and nothing else — there is no automatic buffer
-  before kickoff. **Auto-lock on "everyone has picked" is disabled**: it is coded in
-  `utils/roundLocking.js` but `checkAndLockRoundIfComplete` returns `AUTO_LOCK_DISABLED` from the
-  first line and the rest of the function is deliberately unreachable, kept for re-enabling —
-  waiting for the first kickoff is more exciting. So a full round stays open, and deleting a pick
-  reopens picking for that player
-- **Outcome**: win = advance; draw or loss = eliminated; missed pick = life lost. Judged on
-  **regulation time only** (90 minutes + stoppage)
-- Players join by competition slug or access code
-
-### Fixtures and results
-
-Two worlds: `competition.fixture_service = true` (we supply fixtures) or false (the organiser
-does). **Who supplies them is fixed at creation** — `update-competition` ignores it, the settings
-screen does not offer it, and `set-fixture-service-organiser` is unregistered in `server.js`.
-Change it in the database on request. A reset preserves it.
-
-**Organiser-managed** competitions use the `organizer-*` routes. Their fixtures and results are
-**one screen**, `/game/[id]/round`, driven by the state machine in `src/lib/roundState.ts` — read
-`docs/round-state-machine.md` first. `/game/[id]/organizer-fixtures` survives only as the fixture
-entry form and redirects to `/round` on automated competitions; `/game/[id]/organizer-results` is
-gone.
-
-**Fixture service** — staged in `fixture_load`, driven from `lmslocal-admin` → `/dashboard/fixtures`.
-Staging: `/admin/add-staged-fixtures`, `get-staged-results`, `set-staged-result`,
-`get-fixture-team-lists`. Opt-in per competition via `/admin/set-fixture-service`. Admin token on
-all of it (`middleware/admin-auth.js`) — the old `12221` access code and the `BOT_MAGIC_2025` body
-secret are gone from this path, the latter having shipped in the public web bundle.
-
-**Everything goes out one competition at a time** — one transaction each. Fixtures: **Stage pushes
-them itself** (2026-10-19) — `promote-fixture-block` loops `pushFixturesToCompetition` over every
-eligible competition, each in its own transaction, and reports pushed / skipped / failed.
-`/admin/get-fixture-push-targets` + `/admin/push-fixtures-to-competition` remain as the per-row
-fallback on the Fixtures tab. Stage cannot be undone, so it confirms first. Results:
-`/admin/get-push-targets` + `/admin/push-results-to-competition`, then `/admin/clear-staged-batch`
-once every competition has been pushed. All **singular**. The two halves became per-competition
-for different reasons — *results*: processing scales with player count and the old route did the
-whole batch in one transaction, so a timeout anywhere rolled every competition back; *fixtures*:
-the only thing keeping a mis-staged batch away from every customer was `FIXTURE_SERVICE_TEST_MODE`,
-an env var naming one organiser's email that had to be set before testing and unset after, and
-which silently starved real customers of fixtures while on. **That variable is gone from the
-codebase** — delete it from `.env` if still there. Both plural routes
-(`push-fixtures-to-competitions.js`, `push-results-to-competitions.js`) are deprecated,
-**unregistered**, and kept on disk as frozen references — do not edit them or wire them back up.
-
-**One staged batch at a time per team list** — `fixture_load` itself is the pending batch, and
-staging refuses while it is non-empty. Closing the gameweek is a separate step from pushing results
-because the staged rows must survive until every competition has been pushed to individually; it
-refuses while any competition is unfinished, unless forced. **The Results screen closes it itself**
-after the push that settles the last competition (2026-10-19), and an unforced close **stages and
-sends the next calendar block** (`services/stageBlock.js`, shared with Stage). So the operator's
-whole gameweek is: confirm results → Push all. A forced close sends nothing — see
-`docs/competition-start.md` §7. **It also deletes the calendar block the batch came from** — a played gameweek is not kept,
-since the record of what was played is the `fixture` rows on each competition, which are
-independent copies (nothing references `fixture_block_item`, and `fixture` carries no foreign keys
-at all). It clears `round.source_block_id` on that block first: the FK is `NO ACTION`, so a round
-still pointing at it would roll back the whole close.
-
-**Fixtures are keyed and staged on the CALENDAR, and nowhere else.** The Fixtures tab's entry form
-was deleted — it was a second place to key a gameweek, calling `add-staged-fixtures` directly, and
-it reappeared the moment a batch was cleared, reading as a demand for fixtures from someone who had
-already keyed the next three weeks next door. **`add-staged-fixtures` is now unreachable from the
-UI**; the route still works and is kept for the block-per-batch behaviour it documents, but every
-path goes `add-fixture-block` → `promote-fixture-block`. The tab now shows the batch going out, or
-points at the calendar.
-
-**A whole gameweek is ONE block, with ONE kick-off time set at the top of the form.** That time is
-the block's lock time and every fixture in it gets that value; `promote-fixture-block` copies them
-through and the push takes the earliest, which is all of them. `fixture_block_item.kickoff_time`
-is still per row and the server still takes the MIN — the schema can hold a 12:30 and a 15:00, the
-form just does not offer it, because nothing used it and the only thing it could change was
-locking a block earlier than intended.
-
-This retires the multi-batch dance: under the old staging form a Fri–Sun gameweek was several
-batches, one round each, with "starts a new gameweek" unticked on the second and third. **That
-checkbox is no longer asked** — see the long note where it stood, in
-`lmslocal-admin/src/app/dashboard/fixtures/calendar/page.tsx`. There is nothing left to split, so
-there is nothing to answer. `opens_gameweek` is still sent, stored and enforced server-side
-(`loadBlockForStart` refuses a false block as a start option, and the first-round rules still
-check it); only the question is gone. It has been true on every block ever created.
-
-**The label is derived too**, from the earliest kickoff — `labelForKickoff` in
-`services/fixtureBlock.js`, the one definition, shared with `add-staged-fixtures`. It was the only
-part of a start option not taken from the fixtures, so a typed one could contradict the kick-off
-time shown directly beneath it on the organiser's start chooser. `add-fixture-block` and
-`update-fixture-block` no longer accept a `label`; editing a block re-derives it.
-
-**When a competition is ready for a round**: `evaluateCompetition` in `services/fixtureService.js`
-— the one implementation, used by both the admin candidate list and the push, so the screen can
-never offer a button the push then refuses. A skipped competition says which rule stopped it in
-the push result's `reason`.
-
-Every push needs the batch's earliest kickoff to be **in the future**; a passed kickoff would
-create a round locked on arrival that nobody could pick in. A competition's **first** round needs
-three more things, and only the first:
-
-1. **`competition.ready_at` — the organiser has pressed Ready** on `/game/[id]/round`. We never
-   ask them to predict a start date, because we cannot say when the next fixtures are. Nothing is
-   pushed until they say so, however long that takes. Reversible until the first round exists
-   (`/set-competition-ready`); a **reset clears it**, so an emptied competition goes back to
-   waiting instead of taking the next batch with nobody told.
-   **Pressing Ready publishes round 1 there and then** — `set-competition-ready` calls
-   `pushFixturesToCompetition` itself in a second transaction after the flag commits, swallowing
-   failure so the organiser's decision always sticks. Without it they were left "all set" beside a
-   Play button that did nothing until an operator opened the admin screen.
-   **So the button is only offered when a round is available** (`can_start` from
-   `/get-competition-start-outlook`) — Ready means "start me on the round I can see", not a
-   standing order. When they can't start, the card drops the button and says why: it names the
-   current batch's kickoff and says to come back after it, or — when nothing is staged — says only
-   that there is nothing ready, since no date exists to promise.
-2. **`fixture_load.opens_gameweek`** — the batch must **start** a gameweek, not continue one.
-   Otherwise a competition first eligible on the Saturday gets a round 1 of Sunday's two matches
-   while everyone else plays a full slate. Still enforced, but **no longer asked**: a block holds a
-   whole gameweek, so there is nothing to split, and it is true for anything keyed on the calendar.
-3. **now + 48 hours** (`FIRST_ROUND_LEAD_TIME_HOURS`) — someone pressing Ready on Friday afternoon
-   must not be handed Saturday's matches before they have told anyone.
-
-`/get-competition-start-outlook` runs the same evaluation for the organiser's own card, so the
-date shown is the one the push would produce. `competition.earliest_start_date` is a **dead
-column** from the old "wait N weeks" question — nothing reads or writes it.
-
-**The forward calendar** (`fixture_block` / `fixture_block_item`, `/dashboard/fixtures/calendar`)
-— read `docs/competition-start.md` first. `fixture_load` was doing two jobs: the calendar of what
-is coming AND the batch going out now. Its one-batch-at-a-time rule is right for the second and
-made the first impossible, which is why a new competition sat empty while its organiser recruited.
-Blocks are the calendar: several at once, provisional, editable, keyed by hand weeks ahead.
-**Stage** copies one into `fixture_load` (`/admin/promote-fixture-block`) and pushes it to every
-eligible competition; results and closing the gameweek are unchanged. Routes: `/admin/get-fixture-blocks`, `add-fixture-block`,
-`update-fixture-block`, `delete-fixture-block`, `promote-fixture-block`. Team validation is shared
-with `add-staged-fixtures` via `services/fixtureBlock.js`, so a block cannot pass when keyed and
-fail when promoted.
-
-- **A competition created against a block has round 1 from the moment it exists** — real fixtures,
-  a real lock time, provisional until the block is promoted. `create-competition` takes
-  `start_block_id`, offered by `/get-competition-start-options` (up to three dates, no fixtures —
-  the organiser picks *when*, not *which*, each shown as "in N days"). Two thresholds in
-  `fixtureBlock.js`: `START_LEAD_TIME_HOURS = 1` decides what is offered, `DEFAULT_MIN_HOURS = 48`
-  what is preselected — the soonest option unless it locks inside 48h
-- **`add-staged-fixtures` creates a `fixture_block` for every batch it stages**, so the batch going
-  out now is itself a start option, usually the soonest. There is one kind of thing, not "blocks
-  and also batches". When that block is pushed, `pushFixturesToCompetition` **reconciles** the
-  round rather than creating a second one, re-points picks by team, and clears `source_block_id`
-- `reset-competition` asks the same question and rebuilds round 1 the same way — both go through
-  `createRoundFromBlock`, and the organiser-facing chooser is one component,
-  `lmslocal-web/src/components/StartDateChooser.tsx`
-- **The `ready_at` gate is deliberately still there, permanently.** Not a legacy — it is the
-  fallback for manual competitions, team lists with no calendar, a calendar with nothing far
-  enough ahead, and the competitions already on it. The old rules are skipped for any competition
-  that already has a round, which block-started ones always do, so the two run side by side. The
-  Ready card hides itself: `isStartGateVisible` needs `phase === 'NO_ROUND'`
-- Emails follow it: `created_comp` names the start date instead of the Ready button when round 1
-  exists, and `services/shareReminder.js` warns the organiser 48h before joining closes
-
-**Disabled routes**, preserved with a `.delete` extension: create-round, add-fixtures-bulk,
-submit-results, update-round, reset-fixtures, set-fixture-result, get-calculated-fixtures,
-organiser-mid-round-submit-tip.
+- Exactly **one `.gitignore` and one `.vercelignore`, both at the repo root** (the generated
+  ones under `lmslocal-flutter/` excepted). `.vercelignore` applies to every Vercel project and
+  silently drops matching files from the deploy — when a committed file 404s in production,
+  check it first.
+- `lmslocal-server/package.json` overrides `uuid` to `^11.1.1` to clear an `npm audit` advisory
+  under `firebase-admin`. Remove it once firebase-admin depends on `uuid` >= 11.1.1.

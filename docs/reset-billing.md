@@ -1,8 +1,7 @@
 # Charging for a reset
 
-**Status: built and tested on the backend, 10 Aug 2026.** Written 8 Aug 2026. Every §8 case has
-been exercised against competition 206 except the front end, which is being checked separately.
-`FREE_PLAYER_LIMIT` is still lowered in `.env` — see §8 before shipping.
+**Status: built** (`services/resetCost.js`, `routes/get-reset-quote.js`, `routes/reset-competition.js`).
+Written 8 Aug 2026.
 
 Two pieces of work, and the order is **not** free:
 
@@ -288,36 +287,13 @@ it cannot mislead anyone. The existing billing page already refreshes the balanc
 
 ## 8. Testing
 
-Constraints from `docs/testing-rules.md`: this is the **live production database** with no staging
-copy.
+`lmslocal-server/db/README.md` applies — live production database, ask which competition to test
+against. Andreas sets `app_user.paid_credit` by hand; do not top it up from a script.
 
-**Competition 206, "Red Barn LMS", organiser 50 (`aandreou25@gmail.com`) is the test competition.**
-Competition 199 no longer exists — it is gone, not renamed. **Competition 200 also belongs to
-organiser 50 and is NOT a test competition**: owning it is not permission to write to it. Check
-the id and the name before any targeted write, not just `organiser_id`.
-
-Andreas sets `app_user.paid_credit` on user 50 by hand between tests, so affordability is his to
-arrange — do not top the balance up from a script.
-
-### The free limit has to come down to test any of this
-
-Once §4 lands, organiser 50's chargeable population is tiny — the bots stop counting, leaving
-roughly three real players in 206 and one in 200. Against a limit of 20 **every reset is free and
-there is nothing to test.**
-
-So `FREE_PLAYER_LIMIT` in `lmslocal-server/.env` is lowered for this work (production stays at
-20). Red Barn then quotes a real, non-zero price and the refusal, the debit and the refund can all
-be exercised without adding a single row. It is the same variable every counting query reads, so
-nothing goes inconsistent while it is lowered.
-
-It went to **3** for the backend tests, then to **1** once the removal tests left competition 206
-with a single member — the limit has to stay below the chargeable population or every quote comes
-back free and there is nothing on screen to look at.
-
-**Put it back to 20 when this is finished.** ⚠️ It is currently **1**.
-
-Adding ~20 offline players to 206 instead was considered and rejected: it spends real credits off
-Andreas's balance and leaves cleanup behind.
+Organiser 50's chargeable population is far below `FREE_PLAYER_LIMIT` (20), so every reset quotes
+free. To see a price, lower `FREE_PLAYER_LIMIT` in `lmslocal-server/.env` below the sandbox's real
+player count for the session, and **put it back to 20 afterwards**. Adding offline players instead
+spends real credits.
 
 What needs covering:
 

@@ -241,7 +241,7 @@ is fixed **by hand in the database** if one does, and built properly later, for 
 once. LMS has the same gap: no postponement concept, a round that cannot finish processing, and
 the operator force-closing the gameweek (`docs/competition-start.md` §3).
 
-The manual fix for Matchday, through `db/write.js` (read `docs/testing-rules.md` first): set
+The manual fix for Matchday, through `db/write.js` (read `lmslocal-server/db/README.md` first): set
 `points = 0` on that fixture's predictions and stamp the fixture's `processed`. The round then
 counts as fully processed, and the completion check runs on the next push.
 
@@ -410,7 +410,7 @@ companies printed on different coloured stock) is a design-system decision. If i
    fixture. The admin Results row reports "N predictions settled · X leads on 34".
    **Tested** end to end on test competitions under organiser 50, through the real routes and
    the real results push, with `scripts/sandbox-round.js` supplying rounds and results (see
-   `docs/testing-rules.md`): predictions made, changed, cleared, refused after lock and after
+   `lmslocal-server/db/README.md`): predictions made, changed, cleared, refused after lock and after
    the game ended; a partial push showing a provisional total floored at 0; a round crossing
    the target mid-round and completing only when settled; the rounds ending; reset, both
    deletes, remove-player and leaving with predictions in place; the reconcile SQL in a

@@ -25,7 +25,7 @@ automatic:
 
 The prefix still exists on the `app_user` account (`Bot Alice`), so the pool and the admin Bots
 screen stay readable. What players see is `competition_user.player_display_name`, which is
-per-competition — competition 200 has it stripped to bare first names, competition 199 does not.
+per-competition, so it can differ from one competition to the next.
 
 **2. Bots can only go in our own competitions.** The Bots screen only offers competitions run by
 an organiser in `BOT_ORGANISER_IDS` (`lmslocal-server/services/botPool.js`), currently just
@@ -148,25 +148,17 @@ Each route's header block carries its full payload, response and return codes.
 - **Picking never locks a round.** `checkAndLockRoundIfComplete` returns `AUTO_LOCK_DISABLED`
   before doing anything (`utils/roundLocking.js`); waiting for the first kickoff was judged more
   interesting than locking the moment the last pick lands.
-- **Bots count as players everywhere else.** They appear in the platform stats on the admin
-  Overview screen and in the organiser's own player counts. At current numbers that is noise,
-  but it is worth remembering when reading those figures.
-- **A bot picks under exactly the same rules as a person.** `set-bot-pick` runs the two checks
-  `set-pick.js` runs on a human, in the same order: `TEAM_NOT_ALLOWED` against the
-  `allowed_teams` table, then `TEAM_ALREADY_USED` against previous picks. The bulk route filters
-  candidates the same way, and both write `allowed_teams` back exactly as a real pick does.
-- **Bots get the same auto-reset players get.** `get-allowed-teams.js` has always rebuilt a
-  player's `allowed_teams` from scratch when it is empty — that is the "you ran out of teams!"
-  path. Bots never open that screen, so they never healed: competition 199's two oldest bots sat
-  on zero rows while the humans beside them were correct. The bot routes now run the same
-  rebuild (`services/allowedTeams.js`), so a bot heals the first time the Bots screen loads it.
+- **A bot is never chargeable** — no credit, no free place, in every counting query, via
+  `services/botPool.js` (`docs/reset-billing.md` §4).
+- **A bot picks under exactly the same rules as a person.** `set-bot-pick` and the bulk route use
+  `services/allowedTeams.js`, the one definition of what a player may still pick.
+- **Bots play Last Man Standing only.** A Matchday competition refuses them
+  (`COMPETITION_NOT_ELIGIBLE`, `docs/matchday.md`).
 
 ## History
 
-`/bot-join` and `/bot-pick` were deleted when this screen was built. They were public routes
-guarded only by the string `BOT_MAGIC_2025`, which was committed in the repo and printed in this
-document, so anyone with the repo could add bots to any competition by invite code. The same
-reasoning retired that secret from the fixture-service routes earlier.
+`/bot-join` and `/bot-pick` were deleted when this screen was built: they were public routes
+guarded by a secret committed to the repo. Do not reintroduce a bot route outside `/admin/*`.
 
 There is no legacy bot format. Older competitions were once said to hold bots with numeric
 emails and realistic names; no such account exists in the database.

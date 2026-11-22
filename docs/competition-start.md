@@ -12,7 +12,7 @@ first-round path, or the Ready button. Change this doc first.
 
 This is the new path a competition takes to its first round. It **runs alongside** the
 `ready_at` / "I'm Ready" model rather than having replaced it — see §6 for why both are still
-here, and `CLAUDE.md` for the record of how the old one works.
+here, and §8 for how the old one works.
 
 ---
 

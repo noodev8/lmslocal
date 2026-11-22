@@ -970,7 +970,7 @@ export const adminApi = {
 
 // User profile
 /*
-Email preferences are grouped by consumer x section from docs/email/email-outline.xlsx, not by
+Email preferences are grouped by consumer x section (the OUTLINE in lmslocal-admin's Emails screen), not by
 individual email - what someone switches off is "game updates", never "Round Over specifically".
 The group keys and their labels come from the server (services/emailPreference.js) rather than
 being listed here, so adding a group does not need a matching change in this file.

@@ -371,6 +371,6 @@ Decide these here, not in a route.
 
 ## 8. Related
 
-- `CLAUDE.md` → Competition Game Logic — the player rules this implements
+- `CLAUDE.md` → Game rules (LMS) — the player rules this implements
 - `docs/round-state-machine.md` — what a round is doing when picks are open
 - `lmslocal-server/db/README.md` — the data landmines, including what `fixture.result` holds
