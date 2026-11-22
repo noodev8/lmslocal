@@ -983,33 +983,28 @@ function CompetitionsList() {
         )}
 
         {!loading && scoped.length > 0 && (
-          <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
-            <StatusTile
-              label="Active"
-              value={statusCounts.active + statusCounts.complete}
-              hint={
-                statusCounts.complete > 0
-                  ? `includes ${statusCounts.complete} complete, not yet archived`
-                  : undefined
-              }
-              tone="good"
-              active={statusParam === 'active'}
-              onClick={() => setStatus('active')}
-            />
-            <StatusTile
-              label="Pending"
-              value={statusCounts.setup}
-              tone="default"
-              active={statusParam === 'setup'}
-              onClick={() => setStatus('setup')}
-            />
-            <StatusTile
-              label="Archived"
-              value={statusCounts.archived}
-              tone="warn"
-              active={statusParam === 'archived'}
-              onClick={() => setStatus('archived')}
-            />
+          <div className="mb-6">
+            <div className="grid grid-cols-2 gap-4">
+              <StatusTile
+                label="Active"
+                value={statusCounts.active + statusCounts.complete}
+                hint={
+                  statusCounts.complete > 0
+                    ? `includes ${statusCounts.complete} complete, not yet archived`
+                    : undefined
+                }
+                tone="good"
+                active={statusParam === 'active'}
+                onClick={() => setStatus('active')}
+              />
+              <StatusTile
+                label="Pending"
+                value={statusCounts.setup}
+                tone="default"
+                active={statusParam === 'setup'}
+                onClick={() => setStatus('setup')}
+              />
+            </div>
           </div>
         )}
 
@@ -1017,22 +1012,23 @@ function CompetitionsList() {
           People. A separate, quieter row rather than a fifth tile, because these count humans
           and the tiles count competitions - and because nothing here filters anything.
 
-          "Active" here counts people in a competition that is neither complete nor archived: a player
-          eliminated from a running competition still counts; they stop counting when it ends, not
-          when they lose. It is deliberately NOT the same set as the Active tile above, which now
+          "Still in" counts people who have not been knocked out of a competition that is neither
+          complete nor archived. A player eliminated from a running competition is no longer playing
+          it, so does not count. It is deliberately NOT the same set as the Active tile above, which
           carries finished competitions waiting to be archived - a finished competition has no
-          active players, so folding them in would inflate this.
+          players still in it, so folding them in would inflate this.
 
           Hidden while the page is scoped to one organiser - these are platform-wide figures, and
           sitting them under a banner reading "showing competitions run by X" would invite them to
           be read as that person's.
         */}
         {people && organiserId === null && (
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {/* Five cards on a single row at lg, so the row reads as one line. */}
             <PeopleCard
-              label="active players"
+              label="players still in"
               value={people.active}
-              hint={`of ${people.total.toLocaleString()} registered, in a live competition`}
+              hint={`of ${people.total.toLocaleString()} registered, not yet out of a live competition`}
             />
             {/*
               "Registered" (cumulative accounts, with new-in-30-days as its hint) stood here and
@@ -1099,6 +1095,11 @@ function CompetitionsList() {
                 hint={`${places.billable.toLocaleString()} of ${places.total.toLocaleString()} places held, finished comps included`}
               />
             )}
+            <PeopleCard
+              label="knocked out"
+              value={people.knocked_out}
+              hint="out of a live competition, not still in another"
+            />
             <PeopleCard
               label="guests"
               value={people.active_guests}
@@ -1289,6 +1290,21 @@ function CompetitionsList() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Same quiet link as under the tiles, repeated at the foot of the list for the same
+            rarely-visited reason. Both call setStatus('archived'), so they can't disagree. */}
+        {statusCounts.archived > 0 && (
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => setStatus('archived')}
+              className={`text-xs transition hover:text-slate-600 ${
+                statusParam === 'archived' ? 'font-medium text-indigo-600' : 'text-slate-400'
+              }`}
+            >
+              Archived ({statusCounts.archived.toLocaleString()})
+            </button>
           </div>
         )}
       </main>

@@ -41,8 +41,9 @@ Success Response (ALWAYS HTTP 200):
     "total": 242,                           // integer, REGISTERED accounts (guests not included)
     "new_last_30_days": 66,                 // integer, registered accounts created in last 30 days
     "guests": 5,                            // integer, joined without registering
-    "active": 242,                          // integer, of "total", in a competition that is live right now
-    "active_guests": 15                     // integer, guests in a live competition (NOT part of "total")
+    "active": 242,                          // integer, of "total", still in (not eliminated) a competition that is live right now
+    "active_guests": 15,                    // integer, guests still in a live competition (NOT part of "total")
+    "knocked_out": 60                       // integer, of "total", out of a live competition and not still in any - the marketing audience
   },
   "places": {
     "limit": 20,                            // integer, FREE_PLAYER_LIMIT - free places per ORGANISER
@@ -107,9 +108,9 @@ Data Notes:
   whose competitions have all finished. The two are reported separately because the first was
   being read as an audience figure when most of it was the back catalogue - one completed
   competition of 52 sat inside it for months.
-- "active" is a strict subset of "total": registered people holding a membership in a competition
-  that is neither complete nor archived. Eliminated players count - they are real people in a
-  competition that is still running.
+- "active" is a strict subset of "total": registered people still in (not eliminated) a competition
+  that is neither complete nor archived. Eliminated players do not count, even while their
+  competition runs; they are reported in players.eliminated.
 - "active" and "players_in_live_competition" are close but not the same and will not match. The
   older figure counts SETUP or ACTIVE by status alone, so it includes archived competitions;
   "active" excludes them. Prefer "active" - the dashboard reads it, and the difference between
@@ -156,10 +157,12 @@ const REAL_COMP = `cu.competition_id <> ALL($2::int[])`;
 /*
 ACTIVE PEOPLE - the count this screen exists for.
 
-Active = holds a membership in a competition that is LIVE right now: not complete, and not
-archived. Being eliminated still counts. Somebody knocked out in round 3 of a competition that is
-still running is a real player who turned up, and the moment they stop counting is the moment the
-competition ends, not the moment they lose.
+Active = holds a membership that is STILL IN (competition_user.status = 'active', not 'out') in a
+competition that is LIVE right now: not complete, and not archived. A person knocked out of a
+running competition is no longer playing it, so they do not count - whatever the competition's own
+status says. (Until 2026-11-22 eliminated players were counted, which made this read as "people
+playing" when it was "people who had a place in something running".) The membership-level figure
+is players.still_in on the same response.
 
 This replaced a "genuine registered person" rule that asked what someone had EVER done - joined,
 organised, or been seen in 30 days. Two problems with that: it counted people who did something
@@ -310,18 +313,35 @@ router.get('/', verifyAdminToken, async (req, res) => {
         (SELECT COUNT(*) FROM app_user u
           WHERE ${REAL_USER} AND ${IS_GUEST})                                     AS users_guests,
 
-        -- People holding a membership in a competition that is live right now. $3 is the list
-        -- of those competitions, settled by the first query above.
+        -- People still in a competition that is live right now. $3 is the list of those
+        -- competitions, settled by the first query above. The membership must also be 'active',
+        -- i.e. not knocked out - see the ACTIVE PEOPLE note above.
         (SELECT COUNT(DISTINCT cu.user_id)
            FROM competition_user cu
            JOIN app_user u ON u.id = cu.user_id
           WHERE cu.competition_id = ANY($3::int[])
+            AND LOWER(cu.status) = 'active'
             AND ${REAL_USER} AND NOT ${IS_GUEST})                                 AS users_active,
         (SELECT COUNT(DISTINCT cu.user_id)
            FROM competition_user cu
            JOIN app_user u ON u.id = cu.user_id
           WHERE cu.competition_id = ANY($3::int[])
-            AND ${REAL_USER} AND ${IS_GUEST})                                     AS users_active_guests
+            AND LOWER(cu.status) = 'active'
+            AND ${REAL_USER} AND ${IS_GUEST})                                     AS users_active_guests,
+        -- Registered people knocked out of a live competition and NOT still in any live one.
+        -- Someone out of one and still in another is counted as still in, not here, so the two
+        -- registered-people figures do not overlap. Guests are left out: no account to reach.
+        (SELECT COUNT(DISTINCT cu.user_id)
+           FROM competition_user cu
+           JOIN app_user u ON u.id = cu.user_id
+          WHERE cu.competition_id = ANY($3::int[])
+            AND LOWER(cu.status) = 'out'
+            AND ${REAL_USER} AND NOT ${IS_GUEST}
+            AND NOT EXISTS (
+              SELECT 1 FROM competition_user cu2
+               WHERE cu2.user_id = cu.user_id
+                 AND cu2.competition_id = ANY($3::int[])
+                 AND LOWER(cu2.status) = 'active'))                               AS users_knocked_out
     `;
 
     const result = await query(statsQuery, [
@@ -364,7 +384,8 @@ router.get('/', verifyAdminToken, async (req, res) => {
         new_last_30_days: n(row.users_new),
         guests: n(row.users_guests),
         active: n(row.users_active),
-        active_guests: n(row.users_active_guests)
+        active_guests: n(row.users_active_guests),
+        knocked_out: n(row.users_knocked_out)
       },
       places,
       generated_at: new Date().toISOString()

@@ -138,6 +138,9 @@ export interface AdminStats {
     active: number;
     /* Guests in a live competition. Real people, but never part of "total" - they never signed up. */
     active_guests: number;
+    /* Registered people knocked out of a live competition and not still in any live one. Never
+       overlaps "active", so the two can be read side by side. */
+    knocked_out: number;
   };
   /*
   The place is the unit we sell, so billable/total is the fair paid share: players never pay us,
