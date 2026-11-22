@@ -314,9 +314,11 @@ The design rules and the copy rules are one system. These are enforced on the la
   is the only element for players.
 - **Lead with the outcome, not the mechanic.** The organiser already knows what Last Man Standing
   is. What they do not know is what it does for them.
-- **No invented social proof, and no rounded-up numbers.** See
-  `docs/` history and the landing page's "Where we're up to" section — real figures, stated plainly,
-  including how small they are.
+- **No invented social proof, and no rounded-up numbers.** Real figures, stated plainly,
+  including how small they are, or none at all.
+- **Nothing is offered before it is built.** Matchday is announced as "in beta, coming soon to
+  everyone" and has no Start button until it launches; each Matchday claim on the public pages is
+  true of the build today (web only until the app update, our fixtures, no entering predictions for someone).
 - **Never state an optional feature as universal.** The fixture service is opt-in and costs money;
   an early draft said "fixtures arrive on their own" as a flat fact. Check the code before writing
   a capability claim.

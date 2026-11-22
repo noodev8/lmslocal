@@ -4,7 +4,7 @@ import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 export const metadata = {
   title: 'Last Man Standing FAQ - Rules, Picks and Running One | LMSLocal',
   description:
-    'Answers to common questions about Last Man Standing: what a draw does to your pick, when picks lock, lives, buy-backs, resets, credits, and running a competition for your pub, workplace or club.',
+    'Answers to common questions about Last Man Standing: what a draw does to your pick, when picks lock, lives, buy-backs, resets, credits, running a competition for your pub, workplace or club, and Matchday, the new prediction game.',
   keywords:
     'last man standing FAQ, last man standing rules, does a draw count, when do picks lock, last man standing buy back, rejoin after elimination, competition rules, football sweepstake help',
   alternates: { canonical: 'https://lmslocal.co.uk/help/faq' },
@@ -478,6 +478,113 @@ const SECTIONS: Section[] = [
       }
     ]
   },
+  /*
+    Matchday, the second game. Rules from docs/matchday.md §1, words from §2: a "prediction", never
+    a "pick", and none of the betting words. In preview (MATCHDAY_PREVIEW_ORGANISER_IDS) - at
+    launch, rewrite "Can I run a Matchday competition?" and drop "beta" from the title.
+  */
+  {
+    id: 'matchday',
+    title: 'Matchday (beta)',
+    faqs: [
+      {
+        q: 'What is Matchday?',
+        a: [
+          {
+            p: 'A second game from LMSLocal, played on the same real matches as Last Man Standing. Instead of one team a round, players predict the winner of every match in the gameweek, and the points go on a league table. Nobody is knocked out, and whoever has the most points after the last round wins.'
+          }
+        ]
+      },
+      {
+        q: 'Can I run a Matchday competition?',
+        a: [
+          {
+            p: 'Not quite yet. Matchday is in beta and coming soon to everyone. Last Man Standing is open to every organiser now.'
+          }
+        ]
+      },
+      {
+        q: 'How does Matchday scoring work?',
+        a: [
+          {
+            ul: [
+              'Predicted team wins: +3',
+              'The match is a draw: +1',
+              'Predicted team loses: −1',
+              'Match left blank: 0'
+            ]
+          },
+          {
+            p: 'A bad round can cost points, but a total never goes below zero: if a round would take it under, it stops at zero, with nothing owed afterwards.'
+          }
+        ]
+      },
+      {
+        q: 'Can you predict a draw in Matchday?',
+        a: [
+          {
+            p: 'No. For each match you choose the home team or the away team. If it ends level, everyone who predicted that match gets a point, whichever side they chose.'
+          }
+        ]
+      },
+      {
+        q: 'Do players have to predict every match?',
+        a: [
+          {
+            p: 'No. A match left blank scores 0 and there is no penalty for skipping it. But the number of predictions made is one of the tie-breaks, so filling in the whole round never hurts.'
+          }
+        ]
+      },
+      {
+        q: 'How does a Matchday competition end?',
+        a: [
+          {
+            p: 'After a set number of rounds — 4, 6 or 8, chosen by the organiser when they set it up. The most points after the last round wins. Level on points, the player with more winning predictions finishes higher, then the one who made more predictions. Still level after that, they share it.'
+          }
+        ]
+      },
+      {
+        q: 'When do Matchday predictions lock?',
+        a: [
+          {
+            p: 'There is one deadline for the whole gameweek, shown on the dashboard and on the predictions screen. Until then predictions can be changed or cleared as often as you like. Once the round has locked, everyone in the competition can see who predicted what.'
+          }
+        ]
+      },
+      {
+        q: 'Who enters the matches and results in Matchday?',
+        a: [
+          {
+            p: 'We do, always. Every Matchday competition runs on the leagues we cover, with the matches and results supplied by us, so an organiser has nothing to enter.'
+          }
+        ]
+      },
+      {
+        q: 'Can I play Matchday in the app?',
+        a: [
+          {
+            p: 'Very soon. Until the app update arrives, Matchday is played in a web browser at lmslocal.co.uk, on a phone, tablet or computer. If you try to join a Matchday competition in the app before then, it will tell you to open the website and join with the same code.'
+          }
+        ]
+      },
+      {
+        q: 'Can an organiser put in predictions for a player?',
+        a: [
+          {
+            p: 'No. In Matchday every player makes their own predictions. That is different from Last Man Standing, where an organiser can add somebody who does not use the app and put their pick in for them.'
+          }
+        ]
+      },
+      {
+        q: 'What does Matchday cost?',
+        a: [
+          {
+            p: 'The same as Last Man Standing. One player is one place, the first 20 places are free, and joining is free for players.'
+          }
+        ]
+      }
+    ]
+  },
   {
     id: 'account',
     title: 'Account, privacy and problems',
@@ -616,7 +723,8 @@ export default function FAQPage() {
       <h1 className={`${HEADING} text-5xl sm:text-6xl`}>Frequently asked questions</h1>
       <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-ink">
         The questions players and organisers actually ask &mdash; how a draw is treated, when picks
-        lock, what happens when you run out of teams, and what running a competition costs.
+        lock, what happens when you run out of teams, what running a competition costs, and how
+        Matchday, the second game, works.
       </p>
 
       {/* Jump links. The page is long and most people arrive wanting one answer. */}
@@ -662,6 +770,7 @@ export default function FAQPage() {
         <ul className={`${PANEL} mt-5 divide-y divide-ink/30`}>
           {[
             { href: '/help/how-to-play', label: 'The full rules of Last Man Standing' },
+            { href: '/help/matchday', label: 'The rules of Matchday, the second game' },
             { href: '/help/getting-started/organizers', label: 'Setting up your first competition' },
             { href: '/help/getting-started/players', label: 'Joining and playing' },
             { href: '/last-man-standing-template', label: 'A free spreadsheet template' },

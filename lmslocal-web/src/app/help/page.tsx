@@ -32,6 +32,13 @@ const DESTINATIONS = [
     who: 'Everyone'
   },
   {
+    href: '/help/matchday',
+    title: 'Matchday (beta)',
+    blurb:
+      'The second game: predict the winner of every match, points on a league table, nobody knocked out. In beta and coming soon to everyone.',
+    who: 'Everyone'
+  },
+  {
     href: '/help/getting-started/organizers',
     title: 'Setting up a competition',
     blurb:
@@ -62,7 +69,7 @@ const DESTINATIONS = [
     href: '/help/faq',
     title: 'Frequently asked questions',
     blurb:
-      'Thirty-odd short answers, grouped by whether you are playing or running it. The fastest route if you already know what you want to ask.',
+      'Fifty-odd short answers, grouped by whether you are playing or running it. The fastest route if you already know what you want to ask.',
     who: 'Everyone'
   },
   {

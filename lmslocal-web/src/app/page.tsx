@@ -86,6 +86,37 @@ const TWO_WAYS = [
 ];
 
 
+/*
+Matchday, for its landing section. Each line is true of the build today, not of the plan - see the
+section's own comment. "You" is the organiser, players are "they".
+*/
+const MATCHDAY_ROUND = [
+  {
+    what: 'The matches go up',
+    detail:
+      'We put every match of the gameweek in for you, and the results after full time. On Matchday there is nothing for you to enter.',
+  },
+  {
+    what: 'They predict the winners',
+    detail:
+      'Home or away, match by match, as many as they like. They can change their minds until the round locks.',
+  },
+  {
+    what: 'The table moves',
+    detail:
+      'Points go on as the results come in, and everyone can see who predicted what once the round has locked.',
+  },
+];
+
+const MATCHDAY_DETAILS = [
+  'The same price as Last Man Standing: one player, one place',
+  'Level on points? Most wins, then most predictions made, decides it',
+  'Joining closes when round 1 locks, as in Last Man Standing',
+  'Played in a web browser for now, and coming to the app very soon',
+  'Players make their own predictions; you cannot enter them for someone',
+  'Runs on the leagues we cover, with our matches and results',
+];
+
 const INCLUDED = [
   '20 player places, free, no card needed',
   'Your own join code or link to hand out',
@@ -230,6 +261,14 @@ export default function LandingPage() {
               </Link>
               <span className={`${LABEL} text-ink-fade`}>20 places free · no card</span>
             </div>
+            {/* The one pointer to Matchday above the fold. A line, not a second hero: the page
+                still sells Last Man Standing, the game anyone can start today. */}
+            <a
+              href="#matchday"
+              className={`${LABEL} mt-6 inline-block text-ink-fade underline decoration-dotted underline-offset-[6px] transition-colors hover:text-ink`}
+            >
+              New: Matchday, a second game &mdash; coming soon &darr;
+            </a>
           </div>
 
           {/*
@@ -420,24 +459,36 @@ export default function LandingPage() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      {/* Matchday — the second game, in beta (docs/matchday.md §1)         */}
-      {/* Announced, not offered: creating one is still preview-only, so    */}
-      {/* there is deliberately no button here.                             */}
+      {/* Matchday — the second game, in beta. Rules: docs/matchday.md §1,  */}
+      {/* words: §2 (no "pick", no betting words).                          */}
+      {/*                                                                   */}
+      {/* Announced, not offered: creating one is preview-only              */}
+      {/* (MATCHDAY_PREVIEW_ORGANISER_IDS), so there is deliberately no     */}
+      {/* button here. At launch, add a "Start one" and drop the "coming    */}
+      {/* soon" lines - here, in the hero, /help/matchday and the FAQ.      */}
+      {/*                                                                   */}
+      {/* Every claim is checked against what is built, not the plan:       */}
+      {/* always on our fixtures, web only until the app update (due very   */}
+      {/* soon - change the app line when it ships), and no entering        */}
+      {/* predictions for somebody else - the honest                        */}
+      {/* counterpart to the Terry section above, an LMS-only promise.      */}
       {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+      <section id="matchday" className="mx-auto max-w-6xl scroll-mt-8 px-4 py-14 sm:px-6 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-16">
           <div>
-            <p className={`${EYEBROW} text-overprint`}>New game &middot; in beta</p>
+            <p className={`${EYEBROW} text-overprint`}>A second game &middot; in beta</p>
             <h2 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
               Matchday
             </h2>
             <p className="mt-6 max-w-lg text-xl leading-relaxed text-ink">
-              A second game on the same real fixtures. Instead of one team a round, players call
-              the winner of every match in the gameweek.
+              Not everybody wants to be knocked out in week two. Matchday runs on the same real
+              matches, but players predict the winner of every match in the gameweek, and the
+              points go on a league table.
             </p>
             <p className="mt-4 max-w-lg text-xl leading-relaxed text-ink">
-              Nobody gets knocked out. Points build up over 4, 6 or 8 rounds and the top of the
-              table wins.
+              Nobody goes out, so your whole crowd is still playing &mdash; and still arguing about
+              it &mdash; on the last weekend. You choose how long it runs: 4, 6 or 8 rounds. Most
+              points at the end wins.
             </p>
             <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-fade">
               Matchday is in beta and coming soon to everyone.
@@ -448,23 +499,59 @@ export default function LandingPage() {
             <p className={`${LABEL} text-ink-fade`}>How a match scores</p>
             <ul className="mt-4 space-y-3">
               <li className="flex items-baseline justify-between gap-3 border-b border-dotted border-ink/25 pb-3">
-                <span className="font-data text-[15px] text-ink">Your team wins</span>
+                <span className="font-data text-[15px] text-ink">Predicted team wins</span>
                 <span className="font-data text-[15px] text-overprint">+3</span>
               </li>
               <li className="flex items-baseline justify-between gap-3 border-b border-dotted border-ink/25 pb-3">
                 <span className="font-data text-[15px] text-ink">It&rsquo;s a draw</span>
                 <span className="font-data text-[15px] text-ink">+1</span>
               </li>
-              <li className="flex items-baseline justify-between gap-3">
-                <span className="font-data text-[15px] text-ink">Your team loses</span>
+              <li className="flex items-baseline justify-between gap-3 border-b border-dotted border-ink/25 pb-3">
+                <span className="font-data text-[15px] text-ink">Predicted team loses</span>
                 <span className="font-data text-[15px] text-ink-fade">&minus;1</span>
+              </li>
+              <li className="flex items-baseline justify-between gap-3">
+                <span className="font-data text-[15px] text-ink">Left blank</span>
+                <span className="font-data text-[15px] text-ink-fade">0</span>
               </li>
             </ul>
             <p className="mt-5 text-[16px] leading-relaxed text-ink">
-              Skip a match and it scores nothing. A total never drops below zero.
+              A bad round can cost points, but nobody&rsquo;s total ever drops below zero.
             </p>
           </div>
         </div>
+
+        <h3 className={`${EYEBROW} mt-14 text-ink-fade`}>A round of Matchday</h3>
+        <ol className="mt-5 grid gap-px border border-ink/30 bg-ink/30 sm:grid-cols-3">
+          {MATCHDAY_ROUND.map((step, i) => (
+            <li key={step.what} className="bg-stock-lit p-5 sm:p-6">
+              <span className={`${LABEL} text-overprint`}>{i + 1}</span>
+              <h4 className="mt-2 font-display text-2xl uppercase tracking-[0.03em] text-ink">
+                {step.what}
+              </h4>
+              <p className="mt-2 text-[17px] leading-relaxed text-ink">{step.detail}</p>
+            </li>
+          ))}
+        </ol>
+
+        <h3 className={`${EYEBROW} mt-12 text-ink-fade`}>Good to know</h3>
+        <ul className="mt-5 grid gap-x-8 gap-y-3.5 sm:grid-cols-2">
+          {MATCHDAY_DETAILS.map((item) => (
+            <li key={item} className="flex items-baseline gap-3">
+              <span aria-hidden="true" className={TICK}>
+                &#10003;
+              </span>
+              <span className="text-[17px] text-ink">{item}</span>
+            </li>
+          ))}
+        </ul>
+
+        <Link
+          href="/help/matchday"
+          className={`${LABEL} mt-10 inline-block text-ink underline decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint`}
+        >
+          The full Matchday rules &rarr;
+        </Link>
       </section>
 
       {/* ---------------------------------------------------------------- */}

@@ -229,6 +229,16 @@ export default function PricingPage() {
                 </li>
               ))}
             </ul>
+            {/* Matchday is priced as LMS (docs/matchday.md §1). Said here so nobody reads the beta
+                as a premium tier. Drop "coming soon" at launch. */}
+            <p className="mt-6 max-w-xl text-[16px] leading-relaxed text-ink-fade">
+              The same prices apply to{' '}
+              <Link href="/help/matchday" className="underline decoration-dotted underline-offset-4 hover:text-ink">
+                Matchday
+              </Link>
+              , our second game, when it comes out of beta: one player, one place. It is coming
+              soon to everyone.
+            </p>
           </section>
 
           <div className="mt-14 print:hidden">
