@@ -254,7 +254,7 @@ node db/write.js "UPDATE ..."     # writes: one transaction, --dry-run, no-WHERE
 ```
 
 **To play rounds in a test competition, use `scripts/sandbox-round.js`**, never the calendar or
-Stage: those are shared by every customer on the team list. It gives a competition named `TEST ...`
+Stage: those are shared by every customer on the team list. It gives a competition named `TEST` / `TEST ...`
 rounds of its own and settles them through the real results push — `docs/testing-rules.md`.
 
 `lmslocal-server/db/README.md` is the front door — it also lists the data landmines (the

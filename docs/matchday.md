@@ -1,7 +1,7 @@
 # Matchday — the second game
 
 A second game type, played alongside Last Man Standing on the same fixtures, rounds and calendar.
-For every match in a gameweek a player backs one team: **win +3, draw +1, loss −1**. The result is
+For every match in a gameweek a player predicts the winner: **win +3, draw +1, loss −1**. The result is
 a league table of points.
 
 **Status: phases 1–3 built, 2026-11-22 — playable on the web end to end** (§10). Not yet: the
@@ -26,13 +26,13 @@ not knowing which game they are in or what to do next, not the server work.
 
 | Rule | Decision |
 |---|---|
-| What a player does | For each fixture in the round, backs the home team or the away team. A draw cannot be backed |
-| Scoring | Backed team wins **+3**, draw **+1**, backed team loses **−1** |
-| Skipping | Allowed. An unbacked fixture scores **0**. There is no penalty for skipping, unlike LMS's missed pick |
+| What a player does | For each fixture in the round, predicts the home team or the away team to win. A draw cannot be predicted |
+| Scoring | Predicted team wins **+3**, draw **+1**, predicted team loses **−1** |
+| Skipping | Allowed. An unpredicted fixture scores **0**. There is no penalty for skipping, unlike LMS's missed pick |
 | Floor | **Applied after each round**: `total = max(0, previous total + round score)`. A total is never shown below 0 and there is no hidden debt below it |
 | Lock | **One lock for the whole gameweek**, at `round.lock_time`, the same as LMS. Predictions can be changed until then |
 | Joining | **Exactly the LMS rule**: open until round 1 locks, then closed. See §6 |
-| Ending | Set by the organiser at creation: **first to N points**, or **highest total after N rounds**. See §5.3 |
+| Ending | Set by the organiser at creation, from a fixed list: **first to 10, 20 or 40 points**, or **highest total after 3, 7 or 10 rounds** (`ENDING_CHOICES`, 2026-11-22). See §5.3 |
 | Tie-break | Total, then **most wins**, then **most predictions made**. Still level → the win is shared |
 | Fixtures and results | **Fixture service only**, always. There is no organiser-managed Matchday |
 | Pricing | The same as LMS: one player is one place |
@@ -51,7 +51,7 @@ Three readings were possible, and only one holds up:
 
 ### 1.2 Skipping is not a tactic
 
-The expected value of backing a team is at least 0 for nearly any match: even a heavy underdog
+The expected value of predicting a team is at least 0 for nearly any match: even a heavy underdog
 (say 15% win, 20% draw, 65% loss) comes out at 0.45 + 0.20 − 0.65 = 0. So letting players skip at
 0 points does not reward cherry-picking, and "most predictions made" as the second tie-break
 rewards the players who fill in the whole coupon.
@@ -70,9 +70,12 @@ A player should know which game a sentence is about from the words alone: on a d
 in an email subject, in a push notification. So the words in one column **never appear on the
 other game's screens or emails**.
 
+**No betting words, in either game** (2026-11-22): never "back", "backed" or "backing" a team.
+It reads as gambling. A chosen team is "predicted"; the deck's buttons say "ARS to win".
+
 | | Last Man Standing | Matchday |
 |---|---|---|
-| The choice | pick | prediction; "back a team" |
+| The choice | pick | prediction; "predict the winner" |
 | The action | Make your pick | Fill in your coupon |
 | Where you stand | still in / out, lives | points, position |
 | What a result does | survived / eliminated | +3 / +1 / −1 |
@@ -127,7 +130,10 @@ cannot see Matchday data at all.
 | `end_value` | integer, null | The target points or the number of rounds |
 
 `competition_end_rule_check`: an LMS row carries neither value, a Matchday row must carry both
-(`end_value > 0`). `create-competition` also bounds them: 1–1000 points, 1–38 rounds.
+(`end_value > 0`). `create-competition` and `update-competition` also hold them to the fixed
+lists in `ENDING_CHOICES` (`services/matchdayScoring.js`, mirrored in `lmslocal-web/src/lib/games.ts`).
+A competition created before the lists existed keeps its ending; settings only sends the ending
+when it changes, so its other saves still work.
 
 `end_rule` / `end_value` are to be editable **until round 1 locks**, the same window as joining,
 and fixed after: players joined knowing how it ends. **Not built yet** — `update-competition`
@@ -316,7 +322,7 @@ into a Matchday competition.
 - **Home**, **Away** and **Skip** are always visible as buttons. Swiping is a shortcut, never the
   only way: desktop has no swipe, and a gesture alone is not accessible.
 - The deck shows its position ("3 of 10").
-- After the last card, the player lands on **the coupon**: every fixture, the team backed or
+- After the last card, the player lands on **the coupon**: every fixture, the team predicted or
   "not predicted", each editable until lock. The coupon, not the deck, is the game's home while
   the round is open; the deck is how you fill it in. A player who returns mid-week sees what they
   have done and what is missing.
@@ -328,7 +334,12 @@ into a Matchday competition.
 
 Position, name, total, then wins and predictions made (the tie-breaks, shown so nobody argues).
 A provisional total mid-round is marked as provisional. The footer states the ending ("First to
-100 points" / "Round 6 of 10") and the tie-break order.
+20 points" / "Round 6 of 10") and the tie-break order.
+
+**A big table opens trimmed**: from 30 players, the top 20, then a row of dots and your own row
+with two either side, and "Show all N players". The home screen shows only the top 5 and the
+dashboard card only your position, so neither grows with the competition. The data is one query
+of players × rounds - a hundred players over a 38-round season is under 4,000 rows.
 
 ### 8.4 Pages
 
@@ -395,7 +406,7 @@ companies printed on different coloured stock) is a design-system decision. If i
    `game_type`, `end_rule`, `end_value`, and refuses Matchday without the fixture service.
    Predictions are deleted wherever picks are (both competition deletes, reset, remove-player,
    leaving before the start, account deletion), and cleared and re-pointed by team in the
-   calendar reconcile — the later prediction wins when two backed teams are re-keyed into one
+   calendar reconcile — the later prediction wins when two predicted teams are re-keyed into one
    fixture. The admin Results row reports "N predictions settled · X leads on 34".
    **Tested** end to end on test competitions under organiser 50, through the real routes and
    the real results push, with `scripts/sandbox-round.js` supplying rounds and results (see

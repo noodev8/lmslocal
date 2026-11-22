@@ -33,8 +33,9 @@ Request Payload:
                                                //   requires fixture_service: true
   "end_rule": "points",                        // string, Matchday only, required there - 'points'
                                                //   (first to end_value) or 'rounds' (best after end_value)
-  "end_value": 100                             // integer, Matchday only, required there - the target
-                                               //   points (1-1000) or the number of rounds (1-38)
+  "end_value": 20                              // integer, Matchday only, required there - the target
+                                               //   points (10, 20 or 40) or the number of rounds
+                                               //   (3, 7 or 10): ENDING_CHOICES in matchdayScoring.js
 }
 
 Success Response (ALWAYS HTTP 200):

@@ -3,7 +3,7 @@
 API Route: get-predictions
 =======================================================================================================================================
 Method: POST
-Purpose: A player's Matchday coupon for one round: every fixture, the team they backed (or null
+Purpose: A player's Matchday coupon for one round: every fixture, the team they predicted (or null
          for skipped), and once results arrive, each fixture's result and the points it scored.
          The coupon is the game's home while a round is open (docs/matchday.md §8.2), so this is
          the screen's one read. Matchday only.
@@ -47,7 +47,7 @@ Success Response (ALWAYS HTTP 200):
       "my_points": null                     // integer or null - 3, 1, -1 (0 by hand); null until settled
     }
   ],
-  "predicted": 7,                           // integer, fixtures this player has backed
+  "predicted": 7,                           // integer, fixtures this player has predicted
   "total_fixtures": 10                      // integer
 }
 

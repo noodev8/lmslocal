@@ -211,7 +211,8 @@ node scripts/sandbox-round.js adopt  <id>   # a competition created on screen - 
 - **Kickoffs have odd seconds** (`:17.017`). Every real kickoff is on a whole minute and the admin
   screens find a competition's place in the live batch by matching kickoff times, so a test round
   never shows in the Results push list and never holds the close open.
-- **Fenced twice:** organiser 50 **and** a name starting `TEST ` (capital, then a space).
+- **Fenced twice:** organiser 50 **and** a name that is `TEST` or starts with the word `TEST`
+  (`TEST`, `TEST Matchday` - not `TESTAMENT FC`). Capitals.
   Ownership alone is not enough, for the reason above.
 - **A competition created through the screens starts on the live calendar.** The wizard always
   picks the next calendar date it can, so round 1 arrives tied to a calendar block, on
@@ -223,7 +224,7 @@ node scripts/sandbox-round.js adopt  <id>   # a competition created on screen - 
   the push. Once its sandbox round is processed it is eligible for the next real Stage like any
   other. Harmless — it only affects the test competition — but delete test competitions when done.
 
-Create the competition through `create-competition` as Andreas, named `TEST ...`, rather than
+Create the competition through `create-competition` as Andreas, named `TEST` or `TEST ...`, rather than
 borrowing one. That still needs his say-so in the session, like any write (the rule above): he
 gave it on 2026-11-22 for that session's Matchday work, which is not standing permission.
 

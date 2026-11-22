@@ -55,6 +55,7 @@ export default function MatchdayHome({ competition }: { competition: Competition
     return () => { cancelled = true; };
   }, [competitionId]);
 
+  const ready = loadFailed || (coupon !== null && table !== null);
   const isComplete = String(competition.status ?? '').toUpperCase() === 'COMPLETE';
   const round = coupon?.round ?? null;
   const roundOpen = round !== null && !round.locked;
@@ -117,6 +118,16 @@ export default function MatchdayHome({ competition }: { competition: Competition
           </p>
         )}
 
+        {/* Everything below the masthead waits for both requests. Drawn as each arrived, the invite
+            block and its QR code painted first - joining looks open until the round is known - and
+            then jumped down the page as the round and the table landed above it. */}
+        {!ready ? (
+          <div className={`${PANEL} p-8 text-center`}>
+            <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+            <p className={EYEBROW}>Loading</p>
+          </div>
+        ) : (
+        <>
         {/* The result, once there is one. A field, so moss-wash with ink on top (design-system §8). */}
         {isComplete && table && (
           <div className="border border-ink/30 bg-moss-wash p-6 text-center">
@@ -158,7 +169,7 @@ export default function MatchdayHome({ competition }: { competition: Competition
                   <p className="mt-3 text-[15px] text-ink-fade">
                     Locks {formatKickoff(round.lock_time)}. Change any of them until then.
                   </p>
-                  {/* Primary while there is something left to do; once every match is backed it
+                  {/* Primary while there is something left to do; once every match is predicted it
                       steps down, because the screen's one red action should mean "this is on you". */}
                   <Link
                     href={`/game/${competitionId}/coupon`}
@@ -195,7 +206,7 @@ export default function MatchdayHome({ competition }: { competition: Competition
               {isPlayer && (
                 <>
                   <p className="mt-1 text-[15px] text-ink-fade">
-                    You backed {coupon.predicted} of {coupon.total_fixtures}
+                    You predicted {coupon.predicted} of {coupon.total_fixtures}
                     {resultsIn > 0 && <> &middot; <span className="font-data text-ink">{signedPoints(roundPoints)}</span> this round so far</>}
                   </p>
                   <Link href={`/game/${competitionId}/coupon`} className={`${BTN_OUTLINE} mt-4 inline-block`}>
@@ -319,6 +330,8 @@ export default function MatchdayHome({ competition }: { competition: Competition
               <p className="whitespace-pre-line border-t border-ink/30 p-4 text-[15px] text-ink">{competition.description}</p>
             )}
           </div>
+        )}
+        </>
         )}
       </main>
     </div>

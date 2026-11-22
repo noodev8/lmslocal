@@ -600,7 +600,7 @@ export default function DashboardPage() {
                             <p className={`${LABEL} mb-3 text-ink-fade`}>Round settled &middot; next round soon</p>
                           ) : (
                             <p className={`${LABEL} mb-3 text-ink-fade`}>
-                              Matches in play &middot; {standing?.predicted ?? 0} backed
+                              Matches in play &middot; {standing?.predicted ?? 0} predicted
                             </p>
                           )
                         )}

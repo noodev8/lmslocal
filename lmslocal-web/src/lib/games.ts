@@ -6,8 +6,11 @@
  * through pages.
  *
  * THE VOCABULARIES DO NOT MIX. LMS says pick, lives, eliminated, still in. Matchday says predict,
- * back a team, points, the table. A player should know which game a sentence is about from the
+ * prediction, points, the table. A player should know which game a sentence is about from the
  * words alone, so Matchday copy never says "pick" and LMS copy never says "points".
+ *
+ * AND NO BETTING WORDS (2026-11-22). Never "back", "backed" or "backing" a team: it reads as
+ * gambling, which this is not and must never sound like.
  */
 
 import type { GameType, MatchdayEndRule } from '@/lib/api';
@@ -25,7 +28,7 @@ export function gameName(gameType?: GameType | null): string {
 /** One line each, for the create wizard's first question and the join page. */
 export const GAME_SUMMARIES: Record<GameType, string> = {
   lms: 'Players pick one team each round. Win and they are through; draw or lose and they are out. Last one left wins.',
-  matchday: 'Players back a team in every match each round and score points. Most points wins.',
+  matchday: 'Players predict the winner of every match each round and score points. Most points wins.',
 };
 
 /** Matchday's scoring, stated the same way everywhere it appears. */
@@ -79,3 +82,14 @@ export function formatKickoff(iso: string): string {
     .replace(/\s/g, '');
   return `${day}, ${time}`;
 }
+
+/**
+ * The endings an organiser may choose, and the one preselected. A fixed list, not a free number.
+ * The server enforces the same lists (ENDING_CHOICES in lmslocal-server/services/matchdayScoring.js)
+ * - change both together.
+ */
+export const ENDING_CHOICES: Record<MatchdayEndRule, number[]> = {
+  points: [10, 20, 40],
+  rounds: [3, 7, 10],
+};
+export const DEFAULT_ENDING: Record<MatchdayEndRule, number> = { points: 20, rounds: 7 };

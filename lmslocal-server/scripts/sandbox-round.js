@@ -67,9 +67,10 @@ const { BOT_ORGANISER_IDS } = require('../services/botPool');
 const { signAdminToken } = require('../middleware/admin-auth');
 const { getMatchdayTable } = require('../services/matchdayTable');
 
-// A test competition's name starts with this. Case-sensitive on purpose: it is a label someone
-// typed deliberately, not one a customer will arrive at by accident.
-const TEST_NAME_PREFIX = 'TEST ';
+// A test competition is named "TEST", or starts with the word "TEST" ("TEST Matchday"). A whole
+// word, so "TESTAMENT FC" is not one. Case-sensitive on purpose: it is a label someone typed
+// deliberately, not one a customer will arrive at by accident.
+const TEST_NAME = /^TEST(\s|$)/;
 
 // docs/testing-rules.md: the identity admin tokens are signed as during testing, so audit_log
 // tells test writes from real ones.
@@ -102,10 +103,10 @@ async function loadTestCompetition(competitionId) {
   if (!competition) {
     throw new Error(`No competition ${competitionId}`);
   }
-  if (!BOT_ORGANISER_IDS.includes(competition.organiser_id) || !competition.name.startsWith(TEST_NAME_PREFIX)) {
+  if (!BOT_ORGANISER_IDS.includes(competition.organiser_id) || !TEST_NAME.test(competition.name)) {
     throw new Error(
       `Competition ${competitionId} ("${competition.name}") is not a test competition. `
-      + `It must be organised by ${BOT_ORGANISER_IDS.join('/')} and named "${TEST_NAME_PREFIX}...".`
+      + `It must be organised by ${BOT_ORGANISER_IDS.join('/')} and named "TEST" or "TEST ...".`
     );
   }
   return competition;

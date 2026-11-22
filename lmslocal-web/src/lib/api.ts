@@ -292,7 +292,7 @@ export interface MatchdayStanding {
   total: number | null;
   /** The total includes a round still being played. */
   provisional: boolean;
-  /** Matches this user has backed in the latest round. */
+  /** Matches this user has predicted in the latest round. */
   predicted: number;
   rounds_settled: number;
   leader: { display_name: string; total: number } | null;
@@ -759,7 +759,7 @@ export const competitionApi = {
 // Matchday API calls (docs/matchday.md). Never cached: the coupon changes with every card a
 // player answers, and the table with every results push.
 export const matchdayApi = {
-  // Back a team in one match, or change the team backed. One call per card.
+  // Predict the winner of one match, or change the prediction. One call per card.
   setPrediction: (fixture_id: number, team: string) =>
     api.post<{ return_code: string; message?: string; prediction?: { fixture_id: number; team: string } }>(
       '/set-prediction', { fixture_id, team }

@@ -12,6 +12,7 @@ import {
 import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, ResetQuoteResponse, DeleteCompetitionRequest, StartOption, MatchdayEndRule } from '@/lib/api';
 import { joiningOpen as isJoiningOpen } from '@/lib/roundState';
 import { endingLabel } from '@/lib/games';
+import EndingChooser from '@/components/matchday/EndingChooser';
 import StartDateChooser, { daysUntil } from '@/components/StartDateChooser';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
@@ -74,7 +75,7 @@ export default function CompetitionSettings() {
     prize_structure: '',
     // Matchday's ending (docs/matchday.md §4.1). The value is a string while it is being typed.
     end_rule: 'points' as MatchdayEndRule,
-    end_value: '',
+    end_value: 0,
   });
   const isMatchday = competition?.game_type === 'matchday';
 
@@ -133,7 +134,7 @@ export default function CompetitionSettings() {
               no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
               prize_structure: competition.prize_structure || '',
               end_rule: (competition.end_rule as MatchdayEndRule) || 'points',
-              end_value: competition.end_value ? String(competition.end_value) : '',
+              end_value: competition.end_value ?? 0,
             });
           }
 
@@ -238,8 +239,13 @@ export default function CompetitionSettings() {
       // the server refuses an ending on an LMS competition, and lives mean nothing in Matchday.
       if (!hasStarted) {
         if (isMatchday) {
-          updateData.end_rule = formData.end_rule;
-          updateData.end_value = Number(formData.end_value);
+          // Only when it has changed. A competition created before the endings became a fixed
+          // list can hold one that is no longer offered, and resending it would have the server
+          // refuse every save - even a description edit - until the organiser picked another.
+          if (formData.end_rule !== competition.end_rule || formData.end_value !== competition.end_value) {
+            updateData.end_rule = formData.end_rule;
+            updateData.end_value = formData.end_value;
+          }
         } else {
           updateData.lives_per_player = formData.lives_per_player;
           updateData.no_team_twice = formData.no_team_twice;
@@ -863,49 +869,16 @@ export default function CompetitionSettings() {
                     <p className="text-[17px] text-ink">{endingLabel(competition?.end_rule, competition?.end_value)}</p>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="How it ends">
-                        {(['points', 'rounds'] as MatchdayEndRule[]).map((rule) => (
-                          <button
-                            key={rule}
-                            type="button"
-                            role="radio"
-                            aria-checked={formData.end_rule === rule}
-                            onClick={() => {
-                              setFormData(prev => ({ ...prev, end_rule: rule }));
-                              if (success) setSuccess(false);
-                              if (error) setError(null);
-                            }}
-                            className={`border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:p-4 ${
-                              formData.end_rule === rule ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 hover:border-ink'
-                            }`}
-                          >
-                            <p className={LABEL}>{rule === 'points' ? 'A points target' : 'A number of rounds'}</p>
-                          </button>
-                        ))}
-                      </div>
-                      <label className="mt-3 block max-w-[14rem]">
-                        <span className={`${LABEL} text-ink-fade`}>
-                          {formData.end_rule === 'points' ? 'Points to win' : 'Number of rounds'}
-                        </span>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={1}
-                          max={formData.end_rule === 'rounds' ? 38 : 1000}
-                          value={formData.end_value}
-                          onChange={(e) => {
-                            setFormData(prev => ({ ...prev, end_value: e.target.value }));
-                            if (success) setSuccess(false);
-                            if (error) setError(null);
-                          }}
-                          className={`${INPUT} mt-2 font-data`}
-                        />
-                      </label>
-                      <p className="mt-2 text-[13px] text-ink-fade">
-                        {formData.end_rule === 'points'
-                          ? 'The first to reach it wins, judged at the end of a round.'
-                          : 'Most points when the last round is played wins.'}
-                      </p>
+                      <EndingChooser
+                        rule={formData.end_rule}
+                        value={formData.end_value}
+                        onChange={(rule, value) => {
+                          setFormData(prev => ({ ...prev, end_rule: rule, end_value: value }));
+                          if (success) setSuccess(false);
+                          if (error) setError(null);
+                        }}
+                      />
+                      <p className="mt-2 text-[13px] text-ink-fade">Judged at the end of each round.</p>
                     </>
                   )}
                 </div>

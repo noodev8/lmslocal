@@ -3,7 +3,7 @@
 API Route: set-prediction
 =======================================================================================================================================
 Method: POST
-Purpose: Back one team in one fixture of a Matchday round, or change the team already backed.
+Purpose: Predict the winner of one fixture in a Matchday round, or change the prediction.
          Matchday only - the Last Man Standing equivalent is set-pick. docs/matchday.md.
 
          One call per fixture: the card deck sends each card as it is answered, so a player who
@@ -14,7 +14,7 @@ Request Payload:
 {
   "fixture_id": 5012,                       // integer, required - the fixture being predicted
   "team": "ARS"                             // string, required - the home or away team's short code.
-                                            //   A draw cannot be backed (docs/matchday.md §1)
+                                            //   A draw cannot be predicted (docs/matchday.md §1)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -22,7 +22,7 @@ Success Response (ALWAYS HTTP 200):
   "return_code": "SUCCESS",
   "prediction": {
     "fixture_id": 5012,                     // integer
-    "team": "ARS"                           // string, the team now backed
+    "team": "ARS"                           // string, the team now predicted
   }
 }
 
@@ -99,7 +99,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     if (teamCode !== context.home_team_short && teamCode !== context.away_team_short) {
-      return res.json({ return_code: 'INVALID_TEAM', message: 'Back the home team or the away team in this fixture' });
+      return res.json({ return_code: 'INVALID_TEAM', message: 'Choose the home team or the away team in this fixture' });
     }
 
     /*

@@ -402,7 +402,7 @@ export default function JoinPage() {
       */}
       {competition.game_type === 'matchday' && (
         <p className="mt-5 max-w-lg text-xl leading-relaxed text-ink">
-          A Matchday game: back a team in every match each round and score points.{' '}
+          A Matchday game: predict the winner of every match each round and score points.{' '}
           <span className="whitespace-nowrap font-semibold">{MATCHDAY_SCORING}.</span>
           {competition.end_rule && competition.end_value && (
             <> {endingLabel(competition.end_rule, competition.end_value)}{competition.end_rule === 'points' ? ' wins.' : ', most points wins.'}</>

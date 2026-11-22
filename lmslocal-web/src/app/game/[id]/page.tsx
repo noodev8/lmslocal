@@ -120,7 +120,7 @@ function UnifiedGameDashboard() {
     completed_fixtures?: number;
     status?: string;
   } | null>(null);
-  const [, setLoadingRound] = useState(true);
+  const [loadingRound, setLoadingRound] = useState(true);
   // Whether the organiser's blurb is open, once the competition is under way and it has collapsed.
   // Deliberately component state and nothing more: a dismissed-flag per player per competition
   // would be a table and a migration for one line of text, and its failure mode is a player
@@ -1104,6 +1104,10 @@ function UnifiedGameDashboard() {
         {/* The invitation. Shown to players as well as organisers - a player bringing their own
             mates in is good for the competition - and to both in the same shape as the app's
             InviteBlock, so doing this on the laptop is doing what you did on the phone. */}
+        {/* Not until the round is known. Before that currentRoundInfo is null, which reads as "no
+            round yet, joining open" - so the QR code painted on every load and then vanished
+            once the round arrived and turned out to be locked. */}
+        {!loadingRound && (
         <InviteBlock
           competitionName={competition.name}
           inviteCode={competition.invite_code}
@@ -1114,6 +1118,7 @@ function UnifiedGameDashboard() {
           prizeStructure={competition.prize_structure}
           onToast={showToast}
         />
+        )}
 
         {/* Guests are a separate job from the invitation, and one only the organiser can do: they
             have no login and no app, so someone has to make their picks. Kept out of InviteBlock,

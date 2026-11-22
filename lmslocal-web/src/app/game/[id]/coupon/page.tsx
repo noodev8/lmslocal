@@ -7,7 +7,7 @@ Two views of one thing:
   - THE DECK: one card per match, Home / Away / Skip. How a coupon gets filled in - quick on a
     phone, one decision at a time. Swiping is a shortcut; the buttons are always there, because a
     desktop has no swipe and a gesture alone is not accessible.
-  - THE COUPON: every match on one sheet, with what was backed. The game's home while a round is
+  - THE COUPON: every match on one sheet, with what was predicted. The game's home while a round is
     open: a player who comes back mid-week sees what is done and what is missing, and can change
     any of it until the lock.
 
@@ -30,7 +30,7 @@ import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/
 import { GAME_NAMES, MATCHDAY_SCORING, formatKickoff, outcomeWord, signedPoints } from '@/lib/games';
 
 // How far a card must be dragged before it counts as an answer. Far enough that scrolling the page
-// with a thumb never backs a team by accident.
+// with a thumb never chooses a team by accident.
 const SWIPE_THRESHOLD_PX = 90;
 
 type Side = 'home' | 'away';
@@ -85,7 +85,7 @@ export default function CouponPage() {
   const fixtures = useMemo(() => coupon?.fixtures ?? [], [coupon]);
 
   // Open the deck by itself the first time, and only when the coupon is untouched - someone who
-  // has already backed six matches came back to see or change them, not to start over.
+  // has already predicted six matches came back to see or change them, not to start over.
   useEffect(() => {
     if (!coupon || deckOpenedOnce.current) return;
     deckOpenedOnce.current = true;
@@ -113,8 +113,8 @@ export default function CouponPage() {
     }
   };
 
-  /** Back a side. Returns true once the server has it. */
-  const backTeam = async (fixture: MatchdayFixture, side: Side): Promise<boolean> => {
+  /** Choose a side. Returns true once the server has it. */
+  const chooseTeam = async (fixture: MatchdayFixture, side: Side): Promise<boolean> => {
     const team = side === 'home' ? fixture.home_team_short : fixture.away_team_short;
     if (fixture.my_team === team) return true;
     setBusyFixture(fixture.fixture_id);
@@ -224,7 +224,7 @@ export default function CouponPage() {
             position={deckIndex + 1}
             count={deck.length}
             busy={busyFixture === fixture.fixture_id}
-            onBack={async (side) => { if (await backTeam(fixture, side)) advanceDeck(); }}
+            onChoose={async (side) => { if (await chooseTeam(fixture, side)) advanceDeck(); }}
             onSkip={async () => { if (await skipFixture(fixture)) advanceDeck(); }}
             onPrevious={deckIndex > 0 ? () => setDeckIndex(deckIndex - 1) : null}
           />
@@ -263,7 +263,7 @@ export default function CouponPage() {
       {saveError && <ErrorLine message={saveError} />}
 
       {/* Where this coupon stands, in one line, and the way back into the deck while there is
-          anything left to back. */}
+          anything left to predict. */}
       <div className={`${PANEL} mb-4 flex flex-wrap items-center justify-between gap-3 p-4`}>
         <p className="text-[17px] text-ink">
           {!coupon.is_player
@@ -271,7 +271,7 @@ export default function CouponPage() {
             : open
               ? <><span className="font-data">{coupon.predicted}</span> of {coupon.total_fixtures} predicted</>
               : settledCount === 0
-                ? <>You backed <span className="font-data">{coupon.predicted}</span> of {coupon.total_fixtures}. Matches in play.</>
+                ? <>You predicted <span className="font-data">{coupon.predicted}</span> of {coupon.total_fixtures}. Matches in play.</>
                 : <>This round: <span className="font-data">{signedPoints(roundPoints)}</span>
                     <span className="text-ink-fade"> &middot; {settledCount} of {coupon.total_fixtures} results in</span></>}
         </p>
@@ -281,7 +281,7 @@ export default function CouponPage() {
             onClick={() => { setDeck(unpredicted); setDeckIndex(0); }}
             className={`${BTN_PRIMARY} px-5 py-2.5 text-base`}
           >
-            {coupon.predicted === 0 ? 'Start the cards' : `Back the other ${unpredicted.length}`}
+            {coupon.predicted === 0 ? 'Start the cards' : `Predict the other ${unpredicted.length}`}
           </button>
         )}
       </div>
@@ -293,7 +293,7 @@ export default function CouponPage() {
             fixture={fixture}
             editable={open}
             busy={busyFixture === fixture.fixture_id}
-            onBack={(side) => backTeam(fixture, side)}
+            onChoose={(side) => chooseTeam(fixture, side)}
             onSkip={() => skipFixture(fixture)}
           />
         ))}
@@ -330,27 +330,27 @@ function ErrorLine({ message }: { message: string }) {
 
 /** One team as a tile, in the style of the LMS pick screen so the two read as one product. */
 function TeamTile({
-  name, backed, disabled, onClick, label,
+  name, chosen, disabled, onClick, label,
 }: {
-  name: string; backed: boolean; disabled: boolean; onClick: () => void; label: string;
+  name: string; chosen: boolean; disabled: boolean; onClick: () => void; label: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-pressed={backed}
-      aria-label={`${label}: ${name}${backed ? ' (backed)' : ''}`}
+      aria-pressed={chosen}
+      aria-label={`${label}: ${name}${chosen ? ' (predicted)' : ''}`}
       className={`relative flex min-h-[64px] flex-1 items-center justify-center border p-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
-        backed
+        chosen
           ? 'border-2 border-moss bg-moss-wash'
           : disabled
             ? 'cursor-default border-ink/15'
             : 'cursor-pointer border-ink/30 hover:border-ink disabled:cursor-wait'
       }`}
     >
-      {backed && (
-        <span className={`${LABEL} absolute left-0 top-0 bg-moss px-2 py-1 text-[11px] text-stock-lit`}>Backed</span>
+      {chosen && (
+        <span className={`${LABEL} absolute left-0 top-0 bg-moss px-2 py-1 text-[11px] text-stock-lit`}>Predicted</span>
       )}
       <span className="text-sm font-medium leading-tight text-ink sm:text-base">{name}</span>
     </button>
@@ -358,12 +358,12 @@ function TeamTile({
 }
 
 function CouponRow({
-  fixture, editable, busy, onBack, onSkip,
+  fixture, editable, busy, onChoose, onSkip,
 }: {
-  fixture: MatchdayFixture; editable: boolean; busy: boolean; onBack: (side: Side) => void; onSkip: () => void;
+  fixture: MatchdayFixture; editable: boolean; busy: boolean; onChoose: (side: Side) => void; onSkip: () => void;
 }) {
-  const homeBacked = fixture.my_team === fixture.home_team_short;
-  const awayBacked = fixture.my_team === fixture.away_team_short;
+  const homeChosen = fixture.my_team === fixture.home_team_short;
+  const awayChosen = fixture.my_team === fixture.away_team_short;
   const resultText = fixture.result === null
     ? null
     : fixture.result === 'DRAW'
@@ -373,12 +373,12 @@ function CouponRow({
   return (
     <div className="p-3 sm:p-4">
       <div className="flex items-center gap-2 sm:gap-4">
-        <TeamTile name={fixture.home_team} label="Home" backed={homeBacked} disabled={!editable || busy} onClick={() => onBack('home')} />
+        <TeamTile name={fixture.home_team} label="Home" chosen={homeChosen} disabled={!editable || busy} onClick={() => onChoose('home')} />
         <span className={`${LABEL} flex-shrink-0 text-ink-fade`}>v</span>
-        <TeamTile name={fixture.away_team} label="Away" backed={awayBacked} disabled={!editable || busy} onClick={() => onBack('away')} />
+        <TeamTile name={fixture.away_team} label="Away" chosen={awayChosen} disabled={!editable || busy} onClick={() => onChoose('away')} />
       </div>
 
-      {/* One statement per row (design-system §8): what it meant for you if you backed a team,
+      {/* One statement per row (design-system §8): what it meant for you if you predicted a team,
           otherwise what happened. Every state carries its word as well as its colour. */}
       <div className="mt-2 flex items-center justify-between gap-3 text-[13px]">
         <span className="font-data text-ink-fade">{formatKickoff(fixture.kickoff_time)}</span>
@@ -416,13 +416,13 @@ function CouponRow({
  * (towards the home team) or right (towards the away team) is a shortcut, as are the arrow keys.
  */
 function DeckCard({
-  fixture, position, count, busy, onBack, onSkip, onPrevious,
+  fixture, position, count, busy, onChoose, onSkip, onPrevious,
 }: {
   fixture: MatchdayFixture;
   position: number;
   count: number;
   busy: boolean;
-  onBack: (side: Side) => void;
+  onChoose: (side: Side) => void;
   onSkip: () => void;
   onPrevious: (() => void) | null;
 }) {
@@ -434,16 +434,16 @@ function DeckCard({
     reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
 
-  // Arrow keys, for a keyboard on a desktop: left backs the home team, right the away team.
+  // Arrow keys, for a keyboard on a desktop: left chooses the home team, right the away team.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (busy) return;
-      if (e.key === 'ArrowLeft') onBack('home');
-      if (e.key === 'ArrowRight') onBack('away');
+      if (e.key === 'ArrowLeft') onChoose('home');
+      if (e.key === 'ArrowRight') onChoose('away');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [busy, onBack]);
+  }, [busy, onChoose]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (busy || e.pointerType === 'mouse') return; // a mouse has the buttons; dragging is for thumbs
@@ -460,13 +460,13 @@ function DeckCard({
     dragStart.current = null;
     const dx = dragX;
     setDragX(0);
-    if (dx <= -SWIPE_THRESHOLD_PX) onBack('home');
-    else if (dx >= SWIPE_THRESHOLD_PX) onBack('away');
+    if (dx <= -SWIPE_THRESHOLD_PX) onChoose('home');
+    else if (dx >= SWIPE_THRESHOLD_PX) onChoose('away');
   };
 
   const leaning: Side | null = dragX <= -SWIPE_THRESHOLD_PX / 2 ? 'home' : dragX >= SWIPE_THRESHOLD_PX / 2 ? 'away' : null;
-  const homeBacked = fixture.my_team === fixture.home_team_short;
-  const awayBacked = fixture.my_team === fixture.away_team_short;
+  const homeChosen = fixture.my_team === fixture.home_team_short;
+  const awayChosen = fixture.my_team === fixture.away_team_short;
 
   return (
     <div className="mx-auto max-w-md">
@@ -501,26 +501,26 @@ function DeckCard({
           <button
             type="button"
             disabled={busy}
-            onClick={() => onBack('home')}
-            aria-pressed={homeBacked}
+            onClick={() => onChoose('home')}
+            aria-pressed={homeChosen}
             className={`rounded-sm border px-3 py-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait ${
-              homeBacked ? 'border-2 border-moss bg-moss-wash' : 'border-ink hover:bg-ink hover:text-stock-lit'
+              homeChosen ? 'border-2 border-moss bg-moss-wash' : 'border-ink hover:bg-ink hover:text-stock-lit'
             }`}
           >
             <span className={`${LABEL} block`}>Home</span>
-            <span className="mt-0.5 block text-[13px]">Back {fixture.home_team_short}</span>
+            <span className="mt-0.5 block text-[13px]">{fixture.home_team_short} to win</span>
           </button>
           <button
             type="button"
             disabled={busy}
-            onClick={() => onBack('away')}
-            aria-pressed={awayBacked}
+            onClick={() => onChoose('away')}
+            aria-pressed={awayChosen}
             className={`rounded-sm border px-3 py-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait ${
-              awayBacked ? 'border-2 border-moss bg-moss-wash' : 'border-ink hover:bg-ink hover:text-stock-lit'
+              awayChosen ? 'border-2 border-moss bg-moss-wash' : 'border-ink hover:bg-ink hover:text-stock-lit'
             }`}
           >
             <span className={`${LABEL} block`}>Away</span>
-            <span className="mt-0.5 block text-[13px]">Back {fixture.away_team_short}</span>
+            <span className="mt-0.5 block text-[13px]">{fixture.away_team_short} to win</span>
           </button>
         </div>
 
