@@ -35,6 +35,9 @@ export default function CompetitionPlayersPage() {
   const pickForPlayerId = searchParams.get('pick');
 
   const [competition, setCompetition] = useState<Competition | null>(null);
+  // Matchday keeps payment, hiding and removal, and drops everything about lives and picks: nobody
+  // is out in a league table, and predictions are the player's own (docs/matchday.md §8.4).
+  const isMatchday = competition?.game_type === 'matchday';
 
   // Use AppDataProvider context to avoid redundant API calls
   const { competitions } = useAppData();
@@ -740,6 +743,7 @@ export default function CompetitionPlayersPage() {
 
               {/* Admin Controls Row */}
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {!isMatchday && (<>
                 {/* Lives: shown, not edited.
 
                     The +/- stepper was removed. In ten months of production it was used ONCE by a
@@ -785,6 +789,7 @@ export default function CompetitionPlayersPage() {
                   <CheckCircleIcon className="h-4 w-4" />
                   Set pick
                 </button>
+                </>)}
 
                 {/* Paid stays visible once it is true - it is the answer to "have they paid?",
                     which is the question the list gets scanned for. Marking it happens in the
@@ -852,7 +857,7 @@ export default function CompetitionPlayersPage() {
                             rather than "Mark as active" for the same reason - one describes a
                             database column, the other describes what the organiser is doing and
                             what they are spending. */}
-                        {(player.status || 'active') === 'active' ? (
+                        {isMatchday ? null : (player.status || 'active') === 'active' ? (
                           <button
                             onClick={() => {
                               setOpenDropdownId(null);

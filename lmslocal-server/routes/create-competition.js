@@ -84,6 +84,7 @@ const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { createRoundFromBlock } = require('../services/fixtureBlock');
+const { endingProblem } = require('../services/matchdayScoring');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -150,21 +151,12 @@ router.post('/', verifyToken, async (req, res) => {
         });
       }
 
+      const problem = endingProblem(end_rule, end_value);
+      if (problem) {
+        return res.json({ return_code: "VALIDATION_ERROR", message: problem });
+      }
       endRule = end_rule;
       endValue = Number(end_value);
-      // Upper bounds are sanity, not rules: 38 is a Premier League season, and 1000 points is
-      // beyond anything a season produces at roughly 15 a gameweek.
-      const maxValue = endRule === 'rounds' ? 38 : 1000;
-      if (!['points', 'rounds'].includes(endRule) || !Number.isInteger(endValue) || endValue < 1 || endValue > maxValue) {
-        return res.json({
-          return_code: "VALIDATION_ERROR",
-          message: endRule === 'rounds'
-            ? "Number of rounds must be between 1 and 38"
-            : endRule === 'points'
-              ? "Target points must be between 1 and 1000"
-              : "Choose how the game ends: a points target or a number of rounds"
-        });
-      }
     }
 
     // Validate venue_name length if provided

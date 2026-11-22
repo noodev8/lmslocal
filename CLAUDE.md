@@ -206,7 +206,9 @@ the user is organiser **or** participant, with role-specific fields.
 - Pool: max 20 connections, 30s idle timeout, 2s connection timeout
 - Rate limits: general 1000 req/15min; DB-intensive 50 req/10sec keyed by IP + path;
   `joinLookupLimit` 30 req/min on the public `/get-competition-by-code`
-- CORS: localhost:3000-3003 plus `CLIENT_URL`. Helmet CSP allows unsafe-inline for React dev
+- CORS: the origins in `CLIENT_URL` (comma-separated), plus same-origin. There is no built-in
+  localhost range - a local web server on a port not listed there is refused. Helmet CSP allows
+  unsafe-inline for React dev
 
 ### Ignore files: one of each, at the repo root
 

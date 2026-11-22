@@ -4,8 +4,8 @@ A second game type, played alongside Last Man Standing on the same fixtures, rou
 For every match in a gameweek a player backs one team: **win +3, draw +1, loss −1**. The result is
 a league table of points.
 
-**Status: phases 1 and 2 built, 2026-11-22 — the server plays the game end to end; no screens
-yet** (§10). "Matchday" is a working name; see §11.
+**Status: phases 1–3 built, 2026-11-22 — playable on the web end to end** (§10). Not yet: the
+admin game column, Matchday emails, the app. "Matchday" is a working name; see §11.
 
 This doc is the contract. When a new scenario turns up ("what does a postponed match score?",
 "what does the app show a Matchday player?"), answer it here first, then change the code to
@@ -400,8 +400,49 @@ companies printed on different coloured stock) is a design-system decision. If i
    competition — the push path is game-agnostic and unchanged.
    **Not yet:** the dashboard's Matchday fields (position, total, "7 of 10 predicted") — with
    the dashboard card in phase 3.
-3. **Web.** Create wizard, join page, dashboard card, the coupon and the table, the home branch,
-   the redirects.
+3. **Web. Built 2026-11-22.**
+   - **Create wizard**: "Which game?" is step 1 of 4, with no default. Matchday drops lives and
+     the fixture-service choice (always on) and asks "How it ends" (default first to 100;
+     10 if rounds). It refuses a league we don't supply matches for at the details step.
+   - **Join page**: a "Game" row on every competition, and for Matchday a line on how it is
+     scored and how it ends. `get-competition-by-code` now returns `game_type` / `end_rule` /
+     `end_value`.
+   - **Dashboard card**: the game's name above every competition's name. Matchday shows
+     "4th of 12 · 23 pts", then "Fill in your coupon by …" / "7 of 10 predicted · locks …" /
+     "Matches in play", and the winner or a shared win. `get-user-dashboard` adds a `matchday`
+     block per competition from `getMatchdayTables` (one query however many competitions).
+   - **`/game/[id]`** branches once, in a wrapper default export, to
+     `components/matchday/MatchdayHome.tsx`; the LMS screen is otherwise untouched.
+   - **`/game/[id]/coupon`**: the card deck (Home / Away / Skip buttons; swipe and arrow keys as
+     shortcuts) and the coupon. The deck opens by itself only when nothing is predicted.
+   - **`/game/[id]/table`**.
+   - **Redirects**: pick and player-results → coupon, standings → table
+     (`hooks/useMatchdayRedirect.ts`).
+   - **Settings**: the ending is editable until round 1 locks (`update-competition` takes
+     `end_rule` / `end_value`; `endingProblem` in `matchdayScoring.js` is the one validation for
+     create and update). Lives are hidden, and the reset/delete wording follows the game.
+   - **Players page**: no lives, Set pick, Mark as out or Bring back in.
+   - **`StartDateChooser`** takes `gameType` for its one sentence.
+   - The game names, the scoring line and the ending wording live in `src/lib/games.ts`.
+     Renaming the game is a change there.
+
+   Fixed on the way: settings decided "started" from a missing invite code, which no longer
+   happens, so **every save on a started competition failed** with COMPETITION_STARTED, even one
+   that only changed the description. It now uses `joiningOpen` from `roundState.ts`. The create
+   wizard's error also showed only on the details step, behind the Back button; it now shows on
+   review, where the submit is.
+
+   **Tested** in a browser against a local server: dashboard, home, deck, coupon (change and
+   skip), a partial push and a settled round, table, the wizard to review, join page signed out,
+   settings, the LMS home, the redirect. **Not tested:** swiping with a real finger (the deck's
+   buttons and arrow keys were), and `next build` (it would have overwritten a dev server running
+   in the same folder; type-check and lint pass).
+
+   **Open:**
+   - The join link's preview (`join/[code]/layout.tsx`) is fixed LMS copy and an LMS image:
+     a Matchday invite in WhatsApp previews as Last Man Standing. Needs neutral wording or a
+     server-side lookup, which that layout avoids on purpose. A decision, not a bug.
+   - The promote page and leaflets have not been checked for LMS wording.
 4. **Admin.** Game column and filter on the Competitions screen. (The push row report went in
    with phase 2.)
 5. **Matchday emails.** Then the app, by sending `X-Game-Types` from a new version.

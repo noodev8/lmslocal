@@ -9,7 +9,9 @@ import {
   XMarkIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, ResetQuoteResponse, DeleteCompetitionRequest, StartOption } from '@/lib/api';
+import { competitionApi, UpdateCompetitionRequest, ResetCompetitionRequest, ResetQuoteResponse, DeleteCompetitionRequest, StartOption, MatchdayEndRule } from '@/lib/api';
+import { joiningOpen as isJoiningOpen } from '@/lib/roundState';
+import { endingLabel } from '@/lib/games';
 import StartDateChooser, { daysUntil } from '@/components/StartDateChooser';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
@@ -70,7 +72,11 @@ export default function CompetitionSettings() {
     lives_per_player: 0,
     no_team_twice: true,
     prize_structure: '',
+    // Matchday's ending (docs/matchday.md §4.1). The value is a string while it is being typed.
+    end_rule: 'points' as MatchdayEndRule,
+    end_value: '',
   });
+  const isMatchday = competition?.game_type === 'matchday';
 
   // Track if competition has started (derived from invite_code presence)
   const [hasStarted, setHasStarted] = useState(false);
@@ -126,11 +132,21 @@ export default function CompetitionSettings() {
               lives_per_player: competition.lives_per_player || 0,
               no_team_twice: competition.no_team_twice !== undefined ? competition.no_team_twice : true,
               prize_structure: competition.prize_structure || '',
+              end_rule: (competition.end_rule as MatchdayEndRule) || 'points',
+              end_value: competition.end_value ? String(competition.end_value) : '',
             });
           }
 
-          // Check if competition has started (no invite code means started)
-          setHasStarted(!competition.invite_code);
+          // Started = round 1 has locked, the rule the server applies (update-competition reads
+          // round 1's lock time). This used to test for a missing invite code, but the code is now
+          // kept for the competition's whole life, so every competition read as not started: the
+          // locked settings were sent on every save, and the server refused them - which failed
+          // the whole save, even one that only changed the description.
+          setHasStarted(!isJoiningOpen({
+            currentRound: competition.current_round,
+            currentRoundLockTime: competition.current_round_lock_time,
+            now: new Date(),
+          }));
 
         } else if (!contextLoading) {
           // Only redirect if context has finished loading and we still don't have access
@@ -218,10 +234,16 @@ export default function CompetitionSettings() {
       // Always include logo_url to allow clearing it (send empty string to clear)
       updateData.logo_url = formData.logo_url.trim();
 
-      // Only include restricted fields if competition hasn't started
+      // Only include restricted fields if competition hasn't started. Each game sends its own:
+      // the server refuses an ending on an LMS competition, and lives mean nothing in Matchday.
       if (!hasStarted) {
-        updateData.lives_per_player = formData.lives_per_player;
-        updateData.no_team_twice = formData.no_team_twice;
+        if (isMatchday) {
+          updateData.end_rule = formData.end_rule;
+          updateData.end_value = Number(formData.end_value);
+        } else {
+          updateData.lives_per_player = formData.lives_per_player;
+          updateData.no_team_twice = formData.no_team_twice;
+        }
       }
 
       const response = await competitionApi.update(updateData);
@@ -825,13 +847,72 @@ export default function CompetitionSettings() {
               <p className="mt-1 text-[14px] text-ink-fade">
                 {hasStarted
                   ? 'These settings cannot be changed after the competition has started.'
-                  : 'Configure the rules for your competition before players start making picks.'
+                  : isMatchday
+                    ? 'You can change how the game ends until round 1 kicks off.'
+                    : 'Configure the rules for your competition before players start making picks.'
                 }
               </p>
             </div>
 
             <div className="p-5 sm:p-6">
-              {/* Lives Per Player */}
+              {/* How a Matchday game ends - the one rule this game lets the organiser set. */}
+              {isMatchday && (
+                <div>
+                  <p className={`${LABEL} mb-3 text-ink-fade`}>How it ends</p>
+                  {hasStarted ? (
+                    <p className="text-[17px] text-ink">{endingLabel(competition?.end_rule, competition?.end_value)}</p>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="How it ends">
+                        {(['points', 'rounds'] as MatchdayEndRule[]).map((rule) => (
+                          <button
+                            key={rule}
+                            type="button"
+                            role="radio"
+                            aria-checked={formData.end_rule === rule}
+                            onClick={() => {
+                              setFormData(prev => ({ ...prev, end_rule: rule }));
+                              if (success) setSuccess(false);
+                              if (error) setError(null);
+                            }}
+                            className={`border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:p-4 ${
+                              formData.end_rule === rule ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 hover:border-ink'
+                            }`}
+                          >
+                            <p className={LABEL}>{rule === 'points' ? 'A points target' : 'A number of rounds'}</p>
+                          </button>
+                        ))}
+                      </div>
+                      <label className="mt-3 block max-w-[14rem]">
+                        <span className={`${LABEL} text-ink-fade`}>
+                          {formData.end_rule === 'points' ? 'Points to win' : 'Number of rounds'}
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={formData.end_rule === 'rounds' ? 38 : 1000}
+                          value={formData.end_value}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, end_value: e.target.value }));
+                            if (success) setSuccess(false);
+                            if (error) setError(null);
+                          }}
+                          className={`${INPUT} mt-2 font-data`}
+                        />
+                      </label>
+                      <p className="mt-2 text-[13px] text-ink-fade">
+                        {formData.end_rule === 'points'
+                          ? 'The first to reach it wins, judged at the end of a round.'
+                          : 'Most points when the last round is played wins.'}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Lives Per Player - Last Man Standing only */}
+              {!isMatchday && (
               <div>
                 <p className={`${LABEL} mb-3 text-ink-fade`}>Lives per player</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -861,6 +942,7 @@ export default function CompetitionSettings() {
                   How many wrong picks can players make before being eliminated?
                 </p>
               </div>
+              )}
 
               {/* No Team Twice Rule - HIDDEN (always enabled) */}
             </div>
@@ -904,8 +986,17 @@ export default function CompetitionSettings() {
                       Clears all game data but keeps the competition and players:
                     </p>
                     <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-ink-fade">
-                      <li>Deletes rounds, fixtures, picks, and results</li>
-                      <li>Resets players to active with full lives</li>
+                      {isMatchday ? (
+                        <>
+                          <li>Deletes rounds, matches, predictions and results</li>
+                          <li>Puts every player back on 0 points</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>Deletes rounds, fixtures, picks, and results</li>
+                          <li>Resets players to active with full lives</li>
+                        </>
+                      )}
                       <li>Keeps competition and all players</li>
                     </ul>
                   </div>
@@ -1100,6 +1191,7 @@ export default function CompetitionSettings() {
 
                   <div className="mt-4">
                     <StartDateChooser
+                      gameType={competition?.game_type ?? 'lms'}
                       teamListId={competition?.team_list_id}
                       value={resetStartOption}
                       onChange={setResetStartOption}
@@ -1141,9 +1233,9 @@ export default function CompetitionSettings() {
                       <p className={`${LABEL} mb-2 text-overprint`}>This will permanently delete</p>
                       <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-ink">
                         <li>All rounds and fixtures</li>
-                        <li>All player picks and results</li>
+                        <li>{isMatchday ? 'All predictions and results' : 'All player picks and results'}</li>
                         <li>All game progress and statistics</li>
-                        <li>All player states (status, lives, payments)</li>
+                        <li>{isMatchday ? 'All player states (points, payments)' : 'All player states (status, lives, payments)'}</li>
                       </ul>
                     </div>
 
@@ -1256,7 +1348,7 @@ export default function CompetitionSettings() {
                   <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-ink">
                     <li>The entire competition</li>
                     <li>All rounds, fixtures, and results</li>
-                    <li>All picks and game history</li>
+                    <li>{isMatchday ? 'All predictions and game history' : 'All picks and game history'}</li>
                   </ul>
                 </div>
 

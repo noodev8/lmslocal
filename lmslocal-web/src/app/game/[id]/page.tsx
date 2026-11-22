@@ -20,6 +20,7 @@ import { Competition as CompetitionType, roundApi, competitionApi, offlinePlayer
 import { useAppData } from '@/contexts/AppDataContext';
 import { useCompetitionGate } from '@/hooks/useCompetitionGate';
 import CompetitionUnavailable from '@/components/CompetitionUnavailable';
+import MatchdayHome from '@/components/matchday/MatchdayHome';
 import InviteBlock from '@/components/InviteBlock';
 import { getCurrentUser } from '@/lib/auth';
 import { useToast, ToastContainer } from '@/components/Toast';
@@ -71,7 +72,37 @@ const TILE_GRID_COLS: Record<number, string> = {
   6: 'sm:grid-cols-3',
 };
 
-export default function UnifiedGameDashboard() {
+/*
+ONE BRANCH, AT THE TOP (docs/matchday.md §3.2). A Matchday competition gets its own screen; the
+Last Man Standing dashboard below is untouched by the second game and carries none of its
+conditions. Neither mounts until the competition is known: the LMS screen starts its own requests
+on mount, and firing those at a Matchday competition on a cold load would only collect refusals.
+*/
+export default function GameHome() {
+  const params = useParams();
+  const { competition, unavailable } = useCompetitionGate(params.id as string);
+
+  if (unavailable) return <CompetitionUnavailable />;
+  if (!competition) {
+    return (
+      <div className="min-h-screen bg-stock font-body text-ink">
+        <main className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+          <div className={`${PANEL} p-8 text-center`}>
+            <div className="mb-4 inline-flex h-8 w-8 animate-spin items-center justify-center rounded-full border-2 border-ink border-t-transparent" />
+            <p className={EYEBROW}>Loading</p>
+            <p className="mt-2 text-[17px] text-ink-fade">Fetching your competition&hellip;</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  if (competition.game_type === 'matchday') {
+    return <MatchdayHome competition={competition} />;
+  }
+  return <UnifiedGameDashboard />;
+}
+
+function UnifiedGameDashboard() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;

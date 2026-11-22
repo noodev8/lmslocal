@@ -116,4 +116,29 @@ async function settleMatchdayRound(client, { competitionId, roundId, roundNumber
   };
 }
 
-module.exports = { settleMatchdayRound, POINTS };
+/**
+ * What is wrong with a proposed ending, or null if nothing is. The one definition, used by
+ * create-competition and update-competition so the two cannot accept different games.
+ *
+ * Upper bounds are sanity, not rules: 38 rounds is a Premier League season, and 1000 points is
+ * beyond anything a season produces at roughly 15 a gameweek.
+ *
+ * @param {any} endRule - 'points' or 'rounds'
+ * @param {any} endValue - a whole number
+ * @returns {string|null} a message an organiser can act on
+ */
+function endingProblem(endRule, endValue) {
+  if (endRule !== 'points' && endRule !== 'rounds') {
+    return 'Choose how the game ends: a points target or a number of rounds';
+  }
+  const value = Number(endValue);
+  const max = endRule === 'rounds' ? 38 : 1000;
+  if (!Number.isInteger(value) || value < 1 || value > max) {
+    return endRule === 'rounds'
+      ? 'Number of rounds must be between 1 and 38'
+      : 'Target points must be between 1 and 1000';
+  }
+  return null;
+}
+
+module.exports = { settleMatchdayRound, endingProblem, POINTS };

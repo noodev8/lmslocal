@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useMatchdayRedirect } from '@/hooks/useMatchdayRedirect';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -28,6 +29,8 @@ export default function PickPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
+  // A Matchday competition is sent to its own screen - docs/matchday.md §8.4.
+  useMatchdayRedirect(competitionId, 'coupon');
 
   // Use AppDataProvider context for competitions data
   const { loading: contextLoading, refreshData } = useAppData();

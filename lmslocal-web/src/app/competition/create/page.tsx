@@ -12,7 +12,8 @@ import {
   HeartIcon,
   CalendarDaysIcon
 } from '@heroicons/react/24/outline';
-import { competitionApi, teamApi, cacheUtils, CreateCompetitionRequest, StartOption } from '@/lib/api';
+import { competitionApi, teamApi, cacheUtils, CreateCompetitionRequest, StartOption, GameType, MatchdayEndRule } from '@/lib/api';
+import { GAME_NAMES, GAME_SUMMARIES, MATCHDAY_SCORING, endingLabel } from '@/lib/games';
 import { useAppData } from '@/contexts/AppDataContext';
 import CloudinaryUpload from '@/components/CloudinaryUpload';
 import StartDateChooser, { formatLockTime } from '@/components/StartDateChooser';
@@ -41,7 +42,12 @@ interface CreateCompetitionForm {
   organiser_joins_as_player: boolean;
 }
 
-const STEPS = ['Basic details', 'Rules & settings', 'Review & create'];
+// "Which game?" comes first, before anything else is asked (docs/matchday.md §8.1): every later
+// step depends on the answer, and an organiser who meant the other game should find out at once.
+const STEPS = ['Game', 'Details', 'Rules', 'Review'];
+
+// Where the ending starts. Editable until round 1 locks, so these only need to be reasonable.
+const DEFAULT_ENDING: Record<MatchdayEndRule, number> = { points: 100, rounds: 10 };
 
 export default function CreateCompetitionPage() {
   const router = useRouter();
@@ -78,11 +84,24 @@ export default function CreateCompetitionPage() {
   // created - it falls back to the Ready button.
   const [startOption, setStartOption] = useState<StartOption | null>(null);
 
+  // Which game. Null until chosen - there is no default, because the wrong game is the one
+  // mistake an organiser cannot undo: it is fixed at creation.
+  const [gameType, setGameType] = useState<GameType | null>(null);
+  const isMatchday = gameType === 'matchday';
+  const [endRule, setEndRule] = useState<MatchdayEndRule>('points');
+  const [endValue, setEndValue] = useState<string>(String(DEFAULT_ENDING.points));
+  const endValueNumber = Number(endValue);
+  const endValueValid = Number.isInteger(endValueNumber)
+    && endValueNumber >= 1
+    && endValueNumber <= (endRule === 'rounds' ? 38 : 1000);
+
   // The fixture service only pushes to team lists we stage fixtures for, so the offer is hidden
   // entirely on lists it does not cover rather than shown and then rejected on submit.
   const selectedTeamList = teamLists.find(tl => tl.id === watchedValues.team_list_id);
   const fixtureServiceOffered = selectedTeamList?.fixture_service_available === true;
-  const usingFixtureService = fixtureServiceOffered && useFixtureService;
+  // Matchday is always on the fixture service: ten results a week is not something an organiser
+  // enters by hand, and the server refuses a Matchday competition without it.
+  const usingFixtureService = fixtureServiceOffered && (isMatchday || useFixtureService);
 
   useEffect(() => {
     // Check authentication
@@ -124,10 +143,13 @@ export default function CreateCompetitionPage() {
       const requestData: CreateCompetitionRequest = {
         name: data.name,
         team_list_id: data.team_list_id,
-        lives_per_player: data.lives_per_player,
+        // Lives mean nothing in Matchday; the server stores the default and never reads it.
+        lives_per_player: isMatchday ? 0 : data.lives_per_player,
         no_team_twice: data.no_team_twice,
         organiser_joins_as_player: data.organiser_joins_as_player,
         fixture_service: usingFixtureService,
+        game_type: gameType ?? 'lms',
+        ...(isMatchday ? { end_rule: endRule, end_value: endValueNumber } : {}),
         // Only when there is one to send. Omitted, the server falls back to the Ready button
         // rather than refusing, so an empty calendar never blocks a competition being created.
         ...(usingFixtureService && startOption ? { start_block_id: startOption.block_id } : {})
@@ -210,7 +232,7 @@ export default function CreateCompetitionPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <p className={EYEBROW}>Create</p>
+        <p className={EYEBROW}>{gameType && step > 1 ? GAME_NAMES[gameType] : 'Create'}</p>
         <h1 className={`${HEADING} mt-1 text-3xl`}>Create competition</h1>
 
         {/* Progress Steps */}
@@ -242,8 +264,56 @@ export default function CreateCompetitionPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6">
-          {/* Step 1: Basic Details */}
+          {/* Step 1: Which game. Two large choices and nothing else on the screen. */}
           {step === 1 && (
+            <div className={`${PANEL} p-5 sm:p-6 lg:p-8`}>
+              <p className={`${HEADING} mb-2 text-2xl`}>Which game?</p>
+              <p className="mb-5 text-[15px] text-ink-fade">
+                Both run on the same matches each week. You can&apos;t switch a competition to the
+                other game once it&apos;s created.
+              </p>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Which game">
+                {(['lms', 'matchday'] as GameType[]).map((type) => {
+                  const chosen = gameType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      role="radio"
+                      aria-checked={chosen}
+                      onClick={() => setGameType(type)}
+                      className={`flex h-full flex-col items-start justify-start border p-5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+                        chosen ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 hover:border-ink'
+                      }`}
+                    >
+                      <p className="font-display text-2xl uppercase tracking-[0.03em]">{GAME_NAMES[type]}</p>
+                      <p className={`mt-2 text-[15px] leading-relaxed ${chosen ? 'text-stock/85' : 'text-ink-fade'}`}>
+                        {GAME_SUMMARIES[type]}
+                      </p>
+                      {type === 'matchday' && (
+                        <p className={`${LABEL} mt-3 ${chosen ? 'text-stock/85' : 'text-ink'}`}>{MATCHDAY_SCORING}</p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex justify-end sm:mt-8">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  disabled={!gameType}
+                  className={`${BTN_PRIMARY} px-6 py-3 text-base disabled:cursor-not-allowed disabled:opacity-40`}
+                >
+                  Next: Details
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Basic Details */}
+          {step === 2 && (
             <div className={`${PANEL} p-5 sm:p-6 lg:p-8`}>
               <p className={`${HEADING} mb-5 text-2xl`}>Competition details</p>
 
@@ -268,7 +338,7 @@ export default function CreateCompetitionPage() {
                     })}
                     type="text"
                     className={INPUT}
-                    placeholder="e.g., Premier League Last Man Standing 2025"
+                    placeholder={isMatchday ? 'e.g., The Crown Matchday 2026' : 'e.g., Premier League Last Man Standing 2025'}
                   />
                   {errors.name && (
                     <p className="mt-1 text-[13px] text-overprint">{errors.name.message}</p>
@@ -382,32 +452,117 @@ export default function CreateCompetitionPage() {
                     <p className="mt-1 text-[13px] text-overprint">{errors.team_list_id.message}</p>
                   )}
                   <p className="mt-1 text-[13px] text-ink-fade">
-                    Choose which teams players can pick from in your competition
+                    {isMatchday
+                      ? 'Which league the matches come from'
+                      : 'Choose which teams players can pick from in your competition'}
                   </p>
+                  {/* Matchday needs us to supply the matches, so a list we don't cover is a dead
+                      end - said here rather than discovered at the last step. */}
+                  {isMatchday && selectedTeamList && !fixtureServiceOffered && (
+                    <p className="mt-2 border-l-2 border-overprint pl-3 text-[13px] text-ink">
+                      Matchday needs a league we supply matches for, and this one isn&apos;t covered.
+                      Choose another, or go back and choose Last Man Standing.
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end sm:mt-8">
+              <div className="mt-6 flex flex-col justify-between gap-3 sm:mt-8 sm:flex-row">
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
-                  disabled={!watchedValues.name || !watchedValues.team_list_id}
-                  className={`${BTN_PRIMARY} px-6 py-3 text-base disabled:cursor-not-allowed disabled:opacity-40`}
+                  onClick={() => setStep(1)}
+                  className={`${BTN_OUTLINE} order-2 justify-center px-6 py-3 sm:order-1`}
                 >
-                  Next: Rules &amp; settings
+                  Back: Game
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  disabled={!watchedValues.name || !watchedValues.team_list_id || (isMatchday && !fixtureServiceOffered)}
+                  className={`${BTN_PRIMARY} order-1 px-6 py-3 text-base disabled:cursor-not-allowed disabled:opacity-40 sm:order-2`}
+                >
+                  Next: Rules
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 2: Rules & Settings */}
-          {step === 2 && (
+          {/* Step 3: Rules & Settings */}
+          {step === 3 && (
             <div className={`${PANEL} p-5 sm:p-6 lg:p-8`}>
               <p className={`${HEADING} mb-5 text-2xl`}>Competition rules</p>
 
               <div className="space-y-6 sm:space-y-8">
+                {/* Matchday: the matches are always ours, so there is no choice to offer - only the
+                    statement, and the one question this game adds. */}
+                {isMatchday && (
+                  <>
+                    <div className="border border-ink/30 p-4">
+                      <p className={`${LABEL} mb-1 flex items-center gap-1.5 text-ink-fade`}>
+                        <CalendarDaysIcon className="h-4 w-4" />
+                        Matches &amp; results
+                      </p>
+                      <p className="text-[13px] text-ink-fade">
+                        We add every round&apos;s matches and enter the results for you. Players back a
+                        team in each match: {MATCHDAY_SCORING}.
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className={`${LABEL} mb-3 text-ink-fade`}>How it ends</p>
+                      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="How it ends">
+                        {(['points', 'rounds'] as MatchdayEndRule[]).map((rule) => (
+                          <button
+                            key={rule}
+                            type="button"
+                            role="radio"
+                            aria-checked={endRule === rule}
+                            onClick={() => {
+                              setEndRule(rule);
+                              setEndValue(String(DEFAULT_ENDING[rule]));
+                            }}
+                            className={`border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:p-4 ${
+                              endRule === rule ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 hover:border-ink'
+                            }`}
+                          >
+                            <p className={LABEL}>{rule === 'points' ? 'A points target' : 'A number of rounds'}</p>
+                            <p className={`mt-1 text-[13px] ${endRule === rule ? 'text-stock/85' : 'text-ink-fade'}`}>
+                              {rule === 'points'
+                                ? 'The first to reach it wins.'
+                                : 'Most points when the last round is played wins.'}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                      <label className="mt-3 block max-w-[14rem]">
+                        <span className={`${LABEL} text-ink-fade`}>
+                          {endRule === 'points' ? 'Points to win' : 'Number of rounds'}
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={endRule === 'rounds' ? 38 : 1000}
+                          value={endValue}
+                          onChange={(e) => setEndValue(e.target.value)}
+                          className={`${INPUT} mt-2 font-data`}
+                        />
+                      </label>
+                      {!endValueValid && (
+                        <p className="mt-1 text-[13px] text-overprint">
+                          {endRule === 'rounds' ? 'Between 1 and 38 rounds' : 'Between 1 and 1000 points'}
+                        </p>
+                      )}
+                      <p className="mt-2 text-[13px] text-ink-fade">
+                        Level at the top? More wins goes ahead, then more matches backed. You can
+                        change this until round 1 kicks off.
+                      </p>
+                    </div>
+                  </>
+                )}
+
                 {/* Fixture service opt-in - only offered on team lists we stage fixtures for */}
-                {fixtureServiceOffered && (
+                {fixtureServiceOffered && !isMatchday && (
                   <div>
                     <p className={`${LABEL} mb-3 flex items-center gap-1.5 text-ink-fade`}>
                       <CalendarDaysIcon className="h-4 w-4" />
@@ -465,6 +620,7 @@ export default function CreateCompetitionPage() {
                     stays put either way rather than appearing and shunting the fields below. */}
                 {usingFixtureService ? (
                   <StartDateChooser
+                    gameType={gameType ?? 'lms'}
                     teamListId={watchedValues.team_list_id}
                     value={startOption}
                     onChange={setStartOption}
@@ -484,7 +640,8 @@ export default function CreateCompetitionPage() {
                   </div>
                 )}
 
-                {/* Lives per player */}
+                {/* Lives per player - Last Man Standing only */}
+                {!isMatchday && (
                 <div>
                   <p className={`${LABEL} mb-3 flex items-center gap-1.5 text-ink-fade`}>
                     <HeartIcon className="h-4 w-4" />
@@ -513,6 +670,7 @@ export default function CreateCompetitionPage() {
                     How many wrong picks can players make before being eliminated?
                   </p>
                 </div>
+                )}
 
                 {/* No team twice rule - HIDDEN (always enabled) */}
                 <input
@@ -546,31 +704,44 @@ export default function CreateCompetitionPage() {
               <div className="mt-6 flex flex-col justify-between gap-3 sm:mt-8 sm:flex-row">
                 <button
                   type="button"
-                  onClick={() => setStep(1)}
+                  onClick={() => setStep(2)}
                   className={`${BTN_OUTLINE} order-2 justify-center px-6 py-3 sm:order-1`}
                 >
-                  Back: Competition details
+                  Back: Details
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
-                  className={`${BTN_PRIMARY} order-1 px-6 py-3 text-base sm:order-2`}
+                  onClick={() => setStep(4)}
+                  disabled={isMatchday && !endValueValid}
+                  className={`${BTN_PRIMARY} order-1 px-6 py-3 text-base disabled:cursor-not-allowed disabled:opacity-40 sm:order-2`}
                 >
-                  Next: Review &amp; create
+                  Next: Review
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Review & Create */}
-          {step === 3 && (
+          {/* Step 4: Review & Create */}
+          {step === 4 && (
             <div className={`${PANEL} p-5 sm:p-6 lg:p-8`}>
               <p className={`${HEADING} mb-5 text-2xl`}>Review your competition</p>
+
+              {/* The submit happens here, so its error has to be shown here too - it used to
+                  appear only on the details step, behind the Back button. */}
+              {error && (
+                <div className="mb-5 border border-overprint p-3">
+                  <p className="text-[14px] text-ink">{error}</p>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div className="border border-ink/30 p-4 sm:p-5">
                   <p className={`${LABEL} mb-3 text-ink-fade`}>Competition summary</p>
                   <dl className="divide-y divide-ink/30 font-data text-[14px]">
+                    <div className="flex justify-between gap-3 py-2">
+                      <dt className="text-ink-fade">Game</dt>
+                      <dd className="text-right text-ink">{gameType ? GAME_NAMES[gameType] : ''}</dd>
+                    </div>
                     <div className="flex justify-between gap-3 py-2">
                       <dt className="text-ink-fade">Name</dt>
                       <dd className="text-right text-ink">{watchedValues.name}</dd>
@@ -587,11 +758,18 @@ export default function CreateCompetitionPage() {
                         {teamLists.find(tl => tl.id === watchedValues.team_list_id)?.name}
                       </dd>
                     </div>
-                    <div className="flex justify-between gap-3 py-2">
-                      <dt className="text-ink-fade">Lives per player</dt>
-                      <dd className="text-right text-ink">{watchedValues.lives_per_player}</dd>
-                    </div>
-                    {fixtureServiceOffered && (
+                    {isMatchday ? (
+                      <div className="flex justify-between gap-3 py-2">
+                        <dt className="text-ink-fade">How it ends</dt>
+                        <dd className="text-right text-ink">{endingLabel(endRule, endValueNumber)}</dd>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between gap-3 py-2">
+                        <dt className="text-ink-fade">Lives per player</dt>
+                        <dd className="text-right text-ink">{watchedValues.lives_per_player}</dd>
+                      </div>
+                    )}
+                    {fixtureServiceOffered && !isMatchday && (
                       <div className="flex justify-between gap-3 py-2">
                         <dt className="flex-shrink-0 text-ink-fade">Matches &amp; results</dt>
                         <dd className="text-right text-ink">
@@ -630,11 +808,12 @@ export default function CreateCompetitionPage() {
                         {usingFixtureService && startOption ? (
                           <>
                             <li>
-                              Round 1 is already there &mdash; anyone you invite can pick straight away
+                              Round 1 is already there &mdash; anyone you invite can{' '}
+                              {isMatchday ? 'fill in their coupon' : 'pick'} straight away
                             </li>
                             <li>
                               Get your players in before {formatLockTime(startOption.lock_time)}, when
-                              picks lock and joining closes
+                              {isMatchday ? ' predictions' : ' picks'} lock and joining closes
                             </li>
                           </>
                         ) : (
@@ -649,10 +828,10 @@ export default function CreateCompetitionPage() {
               <div className="mt-6 flex flex-col justify-between gap-3 sm:mt-8 sm:flex-row">
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(3)}
                   className={`${BTN_OUTLINE} order-2 justify-center px-6 py-3 sm:order-1`}
                 >
-                  Back: Rules &amp; settings
+                  Back: Rules
                 </button>
                 <button
                   type="submit"

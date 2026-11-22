@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useMatchdayRedirect } from '@/hooks/useMatchdayRedirect';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -70,6 +71,8 @@ export default function StandingsPage() {
   const router = useRouter();
   const params = useParams();
   const competitionId = params.id as string;
+  // A Matchday competition is sent to its own screen - docs/matchday.md §8.4.
+  useMatchdayRedirect(competitionId, 'table');
 
   const [currentUser, setCurrentUser] = useState<{ id: number; email: string; display_name: string } | null>(null);
   const [competition, setCompetition] = useState<Competition | null>(null);

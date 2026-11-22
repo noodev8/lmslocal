@@ -34,7 +34,7 @@ deploy. Check with:
     -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: x-game-types"
 and look for X-Game-Types in Access-Control-Allow-Headers.
 */
-const GAME_TYPES_SHOWN = ['lms'];
+const GAME_TYPES_SHOWN = ['lms', 'matchday'];
 
 const api = axios.create({
   headers: {
@@ -229,7 +229,12 @@ export interface Competition {
   /** Organiser has pressed Ready. Null on a fixture service competition means it is waiting. */
   ready_at?: string | null;
   /** Which game, fixed at creation. Only games in GAME_TYPES_SHOWN are ever returned. */
-  game_type?: 'lms' | 'matchday';
+  game_type?: GameType;
+  /** Matchday only: how the game ends. Null for LMS. */
+  end_rule?: MatchdayEndRule | null;
+  end_value?: number | null;
+  /** Matchday only: where this user stands. Null for LMS. */
+  matchday?: MatchdayStanding | null;
   total_rounds?: number;
   picks_made?: number;
   picks_required?: number;
@@ -271,6 +276,73 @@ export interface Competition {
   team_list_id?: number;
   lives_per_player?: number;
   no_team_twice?: boolean;
+}
+
+/* Matchday, the second game (docs/matchday.md). */
+export type GameType = 'lms' | 'matchday';
+export type MatchdayEndRule = 'points' | 'rounds';
+
+/** The dashboard's per-competition Matchday block (get-user-dashboard). */
+export interface MatchdayStanding {
+  players: number;
+  /** Null when the user organises without playing. */
+  position: number | null;
+  total: number | null;
+  /** The total includes a round still being played. */
+  provisional: boolean;
+  /** Matches this user has backed in the latest round. */
+  predicted: number;
+  rounds_settled: number;
+  leader: { display_name: string; total: number } | null;
+  /** Everyone in first place; more than one at the end of the game is a shared win. */
+  first_place: string[];
+}
+
+/** One row of a player's coupon (get-predictions). */
+export interface MatchdayFixture {
+  fixture_id: number;
+  home_team: string;
+  home_team_short: string;
+  away_team: string;
+  away_team_short: string;
+  kickoff_time: string;
+  /** A team short code or 'DRAW'; null until the result is in. */
+  result: string | null;
+  settled: boolean;
+  /** Null means skipped. */
+  my_team: string | null;
+  /** 3, 1 or -1 (0 by hand); null until settled. */
+  my_points: number | null;
+}
+
+export interface MatchdayCoupon {
+  competition: { id: number; name: string; status: string; end_rule: MatchdayEndRule; end_value: number };
+  is_player: boolean;
+  round: { id: number; round_number: number; lock_time: string; locked: boolean; latest: boolean } | null;
+  fixtures: MatchdayFixture[];
+  predicted: number;
+  total_fixtures: number;
+}
+
+export interface MatchdayTableRow {
+  position: number;
+  user_id: number;
+  display_name: string;
+  total: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  predictions: number;
+  provisional: boolean;
+  is_me: boolean;
+}
+
+export interface MatchdayTable {
+  competition: { id: number; name: string; status: string; end_rule: MatchdayEndRule; end_value: number; winner_id: number | null };
+  rounds_settled: number;
+  latest_round_number: number | null;
+  latest_round_settled: boolean;
+  table: MatchdayTableRow[];
 }
 
 // Round interfaces
@@ -389,6 +461,10 @@ export interface CreateCompetitionRequest {
   /* Which round 1 the competition starts on, from getStartOptions. Fixture-service competitions
      only. Omitted when the calendar has nothing to offer, which falls back to the Ready button. */
   start_block_id?: number;
+  /* Which game. Omitted is LMS. Matchday needs fixture_service and an ending. */
+  game_type?: GameType;
+  end_rule?: MatchdayEndRule;
+  end_value?: number;
 }
 
 /* One date a competition can start on. Deliberately carries no fixtures: the organiser is
@@ -419,6 +495,9 @@ export interface UpdateCompetitionRequest {
   prize_structure?: string;
   lives_per_player?: number;
   no_team_twice?: boolean;
+  /* Matchday only, and only until round 1 locks. */
+  end_rule?: MatchdayEndRule;
+  end_value?: number;
   // fixture_service is set once at creation and ignored by update-competition - changed in the
   // database on request until the mid-competition switch is worked through.
 }
@@ -432,6 +511,8 @@ export interface UpdateCompetitionResponse {
     no_team_twice: boolean;
     has_started: boolean;
     updated_at: string;
+    end_rule?: MatchdayEndRule | null;
+    end_value?: number | null;
   };
 }
 
@@ -556,6 +637,9 @@ export const competitionApi = {
       logo_url: string | null;
       description: string | null;
       player_count: number;
+      game_type?: GameType;
+      end_rule?: MatchdayEndRule | null;
+      end_value?: number | null;
     };
   }>('/get-competition-by-code', { competition_code }),
 
@@ -668,6 +752,26 @@ export const competitionApi = {
   hide: (competition_id: number) => api.post<{ return_code: string; message: string }>('/hide-competition', { competition_id }),
   unhidePlayer: (competition_id: number, player_id: number) => api.post<{ return_code: string; message: string }>('/unhide-player', { competition_id, player_id }),
   updatePersonalName: (competition_id: number, personal_name: string | null) => api.post<{ return_code: string; message?: string; personal_name?: string | null }>('/update-personal-competition-name', { competition_id, personal_name }),
+};
+
+// Matchday API calls (docs/matchday.md). Never cached: the coupon changes with every card a
+// player answers, and the table with every results push.
+export const matchdayApi = {
+  // Back a team in one match, or change the team backed. One call per card.
+  setPrediction: (fixture_id: number, team: string) =>
+    api.post<{ return_code: string; message?: string; prediction?: { fixture_id: number; team: string } }>(
+      '/set-prediction', { fixture_id, team }
+    ),
+  // Take a prediction back - the match is skipped and scores 0. Safe to call when there is none.
+  clearPrediction: (fixture_id: number) =>
+    api.post<{ return_code: string; message?: string; cleared?: boolean }>('/clear-prediction', { fixture_id }),
+  // The coupon for a round; the latest when round_number is omitted.
+  getPredictions: (competition_id: number, round_number?: number) =>
+    api.post<MatchdayCoupon & { return_code: string; message?: string }>(
+      '/get-predictions', round_number ? { competition_id, round_number } : { competition_id }
+    ),
+  getTable: (competition_id: number) =>
+    api.post<MatchdayTable & { return_code: string; message?: string }>('/get-matchday-table', { competition_id }),
 };
 
 // Round API calls

@@ -6,6 +6,8 @@ import { useParams } from 'next/navigation';
 import { authApi, userApi, competitionApi, cacheUtils } from '@/lib/api';
 import { setAuthData } from '@/lib/auth';
 import { LABEL, EYEBROW } from '@/lib/design';
+import { gameName, MATCHDAY_SCORING, endingLabel } from '@/lib/games';
+import type { GameType, MatchdayEndRule } from '@/lib/api';
 import CompetitionLogo from '@/components/CompetitionLogo';
 
 /**
@@ -30,6 +32,9 @@ type Competition = {
   logo_url: string | null;
   description: string | null;
   player_count: number;
+  game_type?: GameType;
+  end_rule?: MatchdayEndRule | null;
+  end_value?: number | null;
 };
 
 /**
@@ -391,6 +396,21 @@ export default function JoinPage() {
       </h1>
 
       {/*
+        This is where a player first forms a picture of the game (docs/matchday.md §8.1), so a
+        Matchday competition says how it is played before anything else. LMS needs no line: the
+        name of the game on the row below is the explanation everyone already has.
+      */}
+      {competition.game_type === 'matchday' && (
+        <p className="mt-5 max-w-lg text-xl leading-relaxed text-ink">
+          A Matchday game: back a team in every match each round and score points.{' '}
+          <span className="whitespace-nowrap font-semibold">{MATCHDAY_SCORING}.</span>
+          {competition.end_rule && competition.end_value && (
+            <> {endingLabel(competition.end_rule, competition.end_value)}{competition.end_rule === 'points' ? ' wins.' : ', most points wins.'}</>
+          )}
+        </p>
+      )}
+
+      {/*
         The organiser's blurb, in full and expanded — no disclosure to open. Readership of this
         text peaks here and never recovers, and it is where organisers put the entry fee and the
         prize, which is exactly what someone deciding whether to join needs to see without asking.
@@ -403,6 +423,10 @@ export default function JoinPage() {
       )}
 
       <dl className="mt-7 border-y border-ink/30">
+        <div className="flex items-baseline justify-between gap-4 border-b border-ink/30 py-3">
+          <dt className={`${LABEL} text-ink-fade`}>Game</dt>
+          <dd className="text-[15px] font-semibold text-ink">{gameName(competition.game_type)}</dd>
+        </div>
         {competition.venue_name && (
           <div className="flex items-baseline justify-between gap-4 border-b border-ink/30 py-3">
             <dt className={`${LABEL} text-ink-fade`}>Venue</dt>

@@ -57,7 +57,10 @@ Returned only when the competition is open to new players. There is no "closed" 
     "organiser_name": "Dave R.",       // string|null, organiser display name
     "logo_url": "https://...",         // string|null, competition badge if the organiser set one
     "description": "£5 in, winner...", // string|null, the organiser's own blurb
-    "player_count": 24                 // integer, players who have joined so far
+    "player_count": 24,                // integer, players who have joined so far
+    "game_type": "lms",                // string, 'lms' or 'matchday' - the join page names the game
+    "end_rule": null,                  // string|null, Matchday only: 'points' or 'rounds'
+    "end_value": null                  // integer|null, Matchday only: the target or the round count
   }
 }
 
@@ -116,6 +119,9 @@ router.post('/', async (req, res) => {
         c.venue_name,
         c.logo_url,
         c.description,
+        c.game_type,
+        c.end_rule,
+        c.end_value,
         c.organiser_id              AS competition_organiser_id,
         u.display_name              AS organiser_name,
         u.paid_credit               AS organiser_credits,
@@ -135,7 +141,7 @@ router.post('/', async (req, res) => {
       -- but the field is free to hold REDBARN25 later and matching must stay
       -- case-insensitive. idx_competition_invite_code indexes this exact expression.
       WHERE UPPER(c.invite_code) = $1
-      GROUP BY c.id, c.name, c.venue_name, c.logo_url, c.description, c.organiser_id, u.display_name, u.paid_credit
+      GROUP BY c.id, c.name, c.venue_name, c.logo_url, c.description, c.game_type, c.end_rule, c.end_value, c.organiser_id, u.display_name, u.paid_credit
       LIMIT 1
     `;
 
@@ -212,7 +218,13 @@ router.post('/', async (req, res) => {
         // still gives up nothing about itself.
         logo_url: data.logo_url || null,
         description: data.description || null,
-        player_count: Number(data.player_count) || 0
+        player_count: Number(data.player_count) || 0,
+        // The join page leads with the game, because this is where a player first forms a picture
+        // of what they are signing up to (docs/matchday.md §8.1). Returned to every client: an
+        // LMS-only app ignores fields it does not know, and is refused at the join itself.
+        game_type: data.game_type,
+        end_rule: data.end_rule || null,
+        end_value: data.end_value || null
       }
     });
 

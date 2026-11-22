@@ -200,6 +200,7 @@ node scripts/sandbox-round.js open   <id> [--fixtures 10] [--lock-minutes 30]
 node scripts/sandbox-round.js lock   <id>
 node scripts/sandbox-round.js result <id> [HADH...] [--only 3] [--api http://localhost:3115]
 node scripts/sandbox-round.js status <id>
+node scripts/sandbox-round.js adopt  <id>   # a competition created on screen - see below
 ```
 
 - **It touches only the named competition's own `round` and `fixture` rows** — never
@@ -212,6 +213,12 @@ node scripts/sandbox-round.js status <id>
   never shows in the Results push list and never holds the close open.
 - **Fenced twice:** organiser 50 **and** a name starting `TEST ` (capital, then a space).
   Ownership alone is not enough, for the reason above.
+- **A competition created through the screens starts on the live calendar.** The wizard always
+  picks the next calendar date it can, so round 1 arrives tied to a calendar block, on
+  whole-minute kickoffs, and due to be replaced by the real push. `adopt` detaches it
+  (`source_block_id` cleared) and moves the kickoff to odd seconds at the same minute, making it
+  the competition's own. Run it before predicting, and before `lock` or `result`, which refuse a
+  calendar round. It refuses a round with results, and never touches the calendar block itself.
 - **What it cannot stop:** a test competition on the fixture service is a real competition to
   the push. Once its sandbox round is processed it is eligible for the next real Stage like any
   other. Harmless — it only affects the test competition — but delete test competitions when done.

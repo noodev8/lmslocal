@@ -25,7 +25,7 @@ which is why this renders an explanation rather than blocking.
 
 import { useState, useEffect } from 'react';
 import { CalendarDaysIcon } from '@heroicons/react/24/outline';
-import { competitionApi, StartOption } from '@/lib/api';
+import { competitionApi, StartOption, GameType } from '@/lib/api';
 import { LABEL } from '@/lib/design';
 
 /** A lock time, in UK time - e.g. "Fri 28 Aug, 8:00pm". */
@@ -64,6 +64,7 @@ export default function StartDateChooser({
   onChange,
   disabled = false,
   compact = false,
+  gameType = 'lms',
 }: {
   teamListId: number | undefined;
   /* The chosen option, or null for "none available" / not yet loaded. The whole option rather
@@ -75,6 +76,9 @@ export default function StartDateChooser({
      like the reset dialog where this is a step with a title of its own. The dates and the
      deadline line are the same either way; only the packaging goes. */
   compact?: boolean;
+  /* Which game is being started, for its one sentence of copy: the two games do not share words
+     (docs/matchday.md §2), so a Matchday organiser is never told their players will "pick". */
+  gameType?: GameType;
 }) {
   const [options, setOptions] = useState<StartOption[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -142,7 +146,7 @@ export default function StartDateChooser({
           {!compact && (
             <p className="mb-3 text-[13px] text-ink-fade">
               Your first round is ready and waiting the moment your competition exists, so anyone you
-              invite can make their pick straight away.
+              invite can {gameType === 'matchday' ? 'fill in their coupon' : 'make their pick'} straight away.
             </p>
           )}
 

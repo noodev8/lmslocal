@@ -43,9 +43,17 @@ code being tested.
 
 Usage (from lmslocal-server/):
   node scripts/sandbox-round.js status <competition_id>
+  node scripts/sandbox-round.js adopt  <competition_id>
   node scripts/sandbox-round.js open   <competition_id> [--fixtures 10] [--lock-minutes 30]
   node scripts/sandbox-round.js lock   <competition_id>
   node scripts/sandbox-round.js result <competition_id> [HADH...] [--only 3] [--api http://localhost:3015]
+
+  adopt is for a test competition created through the screens. The create wizard always starts a
+  fixture-service competition on the next calendar date it can, so round 1 arrives as the live
+  calendar's provisional fixtures - tied to a calendar block, on whole-minute kickoffs, and due to
+  be reconciled by the real push. adopt cuts that tie (source_block_id NULL) and moves the kickoff
+  to odd seconds at the same minute, making the round the competition's own. It is refused on any
+  round that already has results, and does nothing to the calendar block itself.
 
   result takes one letter per fixture, in the order `status` lists them: H (home win), A (away
   win), D (draw). Omitted, or shorter than the round, the rest are random. --only N results just
@@ -105,7 +113,7 @@ async function loadTestCompetition(competitionId) {
 
 async function latestRound(competitionId) {
   const result = await query(`
-    SELECT r.id, r.round_number, r.lock_time,
+    SELECT r.id, r.round_number, r.lock_time, r.source_block_id,
            COUNT(f.id) AS fixtures, COUNT(f.result) AS resulted, COUNT(f.processed) AS processed
     FROM round r
     LEFT JOIN fixture f ON f.round_id = r.id
@@ -173,6 +181,9 @@ async function open(competition, args) {
   }
 
   const round = await latestRound(competition.id);
+  if (round && round.source_block_id !== null) {
+    throw new Error(`Round ${round.round_number} came from the live calendar. Run \`adopt\` first.`);
+  }
   if (round && (round.fixtures === 0 || round.processed < round.fixtures)) {
     throw new Error(`Round ${round.round_number} is not finished (${round.processed}/${round.fixtures} processed). Finish it first.`);
   }
@@ -220,9 +231,53 @@ async function open(competition, args) {
   await status(competition);
 }
 
+async function adopt(competition) {
+  const result = await query(`
+    SELECT r.id, r.round_number, r.lock_time, r.source_block_id,
+           COUNT(f.result) AS resulted
+    FROM round r
+    LEFT JOIN fixture f ON f.round_id = r.id
+    WHERE r.competition_id = $1
+    GROUP BY r.id
+    ORDER BY r.round_number DESC
+    LIMIT 1
+  `, [competition.id]);
+  const round = result.rows[0];
+
+  if (!round) throw new Error('No round to adopt. Use `open` instead.');
+  if (round.source_block_id === null) {
+    console.log(`
+  Round ${round.round_number} is not tied to the calendar - nothing to adopt.
+`);
+    return;
+  }
+  if (parseInt(round.resulted, 10) > 0) {
+    throw new Error(`Round ${round.round_number} already has results. Adopting it now would mix real and sandbox results.`);
+  }
+
+  // Same minute, odd seconds: the player still sees the kickoff they were shown, and the round can
+  // no longer match a staged row. Clearing source_block_id is what stops the real push treating
+  // the round as provisional and replacing its fixtures when the block is staged.
+  const lockAt = new Date(round.lock_time);
+  lockAt.setSeconds(17, 17);
+  await transaction(async (client) => {
+    await client.query(`UPDATE round SET source_block_id = NULL, lock_time = $1 WHERE id = $2`, [lockAt, round.id]);
+    await client.query(`UPDATE fixture SET kickoff_time = $1 WHERE round_id = $2`, [lockAt, round.id]);
+    await client.query(`
+      INSERT INTO audit_log (competition_id, user_id, action, details)
+      VALUES ($1, $2, 'Sandbox Round Adopted', $3)
+    `, [competition.id, TESTING_ADMIN.id, `scripts/sandbox-round.js: round ${round.round_number} detached from calendar block ${round.source_block_id}`]);
+  });
+
+  console.log(`
+  Round ${round.round_number} adopted: detached from calendar block ${round.source_block_id}, locking ${lockAt.toISOString()}.`);
+  await status(competition);
+}
+
 async function lock(competition) {
   const round = await latestRound(competition.id);
   if (!round) throw new Error('No round to lock.');
+  if (round.source_block_id !== null) throw new Error(`Round ${round.round_number} came from the live calendar. Run adopt first.`);
   if (round.lock_time && new Date(round.lock_time) <= new Date()) {
     console.log(`\n  Round ${round.round_number} is already locked.\n`);
     return;
@@ -243,6 +298,7 @@ async function lock(competition) {
 async function result(competition, args) {
   const round = await latestRound(competition.id);
   if (!round) throw new Error('No round to result.');
+  if (round.source_block_id !== null) throw new Error(`Round ${round.round_number} came from the live calendar. Run adopt first.`);
   if (!round.lock_time || new Date(round.lock_time) > new Date()) {
     throw new Error(`Round ${round.round_number} has not locked. Run \`lock\` first - results before kickoff are refused.`);
   }
@@ -284,10 +340,10 @@ async function result(competition, args) {
 
 async function main() {
   const [command, idArg, ...args] = process.argv.slice(2);
-  const commands = { status, open, lock, result };
+  const commands = { status, open, adopt, lock, result };
 
   if (!commands[command] || !Number.isInteger(parseInt(idArg, 10))) {
-    fail('Usage: node scripts/sandbox-round.js <status|open|lock|result> <competition_id> [options] - see the header.');
+    fail('Usage: node scripts/sandbox-round.js <status|open|adopt|lock|result> <competition_id> [options] - see the header.');
     return;
   }
 

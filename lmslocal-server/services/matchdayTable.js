@@ -35,34 +35,55 @@ showing alongside it.
 const { query } = require('../database');
 
 /**
- * The table for one competition, best first.
+ * The table for one competition, best first. See getMatchdayTables for the shape.
  *
  * @param {number} competitionId
  * @param {object} [opts]
  * @param {object} [opts.client] - an open pg client, to read inside the caller's transaction.
  *   The completion check needs this: it must see the predictions it has just settled.
- * @returns {Promise<{rows: Array<{position: number, user_id: number, display_name: string,
- *   total: number, wins: number, draws: number, losses: number, predictions: number,
- *   provisional: boolean}>, rounds_settled: number, latest_round_number: number|null,
- *   latest_round_settled: boolean}>}
  */
-async function getMatchdayTable(competitionId, { client } = {}) {
+async function getMatchdayTable(competitionId, opts = {}) {
+  const tables = await getMatchdayTables([competitionId], opts);
+  return tables.get(competitionId);
+}
+
+/**
+ * The tables for several competitions in one query - the dashboard shows a position on every
+ * Matchday card, and one query per card would be an N+1.
+ *
+ * @param {number[]} competitionIds
+ * @param {object} [opts]
+ * @param {object} [opts.client] - an open pg client, to read inside the caller's transaction
+ * @returns {Promise<Map<number, {rows: Array<{position: number, user_id: number,
+ *   display_name: string, total: number, wins: number, draws: number, losses: number,
+ *   predictions: number, provisional: boolean}>, rounds_settled: number,
+ *   latest_round_number: number|null, latest_round_settled: boolean}>>}
+ *   One entry per id asked for, including a competition with no members (an empty table).
+ */
+async function getMatchdayTables(competitionIds, { client } = {}) {
   const run = client ? (text, params) => client.query(text, params) : query;
+  if (competitionIds.length === 0) return new Map();
+
+  const tables = new Map();
+  for (const id of competitionIds) {
+    tables.set(id, { players: new Map(), latestRoundNumber: null, latestRoundSettled: false, settledRounds: new Set() });
+  }
 
   /*
-  Every member crossed with every round, so a player with no predictions in a round still gets a
-  row for it (and a round score of 0), and a member with no predictions at all still appears on
-  the table on 0. The LEFT JOIN to rounds keeps members of a competition with no rounds yet.
+  Every member crossed with every round of their competition, so a player with no predictions in
+  a round still gets a row for it (and a round score of 0), and a member with no predictions at
+  all still appears on the table on 0. The LEFT JOIN to rounds keeps members of a competition
+  with no rounds yet.
   */
   const result = await run(`
     WITH rounds AS (
-      SELECT r.id, r.round_number,
+      SELECT r.id, r.competition_id, r.round_number,
              COUNT(f.id) AS fixtures,
              COUNT(f.processed) AS processed
       FROM round r
       LEFT JOIN fixture f ON f.round_id = r.id
-      WHERE r.competition_id = $1
-      GROUP BY r.id, r.round_number
+      WHERE r.competition_id = ANY($1::integer[])
+      GROUP BY r.id, r.competition_id, r.round_number
     ),
     scores AS (
       SELECT p.user_id, p.round_id,
@@ -72,10 +93,11 @@ async function getMatchdayTable(competitionId, { client } = {}) {
              COUNT(*) FILTER (WHERE p.points = -1)     AS losses,
              COUNT(p.points)                           AS settled
       FROM prediction p
-      WHERE p.competition_id = $1
+      WHERE p.competition_id = ANY($1::integer[])
       GROUP BY p.user_id, p.round_id
     )
-    SELECT cu.user_id,
+    SELECT cu.competition_id,
+           cu.user_id,
            COALESCE(cu.player_display_name, u.display_name, 'Player') AS display_name,
            r.round_number,
            (r.fixtures > 0 AND r.fixtures = r.processed)    AS round_settled,
@@ -86,20 +108,17 @@ async function getMatchdayTable(competitionId, { client } = {}) {
            COALESCE(s.settled, 0) AS settled
     FROM competition_user cu
     JOIN app_user u ON u.id = cu.user_id
-    LEFT JOIN rounds r ON true
+    LEFT JOIN rounds r ON r.competition_id = cu.competition_id
     LEFT JOIN scores s ON s.user_id = cu.user_id AND s.round_id = r.id
-    WHERE cu.competition_id = $1
-    ORDER BY cu.user_id, r.round_number
-  `, [competitionId]);
-
-  const players = new Map();
-  let latestRoundNumber = null;
-  let latestRoundSettled = false;
-  const settledRounds = new Set();
+    WHERE cu.competition_id = ANY($1::integer[])
+    ORDER BY cu.competition_id, cu.user_id, r.round_number
+  `, [competitionIds]);
 
   for (const row of result.rows) {
-    if (!players.has(row.user_id)) {
-      players.set(row.user_id, {
+    const table = tables.get(row.competition_id);
+
+    if (!table.players.has(row.user_id)) {
+      table.players.set(row.user_id, {
         user_id: row.user_id,
         display_name: row.display_name,
         total: 0,
@@ -114,7 +133,7 @@ async function getMatchdayTable(competitionId, { client } = {}) {
     // A member of a competition with no rounds yet: one row, round columns null. They stay on 0.
     if (row.round_number === null) continue;
 
-    const player = players.get(row.user_id);
+    const player = table.players.get(row.user_id);
     const settled = parseInt(row.settled, 10);
 
     // Rows arrive in round order per player (ORDER BY above), which is what makes the per-round
@@ -129,19 +148,23 @@ async function getMatchdayTable(competitionId, { client } = {}) {
       player.provisional = true;
     }
 
-    if (latestRoundNumber === null || row.round_number > latestRoundNumber) {
-      latestRoundNumber = row.round_number;
-      latestRoundSettled = row.round_settled;
+    if (table.latestRoundNumber === null || row.round_number > table.latestRoundNumber) {
+      table.latestRoundNumber = row.round_number;
+      table.latestRoundSettled = row.round_settled;
     }
-    if (row.round_settled) settledRounds.add(row.round_number);
+    if (row.round_settled) table.settledRounds.add(row.round_number);
   }
 
-  return {
-    rows: rankTable(Array.from(players.values())),
-    rounds_settled: settledRounds.size,
-    latest_round_number: latestRoundNumber,
-    latest_round_settled: latestRoundSettled
-  };
+  const out = new Map();
+  for (const [id, table] of tables) {
+    out.set(id, {
+      rows: rankTable(Array.from(table.players.values())),
+      rounds_settled: table.settledRounds.size,
+      latest_round_number: table.latestRoundNumber,
+      latest_round_settled: table.latestRoundSettled
+    });
+  }
+  return out;
 }
 
 /**
@@ -175,4 +198,4 @@ function rankTable(players) {
   return rows;
 }
 
-module.exports = { getMatchdayTable, rankTable };
+module.exports = { getMatchdayTable, getMatchdayTables, rankTable };

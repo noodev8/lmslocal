@@ -1,0 +1,81 @@
+/**
+ * The games LMSLocal runs, and the words each one uses. docs/matchday.md §2.
+ *
+ * Every screen that names a game, states Matchday's scoring or describes how a game ends takes it
+ * from here. "Matchday" is a working name: renaming it is a change to GAME_NAMES, not a hunt
+ * through pages.
+ *
+ * THE VOCABULARIES DO NOT MIX. LMS says pick, lives, eliminated, still in. Matchday says predict,
+ * back a team, points, the table. A player should know which game a sentence is about from the
+ * words alone, so Matchday copy never says "pick" and LMS copy never says "points".
+ */
+
+import type { GameType, MatchdayEndRule } from '@/lib/api';
+
+export const GAME_NAMES: Record<GameType, string> = {
+  lms: 'Last Man Standing',
+  matchday: 'Matchday',
+};
+
+/** The name for a competition's game. Anything unset is LMS, as it is on the server. */
+export function gameName(gameType?: GameType | null): string {
+  return GAME_NAMES[gameType ?? 'lms'] ?? GAME_NAMES.lms;
+}
+
+/** One line each, for the create wizard's first question and the join page. */
+export const GAME_SUMMARIES: Record<GameType, string> = {
+  lms: 'Players pick one team each round. Win and they are through; draw or lose and they are out. Last one left wins.',
+  matchday: 'Players back a team in every match each round and score points. Most points wins.',
+};
+
+/** Matchday's scoring, stated the same way everywhere it appears. */
+export const MATCHDAY_POINTS = { win: 3, draw: 1, loss: -1 } as const;
+export const MATCHDAY_SCORING = 'Win +3 · Draw +1 · Lose −1';
+
+/** "First to 100 points" / "10 rounds". */
+export function endingLabel(rule?: MatchdayEndRule | null, value?: number | null): string {
+  if (!rule || !value) return '';
+  return rule === 'points' ? `First to ${value} points` : `${value} round${value === 1 ? '' : 's'}`;
+}
+
+/** 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st. */
+export function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
+/** "+3", "+1", "−1", "0" - a typographic minus, so the column lines up and reads as a sign. */
+export function signedPoints(points: number): string {
+  if (points > 0) return `+${points}`;
+  if (points < 0) return `−${Math.abs(points)}`;
+  return '0';
+}
+
+/** The word for a settled prediction. Every state carries its word (design-system §8). */
+export function outcomeWord(points: number | null): string {
+  if (points === null) return '';
+  if (points === MATCHDAY_POINTS.win) return 'Won';
+  if (points === MATCHDAY_POINTS.draw) return 'Drew';
+  if (points === MATCHDAY_POINTS.loss) return 'Lost';
+  return 'Void';
+}
+
+/**
+ * "Sat 28 Nov, 3pm" - always UK time, for the reason roundState.ts gives: these are UK kickoffs,
+ * and a player abroad still needs the time the match actually starts. On the hour drops ":00".
+ */
+export function formatKickoff(iso: string): string {
+  const date = new Date(iso);
+  const day = date.toLocaleDateString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short' });
+  const time = date
+    .toLocaleTimeString('en-GB', { timeZone: 'Europe/London', hour: 'numeric', minute: '2-digit', hour12: true })
+    .replace(/:00(?=\s*[ap]m\b)/i, '')
+    .replace(/\s/g, '');
+  return `${day}, ${time}`;
+}

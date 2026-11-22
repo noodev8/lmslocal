@@ -26,6 +26,15 @@ Success Response (ALWAYS HTTP 200):
       "game_type": "lms",                       // string, 'lms' or 'matchday'. Only games the client
                                                 //   declared in X-Game-Types are returned, in this list
                                                 //   and in the promoted one; no header means 'lms' only
+      "end_rule": null,                         // string|null, Matchday: 'points' or 'rounds'
+      "end_value": null,                        // integer|null, Matchday: the target or round count
+      "matchday": null,                         // object|null - Matchday only:
+                                                //   { players, position, total, provisional,
+                                                //     predicted (this round), rounds_settled,
+                                                //     leader: {display_name, total}, first_place: [] }
+                                                //   position/total null when the user only organises.
+                                                //   needs_pick for Matchday = nothing backed yet in an
+                                                //   open round (skipping is allowed)
       "lives_per_player": 1,                    // integer, lives per player
       "no_team_twice": true,                    // boolean, team reuse restriction
       "invite_code": "1234",                    // string, join code; the competition's only public identity
@@ -109,6 +118,7 @@ const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { getPlaceUsage } = require('../services/placeUsage');
 const { clientGameTypes } = require('../services/gameType');
+const { getMatchdayTables } = require('../services/matchdayTable');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -152,6 +162,8 @@ router.post('/', verifyToken, async (req, res) => {
         c.fixture_service,                     -- Fixture service mode (true=automated, false=manual)
         c.ready_at,                            -- Organiser pressed Ready; null = fixture service waiting on them
         c.game_type,                           -- Which game: 'lms' or 'matchday' (docs/matchday.md)
+        c.end_rule,                            -- Matchday: 'points' or 'rounds'; null for LMS
+        c.end_value,                           -- Matchday: the target or the number of rounds
         tl.name as team_list_name,             -- Team list name
         
         -- === USER RELATIONSHIP STATUS ===
@@ -383,8 +395,9 @@ router.post('/', verifyToken, async (req, res) => {
     // two parallel arrays and zipped back together with unnest, which keeps the
     // per-competition boundary exact while collapsing what used to be one query
     // per competition into one query in total.
+    // LMS only: a Matchday player has no picks, and their history is the table.
     const historyTargets = mainResult.rows.filter(
-      comp => comp.is_participant && comp.current_round && comp.current_round > 1
+      comp => comp.game_type === 'lms' && comp.is_participant && comp.current_round && comp.current_round > 1
     );
 
     const historyByCompetition = new Map();
@@ -436,6 +449,51 @@ router.post('/', verifyToken, async (req, res) => {
       }
     }
 
+    // === MATCHDAY: WHERE THE USER STANDS, FOR EVERY MATCHDAY COMPETITION AT ONCE ===
+    // The card's main line is "4th of 12 · 23 pts" and "7 of 10 predicted" (docs/matchday.md
+    // §8.1). Two queries however many competitions there are: the tables, from the one place
+    // totals are calculated, and this user's prediction count in each latest round.
+    const matchdayIds = mainResult.rows.filter(comp => comp.game_type === 'matchday').map(comp => comp.id);
+    const matchdayByCompetition = new Map();
+
+    if (matchdayIds.length > 0) {
+      const tables = await getMatchdayTables(matchdayIds);
+
+      const predictedResult = await query(`
+        SELECT r.competition_id, COUNT(p.id) AS predicted
+        FROM round r
+        JOIN (
+          SELECT competition_id, MAX(round_number) AS latest
+          FROM round
+          WHERE competition_id = ANY($2::integer[])
+          GROUP BY competition_id
+        ) l ON l.competition_id = r.competition_id AND l.latest = r.round_number
+        LEFT JOIN prediction p ON p.round_id = r.id AND p.user_id = $1
+        GROUP BY r.competition_id
+      `, [user_id, matchdayIds]);
+      const predictedByCompetition = new Map(
+        predictedResult.rows.map(row => [row.competition_id, parseInt(row.predicted, 10)])
+      );
+
+      for (const id of matchdayIds) {
+        const table = tables.get(id);
+        const mine = table.rows.find(row => row.user_id === user_id) || null;
+        const leader = table.rows[0] || null;
+        matchdayByCompetition.set(id, {
+          players: table.rows.length,
+          position: mine ? mine.position : null,
+          total: mine ? mine.total : null,
+          provisional: mine ? mine.provisional : false,
+          predicted: predictedByCompetition.get(id) || 0,
+          rounds_settled: table.rounds_settled,
+          leader: leader ? { display_name: leader.display_name, total: leader.total } : null,
+          // Everyone in first place. Only meaningful once the game is COMPLETE, where more than
+          // one name is a shared win.
+          first_place: table.rows.filter(row => row.position === 1).map(row => row.display_name)
+        });
+      }
+    }
+
     // === BUILD COMPETITION ARRAY ===
     const competitions = [];
 
@@ -470,6 +528,10 @@ router.post('/', verifyToken, async (req, res) => {
         fixture_service: comp.fixture_service,
         ready_at: comp.ready_at,
         game_type: comp.game_type,
+        end_rule: comp.end_rule || null,
+        end_value: comp.end_value || null,
+        // Matchday only, null for LMS: where this user stands. See the batch above.
+        matchday: matchdayByCompetition.get(comp.id) || null,
 
         // Competition statistics
         player_count: parseInt(comp.active_players || 0),
@@ -501,7 +563,19 @@ router.post('/', verifyToken, async (req, res) => {
         joined_at: comp.joined_at || null,
         personal_name: comp.personal_name || null,
         player_display_name: comp.player_display_name || null,
-        needs_pick: comp.is_participant ? comp.needs_pick : null,
+        // For Matchday "needs a pick" means nothing backed yet in an open round. Not "fewer than
+        // every match": skipping is allowed (docs/matchday.md §1), so a player who skipped two on
+        // purpose would otherwise be nagged until kickoff.
+        needs_pick: !comp.is_participant
+          ? null
+          : comp.game_type === 'matchday'
+            ? Boolean(
+                comp.current_round_lock_time
+                && new Date(comp.current_round_lock_time) > new Date()
+                && parseInt(comp.total_fixtures || 0, 10) > 0
+                && (matchdayByCompetition.get(comp.id)?.predicted || 0) === 0
+              )
+            : comp.needs_pick,
 
         // Delegated permissions (null if not participating)
         manage_results: comp.manage_results || null,

@@ -22,7 +22,8 @@ import { useAppData } from '@/contexts/AppDataContext';
 import JoinCompetitionModal from '@/components/JoinCompetitionModal';
 import CompetitionLogo from '@/components/CompetitionLogo';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE, BTN_DARK, TICK } from '@/lib/design';
-import { deriveDashboardRoundState, pickDeadlineText } from '@/lib/roundState';
+import { deriveDashboardRoundState, pickDeadlineText, lockDeadlineText } from '@/lib/roundState';
+import { gameName, ordinal } from '@/lib/games';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -475,6 +476,18 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 items-start gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
               {userCompetitions.map((competition) => {
                 const competitionStatus = getWinnerStatus(competition);
+                const isMatchday = competition.game_type === 'matchday';
+                const standing = competition.matchday ?? null;
+                const roundState = deriveDashboardRoundState({
+                  currentRound: competition.current_round,
+                  currentRoundLockTime: competition.current_round_lock_time,
+                  automated: competition.fixture_service === true,
+                  competitionComplete: competitionStatus.isComplete === true,
+                  now: new Date(),
+                  totalFixtures: competition.total_fixtures,
+                  fixturesWithResults: competition.fixtures_with_results,
+                  fixturesProcessed: competition.fixtures_processed,
+                });
                 return (
                   <div key={competition.id} className="flex h-full flex-col">
                     <div className={`${PANEL} flex flex-1 flex-col transition-colors hover:border-ink`}>
@@ -490,6 +503,10 @@ export default function DashboardPage() {
                             size={40}
                           />
                           <div className="min-w-0 flex-1">
+                            {/* The game first, on every card of both games: in a list of
+                                competitions it is the one thing that tells a player which rules
+                                they are playing by (docs/matchday.md §8.1). */}
+                            <p className={`${LABEL} mb-1 text-ink-fade`}>{gameName(competition.game_type)}</p>
                             {editingNameId === competition.id ? (
                               <div className="flex items-center gap-2">
                                 <input
@@ -545,8 +562,51 @@ export default function DashboardPage() {
                           <p className="mb-3 font-data text-[15px] italic text-ink-fade">{competition.name}</p>
                         )}
 
+                        {/* Matchday: where you stand, then what to do next. Its own lines rather
+                            than the LMS ones reworded - nobody is "Active" or "Eliminated" in a
+                            league table, and the prompt is a coupon, not a pick. */}
+                        {isMatchday && competition.is_participant && standing && standing.position !== null && !competitionStatus.isComplete && (
+                          <p className="mb-3 font-display text-2xl uppercase tracking-[0.03em] text-ink">
+                            {ordinal(standing.position)}
+                            <span className="text-ink-fade"> of {standing.players}</span>
+                            <span className="mx-2 text-ink/30">&middot;</span>
+                            {standing.total} pts
+                            {standing.provisional && (
+                              <span className={`${LABEL} ml-2 align-middle text-ink-fade`}>so far</span>
+                            )}
+                          </p>
+                        )}
+
+                        {isMatchday && competition.is_participant && !competitionStatus.isComplete && (
+                          roundState.phase === 'OPEN' ? (
+                            competition.needs_pick ? (
+                              <div className="mb-3 flex items-center gap-2 border border-overprint px-3 py-2">
+                                <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-overprint" />
+                                <span className={`${LABEL} text-ink`}>
+                                  Fill in your coupon{lockDeadlineText(roundState) ? ` by ${lockDeadlineText(roundState)}` : ''}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className={`${LABEL} mb-3 text-ink`}>
+                                {standing?.predicted ?? 0} of {competition.total_fixtures ?? 0} predicted
+                                {lockDeadlineText(roundState) && (
+                                  <span className="text-ink-fade"> &middot; locks {lockDeadlineText(roundState)}</span>
+                                )}
+                              </p>
+                            )
+                          ) : roundState.phase === 'NO_ROUND' ? (
+                            <p className={`${LABEL} mb-3 text-ink-fade`}>Waiting for the first round</p>
+                          ) : roundState.phase === 'COMPLETE' ? (
+                            <p className={`${LABEL} mb-3 text-ink-fade`}>Round settled &middot; next round soon</p>
+                          ) : (
+                            <p className={`${LABEL} mb-3 text-ink-fade`}>
+                              Matches in play &middot; {standing?.predicted ?? 0} backed
+                            </p>
+                          )
+                        )}
+
                         {/* Your Status Display - Only for participants */}
-                        {competition.is_participant && (
+                        {!isMatchday && competition.is_participant && (
                           <div className="mb-3 flex items-center gap-2">
                             {competition.user_status === 'active' ? (
                               <>
@@ -565,8 +625,8 @@ export default function DashboardPage() {
                           </div>
                         )}
 
-                        {/* Pick Status Display */}
-                        {competition.needs_pick ? (
+                        {/* Pick Status Display - Last Man Standing */}
+                        {isMatchday ? null : competition.needs_pick ? (
                           <div className="mb-3 flex items-center gap-2 border border-overprint px-3 py-2">
                             <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-overprint" />
                             <span className={`${LABEL} text-ink`}>
@@ -591,7 +651,10 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-4 text-[15px] text-ink-fade">
                           <span className="flex items-center gap-1.5">
                             <UserGroupIcon className="h-4 w-4" />
-                            {competition.player_count || 0} active
+                            {/* "Active" is an LMS idea - in Matchday everyone plays to the end. */}
+                            {isMatchday
+                              ? `${standing?.players ?? competition.player_count ?? 0} playing`
+                              : `${competition.player_count || 0} active`}
                           </span>
                           {competition.current_round && (
                             <span className="flex items-center gap-1.5">
@@ -609,8 +672,26 @@ export default function DashboardPage() {
                           </div>
                         )}
 
+                        {/* Matchday result: the top of the table. More than one name is a shared
+                            win, recorded with no single winner_id - which LMS reads as a draw. */}
+                        {isMatchday && competitionStatus.isComplete && (
+                          <div className="mt-4 border border-ink/30 bg-moss-wash p-4">
+                            <p className="text-[15px] font-medium text-ink">
+                              {standing && standing.first_place.length > 1
+                                ? `Shared win: ${standing.first_place.join(' and ')}`
+                                : `Winner: ${standing?.first_place[0] ?? competition.winner_name ?? '—'}`}
+                            </p>
+                            <p className="mt-1 text-[13px] text-ink">
+                              {standing?.leader ? `${standing.leader.total} points` : 'Game over'}
+                              {standing && standing.position !== null && (
+                                <> &middot; you finished {ordinal(standing.position)}</>
+                              )}
+                            </p>
+                          </div>
+                        )}
+
                         {/* Competition Completion Status - Winner/Draw Display */}
-                        {competitionStatus.isComplete && (
+                        {!isMatchday && competitionStatus.isComplete && (
                           <div className="mt-4 border border-ink/30 p-4">
                             {competitionStatus.winner ? (
                               <>

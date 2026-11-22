@@ -15,7 +15,9 @@ Request Payload:
   "entry_fee": 10.00,                      // decimal, optional - Entry fee in GBP (can be updated anytime)
   "prize_structure": "Winner takes all",    // string, optional - Prize distribution (max 500 chars, can be updated anytime)
   "lives_per_player": 1,                   // integer, optional - 0 (knockout) or 1 (only if not started)
-  "no_team_twice": false                   // boolean, optional - Allow team reuse setting (only if not started)
+  "no_team_twice": false,                  // boolean, optional - Allow team reuse setting (only if not started)
+  "end_rule": "rounds",                    // string, optional, Matchday only - 'points' or 'rounds' (only if not started)
+  "end_value": 10                          // integer, optional, Matchday only - target or round count (only if not started)
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -28,6 +30,8 @@ Success Response (ALWAYS HTTP 200):
     "description": "New description",              // string, updated competition description
     "lives_per_player": 1,                        // integer, current lives per player setting
     "no_team_twice": false,                       // boolean, current team reuse setting
+    "end_rule": null,                             // string|null, Matchday: 'points' or 'rounds'
+    "end_value": null,                            // integer|null, Matchday: the target or round count
     "has_started": false,                         // boolean, indicates if competition has started
     "updated_at": "2025-09-06T10:30:00.000Z"     // string, ISO datetime when competition was last updated
   }
@@ -41,10 +45,10 @@ Error Response (ALWAYS HTTP 200):
 =======================================================================================================================================
 Return Codes:
 "SUCCESS"
-"VALIDATION_ERROR"
+"VALIDATION_ERROR"            - Includes an ending sent for an LMS competition, or one out of range
 "COMPETITION_NOT_FOUND"
 "UNAUTHORIZED"
-"COMPETITION_STARTED"
+"COMPETITION_STARTED"         - Lives, team reuse or a Matchday ending changed after round 1 locked
 "SERVER_ERROR"
 =======================================================================================================================================
 Fixture service:
@@ -61,6 +65,7 @@ const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
+const { endingProblem } = require('../services/matchdayScoring');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -69,7 +74,7 @@ router.post('/', verifyToken, async (req, res) => {
   
   try {
     // Extract request parameters and authenticated user ID
-    const { competition_id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice } = req.body;
+    const { competition_id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice, end_rule, end_value } = req.body;
     const user_id = req.user.id;
 
 
@@ -83,7 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Validate at least one field is being updated
-    if (name === undefined && description === undefined && logo_url === undefined && venue_name === undefined && address_line_1 === undefined && address_line_2 === undefined && city === undefined && postcode === undefined && phone === undefined && email === undefined && entry_fee === undefined && prize_structure === undefined && lives_per_player === undefined && no_team_twice === undefined) {
+    if (name === undefined && description === undefined && logo_url === undefined && venue_name === undefined && address_line_1 === undefined && address_line_2 === undefined && city === undefined && postcode === undefined && phone === undefined && email === undefined && entry_fee === undefined && prize_structure === undefined && lives_per_player === undefined && no_team_twice === undefined && end_rule === undefined && end_value === undefined) {
       return res.json({
         return_code: "VALIDATION_ERROR",
         message: "At least one field must be provided for update"
@@ -225,7 +230,7 @@ router.post('/', verifyToken, async (req, res) => {
       // 1. Get current competition details with row lock to prevent concurrent modifications
       const competitionResult = await client.query(`
         SELECT id, name, description, logo_url, venue_name, address_line_1, address_line_2, city, postcode, phone, email, entry_fee, prize_structure, lives_per_player, no_team_twice,
-               fixture_service, organiser_id, invite_code, created_at
+               fixture_service, organiser_id, invite_code, created_at, game_type, end_rule, end_value
         FROM competition
         WHERE id = $1
         FOR UPDATE
@@ -262,6 +267,31 @@ router.post('/', verifyToken, async (req, res) => {
       // 4. Validate restricted fields can only be changed if competition hasn't started
       if (hasStarted && (lives_per_player !== undefined || no_team_twice !== undefined)) {
         throw new Error('COMPETITION_STARTED: Lives per player and team reuse settings cannot be changed after competition has started');
+      }
+
+      // 4b. A Matchday game's ending, under the same rule as lives: players joined knowing how it
+      //     ends, so it is fixed once round 1 locks (docs/matchday.md §4.1). Either half may be
+      //     sent alone; the pair is validated as it will be stored.
+      const changingEnding = end_rule !== undefined || end_value !== undefined;
+      let newEndRule = currentCompetition.end_rule;
+      let newEndValue = currentCompetition.end_value;
+      if (changingEnding) {
+        if (currentCompetition.game_type !== 'matchday') {
+          throw new Error('VALIDATION_ERROR: Only a Matchday game has an ending to set');
+        }
+        if (hasStarted) {
+          throw new Error('COMPETITION_STARTED: How the game ends cannot be changed after round 1 has locked');
+        }
+        newEndRule = end_rule !== undefined ? end_rule : currentCompetition.end_rule;
+        newEndValue = end_value !== undefined ? Number(end_value) : currentCompetition.end_value;
+        const problem = endingProblem(newEndRule, newEndValue);
+        if (problem) {
+          throw new Error(`VALIDATION_ERROR: ${problem}`);
+        }
+        await client.query(
+          `UPDATE competition SET end_rule = $1, end_value = $2 WHERE id = $3`,
+          [newEndRule, newEndValue, competition_id]
+        );
       }
 
       // 5. Prepare update fields with current values as defaults
@@ -349,6 +379,10 @@ router.post('/', verifyToken, async (req, res) => {
         auditDetails.push(`team reuse setting changed to ${no_team_twice ? 'not allowed' : 'allowed'}`);
       }
 
+      if (changingEnding && (newEndRule !== currentCompetition.end_rule || newEndValue !== currentCompetition.end_value)) {
+        auditDetails.push(`ending changed to ${newEndRule === 'rounds' ? `${newEndValue} rounds` : `first to ${newEndValue} points`}`);
+      }
+
       if (auditDetails.length > 0) {
         await client.query(`
           INSERT INTO audit_log (competition_id, user_id, action, details)
@@ -362,7 +396,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       // Return updated competition data for response
       return {
-        competition: updatedCompetition,
+        competition: { ...updatedCompetition, end_rule: newEndRule, end_value: newEndValue },
         hasStarted: hasStarted
       };
     });
@@ -379,6 +413,8 @@ router.post('/', verifyToken, async (req, res) => {
         lives_per_player: result.competition.lives_per_player,      // Current lives per player setting
         no_team_twice: result.competition.no_team_twice,           // Current team reuse prevention setting
         fixture_service: result.competition.fixture_service,       // Current fixture service setting
+        end_rule: result.competition.end_rule,                     // Matchday ending, null for LMS
+        end_value: result.competition.end_value,
         has_started: result.hasStarted,                            // Boolean indicating if competition has started
         updated_at: new Date().toISOString()                      // Current timestamp in ISO format
       }
