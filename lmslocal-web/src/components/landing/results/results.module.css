@@ -1,0 +1,925 @@
+/*
+  The landing page's own world: a Saturday results service on a phosphor-black screen. It sits
+  outside docs/design-system.md on purpose and shares no tokens with the rest of the site.
+
+  Colour roles are fixed and carry meaning everywhere on the page:
+    yellow  the national game, and the primary action
+    cyan    organisers and clubs
+    green   through / the rules
+    red     out / the join code
+    blue    neutral page banners
+*/
+
+.root {
+  --black: #000;
+  --ink: #f2f2ee;
+  --dim: #c9c9c2;
+  --yellow: #ffd400;
+  --cyan: #2fd0ff;
+  --green: #45e06a;
+  --red: #ff4b3e;
+  --blue: #1f3ad8;
+
+  --pad: clamp(16px, 3.4vw, 48px);
+  /* VT323's advance width as a fraction of its size; the fit-to-width headings depend on it. */
+  --adv: 0.42;
+  --vt: var(--font-vt), ui-monospace, monospace;
+  --body: var(--font-hyper), ui-monospace, monospace;
+
+  min-height: 100vh;
+  background: var(--black);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 18px;
+  line-height: 1.6;
+  /* clears the fixed fastext bar */
+  padding-bottom: 60px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The parts the browser draws still belong to the screen. */
+html:has(.root) {
+  background: #000;
+  scrollbar-color: #ffd400 #000;
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.root) {
+    scroll-behavior: auto;
+  }
+}
+.root ::selection {
+  background: var(--yellow);
+  color: var(--black);
+}
+.root :focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
+}
+.root a {
+  text-underline-offset: 0.22em;
+}
+
+.screen {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 var(--pad);
+}
+
+/* Colour roles */
+.yellow { color: var(--yellow); }
+.cyan { color: var(--cyan); }
+.green { color: var(--green); }
+.red { color: var(--red); }
+.white { color: var(--ink); }
+.isRed { color: var(--red); }
+
+.bg_yellow { background: var(--yellow); color: var(--black); }
+.bg_cyan { background: var(--cyan); color: var(--black); }
+.bg_red { background: var(--red); color: var(--black); }
+.bg_green { background: var(--green); color: var(--black); }
+.bg_blue { background: var(--blue); color: var(--ink); }
+
+/* ------------------------------------------------------------------ */
+/* Double height: the glyphs drawn twice as tall at the same width,    */
+/* sized so the longest line always fits the screen without wrapping.  */
+/* ------------------------------------------------------------------ */
+.dh {
+  --fit: calc((100vw - 2 * var(--pad) - var(--reserve, 0px)) / (var(--chars) * var(--adv)));
+  font-family: var(--vt);
+  font-weight: 400;
+  font-size: min(var(--max), var(--fit));
+  line-height: 1;
+  height: calc(2em * var(--lines));
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+.dh > span {
+  display: block;
+  white-space: nowrap;
+  transform: scaleY(2);
+  transform-origin: 0 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Header row                                                         */
+/* ------------------------------------------------------------------ */
+.top {
+  border-bottom: 2px solid #1c1c1c;
+}
+.topInner {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 10px var(--pad);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--vt);
+  font-size: 26px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.pno {
+  color: var(--ink);
+}
+.brand {
+  background: var(--yellow);
+  color: var(--black);
+  padding: 4px 10px 2px;
+  font-size: 30px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.nav {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.navLink {
+  color: var(--ink);
+  text-decoration: none;
+  padding: 4px 8px 2px;
+}
+.navLink:hover {
+  background: var(--ink);
+  color: var(--black);
+}
+.clock {
+  color: var(--yellow);
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ */
+/* P100 hero                                                          */
+/* ------------------------------------------------------------------ */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 56px;
+  padding-top: 28px;
+  padding-bottom: 72px;
+}
+.heroMain .dh {
+  --reserve: 0px;
+}
+.offer {
+  margin: 16px 0 0;
+  max-width: 34em;
+  font-family: var(--vt);
+  font-size: 30px;
+  line-height: 1.05;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.offer + .offer {
+  margin-top: 6px;
+}
+
+.feed {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  font-family: var(--vt);
+  font-size: min(40px, calc((100vw - 2 * var(--pad)) / (36 * var(--adv))));
+  line-height: 1.06;
+  text-transform: uppercase;
+}
+.feedLine {
+  display: flex;
+  align-items: baseline;
+}
+.feedScore {
+  display: inline-block;
+  width: 26ch;
+  flex: none;
+}
+.feedOut { color: var(--red); }
+.feedThrough { color: var(--green); }
+.feedPick { color: var(--cyan); }
+
+/* The teleprinter: each segment unrolls one character at a time, a block print head at its edge.
+   The head only shows while typing: it is not filled backwards, so lines waiting their turn carry
+   no cursor. */
+.type {
+  display: inline-block;
+  vertical-align: bottom;
+  overflow: hidden;
+  white-space: nowrap;
+  box-sizing: content-box;
+  width: calc(var(--n) * 1ch);
+  border-right: 0.5ch solid transparent;
+  animation:
+    type var(--t) steps(var(--n), end) var(--d) both,
+    printHead var(--t) step-end var(--d) forwards;
+}
+@keyframes type {
+  from { width: 0; }
+}
+@keyframes printHead {
+  from { border-right-color: currentColor; }
+  to { border-right-color: transparent; }
+}
+
+/* Broadcast-text flash: on, off, on, never a fade. */
+.flash {
+  display: inline-block;
+  width: 0.5ch;
+  height: 0.78em;
+  margin-left: 0.4ch;
+  vertical-align: -0.04em;
+  background: currentColor;
+  animation: flash 1s step-end infinite;
+}
+@keyframes flash {
+  50% { opacity: 0; }
+}
+
+.standing {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 20px;
+}
+.count {
+  margin: 0;
+  font-family: var(--vt);
+  font-size: clamp(104px, 11vw, 156px);
+  line-height: 0.74;
+  color: var(--yellow);
+  font-variant-numeric: tabular-nums;
+}
+.countLabel {
+  margin: 0;
+  font-family: var(--vt);
+  font-size: 36px;
+  line-height: 1;
+  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sample {
+  align-self: flex-start;
+  background: var(--ink);
+  color: var(--black);
+  font-size: 22px;
+  padding: 2px 8px 0;
+  text-wrap: balance;
+}
+
+.doors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  margin-top: 26px;
+}
+
+/* Buttons: solid blocks of a role colour, inverting on hover the way a selected row does. */
+.btn {
+  display: inline-block;
+  border: 3px solid transparent;
+  padding: 8px 20px 4px;
+  font-family: var(--vt);
+  font-size: 34px;
+  line-height: 1;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.btnYellow {
+  background: var(--yellow);
+  color: var(--black);
+}
+.btnYellow:hover {
+  background: var(--ink);
+}
+.btnCyan {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.btnCyan:hover {
+  background: var(--cyan);
+  color: var(--black);
+}
+.btnCyanSolid {
+  background: var(--cyan);
+  color: var(--black);
+}
+.btnCyanSolid:hover {
+  background: var(--ink);
+}
+.btnRed {
+  background: var(--red);
+  color: var(--black);
+}
+.btnRed:hover {
+  background: var(--ink);
+}
+.btn:disabled {
+  background: transparent;
+  border-color: #5a5a5a;
+  color: #8f8f8f;
+  cursor: not-allowed;
+}
+.mt {
+  margin-top: 28px;
+}
+
+/* The index: page numbers in their role colour, each one a link. */
+.index {
+  align-self: start;
+  border: 2px solid #2a2a2a;
+  padding: 18px 20px 14px;
+  font-family: var(--vt);
+  font-size: 27px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.index ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.indexHead {
+  margin: 0 0 14px;
+  color: var(--dim);
+}
+.indexLink {
+  display: grid;
+  grid-template-columns: 3.4ch 1fr;
+  gap: 10px;
+  padding: 7px 6px 5px;
+  margin: 0 -6px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.indexLink:hover {
+  background: var(--ink);
+  color: var(--black);
+}
+.indexLink:hover span {
+  color: var(--black);
+}
+
+/* ------------------------------------------------------------------ */
+/* Pages                                                              */
+/* ------------------------------------------------------------------ */
+.page {
+  padding: 40px 0 84px;
+  scroll-margin-top: 12px;
+}
+.anchor,
+.rules {
+  scroll-margin-top: 24px;
+}
+
+.banner {
+  position: relative;
+  padding: 10px 16px 8px;
+}
+.bannerTitle {
+  --reserve: 120px;
+}
+.bannerNo {
+  position: absolute;
+  right: 16px;
+  top: 12px;
+  font-family: var(--vt);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 40px 72px;
+  margin-top: 40px;
+}
+
+.lede {
+  margin: 0;
+  max-width: 40em;
+  font-size: 21px;
+  line-height: 1.55;
+}
+.banner + .lede {
+  margin-top: 40px;
+}
+.body {
+  margin: 12px 0 0;
+  max-width: 42em;
+}
+.small {
+  margin: 16px 0 0;
+  max-width: 46em;
+  color: var(--dim);
+  font-size: 16px;
+}
+.sub {
+  margin: 40px 0 0;
+  font-family: var(--vt);
+  font-weight: 400;
+  font-size: 34px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.split > div > .sub:first-child,
+.rules > .sub:first-child {
+  margin-top: 0;
+}
+.rulesLead {
+  margin: 14px 0 0;
+  font-family: var(--vt);
+  font-size: 28px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+/* Dotted-leader ledger, in the screen's own type */
+.dots {
+  margin: 22px 0 0;
+  font-family: var(--vt);
+  font-size: 30px;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+/* Rows align on their last line, so when a long label wraps the leader still runs out from its
+   final word to the value instead of hanging in mid-row. */
+.dotsRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5ch;
+  padding: 3px 0;
+}
+.dotsRow dt {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.dotsRow dd {
+  margin: 0;
+  text-align: right;
+  flex: 0 0 auto;
+  max-width: 55%;
+}
+.dotsRow::after {
+  content: '';
+  order: 1;
+  flex: 1 0 2ch;
+  margin-bottom: 0.28em;
+  border-bottom: 3px dotted #4a4a4a;
+}
+.dotsRow dd {
+  order: 2;
+}
+
+/* The fundraiser calculator */
+.raiser {
+  margin-top: 18px;
+  border: 2px solid var(--cyan);
+  padding: 22px 22px 20px;
+}
+.sliders {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.slider {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  row-gap: 10px;
+}
+.sliderLabel {
+  font-family: var(--vt);
+  font-size: 24px;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.sliderValue {
+  font-family: var(--vt);
+  font-size: 40px;
+  line-height: 1;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+.range {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--blue);
+}
+.range::-moz-range-track {
+  height: 6px;
+  background: var(--blue);
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 28px;
+  margin-top: -11px;
+  background: var(--cyan);
+  border: 0;
+  border-radius: 0;
+}
+.range::-moz-range-thumb {
+  width: 16px;
+  height: 28px;
+  background: var(--cyan);
+  border: 0;
+  border-radius: 0;
+}
+.range:focus-visible {
+  outline-offset: 2px;
+}
+
+.ledger {
+  margin: 22px 0 0;
+  border-top: 2px solid #2a2a2a;
+  padding-top: 12px;
+  font-family: var(--vt);
+  font-size: 26px;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.ledgerRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 0;
+}
+.ledgerRow dt {
+  color: var(--dim);
+}
+.ledgerRow dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.left {
+  margin: 14px 0 0;
+  border-top: 2px solid #2a2a2a;
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--vt);
+  text-transform: uppercase;
+  line-height: 1;
+}
+.leftLabel {
+  font-size: 30px;
+}
+.leftValue {
+  font-size: 72px;
+  line-height: 0.8;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Weekend, set as a programme listing */
+.listings {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+}
+.listing {
+  display: grid;
+  grid-template-columns: 7.5em 1fr;
+  column-gap: 16px;
+  padding: 12px 0;
+  border-top: 2px solid #1e1e1e;
+}
+.listing:last-child {
+  border-bottom: 2px solid #1e1e1e;
+}
+.listingWhen {
+  grid-row: span 2;
+  font-family: var(--vt);
+  font-size: 28px;
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.listingWhat {
+  font-family: var(--vt);
+  font-size: 28px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+.listingDetail {
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+.price {
+  margin-top: 44px;
+}
+.priceActs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px 28px;
+  margin-top: 28px;
+}
+
+.textLink {
+  font-family: var(--vt);
+  font-size: 28px;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--cyan);
+  text-decoration-thickness: 2px;
+}
+.textLink:hover {
+  background: var(--ink);
+  color: var(--black);
+  text-decoration: none;
+}
+
+/* Join code */
+.codeForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 16px;
+  margin-top: 28px;
+}
+.codeLabel {
+  width: 100%;
+  font-family: var(--vt);
+  font-size: 28px;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.codeInput {
+  width: min(100%, 11ch);
+  background: var(--black);
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  padding: 6px 12px 2px;
+  font-family: var(--vt);
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  caret-color: var(--yellow);
+}
+.codeInput:focus-visible {
+  outline-offset: 0;
+  border-color: var(--yellow);
+}
+.apps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+/* Where we're up to */
+
+/* Downloads, as index entries */
+.freeList {
+  list-style: none;
+  margin: 30px 0 0;
+  padding: 0;
+  border-top: 2px solid #1e1e1e;
+}
+.freeLink {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 22ch) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 20px;
+  padding: 14px 8px 12px;
+  border-bottom: 2px solid #1e1e1e;
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--vt);
+  font-size: 30px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.freeLink:hover {
+  background: var(--ink);
+  color: var(--black);
+}
+.freeLink:hover span {
+  color: var(--black);
+}
+.freeBlurb {
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.5;
+  text-transform: none;
+  color: var(--dim);
+}
+
+/* Footer */
+.footer {
+  border-top: 2px solid #1e1e1e;
+  padding: 34px 0 30px;
+}
+.footRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 26px;
+  margin-bottom: 14px;
+}
+.footLink {
+  font-family: var(--vt);
+  font-size: 24px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+}
+.footLink:hover {
+  color: var(--black);
+  background: var(--ink);
+}
+.company {
+  margin: 18px 0 0;
+  font-size: 14px;
+  color: var(--dim);
+}
+
+/* Fastext */
+.fastext {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--black);
+  border-top: 2px solid #1c1c1c;
+}
+.fastext a {
+  display: block;
+  padding: 12px 8px 9px;
+  text-align: center;
+  font-family: var(--vt);
+  font-size: 26px;
+  line-height: 1;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.fastext a.red:hover { background: var(--red); color: var(--black); }
+.fastext a.green:hover { background: var(--green); color: var(--black); }
+.fastext a.yellow:hover { background: var(--yellow); color: var(--black); }
+.fastext a.cyan:hover { background: var(--cyan); color: var(--black); }
+.fastext a:focus-visible {
+  outline-offset: -3px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Narrow screens                                                     */
+/* ------------------------------------------------------------------ */
+@media (max-width: 1023px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+  }
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sliders {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .root {
+    font-size: 17px;
+  }
+  .hideSm {
+    display: none;
+  }
+  .clock {
+    display: none;
+  }
+  .topInner {
+    font-size: 24px;
+    gap: 10px;
+  }
+  .pno {
+    display: none;
+  }
+  .offer {
+    font-size: 26px;
+  }
+  /* On a phone the doors come before the feed, so both actions are on the first screen. */
+  .heroMain {
+    display: flex;
+    flex-direction: column;
+  }
+  .doors {
+    order: 1;
+    margin-top: 24px;
+  }
+  .feed,
+  .standing {
+    order: 2;
+  }
+  /* The OUT figure drops under its score, so the score alone sets the type size. */
+  .feed {
+    font-size: min(36px, calc((100vw - 2 * var(--pad)) / (26 * var(--adv))));
+  }
+  .feedLine {
+    display: block;
+    margin-bottom: 4px;
+  }
+  .feedScore {
+    display: block;
+    width: auto;
+  }
+  .feedOut,
+  .feedThrough {
+    display: block;
+    padding-left: 2ch;
+    font-size: 0.8em;
+  }
+  .btn {
+    font-size: 30px;
+  }
+  .doors .btn {
+    width: 100%;
+    text-align: center;
+  }
+  .lede {
+    font-size: 19px;
+  }
+  .dots {
+    font-size: 25px;
+  }
+  .leftValue {
+    font-size: 56px;
+  }
+  .listing {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .listingWhen {
+    grid-row: auto;
+  }
+  .freeLink {
+    grid-template-columns: 4ch minmax(0, 1fr);
+  }
+  .freeBlurb {
+    grid-column: 2;
+  }
+  .bannerTitle {
+    --reserve: 84px;
+  }
+  .bannerNo {
+    font-size: 24px;
+  }
+  .fastext a {
+    font-size: 22px;
+    padding: 12px 2px 9px;
+  }
+}
+
+/* The keys drop to one word each wherever the narrow type size applies, so the long labels never
+   meet a cell too small for them. */
+.keyShort {
+  display: none;
+}
+@media (max-width: 639px) {
+  .keyLong {
+    display: none;
+  }
+  .keyShort {
+    display: inline;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .type,
+  .flash {
+    animation: none;
+  }
+  .btn {
+    transition: none;
+  }
+}

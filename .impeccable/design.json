@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-22T00:00:00Z",
+  "title": "Design System: LMSLocal landing page",
+  "extensions": {
+    "scope": "Landing page only: lmslocal-web/src/app/page.tsx (route /) and lmslocal-web/src/components/landing/results/. Every other screen follows docs/design-system.md (the pools coupon).",
+    "colorMeta": {
+      "screen-black": { "role": "neutral", "displayName": "Screen Black", "canonical": "#000000", "tonalRamp": ["oklch(0% 0 0)", "oklch(10% 0 0)", "oklch(15% 0 0)", "oklch(20% 0 0)", "oklch(25% 0 0)", "oklch(30% 0 0)", "oklch(35% 0 0)", "oklch(40% 0 0)"] },
+      "ink": { "role": "neutral", "displayName": "Phosphor Ink", "canonical": "#f2f2ee", "tonalRamp": ["oklch(15% 0.003 106)", "oklch(25% 0.004 106)", "oklch(35% 0.005 106)", "oklch(45% 0.006 106)", "oklch(55% 0.006 106)", "oklch(65% 0.006 106)", "oklch(80% 0.006 106)", "oklch(95.8% 0.006 106)"] },
+      "dim": { "role": "neutral", "displayName": "Dim Ink", "canonical": "#c9c9c2", "tonalRamp": ["oklch(15% 0.004 106)", "oklch(25% 0.006 106)", "oklch(35% 0.008 106)", "oklch(45% 0.01 106)", "oklch(55% 0.01 106)", "oklch(65% 0.01 106)", "oklch(82% 0.01 106)", "oklch(95% 0.005 106)"] },
+      "national-yellow": { "role": "primary", "displayName": "Broadcast Yellow", "canonical": "#ffd400", "tonalRamp": ["oklch(15% 0.03 92)", "oklch(25% 0.06 92)", "oklch(35% 0.08 92)", "oklch(45% 0.1 92)", "oklch(55% 0.12 92)", "oklch(65% 0.14 92)", "oklch(88.6% 0.18 92)", "oklch(95% 0.08 92)"] },
+      "club-cyan": { "role": "secondary", "displayName": "Teletext Cyan", "canonical": "#2fd0ff", "tonalRamp": ["oklch(15% 0.03 226)", "oklch(25% 0.06 226)", "oklch(35% 0.08 226)", "oklch(45% 0.1 226)", "oklch(55% 0.12 226)", "oklch(65% 0.13 226)", "oklch(80% 0.14 226)", "oklch(95% 0.05 226)"] },
+      "through-green": { "role": "tertiary", "displayName": "Through Green", "canonical": "#45e06a", "tonalRamp": ["oklch(15% 0.04 145)", "oklch(25% 0.07 145)", "oklch(35% 0.1 145)", "oklch(45% 0.13 145)", "oklch(55% 0.16 145)", "oklch(65% 0.18 145)", "oklch(81% 0.21 145)", "oklch(95% 0.07 145)"] },
+      "out-red": { "role": "tertiary", "displayName": "Out Red", "canonical": "#ff4b3e", "tonalRamp": ["oklch(15% 0.05 30)", "oklch(25% 0.09 30)", "oklch(35% 0.13 30)", "oklch(45% 0.17 30)", "oklch(55% 0.2 30)", "oklch(66% 0.22 30)", "oklch(80% 0.12 30)", "oklch(95% 0.03 30)"] },
+      "banner-blue": { "role": "tertiary", "displayName": "Banner Blue", "canonical": "#1f3ad8", "tonalRamp": ["oklch(15% 0.06 266)", "oklch(25% 0.12 266)", "oklch(35% 0.18 266)", "oklch(46% 0.24 266)", "oklch(55% 0.2 266)", "oklch(65% 0.15 266)", "oklch(80% 0.08 266)", "oklch(95% 0.02 266)"] },
+      "rule": { "role": "neutral", "displayName": "Rule", "canonical": "#1e1e1e", "tonalRamp": ["oklch(15% 0 0)", "oklch(19% 0 0)", "oklch(23% 0 0)", "oklch(28% 0 0)", "oklch(35% 0 0)", "oklch(45% 0 0)", "oklch(60% 0 0)", "oklch(80% 0 0)"] },
+      "rule-frame": { "role": "neutral", "displayName": "Frame Rule", "canonical": "#2a2a2a", "tonalRamp": ["oklch(15% 0 0)", "oklch(20% 0 0)", "oklch(25% 0 0)", "oklch(28% 0 0)", "oklch(35% 0 0)", "oklch(45% 0 0)", "oklch(60% 0 0)", "oklch(80% 0 0)"] },
+      "leader": { "role": "neutral", "displayName": "Leader", "canonical": "#4a4a4a", "tonalRamp": ["oklch(15% 0 0)", "oklch(25% 0 0)", "oklch(32% 0 0)", "oklch(40% 0 0)", "oklch(50% 0 0)", "oklch(60% 0 0)", "oklch(75% 0 0)", "oklch(90% 0 0)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The hero LAST MAN STANDING only. Double height: scaleY(2) from the top-left, size min(68px, fit-to-width) using VT323's 0.42em advance." },
+      "headline": { "displayName": "Headline", "purpose": "Page banner titles, double height, min(52px, fit-to-width) with 120px reserved for the page number (84px on a phone)." },
+      "numeral": { "displayName": "Numeral", "purpose": "The STILL STANDING count, tabular figures, yellow." },
+      "feed": { "displayName": "Feed", "purpose": "The results feed: min(40px, width / (36 x 0.42em)); on a phone min(36px, width / (26 x 0.42em))." },
+      "title": { "displayName": "Title", "purpose": "Sub-headings within a page and button labels (30px on a phone)." },
+      "readout": { "displayName": "Readout", "purpose": "Hero offer lines, dotted-leader ledgers (25px on a phone), download rows, banner page numbers." },
+      "label": { "displayName": "Label", "purpose": "Header row, index, fastext keys, ledger and slider labels, listings, text links, footer links (24-28px)." },
+      "body-lede": { "displayName": "Body Lede", "purpose": "Opening paragraph under a banner, max 40em (19px on a phone)." },
+      "body": { "displayName": "Body", "purpose": "Running copy, max 42em (17px on a phone)." },
+      "body-small": { "displayName": "Body Small", "purpose": "Fine print, listing details and download blurbs, in dim ink." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "teleprinter", "value": "steps(n, end), 30ms per character, 320ms between results, first line at 600ms", "purpose": "Live feed lines type in with a 0.5ch print head that shows only while typing." },
+      { "name": "flash", "value": "1s step-end infinite (opacity 0 at 50%)", "purpose": "The block cursor on YOUR PICK. On, off, on; never a fade." },
+      { "name": "count-drop", "value": "700ms, ease-out exponential (1 - 2^(-10p)), requestAnimationFrame", "purpose": "The STILL STANDING count falling as each OUT figure finishes typing; driven by animationend, not timers." },
+      { "name": "fill-swap", "value": "120ms ease-out on background-color, color, border-color", "purpose": "Button hover inversion." },
+      { "name": "page-scroll", "value": "scroll-behavior: smooth", "purpose": "Index and fastext jumps." },
+      { "name": "reduced-motion", "value": "prefers-reduced-motion: reduce", "purpose": "Typing, flash, button transitions and smooth scroll all off; the feed shows the finished round and the final count." }
+    ],
+    "breakpoints": [
+      { "name": "single-column", "value": "1023px" },
+      { "name": "phone", "value": "639px", "purpose": "Also where the fastext keys shorten to one word." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Play Button",
+      "kind": "button",
+      "refersTo": "button-play",
+      "description": "The national-game action: a solid yellow block that inverts to ink on hover.",
+      "html": "<a class=\"ds-btn ds-btn-play\" href=\"#\">Play free — you're in</a>",
+      "css": ".ds-btn { display: inline-block; border: 3px solid transparent; border-radius: 0; padding: 8px 20px 4px; font-family: VT323, ui-monospace, monospace; font-size: 34px; line-height: 1; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out; } .ds-btn-play { background: #ffd400; color: #000; } .ds-btn-play:hover { background: #f2f2ee; } .ds-btn:focus-visible { outline: 3px solid #ffd400; outline-offset: 3px; }"
+    },
+    {
+      "name": "Club Button",
+      "kind": "button",
+      "refersTo": "button-club",
+      "description": "The organiser door beside the yellow one: cyan outline that fills cyan on hover.",
+      "html": "<a class=\"ds-btn-club\" href=\"#\">Start one for your club</a>",
+      "css": ".ds-btn-club { display: inline-block; background: #000; border: 3px solid #2fd0ff; border-radius: 0; padding: 8px 20px 4px; color: #2fd0ff; font-family: VT323, ui-monospace, monospace; font-size: 34px; line-height: 1; text-transform: uppercase; text-decoration: none; transition: background-color 120ms ease-out, color 120ms ease-out; } .ds-btn-club:hover { background: #2fd0ff; color: #000; } .ds-btn-club:focus-visible { outline: 3px solid #ffd400; outline-offset: 3px; }"
+    },
+    {
+      "name": "Join Code Field",
+      "kind": "input",
+      "refersTo": "input-code",
+      "description": "The join code: yellow VT323 in a square ink-stroked field, with the red Join button disabled until something is typed.",
+      "html": "<form class=\"ds-code\"><label class=\"ds-code-label\" for=\"ds-code-in\">Enter code</label><input id=\"ds-code-in\" class=\"ds-code-input\" autocomplete=\"off\" /><button class=\"ds-code-btn\" type=\"submit\">Join</button><button class=\"ds-code-btn\" type=\"button\" disabled>Join</button></form>",
+      "css": ".ds-code { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 16px; background: #000; padding: 16px; } .ds-code-label { width: 100%; font-family: VT323, ui-monospace, monospace; font-size: 28px; line-height: 1; text-transform: uppercase; color: #c9c9c2; } .ds-code-input { width: 11ch; background: #000; border: 3px solid #f2f2ee; border-radius: 0; padding: 6px 12px 2px; font-family: VT323, ui-monospace, monospace; font-size: 44px; line-height: 1; letter-spacing: 0.12em; text-transform: uppercase; color: #ffd400; caret-color: #ffd400; } .ds-code-input:focus-visible { outline: 3px solid #ffd400; outline-offset: 0; border-color: #ffd400; } .ds-code-btn { border: 3px solid transparent; border-radius: 0; padding: 8px 20px 4px; background: #ff4b3e; color: #000; font-family: VT323, ui-monospace, monospace; font-size: 34px; line-height: 1; text-transform: uppercase; cursor: pointer; transition: background-color 120ms ease-out; } .ds-code-btn:hover { background: #f2f2ee; } .ds-code-btn:focus-visible { outline: 3px solid #ffd400; outline-offset: 3px; } .ds-code-btn:disabled { background: transparent; border-color: #5a5a5a; color: #8f8f8f; cursor: not-allowed; }"
+    },
+    {
+      "name": "Page Banner",
+      "kind": "custom",
+      "refersTo": "page-banner",
+      "description": "A numbered page's banner: solid role colour, double-height black title, page number at the right.",
+      "html": "<div class=\"ds-banner\"><h2 class=\"ds-banner-title\"><span>The national game</span></h2><span class=\"ds-banner-no\">P200</span></div><div class=\"ds-banner ds-banner-blue\"><h2 class=\"ds-banner-title\"><span>Where we're up to</span></h2><span class=\"ds-banner-no\">P500</span></div>",
+      "css": ".ds-banner { position: relative; padding: 10px 16px 8px; margin-bottom: 12px; background: #ffd400; color: #000; } .ds-banner-blue { background: #1f3ad8; color: #f2f2ee; } .ds-banner-title { margin: 0; height: 2em; font-family: VT323, ui-monospace, monospace; font-weight: 400; font-size: 40px; line-height: 1; text-transform: uppercase; } .ds-banner-title > span { display: block; white-space: nowrap; transform: scaleY(2); transform-origin: 0 0; } .ds-banner-no { position: absolute; right: 16px; top: 12px; font-family: VT323, ui-monospace, monospace; font-size: 30px; line-height: 1; }"
+    },
+    {
+      "name": "Page Index",
+      "kind": "nav",
+      "refersTo": "index-row",
+      "description": "The on-page index: page numbers in their role colour, each row a link that inverts on hover.",
+      "html": "<nav class=\"ds-index\"><p class=\"ds-index-head\">Index</p><a class=\"ds-index-link\" href=\"#\"><span style=\"color:#ffd400\">200</span><span>The national game</span></a><a class=\"ds-index-link\" href=\"#\"><span style=\"color:#45e06a\">210</span><span>How a round works</span></a><a class=\"ds-index-link\" href=\"#\"><span style=\"color:#2fd0ff\">300</span><span>Run one for your club</span></a><a class=\"ds-index-link\" href=\"#\"><span style=\"color:#ff4b3e\">400</span><span>Got a code?</span></a></nav>",
+      "css": ".ds-index { background: #000; border: 2px solid #2a2a2a; padding: 18px 20px 14px; max-width: 320px; font-family: VT323, ui-monospace, monospace; font-size: 27px; line-height: 1; text-transform: uppercase; } .ds-index-head { margin: 0 0 14px; color: #c9c9c2; } .ds-index-link { display: grid; grid-template-columns: 3.4ch 1fr; gap: 10px; padding: 7px 6px 5px; margin: 0 -6px; color: #f2f2ee; text-decoration: none; } .ds-index-link:hover, .ds-index-link:hover span { background: #f2f2ee; color: #000 !important; } .ds-index-link:focus-visible { outline: 3px solid #ffd400; outline-offset: 3px; }"
+    },
+    {
+      "name": "Fastext Bar",
+      "kind": "nav",
+      "refersTo": "fastext-key",
+      "description": "Four coloured keys fixed along the bottom of the screen; each fills with its own colour on hover.",
+      "html": "<nav class=\"ds-fastext\"><a href=\"#\" class=\"ds-key ds-key-red\">Got a code</a><a href=\"#\" class=\"ds-key ds-key-green\">The rules</a><a href=\"#\" class=\"ds-key ds-key-yellow\">National game</a><a href=\"#\" class=\"ds-key ds-key-cyan\">Run one</a></nav>",
+      "css": ".ds-fastext { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #000; border-top: 2px solid #1c1c1c; } .ds-key { display: block; padding: 12px 8px 9px; text-align: center; font-family: VT323, ui-monospace, monospace; font-size: 26px; line-height: 1; text-transform: uppercase; text-decoration: none; white-space: nowrap; } .ds-key-red { color: #ff4b3e; } .ds-key-green { color: #45e06a; } .ds-key-yellow { color: #ffd400; } .ds-key-cyan { color: #2fd0ff; } .ds-key-red:hover { background: #ff4b3e; color: #000; } .ds-key-green:hover { background: #45e06a; color: #000; } .ds-key-yellow:hover { background: #ffd400; color: #000; } .ds-key-cyan:hover { background: #2fd0ff; color: #000; } .ds-key:focus-visible { outline: 3px solid #ffd400; outline-offset: -3px; }"
+    },
+    {
+      "name": "Dotted-Leader Ledger",
+      "kind": "custom",
+      "description": "Figures as label, dotted leader, value; values take their role colour.",
+      "html": "<dl class=\"ds-dots\"><div class=\"ds-row\"><dt>They win</dt><dd style=\"color:#45e06a\">Through</dd></div><div class=\"ds-row\"><dt>They draw</dt><dd style=\"color:#ff4b3e\">Out</dd></div><div class=\"ds-row\"><dt>Entry</dt><dd style=\"color:#ffd400\">Free</dd></div><div class=\"ds-row\"><dt>Prize</dt><dd>Bragging rights</dd></div></dl>",
+      "css": ".ds-dots { margin: 0; padding: 12px 16px; background: #000; color: #f2f2ee; font-family: VT323, ui-monospace, monospace; font-size: 30px; line-height: 1.15; text-transform: uppercase; } .ds-row { display: flex; align-items: flex-end; gap: 0.5ch; padding: 3px 0; } .ds-row dt { flex: 0 1 auto; min-width: 0; } .ds-row dd { margin: 0; text-align: right; flex: 0 0 auto; max-width: 55%; order: 2; } .ds-row::after { content: ''; order: 1; flex: 1 0 2ch; margin-bottom: 0.28em; border-bottom: 3px dotted #4a4a4a; }"
+    },
+    {
+      "name": "Results Feed",
+      "kind": "custom",
+      "description": "Scores in a 26ch column with red OUT figures; the live line types in with a print head, and the visitor's pick waits with a flashing block cursor.",
+      "html": "<ol class=\"ds-feed\"><li class=\"ds-feed-line\"><span class=\"ds-feed-score\">Arsenal 2 Chelsea 1</span><span class=\"ds-feed-out\">412 out</span></li><li class=\"ds-feed-line\"><span class=\"ds-feed-score\"><span class=\"ds-type\" style=\"--n:20\">Newcastle 1 Wolves 2</span></span><span class=\"ds-feed-out\">2,871 out</span></li><li class=\"ds-feed-line ds-feed-pick\"><span class=\"ds-feed-score\">Your pick: Aston Villa<span class=\"ds-flash\"></span></span></li></ol>",
+      "css": ".ds-feed { list-style: none; margin: 0; padding: 12px 16px; background: #000; color: #f2f2ee; font-family: VT323, ui-monospace, monospace; font-size: 32px; line-height: 1.06; text-transform: uppercase; } .ds-feed-line { display: flex; align-items: baseline; } .ds-feed-score { display: inline-block; width: 26ch; flex: none; } .ds-feed-out { color: #ff4b3e; } .ds-feed-pick { color: #2fd0ff; } .ds-type { display: inline-block; vertical-align: bottom; overflow: hidden; white-space: nowrap; box-sizing: content-box; width: calc(var(--n) * 1ch); border-right: 0.5ch solid transparent; animation: ds-type 600ms steps(20, end) 300ms both, ds-head 600ms step-end 300ms forwards; } @keyframes ds-type { from { width: 0; } } @keyframes ds-head { from { border-right-color: currentColor; } to { border-right-color: transparent; } } .ds-flash { display: inline-block; width: 0.5ch; height: 0.78em; margin-left: 0.4ch; vertical-align: -0.04em; background: currentColor; animation: ds-flash 1s step-end infinite; } @keyframes ds-flash { 50% { opacity: 0; } } @media (prefers-reduced-motion: reduce) { .ds-type, .ds-flash { animation: none; } }"
+    },
+    {
+      "name": "Still Standing Count",
+      "kind": "custom",
+      "refersTo": "sample-tag",
+      "description": "The giant yellow count with its label and the SAMPLE tag every invented figure carries.",
+      "html": "<div class=\"ds-standing\"><p class=\"ds-count\">13,402</p><p class=\"ds-count-label\">Still standing<span class=\"ds-sample\">Sample round · game starts soon</span></p></div>",
+      "css": ".ds-standing { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px 28px; padding: 16px; background: #000; } .ds-count { margin: 0; font-family: VT323, ui-monospace, monospace; font-size: 120px; line-height: 0.74; color: #ffd400; font-variant-numeric: tabular-nums; } .ds-count-label { margin: 0; display: flex; flex-direction: column; gap: 8px; font-family: VT323, ui-monospace, monospace; font-size: 36px; line-height: 1; text-transform: uppercase; color: #f2f2ee; } .ds-sample { align-self: flex-start; background: #f2f2ee; color: #000; font-size: 22px; padding: 2px 8px 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Saturday Results Service",
+    "overview": "The page is a broadcast text service on a Saturday afternoon. Scores type in one character at a time, each knocking thousands out of a national game, and a giant count of who is still standing drops as they land. Everything else is laid out the way a teletext service lays out its pages: numbered pages with solid colour banners, an index whose entries are page numbers, dotted-leader ledgers for figures, and four coloured keys fixed along the bottom of the screen.\n\nIt is dense, flat and loud on a black ground. Colour is never decoration: each of the five broadcast colours has one fixed meaning across the whole page, and appears either as text on black or as a solid block carrying black text. Depth, emphasis and state all come from fills and inversion, never from shadow, blur, gradient or rounded corners. Motion is the teleprinter's: even, stepped, on-or-off.\n\nFigures that are invented to show the mechanism (the national game is not built yet) carry a visible SAMPLE tag. That tag is part of the world, not a disclaimer bolted on.",
+    "keyCharacteristics": [
+      "Phosphor-black screen (`screen-black`) with off-white `ink` text; the browser's own scrollbar and selection follow it.",
+      "Five broadcast colours with fixed roles; solid blocks always carry black text, except blue, which carries ink.",
+      "VT323 in capitals for anything a line or shorter; Atkinson Hyperlegible Mono for anything longer.",
+      "Double-height headings, drawn twice as tall at the same width and sized to fit without wrapping.",
+      "Every section is a numbered page (P100 to P600), reached from the index and the fastext bar.",
+      "Square corners, ruled lines, dotted leaders. No shadows."
+    ],
+    "rules": [
+      { "name": "The Fixed Roles Rule", "body": "Yellow is the national game and the primary action, cyan is organisers and clubs, green is through and the rules, red is out and the join code, blue is a neutral banner, white is text. A colour is chosen by what the thing *is*, and never reused for anything else; a new section takes the colour of its audience, or blue if it has none.", "section": "colors" },
+      { "name": "The Two Fills Rule", "body": "Colour appears in exactly two ways: as text on black, or as a solid block with black text on it (blue alone carries ink). No tints, no transparency, no gradients.", "section": "colors" },
+      { "name": "The One Line Rule", "body": "Anything a line or shorter is VT323 in capitals; anything longer is Atkinson Hyperlegible Mono in sentence case. VT323 tires the eye in a paragraph.", "section": "typography" },
+      { "name": "The Double Height Rule", "body": "Headings are teletext double height: the glyphs are drawn with `transform: scaleY(2)` from the top-left at their normal width, inside a box reserved at `2em × lines`. Each heading declares its longest line in characters (`--chars`) and a ceiling (`--max`); its size is the smaller of the ceiling and what fits the screen width, using VT323's advance of 0.42em per character (`--adv`). A double-height heading never wraps. Banners reserve 120px (84px on a phone) for their page number.", "section": "typography" },
+      { "name": "The Page Number Rule", "body": "Every section is a numbered page, and the banner, the index and the fastext keys all point at the same number in the same colour. A new section gets a page number, an index entry in its role colour, and a banner — not an unnumbered block.", "section": "layout" },
+      { "name": "The Inversion Rule", "body": "State is shown by swapping fills, the way a selected row on a text service lights up: hover turns a row, link or solid button to an ink block with black text; an outlined cyan button fills cyan; a fastext key fills with its own colour. Nothing lifts, glows or moves.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** pick a colour by role — yellow national game and primary action, cyan organisers, green through and rules, red out and the code, blue neutral banners — and keep it on every element of that thing (banner, index number, fastext key, button).",
+      "**Do** set anything a line or shorter in VT323 capitals and anything longer in Atkinson Hyperlegible Mono.",
+      "**Do** draw headings at double height with a declared character count, sized to fit without wrapping.",
+      "**Do** show hover and selection by inverting to a solid fill with black text.",
+      "**Do** give every new section a page number, an index entry and a banner.",
+      "**Do** put figures in dotted-leader ledgers, with values in their role colour.",
+      "**Do** tag any invented or not-yet-live figure with a visible SAMPLE block.",
+      "**Do** flash on and off with `step-end` and type with `steps()`; switch both off under reduced motion and show the finished state instead."
+    ],
+    "donts": [
+      "**Don't** apply this world outside the landing page, or bring the pools-coupon tokens (`src/lib/design.ts`, the Tailwind colour tokens) into it.",
+      "**Don't** use a colour outside its role, such as cyan on a national-game action or red as plain emphasis.",
+      "**Don't** add shadows, gradients, blur, transparency or rounded corners.",
+      "**Don't** set paragraphs in VT323, or let a double-height heading wrap.",
+      "**Don't** fade a flash or a cursor; broadcast text is on or off.",
+      "**Don't** put light text on yellow, cyan, green or red blocks; they carry black."
+    ]
+  }
+}
