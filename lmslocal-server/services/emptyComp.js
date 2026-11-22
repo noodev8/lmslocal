@@ -35,6 +35,7 @@ const { query } = require('../database');
 const { ONE_OFF_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
+const { isLmsSql } = require('./gameType');
 
 const EMAIL_TYPE = 'empty_comp';
 
@@ -129,6 +130,8 @@ async function findCandidates(opts = {}) {
     WHERE UPPER(c.status) != 'COMPLETE'
       -- Archived competitions get no email at all. See notArchivedSql.
       AND ${notArchivedSql('c')}
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
 
       -- Old enough to have been shared by now. See NUDGE_AFTER_DAYS.
       AND c.created_at < NOW() - ($1 || ' days')::interval

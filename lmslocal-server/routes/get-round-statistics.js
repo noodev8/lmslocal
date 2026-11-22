@@ -45,6 +45,7 @@ Return Codes:
 "MISSING_FIELDS"
 "NOT_FOUND"
 "NO_DATA"
+"FORBIDDEN" - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -53,6 +54,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 
 router.post('/', verifyToken, async (req, res) => {
@@ -60,6 +62,12 @@ router.post('/', verifyToken, async (req, res) => {
 
   try {
     const { competition_id, round_id } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ competitionId: competition_id, roundId: round_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
 
     // Validate required fields
     if (!competition_id || !round_id) {

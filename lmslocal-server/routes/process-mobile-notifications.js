@@ -37,6 +37,7 @@ const express = require('express');
 const { query } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
 const { sendNotificationToUser } = require('../services/fcmService');
+const { isLmsSql } = require('../services/gameType');
 const router = express.Router();
 
 // ===========================================================================================================
@@ -67,6 +68,22 @@ router.post('/', async (req, res) => {
 
     if (staleCleanupResult.rowCount > 0) {
       console.log(`Marked ${staleCleanupResult.rowCount} stale notifications as skipped`);
+    }
+
+    // Push notifications are LMS-only: the app is their only reader, and no version of it knows
+    // another game. Skipped here, at the one place that sends, rather than at each of the places
+    // that queue, so a new queueing path cannot forget. See docs/matchday.md §7.2.
+    const otherGameResult = await query(`
+      UPDATE mobile_notification_queue mnq
+      SET status = 'skipped', sent_at = NOW()
+      FROM competition c
+      WHERE mnq.status = 'pending'
+        AND c.id = mnq.competition_id
+        AND NOT (${isLmsSql('c')})
+    `);
+
+    if (otherGameResult.rowCount > 0) {
+      console.log(`Marked ${otherGameResult.rowCount} notifications for other games as skipped`);
     }
 
     // Delete pending/skipped 'new_round' and 'pick_reminder' entries for rounds that are complete

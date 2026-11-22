@@ -29,6 +29,7 @@ const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { formatUkShort } = require('./dateFormat');
 const { notArchivedSql } = require('./competitionEngagement');
+const { isLmsSql } = require('./gameType');
 
 /**
  * The subject, in one place.
@@ -163,6 +164,8 @@ async function findCandidates(opts = {}) {
       AND UPPER(c.status) != 'COMPLETE'
       -- Archived competitions get no email at all. See notArchivedSql.
       AND ${notArchivedSql('c')}
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
 
     INNER JOIN competition_user cu
       ON cu.competition_id = c.id

@@ -39,6 +39,7 @@ welcome emails were the opposite case and had theirs written off as 'skipped' ro
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { isLmsSql } = require('./gameType');
 const { getCompetitionStartOutlook } = require('./fixtureService');
 
 const EMAIL_TYPE = 'game_start_reminder';
@@ -99,6 +100,8 @@ async function findCandidates() {
       AND u.email NOT LIKE '%@lms-guest.com'
 
     WHERE c.fixture_service = true
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
       AND UPPER(c.status) != 'COMPLETE'
       AND c.ready_at IS NULL
       AND c.created_at <= NOW() - ($1 || ' days')::interval

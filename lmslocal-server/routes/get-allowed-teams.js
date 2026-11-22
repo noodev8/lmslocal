@@ -38,6 +38,7 @@ Return Codes:
 "UNAUTHORIZED"
 "COMPETITION_NOT_FOUND"
 "USER_NOT_IN_COMPETITION"
+"FORBIDDEN" - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"
 =======================================================================================================================================
 Allowed teams are DERIVED, not stored - see docs/allowed-teams.md and services/allowedTeams.js.
@@ -56,6 +57,7 @@ rebuild it then ran happened to be a no-op, which is the only reason nobody noti
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 const { canManagePlayers } = require('../utils/permissions');
 const { getAllowedTeams } = require('../services/allowedTeams');
@@ -66,6 +68,12 @@ router.post('/', verifyToken, async (req, res) => {
 
   try {
     const { competition_id, user_id: requested_user_id } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ competitionId: competition_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
     const authenticated_user_id = req.user.id;
 
     if (!competition_id || !Number.isInteger(competition_id)) {

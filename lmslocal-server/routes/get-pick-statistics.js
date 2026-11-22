@@ -33,6 +33,7 @@ Return Codes:
 "VALIDATION_ERROR" - Missing or invalid competition_id parameter
 "COMPETITION_NOT_FOUND" - Competition does not exist in database
 "UNAUTHORIZED" - User is not the organiser or participant of this competition
+"FORBIDDEN"    - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR" - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -40,6 +41,7 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database'); // Use central database with destructured import
 const { verifyToken } = require('../middleware/auth'); // Use correct auth middleware
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
@@ -49,6 +51,12 @@ router.post('/', verifyToken, async (req, res) => {
 
   try {
     const { competition_id } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ competitionId: competition_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
     const user_id = req.user.id; // Set by verifyToken middleware
 
     // Validate required input parameters with strict type checking

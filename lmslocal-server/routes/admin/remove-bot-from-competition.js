@@ -37,7 +37,7 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"          - competition_id or user_id missing
 "COMPETITION_NOT_FOUND"     - No competition with that id
-"COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots
+"COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots, or it is not a Last Man Standing game
 "COMPETITION_STARTED"       - Round 2 exists, or round 1 has locked
 "NOT_A_BOT"                 - user_id is a real account, not a bot
 "BOT_NOT_IN_COMPETITION"    - That bot is not in this competition

@@ -37,7 +37,7 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"          - competition_id or count missing or out of range
 "COMPETITION_NOT_FOUND"     - No competition with that id
-"COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots
+"COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots, or it is not a Last Man Standing game
 "COMPETITION_STARTED"       - Round 2 exists, or round 1 has locked
 "NO_BOTS_AVAILABLE"         - Every bot in the pool is already in this competition
 "SERVER_ERROR"              - Database error or unexpected server failure

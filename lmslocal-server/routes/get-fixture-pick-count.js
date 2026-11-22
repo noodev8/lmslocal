@@ -30,6 +30,7 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"
 "NOT_FOUND"
+"FORBIDDEN" - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -37,6 +38,7 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 
@@ -45,6 +47,12 @@ router.post('/', verifyToken, async (req, res) => {
   
   try {
     const { round_id } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ roundId: round_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
 
     // Validation
     if (!round_id || typeof round_id !== 'number') {

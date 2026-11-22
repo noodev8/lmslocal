@@ -47,6 +47,7 @@ Return Codes:
 "TEAM_NOT_ALLOWED"      - Team is not available for this player (already used or not in competition)
 "TEAM_NOT_FOUND"        - Team name does not exist in database
 "NO_FIXTURE_FOUND"      - No fixture exists for this team in current round
+"FORBIDDEN"             - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -54,6 +55,7 @@ Return Codes:
 const express = require('express');
 const { transaction } = require('../database'); // Use central database with transaction support
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { checkAndLockRoundIfComplete } = require('../utils/roundLocking');
 const { canManagePlayers } = require('../utils/permissions');
 const router = express.Router();
@@ -62,6 +64,12 @@ const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { competition_id, user_id, team } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ competitionId: competition_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
     const admin_id = req.user.id; // Set by verifyToken middleware
 
     // STEP 1: Validate required input parameters with strict type checking

@@ -20,6 +20,7 @@ doc first**. Email has no doc of this kind — see **Email** below.
 | Writing to the database | `docs/testing-rules.md`, `lmslocal-server/db/README.md` |
 | Marketing artwork | `lmslocal-marketing/README.md` |
 | Bots | `docs/BOTS-Management.md` |
+| Matchday, the second game type (planned) | `docs/matchday.md` |
 
 ## Architecture
 
@@ -53,6 +54,10 @@ doc first**. Email has no doc of this kind — see **Email** below.
     archiving suppresses the players' result permanently — and refused: archiving has a reason
     behind it the code cannot see, and un-archiving is one click. `join_lms` is the only service
     without it, being platform-wide with no competition at all.
+  - **Every competition email is Last Man Standing's** (2026-11-22). Compose `isLmsSql()` from
+    `services/gameType.js` into the candidate query beside `notArchivedSql()`: the copy talks
+    about picks and lives, and another game (`docs/matchday.md`) must never receive it. Only
+    `join_lms` and `join_blocked` go without — neither is about a game.
   - `services/emailPreference.js` — the one definition of opt-outs. Compose the candidate query's
     exclusion with `notOptedOutSql()`, never by hand. Preferences group by **section** — Game and
     Info, the outline's two — and **an absent row means subscribed**.

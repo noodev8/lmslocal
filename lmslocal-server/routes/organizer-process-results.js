@@ -47,6 +47,7 @@ Return Codes:
 "NO_ROUNDS"                   - No rounds exist for this competition
 "ROUND_NOT_STARTED"           - Round has not locked yet; picks are still open
 "NO_RESULTS_TO_PROCESS"       - No unprocessed results to process
+"FORBIDDEN"                   - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"                - Database or unexpected error
 =======================================================================================================================================
 */
@@ -54,6 +55,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 const { canManageResults } = require('../utils/permissions');
 const { promoteCompetitionIfStarted } = require('../services/competitionStatus');
@@ -64,6 +66,12 @@ router.post('/', verifyToken, async (req, res) => {
 
   try {
     const { competition_id } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ competitionId: competition_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
     const user_id = req.user.id;
 
     // ========================================

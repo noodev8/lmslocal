@@ -45,6 +45,7 @@ Return Codes:
 "COMPETITION_COMPLETE"     - Competition has already ended
 "PREVIOUS_ROUND_INCOMPLETE" - Current round has unprocessed fixtures
 "ROUND_HAS_FIXTURES"       - Current round already has fixtures (must add all in one transaction)
+"FORBIDDEN"                - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"             - Database or unexpected error
 =======================================================================================================================================
 */
@@ -52,6 +53,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 const { canManageFixtures } = require('../utils/permissions'); // Permission helper
 const router = express.Router();
@@ -61,6 +63,12 @@ router.post('/', verifyToken, async (req, res) => {
 
   try {
     const { competition_id, kickoff_time, fixtures } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ competitionId: competition_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
     const user_id = req.user.id;
 
     // ========================================

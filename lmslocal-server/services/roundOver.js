@@ -85,6 +85,7 @@ const { query } = require('../database');
 const { ROUND_OVER_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
+const { isLmsSql } = require('./gameType');
 
 const EMAIL_TYPE = 'results';
 
@@ -256,6 +257,8 @@ async function findCandidates(opts = {}) {
     WHERE
       -- Archived competitions get no email at all. See notArchivedSql.
       ${notArchivedSql('c')} AND
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      ${isLmsSql('c')} AND
 
       /*
       The readiness rule, and now the ONLY arm of it: the next round is staged.

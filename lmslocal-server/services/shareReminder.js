@@ -26,6 +26,7 @@ them as a proposal to correct.
 
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
+const { isLmsSql } = require('./gameType');
 
 const EMAIL_TYPE = 'share_reminder';
 
@@ -99,6 +100,8 @@ async function findCandidates(opts = {}) {
       AND u.email NOT LIKE '%@lms-guest.com'
 
     WHERE UPPER(c.status) != 'COMPLETE'
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
       -- Still open, and closing soon. Both halves matter: past the lock there is nothing to
       -- share, and further out than this it is not yet news.
       AND r.lock_time > NOW()

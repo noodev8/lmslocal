@@ -33,6 +33,7 @@ it is; see buildResultReminderEmail.
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
+const { isLmsSql } = require('./gameType');
 
 const EMAIL_TYPE = 'result_reminder';
 
@@ -119,6 +120,8 @@ async function findCandidates() {
       AND UPPER(c.status) != 'COMPLETE'
       -- Archived competitions get no email at all. See notArchivedSql.
       AND ${notArchivedSql('c')}
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
 
       -- Something is outstanding on this round.
       AND last_round.fixture_count > 0

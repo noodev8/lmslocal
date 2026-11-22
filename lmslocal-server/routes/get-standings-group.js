@@ -56,6 +56,7 @@ Return Codes:
 "INVALID_GROUP"             - Group key not recognized
 "COMPETITION_NOT_FOUND"
 "UNAUTHORIZED"              - User is not a participant
+"FORBIDDEN"                 - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -63,6 +64,7 @@ Return Codes:
 const express = require('express');
 const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 const { BOT_EMAIL_LIKE } = require('../services/botPool');
 const router = express.Router();
@@ -72,6 +74,12 @@ router.post('/', verifyToken, async (req, res) => {
 
   try {
     const { competition_id, group_key, page = 1, page_size = 20 } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ competitionId: competition_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
     const user_id = req.user.id;
 
     // ========================================

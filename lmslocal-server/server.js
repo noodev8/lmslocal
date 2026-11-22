@@ -348,7 +348,10 @@ app.use(cors((req, callback) => {
     origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma']
+    // X-Game-Types: the games a client can show (services/gameType.js). A header missing from this
+    // list fails the browser's preflight, which fails every request the web makes - not just the
+    // ones that read it.
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma', 'X-Game-Types']
   });
 }));
 

@@ -39,6 +39,9 @@ Return Codes:
 "COMPETITION_STARTED"   - Cannot join after round 1 has started
 "COMPETITION_FULL"      - Competition has reached maximum player limit
 "ALREADY_JOINED"        - User is already a member of this competition
+"GAME_NOT_SUPPORTED"    - The competition is a game this client did not declare in X-Game-Types
+                          (every app version in the wild). The message names the game and says
+                          to join on the web - the app shows it verbatim. docs/matchday.md §7.2
 "SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -48,6 +51,7 @@ const { transaction } = require('../database'); // Use central database with tra
 const { verifyToken } = require('../middleware/auth'); // Use standard verifyToken middleware
 const { recordJoinBlock } = require('../services/joinBlock');
 const { countOrganiserChargeableMembers } = require('../services/botPool');
+const { clientGameTypes, GAME_TYPES } = require('../services/gameType');
 const router = express.Router();
 
 // POST endpoint with comprehensive authentication, validation and atomic transaction safety for competition joining
@@ -84,6 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
             c.invite_code,
             c.lives_per_player,
             c.organiser_id,
+            c.game_type,
             -- Get current round information for joining eligibility check
             MAX(r.round_number) as current_round_number,
             MAX(r.lock_time) as latest_lock_time,
@@ -95,7 +100,7 @@ router.post('/', verifyToken, async (req, res) => {
           -- but the field is free to hold REDBARN25 later and matching must stay
           -- case-insensitive. idx_competition_invite_code indexes this exact expression.
           WHERE UPPER(c.invite_code) = $1
-          GROUP BY c.id, c.name, c.status, c.invite_code, c.lives_per_player
+          GROUP BY c.id, c.name, c.status, c.invite_code, c.lives_per_player, c.game_type
         ),
         membership_check AS (
           -- Check if user is already a member of this competition
@@ -129,6 +134,21 @@ router.post('/', verifyToken, async (req, res) => {
       }
 
       const data = mainResult.rows[0];
+
+      // A client that cannot show this game must not be let in: it would render the competition
+      // as Last Man Standing. Checked before everything else, so the player is told the one thing
+      // they can act on - go to the web - instead of, say, that the competition has started.
+      // The public lookup (get-competition-by-code) deliberately stays SUCCESS: the app reads any
+      // other code there as "we could not check that code", which would be untrue.
+      if (!clientGameTypes(req).includes(data.game_type)) {
+        const gameName = GAME_TYPES[data.game_type];
+        throw {
+          return_code: "GAME_NOT_SUPPORTED",
+          message: gameName
+            ? `${data.competition_name} is a ${gameName} competition, which this app cannot show yet. Join it on the web at lmslocal.co.uk.`
+            : `${data.competition_name} cannot be shown in this app yet. Join it on the web at lmslocal.co.uk.`
+        };
+      }
 
       // Business Logic: Check if joining is still allowed based on competition progress
       // Players can only join before round 1 starts or during round 1 before it locks

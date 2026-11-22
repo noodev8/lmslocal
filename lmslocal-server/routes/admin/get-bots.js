@@ -79,7 +79,7 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"          - competition_id given but not a number
 "COMPETITION_NOT_FOUND"     - No competition with that id
-"COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots
+"COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots, or it is not a Last Man Standing game
 "UNAUTHORIZED"              - Missing, invalid, expired, or non-admin token
 "TOKEN_EXPIRED"             - Admin session has expired
 "SERVER_ERROR"              - Database error or unexpected server failure

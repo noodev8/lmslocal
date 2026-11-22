@@ -32,6 +32,7 @@ const { query } = require('../database');
 const { WELCOME_MAX_AGE_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
+const { isLmsSql } = require('./gameType');
 
 const EMAIL_TYPE = 'created_comp';
 
@@ -105,6 +106,8 @@ async function findCandidates(opts = {}) {
     -- in Aug 2026 can never come back. This one clause is the whole no-backfill rule now.
     -- Archived competitions get no email at all. See notArchivedSql.
     WHERE ${notArchivedSql('c')}
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
       -- Backstop against a cleared email_queue - see WELCOME_MAX_AGE_DAYS.
       AND c.created_at > NOW() - ($3 || ' days')::interval
 

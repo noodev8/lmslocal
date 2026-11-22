@@ -41,6 +41,7 @@ const { query } = require('../database');
 const { GAME_COMPLETE_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
+const { isLmsSql } = require('./gameType');
 
 const EMAIL_TYPE = 'game_complete';
 
@@ -166,6 +167,8 @@ async function findCandidates(opts = {}) {
       behind it that this code cannot see, and un-archiving is one click. See notArchivedSql.
       */
       AND ${notArchivedSql('c')}
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
 
       -- Once ever, per player per competition. No cooldown: a competition finishes once.
       AND NOT EXISTS (

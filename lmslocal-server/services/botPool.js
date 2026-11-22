@@ -222,7 +222,7 @@ const BOT_FIRST_NAMES = [
  */
 async function loadBotCompetition(competitionId) {
   const result = await query(`
-    SELECT id, name, status, organiser_id, team_list_id, lives_per_player, no_team_twice
+    SELECT id, name, status, organiser_id, team_list_id, lives_per_player, no_team_twice, game_type
     FROM competition
     WHERE id = $1
   `, [competitionId]);
@@ -235,6 +235,15 @@ async function loadBotCompetition(competitionId) {
   }
 
   const competition = result.rows[0];
+
+  // Bots play Last Man Standing only: every bot route picks one team per round and reads lives.
+  // Checked here rather than in each route so all five refuse together. See docs/matchday.md §9.
+  if (competition.game_type !== 'lms') {
+    throw {
+      return_code: 'COMPETITION_NOT_ELIGIBLE',
+      message: 'Bots can only be used in Last Man Standing competitions'
+    };
+  }
 
   if (!BOT_ORGANISER_IDS.includes(competition.organiser_id)) {
     throw {

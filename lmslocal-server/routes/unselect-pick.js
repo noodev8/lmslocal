@@ -37,6 +37,7 @@ Return Codes:
 "ROUND_NOT_FOUND"
 "NO_PICK_FOUND"
 "ROUND_LOCKED"
+"FORBIDDEN" - Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -44,6 +45,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
@@ -52,6 +54,12 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     // Extract request parameters and authenticated user ID
     const { round_id, user_id: requested_user_id } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ roundId: round_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
     const authenticated_user_id = req.user.id;
     const target_user_id = requested_user_id || authenticated_user_id; // Default to own pick if no user_id provided
 

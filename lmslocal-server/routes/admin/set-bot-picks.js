@@ -37,7 +37,7 @@ Return Codes:
 "SUCCESS"
 "VALIDATION_ERROR"          - competition_id or count missing or out of range
 "COMPETITION_NOT_FOUND"     - No competition with that id
-"COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots
+"COMPETITION_NOT_ELIGIBLE"  - That competition's organiser may not use bots, or it is not a Last Man Standing game
 "NO_ROUNDS"                 - Competition has no rounds yet
 "ROUND_LOCKED"              - The current round has locked
 "NO_FIXTURES"               - The current round has no fixtures

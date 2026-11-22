@@ -31,6 +31,7 @@ const { query } = require('../database');
 const { WELCOME_MAX_AGE_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
+const { isLmsSql } = require('./gameType');
 
 /*
 The email_type stays 'welcome'. It is what email_preference and EMAIL_GROUPS already map to
@@ -107,6 +108,8 @@ async function findCandidates(opts = {}) {
       AND c.organiser_id != cu.user_id
       -- Archived competitions get no email at all. See notArchivedSql.
       AND ${notArchivedSql('c')}
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
 
     INNER JOIN app_user u
       ON u.id = cu.user_id

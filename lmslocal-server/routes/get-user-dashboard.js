@@ -23,6 +23,9 @@ Success Response (ALWAYS HTTP 200):
       "name": "Premier League LMS",             // string, competition name
       "description": "Annual competition",       // string, competition description
       "status": "ACTIVE",                       // string, competition status
+      "game_type": "lms",                       // string, 'lms' or 'matchday'. Only games the client
+                                                //   declared in X-Game-Types are returned, in this list
+                                                //   and in the promoted one; no header means 'lms' only
       "lives_per_player": 1,                    // integer, lives per player
       "no_team_twice": true,                    // boolean, team reuse restriction
       "invite_code": "1234",                    // string, join code; the competition's only public identity
@@ -105,6 +108,7 @@ const { query } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { getPlaceUsage } = require('../services/placeUsage');
+const { clientGameTypes } = require('../services/gameType');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
@@ -115,6 +119,10 @@ router.post('/', verifyToken, async (req, res) => {
     // Extract authenticated user ID
     const user_id = req.user.id;
 
+    // The games this client can show. Every app version in the wild sends no X-Game-Types header
+    // and so gets LMS only: a competition of another game is left out of both lists below rather
+    // than handed to a client that would render it as Last Man Standing. docs/matchday.md §7.
+    const gameTypes = clientGameTypes(req);
 
     // === MAIN QUERY: COMPREHENSIVE USER COMPETITION DATA ===
     // Get all competitions where user is organizer OR participant with full context
@@ -143,6 +151,7 @@ router.post('/', verifyToken, async (req, res) => {
         c.organiser_id,                        -- Organizer user ID
         c.fixture_service,                     -- Fixture service mode (true=automated, false=manual)
         c.ready_at,                            -- Organiser pressed Ready; null = fixture service waiting on them
+        c.game_type,                           -- Which game: 'lms' or 'matchday' (docs/matchday.md)
         tl.name as team_list_name,             -- Team list name
         
         -- === USER RELATIONSHIP STATUS ===
@@ -307,11 +316,12 @@ router.post('/', verifyToken, async (req, res) => {
         c.organiser_id = $1 OR
         (cu.user_id IS NOT NULL AND (cu.hidden IS NULL OR cu.hidden = false))
       )
+      AND c.game_type = ANY($2::text[])        -- only games this client can show
       
       ORDER BY c.created_at DESC
     `;
 
-    const mainResult = await query(mainQuery, [user_id]);
+    const mainResult = await query(mainQuery, [user_id, gameTypes]);
 
 
     // === PROMOTE COMPETITIONS WHOSE ROUND 1 HAS LOCKED ===
@@ -459,6 +469,7 @@ router.post('/', verifyToken, async (req, res) => {
         created_at: comp.created_at,
         fixture_service: comp.fixture_service,
         ready_at: comp.ready_at,
+        game_type: comp.game_type,
 
         // Competition statistics
         player_count: parseInt(comp.active_players || 0),
@@ -624,6 +635,7 @@ router.post('/', verifyToken, async (req, res) => {
         ) player_counts ON c.id = player_counts.competition_id
         WHERE c.is_promoted = true
           AND r1.lock_time > NOW()
+          AND c.game_type = ANY($2::text[])    -- only games this client can show
           AND NOT EXISTS (
             SELECT 1 FROM competition_user cu
             WHERE cu.competition_id = c.id AND cu.user_id = $1
@@ -631,7 +643,7 @@ router.post('/', verifyToken, async (req, res) => {
         ORDER BY r1.lock_time ASC
       `;
 
-      const promotedResult = await query(promotedQuery, [user_id]);
+      const promotedResult = await query(promotedQuery, [user_id, gameTypes]);
 
       promotedCompetitions = promotedResult.rows.map(row => ({
         id: row.id,

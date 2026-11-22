@@ -41,6 +41,7 @@ Return Codes:
 "INVALID_TEAM"
 "ROUND_LOCKED"
 "TEAM_ALREADY_PICKED"   // covers what TEAM_NOT_ALLOWED used to report - see docs/allowed-teams.md
+"FORBIDDEN"   // Competition is not a Last Man Standing game (docs/matchday.md §7.3)
 "SERVER_ERROR"
 =======================================================================================================================================
 */
@@ -48,6 +49,7 @@ Return Codes:
 const express = require('express');
 const { query, transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { isLmsCompetition, NOT_LMS_RESPONSE } = require('../services/gameType');
 const { logApiCall } = require('../utils/apiLogger');
 const { checkAndLockRoundIfComplete } = require('../utils/roundLocking');
 const router = express.Router();
@@ -57,6 +59,12 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     // Extract request parameters and authenticated user ID
     const { fixture_id, team, user_id } = req.body;
+
+    // LMS-only route: another game's competition is refused here, before any LMS rule runs
+    // against it. See docs/matchday.md §7.3.
+    if (!(await isLmsCompetition({ fixtureId: fixture_id }))) {
+      return res.json(NOT_LMS_RESPONSE);
+    }
     const authenticated_user_id = req.user.id;
     const target_user_id = user_id || authenticated_user_id; // Default to own pick if no user_id provided
 

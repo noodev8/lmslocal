@@ -44,6 +44,7 @@ are owed today - so no history can accumulate for this to work through.
 const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
+const { isLmsSql } = require('./gameType');
 
 const EMAIL_TYPE = 'fixture_reminder';
 
@@ -122,6 +123,8 @@ async function findCandidates() {
       AND UPPER(c.status) != 'COMPLETE'
       -- Archived competitions get no email at all. See notArchivedSql.
       AND ${notArchivedSql('c')}
+      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      AND ${isLmsSql('c')}
 
       -- Settled: fixtures exist and every one has been processed. A round still carrying an
       -- unprocessed fixture is waiting on results, which is Result reminder's job.

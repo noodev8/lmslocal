@@ -19,9 +19,22 @@ const getApiBaseUrl = () => {
   return `http://${hostname}:3015`;
 };
 
+/*
+The games this client can show, sent on every request as X-Game-Types. The server leaves any other
+game's competitions out of the dashboard and refuses to join this client to one, so a game is
+added here only once its screens exist - 'matchday' with its phase 3 (docs/matchday.md §7, §10).
+
+DEPLOY THE SERVER FIRST whenever this header changes how it is sent. It must be in the server's
+CORS allowedHeaders: every request here is preflighted (Content-Type: application/json sees to
+that), and a preflight naming an unlisted header fails - which takes down every call, not just
+the ones that read it.
+*/
+const GAME_TYPES_SHOWN = ['lms'];
+
 const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
+    'X-Game-Types': GAME_TYPES_SHOWN.join(','),
   },
 });
 
@@ -210,6 +223,8 @@ export interface Competition {
   fixture_service?: boolean;
   /** Organiser has pressed Ready. Null on a fixture service competition means it is waiting. */
   ready_at?: string | null;
+  /** Which game, fixed at creation. Only games in GAME_TYPES_SHOWN are ever returned. */
+  game_type?: 'lms' | 'matchday';
   total_rounds?: number;
   picks_made?: number;
   picks_required?: number;

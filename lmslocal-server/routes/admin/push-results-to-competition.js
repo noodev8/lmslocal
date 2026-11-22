@@ -74,6 +74,7 @@ Return Codes:
 "MISSING_FIELDS"            - competition_id absent or not an integer
 "COMPETITION_NOT_FOUND"     - No competition with that id
 "NOT_SUBSCRIBED"            - Competition has fixture_service = false; the organiser owns its results
+"GAME_NOT_SUPPORTED"        - Competition is not Last Man Standing; nothing here can score it yet
 "NO_RESULTS_TO_PUSH"        - Nothing staged in fixture_load with both scores filled in
 "ALREADY_PUSHED"            - Nothing left to do: no fixture matched, and none awaits processing
 "NO_ROUNDS"                 - Competition has no rounds yet
@@ -111,7 +112,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
       // === STEP 0: THE COMPETITION MUST BE ONE WE OWN THE RESULTS FOR ===
       const competitionResult = await client.query(`
-        SELECT c.id, c.name, c.fixture_service, u.email AS organiser_email
+        SELECT c.id, c.name, c.fixture_service, c.game_type, u.email AS organiser_email
         FROM competition c
         JOIN app_user u ON u.id = c.organiser_id
         WHERE c.id = $1
@@ -127,6 +128,14 @@ router.post('/', verifyAdminToken, async (req, res) => {
       // (organizer-process-results). Pushing into one would fight them for the same rounds.
       if (competition.fixture_service !== true) {
         throw new Error('NOT_SUBSCRIBED');
+      }
+
+      // Step 3 below is Last Man Standing: lives, eliminations, the no-pick penalty, last player
+      // standing. Run against another game's competition it would knock its players out. Refused
+      // before step 1 so nothing is written either - the results stay staged, and the push that
+      // can score the game picks them up. docs/matchday.md §5.2 replaces this with a dispatch.
+      if (competition.game_type !== 'lms') {
+        throw new Error('GAME_NOT_SUPPORTED');
       }
 
       // === STEP 1: GET THE STAGED BATCH ===
@@ -481,6 +490,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
     const known = {
       COMPETITION_NOT_FOUND: 'Competition not found',
       NOT_SUBSCRIBED: 'This competition is not on the fixture service, so its organiser owns its results',
+      GAME_NOT_SUPPORTED: 'This competition is not a Last Man Standing game, and results for its game cannot be processed yet',
       NO_RESULTS_TO_PUSH: 'No staged results are waiting to be pushed',
       ALREADY_PUSHED: 'Nothing left to push - this competition already has these results processed',
       NO_ROUNDS: 'This competition has no rounds yet',
