@@ -25,7 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { MatchdayCoupon, MatchdayFixture, matchdayApi } from '@/lib/api';
+import { MatchdayCoupon, MatchdayFixture, MatchdayRoundPredictions, matchdayApi } from '@/lib/api';
 import { useCompetitionGate } from '@/hooks/useCompetitionGate';
 import CompetitionUnavailable from '@/components/CompetitionUnavailable';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_DARK, BTN_OUTLINE } from '@/lib/design';
@@ -47,6 +47,9 @@ export default function CouponPage() {
   const [saveError, setSaveError] = useState('');
   const [busyFixture, setBusyFixture] = useState<number | null>(null);
   const [current, setCurrent] = useState(0);
+  // Everyone's predictions, once the round has locked (docs/matchday.md §8.6). Null before then,
+  // and if it fails to load the cards simply go without it - it is extra, not the page.
+  const [everyone, setEveryone] = useState<MatchdayRoundPredictions | null>(null);
 
   const stripRef = useRef<HTMLDivElement | null>(null);
   const placedOnce = useRef(false);
@@ -96,6 +99,41 @@ export default function CouponPage() {
   const round = coupon?.round ?? null;
   const open = round !== null && !round.locked && coupon?.is_player === true;
   const fixtures = useMemo(() => coupon?.fixtures ?? [], [coupon]);
+
+  const lockedRoundNumber = round?.locked ? round.round_number : null;
+  useEffect(() => {
+    setEveryone(null);
+    if (lockedRoundNumber === null) return;
+    let cancelled = false;
+    matchdayApi.getRoundPredictions(Number(competitionId), lockedRoundNumber)
+      .then(res => { if (!cancelled && res.data.return_code === 'SUCCESS') setEveryone(res.data); })
+      .catch(() => { /* the cards work without it */ });
+    return () => { cancelled = true; };
+  }, [competitionId, lockedRoundNumber]);
+
+  // Per match: who predicted the home team, who the away team, who neither. Every member is in
+  // exactly one list, so "not predicted" is a real count (§8.6).
+  const crowds = useMemo(() => {
+    const out = new Map<number, Crowd>();
+    if (!everyone) return out;
+    const byFixture = new Map<number, Map<number, string>>();
+    for (const p of everyone.predictions) {
+      if (!byFixture.has(p.fixture_id)) byFixture.set(p.fixture_id, new Map());
+      byFixture.get(p.fixture_id)!.set(p.user_id, p.team);
+    }
+    for (const f of everyone.fixtures) {
+      const teams = byFixture.get(f.fixture_id) ?? new Map<number, string>();
+      const crowd: Crowd = { home: [], away: [], none: [] };
+      for (const player of everyone.players) {
+        const team = teams.get(player.user_id);
+        if (team === f.home_team_short) crowd.home.push(player);
+        else if (team === f.away_team_short) crowd.away.push(player);
+        else crowd.none.push(player);
+      }
+      out.set(f.fixture_id, crowd);
+    }
+    return out;
+  }, [everyone]);
 
   const goTo = useCallback((index: number, smooth = true) => {
     const strip = stripRef.current;
@@ -318,6 +356,8 @@ export default function CouponPage() {
               busy={busyFixture === fixture.fixture_id}
               explainScoring={explainScoring && open}
               onTap={(team) => tapTeam(index, team)}
+              crowd={crowds.get(fixture.fixture_id) ?? null}
+              competitionId={competitionId}
             />
           </div>
         ))}
@@ -394,8 +434,11 @@ function ErrorLine({ message }: { message: string }) {
  * One match. The two teams ARE the choice - no Home / Away buttons under a fixture line, which said
  * the same thing twice. Home team first, as a fixture is always written.
  */
+type CrowdPlayer = { user_id: number; display_name: string; is_me: boolean };
+type Crowd = { home: CrowdPlayer[]; away: CrowdPlayer[]; none: CrowdPlayer[] };
+
 function MatchCard({
-  fixture, position, count, editable, busy, explainScoring, onTap,
+  fixture, position, count, editable, busy, explainScoring, onTap, crowd, competitionId,
 }: {
   fixture: MatchdayFixture;
   position: number;
@@ -404,6 +447,8 @@ function MatchCard({
   busy: boolean;
   explainScoring: boolean;
   onTap: (team: string) => void;
+  crowd: Crowd | null;
+  competitionId: string;
 }) {
   const resultText = fixture.result === null
     ? null
@@ -462,6 +507,80 @@ function MatchCard({
           <span className="text-ink-fade">Not predicted &middot; scores 0</span>
         ) : null}
       </div>
+
+      {crowd && <CrowdLine fixture={fixture} crowd={crowd} competitionId={competitionId} />}
+    </div>
+  );
+}
+
+/**
+ * Who predicted what on one match - only ever given for a locked round (§8.6). One line of counts,
+ * the names behind a tap. Each name goes to that player's predictions, so a surprise on the card
+ * leads to the rest of their round.
+ */
+function CrowdLine({ fixture, crowd, competitionId }: { fixture: MatchdayFixture; crowd: Crowd; competitionId: string }) {
+  const [showNames, setShowNames] = useState(false);
+
+  // What a prediction on each side scored, once the match is settled - read from the result, the
+  // same as the Won / Lost words, never from a points value.
+  const sideWord = (team: string) => {
+    if (!fixture.settled || fixture.result === null) return null;
+    return outcomeWord(team, fixture.result);
+  };
+
+  const column = (label: string, team: string | null, players: CrowdPlayer[]) => (
+    <div className="min-w-0">
+      <p className={`${LABEL} text-ink-fade`}>
+        {label}
+        {team && sideWord(team) && <span className="text-ink"> &middot; {sideWord(team)}</span>}
+      </p>
+      {players.length === 0 ? (
+        <p className="mt-1 text-[13px] text-ink-fade">Nobody</p>
+      ) : (
+        <ul className="mt-1 space-y-0.5">
+          {players.map(player => (
+            <li key={player.user_id} className="truncate">
+              <Link
+                href={`/game/${competitionId}/table/${player.user_id}`}
+                className={`font-data text-[14px] text-ink underline decoration-dotted underline-offset-[4px] hover:text-ink-fade ${player.is_me ? 'font-bold' : ''}`}
+              >
+                {player.display_name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="mt-4 border-t border-ink/30 pt-3 text-center">
+      <button
+        type="button"
+        onClick={() => setShowNames(value => !value)}
+        aria-expanded={showNames}
+        className="text-[13px] text-ink hover:text-ink-fade"
+      >
+        <span className="font-data">{fixture.home_team} {crowd.home.length}</span>
+        <span className="text-ink-fade"> &middot; </span>
+        <span className="font-data">{fixture.away_team} {crowd.away.length}</span>
+        {crowd.none.length > 0 && (
+          <><span className="text-ink-fade"> &middot; </span><span className="text-ink-fade">not predicted {crowd.none.length}</span></>
+        )}
+        <span className={`${LABEL} ml-2 text-ink-fade underline decoration-dotted underline-offset-[4px]`}>
+          {showNames ? 'Hide' : 'Who'}
+        </span>
+      </button>
+
+      {showNames && (
+        <div className="mt-3 grid grid-cols-2 gap-4 text-left">
+          {column(fixture.home_team, fixture.home_team_short, crowd.home)}
+          {column(fixture.away_team, fixture.away_team_short, crowd.away)}
+          {crowd.none.length > 0 && (
+            <div className="col-span-2">{column('Not predicted', null, crowd.none)}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -477,7 +596,7 @@ function TeamButton({
       onClick={onClick}
       disabled={!editable || busy}
       aria-pressed={chosen}
-      aria-label={`${name}${chosen ? ' (your prediction - tap to take it back)' : ' to win'}`}
+      aria-label={chosen ? `${name} (your prediction${editable ? ' - tap to take it back' : ''})` : editable ? `${name} to win` : name}
       className={`relative flex min-h-[64px] w-full items-center justify-center border px-4 py-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
         chosen
           ? 'border-2 border-moss bg-moss-wash'

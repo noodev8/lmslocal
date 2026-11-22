@@ -69,6 +69,7 @@ Defined as Tailwind theme extensions in `lmslocal-web/tailwind.config.js`.
 | `overprint` | `#C8341E` | The second ink. Eliminations, primary actions, emphasis |
 | `moss` | `#2F4B32` | Third ink, game screens only (§8). "Still in", won. Marks and small fills |
 | `moss-wash` | `#CFE4C4` | The same green as a **ground**. Winner cards and panels. Never text or rules |
+| `buff` | `#F1E4C2` | **Matchday's stock.** The ground of a Matchday competition's card, in place of `stock-lit`. Never text, rules or decoration (§8) |
 
 ### Rules
 
@@ -97,6 +98,9 @@ Every combination in use must clear **WCAG AA (4.5:1)** for body text. The measu
 | `ink-fade` on `stock` | 6.1:1 |
 | `ink-fade` on `stock-deep` | 5.3:1 |
 | `ink-fade` on `stock-lit` | 7.2:1 |
+| `ink` on `buff` | 12.3:1 |
+| `ink-fade` on `buff` | 6.4:1 |
+| `moss` on `buff` | 7.6:1 |
 | `stock/85` on `ink` | 6.5:1 |
 
 `ink-fade` was originally `#6B7267`, which measured 3.7:1 and failed. If you find yourself wanting
@@ -278,6 +282,13 @@ rules.
   of it: **marks and stamps take `moss`, fields take `moss-wash` with `ink` text on top**
   (11.5:1). A tint of `moss` is never the answer — `bg-moss/10` over the stock reads as grey,
   which is what started the whole exercise.
+- **A second game is printed on different stock** (2026-11-22). Pools companies told their
+  coupons apart by the colour of the paper, and so do we: a Matchday competition's dashboard card
+  is `buff` where a Last Man Standing card is `stock-lit`. A ground, not an ink, so `overprint`
+  and `moss` keep meaning what they mean on both. Not on its own: the card also carries the
+  game's name as a stamp, so nothing depends on seeing the hue. `overprint` **text** measures
+  4.2:1 on `buff`, under the floor — on a buff card `overprint` is a border or an icon only.
+  Today the tint is the dashboard card alone; a Matchday screen takes it only if this line says so.
 - **Say the state, don't just colour it.** Every status carries its word — "Won", "Lost", "Out" —
   so nothing depends on a reader seeing the hue.
 - **One statement per row.** A results row states either what happened or what it meant for the

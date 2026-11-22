@@ -39,34 +39,6 @@ import { LABEL, EYEBROW, TICK } from '@/lib/design';
  * organiser sections between them.
  */
 
-/*
-Real platform figures. Update these by hand rather than inventing them.
-
-ALL-TIME, not currently-running, which is what the 13/11/110 these replaced were counting - the
-caption beside them said "running right now" and did not match. Kept all-time on purpose: a
-competition that finished still happened, and switching to a live count would have dropped the
-players figure from 110 to 84 and read as going backwards.
-
-Excludes organisers 50 and 862, which are ours, and excludes bots from the player count. Counting
-our own seeded competition would put 22 accounts we drive into a number whose only job is to be
-believable. Players counts one person once however many competitions they are in, and includes
-the 27 added by an organiser rather than signed up themselves - they are playing.
-
-Last counted 2026-09-16:
-  SELECT COUNT(*) FROM competition WHERE organiser_id NOT IN (50,862);
-  SELECT COUNT(DISTINCT organiser_id) FROM competition WHERE organiser_id NOT IN (50,862);
-  SELECT COUNT(DISTINCT cu.user_id) FROM competition_user cu
-    JOIN competition c ON c.id = cu.competition_id
-    JOIN app_user u ON u.id = cu.user_id
-   WHERE c.organiser_id NOT IN (50,862)
-     AND u.email NOT LIKE 'bot_%@lms-guest.com';
-*/
-const TALLY = [
-  { value: '34', label: 'competitions' },
-  { value: '30', label: 'organisers' },
-  { value: '360', label: 'players' },
-];
-
 const WEEKEND = [
   {
     when: 'Midweek',
@@ -448,44 +420,51 @@ export default function LandingPage() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      {/* Where we're up to — real numbers, honestly small                  */}
+      {/* Matchday — the second game, in beta (docs/matchday.md §1)         */}
+      {/* Announced, not offered: creating one is still preview-only, so    */}
+      {/* there is deliberately no button here.                             */}
       {/* ---------------------------------------------------------------- */}
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-        <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-16">
           <div>
-            <h2 className="font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
-              Where we&rsquo;re up to
+            <p className={`${EYEBROW} text-overprint`}>New game &middot; in beta</p>
+            <h2 className="mt-4 font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">
+              Matchday
             </h2>
-            <p className="mt-5 max-w-md text-xl leading-relaxed text-ink">
-              LMSLocal is new. Everything that has run on it so far, counted honestly:
+            <p className="mt-6 max-w-lg text-xl leading-relaxed text-ink">
+              A second game on the same real fixtures. Instead of one team a round, players call
+              the winner of every match in the gameweek.
             </p>
-            {/*
-              Named causes, not a claim about how much was raised - we never see the money, so a
-              total would be invented. "Among others" covers the rest without listing venues who
-              have not been asked.
-            */}
-            <p className="mt-5 max-w-md text-xl leading-relaxed text-ink">
-              Some have raised money for a good cause &mdash; an under-12s football team, a local
-              foodbank, among others. The organiser sets the entry fee and keeps all of it; we
-              never take a cut.
+            <p className="mt-4 max-w-lg text-xl leading-relaxed text-ink">
+              Nobody gets knocked out. Points build up over 4, 6 or 8 rounds and the top of the
+              table wins.
             </p>
-            <p className="mt-5 max-w-md text-[16px] leading-relaxed text-ink-fade">
-              There are no reviews on this page because we have not earned any yet. When an
-              organiser says something worth quoting, it will go up here with their name and their
-              venue on it.
+            <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-fade">
+              Matchday is in beta with a small number of organisers and is not open to everyone
+              yet. Last Man Standing is available to all, as always.
             </p>
           </div>
 
-          <dl className="grid grid-cols-3 self-start border-y border-ink/30">
-            {TALLY.map((stat) => (
-              <div key={stat.label} className="border-r border-ink/30 px-3 py-6 last:border-r-0 sm:px-5">
-                <dd className="font-display text-6xl font-semibold leading-none text-overprint sm:text-7xl">
-                  {stat.value}
-                </dd>
-                <dt className={`${LABEL} mt-2.5 text-ink-fade`}>{stat.label}</dt>
-              </div>
-            ))}
-          </dl>
+          <div className="self-center border border-ink/30 bg-stock-lit p-5 sm:p-6">
+            <p className={`${LABEL} text-ink-fade`}>How a match scores</p>
+            <ul className="mt-4 space-y-3">
+              <li className="flex items-baseline justify-between gap-3 border-b border-dotted border-ink/25 pb-3">
+                <span className="font-data text-[15px] text-ink">Your team wins</span>
+                <span className="font-data text-[15px] text-overprint">+3</span>
+              </li>
+              <li className="flex items-baseline justify-between gap-3 border-b border-dotted border-ink/25 pb-3">
+                <span className="font-data text-[15px] text-ink">It&rsquo;s a draw</span>
+                <span className="font-data text-[15px] text-ink">+1</span>
+              </li>
+              <li className="flex items-baseline justify-between gap-3">
+                <span className="font-data text-[15px] text-ink">Your team loses</span>
+                <span className="font-data text-[15px] text-ink-fade">&minus;1</span>
+              </li>
+            </ul>
+            <p className="mt-5 text-[16px] leading-relaxed text-ink">
+              Skip a match and it scores nothing. A total never drops below zero.
+            </p>
+          </div>
         </div>
       </section>
 

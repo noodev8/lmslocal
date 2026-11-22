@@ -332,7 +332,10 @@ into a Matchday competition.
     predicted, "✓ Predictions made · locks Sat 12:30" once anything is. Skipping is allowed, so a
     player who predicted seven of ten has done what the round asks. No round number.
   - The game's name is an ink **stamp** (a bordered label) above the competition name, not a
-    faint eyebrow. Not a colour per game: the palette has no spare ink — open, §11.
+    faint eyebrow.
+  - **A Matchday card is printed on `buff`** (2026-11-22), an LMS card on the usual `stock-lit`:
+    a paper colour rather than an ink, so red and green keep their meanings. Defined in
+    `docs/design-system.md` §2 and §8, which also says no Matchday screen takes it yet.
 - **Create wizard**: step one is **"Which game?"**, two large choices with one sentence each,
   before anything else is asked. Matchday adds the ending (first to N points / after N rounds).
 - **Join page** (`/join/...`): the headline names the game, with one line on how it is scored,
@@ -389,6 +392,30 @@ Built to `docs/design-system.md` like every game screen. The pools coupon fits M
 than LMS: a real coupon was a row per match. Whether Matchday gets its own paper tint (pools
 companies printed on different coloured stock) is a design-system decision. If it is taken, it is
 **written into `design-system.md` before any screen uses it**. Open, §11.
+
+
+### 8.6 Other players' predictions (2026-11-22)
+
+**Hidden until the round locks, then open to everyone in the competition**, players and the
+organiser alike, for that round and every earlier one. The same rule as LMS picks. View only.
+
+One route, `get-round-predictions`: every member's prediction on every match of one locked round.
+Asked for an unlocked round it refuses with `FORBIDDEN`, and with no round named it gives the
+latest locked one. Display names only, never emails. Two screens read it:
+
+- **On each card**, once the round is locked: "Forest 3 · Chelsea 7 · not predicted 2", with
+  the names behind a tap. Gameday: as results come in, you see who gained.
+- **From the table**, tapping a player: `/game/[id]/table/[userId]`, their predictions round by
+  round, each with the result and points, and the round's total. How the table got its shape.
+
+Every member is listed, including one who predicted nothing, so "not predicted" is a real count
+and not a missing row.
+
+Tested 2026-11-22 on Matchday 2027 (283), one player, round 1 locked with 6 of 10 settled: the
+counts and names on the cards, Won / Lost per side, a name through to the player page ("In play"
+on the unsettled four, "+8 so far"). The refusal of an open round was checked by running the
+route's round query against one, not through the screens: no open Matchday round existed.
+**Not seen yet with more than one player.**
 
 ---
 
@@ -519,9 +546,8 @@ companies printed on different coloured stock) is a design-system decision. If i
 
 | Question | Notes |
 |---|---|
-| A colour per game | Asked for on the dashboard, 2026-11-22. The game name is an ink stamp for now. The palette has no spare ink (`overprint` = action / out, `moss` = still in / won), so a game colour is a new token — the same decision as the paper tint below |
 | The name | "Matchday" is a working name. Common football word: fine inside LMS Local, hard to own on its own. Alternatives raised: The Coupon, Full Card, Every Match |
 | Keeping the table competitive | §1.3 — deferred to after version 1 |
-| A paper tint for Matchday | §8.5 — a design-system decision |
+| A paper tint for Matchday's own screens | §8.5. Decided for the dashboard card only (`buff`, §8.1); whether the coupon, table and home take it too is still open. An icon per game was also suggested |
 | Postponed matches, both games | §5.4 — fixed by hand until built properly, after version 1 |
 | Matchday emails | Which emails, and their rules — after launch |

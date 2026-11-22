@@ -490,7 +490,10 @@ export default function DashboardPage() {
                 });
                 return (
                   <div key={competition.id} className="flex h-full flex-col">
-                    <div className={`${PANEL} flex flex-1 flex-col transition-colors hover:border-ink`}>
+                    {/* A Matchday card is printed on buff, an LMS card on the usual stock - the
+                        pools companies' way of telling coupons apart (design-system §8). The
+                        stamp below says the same in words, so the colour is never the only cue. */}
+                    <div className={`${isMatchday ? 'border border-ink/30 bg-buff' : PANEL} flex flex-1 flex-col transition-colors hover:border-ink`}>
                       {/* Card Header */}
                       <div className="border-b border-ink/30 p-4 sm:p-6">
                         <div className="mb-3 flex items-start justify-between gap-2">

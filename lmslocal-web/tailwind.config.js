@@ -30,6 +30,10 @@ module.exports = {
         // green, light enough to take `ink` text at 11.5:1. Never use it for
         // text or rules; that is what `moss` is for.
         'moss-wash': '#CFE4C4',
+        // Matchday's paper (docs/design-system.md §2, §8): pools companies printed different
+        // coupons on different coloured stock. The ground of a Matchday card where LMS uses
+        // stock-lit. A ground only - never text or rules. overprint TEXT fails on it (4.2:1).
+        buff: '#F1E4C2',
       },
       fontFamily: {
         display: ['var(--font-big-shoulders)', 'ui-sans-serif', 'sans-serif'],

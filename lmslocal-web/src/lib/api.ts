@@ -339,6 +339,19 @@ export interface MatchdayTableRow {
   is_me: boolean;
 }
 
+/**
+ * Everyone's predictions for one LOCKED round (get-round-predictions, docs/matchday.md §8.6).
+ * round is null while no round has locked yet.
+ */
+export interface MatchdayRoundPredictions {
+  round: { round_number: number; lock_time: string; latest_locked_round_number: number } | null;
+  fixtures: Array<Omit<MatchdayFixture, 'my_team' | 'my_points'>>;
+  /** Every member, predicted or not, by name. */
+  players: Array<{ user_id: number; display_name: string; is_me: boolean }>;
+  /** points is null until the match is settled. */
+  predictions: Array<{ user_id: number; fixture_id: number; team: string; points: number | null }>;
+}
+
 export interface MatchdayTable {
   competition: { id: number; name: string; status: string; end_rule: MatchdayEndRule; end_value: number; winner_id: number | null };
   rounds_settled: number;
@@ -774,6 +787,12 @@ export const matchdayApi = {
     ),
   getTable: (competition_id: number) =>
     api.post<MatchdayTable & { return_code: string; message?: string }>('/get-matchday-table', { competition_id }),
+  // Everyone's predictions for a locked round; the latest locked one when round_number is omitted.
+  // Refused (FORBIDDEN) for a round still open.
+  getRoundPredictions: (competition_id: number, round_number?: number) =>
+    api.post<MatchdayRoundPredictions & { return_code: string; message?: string }>(
+      '/get-round-predictions', round_number ? { competition_id, round_number } : { competition_id }
+    ),
 };
 
 // Round API calls

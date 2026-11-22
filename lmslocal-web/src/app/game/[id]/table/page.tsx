@@ -163,7 +163,13 @@ export default function MatchdayTablePage() {
                     >
                       <td className="px-3 py-3 text-right font-data text-[15px] text-ink-fade">{row.position}</td>
                       <td className="px-3 py-3">
-                        <span className={`font-data text-[16px] text-ink ${row.is_me ? 'font-bold' : ''}`}>{row.display_name}</span>
+                        {/* The name opens their predictions, round by round (docs/matchday.md §8.6). */}
+                        <Link
+                          href={`/game/${competitionId}/table/${row.user_id}`}
+                          className={`font-data text-[16px] text-ink underline decoration-dotted decoration-ink/40 underline-offset-[4px] hover:decoration-ink ${row.is_me ? 'font-bold' : ''}`}
+                        >
+                          {row.display_name}
+                        </Link>
                         {row.is_me && <span className={`${LABEL} ml-2 text-ink-fade`}>You</span>}
                         {winner && <span className={`${LABEL} ml-2 text-ink`}>Winner</span>}
                       </td>
@@ -201,6 +207,7 @@ export default function MatchdayTablePage() {
             {anyProvisional && <p>* Includes the round still being played - it can still move.</p>}
             <p>{MATCHDAY_SCORING}. A total never goes below 0: it is reset to 0 after a round that would take it negative.</p>
             <p>Level on points? More wins goes ahead, then more predictions made. Still level means sharing the place.</p>
+            <p>Tap a name to see their predictions. Nobody&apos;s are shown until the round locks.</p>
           </div>
         )}
       </main>
