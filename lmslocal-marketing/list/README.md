@@ -1,6 +1,6 @@
 # Mailing list
 
-Builds the club mailing list for `docs/marketing-mailshot.md`. No build step, no
+Builds the club mailing list for a posted leaflet batch. No build step, no
 `package.json`, imported by nothing — plain Python 3, standard library only.
 
 ```bash

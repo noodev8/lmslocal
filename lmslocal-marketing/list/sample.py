@@ -1,6 +1,6 @@
 """Stage 2: draw the batch-one mailing list from the pool.
 
-Rules from docs/marketing-mailshot.md 8b:
+Rules:
   2. UK-wide, randomly sampled - never the first N by name or county.
   3. Football-weighted, not football-only; club_type recorded for observation only.
   4. Variant assigned at random, independently of source, region and club type,

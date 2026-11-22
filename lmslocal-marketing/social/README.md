@@ -20,7 +20,7 @@ Their copy repeats the metadata on the pages they preview. If one changes, chang
 ## The free game
 
 The free national last-man-standing game: £50 to the winner, a new game every week, join code
-**1992**. Audience A in `docs/marketing-strategy.md` — the player, not the organiser.
+**1992**. Aimed at the player, not the organiser.
 
 | File | Canvas | Placement | Carries |
 |---|---|---|---|
