@@ -440,8 +440,7 @@ export default function LandingPage() {
               table wins.
             </p>
             <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-fade">
-              Matchday is in beta with a small number of organisers and is not open to everyone
-              yet. Last Man Standing is available to all, as always.
+              Matchday is in beta and coming soon to everyone.
             </p>
           </div>
 
