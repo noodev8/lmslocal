@@ -6,8 +6,17 @@ abstract class Failure extends Equatable {
 
   const Failure(this.message);
 
+  // runtimeType is a prop because Equatable 3 stopped comparing it: without it
+  // a NetworkFailure and a ValidationFailure with the same message are equal.
+  // Subclasses add their fields with `...super.props`.
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [runtimeType, message];
+
+  // Failures reach the user as `$e` in SnackBars. Equatable 3 dropped the
+  // toString that printed the class and props, so without this they would read
+  // "Instance of 'ServerFailure'" — and the message is all the user needs.
+  @override
+  String toString() => message;
 }
 
 /// Server returned an error response
@@ -17,7 +26,7 @@ class ServerFailure extends Failure {
   const ServerFailure(super.message, {this.code});
 
   @override
-  List<Object?> get props => [message, code];
+  List<Object?> get props => [...super.props, code];
 }
 
 /// Network connectivity error
@@ -32,7 +41,7 @@ class AuthFailure extends Failure {
   const AuthFailure(super.message, {this.code});
 
   @override
-  List<Object?> get props => [message, code];
+  List<Object?> get props => [...super.props, code];
 }
 
 /// Validation failure (invalid input)

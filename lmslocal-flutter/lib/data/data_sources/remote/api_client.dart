@@ -15,9 +15,8 @@ class ApiClient {
 
   ApiClient({
     required AppConfig config,
-    required TokenStorage tokenStorage,
-  })  : _dio = Dio(),
-        _tokenStorage = tokenStorage {
+    required this._tokenStorage,
+  })  : _dio = Dio() {
     // Configure Dio with base URL and timeout
     _dio.options.baseUrl = config.apiBaseUrl;
     _dio.options.connectTimeout = Duration(milliseconds: config.apiTimeout);

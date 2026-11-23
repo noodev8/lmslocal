@@ -14,12 +14,10 @@ class AuthRepositoryImpl implements AuthRepository {
   final SharedPreferences _prefs;
 
   AuthRepositoryImpl({
-    required AuthRemoteDataSource remoteDataSource,
-    required TokenStorage tokenStorage,
-    required SharedPreferences prefs,
-  })  : _remoteDataSource = remoteDataSource,
-        _tokenStorage = tokenStorage,
-        _prefs = prefs;
+    required this._remoteDataSource,
+    required this._tokenStorage,
+    required this._prefs,
+  });
 
   @override
   Future<({AuthResult? result, Failure? failure})> login({

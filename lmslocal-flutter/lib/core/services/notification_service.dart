@@ -8,7 +8,7 @@ class NotificationService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final ApiClient _apiClient;
 
-  NotificationService({required ApiClient apiClient}) : _apiClient = apiClient;
+  NotificationService({required this._apiClient});
 
   /// Initialize notifications - request permissions and register token
   /// Call this after user logs in
@@ -23,7 +23,8 @@ class NotificationService {
       // Get and register FCM token
       await _getAndRegisterToken();
 
-      // Listen for token refresh
+      // Listen for token refresh. Deprecated with getToken below; see there.
+      // ignore: deprecated_member_use
       _messaging.onTokenRefresh.listen((newToken) {
         debugPrint('🔔 FCM token refreshed');
         _registerTokenWithBackend(newToken);
@@ -49,6 +50,13 @@ class NotificationService {
   /// Get FCM token and register with backend
   Future<void> _getAndRegisterToken() async {
     try {
+      // Deprecated in firebase_messaging 17 for register()/onRegistered, which
+      // is not a drop-in: it yields a Firebase Installation ID, not an FCM
+      // token, and the server (fcmService.js) sends to stored FCM tokens.
+      // Moving over means changing /register-device-token, device_tokens and
+      // the send together, with old app versions still posting tokens — so it
+      // is its own piece of work, not part of a version bump.
+      // ignore: deprecated_member_use
       final token = await _messaging.getToken();
 
       if (token != null) {

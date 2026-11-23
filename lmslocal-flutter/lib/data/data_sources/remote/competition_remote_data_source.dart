@@ -19,10 +19,9 @@ class CompetitionRemoteDataSource {
   static const int _roundStatsCacheDurationMinutes = 15;
 
   CompetitionRemoteDataSource({
-    required ApiClient apiClient,
-    required SharedPreferences prefs,
-  })  : _apiClient = apiClient,
-        _prefs = prefs;
+    required this._apiClient,
+    required this._prefs,
+  });
 
   /// Get all rounds for a competition
   /// Returns cached data if fresh, otherwise fetches from API

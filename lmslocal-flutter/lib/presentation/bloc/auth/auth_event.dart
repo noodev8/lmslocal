@@ -4,8 +4,10 @@ import 'package:equatable/equatable.dart';
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
 
+  // runtimeType is a prop because Equatable 3 stopped comparing it; see
+  // AuthState. Subclasses add their fields with `...super.props`.
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [runtimeType];
 }
 
 /// Check if user is authenticated (app startup)
@@ -24,7 +26,7 @@ class AuthLoginRequested extends AuthEvent {
   });
 
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => [...super.props, email, password];
 }
 
 /// Register new user account
@@ -40,7 +42,7 @@ class AuthRegisterRequested extends AuthEvent {
   });
 
   @override
-  List<Object?> get props => [displayName, email, password];
+  List<Object?> get props => [...super.props, displayName, email, password];
 }
 
 /// Forgot password request
@@ -50,7 +52,7 @@ class AuthForgotPasswordRequested extends AuthEvent {
   const AuthForgotPasswordRequested({required this.email});
 
   @override
-  List<Object?> get props => [email];
+  List<Object?> get props => [...super.props, email];
 }
 
 /// Logout current user
@@ -70,5 +72,5 @@ class AuthSessionExpired extends AuthEvent {
   const AuthSessionExpired({required this.message});
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [...super.props, message];
 }

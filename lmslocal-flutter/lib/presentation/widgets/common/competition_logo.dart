@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 
 /// The competition's badge — the organiser's pub crest, club logo or company mark.

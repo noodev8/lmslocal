@@ -10,8 +10,8 @@ class StandingsRemoteDataSource {
   final ApiClient _apiClient;
 
   StandingsRemoteDataSource({
-    required ApiClient apiClient,
-  }) : _apiClient = apiClient;
+    required this._apiClient,
+  });
 
   /// Get standings summary (groups only)
   /// Returns: competition info, round state, and groups list

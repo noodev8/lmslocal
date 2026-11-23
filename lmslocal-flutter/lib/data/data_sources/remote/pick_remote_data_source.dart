@@ -10,8 +10,8 @@ class PickRemoteDataSource {
   final ApiClient _apiClient;
 
   PickRemoteDataSource({
-    required ApiClient apiClient,
-  }) : _apiClient = apiClient;
+    required this._apiClient,
+  });
 
   /// Get fixtures for a specific round
   Future<List<FixtureModel>> getFixtures(int roundId) async {

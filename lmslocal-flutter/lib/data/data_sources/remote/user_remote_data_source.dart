@@ -7,7 +7,7 @@ import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
 class UserRemoteDataSource {
   final ApiClient _apiClient;
 
-  UserRemoteDataSource({required ApiClient apiClient}) : _apiClient = apiClient;
+  UserRemoteDataSource({required this._apiClient});
 
   /// Update user profile (display name)
   /// Throws ServerFailure or AuthFailure on error

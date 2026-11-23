@@ -31,10 +31,9 @@ class DashboardRemoteDataSource {
   static const int _cacheDurationMinutes = 5; // Cache for 5 minutes
 
   DashboardRemoteDataSource({
-    required ApiClient apiClient,
-    required SharedPreferences prefs,
-  })  : _apiClient = apiClient,
-        _prefs = prefs;
+    required this._apiClient,
+    required this._prefs,
+  });
 
   /// Get user dashboard data
   /// Returns cached data if fresh, otherwise fetches from API
