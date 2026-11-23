@@ -47,8 +47,15 @@ const verifyToken = async (req, res, next) => {
       });
     }
 
-    const cacheKey = `user_${userId}`;
-    
+    // Which client this is, for last_app_at / last_web_at below. The Flutter app's HTTP library
+    // (Dio over dart:io) sends "Dart/<version> (dart:io)" and nothing sets another User-Agent, so
+    // every app version ever shipped is recognised without a release. A browser cannot send it.
+    const fromApp = /^Dart\//.test(req.get('User-Agent') || '');
+
+    // Keyed by client as well as user, so someone on the web and the app within five minutes
+    // has both recorded rather than whichever came first.
+    const cacheKey = `user_${userId}_${fromApp ? 'app' : 'web'}`;
+
     // Check cache first to reduce database load
     if (userCache.has(cacheKey)) {
       const cached = userCache.get(cacheKey);
@@ -87,15 +94,22 @@ const verifyToken = async (req, res, next) => {
     //
     // Two queries rather than a branch inside one, because a data-modifying CTE
     // cannot be made conditional - it runs whether or not anything selects it.
+    //
+    // last_app_at / last_web_at (2026-11-23) say which client that activity came
+    // from, to answer how many players use the app - push tokens only count those
+    // who allowed notifications. Same one-hour floor, per client, so a player
+    // switching from the web to the app inside the hour is still recorded on both.
     const readOnlyQuery =
       `SELECT id, email, display_name, email_verified FROM app_user WHERE id = $1`;
 
+    const clientColumn = fromApp ? 'last_app_at' : 'last_web_at';
     const touchingQuery =
       `WITH touched AS (
          UPDATE app_user
-            SET last_active_at = NOW()
+            SET last_active_at = NOW(), ${clientColumn} = NOW()
           WHERE id = $1
-            AND (last_active_at IS NULL OR last_active_at < NOW() - INTERVAL '1 hour')
+            AND (last_active_at IS NULL OR last_active_at < NOW() - INTERVAL '1 hour'
+                 OR ${clientColumn} IS NULL OR ${clientColumn} < NOW() - INTERVAL '1 hour')
        )
        ${readOnlyQuery}`;
 
