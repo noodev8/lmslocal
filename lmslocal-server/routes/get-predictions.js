@@ -44,7 +44,7 @@ Success Response (ALWAYS HTTP 200):
       "result": null,                       // string or null - a team short code or 'DRAW'
       "settled": false,                     // boolean, points have been applied for this fixture
       "my_team": "ARS",                     // string or null - null means skipped
-      "my_points": null                     // integer or null - 3, 1, -1 (0 by hand); null until settled
+      "my_points": null                     // integer or null - 3, 1 or 0; null until settled
     }
   ],
   "predicted": 7,                           // integer, fixtures this player has predicted

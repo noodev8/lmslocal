@@ -31,9 +31,10 @@ export const GAME_SUMMARIES: Record<GameType, string> = {
   matchday: 'Players predict the winner of every match each round and score points. Most points wins.',
 };
 
-/** Matchday's scoring, stated the same way everywhere it appears. */
-export const MATCHDAY_POINTS = { win: 3, draw: 1, loss: -1 } as const;
-export const MATCHDAY_SCORING = 'Win +3 · Draw +1 · Lose −1';
+/** Matchday's scoring, stated the same way everywhere it appears. 3 / 1 / 0 since 2026-11-23
+ * (it was 3 / 1 / −1); the server's copy is POINTS in services/matchdayScoring.js. */
+export const MATCHDAY_POINTS = { win: 3, draw: 1, loss: 0 } as const;
+export const MATCHDAY_SCORING = 'Win +3 · Draw +1 · Lose 0';
 
 /** "6 rounds". "First to 20 points" survives only for the two test competitions made before
  * points targets were withdrawn (ENDING_CHOICES below). */
@@ -54,7 +55,8 @@ export function ordinal(n: number): string {
   }
 }
 
-/** "+3", "+1", "−1", "0" - a typographic minus, so the column lines up and reads as a sign. */
+/** "+3", "+1", "0". No score is negative since 3 / 1 / 0; the typographic minus stays in case one
+ * ever is, so it would still read as a sign. */
 export function signedPoints(points: number): string {
   if (points > 0) return `+${points}`;
   if (points < 0) return `−${Math.abs(points)}`;

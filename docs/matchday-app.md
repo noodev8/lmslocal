@@ -12,11 +12,14 @@ competitions 284 and 285 (organiser 50, sandbox rounds) - every item in §16's l
 cold-started from a `/join/` link while signed out, and a table of 30+ players (trimming). Not done:
 a version bump and release - production already serves everything the app calls.
 
-Three small things found while building it are fixed in the app and **still open on the web**:
-a Previous tapped while a save is in flight is overridden by the auto-advance (the timer is set
-after the save returns, so there was nothing to cancel - the app only advances if the player is
-still on the card they tapped); the table says "After round 0" during round 1; and an organiser
-who is not playing is told each match is "Not predicted · scores 0".
+Three small things found while building it were fixed in the app, then on the web (2026-11-23):
+a Previous tapped while a save is in flight was overridden by the auto-advance (the timer is set
+after the save returns, so there was nothing to cancel - both now advance only if the player is
+still on the card they tapped); the table said "After round 0" during round 1 (now "Round 1");
+and an organiser who is not playing was told each match is "Not predicted · scores 0".
+
+**Scoring is 3 / 1 / 0 since 2026-11-23** (it was 3 / 1 / −1), on the server, the web and the app
+alike. No score is negative, so the table no longer has a floor.
 
 **Read first, in this order:**
 
@@ -41,7 +44,7 @@ who is not playing is told each match is "Not predicted · scores 0".
 ## 1. The ground rules
 
 - **Matchday is a second game beside Last Man Standing.** For every match in a round a player
-  predicts the winner: win **+3**, draw **+1**, loss **−1**, unpredicted **0**. Most points after
+  predicts the winner: win **+3**, draw **+1**, loss **0**, unpredicted **0**. Most points after
   the last round wins. The two games share fixtures, rounds, the calendar, accounts and billing,
   and nothing else.
 - **The app is player-only.** A Matchday organiser has nothing to run anyway: fixtures and results
@@ -52,7 +55,7 @@ who is not playing is told each match is "Not predicted · scores 0".
 - **Matchday is in preview.** Only organiser 50 can create one. Customers cannot yet, but anyone
   invited to one can play it. So this work is not urgent for customers, and there is time to get
   it right.
-- **The server is the authority** for totals, positions, the floor, tie-breaks, and what may be
+- **The server is the authority** for totals, positions, tie-breaks, and what may be
   seen when. The app displays; it never recalculates. See §9.
 
 ---
@@ -174,7 +177,7 @@ leader, first_place):
 Reference: `MatchdayHome.tsx`. In order, top to bottom:
 
 1. **Masthead**: the eyebrow `MATCHDAY`, the competition name, and one line with the scoring and
-   the length: `WIN +3 · DRAW +1 · LOSE −1 · 6 ROUNDS`.
+   the length: `WIN +3 · DRAW +1 · LOSE 0 · 6 ROUNDS`.
 2. **The round panel**, the one thing a player can act on, so it comes first:
    - No round: "Waiting for the first round's matches. We add them for you."
    - Open: `7/10 MATCHES PREDICTED`, "Locks Fri 27 Nov, 8pm. Change any of them until then."
@@ -220,7 +223,7 @@ and these points are decisions, not suggestions:
   predicted 7 of 10. Matches in play." / "This round: +8 · 6 of 10 results in".
 - **Open on the first match still to predict**, once only, so a player coming back mid-week
   lands on what is missing.
-- **The scoring line on the cards in round 1 only** (`WIN +3 · DRAW +1 · LOSE −1`, under the
+- **The scoring line on the cards in round 1 only** (`WIN +3 · DRAW +1 · LOSE 0`, under the
   teams of an unpredicted card). From round 2 it is gone from the cards; it stays on the home
   masthead and under the table.
 - **Done**: a full-width button to the app's dashboard, shown on the last card, and on every card
@@ -245,10 +248,10 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
 - **Shared positions are already computed** (1, 2, 2, 4). Show `position` as given.
 - `provisional` → an asterisk after the points, and a footnote: "* Includes the round still being
   played - it can still move."
-- Header: "After round 3" (`rounds_settled`), or "Final" when complete. Top right: **`GAME
+- Header: "After round 3" (`rounds_settled`), "Round 1" while round 1 is the only one and not yet
+  settled, "Before round 1" with no round at all, or "Final" when complete. Top right: **`GAME
   LENGTH`** with "6 rounds". It used to say "How it ends"; the owner renamed it.
-- Footer, in words: the scoring; "A total never goes below 0: it is reset to 0 after a round that
-  would take it negative."; "Level on points? More wins goes ahead, then more predictions made.
+- Footer, in words: the scoring; "Nothing takes points away, so a total only goes up."; "Level on points? More wins goes ahead, then more predictions made.
   Still level means sharing the place."; "Tap a name to see their predictions. Nobody's are shown
   until the round locks."
 - **A big table opens trimmed**: from 30 players, the top 20, a row of dots, your own row with two
@@ -260,17 +263,17 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
 
 ## 9. Numbers the app must take as given
 
-- **Totals, positions, provisional, the floor and the tie-break all come from the server**
+- **Totals, positions, provisional and the tie-break all come from the server**
   (`services/matchdayTable.js`, the one place they are calculated). Do not add up points in the
-  app to make a total. The floor (`total = max(0, total + round score)`, applied per round) makes
-  a naive sum wrong.
-- **A total is never shown below 0.** A **single match's −1** and a **round score** such as "−2"
-  can and do show. That was decided (scoring stays 3 / 1 / −1, 2026-11-22).
+  app to make a total, even though under 3 / 1 / 0 a total is a plain sum: the server's rules can
+  change without an app release.
+- **No score is negative** since 3 / 1 / 0 (2026-11-23). A lost match shows `LOST 0`.
 - **Won / Drew / Lost are read from the match result, never from the points.** `result` is a team
   short code or `'DRAW'`. Your team = result → Won; `'DRAW'` → Drew; otherwise Lost; a settled
   prediction with no result → Void (a postponement fixed by hand). Reading "3 points = won" breaks
   the day the scoring changes. Same rule as `outcomeWord` in `games.ts`.
-- **Signed points use a typographic minus**: `+3`, `+1`, `−1` (U+2212, not a hyphen), `0`.
+- **Signed points**: `+3`, `+1`, `0`. A negative would use a typographic minus (U+2212, not a
+  hyphen); none occurs under 3 / 1 / 0.
 - **Kickoff and lock times are always shown in UK time** (`Europe/London`), not the phone's zone:
   they are UK kickoffs and a player abroad still needs the real time. Format "Sat 28 Nov, 3pm",
   with ":00" dropped on the hour. (`formatKickoff` in `games.ts`; the app's `round_state.dart`
@@ -313,7 +316,7 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
   app. This is why old versions need no change.
 - **The new version** sends the header, so the join goes through. Before the Join button, the join
   screen must say which game it is and how it is played. The web's line: "A Matchday game:
-  predict the winner of every match each round and score points. Win +3 · Draw +1 · Lose −1. 6
+  predict the winner of every match each round and score points. Win +3 · Draw +1 · Lose 0. 6
   rounds, most points wins." After joining, land on the Matchday home.
 - **Joining closes when round 1 locks**, exactly as LMS. The server enforces it; there is no late
   joining.
@@ -346,7 +349,7 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
 | The choice | pick | prediction; "predict the winner" |
 | The action | Make your pick | **Make your predictions** |
 | Where you stand | still in / out, lives | points, position |
-| What a result does | survived / eliminated | +3 / +1 / −1, Won / Drew / Lost |
+| What a result does | survived / eliminated | +3 / +1 / 0, Won / Drew / Lost |
 | The board | standings | the table |
 | How it ends | last one standing | most points after N rounds |
 

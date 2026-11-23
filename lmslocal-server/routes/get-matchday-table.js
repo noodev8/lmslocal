@@ -34,7 +34,7 @@ Success Response (ALWAYS HTTP 200):
       "position": 1,                        // integer - shared when total, wins and predictions tie
       "user_id": 88,
       "display_name": "Sam",
-      "total": 34,                          // integer, never below 0 (floored after each round)
+      "total": 34,                          // integer, the sum of settled points (3 / 1 / 0)
       "wins": 10, "draws": 4, "losses": 6,  // integers
       "predictions": 20,                    // integer, settled predictions - the second tie-break
       "provisional": true,                  // boolean, includes a round still being played

@@ -155,8 +155,7 @@ class _MatchdayTablePageState extends State<MatchdayTablePage> {
                   for (final line in [
                     if (data.rows.any((r) => r.provisional))
                       '* Includes the round still being played - it can still move.',
-                    '$matchdayScoring. A total never goes below 0: it is reset to 0 after a round '
-                        'that would take it negative.',
+                    '$matchdayScoring. Nothing takes points away, so a total only goes up.',
                     'Level on points? More wins goes ahead, then more predictions made. Still '
                         'level means sharing the place.',
                     'Tap a name to see their predictions. Nobody\'s are shown until the round locks.',

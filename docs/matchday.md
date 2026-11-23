@@ -1,7 +1,7 @@
 # Matchday — the second game
 
 A second game type, played alongside Last Man Standing on the same fixtures, rounds and calendar.
-For every match in a gameweek a player predicts the winner: **win +3, draw +1, loss −1**. The result is
+For every match in a gameweek a player predicts the winner: **win +3, draw +1, loss 0**. The result is
 a league table of points.
 
 **Status: phases 1–3 built, 2026-11-22 — playable on the web end to end** (§10). Not yet: the
@@ -27,10 +27,10 @@ not knowing which game they are in or what to do next, not the server work.
 | Rule | Decision |
 |---|---|
 | What a player does | For each fixture in the round, predicts the home team or the away team to win. A draw cannot be predicted |
-| Scoring | Predicted team wins **+3**, draw **+1**, predicted team loses **−1** |
+| Scoring | Predicted team wins **+3**, draw **+1**, predicted team loses **0** |
 | Skipping | Allowed. An unpredicted fixture scores **0**. There is no penalty for skipping, unlike LMS's missed pick |
-| Scoring kept | **3 / 1 / −1, decided 2026-11-22.** 3 / 1 / 0 was proposed (nothing ever negative, no floor needed) and declined. A total is never negative; a −1 on a lost match and a negative round score can still show |
-| Floor | **Applied after each round**: `total = max(0, previous total + round score)`. A total is never shown below 0 and there is no hidden debt below it |
+| Scoring changed | **3 / 1 / 0 since 2026-11-23.** It was 3 / 1 / −1 (kept on 2026-11-22, changed the next day). Nothing ever takes points away: no score is negative and a total only goes up |
+| Floor | **None since 3 / 1 / 0.** A total is the sum of its points. Under 3 / 1 / −1 it was floored at 0 after each round — §1.1 |
 | Lock | **One lock for the whole gameweek**, at `round.lock_time`, the same as LMS. Predictions can be changed until then |
 | Joining | **Exactly the LMS rule**: open until round 1 locks, then closed. See §6 |
 | Ending | **A number of rounds**, set by the organiser from a fixed list: **4, 6 or 8**, default 6. Most points after the last round wins (`ENDING_CHOICES`, 2026-11-22). Points targets were withdrawn — §1.3 |
@@ -38,9 +38,11 @@ not knowing which game they are in or what to do next, not the server work.
 | Fixtures and results | **Fixture service only**, always. There is no organiser-managed Matchday |
 | Pricing | The same as LMS: one player is one place |
 
-### 1.1 Why the floor is applied per round
+### 1.1 The floor, while there was one (3 / 1 / −1, until 2026-11-23)
 
-Three readings were possible, and only one holds up:
+Under 3 / 1 / 0 there is nothing to floor and `services/matchdayTable.js` simply adds up. This is
+kept for the reasoning, should a negative score ever return. Three readings were possible, and
+only one holds up:
 
 - **Per fixture**, in kickoff order. Results arrive in pushes (Friday night, then Saturday), so the
   total would depend on which push carried which result. Rejected.
@@ -52,10 +54,14 @@ Three readings were possible, and only one holds up:
 
 ### 1.2 Skipping is not a tactic
 
-The expected value of predicting a team is at least 0 for nearly any match: even a heavy underdog
-(say 15% win, 20% draw, 65% loss) comes out at 0.45 + 0.20 − 0.65 = 0. So letting players skip at
-0 points does not reward cherry-picking, and "most predictions made" as the second tie-break
-rewards the players who fill in the whole coupon.
+Under 3 / 1 / 0 a prediction can only gain: a lost match scores the same as a blank one. So
+skipping never helps, and "most predictions made" as the second tie-break rewards the players who
+fill in the whole coupon. (Under 3 / 1 / −1 the argument was that even a heavy underdog — 15% win,
+20% draw, 65% loss — came out at 0.45 + 0.20 − 0.65 = 0.)
+
+A consequence of 3 / 1 / 0, noted 2026-11-23 and left as it is: level on points and on wins means
+level on draws too, so the player with more predictions made is the one with more **lost**
+predictions. The tie-break still rewards filling in the coupon, which is what it is for.
 
 ### 1.3 Why the ending is a number of rounds (2026-11-22)
 
@@ -96,7 +102,7 @@ It reads as gambling. A chosen team is "predicted"; the cards ask "Who wins?".
 | The choice | pick | prediction; "predict the winner" |
 | The action | Make your pick | Make your predictions |
 | Where you stand | still in / out, lives | points, position |
-| What a result does | survived / eliminated | +3 / +1 / −1 |
+| What a result does | survived / eliminated | +3 / +1 / 0 |
 | The board | standings | the table |
 | How it ends | last one standing | most points after N rounds |
 
@@ -171,15 +177,15 @@ The LMS columns (`lives_per_player`, `no_team_twice`, `competition_user.lives_re
 | `fixture_id` | integer, **null** | Null only between a reconcile clearing it and re-pointing it — §4.3 |
 | `user_id` | integer, not null | |
 | `team` | varchar, not null | Team short code, the same values as `fixture.result` |
-| `points` | integer, null | Null until the fixture is settled; then 3, 1 or −1. The CHECK also allows 0, for the hand fix of a postponed match (§5.4) |
+| `points` | integer, null | Null until the fixture is settled; then 3, 1 or 0 (a loss, or the hand fix of a postponed match, §5.4). −1 until 2026-11-23: migration `2026-11-23-matchday-scoring-3-1-0.sql` rewrites old rows to 0 and narrows the CHECK, **applied after the server is deployed** |
 | `created_at` / `updated_at` | timestamptz | |
 
 `UNIQUE (user_id, fixture_id)`. A changed prediction is an update, not a second row.
 
 **Totals are derived, never stored.** The stored `allowed_teams` copy is the lesson
 (`docs/allowed-teams.md`): it drifted from what it was copied from. `points` on a row is the record
-of what happened, like `pick.outcome`; the running total is a fold over round scores with the
-floor (§1.1), computed in **one** service, `services/matchdayTable.js`, from one grouped query
+of what happened, like `pick.outcome`; the running total is their sum (no floor since 3 / 1 / 0,
+§1.1), computed in **one** service, `services/matchdayTable.js`, from one grouped query
 (players × rounds, which is small). The dashboard, the table, the completion check and the emails
 all read it from there.
 
@@ -225,7 +231,7 @@ Settling a fixture is **one statement** for all its predictions, not a loop:
 UPDATE prediction p
 SET    points = CASE WHEN f.result = 'DRAW' THEN 1
                      WHEN f.result = p.team THEN 3
-                     ELSE -1 END
+                     ELSE 0 END
 FROM   fixture f
 WHERE  p.fixture_id = f.id AND f.id = ANY($1)
 ```

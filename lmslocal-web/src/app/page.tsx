@@ -508,7 +508,7 @@ export default function LandingPage() {
               </li>
               <li className="flex items-baseline justify-between gap-3 border-b border-dotted border-ink/25 pb-3">
                 <span className="font-data text-[15px] text-ink">Predicted team loses</span>
-                <span className="font-data text-[15px] text-ink-fade">&minus;1</span>
+                <span className="font-data text-[15px] text-ink-fade">0</span>
               </li>
               <li className="flex items-baseline justify-between gap-3">
                 <span className="font-data text-[15px] text-ink">Left blank</span>
@@ -516,7 +516,7 @@ export default function LandingPage() {
               </li>
             </ul>
             <p className="mt-5 text-[16px] leading-relaxed text-ink">
-              A bad round can cost points, but nobody&rsquo;s total ever drops below zero.
+              Nothing ever takes points away: a total only goes up.
             </p>
           </div>
         </div>

@@ -214,7 +214,7 @@ export default function MatchdayTablePage() {
         {data && (
           <div className="mt-5 space-y-1 text-[15px] text-ink-fade">
             {anyProvisional && <p>* Includes the round still being played - it can still move.</p>}
-            <p>{MATCHDAY_SCORING}. A total never goes below 0: it is reset to 0 after a round that would take it negative.</p>
+            <p>{MATCHDAY_SCORING}. Nothing takes points away, so a total only goes up.</p>
             <p>Level on points? More wins goes ahead, then more predictions made. Still level means sharing the place.</p>
             <p>Tap a name to see their predictions. Nobody&apos;s are shown until the round locks.</p>
           </div>

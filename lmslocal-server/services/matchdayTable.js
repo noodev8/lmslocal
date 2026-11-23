@@ -8,18 +8,14 @@ Purpose: Every player's total, position and tie-break figures for one Matchday c
 
 TOTALS ARE DERIVED, NEVER STORED. The stored allowed_teams copy is why (docs/allowed-teams.md):
 it drifted from the picks it was copied from. prediction.points records what happened to each
-prediction; a total is a fold over them, recalculated on every read. One query, players x rounds,
+prediction; a total is their sum, recalculated on every read. One query, players x rounds,
 which is small.
 
-THE FLOOR IS APPLIED PER ROUND (docs/matchday.md §1.1):
-
-    total = max(0, total + round score)            for each SETTLED round, in round order
-
-A round is settled when every one of its fixtures is processed. The round still being played -
-results arriving in pushes on a Friday night and a Saturday - is added the same way but marked
-provisional, so the table shows max(0, settled total + points so far) and says it may move.
-Per-fixture flooring was rejected because the answer would depend on which push carried which
-result; flooring only the displayed total was rejected because it hides a debt below zero.
+A TOTAL IS A SUM, with no floor (since 2026-11-23, docs/matchday.md §1). Under the old scoring
+a lost prediction was -1 and a total was floored at 0 after each round; with a loss worth 0 no
+score is negative, so the sum can never go below 0 and there is nothing to floor. The round
+still being played - results arriving in pushes on a Friday night and a Saturday - is added the
+same way but marked provisional, and the table says it may move.
 
 TIE-BREAK (docs/matchday.md §1): total, then wins, then predictions made. Equal on all three is
 a shared position, and at the end of the game a shared win.
@@ -142,9 +138,7 @@ async function getMatchdayTables(competitionIds, { client } = {}) {
     const player = table.players.get(row.user_id);
     const settled = parseInt(row.settled, 10);
 
-    // Rows arrive in round order per player (ORDER BY above), which is what makes the per-round
-    // floor a straight fold.
-    player.total = Math.max(0, player.total + parseInt(row.points, 10));
+    player.total += parseInt(row.points, 10);
     player.wins += parseInt(row.wins, 10);
     player.draws += parseInt(row.draws, 10);
     player.losses += parseInt(row.losses, 10);

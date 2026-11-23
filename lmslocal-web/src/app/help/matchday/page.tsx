@@ -4,7 +4,7 @@ import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 export const metadata = {
   title: 'Matchday Rules - Predict Every Match | LMSLocal',
   description:
-    'Matchday is a football prediction league from LMSLocal: predict the winner of every match in the gameweek, +3 for a win, +1 for a draw, -1 for a loss. Nobody is knocked out. In beta, coming soon to everyone.',
+    'Matchday is a football prediction league from LMSLocal: predict the winner of every match in the gameweek, +3 for a win, +1 for a draw, nothing for a loss. Nobody is knocked out. In beta, coming soon to everyone.',
   alternates: { canonical: 'https://lmslocal.co.uk/help/matchday' },
   openGraph: {
     title: 'Matchday rules',
@@ -27,8 +27,8 @@ export const metadata = {
 const SCORING = [
   { points: '+3', name: 'Predicted team wins', body: 'The result they called.' },
   { points: '+1', name: 'Draw', body: 'Nobody can predict a draw, so a draw is a point for everyone who predicted that match.' },
-  { points: '−1', name: 'Predicted team loses', body: 'The only result that costs points.' },
-  { points: '0', name: 'Left blank', body: 'A match nobody predicted scores nothing, with no penalty for skipping it.' }
+  { points: '0', name: 'Predicted team loses', body: 'Nothing gained, and nothing taken away.' },
+  { points: '0', name: 'Left blank', body: 'A match left blank scores nothing either, so it always pays to predict it.' }
 ];
 
 const ROUND = [
@@ -59,8 +59,8 @@ const ENDING = [
 
 const DETAILS = [
   {
-    title: 'A total never goes below zero',
-    body: 'A bad round can cost points, but if it would take a total under zero, the total stops at zero. There is no hidden debt to pay off afterwards.'
+    title: 'Nothing ever takes points away',
+    body: 'A total only goes up. A wrong prediction scores the same as a blank, so a bad round costs nothing but the points that were not won.'
   },
   {
     title: 'Regulation time only',

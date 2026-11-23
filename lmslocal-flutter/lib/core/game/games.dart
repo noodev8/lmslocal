@@ -28,8 +28,9 @@ const Map<String, String> gameNames = {
 String gameName(String? gameType) =>
     gameNames[gameType ?? GameType.lms] ?? gameNames[GameType.lms]!;
 
-/// Matchday's scoring, stated the same way everywhere it appears.
-const String matchdayScoring = 'Win +3 · Draw +1 · Lose −1';
+/// Matchday's scoring, stated the same way everywhere it appears. 3 / 1 / 0
+/// since 2026-11-23 (it was 3 / 1 / −1), the same as the web's games.ts.
+const String matchdayScoring = 'Win +3 · Draw +1 · Lose 0';
 
 /// "6 rounds". "First to 20 points" survives only on two old test
 /// competitions made before points targets were withdrawn.
@@ -55,7 +56,8 @@ String ordinal(int n) {
   }
 }
 
-/// "+3", "+1", "−1", "0" - a typographic minus (U+2212), so it reads as a sign.
+/// "+3", "+1", "0". No score is negative since 3 / 1 / 0; the typographic minus
+/// (U+2212) stays in case one ever is, so it would still read as a sign.
 String signedPoints(int points) {
   if (points > 0) return '+$points';
   if (points < 0) return '−${points.abs()}';

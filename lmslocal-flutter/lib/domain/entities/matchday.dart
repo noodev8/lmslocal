@@ -5,7 +5,7 @@ import 'package:equatable/equatable.dart';
 /// These mirror the server's responses field for field, and each carries its
 /// own `fromJson`: they are read-only views of what the server decided. The app
 /// never adds points up to make a total, ranks a table or decides what may be
-/// seen when - totals, positions, the floor and the tie-break come from
+/// seen when - totals, positions and the tie-break come from
 /// `services/matchdayTable.js` (docs/matchday-app.md §9).
 
 int? _int(dynamic value) {
@@ -113,7 +113,7 @@ class MatchdayFixture {
   /// Null means not predicted.
   final String? myTeam;
 
-  /// 3, 1 or -1 (0 by hand); null until settled.
+  /// 3, 1 or 0; null until settled.
   final int? myPoints;
 
   const MatchdayFixture({
@@ -245,8 +245,8 @@ class MatchdayCoupon {
   int get settledCount => fixtures.where((f) => f.settled).length;
 
   /// This round's score so far: the sum of points the server has already
-  /// given each settled match. A round score, never a total - totals carry the
-  /// floor and come from the server.
+  /// given each settled match. A round score, never a total - totals come
+  /// from the server.
   int get roundPoints =>
       fixtures.fold(0, (sum, f) => sum + (f.myPoints ?? 0));
 

@@ -7,7 +7,9 @@ Purpose: The Matchday half of step 3 of routes/admin/push-results-to-competition
          unlocked round, claims the unprocessed fixtures - and then hands the claimed fixtures
          here instead of to the Last Man Standing elimination code. docs/matchday.md §5.
 
-THE SCORING RULE LIVES HERE AND NOWHERE ELSE: predicted team wins +3, draw +1, predicted team loses -1.
+THE SCORING RULE LIVES HERE AND NOWHERE ELSE: predicted team wins +3, draw +1, predicted team loses 0.
+3 / 1 / 0 since 2026-11-23 (it was 3 / 1 / -1): no score is ever negative, so a total only ever
+goes up and the table needs no floor. docs/matchday.md §1.
 The rework the user has asked for later (docs/matchday.md §1.3, nobody pulling out of reach) is a
 change to this file and matchdayTable.js, not a hunt through routes.
 
@@ -25,9 +27,10 @@ database, by setting its predictions to 0 and stamping the fixture processed.
 
 const { getMatchdayTable } = require('./matchdayTable');
 
-// For the record and for anyone reading a points column: the values settling writes. 0 is
-// allowed by the table's CHECK as well, for the hand fix of a postponed match.
-const POINTS = { WIN: 3, DRAW: 1, LOSS: -1 };
+// For the record and for anyone reading a points column: the values settling writes. A loss
+// and the hand fix of a postponed match are both 0; won / drew / lost is read from the result,
+// never from the points (matchdayTable.js).
+const POINTS = { WIN: 3, DRAW: 1, LOSS: 0 };
 
 /**
  * Settle the predictions on fixtures the caller has just claimed, then end the game if this

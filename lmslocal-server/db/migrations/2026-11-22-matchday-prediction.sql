@@ -24,7 +24,8 @@ ALTER TABLE competition
 -- NOT the pick table: pick is read in some forty places as one row per player per round, plus
 -- lives. Ten rows a round in there would need a guard on every one of those queries forever.
 --
--- points is null until the fixture is settled, then 3 / 1 / -1. It records what happened, like
+-- points is null until the fixture is settled, then 3 / 1 / -1 (3 / 1 / 0 from 2026-11-23, see
+-- 2026-11-23-matchday-scoring-3-1-0.sql). It records what happened, like
 -- pick.outcome; running totals are DERIVED (services/matchdayTable.js), never stored here.
 --
 -- FOREIGN KEYS ARE NO ACTION, deliberately. Any path that deletes fixtures, rounds, competitions

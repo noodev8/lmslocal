@@ -510,12 +510,12 @@ const SECTIONS: Section[] = [
             ul: [
               'Predicted team wins: +3',
               'The match is a draw: +1',
-              'Predicted team loses: −1',
+              'Predicted team loses: 0',
               'Match left blank: 0'
             ]
           },
           {
-            p: 'A bad round can cost points, but a total never goes below zero: if a round would take it under, it stops at zero, with nothing owed afterwards.'
+            p: 'Nothing ever takes points away, so a total only goes up. A wrong prediction scores the same as a blank, so it always pays to predict every match.'
           }
         ]
       },
