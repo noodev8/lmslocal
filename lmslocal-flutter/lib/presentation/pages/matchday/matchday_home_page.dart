@@ -296,7 +296,7 @@ class _MatchdayHomePageState extends State<MatchdayHomePage> {
         Text.rich(
           TextSpan(children: [
             TextSpan(text: 'You predicted ${coupon.predicted} of $total', style: fade),
-            if (resultsIn > 0) ...[
+            if (resultsIn > 0 && coupon.predicted > 0) ...[
               TextSpan(text: '  ·  ', style: fade),
               TextSpan(text: signedPoints(coupon.roundPoints), style: CouponTheme.dataText),
               TextSpan(text: resultsIn < total ? ' this round so far' : ' this round', style: fade),
@@ -408,9 +408,11 @@ class _MatchdayHomePageState extends State<MatchdayHomePage> {
                     child: CustomPaint(
                       painter: const _DotsPainter(),
                       child: Row(
+                        // The free space goes between the two, so the points
+                        // always sit on the right edge.
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Flexible(
-                            flex: 4,
                             child: Container(
                               color: CouponTheme.stockLit,
                               padding: const EdgeInsets.only(right: 6),
@@ -424,7 +426,6 @@ class _MatchdayHomePageState extends State<MatchdayHomePage> {
                               ),
                             ),
                           ),
-                          const Spacer(),
                           Container(
                             color: CouponTheme.stockLit,
                             padding: const EdgeInsets.only(left: 6),

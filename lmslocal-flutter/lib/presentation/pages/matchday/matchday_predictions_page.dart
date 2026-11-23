@@ -440,6 +440,7 @@ class _MatchdayPredictionsPageState extends State<MatchdayPredictionsPage> {
                       count: fixtures.length,
                       editable: open,
                       busy: _busyFixture == fixture.fixtureId,
+                      isPlayer: coupon.isPlayer,
                       explainScoring: explainScoring,
                       onTap: (team) => _tapTeam(index, team),
                       crowd: crowds[fixture.fixtureId],
@@ -570,6 +571,7 @@ class _MatchCard extends StatelessWidget {
     required this.count,
     required this.editable,
     required this.busy,
+    required this.isPlayer,
     required this.explainScoring,
     required this.onTap,
     required this.crowd,
@@ -581,6 +583,10 @@ class _MatchCard extends StatelessWidget {
   final int count;
   final bool editable;
   final bool busy;
+
+  /// False for an organiser who is not playing: they see the matches, and
+  /// nothing on them speaks as if they had predictions to make.
+  final bool isPlayer;
   final bool explainScoring;
   final ValueChanged<String> onTap;
   final _Crowd? crowd;
@@ -672,7 +678,7 @@ class _MatchCard extends StatelessWidget {
     }
     if (resultText != null) {
       return Text(
-        '$resultText${fixture.myTeam == null ? ' · not predicted' : ''}',
+        '$resultText${fixture.myTeam == null && isPlayer ? '  ·  not predicted' : ''}',
         textAlign: TextAlign.center,
         style: fade,
       );
@@ -687,7 +693,7 @@ class _MatchCard extends StatelessWidget {
       }
       return const SizedBox.shrink();
     }
-    if (fixture.myTeam == null) return Text('Not predicted · scores 0', style: fade);
+    if (fixture.myTeam == null && isPlayer) return Text('Not predicted  ·  scores 0', style: fade);
     return const SizedBox.shrink();
   }
 }

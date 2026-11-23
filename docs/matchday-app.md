@@ -4,6 +4,20 @@ Written 2026-11-22 for whoever brings Matchday to `lmslocal-flutter/`. It says *
 **where**, from a product, design and server-contract point of view. How to write the Dart is
 yours: read the code, change it, test it.
 
+**Status: built 2026-11-23, not yet released.** The app sends `X-Game-Types: lms,matchday`
+(`api_client.dart`) and branches once, in `CompetitionEntryPage`, to `pages/matchday/`. Shared
+helpers are `core/game/games.dart` (the Dart `games.ts`, including UK time) and
+`domain/entities/matchday.dart`. Tested on an Android phone against production on test
+competitions 284 and 285 (organiser 50, sandbox rounds) - every item in §16's list except an app
+cold-started from a `/join/` link while signed out, and a table of 30+ players (trimming). Not done:
+a version bump and release - production already serves everything the app calls.
+
+Three small things found while building it are fixed in the app and **still open on the web**:
+a Previous tapped while a save is in flight is overridden by the auto-advance (the timer is set
+after the save returns, so there was nothing to cancel - the app only advances if the player is
+still on the card they tapped); the table says "After round 0" during round 1; and an organiser
+who is not playing is told each match is "Not predicted · scores 0".
+
 **Read first, in this order:**
 
 1. `docs/matchday.md`. The contract for the game: rules, vocabulary, presentation. When a question

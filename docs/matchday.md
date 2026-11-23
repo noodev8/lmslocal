@@ -5,7 +5,7 @@ For every match in a gameweek a player predicts the winner: **win +3, draw +1, l
 a league table of points.
 
 **Status: phases 1–3 built, 2026-11-22 — playable on the web end to end** (§10). Not yet: the
-admin game column, Matchday emails, the app.
+admin game column, Matchday emails. The app is built (2026-11-23) and not yet released.
 
 **IN PREVIEW: only organiser 50 can create a Matchday competition.** `MATCHDAY_PREVIEW_ORGANISER_IDS`
 in `services/gameType.js`. Everyone else gets the create wizard exactly as before - three steps, no
@@ -540,7 +540,8 @@ route's round query against one, not through the screens: no open Matchday round
    with phase 2.)
 5. **Matchday emails.** Then the app, by sending `X-Game-Types` from a new version. **Everything
    the app needs to know is in `docs/matchday-app.md`** (2026-11-22): the header switch, where the
-   app branches, the routes, and each screen as built and agreed on the web.
+   app branches, the routes, and each screen as built and agreed on the web. **App built
+   2026-11-23**, not yet released; what was tested is at the top of that doc.
 
 ---
 
