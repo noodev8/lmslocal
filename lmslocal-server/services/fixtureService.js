@@ -346,8 +346,6 @@ async function pushFixturesToCompetition(client, competitionId) {
     targetRoundNumber = roundState.roundNumber;
     roundAction = 'reconciled';
 
-    await client.query(`DELETE FROM fixture WHERE round_id = $1`, [targetRoundId]);
-
     // Existing picks point at the fixture rows just deleted, and push-results-to-competition
     // resolves a pick by p.fixture_id. Left as they were, every player who picked before their
     // round was confirmed would go unmatched when results came in - read as a missed pick, and
@@ -356,9 +354,12 @@ async function pushFixturesToCompetition(client, competitionId) {
 
     // Matchday predictions point at the same fixture rows, and here it is not merely a matter of
     // matching later: prediction.fixture_id is a NO ACTION foreign key, so leaving them set would
-    // fail the DELETE below and roll back the whole push for this competition. Cleared here and
+    // fail the DELETE that follows and roll back the whole push for this competition. Cleared here and
     // re-pointed by team after the insert, exactly like picks. docs/matchday.md §4.3.
     await client.query(`UPDATE prediction SET fixture_id = NULL WHERE round_id = $1`, [targetRoundId]);
+
+    // Only now, with nothing pointing at them, can the provisional fixtures go.
+    await client.query(`DELETE FROM fixture WHERE round_id = $1`, [targetRoundId]);
 
     // source_block_id is cleared with the same statement that moves the lock time: once the
     // confirmed batch is in, this round is no longer provisional and must not be reconciled a
