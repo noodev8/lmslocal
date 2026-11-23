@@ -315,8 +315,8 @@ Late joining is not allowed. A late joiner starts so far behind that the deferre
 
 ### 7.1 Clients declare the games they can show
 
-The Flutter app is live, player-only, and has no forced-update gate, so every version ever
-shipped stays in use indefinitely. **None of them knows Matchday exists**, and none will be
+The Flutter app is live and player-only, and an old version stays in use until the server's minimum
+version (`app_version`) is raised past it - which, before 2.1.0, only a launch from the icon checked. **None of them knows Matchday exists**, and none will be
 changed for this. The server guarantees they are never shown a game they cannot render.
 
 - A client lists the game types it can show in a header: **`X-Game-Types: lms,matchday`**.

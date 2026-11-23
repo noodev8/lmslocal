@@ -13,6 +13,7 @@ import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_sourc
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
 import 'package:lmslocal_flutter/presentation/widgets/common/competition_logo.dart';
+import 'package:lmslocal_flutter/presentation/widgets/version_gate.dart';
 
 /// The in-app half of a `lmslocal.co.uk/join/<code>` link.
 ///
@@ -61,6 +62,10 @@ class _JoinPageState extends State<JoinPage> {
   @override
   void initState() {
     super.initState();
+    // An invite link is an entry like a launch, and may have resumed a running
+    // app without one. Joining is where an old build meets a game it cannot
+    // show, so a retired build is stopped here rather than at a refusal.
+    VersionGate.check(context);
     // A deep link can build this screen before AuthCheckRequested has settled, so the
     // decision is driven off whichever auth state lands first: this read, or the listener.
     WidgetsBinding.instance.addPostFrameCallback((_) {

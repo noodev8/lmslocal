@@ -6,10 +6,13 @@ import 'package:lmslocal_flutter/core/router/pending_destination.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_bloc.dart';
 import 'package:lmslocal_flutter/presentation/bloc/auth/auth_state.dart';
-import 'package:lmslocal_flutter/presentation/widgets/update_required_dialog.dart';
 
 /// Static splash screen with the LMS Local badge.
 /// Shows while checking authentication status (minimum 2 seconds).
+///
+/// The forced-update check used to run here. It is `VersionGate` now, above
+/// every route, because an invite link or a notification never passes through
+/// this screen.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -20,39 +23,11 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage> {
   bool _hasNavigated = false;
   bool _minSplashTimeElapsed = false;
-  bool _versionCheckComplete = false;
-  bool _updateRequired = false;
 
   @override
   void initState() {
     super.initState();
     _startSplashTimer();
-    _checkAppVersion();
-  }
-
-  /// Runs before anything else touches the API, so a build the server has
-  /// retired asks for an update rather than failing its way through the app.
-  Future<void> _checkAppVersion() async {
-    final result =
-        await Injection.getVersionRemoteDataSource().checkAppVersion();
-
-    if (!mounted) return;
-
-    setState(() {
-      _versionCheckComplete = true;
-      _updateRequired = result != null;
-    });
-
-    if (result != null) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => UpdateRequiredDialog(storeUrl: result.storeUrl),
-      );
-      return;
-    }
-
-    _tryNavigate(context.read<AuthBloc>().state);
   }
 
   Future<void> _startSplashTimer() async {
@@ -72,11 +47,7 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   void _tryNavigate(AuthState state) {
-    // The update dialog is terminal — there is nowhere to go from a build the
-    // server will not serve.
-    if (_updateRequired) return;
-
-    if (!_minSplashTimeElapsed || !_versionCheckComplete || _hasNavigated) {
+    if (!_minSplashTimeElapsed || _hasNavigated) {
       return;
     }
 

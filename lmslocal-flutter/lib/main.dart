@@ -1,3 +1,4 @@
+import 'package:lmslocal_flutter/presentation/widgets/version_gate.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -96,6 +97,9 @@ class LmsLocalApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: CouponTheme.themeData(),
         routerConfig: AppRouter.createRouter(),
+        // Above every route, so a forced update catches a launch from an
+        // invite link or a notification too, not only from the icon.
+        builder: (context, child) => VersionGate(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

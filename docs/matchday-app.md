@@ -49,8 +49,10 @@ alike. No score is negative, so the table no longer has a floor.
   and nothing else.
 - **The app is player-only.** A Matchday organiser has nothing to run anyway: fixtures and results
   are always the fixture service's. No organiser screens are needed.
-- **Every app version ever shipped stays in use** (no forced-update gate). None of them knows
-  Matchday exists, and the server keeps them safe on its own (§2). Nothing in this work may
+- **Old app versions stay in use until they are forced off.** The server's minimum version
+  (`app_version`, `/check-app-version`) blocks older builds - from 2.1.0 on every launch and every
+  invite link (`version_gate.dart`); before that only a launch from the icon. None before 2.1.0
+  knows Matchday exists, and the server keeps them safe on its own (§2). Nothing in this work may
   break an old version, and nothing old needs changing.
 - **Matchday is in preview.** Only organiser 50 can create one. Customers cannot yet, but anyone
   invited to one can play it. So this work is not urgent for customers, and there is time to get
