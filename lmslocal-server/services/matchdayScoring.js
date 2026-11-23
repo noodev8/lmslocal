@@ -94,18 +94,7 @@ async function settleMatchdayRound(client, { competitionId, roundId, roundNumber
       : Boolean(leaderRow) && leaderRow.total >= endValue;
 
     if (finished) {
-      // Everyone in first place, after the tie-breaks. More than one is a shared win, recorded
-      // as winner_id NULL - which already means "no single winner" for LMS - with the names
-      // carried by the table rather than by the column.
-      const firstPlace = table.rows.filter(row => row.position === 1);
-      winners = firstPlace.map(row => row.display_name);
-
-      await client.query(`
-        UPDATE competition
-        SET status = 'COMPLETE', winner_id = $2
-        WHERE id = $1
-      `, [competitionId, firstPlace.length === 1 ? firstPlace[0].user_id : null]);
-
+      winners = await completeMatchday(client, competitionId, table);
       competitionStatus = 'COMPLETE';
     }
   }
@@ -117,6 +106,33 @@ async function settleMatchdayRound(client, { competitionId, roundId, roundNumber
     leader: leaderRow ? { display_name: leaderRow.display_name, total: leaderRow.total } : null,
     winners
   };
+}
+
+/**
+ * End a Matchday game on its table as it stands. Shared by the final round's push and the
+ * season-end close (scripts/season-end-close.js, docs/matchday.md §5.5), so a game cut short by
+ * the season is won by exactly the rule a game that ran its course is.
+ *
+ * @param {object} client - an open transaction
+ * @param {number} competitionId
+ * @param {object} [table] - the table, if the caller has just read it inside this transaction
+ * @returns {Promise<string[]>} the winners' names; more than one is a shared win
+ */
+async function completeMatchday(client, competitionId, table = null) {
+  const standings = table || await getMatchdayTable(competitionId, { client });
+
+  // Everyone in first place, after the tie-breaks. More than one is a shared win, recorded
+  // as winner_id NULL - which already means "no single winner" for LMS - with the names
+  // carried by the table rather than by the column.
+  const firstPlace = standings.rows.filter(row => row.position === 1);
+
+  await client.query(`
+    UPDATE competition
+    SET status = 'COMPLETE', winner_id = $2
+    WHERE id = $1
+  `, [competitionId, firstPlace.length === 1 ? firstPlace[0].user_id : null]);
+
+  return firstPlace.map(row => row.display_name);
 }
 
 /*
@@ -157,4 +173,4 @@ function endingProblem(endRule, endValue) {
   return null;
 }
 
-module.exports = { settleMatchdayRound, endingProblem, ENDING_CHOICES, POINTS };
+module.exports = { settleMatchdayRound, completeMatchday, endingProblem, ENDING_CHOICES, POINTS };

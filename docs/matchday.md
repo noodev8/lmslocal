@@ -274,6 +274,31 @@ player who picked that match a life.
 
 ---
 
+### 5.5 The end of the season (2026-11-23)
+
+**A game the season runs out on ends after the last round played.** Decided 2026-11-23: an
+organiser can start an 8-round game with 2 gameweeks left, and we do not count the gameweeks left
+for them. The create screen and the terms (§4) say so in fixed words instead.
+
+- **Matchday**: won on the table as it stands, by the same rule as §5.3 (`completeMatchday` in
+  `matchdayScoring.js`, which the final round's push also calls). A tie at the top is shared.
+- **LMS** (the same close, for the same reason): a draw between everyone still in, `winner_id`
+  NULL; one player left is a win. The `game_complete` email already words 2+ survivors as a draw.
+
+No organiser is asked. An admin runs it once a season:
+
+```bash
+node scripts/season-end-close.js --team-list <id>           # dry run: lists what it would close
+node scripts/season-end-close.js --team-list <id> --apply
+```
+
+**When: after the last gameweek's results are pushed, before the first gameweek of the new season
+is staged.** An open game would otherwise be ready for its next round and get the new season's
+first gameweek; a `COMPLETE` one is refused by `evaluateCompetition`. The script leaves alone
+competitions with no rounds (those are waiting for next season), any whose latest round still has
+an unprocessed fixture, and organiser-run competitions. Archived ones are closed too: they still
+get fixtures.
+
 ## 6. Joining
 
 **The LMS rule, with no Matchday-specific code.** Joining is open while round 1 has not locked,

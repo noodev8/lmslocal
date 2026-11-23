@@ -42,7 +42,7 @@ export default function TermsOfService() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
         <div>
           <h1 className="font-display text-5xl font-semibold uppercase leading-[0.9] text-ink sm:text-6xl">Terms of Service</h1>
-          <p className="mt-4 font-body text-xs font-semibold uppercase tracking-[0.12em] text-ink-fade">Last updated: August 4, 2026</p>
+          <p className="mt-4 font-body text-xs font-semibold uppercase tracking-[0.12em] text-ink-fade">Last updated: November 23, 2026</p>
 
           <div className="mt-10">
             <h2 className="mt-10 border-t border-ink/30 pt-6 font-display text-2xl uppercase tracking-[0.03em] text-ink">1. Acceptance of Terms</h2>
@@ -66,6 +66,9 @@ export default function TermsOfService() {
             </p>
             <p className="mt-4 text-[17px] leading-relaxed text-ink">
               Fixture and result data - whether entered manually by an organiser or sourced automatically through our fixture service - is provided on a best-efforts basis and may occasionally be delayed, incomplete, or incorrect. We do not guarantee the accuracy of this data and are not responsible for eliminations, outcomes, or other consequences resulting from inaccurate or mistimed fixture or result data.
+            </p>
+            <p className="mt-4 text-[17px] leading-relaxed text-ink">
+              Competitions that use our fixture service follow the real fixture list and cannot continue beyond the end of a season. A competition still running when the season ends is closed after the last round played: a Matchday game is won by whoever is top of the table, with any tie at the top shared, and a Last Man Standing game is a draw between the players still in, or won by the last one if only one remains.
             </p>
 
             <h2 className="mt-10 border-t border-ink/30 pt-6 font-display text-2xl uppercase tracking-[0.03em] text-ink">5. Weekly Challenge (Free Prize Competition)</h2>

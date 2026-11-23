@@ -538,6 +538,13 @@ export default function CreateCompetitionPage() {
                         Level at the top? More wins goes ahead, then more predictions made. You can
                         change this until round 1 kicks off.
                       </p>
+                      {/* Fixed words, no count of the gameweeks left: we follow the real fixture
+                          list rather than track the league's calendar. The close itself is
+                          scripts/season-end-close.js, docs/matchday.md §5.5. */}
+                      <p className="mt-2 text-[13px] text-ink-fade">
+                        Rounds follow the real fixture list. If the season ends first, the game
+                        ends there and the top of the table wins.
+                      </p>
                     </div>
                   </>
                 )}
@@ -589,6 +596,14 @@ export default function CreateCompetitionPage() {
                         </p>
                       </button>
                     </div>
+                    {/* Only with our fixtures: an organiser running their own decides when it ends.
+                        scripts/season-end-close.js, docs/matchday.md §5.5. */}
+                    {useFixtureService && (
+                      <p className="mt-2 text-[13px] text-ink-fade">
+                        If the season ends with more than one player still in, the game ends there
+                        as a draw between them.
+                      </p>
+                    )}
                   </div>
                 )}
 
