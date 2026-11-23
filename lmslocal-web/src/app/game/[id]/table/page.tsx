@@ -98,7 +98,16 @@ export default function MatchdayTablePage() {
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="mb-5 flex items-end justify-between gap-3">
           <div>
-            <p className={EYEBROW}>{isComplete ? 'Final' : data?.latest_round_number ? `After round ${data.rounds_settled}` : 'Before round 1'}</p>
+            {/* "After round 0" in the middle of round 1 says nothing true, so round 1 is named. */}
+            <p className={EYEBROW}>
+              {isComplete
+                ? 'Final'
+                : !data?.latest_round_number
+                  ? 'Before round 1'
+                  : data.rounds_settled === 0
+                    ? 'Round 1'
+                    : `After round ${data.rounds_settled}`}
+            </p>
             <h1 className={`${HEADING} mt-1 text-3xl`}>The table</h1>
           </div>
           {ending && (

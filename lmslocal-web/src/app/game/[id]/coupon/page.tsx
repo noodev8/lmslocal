@@ -58,6 +58,9 @@ export default function CouponPage() {
   // cancels it: a player who taps a team and then straight away taps Previous or the tracker meant
   // to go there, and must not be carried forward a moment later.
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The card on screen now, for tapTeam: its save is awaited, and by the time it returns the player
+  // may have moved (Previous, the tracker, a swipe) - the `current` its closure saw is stale.
+  const currentRef = useRef(0);
 
   useEffect(() => {
     reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -144,6 +147,7 @@ export default function CouponPage() {
     }
     const clamped = Math.max(0, Math.min(index, fixtures.length - 1));
     strip.scrollTo({ left: clamped * strip.clientWidth, behavior: smooth && !reducedMotion.current ? 'smooth' : 'auto' });
+    currentRef.current = clamped;
     setCurrent(clamped);
   }, [fixtures.length]);
 
@@ -162,6 +166,7 @@ export default function CouponPage() {
     const strip = stripRef.current;
     if (!strip || strip.clientWidth === 0) return;
     const index = Math.round(strip.scrollLeft / strip.clientWidth);
+    currentRef.current = index;
     if (index !== current) setCurrent(index);
   };
 
@@ -212,10 +217,13 @@ export default function CouponPage() {
         return;
       }
       updateFixture(fixture.fixture_id, takingBack ? null : team);
-      if (!takingBack && index + 1 < fixtures.length) {
+      // Move on only from the card that was tapped. A player who went elsewhere while the save was
+      // in flight, or in the moment before the move, meant to be there - checked both now and when
+      // the timer fires, since a swipe does not pass through goTo to cancel it.
+      if (!takingBack && index + 1 < fixtures.length && currentRef.current === index) {
         advanceTimer.current = setTimeout(() => {
           advanceTimer.current = null;
-          goTo(index + 1);
+          if (currentRef.current === index) goTo(index + 1);
         }, ADVANCE_DELAY_MS);
       }
     } catch {
@@ -355,6 +363,7 @@ export default function CouponPage() {
               editable={open}
               busy={busyFixture === fixture.fixture_id}
               explainScoring={explainScoring && open}
+              isPlayer={coupon.is_player}
               onTap={(team) => tapTeam(index, team)}
               crowd={crowds.get(fixture.fixture_id) ?? null}
               competitionId={competitionId}
@@ -438,7 +447,7 @@ type CrowdPlayer = { user_id: number; display_name: string; is_me: boolean };
 type Crowd = { home: CrowdPlayer[]; away: CrowdPlayer[]; none: CrowdPlayer[] };
 
 function MatchCard({
-  fixture, position, count, editable, busy, explainScoring, onTap, crowd, competitionId,
+  fixture, position, count, editable, busy, explainScoring, isPlayer, onTap, crowd, competitionId,
 }: {
   fixture: MatchdayFixture;
   position: number;
@@ -446,6 +455,8 @@ function MatchCard({
   editable: boolean;
   busy: boolean;
   explainScoring: boolean;
+  /** An organiser who is not playing has no predictions, so "not predicted" says nothing true. */
+  isPlayer: boolean;
   onTap: (team: string) => void;
   crowd: Crowd | null;
   competitionId: string;
@@ -496,14 +507,14 @@ function MatchCard({
             <span className="font-data text-ink">{signedPoints(fixture.my_points)}</span>
           </span>
         ) : resultText ? (
-          <span className="text-ink-fade">{resultText}{fixture.my_team === null ? ' · not predicted' : ''}</span>
+          <span className="text-ink-fade">{resultText}{isPlayer && fixture.my_team === null ? ' · not predicted' : ''}</span>
         ) : editable ? (
           fixture.my_team !== null
             ? <span className="text-ink-fade">Tap it again to take it back</span>
             : explainScoring
               ? <span className={`${LABEL} text-ink`}>{MATCHDAY_SCORING}</span>
               : null
-        ) : fixture.my_team === null ? (
+        ) : isPlayer && fixture.my_team === null ? (
           <span className="text-ink-fade">Not predicted &middot; scores 0</span>
         ) : null}
       </div>
