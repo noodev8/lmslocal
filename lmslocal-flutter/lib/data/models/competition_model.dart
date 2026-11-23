@@ -1,4 +1,5 @@
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
+import 'package:lmslocal_flutter/domain/entities/matchday.dart';
 
 /// A number that may arrive as a number or as a string.
 ///
@@ -52,6 +53,10 @@ class CompetitionModel extends Competition {
     super.currentPick,
     super.history,
     super.winnerName,
+    super.gameType,
+    super.endRule,
+    super.endValue,
+    super.matchday,
   });
 
   factory CompetitionModel.fromJson(Map<String, dynamic> json) {
@@ -107,6 +112,15 @@ class CompetitionModel extends Competition {
               .toList()
           : [],
       winnerName: json['winner_name'] as String?,
+      // Missing or null is LMS, as on the server. The cache round-trips these
+      // too: a cached card read back without game_type would fall back to LMS
+      // (docs/matchday-app.md §15).
+      gameType: json['game_type'] as String? ?? 'lms',
+      endRule: json['end_rule'] as String?,
+      endValue: (json['end_value'] as num?)?.toInt(),
+      matchday: json['matchday'] is Map<String, dynamic>
+          ? MatchdayStanding.fromJson(json['matchday'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -152,6 +166,10 @@ class CompetitionModel extends Competition {
           : null,
       'history': history.map((e) => (e as PickHistoryModel).toJson()).toList(),
       'winner_name': winnerName,
+      'game_type': gameType,
+      'end_rule': endRule,
+      'end_value': endValue,
+      'matchday': matchday?.toJson(),
     };
   }
 }

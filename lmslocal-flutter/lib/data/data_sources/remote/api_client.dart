@@ -23,6 +23,13 @@ class ApiClient {
     _dio.options.receiveTimeout = Duration(milliseconds: config.apiTimeout);
     _dio.options.headers['Content-Type'] = 'application/json';
 
+    // The games this build can show (docs/matchday.md §7, docs/matchday-app.md
+    // §2). The server reads no header as LMS only, which is what keeps every
+    // older version of this app from being shown a Matchday competition it
+    // cannot play. This header IS the Matchday feature switch: send it only
+    // from a build in which every Matchday screen exists.
+    _dio.options.headers['X-Game-Types'] = 'lms,matchday';
+
     // Add request interceptor to inject JWT token
     _dio.interceptors.add(
       InterceptorsWrapper(

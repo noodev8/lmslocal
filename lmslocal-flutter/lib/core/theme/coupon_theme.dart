@@ -41,6 +41,14 @@ class CouponTheme {
   /// Never text, never rules.
   static const Color mossWash = Color(0xFFCFE4C4);
 
+  /// Matchday's paper: a Matchday card on the dashboard is printed on buff, an
+  /// LMS card on [stockLit] - the pools companies' way of telling coupons apart
+  /// (design-system.md §2, §8). A ground only, never text or rules, and only on
+  /// the dashboard card for now: whether Matchday's own screens take it is an
+  /// open design-system question. Overprint TEXT fails contrast on it (4.2:1),
+  /// so on buff red is a border or an icon, never words.
+  static const Color buff = Color(0xFFF1E4C2);
+
   // === FONT FAMILIES ===
   /// Big Shoulders. Headings, buttons, big numbers. Always uppercase
   static const String display = 'BigShoulders';

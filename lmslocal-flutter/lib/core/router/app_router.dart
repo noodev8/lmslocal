@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/forgot_password_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/auth/register_page.dart';
-import 'package:lmslocal_flutter/presentation/pages/competition/competition_navigation_page.dart';
+import 'package:lmslocal_flutter/presentation/pages/competition/competition_entry_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/home/home_shell_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/join/join_page.dart';
 import 'package:lmslocal_flutter/presentation/pages/splash/splash_page.dart';
@@ -48,7 +48,9 @@ class AppRouter {
             final competition = state.extra;
             // ?tab=play lets the dashboard's "Make pick" open the Play tab
             // directly, so the action keeps its name through the whole flow.
-            return CompetitionNavigationPage(
+            // Through the entry page, which opens Last Man Standing's or
+            // Matchday's screens for this competition (docs/matchday-app.md §3).
+            return CompetitionEntryPage(
               competitionId: competitionId,
               competition: competition,
               initialTab: state.uri.queryParameters['tab'] == 'play' ? 1 : 0,
@@ -56,12 +58,14 @@ class AppRouter {
           },
         ),
 
-        // Deep link: /game/:id - same as /competition/:id (matches web URL structure)
+        // Deep link: /game/:id - same as /competition/:id (matches web URL
+        // structure). The same URL serves both games, so the entry page looks
+        // the game up before choosing which screens to open.
         GoRoute(
           path: '/game/:id',
           builder: (context, state) {
             final competitionId = state.pathParameters['id']!;
-            return CompetitionNavigationPage(
+            return CompetitionEntryPage(
               competitionId: competitionId,
               competition: null,
             );

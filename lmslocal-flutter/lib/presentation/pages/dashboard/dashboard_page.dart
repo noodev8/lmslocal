@@ -14,7 +14,9 @@ import 'package:lmslocal_flutter/data/data_sources/remote/dashboard_remote_data_
 import 'package:lmslocal_flutter/data/data_sources/remote/user_remote_data_source.dart';
 import 'package:lmslocal_flutter/domain/entities/competition.dart';
 import 'package:lmslocal_flutter/domain/entities/promoted_competition.dart';
+import 'package:lmslocal_flutter/presentation/pages/dashboard/widgets/matchday_card.dart';
 import 'package:lmslocal_flutter/presentation/widgets/common/competition_logo.dart';
+import 'package:lmslocal_flutter/presentation/widgets/game_stamp.dart';
 
 /// The competitions half of [HomeShellPage] — a body, not a screen.
 ///
@@ -1240,6 +1242,17 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildCompetitionCard(Competition competition) {
+    // Branch once, at the top: a Matchday competition gets its own card, and
+    // the LMS card below never carries the other game's conditions
+    // (docs/matchday-app.md §3, §5).
+    if (competition.isMatchday) {
+      return MatchdayCard(
+        competition: competition,
+        onRename: () => _showRenameDialog(competition),
+        onHide: () => _showDeleteConfirmation(competition),
+      );
+    }
+
     final needsPick = competition.needsPick ?? false;
     final isComplete = competition.status == 'COMPLETE';
     final hasWinner = isComplete && competition.winnerName != null;
@@ -1315,6 +1328,11 @@ class _DashboardPageState extends State<DashboardPage> {
                           // The organiser's name stays underneath, smaller, so
                           // they can still say which competition they mean to
                           // anyone else.
+                          // The game first, on every card of both games: in
+                          // a list it is what tells a player which rules they
+                          // are playing by (docs/matchday-app.md §5).
+                          GameStamp(gameType: competition.gameType),
+                          const SizedBox(height: 6),
                           Text(
                             competition.personalName ?? competition.name,
                             style: TextStyle(

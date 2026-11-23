@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lmslocal_flutter/core/errors/failures.dart';
+import 'package:lmslocal_flutter/core/game/games.dart';
 import 'package:lmslocal_flutter/core/router/pending_destination.dart';
 import 'package:lmslocal_flutter/core/theme/coupon_theme.dart';
 import 'package:lmslocal_flutter/data/data_sources/remote/api_client.dart';
@@ -326,6 +327,15 @@ class _JoinPageState extends State<JoinPage> {
         final organiser = competition['organiser_name'] as String?;
         final name = competition['name'] as String? ?? '';
         final description = competition['description'] as String?;
+        // Which game, and for Matchday how it is played, before the Join button:
+        // this is where a player first forms a picture of the game
+        // (docs/matchday-app.md §11). Missing is LMS, as on the server.
+        final gameType = competition['game_type'] as String? ?? GameType.lms;
+        final isMatchday = gameType == GameType.matchday;
+        final ending = endingLabel(
+          competition['end_rule'] as String?,
+          (competition['end_value'] as num?)?.toInt(),
+        );
 
         return _shell(
           Column(
@@ -368,6 +378,23 @@ class _JoinPageState extends State<JoinPage> {
                 const SizedBox(height: 20),
                 Text(description, style: CouponTheme.intro),
               ],
+              if (isMatchday) ...[
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: CouponTheme.stockLit,
+                    border: Border.fromBorderSide(CouponTheme.rule()),
+                  ),
+                  child: Text(
+                    'A Matchday game: predict the winner of every match each round and '
+                    'score points. $matchdayScoring.'
+                    '${ending.isNotEmpty ? ' ${ending[0].toUpperCase()}${ending.substring(1)}, most points wins.' : ' Most points wins.'}',
+                    style: CouponTheme.bodyText,
+                  ),
+                ),
+              ],
               const SizedBox(height: 28),
               Container(
                 decoration: BoxDecoration(
@@ -378,6 +405,7 @@ class _JoinPageState extends State<JoinPage> {
                 ),
                 child: Column(
                   children: [
+                    _ledgerRow('Game', gameName(gameType)),
                     if (venue != null && venue.isNotEmpty) _ledgerRow('Venue', venue),
                     if (organiser != null && organiser.isNotEmpty)
                       _ledgerRow('Run by', organiser),

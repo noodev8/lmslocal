@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'package:lmslocal_flutter/core/game/games.dart';
+import 'package:lmslocal_flutter/domain/entities/matchday.dart';
 
 /// Competition entity representing user's competition data
 class Competition extends Equatable {
@@ -57,6 +59,21 @@ class Competition extends Equatable {
   final List<PickHistory> history;
   final String? winnerName;
 
+  /// Which game, fixed at creation: `'lms'` or `'matchday'`. Missing or null
+  /// is LMS, the same as the server (docs/matchday-app.md §3).
+  final String gameType;
+
+  /// Matchday only: how the game ends - `'rounds'` and the count. Null for LMS.
+  final String? endRule;
+  final int? endValue;
+
+  /// Matchday only: where this user stands. Null for LMS. The LMS fields above
+  /// (lives, status, current pick, history) mean nothing on a Matchday
+  /// competition and are never read for one.
+  final MatchdayStanding? matchday;
+
+  bool get isMatchday => gameType == GameType.matchday;
+
   const Competition({
     required this.id,
     required this.name,
@@ -96,6 +113,10 @@ class Competition extends Equatable {
     this.currentPick,
     this.history = const [],
     this.winnerName,
+    this.gameType = GameType.lms,
+    this.endRule,
+    this.endValue,
+    this.matchday,
   });
 
   /// This competition with a different [personalName].
@@ -141,6 +162,10 @@ class Competition extends Equatable {
         currentPick: currentPick,
         history: history,
         winnerName: winnerName,
+        gameType: gameType,
+        endRule: endRule,
+        endValue: endValue,
+        matchday: matchday,
       );
 
   @override
@@ -183,6 +208,10 @@ class Competition extends Equatable {
         currentPick,
         history,
         winnerName,
+        gameType,
+        endRule,
+        endValue,
+        matchday,
       ];
 }
 
