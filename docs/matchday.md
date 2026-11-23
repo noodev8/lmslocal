@@ -177,7 +177,7 @@ The LMS columns (`lives_per_player`, `no_team_twice`, `competition_user.lives_re
 | `fixture_id` | integer, **null** | Null only between a reconcile clearing it and re-pointing it — §4.3 |
 | `user_id` | integer, not null | |
 | `team` | varchar, not null | Team short code, the same values as `fixture.result` |
-| `points` | integer, null | Null until the fixture is settled; then 3, 1 or 0 (a loss, or the hand fix of a postponed match, §5.4). −1 until 2026-11-23: migration `2026-11-23-matchday-scoring-3-1-0.sql` rewrites old rows to 0 and narrows the CHECK, **applied after the server is deployed** |
+| `points` | integer, null | Null until the fixture is settled; then 3, 1 or 0 (a loss, or the hand fix of a postponed match, §5.4). −1 until 2026-11-23: migration `2026-11-23-matchday-scoring-3-1-0.sql` rewrote the 29 old rows to 0 and narrowed the CHECK (**applied** 2026-11-23) |
 | `created_at` / `updated_at` | timestamptz | |
 
 `UNIQUE (user_id, fixture_id)`. A changed prediction is an update, not a second row.
