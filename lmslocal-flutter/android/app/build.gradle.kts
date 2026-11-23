@@ -67,6 +67,15 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
+    // No lint pass inside a release build. Lint in AGP 9.3.1 crashes analysing
+    // plugin sources compiled with Kotlin 2.4.20 (NoSuchMethodError in its own
+    // JavaDocParser, first hit on firebase_core's FlutterFirebaseCorePlugin.kt)
+    // - a bug in the tool, not in any code here. This check only reports; it
+    // changes nothing in the bundle. Try removing it after the next AGP bump.
+    lint {
+        checkReleaseBuilds = false
+    }
 }
 
 // Top level, not inside `android { }`. It used to sit in there and still worked,
