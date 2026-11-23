@@ -395,10 +395,12 @@ export default function CouponPage() {
 
       {/* Done. On the last match the strip has nowhere left to go, and a player who has finished
           should not have to hunt for the small back link in the header. Shown on any card once
-          every match is predicted, too. It goes to the dashboard, where they came from. Red while
+          every match is predicted, too. It goes to the game's home, as the back link does. Red while
           the round is open - finishing is the screen's next action - and ink once it is locked,
-          when it is only the way out. Nothing to save: every tap was saved as it was made. */}
-      {(current === fixtures.length - 1 || (open && allPredicted)) && (
+          when it is only the way out. Nothing to save: every tap was saved as it was made.
+          Held back on an open last card until that match is predicted: offered before the
+          tap, it reads as the way to finish and the last match gets skipped. */}
+      {((current === fixtures.length - 1 && (!open || fixtures[current].my_team !== null)) || (open && allPredicted)) && (
         <div className="mt-6 text-center">
           {open && !allPredicted && (
             <p className="mb-3 text-[15px] text-ink-fade">
@@ -408,7 +410,7 @@ export default function CouponPage() {
             </p>
           )}
           <Link
-            href="/dashboard"
+            href={`/game/${competitionId}`}
             className={`${open ? BTN_PRIMARY : BTN_DARK} block w-full px-6 py-3.5 text-xl`}
           >
             Done
@@ -616,9 +618,6 @@ function TeamButton({
             : 'cursor-pointer border-ink/30 hover:border-ink disabled:cursor-wait'
       }`}
     >
-      {chosen && (
-        <span className={`${LABEL} absolute left-0 top-0 bg-moss px-2 py-1 text-[11px] text-stock-lit`}>Your prediction</span>
-      )}
       <span className="font-data text-xl leading-tight text-ink">{name}</span>
     </button>
   );

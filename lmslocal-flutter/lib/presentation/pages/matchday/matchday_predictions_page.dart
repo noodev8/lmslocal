@@ -335,7 +335,11 @@ class _MatchdayPredictionsPageState extends State<MatchdayPredictionsPage> {
     // has seen it, and it stays on the home masthead and under the table.
     final explainScoring = round.roundNumber == 1 && open;
     final left = fixtures.length - coupon.predicted;
-    final showDone = _current == fixtures.length - 1 || (open && allPredicted);
+    // Held back on an open last card until that match is predicted: offered
+    // before the tap, it reads as the way to finish and the last match gets skipped.
+    final onLast = _current == fixtures.length - 1;
+    final showDone = (onLast && (!open || fixtures[_current].myTeam != null)) ||
+        (open && allPredicted);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -512,7 +516,7 @@ class _MatchdayPredictionsPageState extends State<MatchdayPredictionsPage> {
                         backgroundColor: CouponTheme.ink,
                         foregroundColor: CouponTheme.stockLit,
                       ),
-                onPressed: () => context.go('/dashboard'),
+                onPressed: widget.onBack,
                 child: const Text('DONE'),
               ),
             ),
@@ -736,25 +740,8 @@ class _TeamButton extends StatelessWidget {
             decoration: BoxDecoration(border: Border.fromBorderSide(border)),
             child: Stack(
               children: [
-                if (chosen)
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: Container(
-                      color: CouponTheme.moss,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Text(
-                        'YOUR PREDICTION',
-                        style: CouponTheme.label.copyWith(
-                          fontSize: 10,
-                          letterSpacing: 10 * 0.12,
-                          color: CouponTheme.stockLit,
-                        ),
-                      ),
-                    ),
-                  ),
                 Padding(
-                  padding: EdgeInsets.fromLTRB(16, chosen ? 26 : 14, 16, 14),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                   child: Center(
                     child: Text(
                       name,
