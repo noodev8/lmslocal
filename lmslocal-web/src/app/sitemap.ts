@@ -23,20 +23,22 @@ type Route = {
 }
 
 const ROUTES: Route[] = [
-  { path: '', lastModified: '2026-11-22', changeFrequency: 'monthly', priority: 1 },
+  { path: '', lastModified: '2026-11-24', changeFrequency: 'monthly', priority: 1 },
   { path: '/pricing', lastModified: '2026-11-22', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/app', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/last-man-standing-for-pubs', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/last-man-standing-at-work', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/last-man-standing-for-clubs', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.9 },
+  /* Matchday's search page: built on "football prediction league", since nobody searches "Matchday". */
+  { path: '/football-prediction-league', lastModified: '2026-11-24', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/last-man-standing-template', lastModified: '2026-09-13', changeFrequency: 'monthly', priority: 0.8 },
   /* The printable rules sheet. Google indexes and ranks PDFs, and "last man standing rules pdf"
      is a real search - so this is a page in its own right, not an attachment to one. */
   { path: '/last-man-standing-rules.pdf', lastModified: '2026-09-13', changeFrequency: 'yearly', priority: 0.7 },
-  { path: '/help', lastModified: '2026-11-22', changeFrequency: 'monthly', priority: 0.7 },
-  { path: '/help/how-to-play', lastModified: '2026-08-21', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/help', lastModified: '2026-11-24', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/help/how-to-play', lastModified: '2026-11-24', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/help/matchday', lastModified: '2026-11-22', changeFrequency: 'monthly', priority: 0.6 },
-  { path: '/help/faq', lastModified: '2026-11-22', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/help/faq', lastModified: '2026-11-24', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/help/fundraising', lastModified: '2026-08-24', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/help/is-it-gambling', lastModified: '2026-08-24', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/help/getting-started/organizers', lastModified: '2026-08-21', changeFrequency: 'monthly', priority: 0.6 },

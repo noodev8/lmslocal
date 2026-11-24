@@ -68,11 +68,16 @@ const courierPrime = Courier_Prime({
   organisers take it and it is not currently charged for; it is still per-competition in the
   data model, so anything more specific than "handled for you" belongs on the pricing page,
   where it can change, and not in metadata.
+
+  Audience reordered 2026-11-24, title untouched: "for your workplace, friends or club" replaces
+  "for your pub, club or workplace", from who actually signs up (the last 40 competitions were
+  mostly workplaces and groups of friends, then clubs, with pubs close to none - see the comment
+  at the top of app/page.tsx). The title keeps the search phrase it ranks for.
 */
 export const metadata: Metadata = {
   title: "Run a Last Man Standing Football Competition | LMSLocal",
-  description: "Set up a Last Man Standing football competition for your pub, club or workplace. Fixtures and results handled for you. First twenty player places free.",
-  keywords: "last man standing, last man standing football, last man standing app, run a last man standing competition, lms football, pub fundraiser, club fundraising, football competition, sweepstake alternative, competition management, elimination game",
+  description: "Set up a Last Man Standing football competition for your workplace, friends or club. Fixtures and results handled for you. First twenty player places free.",
+  keywords: "last man standing, last man standing football, last man standing rules, last man standing app, run a last man standing competition, lms football, office football competition, football prediction league, club fundraising, sweepstake alternative",
   authors: [{ name: "LMSLocal" }],
   creator: "LMSLocal",
   publisher: "LMSLocal",
@@ -81,11 +86,12 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    // Share cards, not search results: no "| LMSLocal" tail, and the description stays the
-    // money one, because a link pasted into WhatsApp is read by someone who was sent it rather
-    // than someone scanning ten competing snippets.
+    // Share cards, not search results: no "| LMSLocal" tail, because a link pasted into WhatsApp
+    // is read by someone who was sent it rather than someone scanning ten competing snippets.
+    // The money line went 2026-11-24 with the home page's fundraising headline: most organisers
+    // are not raising money, and the pot is now an option lower on the page.
     title: "Run a Last Man Standing Football Competition",
-    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, no card needed.",
+    description: "Set up a Last Man Standing football competition for your workplace, friends or club. We put the matches and results in. Twenty player places free, no card needed.",
     url: "https://lmslocal.co.uk",
     siteName: "LMSLocal",
     locale: "en_GB",
@@ -100,7 +106,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Run a Last Man Standing Football Competition",
-    description: "Set up a Last Man Standing competition for your pub, club or workplace. You set the entry fee and the prize and keep what is left. Twenty player places free, no card needed.",
+    description: "Set up a Last Man Standing football competition for your workplace, friends or club. We put the matches and results in. Twenty player places free, no card needed.",
     images: ["/og-image.png"],
   },
   robots: {

@@ -31,7 +31,9 @@ const SCHEMA = {
       logo: 'https://lmslocal.co.uk/logo.png',
       email: 'lmslocal8@gmail.com',
       description:
-        'LMSLocal runs Last Man Standing football competitions for pubs, workplaces, clubs and charity fundraisers.',
+        // Matchday is named as in beta, matching every public page: schema must not offer what a
+        // visitor cannot start. At launch, drop "in beta" here and in the app description below.
+        'LMSLocal runs football competitions for workplaces, groups of friends, clubs and pubs: Last Man Standing, and Matchday, a football prediction league in beta.',
       areaServed: 'GB'
     },
     {
@@ -57,7 +59,7 @@ const SCHEMA = {
       isPartOf: { '@id': WEBSITE_ID },
       inLanguage: 'en-GB',
       description:
-        'Set up and run a Last Man Standing competition: players pick one team to win each round, a loss or a draw costs them, and the last player standing takes the prize. Fixtures and results are handled for you on the leagues we cover, or you can enter your own.',
+        'Set up and run a Last Man Standing competition: players pick one team to win each round, a loss or a draw costs them, and the last player standing takes the prize. Fixtures and results are handled for you on the leagues we cover, or you can enter your own. A second game, Matchday, is in beta: players predict the winner of every match and the points go on a league table.',
       featureList: [
         'Fixtures and results handled for you on the leagues we cover',
         'Ready-made WhatsApp invites, social images and a join QR code',

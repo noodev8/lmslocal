@@ -19,7 +19,7 @@ const PAGES = [
   { href: '/last-man-standing-at-work', label: 'At work' },
   { href: '/last-man-standing-for-clubs', label: 'For clubs' },
   { href: '/last-man-standing-template', label: 'Free template' },
-  { href: '/help/matchday', label: 'Matchday (beta)' }
+  { href: '/football-prediction-league', label: 'Matchday prediction league' }
 ];
 
 const LINKS = [

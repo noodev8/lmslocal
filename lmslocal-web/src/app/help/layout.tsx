@@ -9,7 +9,7 @@ import { LABEL } from '@/lib/design';
 /**
  * Help section frame. Built to the coupon design system — see docs/design-system.md.
  *
- * The sidebar is a flat list rather than collapsible sections: there are nine
+ * The sidebar is a flat list rather than collapsible sections: there are ten
  * destinations in total, so a disclosure control would hide links behind a click
  * for no benefit. On narrow screens the same list becomes a horizontal strip,
  * which avoids a full-screen modal menu for a handful of items.
@@ -19,14 +19,16 @@ type NavItem = { name: string; href: string; group?: string };
 
 const NAVIGATION: NavItem[] = [
   { name: 'Help home', href: '/help' },
-  { name: 'How to play', href: '/help/how-to-play' },
-  { name: 'Matchday (beta)', href: '/help/matchday' },
-  { name: 'For organisers', href: '/help/getting-started/organizers', group: 'Getting started' },
-  { name: 'For players', href: '/help/getting-started/players', group: 'Getting started' },
-  { name: 'Fundraising', href: '/help/fundraising', group: 'Raising money' },
-  { name: 'Is it gambling?', href: '/help/is-it-gambling', group: 'Raising money' },
-  { name: 'FAQ', href: '/help/faq' },
-  { name: 'Support', href: '/help/support' }
+  // Grouped by game first, as on the help home (2026-11-24). On the mobile strip the group
+  // headings are not shown, so each name has to say its game on its own.
+  { name: 'LMS rules', href: '/help/how-to-play', group: 'Last Man Standing' },
+  { name: 'Matchday rules', href: '/help/matchday', group: 'Matchday · coming soon' },
+  { name: 'Setting one up', href: '/help/getting-started/organizers', group: 'Running a competition' },
+  { name: 'Fundraising', href: '/help/fundraising', group: 'Running a competition' },
+  { name: 'Is it gambling?', href: '/help/is-it-gambling', group: 'Running a competition' },
+  { name: 'Joining and playing', href: '/help/getting-started/players', group: 'Playing' },
+  { name: 'FAQ', href: '/help/faq', group: 'More' },
+  { name: 'Support', href: '/help/support', group: 'More' }
 ];
 
 export default function HelpLayout({ children }: { children: React.ReactNode }) {

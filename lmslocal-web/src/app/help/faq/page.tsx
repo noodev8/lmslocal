@@ -2,16 +2,16 @@ import Link from 'next/link';
 import { LABEL, EYEBROW, HEADING, PANEL } from '@/lib/design';
 
 export const metadata = {
-  title: 'Last Man Standing FAQ - Rules, Picks and Running One | LMSLocal',
+  title: 'Last Man Standing FAQ: Playing and Running One | LMSLocal',
   description:
-    'Answers to common questions about Last Man Standing: what a draw does to your pick, when picks lock, lives, buy-backs, resets, credits, running a competition for your pub, workplace or club, and Matchday, the new prediction game.',
+    'Answers to common questions about Last Man Standing and Matchday: joining, buy-backs, resets, bringing a player back, what it costs, entry fees, and running a competition for your workplace, friends or club.',
   keywords:
-    'last man standing FAQ, last man standing rules, does a draw count, when do picks lock, last man standing buy back, rejoin after elimination, competition rules, football sweepstake help',
+    'last man standing FAQ, last man standing help, last man standing buy back, rejoin after elimination, run a last man standing competition, matchday prediction game',
   alternates: { canonical: 'https://lmslocal.co.uk/help/faq' },
   openGraph: {
     title: 'Last Man Standing: Frequently Asked Questions',
     description:
-      'What happens on a draw, when picks lock, how lives work, what a reset costs — the questions organisers and players actually ask.',
+      'Joining, buy-backs, resets, what it costs and Matchday — the questions organisers and players actually ask.',
     type: 'article'
   }
 };
@@ -23,6 +23,13 @@ export const metadata = {
   JSON-LD, and a hand-maintained copy of a page's own text drifts the moment somebody edits one
   and not the other — at which point the structured data is a lie we are actively publishing.
   Here the page and the schema are rendered from the same array, so they cannot disagree.
+
+  Grouped by game first, then by job (2026-11-24), as the help home is. The pure rules questions
+  (draws, extra time, same team twice, missed picks, postponements, everyone out, how long it
+  lasts) moved to /help/how-to-play, which is the page that ranks for rules searches - two pages
+  answering the same question compete with each other in search. A pointer at the top of the LMS
+  section links to them. Section ids playing, organising and matchday are linked from other help
+  pages: keep them.
 
   Second, answers are plain strings rather than JSX so they can be flattened to text for the
   schema. That also means writing an apostrophe as an apostrophe: React escapes on render, so
@@ -39,65 +46,25 @@ type Faq = {
 type Section = {
   id: string;
   title: string;
+  /* Questions answered on another page, linked rather than repeated. */
+  pointer?: { text: string; links: { href: string; label: string }[] };
   faqs: Faq[];
 };
 
 const SECTIONS: Section[] = [
   {
-    id: 'general',
-    title: 'The basics',
-    faqs: [
-      {
-        q: 'What is Last Man Standing?',
-        a: [
-          {
-            p: 'An elimination competition. Each round you pick one team you think will win. If they win, you go through to the next round. If they lose or draw, you are out — or you lose a life, if your competition gives you one. Players drop away week by week until somebody is the last one standing.'
-          }
-        ]
-      },
-      {
-        q: 'Does a draw count as a win?',
-        a: [
-          {
-            p: 'No. Your team has to win. A draw is treated exactly the same as a defeat: it costs you a life, or puts you out if you have none left. This catches more people out than anything else in the game, so it is worth saying plainly before you pick a team you fancy for a point.'
-          }
-        ]
-      },
-      {
-        q: 'Is extra time or penalties included in the result?',
-        a: [
-          {
-            p: 'No. Results are judged on regulation time only — the ninety minutes plus stoppage time. If a cup tie is level at full time and your team goes on to win in extra time or on penalties, the pick still counts as a draw and you still lose a life.'
-          },
-          {
-            p: 'It is the standard Last Man Standing convention and it removes any argument about which scoreline counted.'
-          }
-        ]
-      },
-      {
-        q: 'How much does it cost?',
-        a: [
-          {
-            p: 'Players: nothing. Joining is free. Your organiser may run their own entry fee or kitty, which is between you and them and has nothing to do with us.'
-          },
-          {
-            p: 'Organisers: 20 free places, no card needed. They are shared across everything you run, not 20 per competition, and each player holds one for as long as their competition exists — including competitions that have finished. Every player past the 20 uses a credit, and credits come in packs starting at £10 for 20 more places.'
-          }
-        ]
-      },
-      {
-        q: 'Can I play on mobile?',
-        a: [
-          {
-            p: 'Yes. It works in any browser on a phone, tablet or computer — there is nothing to install, and most players do the whole thing on their phone.'
-          }
-        ]
-      }
-    ]
-  },
-  {
     id: 'playing',
-    title: 'Playing',
+    title: 'Last Man Standing · playing',
+    pointer: {
+      text: 'The rules questions — draws, extra time, using a team twice, missed picks, postponed matches, everyone going out at once — are answered on the rules page.',
+      links: [
+        { href: '/help/how-to-play#draw', label: 'Does a draw count?' },
+        { href: '/help/how-to-play#same-team', label: 'Same team twice?' },
+        { href: '/help/how-to-play#deadline', label: 'When do picks lock?' },
+        { href: '/help/how-to-play#everyone-out', label: 'Everyone out?' },
+        { href: '/help/how-to-play', label: 'All the rules' }
+      ]
+    },
     faqs: [
       {
         q: 'How do you win at Last Man Standing?',
@@ -130,40 +97,6 @@ const SECTIONS: Section[] = [
         ]
       },
       {
-        q: 'When do picks lock?',
-        a: [
-          {
-            p: 'At the deadline your organiser sets for that round. There is no automatic buffer before kick-off, so do not assume it is an hour before the first match — it might be, or it might not.'
-          },
-          { p: 'The deadline is shown on your dashboard and again on the pick screen. Check it there rather than guessing.' }
-        ]
-      },
-      {
-        q: 'What if I forget to pick?',
-        a: [
-          { p: 'Missing the deadline counts the same as a losing pick. You lose a life, or you are eliminated if you had none left.' }
-        ]
-      },
-      {
-        q: 'Can I use the same team twice?',
-        a: [
-          {
-            p: 'Usually not — most competitions run the "no team twice" rule, so once you have used a team they are gone from your list. Your organiser chooses this when they set the competition up, and it cannot be changed once round 1 has started.'
-          }
-        ]
-      },
-      {
-        q: 'What happens when I run out of teams?',
-        a: [
-          {
-            p: 'Every team comes back. Once you have used all of them, your list resets and the whole roster is available to you again from the next round.'
-          },
-          {
-            p: 'It happens per player rather than per competition, so somebody who joined later still has their own teams to work through. Worth planning for: the last few rounds before a reset are the ones where people get stuck with nobody good left.'
-          }
-        ]
-      },
-      {
         q: 'Can I join multiple competitions?',
         a: [{ p: 'Yes, as many as you like on one account. Your picks and your used teams are tracked separately in each one.' }]
       },
@@ -187,17 +120,6 @@ const SECTIONS: Section[] = [
         ]
       },
       {
-        q: 'What happens if my team’s match is postponed?',
-        a: [
-          {
-            p: 'That is your organiser’s call — there is no automatic "void" outcome. A fixture with no result entered simply stays unresulted, and the round does not finish until it has one.'
-          },
-          {
-            p: 'Some organisers wait for the rearranged match, others decide the pick counts as a win. Ask yours what they do before it comes up.'
-          }
-        ]
-      },
-      {
         q: 'Can eliminated players rejoin?',
         a: [
           {
@@ -211,28 +133,12 @@ const SECTIONS: Section[] = [
           },
           { p: 'A competition reset is the other route: it starts the whole thing again with everybody back in.' }
         ]
-      },
-      {
-        q: 'What happens if everyone goes out in the same round?',
-        a: [
-          {
-            p: 'The competition ends with no winner, and LMSLocal records it that way — it is a real ending rather than an error, and everyone is told. What happens to the prize is your organiser’s call: commonly the pot is shared between everyone knocked out in that last round, or the competition is reset and run again.'
-          }
-        ]
-      },
-      {
-        q: 'How long does a competition last?',
-        a: [
-          {
-            p: 'Until somebody wins, which is a matter of luck rather than a fixed length. Small competitions can be over in five or six rounds. A big one can run most of a season, especially with lives in play.'
-          }
-        ]
       }
     ]
   },
   {
     id: 'organising',
-    title: 'Running a competition',
+    title: 'Last Man Standing · running one',
     faqs: [
       {
         q: 'How do I run a Last Man Standing competition?',
@@ -244,61 +150,7 @@ const SECTIONS: Section[] = [
             p: 'Week to week there is very little to do. The matches arrive in the round already, players pick on their own phones, results land after full time and the eliminations follow without anybody working them out by hand. A round update is written for you to paste into WhatsApp.'
           },
           {
-            p: 'The decisions worth making before round one are what a missed pick costs, when picks lock, and what happens if everyone goes out at once. All three are answered further down this page.'
-          }
-        ]
-      },
-      {
-        q: 'How many players can join?',
-        a: [
-          {
-            p: 'As many as you like — there is no cap on the size of a competition. Your first 20 places are free across everything you run, and each player after that uses a credit, so a big competition is a question of credits rather than a limit.'
-          }
-        ]
-      },
-      {
-        q: 'How many competitions can I run?',
-        a: [
-          {
-            p: 'As many as you want, all from one account. Remember the 20 free places are shared across them rather than granted to each — including competitions that have finished, which carry on holding the places their players took.'
-          }
-        ]
-      },
-      {
-        q: 'Can I charge an entry fee, and is that gambling?',
-        a: [
-          {
-            p: 'Plenty of organisers charge one, and most fundraisers sit well inside the rules — but it is a real question rather than a formality, and the answer depends on who is playing and where the money ends up. A competition with no entry fee is not gambling at all, whatever the prize.'
-          },
-          {
-            p: 'The Is it gambling? page in this help centre maps it out in plain English and links to the Gambling Commission pages it comes from. We are not lawyers, so treat it as a starting point rather than a ruling.'
-          }
-        ]
-      },
-      {
-        q: 'Does LMSLocal take the entry money or pay the prizes?',
-        a: [
-          {
-            p: 'No. We never take entry fees, hold stakes or pay prizes, and that is deliberate — the money is between you and your players, collected and handed out however you like. The only thing you ever pay us for is player places.'
-          }
-        ]
-      },
-      {
-        q: 'How do I get people to join?',
-        a: [
-          {
-            p: 'Getting players in is the hardest part of running a competition, and it is the part we can actually help with. Every competition has a Promote page with the work already done:'
-          },
-          {
-            ul: [
-              'Ready-made WhatsApp messages you can edit and copy',
-              'An image to post on Facebook or Instagram',
-              'A QR code to print and put up behind the bar',
-              'Your join link, ready to paste anywhere'
-            ]
-          },
-          {
-            p: 'Most organisers find one good WhatsApp message to the right group does more than everything else put together.'
+            p: 'The decisions worth making before round one are how many lives players get, when picks lock, and what happens if everyone goes out at once. The rules page covers all three.'
           }
         ]
       },
@@ -422,36 +274,6 @@ const SECTIONS: Section[] = [
         ]
       },
       {
-        q: 'Why are my free places still used when a competition has finished?',
-        a: [
-          {
-            p: 'Because a place is held by a player rather than spent on a game. Each player takes one of your 20 for as long as their competition exists, so a competition that finished last month is still holding the places its players took. That is why you can be at the limit on a brand new competition with only a handful of people in it.'
-          },
-          {
-            p: 'Your billing page lists every competition and how many places each one is holding, so you can see exactly where the 20 have gone.'
-          },
-          {
-            p: 'Deleting a competition frees the free places its players are holding. It also removes that competition’s results for good, and does not refund credits you have bought.'
-          }
-        ]
-      },
-      {
-        q: 'If I remove a player, do I get their credit back?',
-        a: [
-          {
-            p: 'Only if you remove them before the competition has started. Once it is underway, removing a player frees up their place but does not refund a credit that has been spent.'
-          }
-        ]
-      },
-      {
-        q: 'What happens if a player tries to join when I am full?',
-        a: [
-          {
-            p: 'They see a message saying the competition is full and to get in touch with you. You get a notice on your dashboard shortly afterwards, so you can buy more places or tell them where they stand. Your billing page lists which of your competitions are holding your places.'
-          }
-        ]
-      },
-      {
         q: 'What is the "Set Pick" option against a player’s name for?',
         a: [
           {
@@ -466,7 +288,7 @@ const SECTIONS: Section[] = [
           {
             ul: [
               'Set or change any player’s pick before the round locks',
-              'Adjust a player’s lives, or their in/out status',
+              'Put a player out, or bring an eliminated player back in',
               'Add or remove players at any point',
               'Reset the whole competition and start again'
             ]
@@ -481,11 +303,11 @@ const SECTIONS: Section[] = [
   /*
     Matchday, the second game. Rules from docs/matchday.md §1, words from §2: a "prediction", never
     a "pick", and none of the betting words. In preview (MATCHDAY_PREVIEW_ORGANISER_IDS) - at
-    launch, rewrite "Can I run a Matchday competition?" and drop "beta" from the title.
+    launch, rewrite "Can I run a Matchday competition?" and drop "coming soon" from the title.
   */
   {
     id: 'matchday',
-    title: 'Matchday (beta)',
+    title: 'Matchday · coming soon',
     faqs: [
       {
         q: 'What is Matchday?',
@@ -586,9 +408,118 @@ const SECTIONS: Section[] = [
     ]
   },
   {
-    id: 'account',
-    title: 'Account, privacy and problems',
+    id: 'money',
+    title: 'Costs, places and entry fees',
     faqs: [
+      {
+        q: 'How much does it cost?',
+        a: [
+          {
+            p: 'Players: nothing. Joining is free. Your organiser may run their own entry fee or kitty, which is between you and them and has nothing to do with us.'
+          },
+          {
+            p: 'Organisers: 20 free places, no card needed. They are shared across everything you run, not 20 per competition, and each player holds one for as long as their competition exists — including competitions that have finished. Every player past the 20 uses a credit, and credits come in packs starting at £10 for 20 more places.'
+          }
+        ]
+      },
+      {
+        q: 'How many players can join?',
+        a: [
+          {
+            p: 'As many as you like — there is no cap on the size of a competition. Your first 20 places are free across everything you run, and each player after that uses a credit, so a big competition is a question of credits rather than a limit.'
+          }
+        ]
+      },
+      {
+        q: 'How many competitions can I run?',
+        a: [
+          {
+            p: 'As many as you want, all from one account. Remember the 20 free places are shared across them rather than granted to each — including competitions that have finished, which carry on holding the places their players took.'
+          }
+        ]
+      },
+      {
+        q: 'Why are my free places still used when a competition has finished?',
+        a: [
+          {
+            p: 'Because a place is held by a player rather than spent on a game. Each player takes one of your 20 for as long as their competition exists, so a competition that finished last month is still holding the places its players took. That is why you can be at the limit on a brand new competition with only a handful of people in it.'
+          },
+          {
+            p: 'Your billing page lists every competition and how many places each one is holding, so you can see exactly where the 20 have gone.'
+          },
+          {
+            p: 'Deleting a competition frees the free places its players are holding. It also removes that competition’s results for good, and does not refund credits you have bought.'
+          }
+        ]
+      },
+      {
+        q: 'If I remove a player, do I get their credit back?',
+        a: [
+          {
+            p: 'Only if you remove them before the competition has started. Once it is underway, removing a player frees up their place but does not refund a credit that has been spent.'
+          }
+        ]
+      },
+      {
+        q: 'What happens if a player tries to join when I am full?',
+        a: [
+          {
+            p: 'They see a message saying the competition is full and to get in touch with you. You get a notice on your dashboard shortly afterwards, so you can buy more places or tell them where they stand. Your billing page lists which of your competitions are holding your places.'
+          }
+        ]
+      },
+      {
+        q: 'Can I charge an entry fee, and is that gambling?',
+        a: [
+          {
+            p: 'Plenty of organisers charge one, and most fundraisers sit well inside the rules — but it is a real question rather than a formality, and the answer depends on who is playing and where the money ends up. A competition with no entry fee is not gambling at all, whatever the prize.'
+          },
+          {
+            p: 'The Is it gambling? page in this help centre maps it out in plain English and links to the Gambling Commission pages it comes from. We are not lawyers, so treat it as a starting point rather than a ruling.'
+          }
+        ]
+      },
+      {
+        q: 'Does LMSLocal take the entry money or pay the prizes?',
+        a: [
+          {
+            p: 'No. We never take entry fees, hold stakes or pay prizes, and that is deliberate — the money is between you and your players, collected and handed out however you like. The only thing you ever pay us for is player places.'
+          }
+        ]
+      },
+      {
+        q: 'How do I get people to join?',
+        a: [
+          {
+            p: 'Getting players in is the hardest part of running a competition, and it is the part we can actually help with. Every competition has a Promote page with the work already done:'
+          },
+          {
+            ul: [
+              'Ready-made WhatsApp messages you can edit and copy',
+              'An image to post on Facebook or Instagram',
+              'A QR code to print and put up behind the bar',
+              'Your join link, ready to paste anywhere'
+            ]
+          },
+          {
+            p: 'Most organisers find one good WhatsApp message to the right group does more than everything else put together.'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'account',
+    title: 'Account, app and problems',
+    faqs: [
+      {
+        q: 'Can I play on mobile?',
+        a: [
+          {
+            p: 'Yes. It works in any browser on a phone, tablet or computer — there is nothing to install, and most players do the whole thing on their phone.'
+          }
+        ]
+      },
       {
         q: 'I cannot log in — what should I try?',
         a: [
@@ -647,7 +578,7 @@ const SECTIONS: Section[] = [
         ]
       }
     ]
-  }
+  },
 ];
 
 /* Anchors, so an answer can be linked to directly and search results can deep-link into it. */
@@ -721,14 +652,18 @@ export default function FAQPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
       <h1 className={`${HEADING} text-5xl sm:text-6xl`}>Frequently asked questions</h1>
-      <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-ink">
-        The questions players and organisers actually ask &mdash; how a draw is treated, when picks
-        lock, what happens when you run out of teams, what running a competition costs, and how
-        Matchday, the second game, works.
+      <p className="mt-6 max-w-xl text-[18px] leading-relaxed text-ink">
+        The questions players and organisers actually ask, about Last Man Standing, Matchday, and
+        what running a competition costs. For the rules themselves &mdash; draws, using a team
+        twice, missed picks &mdash; see{' '}
+        <Link href="/help/how-to-play" className="underline decoration-dotted underline-offset-4 hover:text-overprint">
+          the Last Man Standing rules
+        </Link>
+        .
       </p>
 
       {/* Jump links. The page is long and most people arrive wanting one answer. */}
-      <div className="mt-7 flex flex-wrap gap-2">
+      <div className="mt-9 flex flex-wrap gap-2">
         {SECTIONS.map((s) => (
           <a
             key={s.id}
@@ -741,16 +676,34 @@ export default function FAQPage() {
       </div>
 
       {SECTIONS.map((section) => (
-        <section key={section.id} id={section.id} className="mt-14 scroll-mt-8 border-t border-ink/30 pt-10">
-          <p className={`${EYEBROW} text-overprint`}>{section.title}</p>
+        <section key={section.id} id={section.id} className="mt-20 scroll-mt-8 border-t border-ink/30 pt-12">
+          <h2 className={`${HEADING} text-4xl`}>{section.title}</h2>
+
+          {section.pointer && (
+            <div className={`${PANEL} mt-7 p-6`}>
+              <p className="text-[17px] leading-relaxed text-ink">{section.pointer.text}</p>
+              <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+                {section.pointer.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className={`${LABEL} text-ink underline decoration-dotted underline-offset-[6px] transition-colors hover:text-overprint`}
+                    >
+                      {link.label} &rarr;
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/*
             One hairline between answers rather than a card around each. A page of forty stacked
             panels reads as a list of boxes; the coupon reads as a ruled sheet.
           */}
-          <dl className="mt-6 divide-y divide-ink/30 border-y border-ink/30">
+          <dl className="mt-8 divide-y divide-ink/30 border-y border-ink/30">
             {section.faqs.map((faq) => (
-              <div key={faq.q} id={slug(faq.q)} className="scroll-mt-8 py-7 first:pt-6 last:pb-6">
+              <div key={faq.q} id={slug(faq.q)} className="scroll-mt-8 py-8">
                 <dt className={`${HEADING} text-2xl tracking-[0.02em]`}>{faq.q}</dt>
                 <dd className="mt-3">
                   <Blocks blocks={faq.a} />
@@ -765,7 +718,7 @@ export default function FAQPage() {
         Where to go next. The help layout already ends every page with the contact panel, so
         repeating it here just put the same two buttons on screen twice.
       */}
-      <section className="mt-14 border-t border-ink/30 pt-10">
+      <section className="mt-20 border-t border-ink/30 pt-12">
         <p className={`${EYEBROW} text-ink-fade`}>Not what you were after?</p>
         <ul className={`${PANEL} mt-5 divide-y divide-ink/30`}>
           {[

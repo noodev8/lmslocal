@@ -39,6 +39,8 @@ export type AudienceContent = {
   weekly: { heading: string; items: string[] };
   questions: { q: string; a: string }[];
   ctaNote: string;
+  /** Overrides the default "Start one" button - for a game that cannot be started yet. */
+  cta?: { href: string; label: string };
   alsoSee: { href: string; label: string }[];
 };
 
@@ -58,16 +60,16 @@ export default function AudiencePage({ content }: { content: AudienceContent }) 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <PublicHeader />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-16 sm:px-6 sm:py-24">
         <p className={`${EYEBROW} text-overprint`}>{content.eyebrow}</p>
-        <h1 className={`${HEADING} mt-4 text-6xl sm:text-7xl`}>{content.title}</h1>
-        <p className="mt-6 max-w-2xl text-xl leading-relaxed text-ink">{content.lead}</p>
+        <h1 className={`${HEADING} mt-5 text-6xl sm:text-7xl`}>{content.title}</h1>
+        <p className="mt-8 max-w-2xl text-xl leading-relaxed text-ink">{content.lead}</p>
 
         {content.sections.map((section) => (
-          <section key={section.heading} className="mt-14 border-t border-ink/30 pt-10">
+          <section key={section.heading} className="mt-20 border-t border-ink/30 pt-12">
             <h2 className={`${HEADING} text-4xl`}>{section.heading}</h2>
             {section.body.map((para, i) => (
-              <p key={i} className="mt-4 max-w-2xl text-[17px] leading-relaxed text-ink">
+              <p key={i} className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink">
                 {para}
               </p>
             ))}
@@ -87,7 +89,7 @@ export default function AudiencePage({ content }: { content: AudienceContent }) 
         ))}
 
         {/* The weekly job, in a panel, because "how much work is this?" is the real objection. */}
-        <section className="mt-14">
+        <section className="mt-20">
           <div className={`${PANEL} max-w-2xl p-5 sm:p-6`}>
             <h2 className={`${HEADING} text-3xl`}>{content.weekly.heading}</h2>
             <ol className="mt-5 divide-y divide-ink/30 border-y border-ink/30">
@@ -106,7 +108,7 @@ export default function AudiencePage({ content }: { content: AudienceContent }) 
           </div>
         </section>
 
-        <section className="mt-14 border-t border-ink/30 pt-10">
+        <section className="mt-20 border-t border-ink/30 pt-12">
           <h2 className={`${HEADING} text-4xl`}>Questions</h2>
           <dl className="mt-7 divide-y divide-ink/30 border-y border-ink/30">
             {content.questions.map((item) => (
@@ -118,9 +120,12 @@ export default function AudiencePage({ content }: { content: AudienceContent }) 
           </dl>
         </section>
 
-        <div className="mt-14">
-          <Link href="/competition/create" className={`${BTN_PRIMARY} inline-block px-8 py-4 text-2xl`}>
-            Start one &mdash; free
+        <div className="mt-20">
+          <Link
+            href={content.cta?.href ?? '/competition/create'}
+            className={`${BTN_PRIMARY} inline-block px-8 py-4 text-2xl`}
+          >
+            {content.cta?.label ?? <>Start one &mdash; free</>}
           </Link>
           <p className={`${LABEL} mt-4 text-ink-fade`}>{content.ctaNote}</p>
         </div>

@@ -109,8 +109,8 @@ export default function MatchdayRulesPage() {
         <p className="mt-4 text-[17px] leading-relaxed text-ink">
           A football prediction league, played on the same real matches as Last Man Standing. Where
           Last Man Standing asks for one team a round and knocks out anybody who gets it wrong,
-          Matchday asks for the winner of every match and keeps everybody in. A wrong call costs a
-          point; it never costs you your place.
+          Matchday asks for the winner of every match and keeps everybody in. A wrong call scores
+          nothing; it never costs you your place.
         </p>
         <p className="mt-4 text-[17px] leading-relaxed text-ink">
           That makes it the one to run when you want your whole group playing to the last weekend,
