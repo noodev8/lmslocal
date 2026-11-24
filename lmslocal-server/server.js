@@ -59,6 +59,17 @@ const clearPredictionRoute = require('./routes/clear-prediction');
 const getPredictionsRoute = require('./routes/get-predictions');
 const getMatchdayTableRoute = require('./routes/get-matchday-table');
 const getRoundPredictionsRoute = require('./routes/get-round-predictions');
+// Matchday Party (docs/matchday-party.md): its own tables, sharing nothing with competitions.
+const createPartyRoomRoute = require('./routes/create-party-room');
+const joinPartyRoomRoute = require('./routes/join-party-room');
+const getPartyStateRoute = require('./routes/get-party-state');
+const setPartyPredictionsRoute = require('./routes/set-party-predictions');
+const startPartyGameRoute = require('./routes/start-party-game');
+const lockPartyRoundRoute = require('./routes/lock-party-round');
+const showPartyTableRoute = require('./routes/show-party-table');
+const nextPartyRoundRoute = require('./routes/next-party-round');
+const removePartyPlayerRoute = require('./routes/remove-party-player');
+const endPartyGameRoute = require('./routes/end-party-game');
 const adminSetPickRoute = require('./routes/admin-set-pick');
 const updatePlayerLivesRoute = require('./routes/update-player-lives');
 const updatePlayerStatusRoute = require('./routes/update-player-status');
@@ -240,6 +251,10 @@ const limiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // The Matchday Party state poll has its own limit (partyStateLimit below). A living room of ten
+  // devices polling every two seconds is 4,500 requests in 15 minutes from one address, which would
+  // exhaust this allowance in about three minutes and freeze the game mid-round.
+  skip: (req) => req.path === '/get-party-state',
 });
 app.use(limiter);
 
@@ -271,6 +286,21 @@ const joinLookupLimit = rateLimit({
   message: {
     return_code: "RATE_LIMIT_EXCEEDED",
     message: "Too many code lookups. Please wait a minute and try again."
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Matchday Party polling (docs/matchday-party.md §7). Every phone and the TV in a room share one
+// home address, and each asks for the room's state every second or two. 1,500 a minute covers
+// twenty players and a TV polling every second; an unchanged poll is a single indexed read.
+const partyStateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 1500,
+  statusCode: RATE_LIMIT_STATUS,
+  message: {
+    return_code: "RATE_LIMIT_EXCEEDED",
+    message: "Too many requests for this game. Please wait a moment."
   },
   standardHeaders: true,
   legacyHeaders: false
@@ -422,6 +452,17 @@ app.use('/clear-prediction', clearPredictionRoute);
 app.use('/get-predictions', getPredictionsRoute);
 app.use('/get-matchday-table', getMatchdayTableRoute);
 app.use('/get-round-predictions', getRoundPredictionsRoute);
+// Matchday Party. Joining is public and reuses the join-code limit; the state poll has its own.
+app.use('/create-party-room', createPartyRoomRoute);
+app.use('/join-party-room', joinLookupLimit, joinPartyRoomRoute);
+app.use('/get-party-state', partyStateLimit, getPartyStateRoute);
+app.use('/set-party-predictions', setPartyPredictionsRoute);
+app.use('/start-party-game', startPartyGameRoute);
+app.use('/lock-party-round', lockPartyRoundRoute);
+app.use('/show-party-table', showPartyTableRoute);
+app.use('/next-party-round', nextPartyRoundRoute);
+app.use('/remove-party-player', removePartyPlayerRoute);
+app.use('/end-party-game', endPartyGameRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/update-player-lives', updatePlayerLivesRoute);
 app.use('/update-player-status', updatePlayerStatusRoute);

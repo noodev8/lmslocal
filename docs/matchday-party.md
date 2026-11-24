@@ -5,7 +5,7 @@ made-up Premier League fixtures on their phones; when everyone has chosen, the T
 vidiprinter and the scores come in. Points go on a table, and after 4, 6 or 8 rounds the most points
 wins. Fast, free, and played for fun.
 
-**Status, 2026-11-24: designed; phase 0, the engine, built (§4). No tables, routes or screens.** The decisions marked *(decided)* came
+**Status, 2026-11-24: phase 0 (the engine, §4) and phase 1 (tables and routes, §7) built. No screens.** The decisions marked *(decided)* came
 from Andreas on 2026-11-24. §10 lists what is still open. "Matchday Party" is a working name.
 
 This doc is the contract, as `docs/matchday.md` is for Matchday: answer a new scenario here first,
@@ -163,8 +163,10 @@ plays (§6).
 8. **Host moves on** to the next round. Repeat from step 4.
 9. After the last round, **the final table** and a winner.
 
-Room states, in order: `lobby → open → locked → revealing → table → (open … ) → finished`. Only the
-host moves a room from one state to the next, except `open → locked` when everyone has submitted.
+Room states, in order: `lobby → open → revealing → table → (open … ) → finished`. Locking and
+playing a round are one step, so there is no separate locked state. Only the host moves a room from
+one state to the next, except `open → revealing` when the last player sends their coupon. The host
+can end the game from any state.
 
 ---
 
@@ -183,25 +185,58 @@ goals arriving in kick-off order, then FT on each line, then the teams' table, t
 
 ---
 
-## 7. Data and API (outline)
+## 7. Data and API
 
-All new tables, sharing nothing with competitions: `party_team` (name, short name, rating — seeded
-from the Premier League team list, then maintained in admin), `party_room` (code, host, state,
-rounds, current round, created/expires), `party_player` (room, name, token), `party_round`
-(room, number, seed, locked/revealed times), `party_fixture` (round, teams, goals, goal minutes),
-`party_prediction` (player, fixture, predicted team).
+Built 2026-11-24 (phase 1): `db/migrations/2026-11-24-matchday-party.sql`, `services/party.js`,
+ten routes, `scripts/prune-party-rooms.js`.
 
-- **Players are not users.** Joining issues a random **player token** for that room only, stored
-  hashed. It is not a JWT and opens nothing outside the room.
-- **Live updates by polling at first**: phones and the TV ask for the room's state every one to two
-  seconds, and the server answers with a version number so an unchanged state is cheap. The API is
-  one always-on Express process (pm2), so a live connection (server-sent events) can replace polling
-  later without changing the game.
-- **Routes follow the API conventions** in CLAUDE.md: one route per file, POST for actions, HTTP 200
-  with a `return_code`.
-- **Rooms expire.** They are deleted after a set time (say 24 hours), so the production database
-  does not fill with finished parties.
-- Room codes are short, avoid confusable letters, and joining is rate-limited.
+**Tables**, all new and all `party_`-prefixed. They reference only `app_user`; nothing that
+exists reads them.
+
+| Table | What |
+|---|---|
+| `party_team` | The 20 teams and their ratings (§4.1). Seeded with the provisional set |
+| `party_room` | One game: code, host, state, rounds, current round, `version`, expiry |
+| `party_player` | Everyone in the room, host included. A hashed token; `user_id` for the host only |
+| `party_round` | A round, with its draw seed and, once locked, its play seed |
+| `party_fixture` | Ten a round. Goals, goal minutes and the effective ratings, null until locked |
+| `party_submission` | A player has sent their coupon for a round (it may be all blanks) |
+| `party_prediction` | One row per predicted match; points are derived, never stored |
+
+Inside a party the foreign keys **cascade**, so deleting a room removes everything under it in one
+statement. That is the whole prune script.
+
+**Routes** (POST, HTTP 200, `return_code`):
+
+| Route | Who | What |
+|---|---|---|
+| `create-party-room` | Host (JWT) | Rounds 4/6/8. Returns the code and the host's player token. Finishes any other unfinished room of the host's |
+| `join-party-room` | Anyone | Code and a name; returns a player token. Lobby only. Rate limited like the competition join lookup |
+| `get-party-state` | TV, phones | The whole room as a screen needs it. `known_version` makes an unchanged poll one read. Its own rate limit (§7.1) |
+| `set-party-predictions` | Player token | The whole coupon at once; replaces an earlier one. The last coupon locks and plays the round |
+| `start-party-game` | Host | Needs 2 players, host included. Draws round 1 |
+| `lock-party-round` | Host | Locks and plays without waiting |
+| `show-party-table` | Host | Reveal → tables |
+| `next-party-round` | Host | Tables → next round, or finished after the last |
+| `remove-party-player` | Host | Not the host. If the round was waiting only on them, it plays |
+| `end-party-game` | Host | Finished from any state; an open round is not played |
+
+**Who is who.** The host's controls need their LMSLocal sign-in. Players hold a random token for
+one room, stored hashed, opening nothing else. The TV sends the code alone and can only read.
+
+**In preview:** only `PARTY_PREVIEW_HOST_IDS` (`services/party.js`, organiser 50) can create a
+room. Launching is setting it to `null` in a commit of its own.
+
+**Rooms expire** 24 hours after creation. Expired rooms are invisible to every route, and the prune
+script deletes them nightly (crontab line in its header).
+
+Room codes are five letters with no I, L, O or U, and no digits, so nothing is misread across a room.
+
+### 7.1 Polling and the rate limits
+
+Every phone and the TV in a room share one home address. The general limit (1,000 requests per 15
+minutes per address) would freeze a room of ten devices in about three minutes, so
+`get-party-state` is outside it, with its own limit of 1,500 a minute.
 
 ---
 
@@ -226,7 +261,7 @@ rounds, current round, created/expires), `party_player` (room, name, token), `pa
 | Phase | What | Visible? |
 |---|---|---|
 | 0 | **The engine**, as a pure function plus a simulation script. **Built 2026-11-24**; the ratings are still provisional | No |
-| 1 | Tables and routes: create, join, state, predict, lock, play round, next round, end | No |
+| 1 | Tables and routes: create, join, state, predict, lock, play round, next round, end. **Built and migrated 2026-11-24**; tested end to end through the routes | No |
 | 2 | Player phone screens | Behind a preview flag |
 | 3 | TV screens and the vidiprinter | Behind a preview flag |
 | 4 | Host controls and the awkward cases: a phone that sleeps, the TV page refreshed mid-game, a player removed, the host disappearing | Behind a preview flag |
