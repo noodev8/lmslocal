@@ -5,7 +5,7 @@ made-up Premier League fixtures on their phones; when everyone has chosen, the T
 vidiprinter and the scores come in. Points go on a table, and after 4, 6 or 8 rounds the most points
 wins. Fast, free, and played for fun.
 
-**Status: high-level design, 2026-11-24. Nothing built.** The decisions marked *(decided)* came
+**Status, 2026-11-24: designed; phase 0, the engine, built (§4). No tables, routes or screens.** The decisions marked *(decided)* came
 from Andreas on 2026-11-24. §10 lists what is still open. "Matchday Party" is a working name.
 
 This doc is the contract, as `docs/matchday.md` is for Matchday: answer a new scenario here first,
@@ -75,52 +75,64 @@ phone dies, the game waits; nothing advances without them (§10, question 6).
 
 ## 4. The match engine
 
-A defined engine of our own *(decided)*: random, weighted towards the favourite, with rare upsets,
-and form that builds over the game.
+Agreed 2026-11-24, built as `services/partyEngine.js` and tuned with
+`scripts/party-engine-sim.js` (no database). The engine is pure: the same seed always gives the
+same result. It is a paper game played by the server: dice, windows and a count.
 
 ### 4.1 Ratings
 
-Every team has a **rating** we set and maintain (say 1–100), stored in its own table (§7). Ratings
-are a judgement made in the admin tool, not computed from live data, so the game cannot be broken
-by a feed. They are reviewed each season, and at promotion and relegation.
+Every team has a **rating from 1 to 100** that we set and maintain. It is a judgement, not
+computed from live data, so no feed can break the game. Reviewed each season and at promotion and
+relegation. The first set is **provisional**, in the sim script; once agreed it moves to the
+`party_team` table (§7). Ratings are never shown to players (§2).
 
-### 4.2 A result
+### 4.2 A match *(decided)*
 
-For each fixture the engine turns the two ratings, plus a **home advantage**, into an expected
-number of goals for each side, and draws each side's goals at random from that expectation.
-(A Poisson draw is the standard model for football scores: it produces believable scorelines — lots
-of 1–0, 2–1 and 1–1, the occasional 4–3 — rather than just a win/draw/loss.)
+- A match is **9 blocks of ten minutes**.
+- In each block **both teams roll** a number from 0 to 100. A roll inside the team's **window** is a
+  goal. Both can score in the same block; a draw is simply level counts.
+- A team's window is **31 × its share of the two ratings**. A share, not the bare rating, so two
+  strong sides do not trade six goals each and two weak ones do not draw 0–0 every time.
+- The home side adds **5** to its rating before the share is taken.
 
-The engine is tuned by simulation **before** any screen is built. Starting targets, to be argued
-over in phase 0:
+Measured over 100,000 matches each (2026-11-24):
 
-| Match-up | Favourite wins | Draw | Upset |
+| Match-up | Home wins | Draw | Away wins |
 |---|---|---|---|
-| Top v bottom | ~80% | ~12% | ~8% |
-| Top half v bottom half | ~60% | ~22% | ~18% |
-| Evenly matched | ~40% | ~27% | ~33% (either side) |
+| Top v bottom (92 v 20) | 82% | 13% | 5% |
+| Bottom v top (20 v 92) | 7% | 16% | 77% |
+| Top half v bottom half (74 v 48) | 54% | 24% | 21% |
+| Evenly matched (62 v 60) | 41% | 26% | 33% |
 
-Upsets have to be rare enough that backing the favourite is right, and common enough that every
-round has one moment that sets the room off.
+About **2.8 goals a match**, the Premier League average. The common scorelines are 2–1, 1–0, 2–0
+and 1–1, with the odd 4–1 or 3–3.
 
-### 4.3 Form *(decided in principle)*
+### 4.3 Form: the league-position bonus *(decided)*
 
-Within one game, a team's results move its rating for the rest of that game: two wins in two and
-Hull's weight goes up. Because every team plays every round (§2), form is visible and meaningful
-by round 2. The adjustment is **small and capped**, and it **lives only in that room** — it never
-changes the stored rating. Players see it as a W/D/L strip beside each team from round 2.
+- From **round 2**, each team adds **(21 − its position) × 1** to its rating, from the teams' own
+  table in this game: top +20, bottom +1. Round 1 has no table and no bonus.
+- **×1, not ×2.** After a round or two the table is mostly goal difference, and ×2 let one lucky
+  weekend count for more than the club.
+- The bonus lives only in the game and never changes a stored rating.
+- Players see form in two places: the W/D/L strip beside each team when predicting, and **the
+  teams' table on the TV after each reveal** *(decided)*, which is what explains why Hull suddenly
+  look dangerous.
+
+Over 5,000 simulated games of 6 rounds, the favourite still wins only about half its matches, so
+the game stays open. Hull (rated 20) finish in the top half about 1 game in 25.
 
 ### 4.4 Goal times
 
-The engine also gives each goal a minute, so the vidiprinter can play the round as a timeline: a
-goal at 12', an equaliser at 88'. Minutes are generated from the final score, so they are drama, not
-a separate model.
+A goal's minute is a random minute inside the block it was scored in. That is what the vidiprinter
+plays (§6).
 
-### 4.5 Reproducible
+### 4.5 Two steps, two seeds
 
-Each round's results are generated from a **seed stored with the round**. The same seed always gives
-the same results, which makes a reported "that can't be right" checkable, and lets the engine be
-tested by script.
+- **When a round opens**, the engine draws the fixtures: all 20 teams paired at random, home side
+  at random.
+- **When it locks**, and never before, the engine plays them with a second seed. No result exists
+  while a prediction can still change.
+- Both seeds are stored with the round, so any result can be played again to check it.
 
 ---
 
@@ -147,7 +159,7 @@ host moves a room from one state to the next, except `open → locked` when ever
 
 The moment the game exists for. The TV becomes a results service: scores typed in line by line in
 block capitals, a minute-by-minute run through the round compressed into roughly 60–90 seconds,
-goals arriving in kick-off order, then FT on each line, then the table.
+goals arriving in kick-off order, then FT on each line, then the teams' table, then the players' table.
 
 - In the spirit of the classic teleprinter, built in LMSLocal's own type and colours.
   **No BBC name, logo or screen design.** The parked `landing-redesign` branch already has a typing
@@ -200,7 +212,7 @@ rounds, current round, created/expires), `party_player` (room, name, token), `pa
 
 | Phase | What | Visible? |
 |---|---|---|
-| 0 | **The engine**, as a pure function plus a simulation script: tune ratings, home advantage, form and upset rates against §4.2 | No |
+| 0 | **The engine**, as a pure function plus a simulation script. **Built 2026-11-24**; the ratings are still provisional | No |
 | 1 | Tables and routes: create, join, state, predict, lock, play round, next round, end | No |
 | 2 | Player phone screens | Behind a preview flag |
 | 3 | TV screens and the vidiprinter | Behind a preview flag |
