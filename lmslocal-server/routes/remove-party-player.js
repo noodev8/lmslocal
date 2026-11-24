@@ -61,13 +61,13 @@ router.post('/', verifyToken, async (req, res) => {
     const allowed = ['lobby', 'open', 'revealing', 'table'];
     const result = await party.hostAction(req.user.id, req.body.code, allowed, async (client, room) => {
       const target = (await client.query(
-        'SELECT id, is_host FROM party_player WHERE id = $1 AND room_id = $2 AND removed_at IS NULL',
+        'SELECT id, is_host FROM mdparty_player WHERE id = $1 AND room_id = $2 AND removed_at IS NULL',
         [playerId, room.id]
       )).rows[0];
       if (!target) return { return_code: 'PLAYER_NOT_FOUND', message: 'That player is not in this game' };
       if (target.is_host) return { return_code: 'FORBIDDEN', message: 'The host cannot be removed. End the game instead' };
 
-      await client.query('UPDATE party_player SET removed_at = NOW() WHERE id = $1', [target.id]);
+      await client.query('UPDATE mdparty_player SET removed_at = NOW() WHERE id = $1', [target.id]);
       await party.bumpVersion(client, room.id);
 
       let roundLocked = false;

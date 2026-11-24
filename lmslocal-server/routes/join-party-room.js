@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
       }
 
       const players = (await client.query(
-        'SELECT LOWER(display_name) AS name FROM party_player WHERE room_id = $1 AND removed_at IS NULL',
+        'SELECT LOWER(display_name) AS name FROM mdparty_player WHERE room_id = $1 AND removed_at IS NULL',
         [room.id]
       )).rows;
       if (players.length >= party.MAX_PLAYERS) {
@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
 
       const { token, hash } = party.newPlayerToken();
       const player = (await client.query(
-        'INSERT INTO party_player (room_id, display_name, token_hash) VALUES ($1, $2, $3) RETURNING id',
+        'INSERT INTO mdparty_player (room_id, display_name, token_hash) VALUES ($1, $2, $3) RETURNING id',
         [room.id, name, hash]
       )).rows[0];
       await party.bumpVersion(client, room.id);

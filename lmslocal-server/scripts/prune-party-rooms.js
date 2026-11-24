@@ -5,9 +5,9 @@ Script: prune-party-rooms.js
 Purpose: Delete Matchday Party rooms past their expiry (docs/matchday-party.md §7). A party is one
          evening; keeping it after that only fills the production database with finished games.
 
-         One DELETE: every party table below party_room cascades from it (see the migration,
+         One DELETE: every party table below mdparty_room cascades from it (see the migration,
          db/migrations/2026-11-24-matchday-party.sql), so a room takes its players, rounds,
-         fixtures, coupons and predictions with it. party_team is never touched.
+         fixtures, coupons and predictions with it. mdparty_team is never touched.
 
 Usage:
   node scripts/prune-party-rooms.js              # delete and report
@@ -17,24 +17,24 @@ Crontab (server clock is GMT; comment the BST equivalent as elsewhere in the fil
   50 3 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/prune-party-rooms.js   # 04:50 BST
 
 Expired rooms are already invisible to every route (services/party.js findRoom), so a missed run
-costs disk space and nothing else.
+costs disk space and nothing else. The same prune is a button in the admin tool (Party page,
+/admin/prune-party-rooms); both call services/party.js pruneExpiredRooms.
 =======================================================================================================================================
 */
 
 require('dotenv').config();
-const { query, closePool } = require('../database');
+const { closePool } = require('../database');
+const { roomCounts, pruneExpiredRooms } = require('../services/party');
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
-  const due = await query('SELECT COUNT(*)::int AS n FROM party_room WHERE expires_at <= NOW()');
-  const count = due.rows[0].n;
-
+  const { expired } = await roomCounts();
   if (dryRun) {
-    console.log(`[prune-party-rooms] dry run: ${count} expired room(s) would be deleted`);
+    console.log(`[prune-party-rooms] dry run: ${expired} expired room(s) would be deleted`);
     return;
   }
-  const result = await query('DELETE FROM party_room WHERE expires_at <= NOW()');
-  console.log(`[prune-party-rooms] deleted ${result.rowCount} expired room(s)`);
+  const deleted = await pruneExpiredRooms();
+  console.log(`[prune-party-rooms] deleted ${deleted} expired room(s)`);
 }
 
 main()

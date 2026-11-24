@@ -52,7 +52,7 @@ router.post('/', verifyToken, async (req, res) => {
     const allowed = ['lobby', 'open', 'revealing', 'table'];
     const result = await party.hostAction(req.user.id, req.body.code, allowed, async (client, room) => {
       await client.query(
-        `UPDATE party_room SET state = 'finished', ended_early = TRUE, finished_at = NOW(), version = version + 1
+        `UPDATE mdparty_room SET state = 'finished', ended_early = TRUE, finished_at = NOW(), version = version + 1
          WHERE id = $1`,
         [room.id]
       );

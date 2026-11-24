@@ -33,7 +33,9 @@ Return Codes:
 "SUCCESS"
 "MISSING_FIELDS"        - code, player_token, round or predictions not given
 "PARTY_NOT_FOUND"       - no live room with that code
-"UNAUTHORIZED"          - the token holds no place in this room (never joined, or removed)
+"PLAYER_NOT_FOUND"      - the token holds no place in this room (never joined, or removed).
+                          Not UNAUTHORIZED: the web client signs the user out on that code, and a
+                          stale room token must not sign anyone out of LMSLocal
 "ROUND_CLOSED"          - the room is not taking predictions, or this is not the current round
 "INVALID_PREDICTION"    - a fixture not in this round, a team not in its fixture, or a fixture twice
 "SERVER_ERROR"          - unexpected server error
@@ -65,18 +67,18 @@ router.post('/', async (req, res) => {
       if (!room) return { return_code: 'PARTY_NOT_FOUND', message: 'No game with that code' };
 
       const player = await party.findPlayer(client, room.id, token);
-      if (!player) return { return_code: 'UNAUTHORIZED', message: 'You are not in this game' };
+      if (!player) return { return_code: 'PLAYER_NOT_FOUND', message: 'You are not in this game' };
 
       if (room.state !== 'open' || Number(round) !== room.current_round) {
         return { return_code: 'ROUND_CLOSED', message: 'This round is no longer taking predictions' };
       }
 
       const roundRow = (await client.query(
-        'SELECT id FROM party_round WHERE room_id = $1 AND round_number = $2',
+        'SELECT id FROM mdparty_round WHERE room_id = $1 AND round_number = $2',
         [room.id, room.current_round]
       )).rows[0];
       const fixtures = new Map((await client.query(
-        'SELECT id, home_team_id, away_team_id FROM party_fixture WHERE round_id = $1',
+        'SELECT id, home_team_id, away_team_id FROM mdparty_fixture WHERE round_id = $1',
         [roundRow.id]
       )).rows.map((f) => [f.id, f]));
 
@@ -91,7 +93,7 @@ router.post('/', async (req, res) => {
       }
 
       await client.query(
-        'DELETE FROM party_prediction WHERE player_id = $1 AND fixture_id = ANY($2::int[])',
+        'DELETE FROM mdparty_prediction WHERE player_id = $1 AND fixture_id = ANY($2::int[])',
         [player.id, [...fixtures.keys()]]
       );
       if (predictions.length > 0) {
@@ -101,12 +103,12 @@ router.post('/', async (req, res) => {
           return `($${params.length - 2}, $${params.length - 1}, $${params.length})`;
         });
         await client.query(
-          `INSERT INTO party_prediction (fixture_id, player_id, team_id) VALUES ${values.join(', ')}`,
+          `INSERT INTO mdparty_prediction (fixture_id, player_id, team_id) VALUES ${values.join(', ')}`,
           params
         );
       }
       await client.query(
-        `INSERT INTO party_submission (round_id, player_id) VALUES ($1, $2)
+        `INSERT INTO mdparty_submission (round_id, player_id) VALUES ($1, $2)
          ON CONFLICT (round_id, player_id) DO UPDATE SET submitted_at = NOW()`,
         [roundRow.id, player.id]
       );

@@ -1,3 +1,6 @@
+-- RENAMED: these tables are now mdparty_* (2026-11-24-mdparty-rename.sql). This file is kept as the
+-- record of what was first run; do not run it again.
+--
 -- Matchday Party, phase 1: its own tables. docs/matchday-party.md §7.
 --
 -- Additive and self-contained. Nothing that exists reads these tables, and they reference only

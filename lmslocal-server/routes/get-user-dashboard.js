@@ -16,8 +16,10 @@ Success Response (ALWAYS HTTP 200):
     "display_name": "John Smith",               // string, user's global display name
     "email": "john@example.com",                // string, user's email
     "email_verified": true,                     // boolean, email verification status
-    "can_create_games": ["lms"]                 // string[], games this user may create - Matchday only
+    "can_create_games": ["lms"],                // string[], games this user may create - Matchday only
                                                 //   while in preview (services/gameType.js)
+    "can_host_party": false                     // boolean, may host a Matchday Party - only while in
+                                                //   preview (services/party.js); not a competition
   },
   "competitions": [
     {
@@ -120,6 +122,7 @@ const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { getPlaceUsage } = require('../services/placeUsage');
 const { clientGameTypes, gamesUserCanCreate } = require('../services/gameType');
+const { canHostParty } = require('../services/party');
 const { getMatchdayTables } = require('../services/matchdayTable');
 const router = express.Router();
 
@@ -752,7 +755,10 @@ router.post('/', verifyToken, async (req, res) => {
       email: userDataResult.rows[0].email,
       email_verified: userDataResult.rows[0].email_verified,
       // The create wizard asks "Which game?" only when there is more than one answer.
-      can_create_games: gamesUserCanCreate(user_id)
+      can_create_games: gamesUserCanCreate(user_id),
+      // Matchday Party is not a competition and not a game_type, so it is its own flag rather than
+      // a third entry in can_create_games (docs/matchday-party.md §1).
+      can_host_party: canHostParty(user_id)
     } : null;
 
     // === PLAYERS TURNED AWAY BY THE CREDIT LIMIT ===

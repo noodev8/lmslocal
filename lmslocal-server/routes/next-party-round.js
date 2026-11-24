@@ -52,7 +52,7 @@ router.post('/', verifyToken, async (req, res) => {
         await party.openRound(client, room, room.current_round + 1);
       } else {
         await client.query(
-          `UPDATE party_room SET state = 'finished', finished_at = NOW(), version = version + 1 WHERE id = $1`,
+          `UPDATE mdparty_room SET state = 'finished', finished_at = NOW(), version = version + 1 WHERE id = $1`,
           [room.id]
         );
       }

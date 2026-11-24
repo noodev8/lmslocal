@@ -7,7 +7,7 @@ Purpose: Tune the Matchday Party engine (services/partyEngine.js, docs/matchday-
          often the favourite wins, how many goals, the common scorelines, how far form moves a team.
 
 The ratings below are PROVISIONAL, set 2026-11-24 to get the engine running. They are a judgement
-for Andreas to make; when they are agreed they move into the party_team table (§7) and this script
+for Andreas to make; when they are agreed they move into the mdparty_team table (§7) and this script
 should read them from there.
 
 Usage (from lmslocal-server/):

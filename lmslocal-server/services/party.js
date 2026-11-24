@@ -6,11 +6,11 @@ Purpose: Everything the party routes share. docs/matchday-party.md is the contra
          plays the matches is services/partyEngine.js and is not repeated here.
 
 NOT A COMPETITION. Nothing here reads or writes competition, round, fixture, pick or prediction,
-and no competition route reads the party_* tables (§1). That separation is the point: neither game
+and no competition route reads the mdparty_* tables (§1). That separation is the point: neither game
 can break the other.
 
 WHO IS WHO (§3, §7):
-  - The HOST is a signed-in LMSLocal user (JWT). Host-only actions check party_room.host_user_id.
+  - The HOST is a signed-in LMSLocal user (JWT). Host-only actions check mdparty_room.host_user_id.
     The host is also a player, with a player row of their own.
   - PLAYERS are not users. Joining issues a random token for that room only, stored as a SHA-256
     hash. It opens nothing outside the room.
@@ -21,12 +21,12 @@ rather than imported from services/matchdayScoring.js, so changing one game's sc
 change the other's by accident (§1).
 
 ROOM STATES (§5): lobby -> open -> revealing -> table -> (open ...) -> finished. Every change bumps
-party_room.version, which is what lets a poll that is already up to date skip building the state.
+mdparty_room.version, which is what lets a poll that is already up to date skip building the state.
 =======================================================================================================================================
 */
 
 const crypto = require('crypto');
-const { transaction } = require('../database');
+const { transaction, query } = require('../database');
 const { drawFixtures, playFixtures, teamTable } = require('./partyEngine');
 
 /*
@@ -38,7 +38,9 @@ const PARTY_PREVIEW_HOST_IDS = [50];
 
 const ROUND_OPTIONS = [4, 6, 8];
 const MAX_PLAYERS = 20;
-const MIN_PLAYERS_TO_START = 2;
+// 1, so the host can play a game on their own (Andreas, 2026-11-24: play it alone first, to see
+// how many points a game gives, before the TV and multiplayer are built).
+const MIN_PLAYERS_TO_START = 1;
 const NAME_MAX = 20;
 const ROOM_LIFETIME_HOURS = 24;
 const POINTS = { WIN: 3, DRAW: 1, LOSS: 0 };
@@ -84,7 +86,7 @@ function normaliseCode(raw) {
 /** A live (unexpired) room by its code. Pass forUpdate inside a transaction that will change it. */
 async function findRoom(db, code, { forUpdate = false } = {}) {
   const result = await db.query(
-    `SELECT * FROM party_room WHERE code = $1 AND expires_at > NOW() ${forUpdate ? 'FOR UPDATE' : ''}`,
+    `SELECT * FROM mdparty_room WHERE code = $1 AND expires_at > NOW() ${forUpdate ? 'FOR UPDATE' : ''}`,
     [normaliseCode(code)]
   );
   return result.rows[0] || null;
@@ -94,7 +96,7 @@ async function findRoom(db, code, { forUpdate = false } = {}) {
 async function findPlayer(db, roomId, token) {
   if (!token) return null;
   const result = await db.query(
-    `SELECT id, display_name, is_host FROM party_player
+    `SELECT id, display_name, is_host FROM mdparty_player
      WHERE room_id = $1 AND token_hash = $2 AND removed_at IS NULL`,
     [roomId, hashToken(token)]
   );
@@ -102,12 +104,12 @@ async function findPlayer(db, roomId, token) {
 }
 
 async function bumpVersion(db, roomId) {
-  await db.query('UPDATE party_room SET version = version + 1 WHERE id = $1', [roomId]);
+  await db.query('UPDATE mdparty_room SET version = version + 1 WHERE id = $1', [roomId]);
 }
 
 async function activeTeams(db) {
   const result = await db.query(
-    'SELECT id, name, short_name, rating FROM party_team WHERE is_active ORDER BY id'
+    'SELECT id, name, short_name, rating FROM mdparty_team WHERE is_active ORDER BY id'
   );
   return result.rows;
 }
@@ -122,7 +124,7 @@ async function openRound(db, room, roundNumber) {
   const fixtures = drawFixtures(teams, drawSeed);
 
   const round = await db.query(
-    `INSERT INTO party_round (room_id, round_number, draw_seed) VALUES ($1, $2, $3) RETURNING id`,
+    `INSERT INTO mdparty_round (room_id, round_number, draw_seed) VALUES ($1, $2, $3) RETURNING id`,
     [room.id, roundNumber, drawSeed]
   );
   const roundId = round.rows[0].id;
@@ -134,12 +136,12 @@ async function openRound(db, room, roundNumber) {
     values.push(`($${params.length - 3}, $${params.length - 2}, $${params.length - 1}, $${params.length})`);
   });
   await db.query(
-    `INSERT INTO party_fixture (round_id, sort_order, home_team_id, away_team_id) VALUES ${values.join(', ')}`,
+    `INSERT INTO mdparty_fixture (round_id, sort_order, home_team_id, away_team_id) VALUES ${values.join(', ')}`,
     params
   );
 
   await db.query(
-    `UPDATE party_room SET state = 'open', current_round = $2, version = version + 1 WHERE id = $1`,
+    `UPDATE mdparty_room SET state = 'open', current_round = $2, version = version + 1 WHERE id = $1`,
     [room.id, roundNumber]
   );
 }
@@ -148,7 +150,7 @@ async function openRound(db, room, roundNumber) {
 async function resultsSoFar(db, roomId) {
   const result = await db.query(
     `SELECT f.home_team_id AS home_id, f.away_team_id AS away_id, f.home_goals, f.away_goals
-     FROM party_fixture f JOIN party_round r ON r.id = f.round_id
+     FROM mdparty_fixture f JOIN mdparty_round r ON r.id = f.round_id
      WHERE r.room_id = $1 AND f.home_goals IS NOT NULL`,
     [roomId]
   );
@@ -161,13 +163,13 @@ async function resultsSoFar(db, roomId) {
  */
 async function lockAndPlayRound(db, room) {
   const round = (await db.query(
-    'SELECT id FROM party_round WHERE room_id = $1 AND round_number = $2',
+    'SELECT id FROM mdparty_round WHERE room_id = $1 AND round_number = $2',
     [room.id, room.current_round]
   )).rows[0];
 
   const teams = await activeTeams(db);
   const fixtures = (await db.query(
-    'SELECT id, home_team_id AS home_id, away_team_id AS away_id FROM party_fixture WHERE round_id = $1 ORDER BY sort_order',
+    'SELECT id, home_team_id AS home_id, away_team_id AS away_id FROM mdparty_fixture WHERE round_id = $1 ORDER BY sort_order',
     [round.id]
   )).rows;
   const results = await resultsSoFar(db, room.id);
@@ -183,23 +185,23 @@ async function lockAndPlayRound(db, room) {
     return `($${n - 5}::int, $${n - 4}::int, $${n - 3}::int, $${n - 2}::int, $${n - 1}::int, $${n}::jsonb)`;
   });
   await db.query(
-    `UPDATE party_fixture f SET home_rating = v.hr, away_rating = v.ar, home_goals = v.hg, away_goals = v.ag, goals = v.goals
+    `UPDATE mdparty_fixture f SET home_rating = v.hr, away_rating = v.ar, home_goals = v.hg, away_goals = v.ag, goals = v.goals
      FROM (VALUES ${values.join(', ')}) AS v (id, hr, ar, hg, ag, goals)
      WHERE f.id = v.id`,
     params
   );
 
-  await db.query('UPDATE party_round SET play_seed = $2, locked_at = NOW() WHERE id = $1', [round.id, playSeed]);
-  await db.query(`UPDATE party_room SET state = 'revealing', version = version + 1 WHERE id = $1`, [room.id]);
+  await db.query('UPDATE mdparty_round SET play_seed = $2, locked_at = NOW() WHERE id = $1', [round.id, playSeed]);
+  await db.query(`UPDATE mdparty_room SET state = 'revealing', version = version + 1 WHERE id = $1`, [room.id]);
 }
 
 /** True when every player still in the room has sent a coupon for the current round. */
 async function everyoneSubmitted(db, room) {
   const result = await db.query(
     `SELECT COUNT(*) FILTER (WHERE s.player_id IS NULL) AS waiting
-     FROM party_player p
-     JOIN party_round r ON r.room_id = p.room_id AND r.round_number = $2
-     LEFT JOIN party_submission s ON s.round_id = r.id AND s.player_id = p.id
+     FROM mdparty_player p
+     JOIN mdparty_round r ON r.room_id = p.room_id AND r.round_number = $2
+     LEFT JOIN mdparty_submission s ON s.round_id = r.id AND s.player_id = p.id
      WHERE p.room_id = $1 AND p.removed_at IS NULL`,
     [room.id, room.current_round]
   );
@@ -283,24 +285,24 @@ async function buildState(db, room, player) {
     activeTeams(db),
     db.query(
       `SELECT p.id, p.display_name, p.is_host,
-              EXISTS (SELECT 1 FROM party_submission s JOIN party_round r ON r.id = s.round_id
+              EXISTS (SELECT 1 FROM mdparty_submission s JOIN mdparty_round r ON r.id = s.round_id
                       WHERE s.player_id = p.id AND r.room_id = p.room_id AND r.round_number = $2) AS submitted
-       FROM party_player p WHERE p.room_id = $1 AND p.removed_at IS NULL ORDER BY p.joined_at, p.id`,
+       FROM mdparty_player p WHERE p.room_id = $1 AND p.removed_at IS NULL ORDER BY p.joined_at, p.id`,
       [room.id, room.current_round]
     ),
     db.query(
       `SELECT r.round_number, r.locked_at, f.id, f.sort_order, f.home_team_id, f.away_team_id,
               f.home_goals, f.away_goals, f.goals
-       FROM party_round r JOIN party_fixture f ON f.round_id = r.id
+       FROM mdparty_round r JOIN mdparty_fixture f ON f.round_id = r.id
        WHERE r.room_id = $1 ORDER BY r.round_number, f.sort_order`,
       [room.id]
     ),
     db.query(
       `SELECT pr.player_id, pr.fixture_id, pr.team_id, r.round_number,
               f.home_team_id, f.away_team_id, f.home_goals, f.away_goals
-       FROM party_prediction pr
-       JOIN party_fixture f ON f.id = pr.fixture_id
-       JOIN party_round r ON r.id = f.round_id
+       FROM mdparty_prediction pr
+       JOIN mdparty_fixture f ON f.id = pr.fixture_id
+       JOIN mdparty_round r ON r.id = f.round_id
        WHERE r.room_id = $1`,
       [room.id]
     )
@@ -379,9 +381,29 @@ async function hostAction(userId, code, allowed, action) {
     }
     const extra = (await action(client, room)) || {};
     if (extra.return_code) return extra;
-    const after = (await client.query('SELECT state, current_round, version FROM party_room WHERE id = $1', [room.id])).rows[0];
+    const after = (await client.query('SELECT state, current_round, version FROM mdparty_room WHERE id = $1', [room.id])).rows[0];
     return { return_code: 'SUCCESS', room: after, ...extra };
   });
+}
+
+/**
+ * Room counts for the admin tool, and the prune itself. One DELETE: every mdparty_ table below
+ * mdparty_room cascades from it, so a room takes everything under it. mdparty_team is never
+ * touched. Used by scripts/prune-party-rooms.js (nightly) and /admin/prune-party-rooms (a button).
+ */
+async function roomCounts() {
+  const r = await query(
+    `SELECT COUNT(*) FILTER (WHERE expires_at > NOW())::int AS live,
+            COUNT(*) FILTER (WHERE expires_at > NOW() AND state <> 'finished')::int AS in_play,
+            COUNT(*) FILTER (WHERE expires_at <= NOW())::int AS expired
+     FROM mdparty_room`
+  );
+  return r.rows[0];
+}
+
+async function pruneExpiredRooms() {
+  const result = await query('DELETE FROM mdparty_room WHERE expires_at <= NOW()');
+  return result.rowCount;
 }
 
 module.exports = {
@@ -406,6 +428,8 @@ module.exports = {
   everyoneSubmitted,
   buildState,
   hostAction,
+  roomCounts,
+  pruneExpiredRooms,
   // Exported for scripts and checks.
   playersTable,
   sharedTeamTable,

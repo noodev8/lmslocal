@@ -162,6 +162,17 @@ export interface ApiResponse {
   message?: string;
 }
 
+export interface PartyRoomCounts {
+  live: number;
+  in_play: number;
+  expired: number;
+}
+
+export interface PrunePartyRoomsResponse extends ApiResponse {
+  deleted?: number;
+  counts?: PartyRoomCounts;
+}
+
 export interface LoginResponse extends ApiResponse {
   admin?: AdminUser;
   token?: string;
@@ -1077,6 +1088,15 @@ export const adminApi = {
   Archive a competition, or bring it back. A plain boolean: archived is a decision somebody made,
   not an override of a calculation, so there is no third "stop overriding" state to express.
   */
+  /*
+  Matchday Party rooms: counts, and deleting the expired ones. dryRun counts only, which is how the
+  page loads. Live rooms are never deleted. docs/matchday-party.md §7.
+  */
+  prunePartyRooms: async (dryRun: boolean): Promise<PrunePartyRoomsResponse> => {
+    const response = await api.post<PrunePartyRoomsResponse>('/admin/prune-party-rooms', { dry_run: dryRun });
+    return response.data;
+  },
+
   setCompetitionArchived: async (
     competitionId: number,
     archived: boolean

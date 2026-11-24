@@ -132,7 +132,8 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
             email: competitionsData.data.user.email,
             email_verified: competitionsData.data.user.email_verified,
             // Which games the create wizard offers (Matchday is in preview - services/gameType.js)
-            can_create_games: competitionsData.data.user.can_create_games ?? ['lms']
+            can_create_games: competitionsData.data.user.can_create_games ?? ['lms'],
+            can_host_party: competitionsData.data.user.can_host_party === true
           };
 
           // Update localStorage with fresh data

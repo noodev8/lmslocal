@@ -84,7 +84,7 @@ same result. It is a paper game played by the server: dice, windows and a count.
 Every team has a **rating from 1 to 100** that we set and maintain. It is a judgement, not
 computed from live data, so no feed can break the game. Reviewed each season and at promotion and
 relegation. The first set is **provisional**, in the sim script; once agreed it moves to the
-`party_team` table (§7). Ratings are never shown to players (§2).
+`mdparty_team` table (§7). Ratings are never shown to players (§2).
 
 ### 4.2 A match *(decided)*
 
@@ -190,18 +190,18 @@ goals arriving in kick-off order, then FT on each line, then the teams' table, t
 Built 2026-11-24 (phase 1): `db/migrations/2026-11-24-matchday-party.sql`, `services/party.js`,
 ten routes, `scripts/prune-party-rooms.js`.
 
-**Tables**, all new and all `party_`-prefixed. They reference only `app_user`; nothing that
+**Tables**, all new and all `mdparty_`-prefixed. They reference only `app_user`; nothing that
 exists reads them.
 
 | Table | What |
 |---|---|
-| `party_team` | The 20 teams and their ratings (§4.1). Seeded with the provisional set |
-| `party_room` | One game: code, host, state, rounds, current round, `version`, expiry |
-| `party_player` | Everyone in the room, host included. A hashed token; `user_id` for the host only |
-| `party_round` | A round, with its draw seed and, once locked, its play seed |
-| `party_fixture` | Ten a round. Goals, goal minutes and the effective ratings, null until locked |
-| `party_submission` | A player has sent their coupon for a round (it may be all blanks) |
-| `party_prediction` | One row per predicted match; points are derived, never stored |
+| `mdparty_team` | The 20 teams and their ratings (§4.1). Seeded with the provisional set |
+| `mdparty_room` | One game: code, host, state, rounds, current round, `version`, expiry |
+| `mdparty_player` | Everyone in the room, host included. A hashed token; `user_id` for the host only |
+| `mdparty_round` | A round, with its draw seed and, once locked, its play seed |
+| `mdparty_fixture` | Ten a round. Goals, goal minutes and the effective ratings, null until locked |
+| `mdparty_submission` | A player has sent their coupon for a round (it may be all blanks) |
+| `mdparty_prediction` | One row per predicted match; points are derived, never stored |
 
 Inside a party the foreign keys **cascade**, so deleting a room removes everything under it in one
 statement. That is the whole prune script.
@@ -214,14 +214,14 @@ statement. That is the whole prune script.
 | `join-party-room` | Anyone | Code and a name; returns a player token. Lobby only. Rate limited like the competition join lookup |
 | `get-party-state` | TV, phones | The whole room as a screen needs it. `known_version` makes an unchanged poll one read. Its own rate limit (§7.1) |
 | `set-party-predictions` | Player token | The whole coupon at once; replaces an earlier one. The last coupon locks and plays the round |
-| `start-party-game` | Host | Needs 2 players, host included. Draws round 1 |
+| `start-party-game` | Host | Needs 1 player, so the host can play alone. Draws round 1 |
 | `lock-party-round` | Host | Locks and plays without waiting |
 | `show-party-table` | Host | Reveal → tables |
 | `next-party-round` | Host | Tables → next round, or finished after the last |
 | `remove-party-player` | Host | Not the host. If the round was waiting only on them, it plays |
 | `end-party-game` | Host | Finished from any state; an open round is not played |
 
-**Who is who.** The host's controls need their LMSLocal sign-in. Players hold a random token for
+**Who is who.** The host's controls need their LMSLocal sign-in. A bad player token answers `PLAYER_NOT_FOUND`, never `UNAUTHORIZED`, because the web client signs a user out on that code. Players hold a random token for
 one room, stored hashed, opening nothing else. The TV sends the code alone and can only read.
 
 **In preview:** only `PARTY_PREVIEW_HOST_IDS` (`services/party.js`, organiser 50) can create a
@@ -262,7 +262,7 @@ minutes per address) would freeze a room of ten devices in about three minutes, 
 |---|---|---|
 | 0 | **The engine**, as a pure function plus a simulation script. **Built 2026-11-24**; the ratings are still provisional | No |
 | 1 | Tables and routes: create, join, state, predict, lock, play round, next round, end. **Built and migrated 2026-11-24**; tested end to end through the routes | No |
-| 2 | Player phone screens | Behind a preview flag |
+| 2 | Player phone screens. **Started 2026-11-24:** `/party` is one plain screen for host and players alike (create or join, coupon, results, both tables, host controls), reached from the create wizard's "Which game?" step. Same engine and routes for 1 to 20 players; playing alone is a room with only the host | Behind a preview flag |
 | 3 | TV screens and the vidiprinter | Behind a preview flag |
 | 4 | Host controls and the awkward cases: a phone that sleeps, the TV page refreshed mid-game, a player removed, the host disappearing | Behind a preview flag |
 | 5 | A public page and the launch, aimed at a search such as "football party game" | Yes |
@@ -276,6 +276,7 @@ is a game; a beautiful vidiprinter showing dull results is not.
 
 | # | Question | Notes |
 |---|---|---|
+| 0 | ~~Players in a room~~ | **Decided 2026-11-24: 1 to 20.** One is the host alone; there is no separate solo mode |
 | 1 | ~~Does the host need an account?~~ | **Decided 2026-11-24: yes**, a free account; players never need one. It is the reason to build a free game, and it stops anonymous rooms being created in bulk |
 | 2 | ~~How many fixtures a round?~~ | **Decided 2026-11-24: all 10**, so every team plays every round and form counts |
 | 3 | ~~What do players see before predicting?~~ | **Decided 2026-11-24: names plus in-game form** from round 2 (§4.3). No ratings shown |

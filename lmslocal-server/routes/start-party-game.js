@@ -49,13 +49,13 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const result = await party.hostAction(req.user.id, req.body.code, ['lobby'], async (client, room) => {
       const count = (await client.query(
-        'SELECT COUNT(*)::int AS n FROM party_player WHERE room_id = $1 AND removed_at IS NULL',
+        'SELECT COUNT(*)::int AS n FROM mdparty_player WHERE room_id = $1 AND removed_at IS NULL',
         [room.id]
       )).rows[0].n;
       if (count < party.MIN_PLAYERS_TO_START) {
         return { return_code: 'NOT_ENOUGH_PLAYERS', message: `A game needs at least ${party.MIN_PLAYERS_TO_START} players` };
       }
-      await client.query('UPDATE party_room SET started_at = NOW() WHERE id = $1', [room.id]);
+      await client.query('UPDATE mdparty_room SET started_at = NOW() WHERE id = $1', [room.id]);
       await party.openRound(client, room, 1);
       return null;
     });

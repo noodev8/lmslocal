@@ -84,6 +84,11 @@ export default function CreateCompetitionPage() {
   // created - it falls back to the Ready button.
   const [startOption, setStartOption] = useState<StartOption | null>(null);
 
+  // Matchday Party (docs/matchday-party.md) is offered beside the two games, to its preview hosts
+  // only. It is not a competition: choosing it leaves this wizard for /party, which asks for nothing
+  // but the number of rounds.
+  const offersParty = user?.can_host_party === true;
+
   // Which game. Null until chosen - there is no default, because the wrong game is the one
   // mistake an organiser cannot undo: it is fixed at creation.
   const [gameType, setGameType] = useState<GameType | null>(null);
@@ -95,7 +100,7 @@ export default function CreateCompetitionPage() {
   //
   // Hidden until the server says otherwise: the safe default is the old wizard. If the answer
   // arrives after an organiser has started typing, they keep the wizard they are using.
-  const offersGameChoice = user?.can_create_games?.includes('matchday') === true;
+  const offersGameChoice = user?.can_create_games?.includes('matchday') === true || offersParty;
   const nameTyped = Boolean(watchedValues.name);
   useEffect(() => {
     if (offersGameChoice) {
@@ -319,6 +324,20 @@ export default function CreateCompetitionPage() {
                   );
                 })}
               </div>
+
+              {offersParty && (
+                <Link
+                  href="/party"
+                  className="mt-3 flex flex-col items-start border border-dashed border-ink/40 p-5 text-left transition-colors hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  <p className="font-display text-2xl uppercase tracking-[0.03em]">Matchday Party</p>
+                  <p className="mt-2 text-[15px] leading-relaxed text-ink-fade">
+                    One evening, in one room. Predict made-up Premier League matches on your phones
+                    and watch the results come in. Not a competition: no invites, nothing to pay.
+                  </p>
+                  <p className={`${LABEL} mt-3 text-ink`}>Preview &middot; start a game &rarr;</p>
+                </Link>
+              )}
 
               <div className="mt-6 flex justify-end sm:mt-8">
                 <button

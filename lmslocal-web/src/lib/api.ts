@@ -116,6 +116,8 @@ export interface User {
   is_managed?: boolean;
   /** Games this user may create. Matchday is listed only while they are in its preview. */
   can_create_games?: GameType[];
+  /** May host a Matchday Party (preview). Not a competition, so not in can_create_games. */
+  can_host_party?: boolean;
 }
 
 // Credit system interfaces (PAYG model)
@@ -796,6 +798,50 @@ export const matchdayApi = {
 };
 
 // Round API calls
+// Matchday Party (docs/matchday-party.md). Not a competition: a room for one evening. The host's
+// controls use the normal sign-in; playing uses a token for that room alone, kept in localStorage.
+export interface PartyTeamView { id: number; name: string; short_name: string; form: ('W' | 'D' | 'L')[] }
+export interface PartyGoal { side: 'home' | 'away'; minute: number }
+export interface PartyFixture {
+  id: number;
+  home: PartyTeamView;
+  away: PartyTeamView;
+  result: { home_goals: number; away_goals: number; goals: PartyGoal[] } | null;
+}
+export interface PartyPlayersRow { player_id: number; name: string; points: number; wins: number; predictions_made: number; round_points: number; position: number }
+export interface PartyTeamsRow { team_id: number; name: string; short_name: string; position: number; played: number; won: number; drawn: number; lost: number; gf: number; ga: number; gd: number; points: number }
+export type PartyRoomState = 'lobby' | 'open' | 'revealing' | 'table' | 'finished';
+export interface PartyState {
+  return_code: string;
+  message?: string;
+  unchanged?: boolean;
+  version?: number;
+  token_valid?: boolean;
+  room?: { code: string; state: PartyRoomState; rounds_total: number; current_round: number; version: number; ended_early: boolean };
+  me?: { player_id: number; name: string; is_host: boolean } | null;
+  players?: { id: number; name: string; is_host: boolean; submitted: boolean }[];
+  round?: { number: number; locked: boolean; fixtures: PartyFixture[]; my_predictions: Record<string, number> } | null;
+  players_table?: PartyPlayersRow[];
+  teams_table?: PartyTeamsRow[];
+}
+type PartyResult = { return_code: string; message?: string; room?: { state: PartyRoomState; current_round: number; version: number } };
+
+export const partyApi = {
+  create: (rounds: number) =>
+    api.post<{ return_code: string; message?: string; code?: string; player_token?: string; player_id?: number }>('/create-party-room', { rounds }),
+  join: (code: string, name: string) =>
+    api.post<{ return_code: string; message?: string; player_token?: string; player_id?: number; name?: string }>('/join-party-room', { code, name }),
+  state: (code: string, player_token?: string, known_version?: number) =>
+    api.post<PartyState>('/get-party-state', { code, player_token, known_version }),
+  setPredictions: (code: string, player_token: string, round: number, predictions: { fixture_id: number; team_id: number }[]) =>
+    api.post<{ return_code: string; message?: string; round_locked?: boolean }>('/set-party-predictions', { code, player_token, round, predictions }),
+  start: (code: string) => api.post<PartyResult>('/start-party-game', { code }),
+  lock: (code: string) => api.post<PartyResult>('/lock-party-round', { code }),
+  showTable: (code: string) => api.post<PartyResult>('/show-party-table', { code }),
+  nextRound: (code: string) => api.post<PartyResult>('/next-party-round', { code }),
+  end: (code: string) => api.post<PartyResult>('/end-party-game', { code }),
+};
+
 export const roundApi = {
   create: (competition_id: string, lock_time: string) => 
     api.post<{ return_code: string; message?: string; round?: Round }>('/create-round', { competition_id: parseInt(competition_id), lock_time }),
@@ -1051,6 +1097,7 @@ export const userApi = {
           email: string;
           email_verified: boolean;
           can_create_games?: GameType[];
+          can_host_party?: boolean;
         };
         competitions?: Competition[];
         latest_round_stats?: {

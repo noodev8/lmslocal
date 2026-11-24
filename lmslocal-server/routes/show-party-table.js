@@ -48,7 +48,7 @@ router.post('/', verifyToken, async (req, res) => {
   logApiCall('show-party-table');
   try {
     const result = await party.hostAction(req.user.id, req.body.code, ['revealing'], async (client, room) => {
-      await client.query(`UPDATE party_room SET state = 'table', version = version + 1 WHERE id = $1`, [room.id]);
+      await client.query(`UPDATE mdparty_room SET state = 'table', version = version + 1 WHERE id = $1`, [room.id]);
       return null;
     });
     return res.json(result);

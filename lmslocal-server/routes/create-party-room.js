@@ -71,7 +71,7 @@ router.post('/', verifyToken, async (req, res) => {
       if (!user) return { return_code: 'UNAUTHORIZED', message: 'User not found' };
 
       await client.query(
-        `UPDATE party_room SET state = 'finished', ended_early = TRUE, finished_at = NOW(), version = version + 1
+        `UPDATE mdparty_room SET state = 'finished', ended_early = TRUE, finished_at = NOW(), version = version + 1
          WHERE host_user_id = $1 AND state <> 'finished' AND expires_at > NOW()`,
         [userId]
       );
@@ -82,13 +82,13 @@ router.post('/', verifyToken, async (req, res) => {
       let code = null;
       for (let attempt = 0; attempt < 10 && !code; attempt++) {
         const candidate = party.newRoomCode();
-        const taken = await client.query('SELECT 1 FROM party_room WHERE code = $1', [candidate]);
+        const taken = await client.query('SELECT 1 FROM mdparty_room WHERE code = $1', [candidate]);
         if (taken.rows.length === 0) code = candidate;
       }
       if (!code) throw new Error('create-party-room: no free room code after 10 attempts');
 
       const room = (await client.query(
-        `INSERT INTO party_room (code, host_user_id, rounds_total, expires_at)
+        `INSERT INTO mdparty_room (code, host_user_id, rounds_total, expires_at)
          VALUES ($1, $2, $3, NOW() + ($4 || ' hours')::interval)
          RETURNING id, code, expires_at`,
         [code, userId, Number(rounds), String(party.ROOM_LIFETIME_HOURS)]
@@ -97,7 +97,7 @@ router.post('/', verifyToken, async (req, res) => {
       const name = party.normaliseName(user.display_name) || 'Host';
       const { token, hash } = party.newPlayerToken();
       const player = (await client.query(
-        `INSERT INTO party_player (room_id, user_id, display_name, token_hash, is_host)
+        `INSERT INTO mdparty_player (room_id, user_id, display_name, token_hash, is_host)
          VALUES ($1, $2, $3, $4, TRUE) RETURNING id`,
         [room.id, userId, name, hash]
       )).rows[0];
