@@ -335,7 +335,7 @@ changed for this. The server guarantees they are never shown a game they cannot 
 |---|---|
 | `get-user-dashboard` | Competitions of a game the client did not declare are **left out**. The app's dashboard already has its "open on the web" card |
 | `get-competition-by-code` | Unchanged, `SUCCESS`. The old app treats any other code as "We could not check that code", which is wrong here |
-| `join-competition-by-code` | Refuses with **`GAME_NOT_SUPPORTED`** and a message naming the game and saying to open lmslocal.co.uk in a browser and join **with the code**, which it quotes. Not "use the link": an installed app claims `/join/*`, so tapping the invite link again reopens the app. The app shows the join route's `message` verbatim (`join_page.dart`), so the player is told the truth |
+| `join-competition-by-code` | Refuses with **`GAME_NOT_SUPPORTED`** and a message naming the game and saying to **update the app** and tap the invite link again, or else join on lmslocal.co.uk **with the code**, which it quotes. Update first since 2026-11-24, when 2.1.1 was in both stores and became the minimum version: builds before 2.1.0 skip the version gate when opened from a link, so this message is where they learn to update. The web fallback gives the code, not "use the link", because on an old build tapping the invite link again reopens the app. The app shows the join route's `message` verbatim (`join_page.dart`) |
 | Push notifications | No `mobile_notification_queue` rows for Matchday competitions. FCM's only reader is the app |
 
 The `/join/*` app deep link (not yet built, `docs/flutter-migration.md`) lands on the same join

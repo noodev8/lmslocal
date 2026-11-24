@@ -40,8 +40,9 @@ Return Codes:
 "COMPETITION_FULL"      - Competition has reached maximum player limit
 "ALREADY_JOINED"        - User is already a member of this competition
 "GAME_NOT_SUPPORTED"    - The competition is a game this client did not declare in X-Game-Types
-                          (every app version in the wild). The message names the game and says
-                          to join on the web - the app shows it verbatim. docs/matchday.md §7.2
+                          (app versions before 2.1.0). The message names the game, says to update
+                          the app, and gives the web and code as a fallback - the app shows it
+                          verbatim. docs/matchday.md §7.2
 "SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -137,22 +138,25 @@ router.post('/', verifyToken, async (req, res) => {
 
       // A client that cannot show this game must not be let in: it would render the competition
       // as Last Man Standing. Checked before everything else, so the player is told the one thing
-      // they can act on - go to the web - instead of, say, that the competition has started.
+      // they can act on instead of, say, that the competition has started.
       // The public lookup (get-competition-by-code) deliberately stays SUCCESS: the app reads any
       // other code there as "we could not check that code", which would be untrue.
       //
-      // The message carries the code because the invite link is no way out: an installed app
-      // claims /join/* (AndroidManifest.xml, apple-app-site-association), so tapping the link
-      // again just reopens this screen. Typing lmslocal.co.uk into a browser does not, and the
-      // web dashboard's "Join a competition" takes the code.
+      // Update first (2026-11-24): the web always declares every game, so only an app older than
+      // 2.1.0 lands here, and both stores now carry a build that plays Matchday. Those old builds
+      // skip the version gate when opened from a link, so this message is where they learn to
+      // update. The web stays as the fallback, with the code, because the invite link is no way
+      // out: an installed app claims /join/* (AndroidManifest.xml, apple-app-site-association),
+      // so tapping it again on an old build reopens this screen, while the web dashboard's
+      // "Join a competition" takes the code.
       if (!clientGameTypes(req).includes(data.game_type)) {
         const gameName = GAME_TYPES[data.game_type];
         const what = gameName
-          ? `${data.competition_name} is a ${gameName} competition, which this app cannot show yet.`
-          : `${data.competition_name} cannot be shown in this app yet.`;
+          ? `${data.competition_name} is a ${gameName} competition, which needs the latest LMS Local app.`
+          : `${data.competition_name} needs the latest LMS Local app.`;
         throw {
           return_code: "GAME_NOT_SUPPORTED",
-          message: `${what} Open lmslocal.co.uk in your browser, sign in and join with the code ${code}.`
+          message: `${what} Update it from the App Store or Google Play, then tap your invite link again. Or join on lmslocal.co.uk with the code ${code}.`
         };
       }
 
