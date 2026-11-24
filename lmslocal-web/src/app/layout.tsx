@@ -59,7 +59,7 @@ const courierPrime = Courier_Prime({
   searching for.
 
   Keep "football" in the title. If you rewrite this, check the query report first
-  (scripts/seo/gsc_client.py, property sc-domain:lmslocal.co.uk) rather than guessing.
+  (node lmslocal-server/scripts/seo-report.js, property sc-domain:lmslocal.co.uk) rather than guessing.
 
   Two claims are deliberately worded to promise nothing about the future (Andreas, 2026-09-13).
   The free tier says "First twenty player places free" and NOT "free for good" - neither the
