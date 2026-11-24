@@ -29,6 +29,10 @@ It is **not a competition**: no `competition` row, no `game_type`, no fixture se
 no billing places, no emails, no bots. It borrows Matchday's scoring and vocabulary and nothing
 else, so neither game can break the other.
 
+**Think of it as an enhanced paper game** *(Andreas, 2026-11-24)*: the kind a family plays in the
+front room, with the phones doing the scoring and the TV doing the drama. When a choice comes up,
+take the simpler one.
+
 **Why build it.** It is the one product that reaches people who are not organising anything — a
 family at Christmas. Someone in that room may run the work competition in January. The game is
 free and the host needs an account *(decided)*, which is how it pays its way.
@@ -215,10 +219,10 @@ is a game; a beautiful vidiprinter showing dull results is not.
 | 1 | ~~Does the host need an account?~~ | **Decided 2026-11-24: yes**, a free account; players never need one. It is the reason to build a free game, and it stops anonymous rooms being created in bulk |
 | 2 | ~~How many fixtures a round?~~ | **Decided 2026-11-24: all 10**, so every team plays every round and form counts |
 | 3 | ~~What do players see before predicting?~~ | **Decided 2026-11-24: names plus in-game form** from round 2 (§4.3). No ratings shown |
-| 4 | **Late joiners** | Matchday closes joining when round 1 locks. At a party, someone arriving at round 3 may want in, starting on 0 |
+| 4 | ~~Late joiners~~ | **Decided 2026-11-24: no.** Joining closes when the host starts the game. Keep it simple |
 | 5 | **A timer** | Not needed for a room that waits (§2). Possibly a host option later |
-| 6 | **If the host leaves** | Hand control to another player, or end the room |
-| 7 | **Sound** | A typing sound and a goal chime would make the reveal; the TV is the only device that should play it |
+| 6 | ~~If the host leaves~~ | **Decided 2026-11-24: the game ends.** No handover |
+| 7 | ~~Sound~~ | **Decided 2026-11-24: yes.** A typing sound and a goal chime on the TV, the only device that plays it |
 | 8 | **The name** | "Matchday Party" is a working name |
 | 9 | **Other leagues** | Premier League only to start *(decided)*. The Championship would come with its own ratings |
-| 10 | **The app** | Phones use the browser in version 1. The Flutter app could follow |
+| 10 | ~~The app~~ | **Decided 2026-11-24: a game is started from the LMSLocal app or the website**, by a registered player. Whether players' phones use the app, the browser or both is a build question |
