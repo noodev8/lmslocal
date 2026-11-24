@@ -91,18 +91,22 @@ relegation. The first set is **provisional**, in the sim script; once agreed it 
 - A match is **9 blocks of ten minutes**.
 - In each block **both teams roll** a number from 0 to 100. A roll inside the team's **window** is a
   goal. Both can score in the same block; a draw is simply level counts.
-- A team's window is **31 × its share of the two ratings**. A share, not the bare rating, so two
+- A team's window is **31 × its share of the chances**. A share, not the bare rating, so two
   strong sides do not trade six goals each and two weak ones do not draw 0–0 every time.
-- The home side adds **5** to its rating before the share is taken.
+- The share comes from the **gap** between the two ratings, on a curve 48 wide *(decided)*. Not
+  their ratio: as a ratio, a gap of 30 counted for less at the top of the league than at the bottom,
+  and Man City finished a 6-round game in the bottom half 24% of the time. On the gap it is 14%.
+- The home side adds **10** to its rating before the gap is taken *(decided; was 5)*: home 44%,
+  draw 23%, away 33%, close to real Premier League seasons.
 
 Measured over 100,000 matches each (2026-11-24):
 
 | Match-up | Home wins | Draw | Away wins |
 |---|---|---|---|
-| Top v bottom (92 v 20) | 82% | 13% | 5% |
+| Top v bottom (92 v 20) | 84% | 12% | 4% |
 | Bottom v top (20 v 92) | 7% | 16% | 77% |
-| Top half v bottom half (74 v 48) | 54% | 24% | 21% |
-| Evenly matched (62 v 60) | 41% | 26% | 33% |
+| Top half v bottom half (74 v 48) | 63% | 22% | 15% |
+| Evenly matched (62 v 60) | 46% | 26% | 28% |
 
 About **2.8 goals a match**, the Premier League average. The common scorelines are 2–1, 1–0, 2–0
 and 1–1, with the odd 4–1 or 3–3.
@@ -118,8 +122,17 @@ and 1–1, with the odd 4–1 or 3–3.
   teams' table on the TV after each reveal** *(decided)*, which is what explains why Hull suddenly
   look dangerous.
 
-Over 5,000 simulated games of 6 rounds, the favourite still wins only about half its matches, so
-the game stays open. Hull (rated 20) finish in the top half about 1 game in 25.
+Over 5,000 simulated games of 6 rounds, the favourite wins 56% of its matches, so the game stays
+open. Hull (rated 20) finish in the top half about 1 game in 20, and Man City (92) in the bottom
+half about 1 in 7. That is a short game's story, by design: over a full 38 rounds City finish in
+the bottom half about 1% of the time.
+
+| Rounds | City finish bottom half | Hull finish top half |
+|---|---|---|
+| 4 | 18% | 8% |
+| 6 | 14% | 5% |
+| 8 | 11% | 3% |
+| 38 | 1% | 0% |
 
 ### 4.4 Goal times
 

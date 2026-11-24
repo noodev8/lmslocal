@@ -15,12 +15,21 @@ THE MATCH, AS A PAPER GAME (§4.2, agreed 2026-11-24):
   that lands inside the team's window is a goal, at a minute inside that block. Both teams can
   score in the same block, so a draw is simply level counts.
 
-  A team's window = WINDOW x its share of the two ratings. Sharing, not the bare rating, so that
-  two strong sides do not trade six goals each and two weak ones do not draw 0-0 every time. The
-  home side adds HOME_ADVANTAGE to its rating before the share is taken.
+  A team's window = WINDOW x its share of the chances. A share, not the bare rating, so that two
+  strong sides do not trade six goals each and two weak ones do not draw 0-0 every time. The two
+  windows always add up to WINDOW, which is why every match averages the same ~2.8 goals.
 
-  WINDOW = 31 puts an even match at ~2.8 goals, the Premier League average, and top v bottom at
-  roughly 82% / 13% / 5% (simulated 2026-11-24). Retune with the sim script, not by eye.
+  THE SHARE COMES FROM THE GAP between the ratings (a logistic curve, SPREAD wide), not their
+  ratio. Changed 2026-11-24: as a ratio, 92 v 62 gave the stronger side only 60% of the chances,
+  so a gap of 30 counted for less at the top of the league than at the bottom, and Man City
+  finished a 6-round game in the bottom half 24% of the time. On the gap, 30 points is 30 points
+  anywhere: 14%, with top v bottom unchanged at ~5% upsets. Over a full 38 rounds it is ~1%; a short
+  game is meant to allow a story.
+
+  The home side adds HOME_ADVANTAGE to its rating before the gap is taken. +10 (raised from +5 on
+  2026-11-24) gives home 44% / draw 23% / away 33%, close to real Premier League seasons.
+
+  Retune with scripts/party-engine-sim.js, not by eye.
 
 THE LEAGUE-POSITION BONUS (§4.3, agreed 2026-11-24):
   From round 2, each team adds (teams + 1 - its position) x POSITION_BONUS to its rating, from
@@ -33,7 +42,8 @@ THE LEAGUE-POSITION BONUS (§4.3, agreed 2026-11-24):
 
 const BLOCKS = 9;
 const WINDOW = 31;
-const HOME_ADVANTAGE = 5;
+const SPREAD = 48;
+const HOME_ADVANTAGE = 10;
 const POSITION_BONUS = 1;
 
 /**
@@ -57,8 +67,8 @@ function seededRandom(seed) {
  *          goals in minute order, for the vidiprinter (§4.4).
  */
 function playMatch(homeRating, awayRating, rand) {
-  const home = homeRating + HOME_ADVANTAGE;
-  const homeShare = home / (home + awayRating);
+  const gap = homeRating + HOME_ADVANTAGE - awayRating;
+  const homeShare = 1 / (1 + Math.exp(-gap / SPREAD));
   const windows = { home: WINDOW * homeShare, away: WINDOW * (1 - homeShare) };
 
   const goals = [];
@@ -158,5 +168,5 @@ module.exports = {
   teamTable,
   effectiveRating,
   seededRandom,
-  ENGINE: { BLOCKS, WINDOW, HOME_ADVANTAGE, POSITION_BONUS }
+  ENGINE: { BLOCKS, WINDOW, SPREAD, HOME_ADVANTAGE, POSITION_BONUS }
 };
