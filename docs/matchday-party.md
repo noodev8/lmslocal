@@ -1,0 +1,224 @@
+# Matchday Party — the party game
+
+A third way to play, for one evening in one room. Friends or family predict the winners of
+made-up Premier League fixtures on their phones; when everyone has chosen, the TV turns into a
+vidiprinter and the scores come in. Points go on a table, and after 4, 6 or 8 rounds the most points
+wins. Fast, free, and played for fun.
+
+**Status: high-level design, 2026-11-24. Nothing built.** The decisions marked *(decided)* came
+from Andreas on 2026-11-24. §10 lists what is still open. "Matchday Party" is a working name.
+
+This doc is the contract, as `docs/matchday.md` is for Matchday: answer a new scenario here first,
+then change the code to match. Keep section numbers stable once code cites them.
+
+---
+
+## 1. What it is, and what it is not
+
+| | Matchday | Matchday Party |
+|---|---|---|
+| Played | Over weeks, on real gameweeks | One sitting, in one room, ~30–60 minutes |
+| Fixtures | Real fixtures, real results | **Real Premier League teams, made-up fixtures, simulated results** *(decided)* |
+| Who runs it | An organiser, through a competition | A **host**, who sets up a room and drives it *(decided)* |
+| Players | LMSLocal accounts | **A name typed on a phone. No account** |
+| Screens | Phone or web | Phones to predict, **one shared screen** (the TV) for everyone to watch |
+| Cost | One player, one place | **Free, with no limits** *(decided)* |
+| Money | The organiser's business, off-platform | **None, ever** — see §8 |
+
+It is **not a competition**: no `competition` row, no `game_type`, no fixture service, no calendar,
+no billing places, no emails, no bots. It borrows Matchday's scoring and vocabulary and nothing
+else, so neither game can break the other.
+
+**Why build it.** It is the one product that reaches people who are not organising anything — a
+family at Christmas. Someone in that room may run the work competition in January. The game is
+free and the host needs an account *(decided)*, which is how it pays its way.
+
+---
+
+## 2. The rules
+
+| Rule | Decision |
+|---|---|
+| Teams | **Premier League only, to start** *(decided)*. Real club names; no crests or badges (§8) |
+| A round | **10 fixtures: all 20 teams, each playing once** *(decided)*, drawn at random. Every team plays every round, which is what makes form matter (§4.3) |
+| What a player does | For each fixture, predicts the **home team or the away team to win** *(decided: winners only)*. A draw cannot be predicted, as in Matchday |
+| Scoring | Matchday's: predicted team wins **+3**, draw **+1**, predicted team loses **0**, left blank **0** |
+| Length | **4, 6 or 8 rounds**, chosen by the host at setup *(decided)* |
+| Locking | The round locks **when every player has submitted**, or **when the host locks it** *(decided: the host can push things on)*. Fixtures left blank at lock score 0 |
+| Results | Simulated by the engine (§4) **at lock**, never earlier, so nothing can be found out in advance |
+| The reveal | The TV plays the round as a vidiprinter (§6), then shows the table |
+| What players see | **Team names, and from round 2 each team's W/D/L form in this game** *(decided)*. No ratings, no odds |
+| Tie-break | Matchday's: points, then most winning predictions, then most predictions made. Still level, shared |
+| Phones | **Every player needs their own phone** *(decided)*. There is no pass-the-phone mode |
+
+---
+
+## 3. Roles and screens
+
+Three views, all in the web app. No new app is needed: phones use the browser, and the TV is any
+browser — a laptop on HDMI, a smart TV's browser, or a Chrome tab cast to the TV.
+
+| View | Who | What it does |
+|---|---|---|
+| **TV** | Everyone watches; nobody touches it | Lobby with the room code and a QR code → "who has chosen" while a round is open → the vidiprinter → the table → the final podium. **Read-only**, so it can run on any device and can be refreshed without losing anything |
+| **Player phone** | Each player | Join with the code and a name → predict the 10 fixtures → wait → see their own round score |
+| **Host controls** | The host, on their own phone | Everything a player does, plus: start the game, lock the round now, start the reveal, next round, remove a player, end the game |
+
+**One person is always in charge** *(decided)*: the host. The host is also a player. If the host's
+phone dies, the game waits; nothing advances without them (§10, question 6).
+
+---
+
+## 4. The match engine
+
+A defined engine of our own *(decided)*: random, weighted towards the favourite, with rare upsets,
+and form that builds over the game.
+
+### 4.1 Ratings
+
+Every team has a **rating** we set and maintain (say 1–100), stored in its own table (§7). Ratings
+are a judgement made in the admin tool, not computed from live data, so the game cannot be broken
+by a feed. They are reviewed each season, and at promotion and relegation.
+
+### 4.2 A result
+
+For each fixture the engine turns the two ratings, plus a **home advantage**, into an expected
+number of goals for each side, and draws each side's goals at random from that expectation.
+(A Poisson draw is the standard model for football scores: it produces believable scorelines — lots
+of 1–0, 2–1 and 1–1, the occasional 4–3 — rather than just a win/draw/loss.)
+
+The engine is tuned by simulation **before** any screen is built. Starting targets, to be argued
+over in phase 0:
+
+| Match-up | Favourite wins | Draw | Upset |
+|---|---|---|---|
+| Top v bottom | ~80% | ~12% | ~8% |
+| Top half v bottom half | ~60% | ~22% | ~18% |
+| Evenly matched | ~40% | ~27% | ~33% (either side) |
+
+Upsets have to be rare enough that backing the favourite is right, and common enough that every
+round has one moment that sets the room off.
+
+### 4.3 Form *(decided in principle)*
+
+Within one game, a team's results move its rating for the rest of that game: two wins in two and
+Hull's weight goes up. Because every team plays every round (§2), form is visible and meaningful
+by round 2. The adjustment is **small and capped**, and it **lives only in that room** — it never
+changes the stored rating. Players see it as a W/D/L strip beside each team from round 2.
+
+### 4.4 Goal times
+
+The engine also gives each goal a minute, so the vidiprinter can play the round as a timeline: a
+goal at 12', an equaliser at 88'. Minutes are generated from the final score, so they are drama, not
+a separate model.
+
+### 4.5 Reproducible
+
+Each round's results are generated from a **seed stored with the round**. The same seed always gives
+the same results, which makes a reported "that can't be right" checkable, and lets the engine be
+tested by script.
+
+---
+
+## 5. A game, start to finish
+
+1. **Host creates a room**, signed in to a free LMSLocal account *(decided)*, and chooses 4, 6 or 8 rounds. The TV shows
+   the room code and a QR code.
+2. **Players join**: scan the QR or type the code, type a name. Their names appear on the TV.
+3. **Host starts the game.** Round 1's fixtures are drawn.
+4. **Players predict** on their phones. The TV shows who has finished — names only, never what
+   they chose.
+5. **The round locks** when the last player submits, or when the host locks it.
+6. **The engine plays the round** (§4), and the TV runs the vidiprinter (§6).
+7. **The table** appears on the TV and phones, with the movement since last round.
+8. **Host moves on** to the next round. Repeat from step 4.
+9. After the last round, **the final table** and a winner.
+
+Room states, in order: `lobby → open → locked → revealing → table → (open … ) → finished`. Only the
+host moves a room from one state to the next, except `open → locked` when everyone has submitted.
+
+---
+
+## 6. The vidiprinter
+
+The moment the game exists for. The TV becomes a results service: scores typed in line by line in
+block capitals, a minute-by-minute run through the round compressed into roughly 60–90 seconds,
+goals arriving in kick-off order, then FT on each line, then the table.
+
+- In the spirit of the classic teleprinter, built in LMSLocal's own type and colours.
+  **No BBC name, logo or screen design.** The parked `landing-redesign` branch already has a typing
+  results feed in this style worth borrowing from.
+- Pacing is the whole design problem: long enough for tension, short enough that a room of children
+  stays with it. Late goals are held back to the end.
+- Phones show a simpler version, so a player looking down still sees their own matches land.
+
+---
+
+## 7. Data and API (outline)
+
+All new tables, sharing nothing with competitions: `party_team` (name, short name, rating — seeded
+from the Premier League team list, then maintained in admin), `party_room` (code, host, state,
+rounds, current round, created/expires), `party_player` (room, name, token), `party_round`
+(room, number, seed, locked/revealed times), `party_fixture` (round, teams, goals, goal minutes),
+`party_prediction` (player, fixture, predicted team).
+
+- **Players are not users.** Joining issues a random **player token** for that room only, stored
+  hashed. It is not a JWT and opens nothing outside the room.
+- **Live updates by polling at first**: phones and the TV ask for the room's state every one to two
+  seconds, and the server answers with a version number so an unchanged state is cheap. The API is
+  one always-on Express process (pm2), so a live connection (server-sent events) can replace polling
+  later without changing the game.
+- **Routes follow the API conventions** in CLAUDE.md: one route per file, POST for actions, HTTP 200
+  with a `return_code`.
+- **Rooms expire.** They are deleted after a set time (say 24 hours), so the production database
+  does not fill with finished parties.
+- Room codes are short, avoid confusable letters, and joining is rate-limited.
+
+---
+
+## 8. Guardrails
+
+- **No money, no prizes, no stakes** in the product or its copy. The result is decided by a
+  simulation, so with an entry fee this would be a game of chance in gambling-law terms, unlike Last
+  Man Standing. Played for fun it is nothing of the kind. Do not add an entry fee, a pot or a
+  prize field.
+- **No betting words**, as in `docs/matchday.md` §2: "predict" and "prediction", never "back",
+  "bet", "odds" or "stake". Ratings are shown as form, not as odds.
+- **Club names only.** No crests, kits or league branding: the names state facts about real clubs;
+  the badges are someone else's property.
+- **Names are shown on a TV.** Keep them short, and let the host remove a player.
+- **Not a recreation of an existing party game.** The phones-plus-TV shape is a genre; the
+  game, its look and its words are ours.
+
+---
+
+## 9. Build order
+
+| Phase | What | Visible? |
+|---|---|---|
+| 0 | **The engine**, as a pure function plus a simulation script: tune ratings, home advantage, form and upset rates against §4.2 | No |
+| 1 | Tables and routes: create, join, state, predict, lock, play round, next round, end | No |
+| 2 | Player phone screens | Behind a preview flag |
+| 3 | TV screens and the vidiprinter | Behind a preview flag |
+| 4 | Host controls and the awkward cases: a phone that sleeps, the TV page refreshed mid-game, a player removed, the host disappearing | Behind a preview flag |
+| 5 | A public page and the launch, aimed at a search such as "football party game" | Yes |
+
+Phase 0 comes first because it decides whether the game is fun. A good engine with plain screens
+is a game; a beautiful vidiprinter showing dull results is not.
+
+---
+
+## 10. Open questions
+
+| # | Question | Notes |
+|---|---|---|
+| 1 | ~~Does the host need an account?~~ | **Decided 2026-11-24: yes**, a free account; players never need one. It is the reason to build a free game, and it stops anonymous rooms being created in bulk |
+| 2 | ~~How many fixtures a round?~~ | **Decided 2026-11-24: all 10**, so every team plays every round and form counts |
+| 3 | ~~What do players see before predicting?~~ | **Decided 2026-11-24: names plus in-game form** from round 2 (§4.3). No ratings shown |
+| 4 | **Late joiners** | Matchday closes joining when round 1 locks. At a party, someone arriving at round 3 may want in, starting on 0 |
+| 5 | **A timer** | Not needed for a room that waits (§2). Possibly a host option later |
+| 6 | **If the host leaves** | Hand control to another player, or end the room |
+| 7 | **Sound** | A typing sound and a goal chime would make the reveal; the TV is the only device that should play it |
+| 8 | **The name** | "Matchday Party" is a working name |
+| 9 | **Other leagues** | Premier League only to start *(decided)*. The Championship would come with its own ratings |
+| 10 | **The app** | Phones use the browser in version 1. The Flutter app could follow |
