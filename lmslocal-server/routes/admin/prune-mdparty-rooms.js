@@ -1,10 +1,10 @@
 /*
 =======================================================================================================================================
-API Route: prune-party-rooms
+API Route: prune-mdparty-rooms
 =======================================================================================================================================
 Method: POST
 Purpose: Matchday Party room counts for the admin tool, and the button that deletes expired rooms
-         (docs/matchday-party.md §7). The same prune runs nightly as scripts/prune-party-rooms.js.
+         (docs/matchday-party.md §7). The same prune runs nightly as scripts/prune-mdparty-rooms.js.
 =======================================================================================================================================
 Request Payload:
 {
@@ -45,17 +45,17 @@ Data Notes:
 const express = require('express');
 const { logApiCall } = require('../../utils/apiLogger');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
-const { roomCounts, pruneExpiredRooms } = require('../../services/party');
+const { roomCounts, pruneExpiredRooms } = require('../../services/mdParty');
 const router = express.Router();
 
 router.post('/', verifyAdminToken, async (req, res) => {
-  logApiCall('prune-party-rooms');
+  logApiCall('prune-mdparty-rooms');
   try {
     const deleted = req.body && req.body.dry_run === true ? 0 : await pruneExpiredRooms();
     const counts = await roomCounts();
     return res.json({ return_code: 'SUCCESS', deleted, counts });
   } catch (error) {
-    console.error('prune-party-rooms error:', error);
+    console.error('prune-mdparty-rooms error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to prune party rooms' });
   }
 });

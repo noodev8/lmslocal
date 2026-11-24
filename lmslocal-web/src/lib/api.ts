@@ -828,18 +828,18 @@ type PartyResult = { return_code: string; message?: string; room?: { state: Part
 
 export const partyApi = {
   create: (rounds: number) =>
-    api.post<{ return_code: string; message?: string; code?: string; player_token?: string; player_id?: number }>('/create-party-room', { rounds }),
+    api.post<{ return_code: string; message?: string; code?: string; player_token?: string; player_id?: number }>('/create-mdparty-room', { rounds }),
   join: (code: string, name: string) =>
-    api.post<{ return_code: string; message?: string; player_token?: string; player_id?: number; name?: string }>('/join-party-room', { code, name }),
+    api.post<{ return_code: string; message?: string; player_token?: string; player_id?: number; name?: string }>('/join-mdparty-room', { code, name }),
   state: (code: string, player_token?: string, known_version?: number) =>
-    api.post<PartyState>('/get-party-state', { code, player_token, known_version }),
+    api.post<PartyState>('/get-mdparty-state', { code, player_token, known_version }),
   setPredictions: (code: string, player_token: string, round: number, predictions: { fixture_id: number; team_id: number }[]) =>
-    api.post<{ return_code: string; message?: string; round_locked?: boolean }>('/set-party-predictions', { code, player_token, round, predictions }),
-  start: (code: string) => api.post<PartyResult>('/start-party-game', { code }),
-  lock: (code: string) => api.post<PartyResult>('/lock-party-round', { code }),
-  showTable: (code: string) => api.post<PartyResult>('/show-party-table', { code }),
-  nextRound: (code: string) => api.post<PartyResult>('/next-party-round', { code }),
-  end: (code: string) => api.post<PartyResult>('/end-party-game', { code }),
+    api.post<{ return_code: string; message?: string; round_locked?: boolean }>('/set-mdparty-predictions', { code, player_token, round, predictions }),
+  start: (code: string) => api.post<PartyResult>('/start-mdparty-game', { code }),
+  lock: (code: string) => api.post<PartyResult>('/lock-mdparty-round', { code }),
+  showTable: (code: string) => api.post<PartyResult>('/show-mdparty-table', { code }),
+  nextRound: (code: string) => api.post<PartyResult>('/next-mdparty-round', { code }),
+  end: (code: string) => api.post<PartyResult>('/end-mdparty-game', { code }),
 };
 
 export const roundApi = {

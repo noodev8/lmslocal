@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-API Route: set-party-predictions
+API Route: set-mdparty-predictions
 =======================================================================================================================================
 Method: POST
 Purpose: A player sends their coupon for the current round of a Matchday Party (docs/matchday-party.md
@@ -51,11 +51,11 @@ Business Logic:
 const express = require('express');
 const { transaction } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  logApiCall('set-party-predictions');
+  logApiCall('set-mdparty-predictions');
   try {
     const { code, player_token: token, round, predictions } = req.body;
     if (!code || !token || round === undefined || !Array.isArray(predictions)) {
@@ -124,7 +124,7 @@ router.post('/', async (req, res) => {
 
     return res.json(result);
   } catch (error) {
-    console.error('set-party-predictions error:', error);
+    console.error('set-mdparty-predictions error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to send your predictions' });
   }
 });

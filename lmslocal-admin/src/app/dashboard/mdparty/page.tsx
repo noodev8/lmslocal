@@ -5,7 +5,7 @@
 Admin Party
 =======================================================================================================================================
 Purpose: Matchday Party housekeeping: how many rooms exist, and a button to delete the expired ones
-         (docs/matchday-party.md §7). The same prune runs nightly as scripts/prune-party-rooms.js;
+         (docs/matchday-party.md §7). The same prune runs nightly as scripts/prune-mdparty-rooms.js;
          this is for running it by hand.
 
 A placeholder page by request (2026-11-24): its position in the admin tool is to be settled later.

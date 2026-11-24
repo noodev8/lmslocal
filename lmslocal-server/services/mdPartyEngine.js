@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-services/partyEngine.js — the Matchday Party match engine
+services/mdPartyEngine.js — the Matchday Party match engine
 =======================================================================================================================================
 Purpose: Plays a round of Matchday Party: draws ten made-up fixtures from the twenty teams when the
          round opens, and simulates their results when it locks. docs/matchday-party.md §4 is the contract; this file is the only
@@ -8,7 +8,7 @@ Purpose: Plays a round of Matchday Party: draws ten made-up fixtures from the tw
 
 PURE: no database, no clock, no Math.random. Everything comes in as arguments and the only source
 of chance is the seeded generator, so the same seed always plays the same round (§4.5). That makes
-a disputed result checkable and lets scripts/party-engine-sim.js tune the engine without a game.
+a disputed result checkable and lets scripts/mdparty-engine-sim.js tune the engine without a game.
 
 THE MATCH, AS A PAPER GAME (§4.2, agreed 2026-11-24):
   A match is 9 blocks of ten minutes. In each block both teams roll a number from 0 to 100; a roll
@@ -29,7 +29,7 @@ THE MATCH, AS A PAPER GAME (§4.2, agreed 2026-11-24):
   The home side adds HOME_ADVANTAGE to its rating before the gap is taken. +10 (raised from +5 on
   2026-11-24) gives home 44% / draw 23% / away 33%, close to real Premier League seasons.
 
-  Retune with scripts/party-engine-sim.js, not by eye.
+  Retune with scripts/mdparty-engine-sim.js, not by eye.
 
 THE LEAGUE-POSITION BONUS (§4.3, agreed 2026-11-24):
   From round 2, each team adds (teams + 1 - its position) x POSITION_BONUS to its rating, from

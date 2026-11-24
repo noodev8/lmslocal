@@ -8,7 +8,7 @@
   the host in it - there is no solo mode (Andreas, 2026-11-24).
 
   - The HOST creates the game (signed in; preview hosts only) and gets the controls.
-  - EVERYONE ELSE joins with the room code and a name, no account. /party?code=ABCDE fills the code in.
+  - EVERYONE ELSE joins with the room code and a name, no account. /mdparty?code=ABCDE fills the code in.
 
   Each device keeps its room code and player token in localStorage (mdparty_session), so a refresh
   carries on the same game. The page polls the room's state every two seconds with the version it
@@ -311,7 +311,7 @@ export default function PartyPage() {
                 <p className={`${LABEL} text-ink-fade`}>Room code</p>
                 <p className="mt-2 font-data text-6xl tracking-[0.15em]">{room.code}</p>
                 <p className="mt-4 text-[16px] text-ink-fade">
-                  Everyone else opens <span className="font-data text-ink">lmslocal.co.uk/party</span> on their
+                  Everyone else opens <span className="font-data text-ink">lmslocal.co.uk/mdparty</span> on their
                   phone and puts this code in &mdash; up to 20 players. Playing on your own? Just start.
                 </p>
                 <p className={`${LABEL} mt-8 text-ink-fade`}>In the room</p>

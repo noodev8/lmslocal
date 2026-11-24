@@ -60,17 +60,17 @@ const getPredictionsRoute = require('./routes/get-predictions');
 const getMatchdayTableRoute = require('./routes/get-matchday-table');
 const getRoundPredictionsRoute = require('./routes/get-round-predictions');
 // Matchday Party (docs/matchday-party.md): its own tables, sharing nothing with competitions.
-const createPartyRoomRoute = require('./routes/create-party-room');
-const joinPartyRoomRoute = require('./routes/join-party-room');
-const getPartyStateRoute = require('./routes/get-party-state');
-const setPartyPredictionsRoute = require('./routes/set-party-predictions');
-const startPartyGameRoute = require('./routes/start-party-game');
-const lockPartyRoundRoute = require('./routes/lock-party-round');
-const showPartyTableRoute = require('./routes/show-party-table');
-const nextPartyRoundRoute = require('./routes/next-party-round');
-const removePartyPlayerRoute = require('./routes/remove-party-player');
-const endPartyGameRoute = require('./routes/end-party-game');
-const prunePartyRoomsRoute = require('./routes/admin/prune-party-rooms');
+const createPartyRoomRoute = require('./routes/create-mdparty-room');
+const joinPartyRoomRoute = require('./routes/join-mdparty-room');
+const getPartyStateRoute = require('./routes/get-mdparty-state');
+const setPartyPredictionsRoute = require('./routes/set-mdparty-predictions');
+const startPartyGameRoute = require('./routes/start-mdparty-game');
+const lockPartyRoundRoute = require('./routes/lock-mdparty-round');
+const showPartyTableRoute = require('./routes/show-mdparty-table');
+const nextPartyRoundRoute = require('./routes/next-mdparty-round');
+const removePartyPlayerRoute = require('./routes/remove-mdparty-player');
+const endPartyGameRoute = require('./routes/end-mdparty-game');
+const prunePartyRoomsRoute = require('./routes/admin/prune-mdparty-rooms');
 const adminSetPickRoute = require('./routes/admin-set-pick');
 const updatePlayerLivesRoute = require('./routes/update-player-lives');
 const updatePlayerStatusRoute = require('./routes/update-player-status');
@@ -255,7 +255,7 @@ const limiter = rateLimit({
   // The Matchday Party state poll has its own limit (partyStateLimit below). A living room of ten
   // devices polling every two seconds is 4,500 requests in 15 minutes from one address, which would
   // exhaust this allowance in about three minutes and freeze the game mid-round.
-  skip: (req) => req.path === '/get-party-state',
+  skip: (req) => req.path === '/get-mdparty-state',
 });
 app.use(limiter);
 
@@ -454,16 +454,16 @@ app.use('/get-predictions', getPredictionsRoute);
 app.use('/get-matchday-table', getMatchdayTableRoute);
 app.use('/get-round-predictions', getRoundPredictionsRoute);
 // Matchday Party. Joining is public and reuses the join-code limit; the state poll has its own.
-app.use('/create-party-room', createPartyRoomRoute);
-app.use('/join-party-room', joinLookupLimit, joinPartyRoomRoute);
-app.use('/get-party-state', partyStateLimit, getPartyStateRoute);
-app.use('/set-party-predictions', setPartyPredictionsRoute);
-app.use('/start-party-game', startPartyGameRoute);
-app.use('/lock-party-round', lockPartyRoundRoute);
-app.use('/show-party-table', showPartyTableRoute);
-app.use('/next-party-round', nextPartyRoundRoute);
-app.use('/remove-party-player', removePartyPlayerRoute);
-app.use('/end-party-game', endPartyGameRoute);
+app.use('/create-mdparty-room', createPartyRoomRoute);
+app.use('/join-mdparty-room', joinLookupLimit, joinPartyRoomRoute);
+app.use('/get-mdparty-state', partyStateLimit, getPartyStateRoute);
+app.use('/set-mdparty-predictions', setPartyPredictionsRoute);
+app.use('/start-mdparty-game', startPartyGameRoute);
+app.use('/lock-mdparty-round', lockPartyRoundRoute);
+app.use('/show-mdparty-table', showPartyTableRoute);
+app.use('/next-mdparty-round', nextPartyRoundRoute);
+app.use('/remove-mdparty-player', removePartyPlayerRoute);
+app.use('/end-mdparty-game', endPartyGameRoute);
 app.use('/admin-set-pick', adminSetPickRoute);
 app.use('/update-player-lives', updatePlayerLivesRoute);
 app.use('/update-player-status', updatePlayerStatusRoute);
@@ -584,7 +584,7 @@ app.use('/admin/get-staged-results', getStagedResultsRoute);
 app.use('/admin/set-staged-result', setStagedResultRoute);
 app.use('/admin/set-fixture-service', setFixtureServiceRoute);
 app.use('/admin/set-competition-archived', setCompetitionArchivedRoute);
-app.use('/admin/prune-party-rooms', prunePartyRoomsRoute);
+app.use('/admin/prune-mdparty-rooms', prunePartyRoomsRoute);
 app.use('/admin/get-fixture-push-targets', getFixturePushTargetsRoute);
 app.use('/admin/push-fixtures-to-competition', pushFixturesToCompetitionRoute);
 app.use('/admin/get-push-targets', getPushTargetsRoute);

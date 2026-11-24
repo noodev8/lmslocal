@@ -1,9 +1,9 @@
 /*
 =======================================================================================================================================
-services/party.js — Matchday Party rooms: rules, auth and state
+services/mdParty.js — Matchday Party rooms: rules, auth and state
 =======================================================================================================================================
 Purpose: Everything the party routes share. docs/matchday-party.md is the contract; the engine that
-         plays the matches is services/partyEngine.js and is not repeated here.
+         plays the matches is services/mdPartyEngine.js and is not repeated here.
 
 NOT A COMPETITION. Nothing here reads or writes competition, round, fixture, pick or prediction,
 and no competition route reads the mdparty_* tables (§1). That separation is the point: neither game
@@ -27,7 +27,7 @@ mdparty_room.version, which is what lets a poll that is already up to date skip 
 
 const crypto = require('crypto');
 const { transaction, query } = require('../database');
-const { drawFixtures, playFixtures, teamTable } = require('./partyEngine');
+const { drawFixtures, playFixtures, teamTable } = require('./mdPartyEngine');
 
 /*
 IN PREVIEW (2026-11-24): only these users may host. Launching is setting this to null, in a commit of
@@ -389,7 +389,7 @@ async function hostAction(userId, code, allowed, action) {
 /**
  * Room counts for the admin tool, and the prune itself. One DELETE: every mdparty_ table below
  * mdparty_room cascades from it, so a room takes everything under it. mdparty_team is never
- * touched. Used by scripts/prune-party-rooms.js (nightly) and /admin/prune-party-rooms (a button).
+ * touched. Used by scripts/prune-mdparty-rooms.js (nightly) and /admin/prune-mdparty-rooms (a button).
  */
 async function roomCounts() {
   const r = await query(

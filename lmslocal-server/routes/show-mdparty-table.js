@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-API Route: show-party-table
+API Route: show-mdparty-table
 =======================================================================================================================================
 Method: POST
 Purpose: The host moves the room on from the vidiprinter to the tables (docs/matchday-party.md §5,
@@ -41,11 +41,11 @@ Business Logic:
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
-  logApiCall('show-party-table');
+  logApiCall('show-mdparty-table');
   try {
     const result = await party.hostAction(req.user.id, req.body.code, ['revealing'], async (client, room) => {
       await client.query(`UPDATE mdparty_room SET state = 'table', version = version + 1 WHERE id = $1`, [room.id]);
@@ -53,7 +53,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
     return res.json(result);
   } catch (error) {
-    console.error('show-party-table error:', error);
+    console.error('show-mdparty-table error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to show the table' });
   }
 });

@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-API Route: join-party-room
+API Route: join-mdparty-room
 =======================================================================================================================================
 Method: POST
 Purpose: A player joins a Matchday Party room with its code and a name (docs/matchday-party.md §5,
@@ -47,11 +47,11 @@ Business Logic:
 const express = require('express');
 const { transaction } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  logApiCall('join-party-room');
+  logApiCall('join-mdparty-room');
   try {
     const { code, name: rawName } = req.body;
     if (!code || rawName === undefined || rawName === null) {
@@ -90,7 +90,7 @@ router.post('/', async (req, res) => {
 
     return res.json(result);
   } catch (error) {
-    console.error('join-party-room error:', error);
+    console.error('join-mdparty-room error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to join the game' });
   }
 });

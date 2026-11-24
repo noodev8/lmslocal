@@ -1,10 +1,11 @@
 /*
 =======================================================================================================================================
-API Route: end-party-game
+API Route: lock-mdparty-round
 =======================================================================================================================================
 Method: POST
-Purpose: The host ends the game early (docs/matchday-party.md §10: the host leaving ends the game).
-         Every screen moves to the finished state, with the table as it stands.
+Purpose: The host locks the current round without waiting for everyone, and it is played there and
+         then (docs/matchday-party.md §2: the host can push things on). Matches a player left blank,
+         or never sent, score 0.
 =======================================================================================================================================
 Request Payload:
 {
@@ -14,7 +15,7 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "room": { "state": "finished", "current_round": 3, "version": 27 }
+  "room": { "state": "revealing", "current_round": 2, "version": 23 }
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -29,39 +30,32 @@ Return Codes:
 "PARTY_NOT_FOUND"   - no live room with that code
 "UNAUTHORIZED"      - invalid or missing JWT token
 "FORBIDDEN"         - the caller is not this room's host
-"INVALID_STATE"     - the game has already finished
+"INVALID_STATE"     - no round is open (it may have locked itself a moment ago)
 "SERVER_ERROR"      - unexpected server error
 =======================================================================================================================================
 Business Logic:
-- An open round is NOT played on the way out: ending means stopping, and the table stands as it was
-  after the last round played.
-- ended_early is set so a screen can say the game was stopped rather than won.
-- The room stays readable until it expires, so the final table can still be shown.
+- The same lock-and-play as the automatic one in set-mdparty-predictions (services/mdParty.js
+  lockAndPlayRound). The room row is held FOR UPDATE, so the two can never both play a round.
 =======================================================================================================================================
 */
 
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
-  logApiCall('end-party-game');
+  logApiCall('lock-mdparty-round');
   try {
-    const allowed = ['lobby', 'open', 'revealing', 'table'];
-    const result = await party.hostAction(req.user.id, req.body.code, allowed, async (client, room) => {
-      await client.query(
-        `UPDATE mdparty_room SET state = 'finished', ended_early = TRUE, finished_at = NOW(), version = version + 1
-         WHERE id = $1`,
-        [room.id]
-      );
+    const result = await party.hostAction(req.user.id, req.body.code, ['open'], async (client, room) => {
+      await party.lockAndPlayRound(client, room);
       return null;
     });
     return res.json(result);
   } catch (error) {
-    console.error('end-party-game error:', error);
-    return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to end the game' });
+    console.error('lock-mdparty-round error:', error);
+    return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to lock the round' });
   }
 });
 

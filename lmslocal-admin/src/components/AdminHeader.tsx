@@ -51,7 +51,7 @@ const NAV = [
   { href: '/dashboard/bots', label: 'Bots' },
   { href: '/dashboard/emails', label: 'Emails' },
   // Matchday Party housekeeping for now; its place is to be settled (Andreas, 2026-11-24).
-  { href: '/dashboard/party', label: 'Party' },
+  { href: '/dashboard/mdparty', label: 'Party' },
 ];
 
 export default function AdminHeader({

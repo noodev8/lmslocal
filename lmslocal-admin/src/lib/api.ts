@@ -1093,7 +1093,7 @@ export const adminApi = {
   page loads. Live rooms are never deleted. docs/matchday-party.md §7.
   */
   prunePartyRooms: async (dryRun: boolean): Promise<PrunePartyRoomsResponse> => {
-    const response = await api.post<PrunePartyRoomsResponse>('/admin/prune-party-rooms', { dry_run: dryRun });
+    const response = await api.post<PrunePartyRoomsResponse>('/admin/prune-mdparty-rooms', { dry_run: dryRun });
     return response.data;
   },
 

@@ -9,7 +9,7 @@
 -- UNLIKE prediction (2026-11-22-matchday-prediction.sql), the foreign keys inside a party CASCADE.
 -- A room is a short-lived thing (§7: deleted after about a day), and deleting it must take its
 -- players, rounds, fixtures and predictions with it in one statement - that is the whole of
--- scripts/prune-party-rooms.js. Nothing outside the party tables points in, so a cascade here
+-- scripts/prune-mdparty-rooms.js. Nothing outside the party tables points in, so a cascade here
 -- cannot reach anyone's competition.
 
 -- The twenty teams and their ratings (§4.1). A rating is our judgement, maintained by hand; a
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS party_team (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- PROVISIONAL ratings, 2026-11-24, the same set as scripts/party-engine-sim.js. Andreas sets the
+-- PROVISIONAL ratings, 2026-11-24, the same set as scripts/mdparty-engine-sim.js. Andreas sets the
 -- real ones; change them with an UPDATE, not by editing this file. Names and short names match
 -- team_list 1 (English Premier League 2026-27).
 INSERT INTO party_team (name, short_name, rating) VALUES
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS party_submission (
 );
 
 -- One row per predicted match. A blank has no row and scores 0. Points are derived from the
--- fixture's goals, never stored (services/party.js).
+-- fixture's goals, never stored (services/mdParty.js).
 CREATE TABLE IF NOT EXISTS party_prediction (
   id            SERIAL PRIMARY KEY,
   fixture_id    INTEGER     NOT NULL REFERENCES party_fixture (id) ON DELETE CASCADE,

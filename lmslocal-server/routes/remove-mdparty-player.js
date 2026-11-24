@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-API Route: remove-party-player
+API Route: remove-mdparty-player
 =======================================================================================================================================
 Method: POST
 Purpose: The host removes a player from the room (docs/matchday-party.md §8: names are shown on a TV,
@@ -37,7 +37,7 @@ Return Codes:
 "SERVER_ERROR"        - unexpected server error
 =======================================================================================================================================
 Business Logic:
-- The host cannot remove themselves; ending the game is end-party-game (§10: the host leaving ends it).
+- The host cannot remove themselves; ending the game is end-mdparty-game (§10: the host leaving ends it).
 - The row is kept with removed_at set; their token stops working and they drop out of every table.
 - If the round was only waiting for this player, it locks and is played now, as it would have when
   their coupon arrived.
@@ -47,11 +47,11 @@ Business Logic:
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
-  logApiCall('remove-party-player');
+  logApiCall('remove-mdparty-player');
   try {
     const playerId = Number(req.body.player_id);
     if (!req.body.player_id || !Number.isInteger(playerId)) {
@@ -79,7 +79,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
     return res.json(result);
   } catch (error) {
-    console.error('remove-party-player error:', error);
+    console.error('remove-mdparty-player error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to remove the player' });
   }
 });

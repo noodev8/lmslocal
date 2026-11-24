@@ -1,8 +1,8 @@
 /*
 =======================================================================================================================================
-Script: party-engine-sim.js   (Matchday Party engine — NO DATABASE, nothing written anywhere)
+Script: mdparty-engine-sim.js   (Matchday Party engine — NO DATABASE, nothing written anywhere)
 =======================================================================================================================================
-Purpose: Tune the Matchday Party engine (services/partyEngine.js, docs/matchday-party.md §4) before any
+Purpose: Tune the Matchday Party engine (services/mdPartyEngine.js, docs/matchday-party.md §4) before any
          screen exists. Plays the engine thousands of times and reports what a room would feel: how
          often the favourite wins, how many goals, the common scorelines, how far form moves a team.
 
@@ -11,13 +11,13 @@ for Andreas to make; when they are agreed they move into the mdparty_team table 
 should read them from there.
 
 Usage (from lmslocal-server/):
-    node scripts/party-engine-sim.js                 the summary: match-ups, scorelines, form
-    node scripts/party-engine-sim.js game [rounds]   play one whole game (default 6 rounds), round by round
-    node scripts/party-engine-sim.js game 6 --seed 42    the same game again
+    node scripts/mdparty-engine-sim.js                 the summary: match-ups, scorelines, form
+    node scripts/mdparty-engine-sim.js game [rounds]   play one whole game (default 6 rounds), round by round
+    node scripts/mdparty-engine-sim.js game 6 --seed 42    the same game again
 =======================================================================================================================================
 */
 
-const { drawFixtures, playFixtures, playMatch, teamTable, seededRandom, ENGINE } = require('../services/partyEngine');
+const { drawFixtures, playFixtures, playMatch, teamTable, seededRandom, ENGINE } = require('../services/mdPartyEngine');
 
 // PROVISIONAL - see the header. Names match team_list 1 (English Premier League 2026-27).
 const TEAMS = [

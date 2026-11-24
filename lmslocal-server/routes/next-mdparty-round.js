@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-API Route: next-party-round
+API Route: next-mdparty-round
 =======================================================================================================================================
 Method: POST
 Purpose: The host moves on from the tables: the next round's fixtures are drawn, or after the last
@@ -34,18 +34,18 @@ Return Codes:
 =======================================================================================================================================
 Business Logic:
 - The form and the league-position bonus for the new round come from every round played so far
-  (services/partyEngine.js); nothing about them is stored.
+  (services/mdPartyEngine.js); nothing about them is stored.
 =======================================================================================================================================
 */
 
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
-  logApiCall('next-party-round');
+  logApiCall('next-mdparty-round');
   try {
     const result = await party.hostAction(req.user.id, req.body.code, ['table'], async (client, room) => {
       if (room.current_round < room.rounds_total) {
@@ -60,7 +60,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
     return res.json(result);
   } catch (error) {
-    console.error('next-party-round error:', error);
+    console.error('next-mdparty-round error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to start the next round' });
   }
 });

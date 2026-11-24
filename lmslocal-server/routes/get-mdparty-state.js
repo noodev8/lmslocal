@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-API Route: get-party-state
+API Route: get-mdparty-state
 =======================================================================================================================================
 Method: POST
 Purpose: Everything a Matchday Party screen shows, for one room. Polled every second or two by the TV
@@ -73,11 +73,11 @@ Business Logic:
 const express = require('express');
 const { query } = require('../database');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  logApiCall('get-party-state');
+  logApiCall('get-mdparty-state');
   try {
     const { code, player_token: token, known_version: knownVersion } = req.body;
     if (!code) return res.json({ return_code: 'MISSING_FIELDS', message: 'code is required' });
@@ -100,7 +100,7 @@ router.post('/', async (req, res) => {
       ...state
     });
   } catch (error) {
-    console.error('get-party-state error:', error);
+    console.error('get-mdparty-state error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to load the game' });
   }
 });

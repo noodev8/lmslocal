@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-API Route: start-party-game
+API Route: start-mdparty-game
 =======================================================================================================================================
 Method: POST
 Purpose: The host starts the game: joining closes and round 1's fixtures are drawn
@@ -34,18 +34,18 @@ Return Codes:
 "SERVER_ERROR"         - unexpected server error
 =======================================================================================================================================
 Business Logic:
-- No late joiners (§10): once started, join-party-room refuses the room.
+- No late joiners (§10): once started, join-mdparty-room refuses the room.
 =======================================================================================================================================
 */
 
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
-  logApiCall('start-party-game');
+  logApiCall('start-mdparty-game');
   try {
     const result = await party.hostAction(req.user.id, req.body.code, ['lobby'], async (client, room) => {
       const count = (await client.query(
@@ -61,7 +61,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
     return res.json(result);
   } catch (error) {
-    console.error('start-party-game error:', error);
+    console.error('start-mdparty-game error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to start the game' });
   }
 });

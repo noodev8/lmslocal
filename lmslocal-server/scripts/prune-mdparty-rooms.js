@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-Script: prune-party-rooms.js
+Script: prune-mdparty-rooms.js
 =======================================================================================================================================
 Purpose: Delete Matchday Party rooms past their expiry (docs/matchday-party.md ยง7). A party is one
          evening; keeping it after that only fills the production database with finished games.
@@ -10,36 +10,36 @@ Purpose: Delete Matchday Party rooms past their expiry (docs/matchday-party.md ย
          fixtures, coupons and predictions with it. mdparty_team is never touched.
 
 Usage:
-  node scripts/prune-party-rooms.js              # delete and report
-  node scripts/prune-party-rooms.js --dry-run    # report what would go, delete nothing
+  node scripts/prune-mdparty-rooms.js              # delete and report
+  node scripts/prune-mdparty-rooms.js --dry-run    # report what would go, delete nothing
 
 Crontab (server clock is GMT; comment the BST equivalent as elsewhere in the file):
-  50 3 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/prune-party-rooms.js   # 04:50 BST
+  50 3 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/prune-mdparty-rooms.js   # 04:50 BST
 
-Expired rooms are already invisible to every route (services/party.js findRoom), so a missed run
+Expired rooms are already invisible to every route (services/mdParty.js findRoom), so a missed run
 costs disk space and nothing else. The same prune is a button in the admin tool (Party page,
-/admin/prune-party-rooms); both call services/party.js pruneExpiredRooms.
+/admin/prune-mdparty-rooms); both call services/mdParty.js pruneExpiredRooms.
 =======================================================================================================================================
 */
 
 require('dotenv').config();
 const { closePool } = require('../database');
-const { roomCounts, pruneExpiredRooms } = require('../services/party');
+const { roomCounts, pruneExpiredRooms } = require('../services/mdParty');
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
   const { expired } = await roomCounts();
   if (dryRun) {
-    console.log(`[prune-party-rooms] dry run: ${expired} expired room(s) would be deleted`);
+    console.log(`[prune-mdparty-rooms] dry run: ${expired} expired room(s) would be deleted`);
     return;
   }
   const deleted = await pruneExpiredRooms();
-  console.log(`[prune-party-rooms] deleted ${deleted} expired room(s)`);
+  console.log(`[prune-mdparty-rooms] deleted ${deleted} expired room(s)`);
 }
 
 main()
   .catch((error) => {
-    console.error('[prune-party-rooms] failed:', error);
+    console.error('[prune-mdparty-rooms] failed:', error);
     process.exitCode = 1;
   })
   .finally(() => closePool());

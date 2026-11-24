@@ -19,7 +19,7 @@ Success Response (ALWAYS HTTP 200):
     "can_create_games": ["lms"],                // string[], games this user may create - Matchday only
                                                 //   while in preview (services/gameType.js)
     "can_host_party": false                     // boolean, may host a Matchday Party - only while in
-                                                //   preview (services/party.js); not a competition
+                                                //   preview (services/mdParty.js); not a competition
   },
   "competitions": [
     {
@@ -122,7 +122,7 @@ const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
 const { getPlaceUsage } = require('../services/placeUsage');
 const { clientGameTypes, gamesUserCanCreate } = require('../services/gameType');
-const { canHostParty } = require('../services/party');
+const { canHostParty } = require('../services/mdParty');
 const { getMatchdayTables } = require('../services/matchdayTable');
 const router = express.Router();
 

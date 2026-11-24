@@ -1,6 +1,6 @@
 /*
 =======================================================================================================================================
-API Route: create-party-room
+API Route: create-mdparty-room
 =======================================================================================================================================
 Method: POST
 Purpose: The host sets up a Matchday Party room for one evening (docs/matchday-party.md §5, step 1).
@@ -31,7 +31,7 @@ Return Codes:
 "MISSING_FIELDS"   - rounds not given
 "INVALID_ROUNDS"   - rounds is not 4, 6 or 8
 "UNAUTHORIZED"     - invalid or missing JWT token
-"FORBIDDEN"        - this user may not host (preview: PARTY_PREVIEW_HOST_IDS in services/party.js)
+"FORBIDDEN"        - this user may not host (preview: PARTY_PREVIEW_HOST_IDS in services/mdParty.js)
 "SERVER_ERROR"     - unexpected server error
 =======================================================================================================================================
 Business Logic:
@@ -39,7 +39,7 @@ Business Logic:
 - One live game per host. Creating a room finishes any other room this host has not finished: a
   host starting a new game has left the old one, and the host leaving ends the game (§10).
 - The host's player name is their account display name, cut to the 20-character limit.
-- The room is deleted ROOM_LIFETIME_HOURS after creation by scripts/prune-party-rooms.js.
+- The room is deleted ROOM_LIFETIME_HOURS after creation by scripts/prune-mdparty-rooms.js.
 =======================================================================================================================================
 */
 
@@ -47,11 +47,11 @@ const express = require('express');
 const { transaction } = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { logApiCall } = require('../utils/apiLogger');
-const party = require('../services/party');
+const party = require('../services/mdParty');
 const router = express.Router();
 
 router.post('/', verifyToken, async (req, res) => {
-  logApiCall('create-party-room');
+  logApiCall('create-mdparty-room');
   try {
     const userId = req.user.id;
     const { rounds } = req.body;
@@ -85,7 +85,7 @@ router.post('/', verifyToken, async (req, res) => {
         const taken = await client.query('SELECT 1 FROM mdparty_room WHERE code = $1', [candidate]);
         if (taken.rows.length === 0) code = candidate;
       }
-      if (!code) throw new Error('create-party-room: no free room code after 10 attempts');
+      if (!code) throw new Error('create-mdparty-room: no free room code after 10 attempts');
 
       const room = (await client.query(
         `INSERT INTO mdparty_room (code, host_user_id, rounds_total, expires_at)
@@ -113,7 +113,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     return res.json(result);
   } catch (error) {
-    console.error('create-party-room error:', error);
+    console.error('create-mdparty-room error:', error);
     return res.json({ return_code: 'SERVER_ERROR', message: 'Failed to create the game' });
   }
 });

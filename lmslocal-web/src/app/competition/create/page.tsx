@@ -85,7 +85,7 @@ export default function CreateCompetitionPage() {
   const [startOption, setStartOption] = useState<StartOption | null>(null);
 
   // Matchday Party (docs/matchday-party.md) is offered beside the two games, to its preview hosts
-  // only. It is not a competition: choosing it leaves this wizard for /party, which asks for nothing
+  // only. It is not a competition: choosing it leaves this wizard for /mdparty, which asks for nothing
   // but the number of rounds.
   const offersParty = user?.can_host_party === true;
 
@@ -327,7 +327,7 @@ export default function CreateCompetitionPage() {
 
               {offersParty && (
                 <Link
-                  href="/party"
+                  href="/mdparty"
                   className="mt-3 flex flex-col items-start border border-dashed border-ink/40 p-5 text-left transition-colors hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <p className="font-display text-2xl uppercase tracking-[0.03em]">Matchday Party</p>

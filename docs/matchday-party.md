@@ -75,8 +75,8 @@ phone dies, the game waits; nothing advances without them (§10, question 6).
 
 ## 4. The match engine
 
-Agreed 2026-11-24, built as `services/partyEngine.js` and tuned with
-`scripts/party-engine-sim.js` (no database). The engine is pure: the same seed always gives the
+Agreed 2026-11-24, built as `services/mdPartyEngine.js` and tuned with
+`scripts/mdparty-engine-sim.js` (no database). The engine is pure: the same seed always gives the
 same result. It is a paper game played by the server: dice, windows and a count.
 
 ### 4.1 Ratings
@@ -187,8 +187,8 @@ goals arriving in kick-off order, then FT on each line, then the teams' table, t
 
 ## 7. Data and API
 
-Built 2026-11-24 (phase 1): `db/migrations/2026-11-24-matchday-party.sql`, `services/party.js`,
-ten routes, `scripts/prune-party-rooms.js`.
+Built 2026-11-24 (phase 1): `db/migrations/2026-11-24-matchday-party.sql`, `services/mdParty.js`,
+ten routes, `scripts/prune-mdparty-rooms.js`.
 
 **Tables**, all new and all `mdparty_`-prefixed. They reference only `app_user`; nothing that
 exists reads them.
@@ -210,21 +210,21 @@ statement. That is the whole prune script.
 
 | Route | Who | What |
 |---|---|---|
-| `create-party-room` | Host (JWT) | Rounds 4/6/8. Returns the code and the host's player token. Finishes any other unfinished room of the host's |
-| `join-party-room` | Anyone | Code and a name; returns a player token. Lobby only. Rate limited like the competition join lookup |
-| `get-party-state` | TV, phones | The whole room as a screen needs it. `known_version` makes an unchanged poll one read. Its own rate limit (§7.1) |
-| `set-party-predictions` | Player token | The whole coupon at once; replaces an earlier one. The last coupon locks and plays the round |
-| `start-party-game` | Host | Needs 1 player, so the host can play alone. Draws round 1 |
-| `lock-party-round` | Host | Locks and plays without waiting |
-| `show-party-table` | Host | Reveal → tables |
-| `next-party-round` | Host | Tables → next round, or finished after the last |
-| `remove-party-player` | Host | Not the host. If the round was waiting only on them, it plays |
-| `end-party-game` | Host | Finished from any state; an open round is not played |
+| `create-mdparty-room` | Host (JWT) | Rounds 4/6/8. Returns the code and the host's player token. Finishes any other unfinished room of the host's |
+| `join-mdparty-room` | Anyone | Code and a name; returns a player token. Lobby only. Rate limited like the competition join lookup |
+| `get-mdparty-state` | TV, phones | The whole room as a screen needs it. `known_version` makes an unchanged poll one read. Its own rate limit (§7.1) |
+| `set-mdparty-predictions` | Player token | The whole coupon at once; replaces an earlier one. The last coupon locks and plays the round |
+| `start-mdparty-game` | Host | Needs 1 player, so the host can play alone. Draws round 1 |
+| `lock-mdparty-round` | Host | Locks and plays without waiting |
+| `show-mdparty-table` | Host | Reveal → tables |
+| `next-mdparty-round` | Host | Tables → next round, or finished after the last |
+| `remove-mdparty-player` | Host | Not the host. If the round was waiting only on them, it plays |
+| `end-mdparty-game` | Host | Finished from any state; an open round is not played |
 
 **Who is who.** The host's controls need their LMSLocal sign-in. A bad player token answers `PLAYER_NOT_FOUND`, never `UNAUTHORIZED`, because the web client signs a user out on that code. Players hold a random token for
 one room, stored hashed, opening nothing else. The TV sends the code alone and can only read.
 
-**In preview:** only `PARTY_PREVIEW_HOST_IDS` (`services/party.js`, organiser 50) can create a
+**In preview:** only `PARTY_PREVIEW_HOST_IDS` (`services/mdParty.js`, organiser 50) can create a
 room. Launching is setting it to `null` in a commit of its own.
 
 **Rooms expire** 24 hours after creation. Expired rooms are invisible to every route, and the prune
@@ -236,7 +236,7 @@ Room codes are five letters with no I, L, O or U, and no digits, so nothing is m
 
 Every phone and the TV in a room share one home address. The general limit (1,000 requests per 15
 minutes per address) would freeze a room of ten devices in about three minutes, so
-`get-party-state` is outside it, with its own limit of 1,500 a minute.
+`get-mdparty-state` is outside it, with its own limit of 1,500 a minute.
 
 ---
 
@@ -262,7 +262,7 @@ minutes per address) would freeze a room of ten devices in about three minutes, 
 |---|---|---|
 | 0 | **The engine**, as a pure function plus a simulation script. **Built 2026-11-24**; the ratings are still provisional | No |
 | 1 | Tables and routes: create, join, state, predict, lock, play round, next round, end. **Built and migrated 2026-11-24**; tested end to end through the routes | No |
-| 2 | Player phone screens. **Started 2026-11-24:** `/party` is one plain screen for host and players alike (create or join, coupon, results, both tables, host controls), reached from the create wizard's "Which game?" step. Same engine and routes for 1 to 20 players; playing alone is a room with only the host | Behind a preview flag |
+| 2 | Player phone screens. **Started 2026-11-24:** `/mdparty` is one plain screen for host and players alike (create or join, coupon, results, both tables, host controls), reached from the create wizard's "Which game?" step. Same engine and routes for 1 to 20 players; playing alone is a room with only the host | Behind a preview flag |
 | 3 | TV screens and the vidiprinter | Behind a preview flag |
 | 4 | Host controls and the awkward cases: a phone that sleeps, the TV page refreshed mid-game, a player removed, the host disappearing | Behind a preview flag |
 | 5 | A public page and the launch, aimed at a search such as "football party game" | Yes |
