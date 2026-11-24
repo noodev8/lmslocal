@@ -172,3 +172,8 @@ build/
 .agents/
 .impeccable/
 skills-lock.json
+
+# ---------------------------------------------------------------------------
+# Store review test logins (App Store / Google Play). Kept out of the public repo.
+# ---------------------------------------------------------------------------
+docs/store-review-logins.txt

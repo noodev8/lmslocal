@@ -24,6 +24,4 @@ vercel --prod
 
 
 == App Stores
-223344
-Google - google@test.com - 866
-Apple - apple@test.com - 867
+Review test logins: docs/store-review-logins.txt (untracked - local only)
