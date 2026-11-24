@@ -40,9 +40,8 @@ Return Codes:
 "COMPETITION_FULL"      - Competition has reached maximum player limit
 "ALREADY_JOINED"        - User is already a member of this competition
 "GAME_NOT_SUPPORTED"    - The competition is a game this client did not declare in X-Game-Types
-                          (app versions before 2.1.0). The message names the game, says to update
-                          the app, and gives the web and code as a fallback - the app shows it
-                          verbatim. docs/matchday.md §7.2
+                          (app versions before 2.1.0). The message names the game and says to
+                          update the app - the app shows it verbatim. docs/matchday.md §7.2
 "SERVER_ERROR"          - Database error or unexpected server failure
 =======================================================================================================================================
 */
@@ -147,10 +146,8 @@ router.post('/', verifyToken, async (req, res) => {
       // skip the version gate when opened from a link, so this message is where they learn to
       // update. Reopening the app is the quick route, since it lands on the store page - but
       // "fully": those builds check only on a cold start (the splash screen), and tapping the
-      // icon while the app is still running resumes it with no check. The web stays as the fallback, with the code, because the invite link is no way
-      // out: an installed app claims /join/* (AndroidManifest.xml, apple-app-site-association),
-      // so tapping it again on an old build reopens this screen, while the web dashboard's
-      // "Join a competition" takes the code.
+      // icon while the app is still running resumes it with no check. No web fallback, on
+      // purpose (less is more): once updated, the same invite link joins in the app.
       if (!clientGameTypes(req).includes(data.game_type)) {
         const gameName = GAME_TYPES[data.game_type];
         const what = gameName
@@ -158,7 +155,7 @@ router.post('/', verifyToken, async (req, res) => {
           : `${data.competition_name} needs the latest LMS Local app.`;
         throw {
           return_code: "GAME_NOT_SUPPORTED",
-          message: `${what} Close the app fully and open it again, and it will take you to the update - or update it from the App Store or Google Play. Then tap your invite link again. Or join on lmslocal.co.uk with the code ${code}.`
+          message: `${what} Close the app fully and open it again, and it will take you to the update - or update it from the App Store or Google Play. Then tap your invite link again.`
         };
       }
 
