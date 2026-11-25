@@ -820,7 +820,13 @@ export interface PartyState {
   room?: { code: string; state: PartyRoomState; rounds_total: number; current_round: number; version: number; ended_early: boolean };
   me?: { player_id: number; name: string; is_host: boolean } | null;
   players?: { id: number; name: string; is_host: boolean; submitted: boolean }[];
-  round?: { number: number; locked: boolean; fixtures: PartyFixture[]; my_predictions: Record<string, number> } | null;
+  /** The database clock at the time of the response: the reveal's minute is worked out against it. */
+  server_now?: string;
+  round?: {
+    number: number; locked: boolean; locked_at: string | null; fixtures: PartyFixture[]; my_predictions: Record<string, number>;
+    /** Who predicted each side, by player id - only once the round has locked. */
+    crowd: { fixture_id: number; home: number[]; away: number[] }[] | null;
+  } | null;
   players_table?: PartyPlayersRow[];
   teams_table?: PartyTeamsRow[];
 }
@@ -834,7 +840,7 @@ export const partyApi = {
   state: (code: string, player_token?: string, known_version?: number) =>
     api.post<PartyState>('/get-mdparty-state', { code, player_token, known_version }),
   setPredictions: (code: string, player_token: string, round: number, predictions: { fixture_id: number; team_id: number }[]) =>
-    api.post<{ return_code: string; message?: string; round_locked?: boolean }>('/set-mdparty-predictions', { code, player_token, round, predictions }),
+    api.post<{ return_code: string; message?: string; everyone_sent?: boolean }>('/set-mdparty-predictions', { code, player_token, round, predictions }),
   start: (code: string) => api.post<PartyResult>('/start-mdparty-game', { code }),
   lock: (code: string) => api.post<PartyResult>('/lock-mdparty-round', { code }),
   showTable: (code: string) => api.post<PartyResult>('/show-mdparty-table', { code }),

@@ -3,9 +3,10 @@
 API Route: lock-mdparty-round
 =======================================================================================================================================
 Method: POST
-Purpose: The host locks the current round without waiting for everyone, and it is played there and
-         then (docs/matchday-party.md §2: the host can push things on). Matches a player left blank,
-         or never sent, score 0.
+Purpose: KICK OFF. The host locks the current round and it is played there and then; every screen
+         starts the reveal from this moment (docs/matchday-party.md §2, §6). The only way a round
+         locks: once everyone has sent a coupon the host's screen offers it, and the host can also kick
+         off early. Matches a player left blank, or never sent, score 0.
 =======================================================================================================================================
 Request Payload:
 {
@@ -34,8 +35,8 @@ Return Codes:
 "SERVER_ERROR"      - unexpected server error
 =======================================================================================================================================
 Business Logic:
-- The same lock-and-play as the automatic one in set-mdparty-predictions (services/mdParty.js
-  lockAndPlayRound). The room row is held FOR UPDATE, so the two can never both play a round.
+- services/mdParty.js lockAndPlayRound. The room row is held FOR UPDATE, so a double tap plays the
+  round once; the second is refused as INVALID_STATE.
 =======================================================================================================================================
 */
 

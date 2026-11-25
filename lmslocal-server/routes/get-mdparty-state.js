@@ -29,9 +29,11 @@ Success Response otherwise (ALWAYS HTTP 200):
   "room": { "code": "KXBRT", "state": "open", "rounds_total": 6, "current_round": 2, "version": 18, "ended_early": false },
   "me": { "player_id": 42, "name": "Nan", "is_host": false },     // null on the TV or without a valid token
   "players": [ { "id": 41, "name": "Dad", "is_host": true, "submitted": true } ],
+  "server_now": "2026-11-24T20:31:07.412Z",   // the database clock now, for working out the reveal's minute
   "round": {                           // null in the lobby
     "number": 2,
     "locked": false,
+    "locked_at": null,                 // ISO datetime the round locked and its reveal began; null while open
     "fixtures": [
       {
         "id": 901,
@@ -40,7 +42,10 @@ Success Response otherwise (ALWAYS HTTP 200):
         "result": null                 // { home_goals, away_goals, goals: [{ side, minute }] } once played
       }
     ],
-    "my_predictions": { "901": 20 }    // fixture id -> predicted team id; {} on the TV
+    "my_predictions": { "901": 20 },   // fixture id -> predicted team id; {} on the TV
+    "crowd": [                         // null until the round locks; then who predicted each side
+      { "fixture_id": 901, "home": [41, 42], "away": [43] }   // player ids, removed players left out
+    ]
   },
   "players_table": [ { "player_id": 41, "name": "Dad", "points": 13, "wins": 4, "predictions_made": 10, "round_points": 13, "position": 1 } ],
   "teams_table":   [ { "team_id": 20, "name": "Hull", "short_name": "HUL", "position": 1, "played": 1, "won": 1, "drawn": 0, "lost": 0, "gf": 2, "ga": 0, "gd": 2, "points": 3 } ]
@@ -62,7 +67,8 @@ Return Codes:
 Business Logic:
 - Results are only in the response for a round that has been played; before the lock they do not
   exist (§4.5). Effective ratings are never sent (§2).
-- Other players' predictions are not sent in phase 1.
+- Other players' predictions (round.crowd) are sent only once the round has locked, for the
+  one-match-at-a-time reveal; before the lock nobody sees anyone else's.
 - known_version matching the room's version is answered from one indexed read, which is what makes
   polling from a whole living room cheap.
 - Outside the general rate limiter (server.js): ten devices polling every two seconds would use up

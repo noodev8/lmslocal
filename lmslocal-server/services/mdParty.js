@@ -37,7 +37,10 @@ is never gated: a player only ever reaches one through a host who could create i
 const PARTY_PREVIEW_HOST_IDS = [50];
 
 const ROUND_OPTIONS = [4, 6, 8];
-const MAX_PLAYERS = 20;
+// Eight phones, host included (2026-11-25). Enough for a front room, and few enough that the TV's league
+// and the names under each team stay readable and nobody waits long for the slowest coupon. Nobody is
+// turned away: anyone beyond eight teams up with a player already in, on one phone.
+const MAX_PLAYERS = 8;
 // 1, so the host can play a game on their own (Andreas, 2026-11-24: play it alone first, to see
 // how many points a game gives, before the TV and multiplayer are built).
 const MIN_PLAYERS_TO_START = 1;
@@ -275,13 +278,26 @@ function formByTeam(results) {
   return form;
 }
 
+/** Per fixture, the ids of the players still in the room who predicted each side. */
+function crowdFor(fixtures, predictions, players) {
+  const inRoom = new Set(players.map((p) => p.id));
+  return fixtures.map((f) => {
+    const onFixture = predictions.filter((pr) => pr.fixture_id === f.id && inRoom.has(pr.player_id));
+    return {
+      fixture_id: f.id,
+      home: onFixture.filter((pr) => pr.team_id === f.home_team_id).map((pr) => pr.player_id),
+      away: onFixture.filter((pr) => pr.team_id === f.away_team_id).map((pr) => pr.player_id)
+    };
+  });
+}
+
 /**
  * The room as one screen should see it. `player` is the caller's player row, or null for the TV.
  * Results appear only for a round that has been played; nothing is ever sent before it exists, and
  * effective ratings are never sent at all (§2).
  */
 async function buildState(db, room, player) {
-  const [teams, playersRes, roundsRes, predictionsRes] = await Promise.all([
+  const [teams, playersRes, roundsRes, predictionsRes, clockRes] = await Promise.all([
     activeTeams(db),
     db.query(
       `SELECT p.id, p.display_name, p.is_host,
@@ -305,7 +321,10 @@ async function buildState(db, room, player) {
        JOIN mdparty_round r ON r.id = f.round_id
        WHERE r.room_id = $1`,
       [room.id]
-    )
+    ),
+    // The database's clock, the same one that stamped locked_at, so every screen can work out the
+    // reveal's minute from one clock whatever its own says (§6).
+    db.query('SELECT NOW() AS now')
   ]);
 
   const teamById = new Map(teams.map((t) => [t.id, t]));
@@ -324,6 +343,7 @@ async function buildState(db, room, player) {
   let round = null;
   if (room.current_round > 0) {
     const fixtures = allFixtures.filter((f) => f.round_number === room.current_round);
+    const roundLocked = fixtures.length > 0 && fixtures[0].locked_at !== null;
     const myPredictions = {};
     if (player) {
       for (const pr of predictionsRes.rows) {
@@ -332,14 +352,21 @@ async function buildState(db, room, player) {
     }
     round = {
       number: room.current_round,
-      locked: fixtures.length > 0 && fixtures[0].locked_at !== null,
+      locked: roundLocked,
+      // When the round locked and its reveal began. Every screen plays the reveal from this moment,
+      // so the TV and the phones show a goal together (§6).
+      locked_at: fixtures.length > 0 ? fixtures[0].locked_at : null,
       fixtures: fixtures.map((f) => ({
         id: f.id,
         home: teamView(f.home_team_id),
         away: teamView(f.away_team_id),
         result: f.home_goals === null ? null : { home_goals: f.home_goals, away_goals: f.away_goals, goals: f.goals }
       })),
-      my_predictions: myPredictions
+      my_predictions: myPredictions,
+      // Who predicted what, per match - only once the round has locked, never while a coupon can
+      // still change (as in Matchday, docs/matchday.md §8.6). The TV names them during the
+      // one-match-at-a-time reveal (§6). Removed players are left out.
+      crowd: roundLocked ? crowdFor(fixtures, predictionsRes.rows, playersRes.rows) : null
     };
   }
 
@@ -356,6 +383,7 @@ async function buildState(db, room, player) {
     me: player ? { player_id: player.id, name: player.display_name, is_host: player.is_host } : null,
     players: players.map((p) => ({ id: p.id, name: p.display_name, is_host: p.is_host, submitted: p.submitted })),
     round,
+    server_now: clockRes.rows[0].now,
     players_table: playersTable(players, predictionsRes.rows, room.current_round),
     teams_table: played.length > 0 ? sharedTeamTable(teams, played) : []
   };

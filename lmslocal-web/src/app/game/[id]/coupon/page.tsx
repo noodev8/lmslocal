@@ -19,20 +19,22 @@ the one thing. A player predicts, checks and, after the lock, sees results on th
 Each answer is saved as it is given (set-prediction), so a player who stops halfway keeps what
 they did. Saving is not optimistic: the card changes once the server has the answer, because a
 prediction that silently failed would cost real points.
+
+THE STRIP ITSELF - tracker, cards, moving between them, Done - is components/coupon/CardStrip.tsx,
+shared with Matchday Party since 2026-11-24. This page loads the round, saves each tap and adds the
+crowd line; how the cards behave is changed there.
 */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { MatchdayCoupon, MatchdayFixture, MatchdayRoundPredictions, matchdayApi } from '@/lib/api';
 import { useCompetitionGate } from '@/hooks/useCompetitionGate';
 import CompetitionUnavailable from '@/components/CompetitionUnavailable';
-import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_DARK, BTN_OUTLINE } from '@/lib/design';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_OUTLINE } from '@/lib/design';
+import CardStrip, { type StripFixture, type TapOutcome } from '@/components/coupon/CardStrip';
 import { GAME_NAMES, MATCHDAY_SCORING, formatKickoff, outcomeWord, signedPoints } from '@/lib/games';
-
-// Long enough to see the team turn green before the strip moves on, short enough not to wait for.
-const ADVANCE_DELAY_MS = 350;
 
 export default function CouponPage() {
   const params = useParams();
@@ -45,27 +47,9 @@ export default function CouponPage() {
   const [coupon, setCoupon] = useState<MatchdayCoupon | null>(null);
   const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
-  const [busyFixture, setBusyFixture] = useState<number | null>(null);
-  const [current, setCurrent] = useState(0);
   // Everyone's predictions, once the round has locked (docs/matchday.md §8.6). Null before then,
   // and if it fails to load the cards simply go without it - it is extra, not the page.
   const [everyone, setEveryone] = useState<MatchdayRoundPredictions | null>(null);
-
-  const stripRef = useRef<HTMLDivElement | null>(null);
-  const placedOnce = useRef(false);
-  const reducedMotion = useRef(false);
-  // The move to the next card after a prediction is saved, while it is pending. Any other move
-  // cancels it: a player who taps a team and then straight away taps Previous or the tracker meant
-  // to go there, and must not be carried forward a moment later.
-  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The card on screen now, for tapTeam: its save is awaited, and by the time it returns the player
-  // may have moved (Previous, the tracker, a swipe) - the `current` its closure saw is stale.
-  const currentRef = useRef(0);
-
-  useEffect(() => {
-    reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    return () => { if (advanceTimer.current) clearTimeout(advanceTimer.current); };
-  }, []);
 
   // A Matchday screen only. The LMS pick screen is the other game's; the reverse redirect lives
   // there (docs/matchday.md §8.4).
@@ -93,11 +77,6 @@ export default function CouponPage() {
   useEffect(() => {
     if (competition?.game_type === 'matchday') load();
   }, [competition?.game_type, load]);
-
-  // Another round is another strip: start it from scratch.
-  useEffect(() => {
-    placedOnce.current = false;
-  }, [requestedRound]);
 
   const round = coupon?.round ?? null;
   const open = round !== null && !round.locked && coupon?.is_player === true;
@@ -138,49 +117,6 @@ export default function CouponPage() {
     return out;
   }, [everyone]);
 
-  const goTo = useCallback((index: number, smooth = true) => {
-    const strip = stripRef.current;
-    if (!strip) return;
-    if (advanceTimer.current) {
-      clearTimeout(advanceTimer.current);
-      advanceTimer.current = null;
-    }
-    const clamped = Math.max(0, Math.min(index, fixtures.length - 1));
-    strip.scrollTo({ left: clamped * strip.clientWidth, behavior: smooth && !reducedMotion.current ? 'smooth' : 'auto' });
-    currentRef.current = clamped;
-    setCurrent(clamped);
-  }, [fixtures.length]);
-
-  // Open on the first match still to predict, so a player who comes back mid-week lands on what is
-  // missing rather than on match 1. Once only: after that, where they are is where they put it.
-  useEffect(() => {
-    if (!coupon || placedOnce.current || fixtures.length === 0) return;
-    placedOnce.current = true;
-    const firstMissing = open ? fixtures.findIndex(f => f.my_team === null) : -1;
-    // After paint, so the strip has a width to scroll by.
-    requestAnimationFrame(() => goTo(firstMissing > 0 ? firstMissing : 0, false));
-  }, [coupon, open, fixtures, goTo]);
-
-  // Keep the tracker in step with the strip however it was moved: a swipe, a trackpad, a key.
-  const onStripScroll = () => {
-    const strip = stripRef.current;
-    if (!strip || strip.clientWidth === 0) return;
-    const index = Math.round(strip.scrollLeft / strip.clientWidth);
-    currentRef.current = index;
-    if (index !== current) setCurrent(index);
-  };
-
-  // Arrow keys move between cards - never choose. Choosing is always a tap on a team.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'ArrowLeft') goTo(current - 1);
-      if (e.key === 'ArrowRight') goTo(current + 1);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [current, goTo]);
-
   const updateFixture = (fixtureId: number, myTeam: string | null) => {
     setCoupon(state => {
       if (!state) return state;
@@ -200,13 +136,12 @@ export default function CouponPage() {
 
   /**
    * A tap on a team. The team already predicted is taken back (the match then scores 0); any other
-   * is predicted, and the strip moves on to the next match.
+   * is predicted, and the strip moves on to the next match (CardStrip does the moving).
    */
-  const tapTeam = async (index: number, team: string) => {
+  const tapTeam = async (index: number, team: string): Promise<TapOutcome> => {
     const fixture = fixtures[index];
-    if (!fixture || busyFixture !== null) return;
+    if (!fixture) return 'failed';
     const takingBack = fixture.my_team === team;
-    setBusyFixture(fixture.fixture_id);
     setSaveError('');
     try {
       const res = takingBack
@@ -214,24 +149,32 @@ export default function CouponPage() {
         : await matchdayApi.setPrediction(fixture.fixture_id, team);
       if (res.data.return_code !== 'SUCCESS') {
         handleSaveFailure(res.data.return_code, res.data.message);
-        return;
+        return 'failed';
       }
       updateFixture(fixture.fixture_id, takingBack ? null : team);
-      // Move on only from the card that was tapped. A player who went elsewhere while the save was
-      // in flight, or in the moment before the move, meant to be there - checked both now and when
-      // the timer fires, since a swipe does not pass through goTo to cancel it.
-      if (!takingBack && index + 1 < fixtures.length && currentRef.current === index) {
-        advanceTimer.current = setTimeout(() => {
-          advanceTimer.current = null;
-          if (currentRef.current === index) goTo(index + 1);
-        }, ADVANCE_DELAY_MS);
-      }
+      return takingBack ? 'cleared' : 'chosen';
     } catch {
       setSaveError('That did not save. Check your connection and try again.');
-    } finally {
-      setBusyFixture(null);
+      return 'failed';
     }
   };
+
+  // The strip's view of each match. Results are read from the result, never from the points.
+  const stripFixtures: StripFixture[] = fixtures.map(f => ({
+    id: f.fixture_id,
+    home: { key: f.home_team_short, name: f.home_team },
+    away: { key: f.away_team_short, name: f.away_team },
+    meta: formatKickoff(f.kickoff_time),
+    chosen: f.my_team,
+    resultText: f.result === null
+      ? null
+      : f.result === 'DRAW'
+        ? 'Draw'
+        : `${f.result === f.home_team_short ? f.home_team : f.away_team} won`,
+    outcome: f.settled && f.my_team !== null && f.my_points !== null
+      ? { word: outcomeWord(f.my_team, f.result), points: signedPoints(f.my_points) }
+      : null,
+  }));
 
   if (unavailable) return <CompetitionUnavailable />;
 
@@ -301,33 +244,6 @@ export default function CouponPage() {
 
       {saveError && <ErrorLine message={saveError} />}
 
-      {/* The tracker. Segments, not a count: a player sees at a glance how many are left and
-          where. Green means predicted; the word is in each segment's label for a screen reader. */}
-      {coupon.is_player && (
-        <div className="mb-2 flex gap-1" role="tablist" aria-label="Matches">
-          {fixtures.map((f, index) => {
-            const done = f.my_team !== null;
-            return (
-              <button
-                key={f.fixture_id}
-                type="button"
-                role="tab"
-                aria-selected={index === current}
-                aria-label={`Match ${index + 1}: ${f.home_team} v ${f.away_team}, ${done ? 'predicted' : 'not predicted'}`}
-                onClick={() => goTo(index)}
-                className="group flex-1 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink"
-              >
-                <span
-                  className={`block h-2 rounded-full transition-colors ${
-                    done ? 'bg-moss' : 'bg-ink/15 group-hover:bg-ink/30'
-                  } ${index === current ? 'ring-2 ring-ink ring-offset-2 ring-offset-stock' : ''}`}
-                />
-              </button>
-            );
-          })}
-        </div>
-      )}
-
       {/* One line on where the round stands. */}
       <p className="mb-4 text-[15px] text-ink-fade">
         {!coupon.is_player
@@ -343,80 +259,20 @@ export default function CouponPage() {
               : <>This round: <span className="font-data text-ink">{signedPoints(roundPoints)}</span> &middot; {settledCount} of {fixtures.length} results in</>}
       </p>
 
-      {/* The strip. Native scrolling with snap points: a swipe or a trackpad moves it, nothing
-          chooses a team but a tap. */}
-      <div
-        ref={stripRef}
-        onScroll={onStripScroll}
-        className="flex snap-x snap-mandatory overflow-x-auto [&::-webkit-scrollbar]:hidden"
-        style={{ scrollbarWidth: 'none' }}
-      >
-        {fixtures.map((fixture, index) => (
-          <div
-            key={fixture.fixture_id}
-            className="w-full flex-none snap-center pb-2 pr-2"
-          >
-            <MatchCard
-              fixture={fixture}
-              position={index + 1}
-              count={fixtures.length}
-              editable={open}
-              busy={busyFixture === fixture.fixture_id}
-              explainScoring={explainScoring && open}
-              isPlayer={coupon.is_player}
-              onTap={(team) => tapTeam(index, team)}
-              crowd={crowds.get(fixture.fixture_id) ?? null}
-              competitionId={competitionId}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Previous / next, for a mouse. A finger has the swipe, but these cost nothing there. */}
-      <div className="mt-3 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => goTo(current - 1)}
-          disabled={current === 0}
-          className={`${LABEL} flex items-center gap-1 text-ink transition-colors hover:text-ink-fade disabled:invisible`}
-        >
-          <ChevronLeftIcon className="h-4 w-4" /> Previous
-        </button>
-        <span className="font-data text-[13px] text-ink-fade">{current + 1} of {fixtures.length}</span>
-        <button
-          type="button"
-          onClick={() => goTo(current + 1)}
-          disabled={current >= fixtures.length - 1}
-          className={`${LABEL} flex items-center gap-1 text-ink transition-colors hover:text-ink-fade disabled:invisible`}
-        >
-          Next <ChevronRightIcon className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Done. On the last match the strip has nowhere left to go, and a player who has finished
-          should not have to hunt for the small back link in the header. Shown on any card once
-          every match is predicted, too. It goes to the game's home, as the back link does. Red while
-          the round is open - finishing is the screen's next action - and ink once it is locked,
-          when it is only the way out. Nothing to save: every tap was saved as it was made.
-          Held back on an open last card until that match is predicted: offered before the
-          tap, it reads as the way to finish and the last match gets skipped. */}
-      {((current === fixtures.length - 1 && (!open || fixtures[current].my_team !== null)) || (open && allPredicted)) && (
-        <div className="mt-6 text-center">
-          {open && !allPredicted && (
-            <p className="mb-3 text-[15px] text-ink-fade">
-              <span className="font-data text-ink">{fixtures.length - coupon.predicted}</span>{' '}
-              {fixtures.length - coupon.predicted === 1 ? 'match' : 'matches'} not predicted &mdash; they score 0.
-              You can come back to them until the lock.
-            </p>
-          )}
-          <Link
-            href={`/game/${competitionId}`}
-            className={`${open ? BTN_PRIMARY : BTN_DARK} block w-full px-6 py-3.5 text-xl`}
-          >
-            Done
-          </Link>
-        </div>
-      )}
+      <CardStrip
+        fixtures={stripFixtures}
+        editable={open}
+        isPlayer={coupon.is_player}
+        placementKey={round.round_number}
+        scoringLine={explainScoring ? MATCHDAY_SCORING : null}
+        onTap={tapTeam}
+        renderExtra={(_, index) => {
+          const fixture = fixtures[index];
+          const crowd = crowds.get(fixture.fixture_id);
+          return crowd ? <CrowdLine fixture={fixture} crowd={crowd} competitionId={competitionId} /> : null;
+        }}
+        done={{ href: `/game/${competitionId}` }}
+      />
 
       {/* Earlier rounds. A link per direction rather than a picker: looking back is occasional. */}
       <div className="mt-8 flex items-center justify-between border-t border-ink/30 pt-4">
@@ -441,90 +297,8 @@ function ErrorLine({ message }: { message: string }) {
   return <p className="mb-4 border-l-2 border-overprint bg-stock-lit px-4 py-3 text-[15px] text-ink">{message}</p>;
 }
 
-/**
- * One match. The two teams ARE the choice - no Home / Away buttons under a fixture line, which said
- * the same thing twice. Home team first, as a fixture is always written.
- */
 type CrowdPlayer = { user_id: number; display_name: string; is_me: boolean };
 type Crowd = { home: CrowdPlayer[]; away: CrowdPlayer[]; none: CrowdPlayer[] };
-
-function MatchCard({
-  fixture, position, count, editable, busy, explainScoring, isPlayer, onTap, crowd, competitionId,
-}: {
-  fixture: MatchdayFixture;
-  position: number;
-  count: number;
-  editable: boolean;
-  busy: boolean;
-  explainScoring: boolean;
-  /** An organiser who is not playing has no predictions, so "not predicted" says nothing true. */
-  isPlayer: boolean;
-  onTap: (team: string) => void;
-  crowd: Crowd | null;
-  competitionId: string;
-}) {
-  const resultText = fixture.result === null
-    ? null
-    : fixture.result === 'DRAW'
-      ? 'Draw'
-      : `${fixture.result === fixture.home_team_short ? fixture.home_team : fixture.away_team} won`;
-
-  return (
-    // The one print-offset shadow in the system belongs to "the sheet", and a card is exactly that.
-    <div className={`${PANEL} p-5 shadow-[4px_4px_0_0_rgba(28,38,32,0.16)] sm:p-6`}>
-      <div className="flex items-baseline justify-between">
-        <p className={`${LABEL} text-ink-fade`}>Match {position} of {count}</p>
-        <p className="font-data text-[13px] text-ink-fade">{formatKickoff(fixture.kickoff_time)}</p>
-      </div>
-
-      {editable && <p className={`${LABEL} mt-4 text-center text-ink`}>Who wins?</p>}
-
-      <div className="mt-4 space-y-2">
-        <TeamButton
-          name={fixture.home_team}
-          chosen={fixture.my_team === fixture.home_team_short}
-          editable={editable}
-          busy={busy}
-          onClick={() => onTap(fixture.home_team_short)}
-        />
-        <p className={`${LABEL} text-center text-ink-fade`}>v</p>
-        <TeamButton
-          name={fixture.away_team}
-          chosen={fixture.my_team === fixture.away_team_short}
-          editable={editable}
-          busy={busy}
-          onClick={() => onTap(fixture.away_team_short)}
-        />
-      </div>
-
-      {/* One statement under the teams (design-system §8). Every state carries its word as well as
-          its colour. */}
-      <div className="mt-4 min-h-[20px] text-center text-[13px]">
-        {busy ? (
-          <span className="text-ink-fade">Saving&hellip;</span>
-        ) : fixture.settled && fixture.my_team !== null && fixture.my_points !== null ? (
-          <span className="inline-flex items-center gap-1.5">
-            {resultText && <span className="text-ink-fade">{resultText} &middot;</span>}
-            <span className={`${LABEL} text-ink`}>{outcomeWord(fixture.my_team, fixture.result)}</span>
-            <span className="font-data text-ink">{signedPoints(fixture.my_points)}</span>
-          </span>
-        ) : resultText ? (
-          <span className="text-ink-fade">{resultText}{isPlayer && fixture.my_team === null ? ' · not predicted' : ''}</span>
-        ) : editable ? (
-          fixture.my_team !== null
-            ? <span className="text-ink-fade">Tap it again to take it back</span>
-            : explainScoring
-              ? <span className={`${LABEL} text-ink`}>{MATCHDAY_SCORING}</span>
-              : null
-        ) : isPlayer && fixture.my_team === null ? (
-          <span className="text-ink-fade">Not predicted &middot; scores 0</span>
-        ) : null}
-      </div>
-
-      {crowd && <CrowdLine fixture={fixture} crowd={crowd} competitionId={competitionId} />}
-    </div>
-  );
-}
 
 /**
  * Who predicted what on one match - only ever given for a locked round (§8.6). One line of counts,
@@ -595,30 +369,5 @@ function CrowdLine({ fixture, crowd, competitionId }: { fixture: MatchdayFixture
         </div>
       )}
     </div>
-  );
-}
-
-function TeamButton({
-  name, chosen, editable, busy, onClick,
-}: {
-  name: string; chosen: boolean; editable: boolean; busy: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!editable || busy}
-      aria-pressed={chosen}
-      aria-label={chosen ? `${name} (your prediction${editable ? ' - tap to take it back' : ''})` : editable ? `${name} to win` : name}
-      className={`relative flex min-h-[64px] w-full items-center justify-center border px-4 py-3 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
-        chosen
-          ? 'border-2 border-moss bg-moss-wash'
-          : !editable
-            ? 'cursor-default border-ink/15'
-            : 'cursor-pointer border-ink/30 hover:border-ink disabled:cursor-wait'
-      }`}
-    >
-      <span className="font-data text-xl leading-tight text-ink">{name}</span>
-    </button>
   );
 }

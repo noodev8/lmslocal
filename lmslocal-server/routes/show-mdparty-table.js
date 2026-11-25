@@ -3,8 +3,10 @@
 API Route: show-mdparty-table
 =======================================================================================================================================
 Method: POST
-Purpose: The host moves the room on from the vidiprinter to the tables (docs/matchday-party.md §5,
-         step 7): the teams' table and the players' table, with this round's points.
+Purpose: The host moves the room on from the reveal to the tables (docs/matchday-party.md §5,
+         step 7). After the LAST round it goes straight to the finish instead - the champion and the
+         final table - since there is nothing left to choose (2026-11-25: a separate "Finish the
+         game" press after round 4 of 4 was a step for nothing).
 =======================================================================================================================================
 Request Payload:
 {
@@ -14,7 +16,7 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "room": { "state": "table", "current_round": 2, "version": 24 }
+  "room": { "state": "table", "current_round": 2, "version": 24 }   // "finished" after the last round
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -48,7 +50,14 @@ router.post('/', verifyToken, async (req, res) => {
   logApiCall('show-mdparty-table');
   try {
     const result = await party.hostAction(req.user.id, req.body.code, ['revealing'], async (client, room) => {
-      await client.query(`UPDATE mdparty_room SET state = 'table', version = version + 1 WHERE id = $1`, [room.id]);
+      if (room.current_round >= room.rounds_total) {
+        await client.query(
+          `UPDATE mdparty_room SET state = 'finished', finished_at = NOW(), version = version + 1 WHERE id = $1`,
+          [room.id]
+        );
+      } else {
+        await client.query(`UPDATE mdparty_room SET state = 'table', version = version + 1 WHERE id = $1`, [room.id]);
+      }
       return null;
     });
     return res.json(result);

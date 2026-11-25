@@ -48,7 +48,7 @@ free and the host needs an account *(decided)*, which is how it pays its way.
 | What a player does | For each fixture, predicts the **home team or the away team to win** *(decided: winners only)*. A draw cannot be predicted, as in Matchday |
 | Scoring | Matchday's: predicted team wins **+3**, draw **+1**, predicted team loses **0**, left blank **0** |
 | Length | **4, 6 or 8 rounds**, chosen by the host at setup *(decided)* |
-| Locking | The round locks **when every player has submitted**, or **when the host locks it** *(decided: the host can push things on)*. Fixtures left blank at lock score 0 |
+| Locking | **The host kicks off**, and that is the only way a round locks *(2026-11-25; it used to lock itself when the last coupon arrived, which started the reveal before the room was ready)*. Once everyone has sent a coupon the host's screen says so and offers Kick off; the host can also kick off early. Until then anyone can change and resend. Fixtures left blank score 0 |
 | Results | Simulated by the engine (§4) **at lock**, never earlier, so nothing can be found out in advance |
 | The reveal | The TV plays the round as a vidiprinter (§6), then shows the table |
 | What players see | **Team names, and from round 2 each team's W/D/L form in this game** *(decided)*. No ratings, no odds |
@@ -91,7 +91,7 @@ relegation. The first set is **provisional**, in the sim script; once agreed it 
 - A match is **9 blocks of ten minutes**.
 - In each block **both teams roll** a number from 0 to 100. A roll inside the team's **window** is a
   goal. Both can score in the same block; a draw is simply level counts.
-- A team's window is **31 × its share of the chances**. A share, not the bare rating, so two
+- A team's window is **22 × its share of the chances** *(decided 2026-11-25; was 31)*. A share, not the bare rating, so two
   strong sides do not trade six goals each and two weak ones do not draw 0–0 every time.
 - The share comes from the **gap** between the two ratings, on a curve 48 wide *(decided)*. Not
   their ratio: as a ratio, a gap of 30 counted for less at the top of the league than at the bottom,
@@ -103,13 +103,16 @@ Measured over 100,000 matches each (2026-11-24):
 
 | Match-up | Home wins | Draw | Away wins |
 |---|---|---|---|
-| Top v bottom (92 v 20) | 84% | 12% | 4% |
-| Bottom v top (20 v 92) | 7% | 16% | 77% |
-| Top half v bottom half (74 v 48) | 63% | 22% | 15% |
-| Evenly matched (62 v 60) | 46% | 26% | 28% |
+| Top v bottom (92 v 20) | 75% | 20% | 5% |
+| Bottom v top (20 v 92) | 9% | 23% | 68% |
+| Top half v bottom half (74 v 48) | 55% | 28% | 17% |
+| Evenly matched (62 v 60) | 41% | 31% | 28% |
 
-About **2.8 goals a match**, the Premier League average. The common scorelines are 2–1, 1–0, 2–0
-and 1–1, with the odd 4–1 or 3–3.
+About **2.0 goals a match**, about 20 in a round of ten *(lowered from 2.8, the Premier League
+average, on 2026-11-25)*. The goal is the excitement, so each should be rarer than in real football.
+The cost, chosen knowingly: more draws (29%) and 0–0s (12%), and short games a little more open
+(Man City finish 6 rounds in the bottom half about 1 game in 6, Hull reach the top half about 1 in
+12). The common scorelines are 1–0 (27%), 2–0, 1–1 and 2–1.
 
 ### 4.3 Form: the league-position bonus *(decided)*
 
@@ -157,7 +160,7 @@ plays (§6).
 3. **Host starts the game.** Round 1's fixtures are drawn.
 4. **Players predict** on their phones. The TV shows who has finished — names only, never what
    they chose.
-5. **The round locks** when the last player submits, or when the host locks it.
+5. **The host kicks off**, once everyone has sent a coupon (or earlier). That locks the round.
 6. **The engine plays the round** (§4), and the TV runs the vidiprinter (§6).
 7. **The table** appears on the TV and phones, with the movement since last round.
 8. **Host moves on** to the next round. Repeat from step 4.
@@ -165,23 +168,76 @@ plays (§6).
 
 Room states, in order: `lobby → open → revealing → table → (open … ) → finished`. Locking and
 playing a round are one step, so there is no separate locked state. Only the host moves a room from
-one state to the next, except `open → revealing` when the last player sends their coupon. The host
-can end the game from any state.
+one state to the next. The host can end the game from any state.
 
 ---
 
 ## 6. The vidiprinter
 
-The moment the game exists for. The TV becomes a results service: scores typed in line by line in
-block capitals, a minute-by-minute run through the round compressed into roughly 60–90 seconds,
-goals arriving in kick-off order, then FT on each line, then the teams' table, then the players' table.
+The moment the game exists for. **One match at a time** (decided 2026-11-24). Ten matches playing out
+at once was a wall of numbers: nobody can follow ten scores in fifty seconds, or tell whom to watch.
+So the round is revealed match by match, like a results show reading the scores out. The rules and
+the coupon are unchanged: players still predict all ten.
 
-- In the spirit of the classic teleprinter, built in LMSLocal's own type and colours.
-  **No BBC name, logo or screen design.** The parked `landing-redesign` branch already has a typing
-  results feed in this style worth borrowing from.
-- Pacing is the whole design problem: long enough for tension, short enough that a room of children
-  stays with it. Late goals are held back to the end.
-- Phones show a simpler version, so a player looking down still sees their own matches land.
+**Each match, about 15 seconds** (`lib/mdpartyReveal.ts`), after a 4-second kick-off countdown once
+per round; a round of ten takes about 2 minutes 30:
+
+| Part | Time | The TV | The phone |
+|---|---|---|---|
+| Intro | 2.5 s | The fixture, large, and who in the room predicted each side | "You predicted Hull", or that they left it blank |
+| First half | 4 s | The clock over a scoreboard: each team on its own full-width row with its goals at the end and its predictors under it, the scoring team's number turning red, with a chime | The score, and Winning / Drawing / Losing for them |
+| Half time | 1.5 s | A pause, the score held *(added 2026-11-25)* | The same |
+| Second half | 4 s | As the first | As the first |
+| Result | 3 s | Full time, who scored from it ("+3 Dad, Nan"), and the league moving | Won / Drew / Lost and the points |
+
+**The players' league moves after every match** *(2026-11-25)*. Following one's own round points was
+the thing that got lost, so the TV shows the league beside the match: at each full time the points go
+on, names slide up or down, and arrows show who rose or fell. The phone gives each player one line,
+"You're 2nd ▲1 · +7 this round". It is worked out the same way on every screen (`liveStandings`):
+points from earlier rounds plus the matches revealed so far.
+
+**It moves on every goal, too** *(2026-11-25)*. During a match the league is ordered as it stands, the
+match being played included, and **the numbers shown are those same figures**: a total of 51 with a
+small faded "live +3" beside it, never "48 +3". Showing the banked figure with the live part apart
+put a player on 48 above one on 50, which read as the wrong order. At full time the tag goes and the
+figure stays if the result holds; the "this round" column works the same way. Three rules keep it readable: nothing moves at 0–0
+(the live part counts only once the match has a goal, so the league does not lurch at every kick-off;
+a 0–0 gets its point at full time); the live part is always shown apart from the banked points; and
+the ▲ / ▼ arrows appear only on a settled result. The phone adds "(live)" to its line while it is.
+
+**Taken out** *(2026-11-25)*: the teleprinter lines under the score and, on the TV, the teams' league.
+Both added numbers without adding anything for the room. The teams' league stays on the phones'
+tables screen. **No list of finished results** either, during the reveal or after it, and no results
+cards on the phone afterwards: nobody looked back at them. The league is what is watched.
+
+**The league has a "this round" column** beside the total, because the rivalry in the room is who is
+having the better round ("I want to beat Sam"). **When all the results are in**, the match card goes
+and the league takes the whole TV: position, name, the arrows, this round, total.
+
+**One clock for the room.** Every screen works out where the reveal is from the moment the round
+locked (`round.locked_at`) against the database clock (`server_now`), never from when it loaded. The
+TV and every phone show the same match and the same goal together, and a refreshed screen comes back
+at the right point. The teleprinter's typing is worked out from the clock as well.
+
+**Who predicted what** (`round.crowd`) is sent only once the round has locked, as in Matchday.
+
+**The TV** (`/mdparty/tv`, `components/mdparty/TvReveal.tsx`) is neutral and shared: the match, and the
+players' league, which everyone can see. **Sound on the TV only:** a chime as each goal goes in,
+synthesised in the browser, with a mute switch remembered on the device. In LMSLocal's
+own type and colours, the coupon's paper and ink: **no BBC name, logo or screen design.**
+
+**The phone** (`components/mdparty/PhoneReveal.tsx`) shows one thing: the match being revealed, the
+player's team in it and the score, with one line underneath for where they stand. No list, no sound.
+
+**The end of the game** *(2026-11-25)* is made a moment of. The TV fills with **CHAMPION** (or
+**JOINT CHAMPIONS**) over the winner's name in the biggest type on the site, their points, confetti in
+the coupon's inks and a four-note fanfare, with the final league beneath and the winner's row
+picked out (`components/mdparty/Celebration.tsx`). The winner's phone says "You won!" with its own
+confetti; everyone else's says where they finished and who won. A game the host ended early gets no
+celebration - it was stopped, not won - only who was leading. Reduced motion drops the confetti.
+
+**Moving on.** The host's phone has a quiet **Skip to the tables** during the reveal, which moves
+every screen on, and **Show the tables** as the main action once every result is in.
 
 ---
 
@@ -213,12 +269,12 @@ statement. That is the whole prune script.
 | `create-mdparty-room` | Host (JWT) | Rounds 4/6/8. Returns the code and the host's player token. Finishes any other unfinished room of the host's |
 | `join-mdparty-room` | Anyone | Code and a name; returns a player token. Lobby only. Rate limited like the competition join lookup |
 | `get-mdparty-state` | TV, phones | The whole room as a screen needs it. `known_version` makes an unchanged poll one read. Its own rate limit (§7.1) |
-| `set-mdparty-predictions` | Player token | The whole coupon at once; replaces an earlier one. The last coupon locks and plays the round |
+| `set-mdparty-predictions` | Player token | The whole coupon at once; replaces an earlier one. Says whether everyone has now sent one; never locks the round |
 | `start-mdparty-game` | Host | Needs 1 player, so the host can play alone. Draws round 1 |
-| `lock-mdparty-round` | Host | Locks and plays without waiting |
-| `show-mdparty-table` | Host | Reveal → tables |
-| `next-mdparty-round` | Host | Tables → next round, or finished after the last |
-| `remove-mdparty-player` | Host | Not the host. If the round was waiting only on them, it plays |
+| `lock-mdparty-round` | Host | **Kick off**: locks and plays the round, and every screen starts the reveal |
+| `show-mdparty-table` | Host | Reveal → tables; after the last round, straight to the finish |
+| `next-mdparty-round` | Host | Tables → next round (and, for a room already on its last round's tables, the finish) |
+| `remove-mdparty-player` | Host | Not the host. Never locks the round |
 | `end-mdparty-game` | Host | Finished from any state; an open round is not played |
 
 **Who is who.** The host's controls need their LMSLocal sign-in. A bad player token answers `PLAYER_NOT_FOUND`, never `UNAUTHORIZED`, because the web client signs a user out on that code. Players hold a random token for
@@ -262,10 +318,14 @@ minutes per address) would freeze a room of ten devices in about three minutes, 
 |---|---|---|
 | 0 | **The engine**, as a pure function plus a simulation script. **Built 2026-11-24**; the ratings are still provisional | No |
 | 1 | Tables and routes: create, join, state, predict, lock, play round, next round, end. **Built and migrated 2026-11-24**; tested end to end through the routes | No |
-| 2 | Player phone screens. **Started 2026-11-24:** `/mdparty` is one plain screen for host and players alike (create or join, coupon, results, both tables, host controls), reached from the create wizard's "Which game?" step. Same engine and routes for 1 to 20 players; playing alone is a room with only the host | Behind a preview flag |
+| 2 | Player phone screens. **Started 2026-11-24:** `/mdparty` is one plain screen for host and players alike (create or join, coupon, results, both tables, host controls), reached from the create wizard's "Which game?" step. Same engine and routes for 1 to 8 players; playing alone is a room with only the host | Behind a preview flag |
 | 3 | TV screens and the vidiprinter | Behind a preview flag |
 | 4 | Host controls and the awkward cases: a phone that sleeps, the TV page refreshed mid-game, a player removed, the host disappearing | Behind a preview flag |
 | 5 | A public page and the launch, aimed at a search such as "football party game" | Yes |
+
+**Testing alone:** `scripts/mdparty-bots.js --code ABCDE --players 5` fills a lobby with made-up
+players who send a coupon every round, through the same public routes a phone uses. Test tooling
+only; the game knows nothing about it, and its players go with the room after 24 hours.
 
 Phase 0 comes first because it decides whether the game is fun. A good engine with plain screens
 is a game; a beautiful vidiprinter showing dull results is not.
@@ -276,7 +336,7 @@ is a game; a beautiful vidiprinter showing dull results is not.
 
 | # | Question | Notes |
 |---|---|---|
-| 0 | ~~Players in a room~~ | **Decided 2026-11-24: 1 to 20.** One is the host alone; there is no separate solo mode |
+| 0 | ~~Players in a room~~ | **Decided 2026-11-25: 1 to 8 phones** (was 20). Nobody is turned away: anyone beyond eight teams up with a player already in and shares their phone. One is the host alone; there is no separate solo mode |
 | 1 | ~~Does the host need an account?~~ | **Decided 2026-11-24: yes**, a free account; players never need one. It is the reason to build a free game, and it stops anonymous rooms being created in bulk |
 | 2 | ~~How many fixtures a round?~~ | **Decided 2026-11-24: all 10**, so every team plays every round and form counts |
 | 3 | ~~What do players see before predicting?~~ | **Decided 2026-11-24: names plus in-game form** from round 2 (§4.3). No ratings shown |

@@ -32,7 +32,7 @@ Return Codes:
 "INVALID_NAME"          - nothing usable in the name once tidied
 "PARTY_NOT_FOUND"       - no live room with that code
 "GAME_ALREADY_STARTED"  - joining closes when the host starts the game (§10: no late joiners)
-"ROOM_FULL"             - MAX_PLAYERS already in the room
+"ROOM_FULL"             - MAX_PLAYERS (8) already in the room; the message suggests teaming up
 "NAME_TAKEN"            - somebody in the room already has that name
 "RATE_LIMIT_EXCEEDED"   - too many joins from this address (server.js partyJoinLimit)
 "SERVER_ERROR"          - unexpected server error
@@ -72,7 +72,10 @@ router.post('/', async (req, res) => {
         [room.id]
       )).rows;
       if (players.length >= party.MAX_PLAYERS) {
-        return { return_code: 'ROOM_FULL', message: `This game already has ${party.MAX_PLAYERS} players` };
+        return {
+          return_code: 'ROOM_FULL',
+          message: `This game has its ${party.MAX_PLAYERS} players. Team up with someone already in and play on their phone together.`
+        };
       }
       if (players.some((p) => p.name === name.toLowerCase())) {
         return { return_code: 'NAME_TAKEN', message: 'Somebody here already has that name. Try another' };

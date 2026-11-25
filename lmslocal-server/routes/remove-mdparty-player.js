@@ -17,7 +17,6 @@ Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
   "room": { "state": "open", "current_round": 2, "version": 26 },
-  "round_locked": false                // boolean, true if everyone left had already sent a coupon, so the round was played
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -39,8 +38,8 @@ Return Codes:
 Business Logic:
 - The host cannot remove themselves; ending the game is end-mdparty-game (§10: the host leaving ends it).
 - The row is kept with removed_at set; their token stops working and they drop out of every table.
-- If the round was only waiting for this player, it locks and is played now, as it would have when
-  their coupon arrived.
+- The round is never locked here: kicking off is the host's (lock-mdparty-round). If everyone left
+  has sent a coupon, the host's screen now offers Kick off.
 =======================================================================================================================================
 */
 
@@ -69,13 +68,7 @@ router.post('/', verifyToken, async (req, res) => {
 
       await client.query('UPDATE mdparty_player SET removed_at = NOW() WHERE id = $1', [target.id]);
       await party.bumpVersion(client, room.id);
-
-      let roundLocked = false;
-      if (room.state === 'open' && await party.everyoneSubmitted(client, room)) {
-        await party.lockAndPlayRound(client, room);
-        roundLocked = true;
-      }
-      return { round_locked: roundLocked };
+      return null;
     });
     return res.json(result);
   } catch (error) {

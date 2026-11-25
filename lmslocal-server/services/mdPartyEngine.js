@@ -17,7 +17,12 @@ THE MATCH, AS A PAPER GAME (§4.2, agreed 2026-11-24):
 
   A team's window = WINDOW x its share of the chances. A share, not the bare rating, so that two
   strong sides do not trade six goals each and two weak ones do not draw 0-0 every time. The two
-  windows always add up to WINDOW, which is why every match averages the same ~2.8 goals.
+  windows always add up to WINDOW, which is why every match averages the same number of goals.
+
+  WINDOW = 22, about 2.0 goals a match (lowered from 31, ~2.8, on 2026-11-25). The goal is the
+  excitement, so each should be rarer than real football's: about 20 in a round of ten rather than 28.
+  The cost is more draws (~29%, against 23%) and more 0-0s (~12%), which Andreas chose knowingly.
+  Upsets are no more frequent than before (top v bottom ~5%).
 
   THE SHARE COMES FROM THE GAP between the ratings (a logistic curve, SPREAD wide), not their
   ratio. Changed 2026-11-24: as a ratio, 92 v 62 gave the stronger side only 60% of the chances,
@@ -41,7 +46,7 @@ THE LEAGUE-POSITION BONUS (§4.3, agreed 2026-11-24):
 */
 
 const BLOCKS = 9;
-const WINDOW = 31;
+const WINDOW = 22;
 const SPREAD = 48;
 const HOME_ADVANTAGE = 10;
 const POSITION_BONUS = 1;

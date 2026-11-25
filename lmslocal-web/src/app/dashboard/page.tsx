@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import PartyInProgress from '@/components/mdparty/PartyInProgress';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -357,6 +358,9 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        {/* A Matchday Party game in play has no card (it is not a competition), so it gets a line. */}
+        <PartyInProgress />
+
         {/* Empty State - Show when no competitions */}
         {userCompetitions.length === 0 ? (
           <div className="mx-auto max-w-2xl">

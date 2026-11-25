@@ -4,8 +4,9 @@ API Route: set-mdparty-predictions
 =======================================================================================================================================
 Method: POST
 Purpose: A player sends their coupon for the current round of a Matchday Party (docs/matchday-party.md
-         §5, step 4): the winner they predict for each match, all at once. When the last player still
-         in the room has sent theirs, the round locks and is played there and then (§2).
+         §5, step 4): the winner they predict for each match, all at once. The round does NOT lock when
+         the last coupon arrives: the host kicks off (lock-mdparty-round), so the room starts the reveal
+         together and anyone can still change their mind until then (2026-11-25).
 =======================================================================================================================================
 Request Payload:
 {
@@ -20,7 +21,7 @@ Request Payload:
 Success Response (ALWAYS HTTP 200):
 {
   "return_code": "SUCCESS",
-  "round_locked": true                 // boolean, true if this coupon was the last one and the round has been played
+  "everyone_sent": true                // boolean, true if every player in the room has now sent a coupon
 }
 
 Error Response (ALWAYS HTTP 200):
@@ -43,8 +44,9 @@ Return Codes:
 Business Logic:
 - A coupon replaces any earlier one for the round, so a player can change their mind until it locks.
 - Winners only: a draw cannot be predicted (§2). A blank is simply a fixture missing from the list.
-- The room row is held FOR UPDATE, so of two players sending the last two coupons at once exactly
-  one sees everyone submitted and plays the round.
+- Until 2026-11-25 the last coupon locked and played the round. It no longer does: the reveal started
+  on every screen the instant it arrived, before the host had a chance to put the TV on or the room
+  was ready. Now the host's screen says everyone is in and offers Kick off.
 =======================================================================================================================================
 */
 
@@ -114,12 +116,7 @@ router.post('/', async (req, res) => {
       );
       await party.bumpVersion(client, room.id);
 
-      let roundLocked = false;
-      if (await party.everyoneSubmitted(client, room)) {
-        await party.lockAndPlayRound(client, room);
-        roundLocked = true;
-      }
-      return { return_code: 'SUCCESS', round_locked: roundLocked };
+      return { return_code: 'SUCCESS', everyone_sent: await party.everyoneSubmitted(client, room) };
     });
 
     return res.json(result);

@@ -327,7 +327,7 @@ export default function CreateCompetitionPage() {
 
               {offersParty && (
                 <Link
-                  href="/mdparty"
+                  href="/mdparty?new=1"
                   className="mt-3 flex flex-col items-start border border-dashed border-ink/40 p-5 text-left transition-colors hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <p className="font-display text-2xl uppercase tracking-[0.03em]">Matchday Party</p>
