@@ -338,9 +338,7 @@ minutes per address) would freeze a room of ten devices in about three minutes, 
 | 4 | Host controls and the awkward cases: a phone that sleeps, the TV page refreshed mid-game, a player removed, the host disappearing | Behind a preview flag |
 | 5 | A public page and the launch, aimed at a search such as "football party game" | Yes |
 
-**Testing alone:** `scripts/mdparty-bots.js --code ABCDE --players 5` fills a lobby with made-up
-players who send a coupon every round, through the same public routes a phone uses. Test tooling
-only; the game knows nothing about it, and its players go with the room after 24 hours.
+**Testing alone** needs nothing extra: a room's empty seats are bots (§2), so a host can play a full game of six on their own.
 
 Phase 0 comes first because it decides whether the game is fun. A good engine with plain screens
 is a game; a beautiful vidiprinter showing dull results is not.
