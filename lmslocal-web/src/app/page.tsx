@@ -337,94 +337,17 @@ export default function LandingPage() {
             <a href="#how-it-works" className={`${TEXT_LINK} text-ink-fade`}>
               How the game works &darr;
             </a>
-            {/* The one pointer to Matchday above the fold. A line, not a second hero. */}
-            <a href="#two-games" className={`${TEXT_LINK} text-ink-fade`}>
-              New: Matchday, a second game &mdash; coming soon &darr;
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* The rules, in four lines                                          */}
-      {/* ---------------------------------------------------------------- */}
-      <section id="how-it-works" className="scroll-mt-16 border-y border-ink/30 bg-stock-deep">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-          <div className="max-w-2xl">
-            <p className={`${EYEBROW} text-overprint`}>The rules</p>
-            <h2 className={`mt-5 ${H2}`}>How Last Man Standing works</h2>
-          </div>
-
-          <ol className="mt-14 grid gap-px border border-ink/30 bg-ink/30 sm:grid-cols-2">
-            {RULES.map((rule, i) => (
-              <li key={rule.what} className="bg-stock-lit p-7 sm:p-9">
-                <span className="font-data text-lg text-overprint">{i + 1}</span>
-                <h3 className="mt-3 font-display text-3xl uppercase tracking-[0.02em] text-ink">
-                  {rule.what}
-                </h3>
-                <p className="mt-3 max-w-md text-[17px] leading-relaxed text-ink">{rule.detail}</p>
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3">
-            <Link href="/help/how-to-play" className={TEXT_LINK}>
-              The full rules: lives, postponements, strategy &rarr;
-            </Link>
-            <a href="/last-man-standing-rules.pdf" download className={TEXT_LINK}>
-              Print the rules (PDF) &rarr;
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------------------- */}
-      {/* What running one asks of you                                      */}
-      {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-        <div className="max-w-2xl">
-          <p className={`${EYEBROW} text-overprint`}>Running one</p>
-          <h2 className={`mt-5 ${H2}`}>Your week, start to finish</h2>
-          <p className="mt-6 text-xl leading-relaxed text-ink">
-            The reason people give up running these is the admin. Here is honestly all of it.
-          </p>
-        </div>
-
-        <ol className="mt-14 border-t border-ink/30">
-          {WEEKEND.map((stage) => (
-            <li
-              key={stage.when}
-              className="grid gap-2 border-b border-ink/30 py-8 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-10"
+            {/* Matchday above the fold, boxed so it is seen, but still not a second hero: the
+                H1 stays LMS because that is what people search for. The two-games section
+                follows the hero directly. */}
+            <a
+              href="#two-games"
+              className={`${LABEL} rounded-sm border border-overprint px-3.5 py-2 text-overprint transition-colors hover:bg-overprint hover:text-stock-lit`}
             >
-              <span className={`${LABEL} text-overprint sm:pt-2`}>{stage.when}</span>
-              <div>
-                <h3 className="font-display text-2xl uppercase tracking-[0.03em] text-ink">
-                  {stage.what}
-                </h3>
-                <p className="mt-2 max-w-xl text-[17px] leading-relaxed text-ink">{stage.detail}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-
-        <ul className="mt-12 grid gap-x-10 gap-y-4 sm:grid-cols-2">
-          {INCLUDED.map((item) => (
-            <li key={item} className="flex items-baseline gap-3">
-              <span aria-hidden="true" className={TICK}>
-                &#10003;
-              </span>
-              <span className="text-[17px] text-ink">{item}</span>
-            </li>
-          ))}
-        </ul>
-        {/*
-          Pointing at us, not "you can change your mind later": fixture_service is fixed at
-          creation and only an admin can flip it (/admin/set-fixture-service).
-        */}
-        <p className="mt-8 max-w-2xl text-[16px] leading-relaxed text-ink-fade">
-          Putting the matches in yourself, or using your own teams? Choose that when you set the
-          competition up, and ask us if you want it switched over later.
-        </p>
+              New: Matchday &mdash; a prediction league where nobody goes out &darr;
+            </a>
+          </div>
+        </div>
       </section>
 
       {/* ---------------------------------------------------------------- */}
@@ -504,6 +427,90 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* The rules, in four lines                                          */}
+      {/* ---------------------------------------------------------------- */}
+      <section id="how-it-works" className="scroll-mt-16">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+          <div className="max-w-2xl">
+            <p className={`${EYEBROW} text-overprint`}>The rules</p>
+            <h2 className={`mt-5 ${H2}`}>How Last Man Standing works</h2>
+          </div>
+
+          <ol className="mt-14 grid gap-px border border-ink/30 bg-ink/30 sm:grid-cols-2">
+            {RULES.map((rule, i) => (
+              <li key={rule.what} className="bg-stock-lit p-7 sm:p-9">
+                <span className="font-data text-lg text-overprint">{i + 1}</span>
+                <h3 className="mt-3 font-display text-3xl uppercase tracking-[0.02em] text-ink">
+                  {rule.what}
+                </h3>
+                <p className="mt-3 max-w-md text-[17px] leading-relaxed text-ink">{rule.detail}</p>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3">
+            <Link href="/help/how-to-play" className={TEXT_LINK}>
+              The full rules: lives, postponements, strategy &rarr;
+            </Link>
+            <a href="/last-man-standing-rules.pdf" download className={TEXT_LINK}>
+              Print the rules (PDF) &rarr;
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* What running one asks of you                                      */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="border-y border-ink/30 bg-stock-deep">
+       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+        <div className="max-w-2xl">
+          <p className={`${EYEBROW} text-overprint`}>Running one</p>
+          <h2 className={`mt-5 ${H2}`}>Your week, start to finish</h2>
+          <p className="mt-6 text-xl leading-relaxed text-ink">
+            The reason people give up running these is the admin. Here is honestly all of it.
+          </p>
+        </div>
+
+        <ol className="mt-14 border-t border-ink/30">
+          {WEEKEND.map((stage) => (
+            <li
+              key={stage.when}
+              className="grid gap-2 border-b border-ink/30 py-8 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-10"
+            >
+              <span className={`${LABEL} text-overprint sm:pt-2`}>{stage.when}</span>
+              <div>
+                <h3 className="font-display text-2xl uppercase tracking-[0.03em] text-ink">
+                  {stage.what}
+                </h3>
+                <p className="mt-2 max-w-xl text-[17px] leading-relaxed text-ink">{stage.detail}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        <ul className="mt-12 grid gap-x-10 gap-y-4 sm:grid-cols-2">
+          {INCLUDED.map((item) => (
+            <li key={item} className="flex items-baseline gap-3">
+              <span aria-hidden="true" className={TICK}>
+                &#10003;
+              </span>
+              <span className="text-[17px] text-ink">{item}</span>
+            </li>
+          ))}
+        </ul>
+        {/*
+          Pointing at us, not "you can change your mind later": fixture_service is fixed at
+          creation and only an admin can flip it (/admin/set-fixture-service).
+        */}
+        <p className="mt-8 max-w-2xl text-[16px] leading-relaxed text-ink-fade">
+          Putting the matches in yourself, or using your own teams? Choose that when you set the
+          competition up, and ask us if you want it switched over later.
+        </p>
+       </div>
       </section>
 
       {/* ---------------------------------------------------------------- */}
