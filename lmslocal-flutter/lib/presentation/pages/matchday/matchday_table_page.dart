@@ -260,12 +260,13 @@ class _MatchdayTablePageState extends State<MatchdayTablePage> {
                           decorationColor: CouponTheme.ink.withValues(alpha: 0.5),
                         ),
                       ),
-                      if (row.isMe || winner)
+                      // Your own row is marked by bold alone - a "YOU" label repeated it.
+                      if (winner)
                         Text(
-                          [if (row.isMe) 'YOU', if (winner) 'WINNER'].join(' · '),
+                          'WINNER',
                           style: CouponTheme.label.copyWith(
                             fontSize: 10,
-                            color: winner ? CouponTheme.ink : CouponTheme.inkFade,
+                            color: CouponTheme.ink,
                           ),
                         ),
                     ],

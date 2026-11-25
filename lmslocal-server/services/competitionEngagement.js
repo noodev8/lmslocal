@@ -109,6 +109,10 @@ const lastActivitySql = (comp) => `
        FROM pick p
        JOIN round r ON r.id = p.round_id
       WHERE r.competition_id = ${comp}.id),
+    -- Matchday has no picks; making or changing a prediction is its equivalent activity.
+    (SELECT MAX(pr.updated_at)
+       FROM prediction pr
+      WHERE pr.competition_id = ${comp}.id),
     (SELECT MAX(cu.joined_at)
        FROM competition_user cu
       WHERE cu.competition_id = ${comp}.id),

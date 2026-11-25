@@ -258,7 +258,7 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
   until the round locks."
 - **A big table opens trimmed**: from 30 players, the top 20, a row of dots, your own row with two
   either side, and "Show all N players".
-- Your row bold with `YOU`; the winner's row moss-wash with `WINNER` once complete.
+- Your row bold (no `YOU` label — the bold says it); the winner's row moss-wash with `WINNER` once complete.
 - **Every name opens that player's predictions** (§10).
 
 ---

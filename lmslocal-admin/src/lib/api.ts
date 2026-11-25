@@ -313,6 +313,8 @@ export interface AdminCompetition {
   last_activity: string;
   /* Opted into the automated fixture service - the flag every push reads. */
   fixture_service: boolean;
+  /* 'lms' or 'matchday'. For matchday, picks_made counts players with any prediction. */
+  game_type: string;
   team_list_id: number;
   team_list_name: string | null;
   /* Members who are neither the organiser nor a bot - i.e. how many people actually turned up. */

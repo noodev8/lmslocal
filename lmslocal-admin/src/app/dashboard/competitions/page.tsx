@@ -1192,7 +1192,10 @@ function CompetitionsList() {
                       </Link>
                       {/* Below the name and out of the way - it is only ever read deliberately,
                           when quoting a row. Same mono grey the fixtures screen uses for an id. */}
-                      <div className="font-mono text-xs font-normal text-slate-400">#{c.id}</div>
+                      <div className="font-mono text-xs font-normal text-slate-400">
+                        #{c.id}
+                        {c.game_type === 'matchday' && <span className="text-violet-600"> · matchday</span>}
+                      </div>
                       {/* When it was archived, shown only in the Archived tab - the view where
                           you are deciding whether that decision still holds. Everywhere else it
                           would be a line of explanation on a row nobody is questioning. */}

@@ -64,12 +64,18 @@ const currentRoundProgressLateral = (comp, botParam) => `
          FROM competition_user cu
         WHERE cu.competition_id = ${comp}.id
           AND cu.status = 'active')                          AS players_due,
+      -- A Matchday player has no pick row; "picked" for them means at least one prediction in
+      -- the round (docs/matchday.md §4.2). An LMS round has no predictions, so checking both
+      -- needs no game_type branch.
       (SELECT COUNT(*)
-         FROM pick p
-         JOIN competition_user cu ON cu.competition_id = ${comp}.id
-                                 AND cu.user_id = p.user_id
-                                 AND cu.status = 'active'
-        WHERE p.round_id = r.id)                             AS picks_made,
+         FROM competition_user cu
+        WHERE cu.competition_id = ${comp}.id
+          AND cu.status = 'active'
+          AND (EXISTS (SELECT 1 FROM pick p
+                        WHERE p.round_id = r.id AND p.user_id = cu.user_id)
+               OR EXISTS (SELECT 1 FROM prediction pr
+                           WHERE pr.round_id = r.id AND pr.user_id = cu.user_id)))
+                                                             AS picks_made,
       -- Outstanding that is only bots. Counted here rather than subtracted on the client so the
       -- screen never has to know what a bot is.
       (SELECT COUNT(*)
@@ -79,7 +85,9 @@ const currentRoundProgressLateral = (comp, botParam) => `
           AND cu.status = 'active'
           AND au.email LIKE ${botParam}
           AND NOT EXISTS (SELECT 1 FROM pick p
-                           WHERE p.round_id = r.id AND p.user_id = cu.user_id))
+                           WHERE p.round_id = r.id AND p.user_id = cu.user_id)
+          AND NOT EXISTS (SELECT 1 FROM prediction pr
+                           WHERE pr.round_id = r.id AND pr.user_id = cu.user_id))
                                                              AS bots_outstanding
     FROM round r
     WHERE r.competition_id = ${comp}.id

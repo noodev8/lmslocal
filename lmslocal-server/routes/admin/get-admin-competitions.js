@@ -33,6 +33,7 @@ Success Response (ALWAYS HTTP 200):
       "start_date": "2026-08-28T19:00:00.000Z", // string or null, Round 1 lock time - null if no round yet
       "last_activity": "2026-08-01T09:00:00.000Z",// string, latest pick or join, falls back to created_at
       "fixture_service": true,                   // boolean, opted into the automated fixture service
+      "game_type": "lms",                        // string, 'lms' or 'matchday' - for matchday, picks_made counts players with any prediction
       "team_list_id": 1,                         // integer, which staged fixtures it receives
       "team_list_name": "English Premier League 2026-27", // string, may be null if the list was removed
       "real_player_count": 23,                   // integer, members who are neither the organiser nor a bot
@@ -195,6 +196,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
         -- quiet_days and the two other admin routes read it.
         ${lastActivitySql('c')}                                               AS last_activity,
         COALESCE(c.fixture_service, false)                                    AS fixture_service,
+        c.game_type,
         c.team_list_id,
         tl.name                                                               AS team_list_name,
         -- The current round and how many of its picks are in. Shared with the per-competition
@@ -235,6 +237,7 @@ router.get('/', verifyAdminToken, async (req, res) => {
         start_date: row.start_date,
         last_activity: row.last_activity,
         fixture_service: row.fixture_service === true,
+        game_type: row.game_type || 'lms',
         team_list_id: row.team_list_id,
         team_list_name: row.team_list_name,
         archived_at: row.archived_at,

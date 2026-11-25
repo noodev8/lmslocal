@@ -179,7 +179,6 @@ export default function MatchdayTablePage() {
                         >
                           {row.display_name}
                         </Link>
-                        {row.is_me && <span className={`${LABEL} ml-2 text-ink-fade`}>You</span>}
                         {winner && <span className={`${LABEL} ml-2 text-ink`}>Winner</span>}
                       </td>
                       <td className="px-2 py-3 text-right font-data text-[15px] text-ink">{row.wins}</td>
