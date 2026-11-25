@@ -21,7 +21,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LABEL } from '@/lib/design';
 import type { PartyFixture, PartyPlayersRow } from '@/lib/api';
 import {
-  LEAGUE_MOVES_ON_GOALS, braveIsAlone, goalMoment, liveStandings, revealedCount, scoreAt, useRevealPosition, useTeleprinterSound, type Crowd,
+  LEAGUE_MOVES_ON_GOALS, goalMoment, provisionalPoints, liveStandings, revealedCount, scoreAt, useRevealPosition, useTeleprinterSound, type Crowd,
 } from '@/lib/mdpartyReveal';
 
 const SOUND_KEY = 'mdparty_sound';
@@ -60,8 +60,7 @@ export default function TvReveal({
   const bankerNames = (side: 'home' | 'away') =>
     ((side === 'home' ? here?.home : here?.away) ?? []).filter((id) => bankers.has(id)).map(nameOf).filter(Boolean);
 
-  const brave = here?.brave ?? null;
-  const alone = braveIsAlone(here);
+
 
   const score = match ? scoreAt(match, pos.minute) : { home: 0, away: 0 };
   const goalsSoFar = (match?.result?.goals ?? []).filter((g) => g.minute <= pos.minute);
@@ -135,14 +134,7 @@ export default function TvReveal({
                     <p className="font-display text-[clamp(2.2rem,5vw,4.6rem)] uppercase leading-[0.95]">{row.team.name}</p>
                     <p className="mt-2 text-[clamp(1.05rem,1.8vw,1.6rem)]">
                       {row.names.length ? row.names.join(', ') : <span className="text-ink-fade">Nobody</span>}
-                      {/* What this side's backers get if it wins, as a total - "what we are hoping for",
-                          shown from the intro, not only once it has happened (2026-11-25). The brave few
-                          and "on their own" say so in the same tag. Bankers have their own tag below. */}
-                      {row.names.length > 0 && (
-                        <span className={`${LABEL} ml-3 border px-2 py-0.5 align-middle ${brave === row.side ? 'border-overprint text-overprint' : 'border-ink/40 text-ink'}`}>
-                          {brave === row.side ? (alone ? 'On their own · win +6' : 'Brave few · win +5') : 'Win +3'}
-                        </span>
-                      )}
+
                     </p>
                     {/* The banker, on a tag of its own: outlined while the team is winning, solid red
                         while it is not - the danger, in view of the room - then +6, or BUST at full time. */}
@@ -153,9 +145,15 @@ export default function TvReveal({
                       const winning = pos.phase !== 'intro' && row.goals > other;
                       const settled = pos.phase === 'result';
                       const word = names.length > 1 ? 'Bankers' : 'Banker';
+                      // A banker doubles what its pick scores (§2): no penalty, so no bust - just what it
+                      // won, or nothing. No stakes shown while playing (2026-11-25).
+                      const paid = settled && match.result && here
+                        ? provisionalPoints(match, row.team.id, { home: match.result.home_goals, away: match.result.away_goals },
+                          { banker: true, homeCount: here.home.length, awayCount: here.away.length })
+                        : 0;
                       const text = !settled
-                        ? `${word} · ${names.join(', ')} · +6 or \u22123`
-                        : winning ? `${word} · ${names.join(', ')} +6` : `${word} bust · ${names.join(', ')} \u22123`;
+                        ? `${word} · ${names.join(', ')}`
+                        : paid > 0 ? `${word} · ${names.join(', ')} +${paid}` : `${word} · ${names.join(', ')} · nothing`;
                       const danger = pos.phase !== 'intro' && !winning;
                       return (
                         <p className={`mt-2 inline-block px-3 py-1 font-display text-[clamp(1rem,1.7vw,1.5rem)] uppercase tracking-[0.04em] transition-colors ${
@@ -175,13 +173,6 @@ export default function TvReveal({
               ))}
             </div>
 
-            {/* The draw is +1 for everyone, always, so it is not said (2026-11-25). Only the brave few's
-                draw differs, and only then is there a line. */}
-            {brave && (
-              <p className={`${LABEL} mt-4 text-center text-ink-fade`}>
-                Draw &middot; {alone ? 'on their own' : 'brave few'} +2
-              </p>
-            )}
 
             {/* No list of who scored what at full time ("+7 Dad · +3 Nan"): it was gone before anyone
                 could read it, and the league beside it says the same thing (2026-11-25). */}

@@ -16,21 +16,20 @@ WHO IS WHO (§3, §7):
     hash. It opens nothing outside the room.
   - The TV reads the room's state by its code alone and can do nothing else.
 
-THE SCORING RULE for a party lives here and nowhere else (and is mirrored for the reveal in
+THE SCORING RULE for a party lives here and nowhere else (mirrored for the reveal in
 lmslocal-web/src/lib/mdpartyReveal.ts, which must agree). Kept apart from services/matchdayScoring.js
-so changing one game's scoring can never change the other's by accident (§1). Since 2026-11-25:
-  - a prediction: predicted team wins +3, draw +1, predicted team loses 0;
-  - THE BANKER, at most one a round, optional: wins +6, draws or loses -3. The draw is what usually
-    bites, which is the point: on a 74% favourite it still fails one time in four;
-  - THE BRAVE FEW: the side of a match fewer players predicted (both sides taken, unequal) gets +2
-    extra each if it wins, or +3 for a player who is on that side alone. Not doubled by a banker.
-    Raised from +1 on 2026-11-25: the brave side is usually the underdog, and +1 did not pay for the
-    risk. At +2 a 30% underdog is worth about what a solid favourite is, so backing it is a real choice.
-    A brave draw gets +1 extra too (2 rather than 1);
-  - a banker is double or bust and nothing else: no brave draw point on top.
-  (A "crowd" penalty - the most-predicted side losing a point if it lost - was tried on 2026-11-25 and
-  taken out the same day.)
-Unlike Matchday, a total can go down.
+so changing one game's scoring can never change the other's by accident (§1).
+
+SINCE 2026-11-25, A GAME OF SIX (§2):
+  - Every room has six players. A human takes a seat; any seat no human takes is a bot, who plays
+    exactly like a person (ordinary names, nothing on screen says bot).
+  - Every player must pick a winner in every match: no blanks.
+  - YOUR TEAM WINS: you score the number of players who picked the OTHER team. Back City with four
+    others and City win: 1. Back Hull on your own and Hull win: 5. Bravery pays by itself.
+  - A DRAW: 1 point to the side fewer players picked; nothing to the larger side or to an even split.
+  - YOUR TEAM LOSES: 0.
+  - THE BANKER, once a round, optional: doubles what its pick scores. No penalty.
+Replaced (same day): the flat 3 / 1 / 0, the brave-few and on-their-own bonuses, the banker's -3.
 
 ROOM STATES (§5): lobby -> open -> revealing -> table -> (open ...) -> finished. Every change bumps
 mdparty_room.version, which is what lets a poll that is already up to date skip building the state.
@@ -48,20 +47,19 @@ is never gated: a player only ever reaches one through a host who could create i
 */
 const PARTY_PREVIEW_HOST_IDS = [50];
 
-const ROUND_OPTIONS = [4, 6, 8];
-// Eight phones, host included (2026-11-25). Enough for a front room, and few enough that the TV's league
-// and the names under each team stay readable and nobody waits long for the slowest coupon. Nobody is
-// turned away: anyone beyond eight teams up with a player already in, on one phone.
-const MAX_PLAYERS = 8;
+const ROUND_OPTIONS = [1, 2, 3];
+// Six seats, always (2026-11-25): a human takes one, a bot fills any other. The scoring counts
+// players, so the room is always the same size.
+const SEATS = 6;
+const MAX_PLAYERS = SEATS;
 // 1, so the host can play a game on their own (Andreas, 2026-11-24: play it alone first, to see
 // how many points a game gives, before the TV and multiplayer are built).
 const MIN_PLAYERS_TO_START = 1;
 const NAME_MAX = 20;
 const ROOM_LIFETIME_HOURS = 24;
-const POINTS = {
-  WIN: 3, DRAW: 1, LOSS: 0, BANKER_WIN: 6, BANKER_MISS: -3,
-  BRAVE: 2, BRAVE_ALONE: 3, BRAVE_DRAW: 1
-};
+// Ordinary names for the bots: nothing on screen marks a seat as a bot (2026-11-25).
+const BOT_NAMES = ['Nan', 'Grandad', 'Uncle Pete', 'Auntie Sue', 'Jack', 'Priya', 'Tom', 'Ellie', 'Mo', 'Hannah',
+  'Leo', 'Dave', 'Sian', 'Raj', 'Megan', 'Ollie', 'Fran', 'Kofi', 'Beth', 'Sam'];
 
 // No I, L, O or U, and no digits: nothing that reads as another character across a living room.
 const CODE_LETTERS = 'ABCDEFGHJKMNPQRSTVWXYZ';
@@ -153,15 +151,74 @@ async function openRound(db, room, roundNumber) {
     params.push(roundId, i + 1, f.home_id, f.away_id);
     values.push(`($${params.length - 3}, $${params.length - 2}, $${params.length - 1}, $${params.length})`);
   });
-  await db.query(
-    `INSERT INTO mdparty_fixture (round_id, sort_order, home_team_id, away_team_id) VALUES ${values.join(', ')}`,
+  const inserted = (await db.query(
+    `INSERT INTO mdparty_fixture (round_id, sort_order, home_team_id, away_team_id) VALUES ${values.join(', ')}
+     RETURNING id, home_team_id, away_team_id`,
     params
-  );
+  )).rows;
+
+  // The bots' coupons go in as the round opens, so the room waits only for its people (§2).
+  await botsPredict(db, room.id, roundId, inserted);
 
   await db.query(
     `UPDATE mdparty_room SET state = 'open', current_round = $2, version = version + 1 WHERE id = $1`,
     [room.id, roundNumber]
   );
+}
+
+/**
+ * Seat bots until the room has SEATS players (§2). Ordinary names, none clashing with anyone in the
+ * room. Bots hold a token like anyone, never handed to anyone, so they need no special case in auth.
+ */
+async function fillSeatsWithBots(db, roomId) {
+  const present = (await db.query(
+    'SELECT LOWER(display_name) AS name FROM mdparty_player WHERE room_id = $1 AND removed_at IS NULL',
+    [roomId]
+  )).rows.map((r) => r.name);
+  const free = SEATS - present.length;
+  if (free <= 0) return;
+  const names = BOT_NAMES.filter((n) => !present.includes(n.toLowerCase())).sort(() => Math.random() - 0.5).slice(0, free);
+  for (const name of names) {
+    await db.query(
+      'INSERT INTO mdparty_player (room_id, display_name, token_hash, is_bot) VALUES ($1, $2, $3, TRUE)',
+      [roomId, name, newPlayerToken().hash]
+    );
+  }
+}
+
+/**
+ * The bots send their coupons as a round opens. Each picks from what a person in the room would see
+ * plus a little more: it leans towards the stronger side (the engine's ratings, home advantage
+ * included) with enough chance in it that bots disagree with each other and sometimes back an
+ * underdog. Most take a banker, on the pick they feel surest of.
+ */
+async function botsPredict(db, roomId, roundId, fixtures) {
+  const bots = (await db.query(
+    'SELECT id FROM mdparty_player WHERE room_id = $1 AND is_bot AND removed_at IS NULL',
+    [roomId]
+  )).rows;
+  if (bots.length === 0) return;
+  const ratings = new Map((await activeTeams(db)).map((t) => [t.id, t.rating]));
+  for (const bot of bots) {
+    const picks = fixtures.map((f) => {
+      const gap = (ratings.get(f.home_team_id) + 10) - ratings.get(f.away_team_id);
+      const homeChance = 1 / (1 + Math.exp(-gap / 30));
+      const home = Math.random() < homeChance;
+      return { fixture_id: f.id, team_id: home ? f.home_team_id : f.away_team_id, sureness: Math.abs(homeChance - 0.5) };
+    });
+    const params = [];
+    const values = picks.map((p) => {
+      params.push(p.fixture_id, bot.id, p.team_id);
+      return `($${params.length - 2}, $${params.length - 1}, $${params.length})`;
+    });
+    await db.query(`INSERT INTO mdparty_prediction (fixture_id, player_id, team_id) VALUES ${values.join(', ')}`, params);
+    const surest = [...picks].sort((a, b) => b.sureness - a.sureness)[0];
+    const banker = Math.random() < 0.7 ? surest.fixture_id : null;
+    await db.query(
+      'INSERT INTO mdparty_submission (round_id, player_id, banker_fixture_id) VALUES ($1, $2, $3)',
+      [roundId, bot.id, banker]
+    );
+  }
 }
 
 /** Every played fixture in the room before this round, in the engine's shape. */
@@ -227,29 +284,17 @@ async function everyoneSubmitted(db, room) {
 }
 
 /**
- * The side of a fixture fewer players in the room predicted - "the brave few" - or null when one side
- * was not taken at all or the room split evenly. `crowd` is { home: [ids], away: [ids] }.
+ * Points for one prediction on a played fixture (§2). `homeCount` / `awayCount` are how many players
+ * in the room picked each side; `banker` doubles.
  */
-function braveSide(crowd) {
-  const h = crowd.home.length;
-  const a = crowd.away.length;
-  if (h === 0 || a === 0 || h === a) return null;
-  return h < a ? 'home' : 'away';
-}
-
-/**
- * Points for one prediction on a played fixture. `banker`: it was the player's banker. `brave`: the
- * side of the fixture that was the brave few, or null.
- */
-function pointsFor(prediction, { banker = false, brave = null, braveAlone = false } = {}) {
+function pointsFor(prediction, { banker = false, homeCount = 0, awayCount = 0 } = {}) {
   const { team_id: team, home_team_id: home, away_team_id: away, home_goals: hg, away_goals: ag } = prediction;
-  const won = hg !== ag && team === (hg > ag ? home : away);
-  const drew = hg === ag;
-  const side = team === home ? 'home' : 'away';
-  if (banker) return won ? POINTS.BANKER_WIN + (brave === side ? (braveAlone ? POINTS.BRAVE_ALONE : POINTS.BRAVE) : 0) : POINTS.BANKER_MISS;
-  if (won) return POINTS.WIN + (brave === side ? (braveAlone ? POINTS.BRAVE_ALONE : POINTS.BRAVE) : 0);
-  if (drew) return POINTS.DRAW + (brave === side ? POINTS.BRAVE_DRAW : 0);
-  return POINTS.LOSS;
+  const mine = team === home ? homeCount : awayCount;
+  const theirs = team === home ? awayCount : homeCount;
+  let points = 0;
+  if (hg !== ag && team === (hg > ag ? home : away)) points = theirs;       // won: one per player on the other side
+  else if (hg === ag && mine < theirs) points = 1;                          // drew, in the smaller group
+  return banker ? points * 2 : points;
 }
 
 /**
@@ -260,7 +305,7 @@ function playersTable(players, predictions, currentRound, bankers = new Set()) {
   const rows = new Map(players.map((p) => [p.id, {
     player_id: p.id, name: p.display_name, points: 0, wins: 0, predictions_made: 0, round_points: 0
   }]));
-  // The brave side of each fixture, from the predictions of the players still in the room.
+  // How many players picked each side of each fixture, among the players still in the room.
   const sides = new Map();
   for (const pr of predictions) {
     if (!rows.has(pr.player_id)) continue;
@@ -271,11 +316,10 @@ function playersTable(players, predictions, currentRound, bankers = new Set()) {
     const row = rows.get(pr.player_id);
     if (!row || pr.home_goals === null) continue;
     const fixtureSides = sides.get(pr.fixture_id);
-    const brave = braveSide(fixtureSides);
     const pts = pointsFor(pr, {
       banker: bankers.has(`${pr.player_id}:${pr.fixture_id}`),
-      brave,
-      braveAlone: brave !== null && fixtureSides[brave].length === 1
+      homeCount: fixtureSides.home.length,
+      awayCount: fixtureSides.away.length
     });
     row.points += pts;
     row.predictions_made += 1;
@@ -336,10 +380,10 @@ function crowdFor(fixtures, predictions, players, bankers) {
       fixture_id: f.id,
       home: onFixture.filter((pr) => pr.team_id === f.home_team_id).map((pr) => pr.player_id),
       away: onFixture.filter((pr) => pr.team_id === f.away_team_id).map((pr) => pr.player_id),
-      // Whose banker this match is, and which side is the brave few (null if none).
+      // Whose banker this match is.
       bankers: onFixture.filter((pr) => bankers.has(`${pr.player_id}:${f.id}`)).map((pr) => pr.player_id)
     };
-    return { ...crowd, brave: braveSide(crowd) };
+    return crowd;
   });
 }
 
@@ -505,7 +549,6 @@ module.exports = {
   MIN_PLAYERS_TO_START,
   NAME_MAX,
   ROOM_LIFETIME_HOURS,
-  POINTS,
   canHostParty,
   newRoomCode,
   newPlayerToken,
@@ -527,5 +570,6 @@ module.exports = {
   sharedTeamTable,
   formByTeam,
   pointsFor,
-  braveSide
+  fillSeatsWithBots,
+  SEATS
 };

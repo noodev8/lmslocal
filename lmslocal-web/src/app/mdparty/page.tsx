@@ -26,7 +26,7 @@ import CardStrip, { type StripFixture, type TapOutcome } from '@/components/coup
 import PhoneReveal from '@/components/mdparty/PhoneReveal';
 import { Confetti } from '@/components/mdparty/Celebration';
 import { clockOffset, ordinal, useRevealPosition } from '@/lib/mdpartyReveal';
-import { MATCHDAY_SCORING, outcomeWord, signedPoints } from '@/lib/games';
+import { outcomeWord, signedPoints } from '@/lib/games';
 import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
 
 const SESSION_KEY = 'mdparty_session';
@@ -96,7 +96,7 @@ export default function PartyPage() {
   const [state, setState] = useState<PartyState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [rounds, setRounds] = useState(6);
+  const [rounds, setRounds] = useState(2);
   const [coupon, setCoupon] = useState<Record<number, number>>({});
   // This round's banker on this phone: one of the coupon's own predictions, or none (§2).
   const [banker, setBanker] = useState<number | null>(null);
@@ -373,7 +373,7 @@ export default function PartyPage() {
             </p>
             <p className={`${LABEL} mt-8 text-ink-fade`}>How many rounds?</p>
             <div className="mt-3 flex gap-3" role="radiogroup" aria-label="How many rounds">
-              {[4, 6, 8].map((n) => (
+              {[1, 2, 3].map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -475,7 +475,7 @@ export default function PartyPage() {
                 <p className={`${LABEL} text-ink-fade`}>Room code</p>
                 <p className="mt-2 font-data text-6xl tracking-[0.15em]">{room.code}</p>
                 {!isHost && (
-                  <p className="mt-4 text-[16px] text-ink-fade">You&apos;re in. The host starts the game when everyone has joined.</p>
+                  <p className="mt-4 text-[16px] text-ink-fade">You&apos;re in. The host starts the game when everyone is ready.</p>
                 )}
                 <p className={`${LABEL} mt-8 text-ink-fade`}>In the room</p>
                 <ul className="mt-3 space-y-1.5">
@@ -501,11 +501,11 @@ export default function PartyPage() {
                     </li>
                     <li className="flex gap-3">
                       <span className="font-data text-overprint">2</span>
-                      <span>Everyone joins on their phone, from the TV&apos;s QR code or the code above. Up to 8 phones: more people than that team up and share one.</span>
+                      <span>Everyone joins on their phone, from the TV&apos;s QR code or the code above. A game is always six players: anyone joining takes a seat, and the seats nobody takes are filled for you.</span>
                     </li>
                     <li className="flex gap-3">
                       <span className="font-data text-overprint">3</span>
-                      <span>Start when everyone is in. Playing on your own? Start now.</span>
+                      <span>Start when everyone is in. On your own? Start now: the other five seats are already filled.</span>
                     </li>
                   </ol>
                 )}
@@ -549,7 +549,6 @@ export default function PartyPage() {
                   fixtures={round.fixtures.map((f) => toStripFixture(f, coupon[f.id], banker === f.id))}
                   editable
                   placementKey={round.number}
-                  scoringLine={round.number === 1 ? MATCHDAY_SCORING : null}
                   onTap={(index, teamKey): TapOutcome => {
                     const fixtureId = round.fixtures[index].id;
                     const teamId = Number(teamKey);
@@ -564,20 +563,16 @@ export default function PartyPage() {
                     if (takingBack && banker === fixtureId) setBanker(null);
                     return takingBack ? 'cleared' : 'chosen';
                   }}
+                  requireAll
                   done={{
-                    // With nothing predicted there is nothing to bank: send straight away.
-                    label: Object.keys(coupon).length === 0 ? (submitted ? 'Send again' : 'Done') : 'Next: your banker',
+                    // Every match is picked (§2), then the banker.
+                    label: 'Next: your banker',
                     busy,
                     onClick: () => {
-                      if (Object.keys(coupon).length === 0) {
-                        act(() => partyApi.setPredictions(room.code, session!.player_token, round.number, [], null));
-                      } else {
-                        setStep('banker');
-                        window.scrollTo({ top: 0 });
-                      }
+                      setStep('banker');
+                      window.scrollTo({ top: 0 });
                     },
                   }}
-                  missingNote="You can still send what you have."
                 />
                 )}
 
@@ -586,8 +581,7 @@ export default function PartyPage() {
                   <div className={`${PANEL} p-5 sm:p-6`}>
                     <p className={`${HEADING} text-3xl`}>&#9733; Your banker</p>
                     <p className="mt-2 text-[16px] text-ink">
-                      <span className="font-data">+6</span> if it wins, <span className="font-data">&minus;3</span> if it draws or loses.
-                      One a round, if you dare.
+                      Doubles whatever this pick scores. One a round.
                     </p>
                     <ul className="mt-5 space-y-2" role="radiogroup" aria-label="Your banker">
                       {round.fixtures.filter((f) => coupon[f.id] !== undefined).map((f) => {

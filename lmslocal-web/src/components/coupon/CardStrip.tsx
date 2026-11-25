@@ -72,6 +72,7 @@ export default function CardStrip({
   renderExtra,
   done,
   missingNote = 'You can come back to them until the lock.',
+  requireAll = false,
 }: {
   fixtures: StripFixture[];
   /** The round is open and this person can predict. */
@@ -89,6 +90,8 @@ export default function CardStrip({
   done?: { label?: string; href?: string; onClick?: () => void; busy?: boolean };
   /** Said after "N matches not predicted - they score 0." */
   missingNote?: string;
+  /** Every match must be predicted before Done (Matchday Party, 2026-11-25). Matchday allows blanks. */
+  requireAll?: boolean;
 }) {
   const [current, setCurrent] = useState(0);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -176,9 +179,11 @@ export default function CardStrip({
   const predicted = fixtures.filter(f => f.chosen !== null).length;
   const allPredicted = predicted === fixtures.length;
   const missing = fixtures.length - predicted;
-  const showDone = done && (
+  const showDone = done && (requireAll ? allPredicted : (
     (current === fixtures.length - 1 && (!editable || fixtures[current].chosen !== null)) || (editable && allPredicted)
-  );
+  ));
+  // With every match required, the last card says what is left instead of offering Done.
+  const showStillToPick = requireAll && editable && !allPredicted && current === fixtures.length - 1 && fixtures[current].chosen !== null;
 
   const doneClass = `${editable ? BTN_PRIMARY : BTN_DARK} block w-full px-6 py-3.5 text-xl disabled:opacity-50`;
 
@@ -254,6 +259,13 @@ export default function CardStrip({
           Next <ChevronRightIcon className="h-4 w-4" />
         </button>
       </div>
+
+      {showStillToPick && (
+        <p className="mt-6 text-center text-[15px] text-ink-fade">
+          Pick a winner in every match: <span className="font-data text-ink">{missing}</span> to go.
+          Tap a grey segment above to jump to one.
+        </p>
+      )}
 
       {/* Done. Red while the round is open - finishing is the screen's next action - and ink once it
           is locked, when it is only the way out. */}

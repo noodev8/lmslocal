@@ -39,7 +39,8 @@ Return Codes:
                           Not UNAUTHORIZED: the web client signs the user out on that code, and a
                           stale room token must not sign anyone out of LMSLocal
 "ROUND_CLOSED"          - the room is not taking predictions, or this is not the current round
-"INVALID_PREDICTION"    - a fixture not in this round, a team not in its fixture, a fixture twice, or a
+"INVALID_PREDICTION"    - a match left without a pick (every match must have one), a fixture not in this
+                          round, a team not in its fixture, a fixture twice, or a
                           banker on a match not predicted in this coupon
 "SERVER_ERROR"          - unexpected server error
 =======================================================================================================================================
@@ -98,7 +99,11 @@ router.post('/', async (req, res) => {
         }
         seen.add(fixture.id);
       }
-      // A banker is one of this coupon's own predictions (§2): nothing to double on a blank.
+      // Every match must have a winner picked (§2, 2026-11-25: no blanks).
+      if (seen.size !== fixtures.size) {
+        return { return_code: 'INVALID_PREDICTION', message: 'Pick a winner in every match' };
+      }
+      // A banker is one of this coupon's own predictions (§2).
       if (bankerId !== null && !seen.has(bankerId)) {
         return { return_code: 'INVALID_PREDICTION', message: 'Your banker has to be one of your predictions' };
       }

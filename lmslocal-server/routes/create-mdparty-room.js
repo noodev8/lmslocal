@@ -8,7 +8,7 @@ Purpose: The host sets up a Matchday Party room for one evening (docs/matchday-p
 =======================================================================================================================================
 Request Payload:
 {
-  "rounds": 6                          // integer, required - 4, 6 or 8
+  "rounds": 2                          // integer, required - 1, 2 or 3
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -29,7 +29,7 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "MISSING_FIELDS"   - rounds not given
-"INVALID_ROUNDS"   - rounds is not 4, 6 or 8
+"INVALID_ROUNDS"   - rounds is not 1, 2 or 3
 "UNAUTHORIZED"     - invalid or missing JWT token
 "FORBIDDEN"        - this user may not host (preview: PARTY_PREVIEW_HOST_IDS in services/mdParty.js)
 "SERVER_ERROR"     - unexpected server error
@@ -39,6 +39,8 @@ Business Logic:
 - One live game per host. Creating a room finishes any other room this host has not finished: a
   host starting a new game has left the old one, and the host leaving ends the game (§10).
 - The host's player name is their account display name, cut to the 20-character limit.
+- The other five seats are filled with bots straight away (§2: always six). People who join take a
+  bot's seat.
 - The room is deleted ROOM_LIFETIME_HOURS after creation by scripts/prune-mdparty-rooms.js.
 =======================================================================================================================================
 */
@@ -60,7 +62,7 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({ return_code: 'MISSING_FIELDS', message: 'rounds is required' });
     }
     if (!party.ROUND_OPTIONS.includes(Number(rounds))) {
-      return res.json({ return_code: 'INVALID_ROUNDS', message: 'A game is 4, 6 or 8 rounds' });
+      return res.json({ return_code: 'INVALID_ROUNDS', message: 'A game is 1, 2 or 3 rounds' });
     }
     if (!party.canHostParty(userId)) {
       return res.json({ return_code: 'FORBIDDEN', message: 'Matchday Party is not open yet' });
@@ -101,6 +103,8 @@ router.post('/', verifyToken, async (req, res) => {
          VALUES ($1, $2, $3, $4, TRUE) RETURNING id`,
         [room.id, userId, name, hash]
       )).rows[0];
+
+      await party.fillSeatsWithBots(client, room.id);
 
       return {
         return_code: 'SUCCESS',

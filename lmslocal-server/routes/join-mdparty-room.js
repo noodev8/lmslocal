@@ -40,6 +40,8 @@ Return Codes:
 Business Logic:
 - Public and unauthenticated, like the competition join lookup, so it is rate limited in server.js.
 - Names are unique in a room, ignoring case: the TV is how people tell each other apart.
+- A room always has six players: a person joining takes a bot's seat, and the room is full only when
+  all six seats are people (§2).
 - The room row is locked for the join, so two people cannot take the last place or the same name.
 =======================================================================================================================================
 */
@@ -68,18 +70,24 @@ router.post('/', async (req, res) => {
       }
 
       const players = (await client.query(
-        'SELECT LOWER(display_name) AS name FROM mdparty_player WHERE room_id = $1 AND removed_at IS NULL',
+        'SELECT id, LOWER(display_name) AS name, is_bot FROM mdparty_player WHERE room_id = $1 AND removed_at IS NULL',
         [room.id]
       )).rows;
-      if (players.length >= party.MAX_PLAYERS) {
+      // A person takes a bot's seat (§2: always six). Full only when all six are people.
+      const people = players.filter((p) => !p.is_bot);
+      if (people.length >= party.MAX_PLAYERS) {
         return {
           return_code: 'ROOM_FULL',
           message: `This game has its ${party.MAX_PLAYERS} players. Team up with someone already in and play on their phone together.`
         };
       }
-      if (players.some((p) => p.name === name.toLowerCase())) {
+      if (people.some((p) => p.name === name.toLowerCase())) {
         return { return_code: 'NAME_TAKEN', message: 'Somebody here already has that name. Try another' };
       }
+      // The bot whose seat this is: one with the same name if there is one, so the names stay unique,
+      // otherwise any. Bots have not played yet in the lobby, so the row simply goes.
+      const seat = players.find((p) => p.is_bot && p.name === name.toLowerCase()) || players.find((p) => p.is_bot);
+      if (seat) await client.query('DELETE FROM mdparty_player WHERE id = $1', [seat.id]);
 
       const { token, hash } = party.newPlayerToken();
       const player = (await client.query(

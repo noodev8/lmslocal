@@ -14,7 +14,7 @@
 import { LABEL } from '@/lib/design';
 import type { PartyFixture, PartyPlayersRow } from '@/lib/api';
 import {
-  LEAGUE_MOVES_ON_GOALS, braveIsAlone, liveStandings, ordinal, pointsSoFar, provisionalPoints, revealedCount, scoreAt, stakesFor, useRevealPosition, type Crowd,
+  LEAGUE_MOVES_ON_GOALS, liveStandings, ordinal, pointsSoFar, provisionalPoints, revealedCount, scoreAt, useRevealPosition, type Crowd,
 } from '@/lib/mdpartyReveal';
 
 export default function PhoneReveal({
@@ -86,11 +86,9 @@ export default function PhoneReveal({
   const showScore = pos.phase !== 'intro';
   const isBanker = banker === match.id;
   const here = crowd?.find((c) => c.fixture_id === match.id);
-  const brave = here?.brave ?? null;
-  const alone = braveIsAlone(here);
-
-  const onBraveSide = mine !== null && brave === (mine.id === match.home.id ? 'home' : 'away');
-  const points = mine && showScore ? provisionalPoints(match, mine.id, score, { banker: isBanker, brave, braveAlone: alone }) : null;
+  const points = mine && showScore
+    ? provisionalPoints(match, mine.id, score, { banker: isBanker, homeCount: here?.home.length ?? 0, awayCount: here?.away.length ?? 0 })
+    : null;
   const atFullTime = pos.phase === 'result';
 
   // The word comes from the score, never the points: with a banker or the brave few, a win can be
@@ -112,35 +110,8 @@ export default function PhoneReveal({
 
       <div className="mt-5 border border-ink/30 bg-stock-lit px-5 py-6 shadow-[4px_4px_0_0_rgba(28,38,32,0.16)]">
         <p className={`${LABEL} ${isBanker ? 'text-overprint' : 'text-ink-fade'}`}>
-          {!mine ? 'You left this one blank' : isBanker ? '★ Your banker · +6 or −3' : 'You predicted'}
+          {!mine ? 'You left this one blank' : isBanker ? '★ Your banker · double points' : 'You predicted'}
         </p>
-        {/* The stakes: what this player gets on each result, from the intro on, with the one that
-            applies as it stands filled in - what they are hoping for, as it changes (2026-11-25). */}
-        {mine && (() => {
-          const st = stakesFor(match, mine.id, { banker: isBanker, brave, braveAlone: alone });
-          const now = !showScore ? null : state;
-          const box = (key: 'win' | 'draw' | 'loss', word: string, pts: number) => (
-            <span
-              key={key}
-              className={`flex-1 border px-2 py-2 text-center ${now === key ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 text-ink'}`}
-            >
-              <span className={`${LABEL} block`}>{word}</span>
-              <span className="font-data text-xl">{signed(pts)}</span>
-            </span>
-          );
-          return (
-            <div className="mt-4 flex gap-2" aria-label="What you get on each result">
-              {box('win', 'Win', st.win)}
-              {box('draw', 'Draw', st.draw)}
-              {box('loss', 'Lose', st.loss)}
-            </div>
-          );
-        })()}
-        {onBraveSide && (
-          <p className={`${LABEL} mt-1 text-overprint`}>
-            {alone ? <>You&apos;re on your own · +3 extra if it wins</> : <>You&apos;re with the brave few · +2 extra if it wins</>}
-          </p>
-        )}
         <p className="mt-2 font-display text-4xl uppercase leading-none">{mine ? mine.name : `${match.home.name} v ${match.away.name}`}</p>
 
         <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -154,8 +125,8 @@ export default function PhoneReveal({
         </p>
 
         {points !== null && (
-          <p className={`mt-4 font-display text-3xl uppercase ${state === 'win' ? 'text-moss' : state === 'draw' && points > 0 ? 'text-ink' : 'text-overprint'}`}>
-            {atFullTime && isBanker && state !== 'win' ? `Banker bust ${signed(points)}` : `${verdict} ${signed(points)}`}
+          <p className={`mt-4 font-display text-3xl uppercase ${points > 0 ? 'text-moss' : 'text-overprint'}`}>
+            {`${verdict} ${signed(points)}`}
           </p>
         )}
       </div>

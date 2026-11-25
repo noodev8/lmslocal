@@ -67,6 +67,9 @@ router.post('/', verifyToken, async (req, res) => {
       if (target.is_host) return { return_code: 'FORBIDDEN', message: 'The host cannot be removed. End the game instead' };
 
       await client.query('UPDATE mdparty_player SET removed_at = NOW() WHERE id = $1', [target.id]);
+      // In the lobby the seat goes back to a bot (§2: always six). Once the game has started the room
+      // plays on one short: a bot cannot pick up someone's points halfway.
+      if (room.state === 'lobby') await party.fillSeatsWithBots(client, room.id);
       await party.bumpVersion(client, room.id);
       return null;
     });

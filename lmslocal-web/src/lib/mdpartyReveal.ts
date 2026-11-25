@@ -118,29 +118,27 @@ export function scoreAt(fixture: PartyFixture, minute: number): { home: number; 
 /*
   THE SCORING, mirrored from the server (lmslocal-server/services/mdParty.js pointsFor), which is the
   rule; the two must agree or the live league would disagree with the table it settles into.
-    - a prediction: predicted team wins +3, draw +1, predicted team loses 0;
-    - a BANKER: wins +6, draws or loses -3;
-    - THE BRAVE FEW: the side fewer predicted (both sides taken, unequal) gets +2 extra if it wins,
-      +3 for a player on that side alone, and +1 extra on a draw;
-    - a banker is double or bust and nothing else, bar the brave few's win bonus.
+  A game of six, every match picked (2026-11-25):
+    - your team wins: one point per player who picked the other team;
+    - a draw: 1 point to the side fewer players picked, nothing to the larger side or an even split;
+    - your team loses: 0;
+    - a banker doubles it.
 */
-export type PointsOptions = { banker?: boolean; brave?: 'home' | 'away' | null; braveAlone?: boolean };
+export type PointsOptions = { banker?: boolean; homeCount: number; awayCount: number };
 
 /** Points a prediction would score if the match ended at this score. */
 export function provisionalPoints(
   fixture: PartyFixture,
   predicted: number,
   score: { home: number; away: number },
-  { banker = false, brave = null, braveAlone = false }: PointsOptions = {}
+  { banker = false, homeCount, awayCount }: PointsOptions
 ): number {
-  const drew = score.home === score.away;
-  const won = !drew && predicted === (score.home > score.away ? fixture.home.id : fixture.away.id);
-  const side = predicted === fixture.home.id ? 'home' : 'away';
-  const braveWin = brave === side ? (braveAlone ? 3 : 2) : 0;
-  if (banker) return won ? 6 + braveWin : -3;
-  if (won) return 3 + braveWin;
-  if (drew) return 1 + (brave === side ? 1 : 0);
-  return 0;
+  const mine = predicted === fixture.home.id ? homeCount : awayCount;
+  const theirs = predicted === fixture.home.id ? awayCount : homeCount;
+  let points = 0;
+  if (score.home !== score.away && predicted === (score.home > score.away ? fixture.home.id : fixture.away.id)) points = theirs;
+  else if (score.home === score.away && mine < theirs) points = 1;
+  return banker ? points * 2 : points;
 }
 
 
@@ -164,29 +162,9 @@ export type Crowd = {
   away: number[];
   /** Whose banker this match is. */
   bankers?: number[];
-  /** The side fewer predicted, or null. */
-  brave?: 'home' | 'away' | null;
 };
 
-/**
- * What a prediction stands to score on each result - "what we are hoping for" - worked out from the
- * same rule as the score, so the stakes shown before a match can never disagree with what it pays.
- */
-export function stakesFor(fixture: PartyFixture, predicted: number, opts: PointsOptions): { win: number; draw: number; loss: number } {
-  const forPredicted = predicted === fixture.home.id ? { home: 1, away: 0 } : { home: 0, away: 1 };
-  const againstPredicted = predicted === fixture.home.id ? { home: 0, away: 1 } : { home: 1, away: 0 };
-  return {
-    win: provisionalPoints(fixture, predicted, forPredicted, opts),
-    draw: provisionalPoints(fixture, predicted, { home: 0, away: 0 }, opts),
-    loss: provisionalPoints(fixture, predicted, againstPredicted, opts),
-  };
-}
 
-/** True when the brave side of a match is one player on their own (+3 rather than +2). */
-export function braveIsAlone(c: Crowd | undefined | null): boolean {
-  if (!c || !c.brave) return false;
-  return (c.brave === 'home' ? c.home : c.away).length === 1;
-}
 
 /** One player's points for every match fully revealed so far (results in), for a running total. */
 export function pointsSoFar(
@@ -201,9 +179,8 @@ export function pointsSoFar(
     const predicted = predictions[String(f.id)];
     if (predicted === undefined || !f.result) return;
     const c = crowd?.find((x) => x.fixture_id === f.id);
-    const brave = c?.brave ?? null;
     total += provisionalPoints(f, predicted, { home: f.result.home_goals, away: f.result.away_goals }, {
-      banker: banker === f.id, brave, braveAlone: braveIsAlone(c),
+      banker: banker === f.id, homeCount: c?.home.length ?? 0, awayCount: c?.away.length ?? 0,
     });
   });
   return total;
@@ -241,7 +218,7 @@ export function liveStandings(
     const f = fixtures.find((x) => x.id === c.fixture_id);
     if (!f) return;
     const opts = (id: number): PointsOptions => ({
-      banker: (c.bankers ?? []).includes(id), brave: c.brave ?? null, braveAlone: braveIsAlone(c),
+      banker: (c.bankers ?? []).includes(id), homeCount: c.home.length, awayCount: c.away.length,
     });
     c.home.forEach((id) => add(id, provisionalPoints(f, f.home.id, { home: h, away: a }, opts(id))));
     c.away.forEach((id) => add(id, provisionalPoints(f, f.away.id, { home: h, away: a }, opts(id))));
