@@ -29,7 +29,7 @@ Return Codes:
 "PARTY_NOT_FOUND"   - no live room with that code
 "UNAUTHORIZED"      - invalid or missing JWT token
 "FORBIDDEN"         - the caller is not this room's host
-"INVALID_STATE"     - the room is not showing the tables
+"INVALID_STATE"     - the room is not showing a reveal or the tables
 "SERVER_ERROR"      - unexpected server error
 =======================================================================================================================================
 Business Logic:
@@ -47,7 +47,9 @@ const router = express.Router();
 router.post('/', verifyToken, async (req, res) => {
   logApiCall('next-mdparty-round');
   try {
-    const result = await party.hostAction(req.user.id, req.body.code, ['table'], async (client, room) => {
+    // From the reveal as well as the tables: the host goes straight from a round's results to the
+    // next round, with no tables step in between (2026-11-25). 'table' is kept for a room already there.
+    const result = await party.hostAction(req.user.id, req.body.code, ['revealing', 'table'], async (client, room) => {
       if (room.current_round < room.rounds_total) {
         await party.openRound(client, room, room.current_round + 1);
       } else {

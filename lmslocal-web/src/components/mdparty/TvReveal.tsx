@@ -21,7 +21,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LABEL } from '@/lib/design';
 import type { PartyFixture, PartyPlayersRow } from '@/lib/api';
 import {
-  goalMoment, liveStandings, revealedCount, scoreAt, useRevealPosition, useTeleprinterSound, type Crowd,
+  LEAGUE_MOVES_ON_GOALS, braveIsAlone, goalMoment, liveStandings, revealedCount, scoreAt, useRevealPosition, useTeleprinterSound, type Crowd,
 } from '@/lib/mdpartyReveal';
 
 const SOUND_KEY = 'mdparty_sound';
@@ -52,8 +52,16 @@ export default function TvReveal({
   const nameOf = (id: number) => players.find((p) => p.id === id)?.name ?? '';
   const match = fixtures[pos.index];
   const here = crowd?.find((c) => c.fixture_id === match?.id);
+  const bankers = new Set(here?.bankers ?? []);
+  // Names stay plain. Bankers get a tag of their own on their team's row: a star mixed into the
+  // names was not always read as a banker (2026-11-25).
   const homeNames = (here?.home ?? []).map(nameOf).filter(Boolean);
   const awayNames = (here?.away ?? []).map(nameOf).filter(Boolean);
+  const bankerNames = (side: 'home' | 'away') =>
+    ((side === 'home' ? here?.home : here?.away) ?? []).filter((id) => bankers.has(id)).map(nameOf).filter(Boolean);
+
+  const brave = here?.brave ?? null;
+  const alone = braveIsAlone(here);
 
   const score = match ? scoreAt(match, pos.minute) : { home: 0, away: 0 };
   const goalsSoFar = (match?.result?.goals ?? []).filter((g) => g.minute <= pos.minute);
@@ -72,7 +80,7 @@ export default function TvReveal({
 
   const revealed = revealedCount(pos, fixtures.length);
   // During a match the league moves on every goal; at full time it settles (lib/mdpartyReveal.ts).
-  const inPlay = pos.phase === 'play' || pos.phase === 'halftime';
+  const inPlay = LEAGUE_MOVES_ON_GOALS && (pos.phase === 'play' || pos.phase === 'halftime');
   const standings = liveStandings(table, fixtures, crowd, revealed, inPlay && match ? { index: pos.index, score } : null);
   // Arrows show for the match just finished, until the next one kicks off.
   const showMoves = pos.phase === 'result' || pos.phase === 'intro' || pos.phase === 'done';
@@ -84,11 +92,6 @@ export default function TvReveal({
     });
   };
 
-  const winners = !match?.result || pos.phase !== 'result'
-    ? null
-    : match.result.home_goals === match.result.away_goals
-      ? { names: [...homeNames, ...awayNames], points: 1 }
-      : { names: match.result.home_goals > match.result.away_goals ? homeNames : awayNames, points: 3 };
 
   // Once every result is in, the league is all anyone looks at: it takes the whole screen.
   const allIn = pos.phase === 'done';
@@ -132,7 +135,36 @@ export default function TvReveal({
                     <p className="font-display text-[clamp(2.2rem,5vw,4.6rem)] uppercase leading-[0.95]">{row.team.name}</p>
                     <p className="mt-2 text-[clamp(1.05rem,1.8vw,1.6rem)]">
                       {row.names.length ? row.names.join(', ') : <span className="text-ink-fade">Nobody</span>}
+                      {/* What this side's backers get if it wins, as a total - "what we are hoping for",
+                          shown from the intro, not only once it has happened (2026-11-25). The brave few
+                          and "on their own" say so in the same tag. Bankers have their own tag below. */}
+                      {row.names.length > 0 && (
+                        <span className={`${LABEL} ml-3 border px-2 py-0.5 align-middle ${brave === row.side ? 'border-overprint text-overprint' : 'border-ink/40 text-ink'}`}>
+                          {brave === row.side ? (alone ? 'On their own · win +6' : 'Brave few · win +5') : 'Win +3'}
+                        </span>
+                      )}
                     </p>
+                    {/* The banker, on a tag of its own: outlined while the team is winning, solid red
+                        while it is not - the danger, in view of the room - then +6, or BUST at full time. */}
+                    {(() => {
+                      const names = bankerNames(row.side);
+                      if (names.length === 0) return null;
+                      const other = row.side === 'home' ? score.away : score.home;
+                      const winning = pos.phase !== 'intro' && row.goals > other;
+                      const settled = pos.phase === 'result';
+                      const word = names.length > 1 ? 'Bankers' : 'Banker';
+                      const text = !settled
+                        ? `${word} · ${names.join(', ')} · +6 or \u22123`
+                        : winning ? `${word} · ${names.join(', ')} +6` : `${word} bust · ${names.join(', ')} \u22123`;
+                      const danger = pos.phase !== 'intro' && !winning;
+                      return (
+                        <p className={`mt-2 inline-block px-3 py-1 font-display text-[clamp(1rem,1.7vw,1.5rem)] uppercase tracking-[0.04em] transition-colors ${
+                          danger ? 'bg-overprint text-stock-lit' : 'border-2 border-overprint text-overprint'
+                        }`}>
+                          {text}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <p className={`w-[1.6em] text-center font-data text-[clamp(3rem,7.5vw,7rem)] leading-none tabular-nums transition-[color,transform] duration-300 ${
                     litSide === row.side ? 'scale-110 text-overprint' : pos.phase === 'intro' ? 'text-ink-fade/40' : 'text-ink'
@@ -143,9 +175,16 @@ export default function TvReveal({
               ))}
             </div>
 
-            <p className={`mt-6 min-h-[2.6rem] text-center font-display text-[clamp(1.4rem,2.4vw,2.2rem)] uppercase ${winners?.names.length ? 'text-overprint' : 'text-ink-fade'}`}>
-              {winners ? (winners.names.length ? `+${winners.points} ${winners.names.join(', ')}` : 'Nobody called it') : ''}
-            </p>
+            {/* The draw is +1 for everyone, always, so it is not said (2026-11-25). Only the brave few's
+                draw differs, and only then is there a line. */}
+            {brave && (
+              <p className={`${LABEL} mt-4 text-center text-ink-fade`}>
+                Draw &middot; {alone ? 'on their own' : 'brave few'} +2
+              </p>
+            )}
+
+            {/* No list of who scored what at full time ("+7 Dad · +3 Nan"): it was gone before anyone
+                could read it, and the league beside it says the same thing (2026-11-25). */}
           </section>
         )}
 
@@ -157,7 +196,7 @@ export default function TvReveal({
       <div className={allIn ? 'mx-auto w-full max-w-4xl' : ''}>
         {allIn && <p className="mb-6 font-display text-[clamp(2.5rem,5vw,4.5rem)] uppercase leading-none">All the results are in</p>}
         <div className={`flex items-baseline gap-4 ${LABEL} text-ink-fade`}>
-          <span className="flex-1">The league{inPlay && standings.some((r) => r.live > 0) ? ' · as it stands' : ''}</span>
+          <span className="flex-1">The league{inPlay && standings.some((r) => r.live !== 0) ? ' · as it stands' : ''}</span>
           <span className="w-[4.5ch] text-right font-data text-[clamp(0.9rem,1.4vw,1.3rem)] normal-case tracking-normal"><span className={LABEL}>Round</span></span>
           <span className="w-[3.5ch] text-right font-data text-[clamp(1.4rem,2.4vw,2.3rem)] normal-case tracking-normal"><span className={LABEL}>Total</span></span>
         </div>
@@ -182,17 +221,16 @@ export default function TvReveal({
               </span>
               {/* The numbers are the ones the league is ordered by: as it stands, the match being
                   played included, never "48 +3" above a 50 (2026-11-25). Round first - who is having
-                  the better round is the rivalry in the room - then the total, with the live part
-                  named underneath it in small faded type until full time. */}
+                  the better round is the rivalry in the room - then the total. The live part is not
+                  shown as a number of its own: it was one number too many (2026-11-25). */}
               {/* The round figure is always the lesser one: smaller, and in the moss green the game uses
                   for points won, so it reads as "what this round added" and never competes with the
                   total that decides the league. (A bold, larger total was tried and rejected.) */}
               <span className="w-[4.5ch] shrink-0 text-right font-data text-[clamp(0.9rem,1.4vw,1.3rem)] tabular-nums text-moss">
-                +{r.round_points + r.live}
+                {r.round_points + r.live < 0 ? `−${-(r.round_points + r.live)}` : `+${r.round_points + r.live}`}
               </span>
               <span className="flex w-[3.5ch] shrink-0 flex-col items-end font-data text-[clamp(1.4rem,2.4vw,2.3rem)] leading-none">
                 <span className="tabular-nums">{r.points + r.live}</span>
-                {r.live > 0 && <span className="mt-1 font-data text-[clamp(0.65rem,0.9vw,0.85rem)] text-ink-fade">live +{r.live}</span>}
               </span>
             </li>
           ))}

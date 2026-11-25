@@ -824,8 +824,10 @@ export interface PartyState {
   server_now?: string;
   round?: {
     number: number; locked: boolean; locked_at: string | null; fixtures: PartyFixture[]; my_predictions: Record<string, number>;
-    /** Who predicted each side, by player id - only once the round has locked. */
-    crowd: { fixture_id: number; home: number[]; away: number[] }[] | null;
+    /** This player's banker this round (a fixture id), or null. */
+    my_banker: number | null;
+    /** Who predicted each side, whose banker it is, and the brave side - only once the round has locked. */
+    crowd: { fixture_id: number; home: number[]; away: number[]; bankers: number[]; brave: 'home' | 'away' | null }[] | null;
   } | null;
   players_table?: PartyPlayersRow[];
   teams_table?: PartyTeamsRow[];
@@ -839,8 +841,8 @@ export const partyApi = {
     api.post<{ return_code: string; message?: string; player_token?: string; player_id?: number; name?: string }>('/join-mdparty-room', { code, name }),
   state: (code: string, player_token?: string, known_version?: number) =>
     api.post<PartyState>('/get-mdparty-state', { code, player_token, known_version }),
-  setPredictions: (code: string, player_token: string, round: number, predictions: { fixture_id: number; team_id: number }[]) =>
-    api.post<{ return_code: string; message?: string; everyone_sent?: boolean }>('/set-mdparty-predictions', { code, player_token, round, predictions }),
+  setPredictions: (code: string, player_token: string, round: number, predictions: { fixture_id: number; team_id: number }[], banker_fixture_id: number | null = null) =>
+    api.post<{ return_code: string; message?: string; everyone_sent?: boolean }>('/set-mdparty-predictions', { code, player_token, round, predictions, banker_fixture_id }),
   start: (code: string) => api.post<PartyResult>('/start-mdparty-game', { code }),
   lock: (code: string) => api.post<PartyResult>('/lock-mdparty-round', { code }),
   showTable: (code: string) => api.post<PartyResult>('/show-mdparty-table', { code }),

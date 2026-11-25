@@ -15,7 +15,8 @@ Request Payload:
   "round": 2,                          // integer, required - the round this coupon is for
   "predictions": [                     // array, required - may be empty: every match left blank
     { "fixture_id": 901, "team_id": 20 }   // team_id is the home or the away team of that fixture
-  ]
+  ],
+  "banker_fixture_id": 901             // integer or null, optional - one of the predicted fixtures; +6 if it wins, -3 if not
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -38,7 +39,8 @@ Return Codes:
                           Not UNAUTHORIZED: the web client signs the user out on that code, and a
                           stale room token must not sign anyone out of LMSLocal
 "ROUND_CLOSED"          - the room is not taking predictions, or this is not the current round
-"INVALID_PREDICTION"    - a fixture not in this round, a team not in its fixture, or a fixture twice
+"INVALID_PREDICTION"    - a fixture not in this round, a team not in its fixture, a fixture twice, or a
+                          banker on a match not predicted in this coupon
 "SERVER_ERROR"          - unexpected server error
 =======================================================================================================================================
 Business Logic:
@@ -60,6 +62,9 @@ router.post('/', async (req, res) => {
   logApiCall('set-mdparty-predictions');
   try {
     const { code, player_token: token, round, predictions } = req.body;
+    const bankerId = req.body.banker_fixture_id === undefined || req.body.banker_fixture_id === null
+      ? null
+      : Number(req.body.banker_fixture_id);
     if (!code || !token || round === undefined || !Array.isArray(predictions)) {
       return res.json({ return_code: 'MISSING_FIELDS', message: 'code, player_token, round and predictions are required' });
     }
@@ -93,6 +98,10 @@ router.post('/', async (req, res) => {
         }
         seen.add(fixture.id);
       }
+      // A banker is one of this coupon's own predictions (§2): nothing to double on a blank.
+      if (bankerId !== null && !seen.has(bankerId)) {
+        return { return_code: 'INVALID_PREDICTION', message: 'Your banker has to be one of your predictions' };
+      }
 
       await client.query(
         'DELETE FROM mdparty_prediction WHERE player_id = $1 AND fixture_id = ANY($2::int[])',
@@ -110,9 +119,9 @@ router.post('/', async (req, res) => {
         );
       }
       await client.query(
-        `INSERT INTO mdparty_submission (round_id, player_id) VALUES ($1, $2)
-         ON CONFLICT (round_id, player_id) DO UPDATE SET submitted_at = NOW()`,
-        [roundRow.id, player.id]
+        `INSERT INTO mdparty_submission (round_id, player_id, banker_fixture_id) VALUES ($1, $2, $3)
+         ON CONFLICT (round_id, player_id) DO UPDATE SET submitted_at = NOW(), banker_fixture_id = EXCLUDED.banker_fixture_id`,
+        [roundRow.id, player.id, bankerId]
       );
       await party.bumpVersion(client, room.id);
 

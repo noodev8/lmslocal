@@ -22,10 +22,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PartyFixture } from '@/lib/api';
 
 export const PREROLL_MS = 4000;   // the kick-off countdown, once per round
-export const INTRO_MS = 2500;     // the fixture and who predicted each side
-export const HALF_MS = 4000;      // each half of forty-five minutes
-export const HALFTIME_MS = 1500;  // the pause at half time
-export const RESULT_MS = 3000;    // full time, who scored, and the league moving
+// Slowed by about a third on 2026-11-25 (15 s a match to 19.5 s): at the old pace it felt frantic,
+// goals landing on top of each other. A round of ten is now about 3 minutes 15.
+export const INTRO_MS = 4500;     // the fixture, who predicted each side, and what each stands to get (3 s until 2026-11-25)
+export const HALF_MS = 5500;      // each half of forty-five minutes
+export const HALFTIME_MS = 2000;  // the pause at half time
+export const RESULT_MS = 5500;    // full time and the league moving; lengthened from 3.5 s (2026-11-25)
 export const MATCH_MS = INTRO_MS + HALF_MS + HALFTIME_MS + HALF_MS + RESULT_MS;
 
 export function revealLength(matches: number): number {
@@ -113,12 +115,34 @@ export function scoreAt(fixture: PartyFixture, minute: number): { home: number; 
   };
 }
 
-/** Points a prediction would score if the match ended at this score: 3 / 1 / 0. */
-export function provisionalPoints(fixture: PartyFixture, predicted: number, score: { home: number; away: number }): number {
-  if (score.home === score.away) return 1;
-  const leader = score.home > score.away ? fixture.home.id : fixture.away.id;
-  return leader === predicted ? 3 : 0;
+/*
+  THE SCORING, mirrored from the server (lmslocal-server/services/mdParty.js pointsFor), which is the
+  rule; the two must agree or the live league would disagree with the table it settles into.
+    - a prediction: predicted team wins +3, draw +1, predicted team loses 0;
+    - a BANKER: wins +6, draws or loses -3;
+    - THE BRAVE FEW: the side fewer predicted (both sides taken, unequal) gets +2 extra if it wins,
+      +3 for a player on that side alone, and +1 extra on a draw;
+    - a banker is double or bust and nothing else, bar the brave few's win bonus.
+*/
+export type PointsOptions = { banker?: boolean; brave?: 'home' | 'away' | null; braveAlone?: boolean };
+
+/** Points a prediction would score if the match ended at this score. */
+export function provisionalPoints(
+  fixture: PartyFixture,
+  predicted: number,
+  score: { home: number; away: number },
+  { banker = false, brave = null, braveAlone = false }: PointsOptions = {}
+): number {
+  const drew = score.home === score.away;
+  const won = !drew && predicted === (score.home > score.away ? fixture.home.id : fixture.away.id);
+  const side = predicted === fixture.home.id ? 'home' : 'away';
+  const braveWin = brave === side ? (braveAlone ? 3 : 2) : 0;
+  if (banker) return won ? 6 + braveWin : -3;
+  if (won) return 3 + braveWin;
+  if (drew) return 1 + (brave === side ? 1 : 0);
+  return 0;
 }
+
 
 /** How many matches have reached full time on the reveal. */
 export function revealedCount(position: RevealPosition, matches: number): number {
@@ -127,18 +151,63 @@ export function revealedCount(position: RevealPosition, matches: number): number
   return position.index + (position.phase === 'result' ? 1 : 0);
 }
 
-/** Points per player for every match fully revealed so far (results in), for a running total. */
-export function pointsSoFar(fixtures: PartyFixture[], predictions: Record<string, number>, position: RevealPosition): number {
+/*
+  Does the league move on every goal, or only at full time? OFF since 2026-11-25: with the stakes on
+  screen everyone already knows what a goal means for them, and the league settling once, at full time,
+  is the better moment. The live part of liveStandings (`playing`) is kept for turning this back on.
+*/
+export const LEAGUE_MOVES_ON_GOALS = false;
+
+export type Crowd = {
+  fixture_id: number;
+  home: number[];
+  away: number[];
+  /** Whose banker this match is. */
+  bankers?: number[];
+  /** The side fewer predicted, or null. */
+  brave?: 'home' | 'away' | null;
+};
+
+/**
+ * What a prediction stands to score on each result - "what we are hoping for" - worked out from the
+ * same rule as the score, so the stakes shown before a match can never disagree with what it pays.
+ */
+export function stakesFor(fixture: PartyFixture, predicted: number, opts: PointsOptions): { win: number; draw: number; loss: number } {
+  const forPredicted = predicted === fixture.home.id ? { home: 1, away: 0 } : { home: 0, away: 1 };
+  const againstPredicted = predicted === fixture.home.id ? { home: 0, away: 1 } : { home: 1, away: 0 };
+  return {
+    win: provisionalPoints(fixture, predicted, forPredicted, opts),
+    draw: provisionalPoints(fixture, predicted, { home: 0, away: 0 }, opts),
+    loss: provisionalPoints(fixture, predicted, againstPredicted, opts),
+  };
+}
+
+/** True when the brave side of a match is one player on their own (+3 rather than +2). */
+export function braveIsAlone(c: Crowd | undefined | null): boolean {
+  if (!c || !c.brave) return false;
+  return (c.brave === 'home' ? c.home : c.away).length === 1;
+}
+
+/** One player's points for every match fully revealed so far (results in), for a running total. */
+export function pointsSoFar(
+  fixtures: PartyFixture[],
+  predictions: Record<string, number>,
+  position: RevealPosition,
+  banker: number | null = null,
+  crowd: Crowd[] | null = null
+): number {
   let total = 0;
   fixtures.slice(0, revealedCount(position, fixtures.length)).forEach((f) => {
     const predicted = predictions[String(f.id)];
     if (predicted === undefined || !f.result) return;
-    total += provisionalPoints(f, predicted, { home: f.result.home_goals, away: f.result.away_goals });
+    const c = crowd?.find((x) => x.fixture_id === f.id);
+    const brave = c?.brave ?? null;
+    total += provisionalPoints(f, predicted, { home: f.result.home_goals, away: f.result.away_goals }, {
+      banker: banker === f.id, brave, braveAlone: braveIsAlone(c),
+    });
   });
   return total;
 }
-
-export type Crowd = { fixture_id: number; home: number[]; away: number[] };
 export type StandingRow = {
   player_id: number; name: string;
   /** Banked: earlier rounds plus the matches of this round that have reached full time. */
@@ -167,9 +236,15 @@ export function liveStandings(
   revealed: number,
   playing?: { index: number; score: { home: number; away: number } } | null
 ): StandingRow[] {
+  // Every predictor of a match scored by the one rule above: banker and brave few included.
   const award = (c: Crowd, h: number, a: number, add: (id: number, pts: number) => void) => {
-    if (h === a) [...c.home, ...c.away].forEach((id) => add(id, 1));
-    else (h > a ? c.home : c.away).forEach((id) => add(id, 3));
+    const f = fixtures.find((x) => x.id === c.fixture_id);
+    if (!f) return;
+    const opts = (id: number): PointsOptions => ({
+      banker: (c.bankers ?? []).includes(id), brave: c.brave ?? null, braveAlone: braveIsAlone(c),
+    });
+    c.home.forEach((id) => add(id, provisionalPoints(f, f.home.id, { home: h, away: a }, opts(id))));
+    c.away.forEach((id) => add(id, provisionalPoints(f, f.away.id, { home: h, away: a }, opts(id))));
   };
   const livePoints = new Map<number, number>();
   if (playing && playing.score.home + playing.score.away > 0) {

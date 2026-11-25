@@ -10,7 +10,8 @@ Purpose: Fill a Matchday Party room with made-up players so a game can be judged
          are ordinary mdparty_player rows in that one room, deleted with the room after 24 hours like everyone else's.
 
 How the made-up players predict: most matches, not all (a few blanks, as people leave them), leaning towards the team with
-the better form and a little towards the home side, with enough chance in it that they disagree with each other.
+the better form and a little towards the home side, with enough chance in it that they disagree with each other. Most take a
+banker on the match they feel surest of.
 
 Usage (from lmslocal-server/, with the API running):
     node scripts/mdparty-bots.js --code KXBRT                 5 players join, then play every round until the game ends
@@ -47,15 +48,23 @@ async function post(path, body) {
 
 const formPoints = (form) => form.reduce((n, f) => n + (f === 'W' ? 3 : f === 'D' ? 1 : 0), 0);
 
-/** A plausible coupon: mostly predicted, leaning on form and home, never quite the same twice. */
+/**
+ * A plausible coupon: mostly predicted, leaning on form and home, never quite the same twice. Most
+ * players (70%) also take a banker, on the prediction they feel surest of.
+ */
 function coupon(fixtures) {
-  return fixtures
+  const picks = fixtures
     .filter(() => Math.random() < 0.9)
     .map((f) => {
       const home = formPoints(f.home.form) + 1.5 + Math.random() * 5;
       const away = formPoints(f.away.form) + Math.random() * 5;
-      return { fixture_id: f.id, team_id: home >= away ? f.home.id : f.away.id };
+      return { fixture_id: f.id, team_id: home >= away ? f.home.id : f.away.id, sureness: Math.abs(home - away) };
     });
+  const surest = [...picks].sort((a, b) => b.sureness - a.sureness)[0];
+  return {
+    predictions: picks.map(({ fixture_id, team_id }) => ({ fixture_id, team_id })),
+    banker: surest && Math.random() < 0.7 ? surest.fixture_id : null,
+  };
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -105,7 +114,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       if (me.submitted) { bot.sentRound = round.number; continue; }
       // Spread over a few seconds, so the TV's "Sent" list fills in like a room rather than at once.
       await sleep(400 + Math.random() * 1600);
-      const r = await post('set-mdparty-predictions', { code, player_token: bot.token, round: round.number, predictions: coupon(round.fixtures) });
+      const c = coupon(round.fixtures);
+      const r = await post('set-mdparty-predictions', { code, player_token: bot.token, round: round.number, predictions: c.predictions, banker_fixture_id: c.banker });
       bot.sentRound = round.number;
       console.log(`round ${round.number}: ${bot.name} sent (${r.return_code}${r.everyone_sent ? ', everyone in - kick off' : ''})`);
     }

@@ -43,8 +43,11 @@ Success Response otherwise (ALWAYS HTTP 200):
       }
     ],
     "my_predictions": { "901": 20 },   // fixture id -> predicted team id; {} on the TV
+    "my_banker": 901,                  // fixture id of this player's banker this round, or null
     "crowd": [                         // null until the round locks; then who predicted each side
-      { "fixture_id": 901, "home": [41, 42], "away": [43] }   // player ids, removed players left out
+      { "fixture_id": 901, "home": [41, 42], "away": [43],   // player ids, removed players left out
+        "bankers": [41],                                     // whose banker this match is
+        "brave": "away" }                                    // the side fewer predicted, or null
     ]
   },
   "players_table": [ { "player_id": 41, "name": "Dad", "points": 13, "wins": 4, "predictions_made": 10, "round_points": 13, "position": 1 } ],

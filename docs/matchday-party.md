@@ -46,7 +46,11 @@ free and the host needs an account *(decided)*, which is how it pays its way.
 | Teams | **Premier League only, to start** *(decided)*. Real club names; no crests or badges (§8) |
 | A round | **10 fixtures: all 20 teams, each playing once** *(decided)*, drawn at random. Every team plays every round, which is what makes form matter (§4.3) |
 | What a player does | For each fixture, predicts the **home team or the away team to win** *(decided: winners only)*. A draw cannot be predicted, as in Matchday |
-| Scoring | Matchday's: predicted team wins **+3**, draw **+1**, predicted team loses **0**, left blank **0** |
+| Scoring | Matchday's: predicted team wins **+3**, draw **+1**, predicted team loses **0**, left blank **0**. Plus the two below. Unlike Matchday, a total can go down |
+| The banker | *(2026-11-25)* Once a round, optional: one prediction marked as the banker. **Wins +6; draws or loses −3.** Simulated: on a top-v-bottom favourite it averages 3.7 against a normal pick's 2.4 but still fails about one time in four, mostly to a draw; on an even match it averages 0.7 against 1.6, a gamble that usually costs. A softer version (draw 0) was always worth using, so no decision. The TV stars each banker beside its owner's name (★ Dad); its +6 or −3 shows in the league. **Chosen on a screen of its own after the cards** ("Next: your banker"): every prediction listed, tap one, or "No banker this round", then Send. A button on each card went by too fast - the cards move on after a tap - and choosing a banker means comparing the predictions |
+| The brave few | *(2026-11-25)* The side of a match fewer players predicted - both sides taken, unequal - is the brave few, marked on the TV. If it wins, each of them gets **+2 extra**, or **+3** for a player on that side alone ("on their own"). Not doubled by a banker. Raised from +1 on 2026-11-25: the brave side is usually the underdog, and +1 did not pay for the risk; at +2 a 30% underdog is worth about what a solid favourite is. No sums for anyone: you just see whether you are with the brave few **A brave draw gets +1 extra** (2 rather than 1) |
+| ~~The crowd~~ | *(Tried and taken out on 2026-11-25.)* A point off each player on the most-predicted side if it lost |
+| Banker extras | A banker is double or bust: +6 (plus the brave few's win bonus) or −3. No brave draw point on top. On the TV the banker has **a tag of its own** on its team's row - outlined while the team is winning, solid red while it is not, then "+6" or "BANKER BUST −3" at full time - because a star among the names was not read as a banker |
 | Length | **4, 6 or 8 rounds**, chosen by the host at setup *(decided)* |
 | Locking | **The host kicks off**, and that is the only way a round locks *(2026-11-25; it used to lock itself when the last coupon arrived, which started the reveal before the room was ready)*. Once everyone has sent a coupon the host's screen says so and offers Kick off; the host can also kick off early. Until then anyone can change and resend. Fixtures left blank score 0 |
 | Results | Simulated by the engine (§4) **at lock**, never earlier, so nothing can be found out in advance |
@@ -162,8 +166,10 @@ plays (§6).
    they chose.
 5. **The host kicks off**, once everyone has sent a coupon (or earlier). That locks the round.
 6. **The engine plays the round** (§4), and the TV runs the vidiprinter (§6).
-7. **The table** appears on the TV and phones, with the movement since last round.
-8. **Host moves on** to the next round. Repeat from step 4.
+7. **The league** fills the TV once the results are in, and appears under each player's own result on
+   their phone, so nobody has to be watching the TV.
+8. **The host presses Next round**, straight from the results: the next coupon opens on every phone.
+   There is no separate tables step *(2026-11-25: it was a press for nothing)*. Repeat from step 4.
 9. After the last round, **the final table** and a winner.
 
 Room states, in order: `lobby → open → revealing → table → (open … ) → finished`. Locking and
@@ -179,16 +185,23 @@ at once was a wall of numbers: nobody can follow ten scores in fifty seconds, or
 So the round is revealed match by match, like a results show reading the scores out. The rules and
 the coupon are unchanged: players still predict all ten.
 
-**Each match, about 15 seconds** (`lib/mdpartyReveal.ts`), after a 4-second kick-off countdown once
-per round; a round of ten takes about 2 minutes 30:
+**Each match, about 21½ seconds** (`lib/mdpartyReveal.ts`), after a 4-second kick-off countdown once
+per round; a round of ten takes about 3 minutes 40 *(slowed from 15 seconds a match on 2026-11-25: it felt frantic; full time then held longer, to take in the result and the league moving)*:
 
 | Part | Time | The TV | The phone |
 |---|---|---|---|
-| Intro | 2.5 s | The fixture, large, and who in the room predicted each side | "You predicted Hull", or that they left it blank |
-| First half | 4 s | The clock over a scoreboard: each team on its own full-width row with its goals at the end and its predictors under it, the scoring team's number turning red, with a chime | The score, and Winning / Drawing / Losing for them |
-| Half time | 1.5 s | A pause, the score held *(added 2026-11-25)* | The same |
-| Second half | 4 s | As the first | As the first |
-| Result | 3 s | Full time, who scored from it ("+3 Dad, Nan"), and the league moving | Won / Drew / Lost and the points |
+| Intro | 4.5 s | The fixture, large, and who in the room predicted each side | "You predicted Hull", or that they left it blank |
+| First half | 5.5 s | The clock over a scoreboard: each team on its own full-width row with its goals at the end and its predictors under it, the scoring team's number turning red, with a chime | The score, and Winning / Drawing / Losing for them |
+| Half time | 2 s | A pause, the score held *(added 2026-11-25)* | The same |
+| Second half | 5.5 s | As the first | As the first |
+| Result | 5.5 s | Full time, and the league moving. No list of who scored what: it was gone before it could be read, and the league says it (2026-11-25) | Won / Drew / Lost and the points |
+
+**The stakes, before the result** *(2026-11-25)*. "Got to know what we are hoping for": from the
+intro on, the TV tags each side with what its backers get if it wins (WIN +3, BRAVE FEW · WIN +5,
+ON THEIR OWN · WIN +6), a banker's tag says "+6 or −3", and a line under the board gives the brave few's draw (+2) when there is a brave side. The ordinary draw (+1 each) is the same every time, so it is not shown.
+Each phone shows three boxes for the player's team - WIN, DRAW, LOSE with the points for each - and
+fills in the one that applies as it stands. All of it comes from the scoring rule itself
+(`stakesFor`), so it cannot disagree with what the match pays. The intro is 4.5 s to read it.
 
 **The players' league moves after every match** *(2026-11-25)*. Following one's own round points was
 the thing that got lost, so the TV shows the league beside the match: at each full time the points go
@@ -196,7 +209,7 @@ on, names slide up or down, and arrows show who rose or fell. The phone gives ea
 "You're 2nd ▲1 · +7 this round". It is worked out the same way on every screen (`liveStandings`):
 points from earlier rounds plus the matches revealed so far.
 
-**It moves on every goal, too** *(2026-11-25)*. During a match the league is ordered as it stands, the
+**It moved on every goal, too** *(2026-11-25; switched off the same day, `LEAGUE_MOVES_ON_GOALS`: with the stakes on screen the league settling once, at full time, is the better moment. The logic is kept)*. During a match the league is ordered as it stands, the
 match being played included, and **the numbers shown are those same figures**: a total of 51 with a
 small faded "live +3" beside it, never "48 +3". Showing the banked figure with the live part apart
 put a player on 48 above one on 50, which read as the wrong order. At full time the tag goes and the
@@ -236,8 +249,10 @@ picked out (`components/mdparty/Celebration.tsx`). The winner's phone says "You 
 confetti; everyone else's says where they finished and who won. A game the host ended early gets no
 celebration - it was stopped, not won - only who was leading. Reduced motion drops the confetti.
 
-**Moving on.** The host's phone has a quiet **Skip to the tables** during the reveal, which moves
-every screen on, and **Show the tables** as the main action once every result is in.
+**Moving on.** Once every result is in, each phone shows the league under the player's own result,
+and the host's one button is **Next round** (or **Show the champion** after the last), which opens the
+next coupon everywhere. During the reveal it is a quiet **Skip to the next round**. The teams' league
+is on no screen any more *(2026-11-25)*.
 
 ---
 
@@ -273,7 +288,7 @@ statement. That is the whole prune script.
 | `start-mdparty-game` | Host | Needs 1 player, so the host can play alone. Draws round 1 |
 | `lock-mdparty-round` | Host | **Kick off**: locks and plays the round, and every screen starts the reveal |
 | `show-mdparty-table` | Host | Reveal → tables; after the last round, straight to the finish |
-| `next-mdparty-round` | Host | Tables → next round (and, for a room already on its last round's tables, the finish) |
+| `next-mdparty-round` | Host | Reveal (or tables) → next round. For a room already on its last round's tables, the finish |
 | `remove-mdparty-player` | Host | Not the host. Never locks the round |
 | `end-mdparty-game` | Host | Finished from any state; an open round is not played |
 

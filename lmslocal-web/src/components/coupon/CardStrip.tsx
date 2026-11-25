@@ -12,12 +12,16 @@
 
   THE RULES, unchanged from the Matchday page:
   - TAP A TEAM to predict it; the strip then moves to the next match. Tapping the team already
-    predicted takes it back, which is how a match is skipped: there is no Skip button.
+    predicted takes it back, which is how a match is skipped: there is no Skip button. The card says
+    nothing about this as it is chosen - the strip has moved on before it could be read.
   - MOVING BETWEEN CARDS NEVER CHOOSES ANYTHING. A native horizontal scroller with snap points, so a
     finger swipes it, a trackpad scrolls it, and a mouse uses Previous / Next, the arrow keys or the
     tracker. Nothing asks which device it is on, and no copy tells anyone to swipe.
   - THE TRACKER is one segment per match, green once predicted; a tap jumps to that card.
   - It OPENS on the first match still to predict, once per placementKey (a round).
+  - A BANKER (Matchday Party) is chosen on a screen of its own after the cards, not on them: a button
+    on each card went by too fast, as the strip moves on after a tap (2026-11-25). A card only shows a
+    star Banker tag when its fixture is flagged banker; Matchday flags none.
   - DONE sits on the last card, and on every card once all are predicted. Held back on an open last
     card until that match is predicted: offered before the tap, it reads as the way to finish and the
     last match gets skipped.
@@ -51,6 +55,8 @@ export type StripFixture = {
   resultText: string | null;
   /** Won / Drew / Lost and the points, once settled and predicted. */
   outcome: { word: string; points: string } | null;
+  /** This prediction is the player's banker (games with a banker only). */
+  banker?: boolean;
 };
 
 /** What a tap did, so the strip knows whether to move on. */
@@ -293,7 +299,10 @@ function MatchCard({
     // The one print-offset shadow in the system belongs to "the sheet", and a card is exactly that.
     <div className={`${PANEL} p-5 shadow-[4px_4px_0_0_rgba(28,38,32,0.16)] sm:p-6`}>
       <div className="flex items-baseline justify-between">
-        <p className={`${LABEL} text-ink-fade`}>Match {position} of {count}</p>
+        <p className={`${LABEL} text-ink-fade`}>
+          Match {position} of {count}
+          {fixture.banker && <span className="ml-2 text-overprint">&#9733; Banker</span>}
+        </p>
         {fixture.meta && <p className="font-data text-[13px] text-ink-fade">{fixture.meta}</p>}
       </div>
 
@@ -319,11 +328,11 @@ function MatchCard({
         ) : fixture.resultText ? (
           <span className="text-ink-fade">{fixture.resultText}{isPlayer && fixture.chosen === null ? ' · not predicted' : ''}</span>
         ) : editable ? (
-          fixture.chosen !== null
-            ? <span className="text-ink-fade">Tap it again to take it back</span>
-            : scoringLine
-              ? <span className={`${LABEL} text-ink`}>{scoringLine}</span>
-              : null
+          // No line once a team is chosen (2026-11-25): the strip moves on straight after the tap,
+          // so "Tap it again to take it back" flashed up and was gone before anyone could read it.
+          fixture.chosen === null && scoringLine
+            ? <span className={`${LABEL} text-ink`}>{scoringLine}</span>
+            : null
         ) : isPlayer && fixture.chosen === null ? (
           <span className="text-ink-fade">Not predicted &middot; scores 0</span>
         ) : null}
