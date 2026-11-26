@@ -16,6 +16,9 @@ Wired fresh in Aug 2026, replacing two implementations that between them never s
 Nothing drained either. Nine rows sat pending, the oldest six days old, and were deleted rather
 than sent - a welcome to a competition someone joined last week is worse than no welcome.
 
+Since 2026-11-26 it welcomes Matchday members too (MATCHDAY_SQL), with Matchday's own copy -
+docs/matchday.md §9.1. Everything below is LMS's half (findLmsCandidates), unchanged.
+
 Eligibility is now derived here, live, and the queue row is written at send time like every other
 comms email. The rules, all in findCandidates below:
   - membership is active
@@ -31,7 +34,7 @@ const { query } = require('../database');
 const { WELCOME_MAX_AGE_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
-const { isLmsSql } = require('./gameType');
+const { isLmsSql, isMatchdaySql } = require('./gameType');
 
 /*
 The email_type stays 'welcome'. It is what email_preference and EMAIL_GROUPS already map to
@@ -72,7 +75,7 @@ const subjectFor = (competitionName) => `Welcome to ${competitionName}`;
  *                                         screen always does. Omit to scan them all.
  * @returns {Promise<Array>} candidate rows, each carrying everything buildTemplateData needs
  */
-async function findCandidates(opts = {}) {
+async function findLmsCandidates(opts = {}) {
   const { competition_id = null } = opts;
 
   const result = await query(`
@@ -160,13 +163,128 @@ async function findCandidates(opts = {}) {
   return result.rows;
 }
 
+/*
+Matchday's half (docs/matchday.md §9.1). The same rules as LMS, clause for clause - active member,
+not the organiser, real email, once per membership ever, joined recently, not opted out - with
+"already picked" read as "already made a prediction": the welcome's job is getting a new member
+to their first one, and once they have, it is late at best.
+
+Its copy explains the game rather than LMS's lives and team reuse: Matchday is new to every player,
+so how it scores is the part worth a paragraph.
+*/
+const MATCHDAY_SQL = `
+    SELECT
+      'matchday'             AS game_type,
+      cu.user_id,
+      u.email                AS user_email,
+      u.display_name         AS user_display_name,
+      c.id                   AS competition_id,
+      c.name                 AS competition_name,
+      c.end_value            AS rounds_total,
+      org.display_name       AS organizer_name,
+      cu.joined_at,
+      (
+        SELECT r.round_number
+        FROM round r
+        WHERE r.competition_id = c.id AND r.lock_time > NOW()
+        ORDER BY r.round_number ASC
+        LIMIT 1
+      ) AS next_round_number,
+      (
+        SELECT MIN(r.lock_time)
+        FROM round r
+        WHERE r.competition_id = c.id AND r.lock_time > NOW()
+      ) AS next_round_lock_time
+
+    FROM competition_user cu
+
+    INNER JOIN competition c
+      ON c.id = cu.competition_id
+      AND c.organiser_id != cu.user_id
+      AND ${notArchivedSql('c')}
+      AND ${isMatchdaySql('c')}
+
+    INNER JOIN app_user u
+      ON u.id = cu.user_id
+      AND u.email IS NOT NULL
+      AND u.email != ''
+      AND u.email NOT LIKE '%@lms-guest.com'
+
+    LEFT JOIN app_user org
+      ON org.id = c.organiser_id
+
+    WHERE cu.status = 'active'
+      AND cu.joined_at > NOW() - ($3 || ' days')::interval
+      AND NOT EXISTS (
+        SELECT 1 FROM email_queue eq
+        WHERE eq.user_id = cu.user_id
+          AND eq.competition_id = c.id
+          AND eq.email_type = '${EMAIL_TYPE}'
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM prediction pr
+        WHERE pr.user_id = cu.user_id
+          AND pr.competition_id = c.id
+      )
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$1' })}
+      AND ($2::int IS NULL OR c.id = $2)
+
+    ORDER BY cu.joined_at, cu.user_id
+`;
+
 /**
- * Build the template data one welcome needs.
+ * Every member who should be welcomed, in either game. One email per membership.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.competition_id] - restrict to one competition
+ * @returns {Promise<Array>}
+ */
+async function findCandidates(opts = {}) {
+  const competitionId = opts.competition_id || null;
+  const [lms, matchday] = await Promise.all([
+    findLmsCandidates({ competition_id: competitionId }),
+    query(MATCHDAY_SQL, [groupFor(EMAIL_TYPE), competitionId, String(WELCOME_MAX_AGE_DAYS)])
+      .then((result) => result.rows)
+  ]);
+  return [...lms, ...matchday].sort((a, b) =>
+    new Date(a.joined_at) - new Date(b.joined_at) || a.user_id - b.user_id);
+}
+
+/**
+ * Build the template data one welcome needs, for whichever game it is. LMS's is unchanged.
  *
  * @param {object} candidate - a row from findCandidates
- * @returns {Promise<object>} template data, stored on email_queue.template_data
+ * @returns {Promise<object>}
  */
 async function buildTemplateData(candidate) {
+  if (candidate.game_type !== 'matchday') return lmsTemplateData(candidate);
+
+  const token = await getOrCreateToken(candidate.user_id);
+  const unsubscribe = token ? unsubscribeLinks(token, groupFor(EMAIL_TYPE)) : null;
+
+  return {
+    game_type: 'matchday',
+    email_tracking_id: `${EMAIL_TYPE}_${candidate.user_id}_${candidate.competition_id}_${Date.now()}`,
+    unsubscribe,
+    user_email: candidate.user_email,
+    user_display_name: candidate.user_display_name,
+    competition_name: candidate.competition_name,
+    organizer_name: candidate.organizer_name || 'Competition Organizer',
+    rounds_total: candidate.rounds_total ? Number(candidate.rounds_total) : null,
+    next_round_number: candidate.next_round_number,
+    next_round_lock_time: candidate.next_round_lock_time,
+    competition_id: candidate.competition_id,
+    user_id: candidate.user_id
+  };
+}
+
+/**
+ * The template data for an LMS welcome - unchanged since before Matchday.
+ *
+ * @param {object} candidate - a row from findLmsCandidates
+ * @returns {Promise<object>} template data, stored on email_queue.template_data
+ */
+async function lmsTemplateData(candidate) {
   const {
     user_id,
     user_email,

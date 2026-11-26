@@ -531,6 +531,11 @@ Tested on TEST Matchday (288), played to the end of its 4 rounds.
 Welcome and Game complete stay per competition: they follow one-off events that rarely land
 within 48 hours of each other.
 
+**Built: Welcome** (`welcome`, `services/joinComp.js`, 2026-11-26). LMS's rules, with "not yet
+picked" read as "no prediction yet". Its copy explains the game - predict the winner of each
+match, 3 for right, 1 if drawn, a skipped match costs nothing, most points after N rounds - since
+Matchday is new to every player. One email per membership.
+
 ---
 
 ## 10. Build order

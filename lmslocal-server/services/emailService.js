@@ -4125,6 +4125,143 @@ const sendBroadcastEmail = async (email, templateData, options = {}) => {
 };
 
 /**
+ * Build a Matchday welcome (services/joinComp.js, docs/matchday.md §9.1). How the game works, in
+ * Matchday's words (§2), then the first deadline if a round is open.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/joinComp.js, game_type 'matchday'
+ */
+const buildMatchdayWelcomeEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    organizer_name,
+    rounds_total,
+    next_round_number,
+    next_round_lock_time,
+    competition_id,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+
+  // Read at send time: a round that locked between queueing and sending is not offered.
+  const open = next_round_lock_time && new Date(next_round_lock_time) > new Date();
+  const base = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}`;
+  const actionUrl = open ? `${base}/coupon?email_id=${email_tracking_id}` : `${base}?email_id=${email_tracking_id}`;
+  const buttonLabel = open ? 'Make your predictions' : 'Open the competition';
+
+  const rules = [
+    'Every round, predict the winner of each match.',
+    'Predict the right winner and you score 3 points. If the match is drawn you still score 1.',
+    'Leave out any match you like. It scores nothing, and costs you nothing.',
+    rounds_total
+      ? `After ${rounds_total} rounds, the most points wins.`
+      : 'The most points at the end wins.'
+  ];
+  const deadline = open
+    ? `Round ${next_round_number} is open. Predictions close ${formatUkDateTime(next_round_lock_time)}.`
+    : 'The first round opens once its fixtures are in.';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to ${competition_name}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
+
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">
+              You're in ${competition_name}, a Matchday game run by ${organizer_name}.
+            </p>
+
+            <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 17px; font-weight: 600;">How it works</h3>
+            <ul style="margin: 0 0 24px 0; padding-left: 20px; color: #334155; font-size: 15px;">
+              ${rules.map((r) => `<li style="margin: 0 0 6px 0;">${r}</li>`).join('')}
+            </ul>
+
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              <p style="margin: 0; color: #0f172a; font-size: 15px;">${deadline}</p>
+            </div>
+
+            <div style="margin: 0 0 24px 0;">
+              <a href="${actionUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                ${buttonLabel}
+              </a>
+            </div>
+
+            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+              Good luck,<br>
+              ${organizer_name}
+            </p>
+
+            ${buildOrganiserReplyNote(organizer_name).html}
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const text = `
+Welcome to ${competition_name}
+
+Hi ${firstName(user_display_name)},
+
+You're in ${competition_name}, a Matchday game run by ${organizer_name}.
+
+HOW IT WORKS
+
+${rules.map((r) => `  • ${r}`).join('\n')}
+
+${deadline}
+
+${buttonLabel}:
+${actionUrl}
+
+Good luck,
+${organizer_name}
+
+${buildOrganiserReplyNote(organizer_name).text}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: joinCompSubjectFor(competition_name),
+    html,
+    text,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'welcome' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
  * Build the Join Comp welcome without sending it.
  *
  * Outline row: Player | Welcome | Join Comp. One per membership, when someone joins a competition.
@@ -4140,6 +4277,11 @@ const sendBroadcastEmail = async (email, templateData, options = {}) => {
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
 const buildWelcomeCompetitionEmail = (email, templateData) => {
+  // Branch once, at the top (docs/matchday.md §3.2). Everything below is LMS, unchanged.
+  if (templateData.game_type === 'matchday') {
+    return buildMatchdayWelcomeEmail(email, templateData);
+  }
+
   const {
     user_display_name,
     competition_name,

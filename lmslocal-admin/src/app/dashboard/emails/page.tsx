@@ -306,7 +306,7 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Info',
     name: 'Welcome Join Comp',
     scoped: true,
-    note: 'New joins only, not yet picked',
+    note: 'New joins only, not yet picked (LMS) or predicted (Matchday)',
     focus: true,
     blurb:
       'What a player gets after joining someone else’s competition. Once per membership, ever. Not offered once they have made a pick — its job is the first pick, and sending it late starts a quiet period that can cost them their Round Over. The organiser is excluded — they get Welcome Created Comp instead.',
