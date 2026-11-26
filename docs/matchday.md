@@ -519,8 +519,14 @@ line each (LMS "Arsenal won: through", Matchday "Round 1: +4 · 1st of 3", and t
 and the dashboard button. The grouping and the queue rows are shared with the pick reminder in
 `services/emailBundle.js`. Tested on TEST Matchday (288).
 
-**A Matchday game's last round sends nothing yet.** It leaves no next round, so Round Over does
-not qualify, and `game_complete` is still LMS-only. Matchday's Game complete is the next email.
+**Built: Game complete** (`game_complete`, `services/gameComplete.js`, 2026-11-26). A Matchday
+game's last round leaves no next round, so Round Over does not qualify and this is its ending.
+Every member, once ever, within the same window as LMS (counted from the last result processed).
+The outcome is the table (§4.2): position 1 wins, and a tie there is a **shared win that names
+every winner** ("Jo and Sam share the win") - unlike LMS, whose draw names nobody. The player's
+own finish ("You finished 2nd of 3, on 7 points") and the top five of the final table, with them
+added if lower. **One email per competition**, not per person: a competition finishes once.
+Tested on TEST Matchday (288), played to the end of its 4 rounds.
 
 Welcome and Game complete stay per competition: they follow one-off events that rarely land
 within 48 hours of each other.

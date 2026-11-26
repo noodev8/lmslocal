@@ -198,4 +198,21 @@ function rankTable(players) {
   return rows;
 }
 
-module.exports = { getMatchdayTable, getMatchdayTables, rankTable };
+/*
+For the emails only: the table, remembered for a minute. A sweep builds one email per member, and
+a 30-player competition would otherwise read its table thirty times in one run. The table changes
+only when a push settles a round, and a sweep runs well after that, so a minute cannot be stale in
+any way a reader would see. Screens and the completion check read getMatchdayTable directly.
+*/
+const RECENT_MS = 60 * 1000;
+const recent = new Map();
+
+async function getRecentMatchdayTable(competitionId) {
+  const hit = recent.get(competitionId);
+  if (hit && Date.now() - hit.at < RECENT_MS) return hit.table;
+  const table = await getMatchdayTable(competitionId);
+  recent.set(competitionId, { at: Date.now(), table });
+  return table;
+}
+
+module.exports = { getMatchdayTable, getMatchdayTables, getRecentMatchdayTable, rankTable };

@@ -189,7 +189,7 @@ const OUTLINE: OutlineEmail[] = [
     note: 'Everyone who took part, once',
     focus: true,
     blurb:
-      'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all.',
+      'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all. Covers Matchday too, where the outcome is the top of the final table and a tie there is a shared win naming everyone.',
   },
   /*
   Game Start reminder is deliberately absent, dropped 2026-08-14 alongside Share reminder and for

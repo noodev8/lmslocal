@@ -4,6 +4,9 @@ Game Complete Service
 =======================================================================================================================================
 Purpose: The one definition of who is told a competition has finished, and how it finished.
          Outline row: Player | Game | Game complete.
+         Since 2026-11-26 it covers Matchday too (MATCHDAY_SQL, matchdayTemplateData), still one
+         email per competition - docs/matchday.md §9.1. Everything below about outcomes and
+         survivors is LMS's half (findLmsCandidates), unchanged.
 
 Goes to everyone who took part, winners and eliminated alike - somebody knocked out in round 2
 still wants to know who won. Scoped to one competition, unlike the organiser reminders: this is
@@ -41,7 +44,8 @@ const { query } = require('../database');
 const { GAME_COMPLETE_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
-const { isLmsSql } = require('./gameType');
+const { isLmsSql, isMatchdaySql } = require('./gameType');
+const { getRecentMatchdayTable } = require('./matchdayTable');
 
 const EMAIL_TYPE = 'game_complete';
 
@@ -70,6 +74,27 @@ const subjectFor = (competitionName, outcome = null) => {
 };
 
 /**
+ * Matchday's subject (docs/matchday.md §2 and §5.3). Unlike LMS, a tie at the top is a SHARED WIN
+ * with named winners rather than a draw that names nobody, so the shared case says so.
+ *
+ * @param {string} competitionName
+ * @param {object} [outcome] - { winner_names, winner_count, recipient_won }
+ */
+const matchdaySubjectFor = (competitionName, outcome = null) => {
+  if (!outcome) return `${competitionName} has finished`;
+  const { winner_names, winner_count, recipient_won } = outcome;
+  if (winner_count === 1) {
+    return recipient_won ? `You won ${competitionName}` : `${winner_names} won ${competitionName}`;
+  }
+  return recipient_won ? `You share the win in ${competitionName}` : `${competitionName} ends in a shared win`;
+};
+
+/** The subject for either game, from the template data. */
+const subjectForData = (data) => (data.game_type === 'matchday'
+  ? matchdaySubjectFor(data.competition_name, data)
+  : subjectFor(data.competition_name, data));
+
+/**
  * Find everyone who should be told their competition has finished.
  *
  * One query. The outcome columns are the same for every row of a given competition, which is
@@ -80,7 +105,7 @@ const subjectFor = (competitionName, outcome = null) => {
  * @param {number} [opts.competition_id] - restrict to one competition. Omit to scan them all.
  * @returns {Promise<Array>} candidate rows, each carrying everything buildTemplateData needs
  */
-async function findCandidates(opts = {}) {
+async function findLmsCandidates(opts = {}) {
   const { competition_id = null } = opts;
 
   const result = await query(`
@@ -190,13 +215,160 @@ async function findCandidates(opts = {}) {
   return result.rows;
 }
 
+/*
+Matchday's half (docs/matchday.md §5.3, §9.1). Every member is told, once ever, when the
+competition completes - which for Matchday is the push that settles round end_value. The same
+window as LMS, measured from the last result processed, since Matchday has no player_progress.
+
+The outcome is not in this query: it is the table, and the table is derived in one place,
+services/matchdayTable.js (§4.2). Who won is position 1 there, so a tie on total, wins and
+predictions made is a shared win with every name - which is also how completeMatchday decided it.
+*/
+const MATCHDAY_SQL = `
+    SELECT
+      'matchday'             AS game_type,
+      cu.user_id,
+      u.email                AS user_email,
+      u.display_name         AS user_display_name,
+      c.id                   AS competition_id,
+      c.name                 AS competition_name,
+      c.end_value            AS rounds_total,
+      (
+        SELECT MAX(f.processed)
+        FROM fixture f
+        INNER JOIN round r ON r.id = f.round_id
+        WHERE r.competition_id = c.id
+      ) AS finished_at
+
+    FROM competition c
+
+    INNER JOIN competition_user cu
+      ON cu.competition_id = c.id
+
+    INNER JOIN app_user u
+      ON u.id = cu.user_id
+      AND u.email IS NOT NULL
+      AND u.email != ''
+      AND u.email NOT LIKE '%@lms-guest.com'
+
+    WHERE UPPER(c.status) = 'COMPLETE'
+      AND (
+        SELECT MAX(f.processed)
+        FROM fixture f
+        INNER JOIN round r ON r.id = f.round_id
+        WHERE r.competition_id = c.id
+      ) > NOW() - ($3 || ' days')::interval
+      AND ${notArchivedSql('c')}
+      AND ${isMatchdaySql('c')}
+      AND NOT EXISTS (
+        SELECT 1 FROM email_queue eq
+        WHERE eq.user_id = u.id
+          AND eq.competition_id = c.id
+          AND eq.email_type = '${EMAIL_TYPE}'
+      )
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$2' })}
+      AND ($1::int IS NULL OR c.id = $1)
+
+    ORDER BY c.id, u.id
+`;
+
 /**
- * Build the template data one email needs.
+ * Everyone who should be told a competition has finished, in either game.
+ *
+ * ONE EMAIL PER COMPETITION, not per person - unlike the pick reminder and Round Over
+ * (docs/matchday.md §9.1). A competition finishes once, so two endings for one person landing
+ * inside the same 48 hours is rare, and an ending is worth its own email when it happens.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.competition_id] - restrict to one competition. Omit to scan them all.
+ * @returns {Promise<Array>}
+ */
+async function findCandidates(opts = {}) {
+  const competitionId = opts.competition_id || null;
+  const [lms, matchday] = await Promise.all([
+    findLmsCandidates({ competition_id: competitionId }),
+    query(MATCHDAY_SQL, [competitionId, groupFor(EMAIL_TYPE), String(GAME_COMPLETE_WINDOW_DAYS)])
+      .then((result) => result.rows)
+  ]);
+  return [...lms, ...matchday].sort((a, b) => a.competition_id - b.competition_id || a.user_id - b.user_id);
+}
+
+/** How many of the final table's top rows the email shows. The recipient is added if lower. */
+const FINAL_TABLE_TOP = 5;
+
+/**
+ * The template data for a Matchday ending: the winners, this player's finish, and the top of the
+ * final table, all read from services/matchdayTable.js.
+ */
+async function matchdayTemplateData(candidate) {
+  const { user_id, user_email, user_display_name, competition_id, competition_name, rounds_total } = candidate;
+
+  const token = await getOrCreateToken(user_id);
+  const unsubscribe = token ? unsubscribeLinks(token, groupFor(EMAIL_TYPE)) : null;
+
+  const table = await getRecentMatchdayTable(competition_id);
+  const rows = table ? table.rows : [];
+  const winners = rows.filter((r) => r.position === 1);
+  const mine = rows.find((r) => r.user_id === user_id) || null;
+
+  const top = rows.slice(0, FINAL_TABLE_TOP);
+  if (mine && !top.includes(mine)) top.push(mine);
+
+  return {
+    game_type: 'matchday',
+    email_tracking_id: `${EMAIL_TYPE}_${competition_id}_${user_id}_${Date.now()}`,
+    unsubscribe,
+    user_email,
+    user_display_name,
+    competition_id,
+    competition_name,
+    rounds_played: Number(rounds_total) || (table ? table.rounds_settled : 0),
+    player_count: rows.length,
+
+    winner_count: winners.length,
+    // "Jo", "Jo and Sam", "Jo, Sam and Alex" - read out in a sentence, never a bare list.
+    winner_names: winners.length
+      ? winners.map((w) => w.display_name).join(', ').replace(/, ([^,]*)$/, ' and $1')
+      : null,
+    winning_total: winners.length ? winners[0].total : null,
+    /*
+    Matched on user_id, never on name - two players can share a display name, and congratulating
+    the wrong one is the worst thing this email could do (the same rule as LMS's recipient_survived).
+    */
+    recipient_won: winners.some((w) => w.user_id === user_id),
+
+    position: mine ? mine.position : null,
+    position_shared: mine ? rows.filter((r) => r.position === mine.position).length > 1 : false,
+    total: mine ? mine.total : null,
+    final_table: top.map((r) => ({
+      position: r.position,
+      display_name: r.display_name,
+      total: r.total,
+      is_me: r.user_id === user_id
+    })),
+    user_id
+  };
+}
+
+/**
+ * Build the template data one email needs, for whichever game the competition is.
  *
  * @param {object} candidate - a row from findCandidates
  * @returns {Promise<object>} template data, stored on email_queue.template_data
  */
 async function buildTemplateData(candidate) {
+  return candidate.game_type === 'matchday'
+    ? matchdayTemplateData(candidate)
+    : lmsTemplateData(candidate);
+}
+
+/**
+ * The template data for an LMS ending - unchanged since before Matchday.
+ *
+ * @param {object} candidate - a row from findLmsCandidates
+ * @returns {Promise<object>} template data, stored on email_queue.template_data
+ */
+async function lmsTemplateData(candidate) {
   const {
     user_id,
     user_email,
@@ -269,7 +441,7 @@ async function queueCandidate(candidate) {
       templateData.email_tracking_id,
       candidate.user_id,
       candidate.competition_id,
-      subjectFor(templateData.competition_name, templateData)
+      subjectForData(templateData)
     ]);
 
     return { success: true, queue_id: queueResult.rows[0].id, template_data: templateData };
@@ -282,6 +454,8 @@ async function queueCandidate(candidate) {
 module.exports = {
   EMAIL_TYPE,
   subjectFor,
+  matchdaySubjectFor,
+  subjectForData,
   findCandidates,
   buildTemplateData,
   queueCandidate

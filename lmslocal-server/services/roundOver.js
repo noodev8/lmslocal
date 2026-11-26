@@ -89,7 +89,7 @@ const { ROUND_OVER_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
 const { isLmsSql, isMatchdaySql } = require('./gameType');
-const { getMatchdayTable } = require('./matchdayTable');
+const { getRecentMatchdayTable } = require('./matchdayTable');
 const { groupByPerson, queueBundle, lmsFirst } = require('./emailBundle');
 
 const EMAIL_TYPE = 'results';
@@ -607,21 +607,6 @@ from before 2026-11-26 has no `items` and counts too.
 const isLegacyLms = (candidate) =>
   !candidate.items || (candidate.items.length === 1 && candidate.items[0].game_type === 'lms');
 
-/*
-The Matchday table is per competition, and a sweep builds one email per member. Remembered for a
-minute so a 30-player competition reads its table once per run rather than thirty times - the
-table only changes when a push settles a round, and a sweep runs well after that.
-*/
-const TABLE_MEMO_MS = 60 * 1000;
-const tableMemo = new Map();
-async function tableFor(competitionId) {
-  const hit = tableMemo.get(competitionId);
-  if (hit && Date.now() - hit.at < TABLE_MEMO_MS) return hit.table;
-  const table = await getMatchdayTable(competitionId);
-  tableMemo.set(competitionId, { at: Date.now(), table });
-  return table;
-}
-
 /** How many of the table's top rows the email shows. Everyone else sees their own line. */
 const TABLE_TOP = 5;
 
@@ -641,7 +626,7 @@ async function matchdayItemData(item) {
     WHERE user_id = $1 AND round_id = $2
   `, [item.user_id, item.round_id]);
 
-  const table = await tableFor(item.competition_id);
+  const table = await getRecentMatchdayTable(item.competition_id);
   const rows = table ? table.rows : [];
   const mine = rows.find((r) => r.user_id === item.user_id) || null;
   const o = own.rows[0];

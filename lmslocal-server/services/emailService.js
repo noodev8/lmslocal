@@ -20,7 +20,7 @@ const { subjectFor: joinCompSubjectFor } = require('./joinComp');
 const { subjectFor: gameStartSubjectFor } = require('./gameStartReminder');
 const { subjectFor: fixtureReminderSubjectFor } = require('./fixtureReminder');
 const { subjectFor: resultReminderSubjectFor } = require('./resultReminder');
-const { subjectFor: gameCompleteSubjectFor } = require('./gameComplete');
+const { subjectFor: gameCompleteSubjectFor, subjectForData: gameCompleteSubjectForData } = require('./gameComplete');
 const { subjectFor: roundOverSubjectFor, subjectForData: roundOverSubjectForData } = require('./roundOver');
 const { subjectFor: hintSubjectFor } = require('./hints');
 const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
@@ -2973,6 +2973,145 @@ const sendResultReminderEmail = async (email, templateData, options = {}) => {
 };
 
 /**
+ * Build a Matchday Game Complete email (services/gameComplete.js, docs/matchday.md §5.3).
+ *
+ * In Matchday's words (§2): points, the table, the win. A tie at the top is a SHARED WIN with every
+ * name, never LMS's "no winner" - that is what the tie-break rule says happens.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/gameComplete.js, game_type 'matchday'
+ */
+const buildMatchdayGameCompleteEmail = (email, templateData) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    rounds_played,
+    player_count,
+    winner_count,
+    winner_names,
+    winning_total,
+    recipient_won,
+    position,
+    position_shared,
+    total,
+    final_table,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+  const pts = (n) => `${n} ${n === 1 ? 'point' : 'points'}`;
+  const rounds = `${rounds_played} ${rounds_played === 1 ? 'round' : 'rounds'}`;
+  const shared = winner_count > 1;
+
+  let headline;
+  let body;
+  if (recipient_won && !shared) {
+    headline = `You won ${competition_name}`;
+    body = `You finished top of the table after ${rounds}, on ${pts(total)}.`;
+  } else if (recipient_won) {
+    headline = `You share the win in ${competition_name}`;
+    body = `After ${rounds}, ${winner_names} finished level at the top on ${pts(winning_total)}. The win is shared.`;
+  } else {
+    headline = shared ? `${winner_names} share the win` : `${winner_names} wins ${competition_name}`;
+    body = shared
+      ? `After ${rounds}, ${winner_names} finished level at the top on ${pts(winning_total)}.`
+      : `${winner_names} finished top of the table after ${rounds}, on ${pts(winning_total)}.`;
+    if (position) {
+      body += ` You finished ${position_shared ? 'joint ' : ''}${ordinal(position)} of ${player_count}, on ${pts(total)}.`;
+    }
+  }
+
+  const tableUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/table?email_id=${email_tracking_id}`;
+  const tableHtml = (final_table || []).map((r) => `
+              <p style="margin: 0 0 6px 0; color: ${r.is_me ? '#0f172a' : '#475569'}; font-size: 15px; ${r.is_me ? 'font-weight: 600;' : ''}">${r.position}. ${r.display_name} — ${r.total}</p>`).join('');
+  const tableText = (final_table || []).map((r) => `  ${r.position}. ${r.display_name} - ${r.total}${r.is_me ? '  (you)' : ''}`).join('\n');
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${competition_name} has finished</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name}</p>
+          </div>
+
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
+
+            <div style="background: ${recipient_won ? '#f0fdf4' : '#f1f5f9'}; border-left: 4px solid ${recipient_won ? '#16a34a' : '#475569'}; padding: 20px; margin: 0 0 24px 0;">
+              <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 18px; font-weight: 600;">${headline}</p>
+              <p style="margin: 0; color: #334155; font-size: 15px;">${body}</p>
+            </div>
+
+            <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 17px; font-weight: 600;">The final table</h3>
+            <div style="margin: 0 0 24px 0;">${tableHtml}
+            </div>
+
+            <div style="margin: 0 0 24px 0;">
+              <a href="${tableUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                See the final table
+              </a>
+            </div>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const text = `
+${competition_name} has finished
+
+Hi ${firstName(user_display_name)},
+
+${headline.toUpperCase()}
+
+${body}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THE FINAL TABLE
+
+${tableText}
+
+See the final table:
+${tableUrl}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: gameCompleteSubjectForData(templateData),
+    html,
+    text,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'game_complete' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
+/**
  * Build the Game Complete email without sending it.
  *
  * Outline row: Player | Game | Game complete. Goes to everyone who took part once a competition
@@ -2987,6 +3126,11 @@ const sendResultReminderEmail = async (email, templateData, options = {}) => {
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
 const buildGameCompleteEmail = (email, templateData) => {
+  // Branch once, at the top (docs/matchday.md §3.2). Everything below is LMS, unchanged.
+  if (templateData.game_type === 'matchday') {
+    return buildMatchdayGameCompleteEmail(email, templateData);
+  }
+
   const {
     user_display_name,
     competition_name,
