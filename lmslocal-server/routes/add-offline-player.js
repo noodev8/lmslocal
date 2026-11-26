@@ -36,6 +36,7 @@ Return Codes:
 "UNAUTHORIZED"
 "COMPETITION_NOT_FOUND"
 "COMPETITION_CLOSED"
+"FORBIDDEN"                 - not a Last Man Standing competition: Matchday has no guests
 "PLAYER_LIMIT_EXCEEDED"
 "SERVER_ERROR"
 =======================================================================================================================================
@@ -100,7 +101,8 @@ router.post('/', verifyToken, async (req, res) => {
         c.organiser_id,          -- Competition owner for authorization check
         c.team_list_id,          -- Team list for initializing player's allowed teams
         c.invite_code,           -- Join status indicator (null = closed to new players)
-        c.lives_per_player       -- Lives setting for new players
+        c.lives_per_player,      -- Lives setting for new players
+        c.game_type
       FROM competition c
       WHERE c.id = $1
     `, [competition_id]);
@@ -121,6 +123,19 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({
         return_code: "UNAUTHORIZED",
         message: "You do not have permission to add players to this competition"
+      });
+    }
+
+    /*
+    Guests are Last Man Standing only (decided 2026-11-26, docs/matchday.md §6). A guest has no
+    login, so in LMS the organiser picks for them; Matchday has no way for an organiser to predict
+    on anyone's behalf, so a guest there could never score. Named as the game it allows, like every
+    other guard (§3.3).
+    */
+    if (competition.game_type !== 'lms') {
+      return res.json({
+        return_code: "FORBIDDEN",
+        message: "Matchday has no guest players. Everyone makes their own predictions, so send them the invite code to join."
       });
     }
 

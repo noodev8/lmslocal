@@ -162,7 +162,7 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Game',
     name: 'Organiser nudge',
     scoped: true,
-    note: 'Locks within 3h — or the evening before, for a morning lock. 5+ and 25%+ still to pick',
+    note: 'Locks within 3h — or the evening before, for a morning lock. 5+ and 25%+ still to pick (Matchday: no predictions yet)',
     focus: true,
     blurb:
       'The organiser’s half of the pick reminder, sent after the player one has had its run so the number is what is LEFT. Two sections: guest picks only they can enter (a guest has no login, so pick_reminder never reaches them), then the real players to chase in the group chat. Once per competition per round — two competitions stalling means two emails. Exempt from magic send, the only email that is.',
@@ -174,7 +174,7 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Game',
     name: 'Organiser round report',
     scoped: true,
-    note: 'Locks in 12–30h — last round settled, plus who is still to pick',
+    note: 'Locks in 12–30h — last round settled, plus who is still to pick (Matchday: no predictions yet)',
     focus: true,
     blurb:
       'The cheap alternative to Round Over: one email per competition to the organiser instead of one to every player. How the last round went — who is out, who is still in — then who has yet to pick before the next lock, guests first. Written to be forwarded into a group chat. Offered from 30 hours before the lock until 12 hours before it, so there is a day to chase — after that Organiser nudge covers the final stretch. Once per competition per round.',
@@ -253,7 +253,7 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Info',
     name: 'Hint - Promote competition',
     scoped: false,
-    note: '3 days after creating, once ever',
+    note: '3 days after creating, once ever (LMS only: the Promote page is LMS-worded)',
     focus: true,
     blurb:
       'Points an organiser at /game/[id]/promote — WhatsApp templates, social images, a QR code and the join link. Once per organiser ever, not per competition, and no more than one hint a week. Sent 3 days after creating, so it lands while they are still recruiting.',
@@ -277,7 +277,7 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Info',
     name: 'Hint - Personal names',
     scoped: false,
-    note: '14 days, every competition',
+    note: '14 days, every competition, either game',
     focus: true,
     blurb:
       'Two things anyone in a competition can set for themselves: a different display name per competition (Settings on the web, Profile tab in the app) and their own name for a competition (the pencil on the dashboard, web or app). Sent to the organiser as a player. No applicability rule — both work everywhere.',
@@ -318,7 +318,7 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Info',
     name: 'Welcome Created Comp',
     scoped: true,
-    note: 'New competitions only',
+    note: 'New competitions only, either game',
     focus: true,
     blurb:
       'What an organiser gets after creating a competition — the invite code and join link, framed as the thing to forward. One recipient per competition, once ever. Not the confirmation screen again: this one has to be findable in an inbox a week later.',
@@ -342,7 +342,7 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Info',
     name: 'Empty Competition',
     scoped: true,
-    note: 'Empty after 7 days',
+    note: 'Empty after 7 days, either game',
     focus: true,
     blurb:
       'The follow-up to Welcome Created Comp: a competition set up a week ago that nobody has joined. Asks whether they still mean to run it and invites a reply — it gives no advice, because we cannot tell from here whether they went off the idea, are waiting on someone, or are stuck on something we could fix in a sentence. One per competition ever. Counts people other than the organiser, and counts guests as players but never bots.',

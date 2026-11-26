@@ -37,6 +37,9 @@ The eligibility rules, all in findCandidates below:
 Organiser nudge belongs to the Game group, so switching Game emails off stops it - the same
 accepted cost as pick_reminder.
 
+BOTH GAMES since 2026-11-26 (MATCHDAY_SQL, matchdayTemplateData) - docs/matchday.md §9.1.
+Everything above is LMS's half (findLmsCandidates), unchanged.
+
 ONE EMAIL PER COMPETITION PER ROUND, not per organiser. Somebody running two competitions that
 both stall gets two, because they are two different WhatsApp groups and two different lists of
 names. Andreas's call, 2026-08-28.
@@ -47,7 +50,7 @@ const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { formatUk, formatUkShort } = require('./dateFormat');
 const { notArchivedSql } = require('./competitionEngagement');
-const { isLmsSql } = require('./gameType');
+const { isLmsSql, isMatchdaySql } = require('./gameType');
 
 const EMAIL_TYPE = 'organiser_nudge';
 
@@ -219,7 +222,7 @@ async function hasRoundInWindow() {
  *                                         screen does when one is picked. Omit to scan them all.
  * @returns {Promise<Array>} candidate rows, each carrying everything buildTemplateData needs
  */
-async function findCandidates(opts = {}) {
+async function findLmsCandidates(opts = {}) {
   const { competition_id = null } = opts;
 
   /*
@@ -360,8 +363,160 @@ async function findCandidates(opts = {}) {
   return result.rows;
 }
 
+/*
+Matchday's half (docs/matchday.md §9.1). The same moment (dueSql), the same two gates
+(MIN_OUTSTANDING and MIN_OUTSTANDING_PCT) and the same once-per-competition-per-round guard as
+LMS. "Still to pick" is read as "no prediction at all this round", the pick reminder's rule. No
+guest section: Matchday has no guests (§6), and bots are LMS-only.
+*/
+const MATCHDAY_SQL = `
+    WITH member AS (
+      SELECT
+        c.id                       AS competition_id,
+        r.id                       AS round_id,
+        cu.player_display_name     AS display_name,
+        NOT EXISTS (
+          SELECT 1 FROM prediction pr
+          WHERE pr.user_id = cu.user_id AND pr.round_id = r.id
+        )                          AS no_prediction
+      FROM competition c
+      INNER JOIN round r
+        ON r.competition_id = c.id
+      INNER JOIN competition_user cu
+        ON cu.competition_id = c.id
+        AND cu.status = 'active'
+      WHERE UPPER(c.status) != 'COMPLETE'
+        AND ${notArchivedSql('c')}
+        AND ${isMatchdaySql('c')}
+        AND r.lock_time IS NOT NULL
+        AND r.lock_time > NOW()
+        AND ${dueSql('r.lock_time', '$2', '$6', '$7')}
+        AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
+        AND ($3::int IS NULL OR c.id = $3::int)
+    ),
+
+    tally AS (
+      SELECT
+        competition_id,
+        round_id,
+        COUNT(*)                                AS player_count,
+        COUNT(*) FILTER (WHERE no_prediction)   AS outstanding_count,
+        ARRAY_AGG(display_name ORDER BY display_name)
+          FILTER (WHERE no_prediction)          AS player_names
+      FROM member
+      GROUP BY competition_id, round_id
+    )
+
+    SELECT
+      'matchday'               AS game_type,
+      c.organiser_id           AS user_id,
+      u.email                  AS user_email,
+      u.display_name           AS user_display_name,
+      c.id                     AS competition_id,
+      c.name                   AS competition_name,
+      r.id                     AS round_id,
+      r.round_number,
+      r.lock_time,
+      t.player_count,
+      t.outstanding_count,
+      t.player_names
+    FROM tally t
+    INNER JOIN competition c ON c.id = t.competition_id
+    INNER JOIN round r       ON r.id = t.round_id
+    INNER JOIN app_user u    ON u.id = c.organiser_id
+    WHERE t.player_count > 0
+      AND t.outstanding_count >= $4
+      AND (100.0 * t.outstanding_count / t.player_count) >= $5
+      AND u.email IS NOT NULL
+      AND u.email != ''
+      AND u.email NOT LIKE '%@lms-guest.com'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM email_queue eq
+        WHERE eq.competition_id = c.id
+          AND eq.round_id = r.id
+          AND eq.email_type = '${EMAIL_TYPE}'
+      )
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$1' })}
+    ORDER BY t.outstanding_count DESC, c.id
+`;
+
 /**
- * Build the template data one organiser nudge needs.
+ * Every competition whose organiser should be nudged now, in either game. The cheap gate runs
+ * once for both, so nothing is queried outside the window.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.competition_id]
+ * @returns {Promise<Array>}
+ */
+async function findCandidates(opts = {}) {
+  if (!await hasRoundInWindow()) return [];
+  const competitionId = opts.competition_id || null;
+  const [lms, matchday] = await Promise.all([
+    findLmsCandidates({ competition_id: competitionId }),
+    query(MATCHDAY_SQL, [
+      groupFor(EMAIL_TYPE),             // $1
+      String(NUDGE_WINDOW_HOURS),       // $2
+      competitionId,                    // $3
+      MIN_OUTSTANDING,                  // $4
+      MIN_OUTSTANDING_PCT,              // $5
+      String(EVENING_LOOKAHEAD_HOURS),  // $6
+      MORNING_LOCK_BEFORE_HOUR          // $7
+    ]).then((result) => result.rows)
+  ]);
+  return [...lms, ...matchday].sort((a, b) =>
+    Number(b.outstanding_count) - Number(a.outstanding_count) || a.competition_id - b.competition_id);
+}
+
+/** Matchday's subject: the same shape as LMS's, in Matchday's word. */
+const matchdaySubjectFor = (outstandingCount, lockTime, competitionName) =>
+  `${outstandingCount} still to predict by ${formatUkShort(lockTime)} — ${competitionName}`;
+
+/** The subject for either game, from the template data. */
+const subjectForData = (data) => (data.game_type === 'matchday' ? matchdaySubjectFor : subjectFor)(
+  data.outstanding_count, data.lock_time, data.competition_name);
+
+/** The template data for a Matchday nudge: who has not predicted, nothing else. */
+async function matchdayTemplateData(candidate) {
+  const token = await getOrCreateToken(candidate.user_id);
+  const unsubscribe = token ? unsubscribeLinks(token, groupFor(EMAIL_TYPE)) : null;
+  const names = candidate.player_names || [];
+
+  return {
+    game_type: 'matchday',
+    email_tracking_id: `${EMAIL_TYPE}_${candidate.competition_id}_${candidate.round_id}_${Date.now()}`,
+    unsubscribe,
+    user_email: candidate.user_email,
+    user_display_name: candidate.user_display_name,
+    competition_id: candidate.competition_id,
+    competition_name: candidate.competition_name,
+    round_number: candidate.round_number,
+    lock_time: candidate.lock_time,
+    correct_at: formatUk(new Date(), { hour: 'numeric', minute: '2-digit', hour12: true }),
+    player_count: Number(candidate.player_count),
+    outstanding_count: Number(candidate.outstanding_count),
+    players: {
+      count: Number(candidate.outstanding_count),
+      shown: names.slice(0, NAME_CAP),
+      others: Math.max(0, names.length - NAME_CAP)
+    }
+  };
+}
+
+/**
+ * Build the template data one nudge needs, for whichever game the competition is.
+ *
+ * @param {object} candidate - a row from findCandidates
+ * @returns {Promise<object>}
+ */
+async function buildTemplateData(candidate) {
+  return candidate.game_type === 'matchday'
+    ? matchdayTemplateData(candidate)
+    : lmsTemplateData(candidate);
+}
+
+/**
+ * The template data for an LMS nudge - unchanged since before Matchday.
  *
  * No extra queries: findCandidates already aggregated the names, because they come from the same
  * scan that produced the counts and fetching them again per candidate would be an N+1 for data
@@ -370,7 +525,7 @@ async function findCandidates(opts = {}) {
  * @param {object} candidate - a row from findCandidates
  * @returns {Promise<object>} template data, stored on email_queue.template_data
  */
-async function buildTemplateData(candidate) {
+async function lmsTemplateData(candidate) {
   const {
     user_id,
     user_email,
@@ -466,7 +621,7 @@ async function queueCandidate(candidate) {
       templateData.email_tracking_id,
       candidate.user_id,
       candidate.competition_id,
-      subjectFor(templateData.outstanding_count, templateData.lock_time, templateData.competition_name)
+      subjectForData(templateData)
     ]);
 
     return { success: true, queue_id: queueResult.rows[0].id, template_data: templateData };
@@ -483,6 +638,7 @@ async function queueCandidate(candidate) {
 module.exports = {
   EMAIL_TYPE,
   subjectFor,
+  subjectForData,
   NUDGE_WINDOW_HOURS,
   EVENING_LOOKAHEAD_HOURS,
   MORNING_LOCK_BEFORE_HOUR,

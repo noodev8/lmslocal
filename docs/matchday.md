@@ -313,6 +313,12 @@ message behave the same.
 Late joining is not allowed. A late joiner starts so far behind that the deferred scoring rework
 (§1.3) would have to solve their problem as well.
 
+**No guest players** (2026-11-26). A guest (`add-offline-player`, `{id}@lms-guest.com`) has no
+login; in LMS the organiser picks for them, and Matchday has no way to predict on someone's
+behalf, so a guest could never score. `add-offline-player` refuses a non-LMS competition with
+`FORBIDDEN`, and the Matchday screens never offered it. Every Matchday member has a login, so the
+organiser emails have no guest section.
+
 ---
 
 ## 7. Clients: the server decides what each one sees
@@ -535,6 +541,18 @@ within 48 hours of each other.
 picked" read as "no prediction yet". Its copy explains the game - predict the winner of each
 match, 3 for right, 1 if drawn, a skipped match costs nothing, most points after N rounds - since
 Matchday is new to every player. One email per membership.
+
+**Organiser emails** (2026-11-26). Each stays **one email per competition** - an organiser's
+competitions are separate group chats.
+
+| Email | For Matchday |
+|---|---|
+| Created comp, Empty comp | Both games; the copy is game-neutral (Created comp swaps "their pick" for "their predictions") |
+| Round report (`organiser_round`), Nudge (`organiser_nudge`) | Own finder and template. "Still to pick" is **no prediction at all this round**, the pick reminder's rule. The report's summary is the last round's best score and the top of the table. No guest section (§6). Both kept, chosen per week, as for LMS |
+| Hint: personal names | Both games (`matchday: true` in `services/hints.js`) |
+| Hint: promote | **LMS only** - the Promote page is LMS-worded (picks, "unlucky pick"). A Matchday Promote page is a gap |
+| Hint: result mid-round, Fixture / Result reminder | Not applicable: organiser-entered results only, and Matchday is always the fixture service |
+| Join blocked | Already game-neutral |
 
 ---
 

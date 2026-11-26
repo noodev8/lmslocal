@@ -32,7 +32,7 @@ const { query } = require('../database');
 const { WELCOME_MAX_AGE_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
-const { isLmsSql } = require('./gameType');
+const { isLmsSql, isMatchdaySql } = require('./gameType');
 
 const EMAIL_TYPE = 'created_comp';
 
@@ -80,6 +80,7 @@ async function findCandidates(opts = {}) {
       c.name                 AS competition_name,
       c.invite_code,
       c.fixture_service,
+      c.game_type,
       c.created_at,
 
       /*
@@ -106,8 +107,11 @@ async function findCandidates(opts = {}) {
     -- in Aug 2026 can never come back. This one clause is the whole no-backfill rule now.
     -- Archived competitions get no email at all. See notArchivedSql.
     WHERE ${notArchivedSql('c')}
-      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
-      AND ${isLmsSql('c')}
+      /*
+      Both games since 2026-11-26: the copy is game-neutral bar one phrase, which the template
+      switches on game_type. Named game by game, so a third game stays out until it is checked.
+      */
+      AND (${isLmsSql('c')} OR ${isMatchdaySql('c')})
       -- Backstop against a cleared email_queue - see WELCOME_MAX_AGE_DAYS.
       AND c.created_at > NOW() - ($3 || ' days')::interval
 
@@ -142,7 +146,8 @@ async function buildTemplateData(candidate) {
     competition_name,
     invite_code,
     fixture_service,
-    starts_at
+    starts_at,
+    game_type
   } = candidate;
 
   /*
@@ -178,6 +183,11 @@ async function buildTemplateData(candidate) {
     instead would break the preview, which renders from the stored template_data.
     */
     starts_at: starts_at || null,
+    /*
+    Matchday only. Left off an LMS row on purpose, so an LMS email's stored data - and so the
+    email - is exactly what it was before Matchday.
+    */
+    ...(game_type === 'matchday' ? { game_type } : {}),
     user_id
   };
 }

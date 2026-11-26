@@ -35,13 +35,18 @@ const { query } = require('../database');
 const { ONE_OFF_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
-const { isLmsSql } = require('./gameType');
+const { isLmsSql, isMatchdaySql } = require('./gameType');
 
 // No organiser gets two hints closer together than this, whatever their offsets say.
 const HINT_SPACING_DAYS = 7;
 
 /*
 The hints themselves.
+
+`matchday: true` lets a Matchday competition qualify too (2026-11-26). Off by default, so a hint
+is LMS-only until someone has checked its copy and the page it links to against Matchday:
+promote_competition stays off because the Promote page is LMS-worded (picks, "unlucky pick"), and
+update_scores_mid_round_tip is for organiser-run results, which Matchday never has.
 
 `extraSql` is ANDed into the candidate query and may only reference `c` (competition). Keep it to
 things that decide whether the advice is POSSIBLE for that organiser - not whether it is useful,
@@ -96,6 +101,8 @@ const HINTS = {
 
   personal_names_tip: {
     afterDays: 14,
+    // True of every competition in either game, and it links to the dashboard.
+    matchday: true,
     /*
     No extraSql: this is true of every competition and every account, automated or not, and of the
     organiser as a player in their own competition.
@@ -163,8 +170,8 @@ async function findCandidatesFor(hintKey) {
     WHERE UPPER(c.status) != 'COMPLETE'
       -- Archived competitions get no email at all. See notArchivedSql.
       AND ${notArchivedSql('c')}
-      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
-      AND ${isLmsSql('c')}
+      -- Which games' competitions can carry this hint - see matchday on the HINTS entries.
+      AND ${hint.matchday ? `(${isLmsSql('c')} OR ${isMatchdaySql('c')})` : isLmsSql('c')}
       AND c.created_at <= NOW() - ($1 || ' days')::interval
       -- ...and not long after. See ONE_OFF_WINDOW_DAYS.
       AND c.created_at > NOW() - ($1 || ' days')::interval - ($5 || ' days')::interval

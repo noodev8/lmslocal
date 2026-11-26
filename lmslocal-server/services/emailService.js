@@ -25,7 +25,7 @@ const { subjectFor: roundOverSubjectFor, subjectForData: roundOverSubjectForData
 const { subjectFor: hintSubjectFor } = require('./hints');
 const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
 const { subjectFor: pickReminderSubjectFor, subjectForData: pickReminderSubjectForData } = require('./pickReminder');
-const { subjectFor: organiserNudgeSubjectFor } = require('./organiserNudge');
+const { subjectFor: organiserNudgeSubjectFor, subjectForData: organiserNudgeSubjectForData } = require('./organiserNudge');
 /*
 SAMPLE_SIZE comes across as well as the subject, which none of the others need. The summary block
 says "3 players are out" and then names some of them, and whether that list is the lot or a sample
@@ -34,6 +34,7 @@ cannot work out for itself without knowing the cap the query applied.
 */
 const {
   subjectFor: organiserRoundSubjectFor,
+  subjectForData: organiserRoundSubjectForData,
   SAMPLE_SIZE: organiserRoundSampleSize
 } = require('./organiserRound');
 const { isOptedOut } = require('./emailPreference');
@@ -1470,6 +1471,160 @@ const sendEmptyCompEmail = async (email, templateData, options = {}) => {
   }
 };
 
+/*
+"Jo", "Jo and Sam", "Jo, Sam and Alex" - names read out in a sentence, never a bare list.
+*/
+const joinNames = (names) => (names || []).join(', ').replace(/, ([^,]*)$/, ' and $1');
+
+/**
+ * The Matchday organiser emails - the round report and the nudge (services/organiserRound.js,
+ * services/organiserNudge.js, docs/matchday.md §9.1). One builder for both: they share the "who
+ * has still to predict" half and differ in the opening and in the report's summary of the last
+ * round. In Matchday's words (§2), and with no guest section - Matchday has no guests (§6).
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - game_type 'matchday', from either service
+ * @param {'organiser_round'|'organiser_nudge'} emailType
+ */
+const buildMatchdayOrganiserEmail = (email, templateData, emailType) => {
+  const {
+    user_display_name,
+    competition_name,
+    competition_id,
+    round_number,
+    lock_time,
+    correct_at,
+    player_count,
+    outstanding_count,
+    players,
+    last_round,
+    email_tracking_id,
+    unsubscribe
+  } = templateData;
+
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+  const manageUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}?email_id=${email_tracking_id}`;
+  const deadline = formatUkDateTime(lock_time);
+  const isNudge = emailType === 'organiser_nudge';
+  const pts = (n) => `${n} ${n === 1 ? 'point' : 'points'}`;
+
+  // The summary of the round before - the report only, and only once it is settled.
+  let summaryHtml = '';
+  let summaryText = '';
+  if (!isNudge && last_round) {
+    const best = last_round.best_points !== null && last_round.best_names.length
+      ? `Best score: ${joinNames(last_round.best_names)}, with ${pts(last_round.best_points)}.`
+      : null;
+    const top = last_round.table_top || [];
+    summaryHtml = `
+            <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 17px; font-weight: 600;">Round ${last_round.round_number} is settled</h3>
+            ${best ? `<p style="color: #334155; font-size: 15px; margin: 0 0 12px 0;">${best}</p>` : ''}
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 16px 20px; margin: 0 0 30px 0;">
+              ${top.map((r) => `<p style="margin: 0 0 6px 0; color: #334155; font-size: 15px;">${r.position}. ${r.display_name} — ${r.total}</p>`).join('')}
+            </div>`;
+    summaryText = `ROUND ${last_round.round_number} IS SETTLED
+${best ? `\n${best}\n` : ''}
+${top.map((r) => `  ${r.position}. ${r.display_name} - ${r.total}`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+`;
+  }
+
+  const allIn = outstanding_count === 0;
+  const opening = isNudge
+    ? `Round ${round_number} locks ${deadline}, and ${outstanding_count} of your ${player_count} players have not made any predictions yet.`
+    : allIn
+      ? `Everybody has made their predictions for Round ${round_number}. Predictions close ${deadline}.`
+      : `${outstanding_count} of your ${player_count} players have not made any predictions for Round ${round_number} yet. Predictions close ${deadline}.`;
+  const nameLine = players.shown.length
+    ? `${players.shown.join(', ')}${players.others > 0 ? `, and ${players.others} ${players.others === 1 ? 'other' : 'others'}` : ''}`
+    : '';
+  const chase = 'A message in your group chat is usually the quickest way to reach them.';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${competition_name} — Round ${round_number}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${competition_name} — Round ${round_number}</p>
+          </div>
+
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
+            ${summaryHtml}
+            <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 17px; font-weight: 600;">Round ${round_number}</h3>
+            <p style="color: #334155; font-size: 15px; margin: 0 0 12px 0;">${opening}</p>
+            ${nameLine ? `
+            <div style="background: #fef3c7; border-left: 4px solid #d97706; padding: 16px 20px; margin: 0 0 12px 0;">
+              <p style="margin: 0; color: #0f172a; font-size: 15px;">${nameLine}</p>
+            </div>
+            <p style="color: #64748b; font-size: 13px; margin: 0 0 12px 0;">Correct at ${correct_at}. Some may have predicted since.</p>
+            <p style="color: #334155; font-size: 15px; margin: 0 0 24px 0;">${chase}</p>` : ''}
+
+            <div style="margin: 24px 0;">
+              <a href="${manageUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Open your competition
+              </a>
+            </div>
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const text = `
+${competition_name} - Round ${round_number}
+
+Hi ${firstName(user_display_name)},
+
+${summaryText}ROUND ${round_number}
+
+${opening}
+${nameLine ? `
+${nameLine}
+
+Correct at ${correct_at}. Some may have predicted since.
+
+${chase}
+` : ''}
+Open your competition:
+${manageUrl}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: (isNudge ? organiserNudgeSubjectForData : organiserRoundSubjectForData)(templateData),
+    html,
+    text,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: emailType },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
 /**
  * Build the organiser nudge without sending it.
  *
@@ -1497,6 +1652,10 @@ const sendEmptyCompEmail = async (email, templateData, options = {}) => {
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
 const buildOrganiserNudgeEmail = (email, templateData) => {
+  // Branch once, at the top (docs/matchday.md §3.2). Everything below is LMS, unchanged.
+  if (templateData.game_type === 'matchday') {
+    return buildMatchdayOrganiserEmail(email, templateData, 'organiser_nudge');
+  }
   const {
     user_display_name,
     competition_id,
@@ -1680,6 +1839,10 @@ const sendOrganiserNudgeEmail = async (email, templateData, options = {}) => {
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
 const buildOrganiserRoundEmail = (email, templateData) => {
+  // Branch once, at the top (docs/matchday.md §3.2). Everything below is LMS, unchanged.
+  if (templateData.game_type === 'matchday') {
+    return buildMatchdayOrganiserEmail(email, templateData, 'organiser_round');
+  }
   const {
     user_display_name,
     competition_id,
@@ -2136,6 +2299,9 @@ const buildCreatedCompEmail = (email, templateData) => {
 
   const footer = buildEmailFooter(unsubscribe?.url || null);
 
+  // The one game-specific phrase in this email (docs/matchday.md §2). Absent game_type is LMS.
+  const firstChoice = templateData.game_type === 'matchday' ? 'their predictions' : 'their pick';
+
   const base = process.env.PLAYER_FRONTEND_URL;
   const joinUrl = `${base}/join/${invite_code}`;
   const manageUrl = `${base}/game/${competition_id}?email_id=${email_tracking_id}`;
@@ -2154,7 +2320,7 @@ const buildCreatedCompEmail = (email, templateData) => {
             <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 30px 0;">
               <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px; font-weight: 600;">Round 1 kicks off ${formatUkDateTime(starts_at)}</p>
               <p style="margin: 0; color: #475569; font-size: 14px;">
-                Your first round is already set up, so anyone who joins can make their pick straight away.
+                Your first round is already set up, so anyone who joins can make ${firstChoice} straight away.
                 <strong>Players can join right up to kick-off</strong> - after that the competition is closed
                 and everyone plays the same rounds.
               </p>
@@ -2172,7 +2338,7 @@ const buildCreatedCompEmail = (email, templateData) => {
   const startsText = starts_at ? `
 ROUND 1 KICKS OFF ${formatUkDateTime(starts_at).toUpperCase()}
 
-Your first round is already set up, so anyone who joins can make their pick
+Your first round is already set up, so anyone who joins can make ${firstChoice}
 straight away. Players can join right up to kick-off - after that the
 competition is closed and everyone plays the same rounds.
 

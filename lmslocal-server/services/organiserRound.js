@@ -58,6 +58,9 @@ The eligibility rules, all in findCandidates below:
 Group Game, for the same reason and at the same accepted cost as organiser_nudge: it is about one
 round of one competition and it carries a deadline. An organiser who switches Game off stops it.
 
+BOTH GAMES since 2026-11-26 (MATCHDAY_SQL, matchdayTemplateData) - docs/matchday.md §9.1.
+Everything above is LMS's half (findLmsCandidates), unchanged.
+
 ONE EMAIL PER COMPETITION PER ROUND, not per organiser. Somebody running two competitions gets
 two, because they are two group chats and two lists of names.
 =======================================================================================================================================
@@ -77,7 +80,8 @@ report a permanently inflated "still to pick" figure that the organiser can do n
 */
 const { BOT_EMAIL_LIKE } = require('./botPool');
 const { notArchivedSql } = require('./competitionEngagement');
-const { isLmsSql } = require('./gameType');
+const { isLmsSql, isMatchdaySql } = require('./gameType');
+const { getRecentMatchdayTable } = require('./matchdayTable');
 
 const EMAIL_TYPE = 'organiser_round';
 
@@ -160,7 +164,7 @@ const subjectFor = (outstandingCount, lockTime, competitionName) =>
  *                                         screen does when one is picked. Omit to scan them all.
  * @returns {Promise<Array>} candidate rows, each carrying everything buildTemplateData needs
  */
-async function findCandidates(opts = {}) {
+async function findLmsCandidates(opts = {}) {
   const { competition_id = null } = opts;
 
   const result = await query(`
@@ -384,8 +388,227 @@ async function findCandidates(opts = {}) {
   return result.rows;
 }
 
+/*
+Matchday's half (docs/matchday.md §9.1). The same window and the same once-per-competition-per-
+round guard as LMS. "Still to pick" is read as "no prediction at all this round" - the pick
+reminder's rule, so the organiser chases exactly the people the reminder chased. No guest section:
+Matchday has no guests (§6), and bots are LMS-only, so every member is somebody to chase.
+
+The summary half is the round before the open one, when it is fully settled, as for LMS - but
+what it reports is the round's best score and the top of the table, since nobody went out.
+*/
+const MATCHDAY_SQL = `
+    WITH open_round AS (
+      SELECT
+        c.id         AS competition_id,
+        r.id         AS round_id,
+        r.round_number,
+        r.lock_time
+      FROM competition c
+      INNER JOIN round r
+        ON r.competition_id = c.id
+      WHERE UPPER(c.status) != 'COMPLETE'
+        AND ${notArchivedSql('c')}
+        AND ${isMatchdaySql('c')}
+        AND r.lock_time IS NOT NULL
+        AND r.lock_time > NOW()
+        AND r.lock_time <= NOW() + ($2 || ' hours')::interval
+        AND r.lock_time > NOW() + ($4 || ' hours')::interval
+        AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
+        AND ($3::int IS NULL OR c.id = $3::int)
+    ),
+
+    member AS (
+      SELECT
+        o.competition_id,
+        o.round_id,
+        cu.player_display_name AS display_name,
+        NOT EXISTS (
+          SELECT 1 FROM prediction pr
+          WHERE pr.user_id = cu.user_id AND pr.round_id = o.round_id
+        ) AS no_prediction
+      FROM open_round o
+      INNER JOIN competition_user cu
+        ON cu.competition_id = o.competition_id
+        AND cu.status = 'active'
+    ),
+
+    tally AS (
+      SELECT
+        competition_id,
+        round_id,
+        COUNT(*)                                     AS player_count,
+        COUNT(*) FILTER (WHERE no_prediction)        AS outstanding_count,
+        ARRAY_AGG(display_name ORDER BY display_name)
+          FILTER (WHERE no_prediction)               AS player_names
+      FROM member
+      GROUP BY competition_id, round_id
+    )
+
+    SELECT
+      'matchday'               AS game_type,
+      c.organiser_id           AS user_id,
+      u.email                  AS user_email,
+      u.display_name           AS user_display_name,
+      c.id                     AS competition_id,
+      c.name                   AS competition_name,
+      c.end_value              AS rounds_total,
+      o.round_id,
+      o.round_number,
+      o.lock_time,
+      t.player_count,
+      t.outstanding_count,
+      t.player_names,
+      last_round.id            AS last_round_id,
+      last_round.round_number  AS last_round_number
+
+    FROM tally t
+    INNER JOIN open_round o  ON o.competition_id = t.competition_id AND o.round_id = t.round_id
+    INNER JOIN competition c ON c.id = t.competition_id
+    INNER JOIN app_user u    ON u.id = c.organiser_id
+
+    LEFT JOIN LATERAL (
+      SELECT r.id, r.round_number
+      FROM round r
+      WHERE r.competition_id = c.id
+        AND r.round_number = o.round_number - 1
+        AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
+        AND NOT EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id AND f.processed IS NULL)
+      LIMIT 1
+    ) last_round ON true
+
+    WHERE t.player_count > 0
+      AND u.email IS NOT NULL
+      AND u.email != ''
+      AND u.email NOT LIKE '%@lms-guest.com'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM email_queue eq
+        WHERE eq.competition_id = c.id
+          AND eq.round_id = o.round_id
+          AND eq.email_type = '${EMAIL_TYPE}'
+      )
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$1' })}
+
+    ORDER BY t.outstanding_count DESC, c.id
+`;
+
 /**
- * Build the template data one report needs.
+ * Every competition whose organiser should get this week's report, in either game. One email per
+ * competition per round, as before.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.competition_id]
+ * @returns {Promise<Array>}
+ */
+async function findCandidates(opts = {}) {
+  const competitionId = opts.competition_id || null;
+  const [lms, matchday] = await Promise.all([
+    findLmsCandidates({ competition_id: competitionId }),
+    query(MATCHDAY_SQL, [
+      groupFor(EMAIL_TYPE),        // $1
+      String(REPORT_WINDOW_HOURS), // $2
+      competitionId,               // $3
+      String(REPORT_CUTOFF_HOURS)  // $4
+    ]).then((result) => result.rows)
+  ]);
+  return [...lms, ...matchday].sort((a, b) =>
+    Number(b.outstanding_count) - Number(a.outstanding_count) || a.competition_id - b.competition_id);
+}
+
+/** Matchday's subject: the same shape as LMS's, in Matchday's word. */
+const matchdaySubjectFor = (outstandingCount, lockTime, competitionName) =>
+  outstandingCount > 0
+    ? `${outstandingCount} still to predict by ${formatUkShort(lockTime)} — ${competitionName}`
+    : `All predicted for ${formatUkShort(lockTime)} — ${competitionName}`;
+
+/** The subject for either game, from the template data. */
+const subjectForData = (data) => (data.game_type === 'matchday' ? matchdaySubjectFor : subjectFor)(
+  data.outstanding_count, data.lock_time, data.competition_name);
+
+/** How many of the table's top rows the summary shows. */
+const TABLE_TOP = 5;
+
+/**
+ * The template data for a Matchday report: who has not predicted, and - once the previous round
+ * is settled - its best score and the top of the table (services/matchdayTable.js, §4.2).
+ */
+async function matchdayTemplateData(candidate) {
+  const token = await getOrCreateToken(candidate.user_id);
+  const unsubscribe = token ? unsubscribeLinks(token, groupFor(EMAIL_TYPE)) : null;
+  const names = candidate.player_names || [];
+
+  let last_round = null;
+  if (candidate.last_round_id) {
+    /*
+    The round's best score, and everybody who made it. Names are the organiser's own names for
+    their players (player_display_name), as in the outstanding list.
+    */
+    const best = await query(`
+      WITH scores AS (
+        SELECT cu.player_display_name AS display_name, SUM(p.points) AS points
+        FROM prediction p
+        INNER JOIN competition_user cu
+          ON cu.competition_id = p.competition_id AND cu.user_id = p.user_id
+        WHERE p.round_id = $1 AND p.points IS NOT NULL
+        GROUP BY cu.player_display_name
+      )
+      SELECT points, ARRAY_AGG(display_name ORDER BY display_name) AS names
+      FROM scores
+      WHERE points = (SELECT MAX(points) FROM scores)
+      GROUP BY points
+    `, [candidate.last_round_id]);
+
+    const table = await getRecentMatchdayTable(candidate.competition_id);
+    last_round = {
+      round_number: Number(candidate.last_round_number),
+      best_points: best.rows.length ? Number(best.rows[0].points) : null,
+      best_names: best.rows.length ? best.rows[0].names : [],
+      table_top: (table ? table.rows : []).slice(0, TABLE_TOP).map((r) => ({
+        position: r.position,
+        display_name: r.display_name,
+        total: r.total
+      }))
+    };
+  }
+
+  return {
+    game_type: 'matchday',
+    email_tracking_id: `${EMAIL_TYPE}_${candidate.competition_id}_${candidate.round_id}_${Date.now()}`,
+    unsubscribe,
+    user_email: candidate.user_email,
+    user_display_name: candidate.user_display_name,
+    competition_id: candidate.competition_id,
+    competition_name: candidate.competition_name,
+    round_number: Number(candidate.round_number),
+    rounds_total: candidate.rounds_total ? Number(candidate.rounds_total) : null,
+    lock_time: candidate.lock_time,
+    correct_at: formatUk(new Date(), { hour: 'numeric', minute: '2-digit', hour12: true }),
+    player_count: Number(candidate.player_count),
+    outstanding_count: Number(candidate.outstanding_count),
+    players: {
+      count: Number(candidate.outstanding_count),
+      shown: names.slice(0, NAME_CAP),
+      others: Math.max(0, names.length - NAME_CAP)
+    },
+    last_round
+  };
+}
+
+/**
+ * Build the template data one report needs, for whichever game the competition is.
+ *
+ * @param {object} candidate - a row from findCandidates
+ * @returns {Promise<object>}
+ */
+async function buildTemplateData(candidate) {
+  return candidate.game_type === 'matchday'
+    ? matchdayTemplateData(candidate)
+    : lmsTemplateData(candidate);
+}
+
+/**
+ * The template data for an LMS report - unchanged since before Matchday.
  *
  * No extra queries: findCandidates aggregated the names and the summary in the same scan that
  * produced the counts, and fetching them again per candidate would be an N+1 for data already
@@ -394,7 +617,7 @@ async function findCandidates(opts = {}) {
  * @param {object} candidate - a row from findCandidates
  * @returns {Promise<object>} template data, stored on email_queue.template_data
  */
-async function buildTemplateData(candidate) {
+async function lmsTemplateData(candidate) {
   const {
     user_id,
     user_email,
@@ -509,7 +732,7 @@ async function queueCandidate(candidate) {
       templateData.email_tracking_id,
       candidate.user_id,
       candidate.competition_id,
-      subjectFor(templateData.outstanding_count, templateData.lock_time, templateData.competition_name)
+      subjectForData(templateData)
     ]);
 
     return { success: true, queue_id: queueResult.rows[0].id, template_data: templateData };
@@ -526,6 +749,7 @@ async function queueCandidate(candidate) {
 module.exports = {
   EMAIL_TYPE,
   subjectFor,
+  subjectForData,
   REPORT_WINDOW_HOURS,
   NAME_CAP,
   SAMPLE_SIZE,
