@@ -140,7 +140,7 @@ const OUTLINE: OutlineEmail[] = [
     note: 'Round settled + next fixtures in',
     focus: true,
     blurb:
-      'The one email every player gets every week. Their own result first, then who is still in, then what happens next. Not ready when the round ends — ready when the round ends AND the next round’s fixtures are in, or the competition has finished, so it is never a dead end.',
+      'The one email every player gets every week. Their own result first, then who is still in, then what happens next. Not ready when the round ends — ready when the round ends AND the next round’s fixtures are in, or the competition has finished, so it is never a dead end. Covers Matchday too (points and the table), one email per person across every competition (docs/matchday.md §9.1).',
   },
   {
     key: 'pick_reminder',

@@ -4,6 +4,9 @@ Round Over Service
 =======================================================================================================================================
 Purpose: The one definition of who is told a round has been settled, and what they are told.
          Outline row: Player | Game | Round Over. email_type stays 'results'.
+         Since 2026-11-26 it covers both games, one email per PERSON across every competition
+         with news for them (docs/matchday.md §9.1). Everything below about readiness and
+         recipients is LMS's half (findLmsItems), unchanged; MATCHDAY_ITEMS_SQL mirrors it.
 
 The email every player gets every week, and the one the rest of the system exists to support.
 
@@ -85,7 +88,9 @@ const { query } = require('../database');
 const { ROUND_OVER_WINDOW_DAYS } = require('./emailExpiry');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { notArchivedSql } = require('./competitionEngagement');
-const { isLmsSql } = require('./gameType');
+const { isLmsSql, isMatchdaySql } = require('./gameType');
+const { getMatchdayTable } = require('./matchdayTable');
+const { groupByPerson, queueBundle, lmsFirst } = require('./emailBundle');
 
 const EMAIL_TYPE = 'results';
 
@@ -99,17 +104,18 @@ const SAMPLE_SIZE = 5;
 const subjectFor = (competitionName, roundNumber) => `${competitionName} — Round ${roundNumber} results`;
 
 /**
- * Find every player who should be told a round is settled.
+ * Last Man Standing's items: one row per player per competition with a settled round - the shape
+ * this service returned before Matchday. Always platform-wide, because findCandidates needs every
+ * competition a person has news in; the scope is applied after grouping.
  *
- * @param {object} [opts]
- * @param {number} [opts.competition_id] - restrict to one competition. Omit to scan them all.
- * @returns {Promise<Array>} candidate rows, each carrying everything buildTemplateData needs
+ * @returns {Promise<Array>} item rows, each carrying everything lmsTemplateData needs
  */
-async function findCandidates(opts = {}) {
-  const { competition_id = null } = opts;
+async function findLmsItems() {
+  const competition_id = null;
 
   const result = await query(`
     SELECT
+      'lms'                  AS game_type,
       pp.player_id           AS user_id,
       u.email                AS user_email,
       u.display_name         AS user_display_name,
@@ -192,6 +198,7 @@ async function findCandidates(opts = {}) {
       ) AS out_this_round_sample,
 
       -- What happens next. Null throughout when the competition has finished.
+      next_round.id           AS next_round_id,
       next_round.round_number AS next_round_number,
       next_round.lock_time    AS next_deadline,
       (
@@ -360,12 +367,13 @@ async function findCandidates(opts = {}) {
 }
 
 /**
- * Build the template data one email needs.
+ * The template data for one LMS competition - the email as it was before Matchday, and the LMS
+ * item inside a bundled one.
  *
- * @param {object} candidate - a row from findCandidates
- * @returns {Promise<object>} template data, stored on email_queue.template_data
+ * @param {object} candidate - an LMS item row from findLmsItems
+ * @returns {Promise<object>}
  */
-async function buildTemplateData(candidate) {
+async function lmsTemplateData(candidate) {
   const {
     user_id,
     user_email,
@@ -456,35 +464,291 @@ async function buildTemplateData(candidate) {
   };
 }
 
+/*
+Matchday's half (docs/matchday.md §9.1). The same readiness as LMS, clause for clause: the highest
+fully processed round, a next round with fixtures, not yet locked, ready recently, once per player
+per round. What differs is who was in the round and what "already back in the app" means:
+
+  - RECIPIENTS are the competition's members. Nobody is eliminated in Matchday and joining closes
+    when round 1 locks (§6), so every member was in every settled round. There is no
+    player_progress to read, and nothing to read it for.
+  - ALREADY PREDICTED in the next round -> not sent, the counterpart of LMS's "already picked".
+    Any one prediction counts: the player is in the app, and the table is on the screen they used.
+  - NO ORGANISER EXEMPTION. LMS exempts the organiser because their copy carries the organiser
+    block; Matchday's has none, so there is nothing for the exemption to protect.
+
+A Matchday competition's final round leaves no next round, so it qualifies for nothing here -
+the same as LMS, where game_complete owns the ending. Matchday's game_complete is not built yet;
+until it is, the last round of a Matchday game sends no email.
+*/
+const MATCHDAY_ITEMS_SQL = `
+    SELECT
+      'matchday'             AS game_type,
+      cu.user_id,
+      u.email                AS user_email,
+      u.display_name         AS user_display_name,
+      c.id                   AS competition_id,
+      c.name                 AS competition_name,
+      UPPER(c.status)        AS competition_status,
+      c.end_value            AS rounds_total,
+
+      last_round.id          AS round_id,
+      last_round.round_number,
+      last_round.settled_at,
+
+      next_round.id           AS next_round_id,
+      next_round.round_number AS next_round_number,
+      next_round.lock_time    AS next_deadline,
+      (
+        SELECT json_agg(json_build_object(
+                 'home', f.home_team,
+                 'away', f.away_team,
+                 'kickoff', f.kickoff_time
+               ) ORDER BY f.kickoff_time, f.id)
+        FROM fixture f WHERE f.round_id = next_round.id
+      ) AS next_fixtures
+
+    FROM competition c
+
+    INNER JOIN LATERAL (
+      SELECT
+        r.id,
+        r.round_number,
+        (SELECT MAX(f2.processed) FROM fixture f2 WHERE f2.round_id = r.id) AS settled_at
+      FROM round r
+      WHERE r.competition_id = c.id
+        AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
+        AND NOT EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id AND f.processed IS NULL)
+      ORDER BY r.round_number DESC
+      LIMIT 1
+    ) last_round ON true
+
+    LEFT JOIN LATERAL (
+      SELECT r.id, r.round_number, r.lock_time, r.created_at
+      FROM round r
+      WHERE r.competition_id = c.id
+        AND r.round_number = last_round.round_number + 1
+        AND EXISTS (SELECT 1 FROM fixture f WHERE f.round_id = r.id)
+      LIMIT 1
+    ) next_round ON true
+
+    INNER JOIN competition_user cu
+      ON cu.competition_id = c.id
+      AND cu.status = 'active'
+
+    INNER JOIN app_user u
+      ON u.id = cu.user_id
+      AND u.email IS NOT NULL
+      AND u.email != ''
+      AND u.email NOT LIKE '%@lms-guest.com'
+
+    WHERE
+      ${notArchivedSql('c')} AND
+      ${isMatchdaySql('c')} AND
+      next_round.id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM prediction pr
+        WHERE pr.round_id = next_round.id
+          AND pr.user_id = cu.user_id
+      )
+      AND (
+        next_round.lock_time IS NULL
+        OR next_round.lock_time > NOW()
+      )
+      AND GREATEST(last_round.settled_at, next_round.created_at) > NOW() - ($3 || ' days')::interval
+      AND NOT EXISTS (
+        SELECT 1 FROM email_queue eq
+        WHERE eq.user_id = u.id
+          AND eq.competition_id = c.id
+          AND eq.round_id = last_round.id
+          AND eq.email_type = '${EMAIL_TYPE}'
+      )
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$2' })}
+      AND ($1::int IS NULL OR c.id = $1)
+
+    ORDER BY c.id, u.id
+`;
+
 /**
- * Queue one email, and open its tracking row.
+ * Find every PERSON who should be told a round is settled, with every competition that has news
+ * for them. One email per person across both games - docs/matchday.md §9.1, and
+ * services/emailBundle.js for the grouping and the scope rule.
  *
- * @param {object} candidate - a row from findCandidates
- * @returns {Promise<{success: boolean, queue_id?: number, template_data?: object, error?: string}>}
+ * The lead item is the one whose next round locks first: the email's most urgent job is the next
+ * deadline. A finished-for-them LMS item (knocked out) sorts by the same next round, which still
+ * exists for everybody else.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.competition_id] - only people with news in this competition
+ * @returns {Promise<Array>} one candidate per person: the lead item's fields, plus `items`
+ */
+async function findCandidates(opts = {}) {
+  const params = [null, groupFor(EMAIL_TYPE), String(ROUND_OVER_WINDOW_DAYS)];
+  const [lms, matchday] = await Promise.all([
+    findLmsItems(),
+    query(MATCHDAY_ITEMS_SQL, params).then((result) => result.rows)
+  ]);
+
+  const deadline = (item) => (item.next_deadline ? new Date(item.next_deadline).getTime() : Infinity);
+
+  return groupByPerson([...lms, ...matchday], {
+    competitionId: opts.competition_id || null,
+    order: (a, b) =>
+      deadline(a) - deadline(b)
+      || lmsFirst(a) - lmsFirst(b)
+      || a.competition_id - b.competition_id
+  });
+}
+
+/*
+A person whose only news is one LMS competition: rendered exactly as before Matchday. A queued row
+from before 2026-11-26 has no `items` and counts too.
+*/
+const isLegacyLms = (candidate) =>
+  !candidate.items || (candidate.items.length === 1 && candidate.items[0].game_type === 'lms');
+
+/*
+The Matchday table is per competition, and a sweep builds one email per member. Remembered for a
+minute so a 30-player competition reads its table once per run rather than thirty times - the
+table only changes when a push settles a round, and a sweep runs well after that.
+*/
+const TABLE_MEMO_MS = 60 * 1000;
+const tableMemo = new Map();
+async function tableFor(competitionId) {
+  const hit = tableMemo.get(competitionId);
+  if (hit && Date.now() - hit.at < TABLE_MEMO_MS) return hit.table;
+  const table = await getMatchdayTable(competitionId);
+  tableMemo.set(competitionId, { at: Date.now(), table });
+  return table;
+}
+
+/** How many of the table's top rows the email shows. Everyone else sees their own line. */
+const TABLE_TOP = 5;
+
+/**
+ * One Matchday competition's part of the email: this player's round, where they stand, and the
+ * next round. Totals come from services/matchdayTable.js, the one place they are derived
+ * (docs/matchday.md §4.2); the round's own breakdown is this player's settled predictions.
+ */
+async function matchdayItemData(item) {
+  const own = await query(`
+    SELECT
+      COUNT(*)                                  AS predictions,
+      COALESCE(SUM(points), 0)                  AS points,
+      COUNT(*) FILTER (WHERE points = 3)        AS right_count,
+      COUNT(*) FILTER (WHERE points = 1)        AS draw_count
+    FROM prediction
+    WHERE user_id = $1 AND round_id = $2
+  `, [item.user_id, item.round_id]);
+
+  const table = await tableFor(item.competition_id);
+  const rows = table ? table.rows : [];
+  const mine = rows.find((r) => r.user_id === item.user_id) || null;
+  const o = own.rows[0];
+
+  return {
+    game_type: 'matchday',
+    competition_id: item.competition_id,
+    competition_name: item.competition_name,
+    round_id: item.round_id,
+    round_number: Number(item.round_number),
+    rounds_total: item.rounds_total ? Number(item.rounds_total) : null,
+
+    predictions: Number(o.predictions) || 0,
+    round_points: Number(o.points) || 0,
+    right_count: Number(o.right_count) || 0,
+    draw_count: Number(o.draw_count) || 0,
+
+    position: mine ? mine.position : null,
+    position_shared: mine ? rows.filter((r) => r.position === mine.position).length > 1 : false,
+    total: mine ? mine.total : null,
+    player_count: rows.length,
+    table_top: rows.slice(0, TABLE_TOP).map((r) => ({
+      position: r.position,
+      display_name: r.display_name,
+      total: r.total,
+      is_me: r.user_id === item.user_id
+    })),
+
+    next_round_number: item.next_round_number ? Number(item.next_round_number) : null,
+    next_deadline: item.next_deadline || null,
+    next_fixtures: item.next_fixtures || []
+  };
+}
+
+/**
+ * Build the template data one email needs.
+ *
+ * A person whose only news is one LMS competition gets EXACTLY the data this built before Matchday
+ * (lmsTemplateData, no `items`), so the template renders them the email it always has. Anyone else
+ * gets `items`, one per competition in deadline order.
+ *
+ * @param {object} candidate - from findCandidates
+ * @returns {Promise<object>} template data, stored on email_queue.template_data
+ */
+async function buildTemplateData(candidate) {
+  if (isLegacyLms(candidate)) return lmsTemplateData(candidate);
+
+  const { user_id, user_email, user_display_name, competition_id, round_id } = candidate;
+  const token = await getOrCreateToken(user_id);
+  const unsubscribe = token ? unsubscribeLinks(token, groupFor(EMAIL_TYPE)) : null;
+
+  const items = [];
+  for (const item of candidate.items) {
+    if (item.game_type === 'matchday') {
+      items.push(await matchdayItemData(item));
+    } else {
+      const lms = await lmsTemplateData(item);
+      delete lms.unsubscribe;
+      delete lms.email_tracking_id;
+      items.push({ game_type: 'lms', ...lms });
+    }
+  }
+
+  return {
+    email_tracking_id: `${EMAIL_TYPE}_${competition_id}_${round_id}_${user_id}_${Date.now()}`,
+    unsubscribe,
+    user_email,
+    user_display_name,
+    competition_id,
+    round_id,
+    user_id,
+    items
+  };
+}
+
+/**
+ * The subject for any Round Over, from its template data. One competition keeps its subject,
+ * which names no game ("X — Round 3 results") and so serves both. More than one names neither
+ * competition: there is no room for two names in what a phone shows.
+ *
+ * @param {object} templateData - as built by buildTemplateData
+ * @returns {string}
+ */
+function subjectForData(templateData) {
+  const { items } = templateData;
+  if (!items) return subjectFor(templateData.competition_name, templateData.round_number);
+  if (items.length === 1) return subjectFor(items[0].competition_name, items[0].round_number);
+  return `Your results — ${items.length} competitions`;
+}
+
+/**
+ * Queue one email, and open its tracking row. One queue row per competition in the email - see
+ * queueBundle in services/emailBundle.js.
+ *
+ * @param {object} candidate - from findCandidates
+ * @returns {Promise<{success: boolean, queue_id?: number, queue_ids?: number[], template_data?: object, error?: string}>}
  */
 async function queueCandidate(candidate) {
   try {
     const templateData = await buildTemplateData(candidate);
-
-    const queueResult = await query(`
-      INSERT INTO email_queue (
-        user_id, competition_id, round_id, email_type,
-        scheduled_send_at, template_data, status, attempts
-      ) VALUES ($1, $2, $3, '${EMAIL_TYPE}', NOW(), $4, 'pending', 0)
-      RETURNING id
-    `, [candidate.user_id, candidate.competition_id, candidate.round_id, JSON.stringify(templateData)]);
-
-    await query(`
-      INSERT INTO email_tracking (email_id, user_id, competition_id, email_type, subject)
-      VALUES ($1, $2, $3, '${EMAIL_TYPE}', $4)
-    `, [
-      templateData.email_tracking_id,
-      candidate.user_id,
-      candidate.competition_id,
-      subjectFor(templateData.competition_name, templateData.round_number)
-    ]);
-
-    return { success: true, queue_id: queueResult.rows[0].id, template_data: templateData };
+    const { queue_id, queue_ids } = await queueBundle({
+      emailType: EMAIL_TYPE,
+      candidate,
+      templateData,
+      subject: subjectForData(templateData)
+    });
+    return { success: true, queue_id, queue_ids, template_data: templateData };
   } catch (error) {
     console.error('roundOver.queueCandidate failed:', { competition_id: candidate.competition_id, user_id: candidate.user_id, error: error.message });
     return { success: false, error: error.message };
@@ -495,6 +759,7 @@ module.exports = {
   EMAIL_TYPE,
   SAMPLE_SIZE,
   subjectFor,
+  subjectForData,
   findCandidates,
   buildTemplateData,
   queueCandidate

@@ -39,6 +39,7 @@ const { formatUkShort } = require('./dateFormat');
 const { notArchivedSql } = require('./competitionEngagement');
 const { isLmsSql, isMatchdaySql } = require('./gameType');
 const { getMatchdayTable } = require('./matchdayTable');
+const { groupByPerson, queueBundle, lmsFirst } = require('./emailBundle');
 
 /**
  * The subject, in one place.
@@ -338,37 +339,19 @@ async function findLmsCandidates(opts = {}) {
  * @returns {Promise<Array>} one candidate per person: the lead item's fields, plus `items`
  */
 async function findCandidates(opts = {}) {
-  const competitionId = opts.competition_id ? parseInt(opts.competition_id) : null;
-
   const [lms, matchday] = await Promise.all([
     query(LMS_ITEMS_SQL, itemParams(null)),
     query(MATCHDAY_ITEMS_SQL, itemParams(null))
   ]);
 
-  const byUser = new Map();
-  for (const item of [...lms.rows, ...matchday.rows]) {
-    if (!byUser.has(item.user_id)) byUser.set(item.user_id, []);
-    byUser.get(item.user_id).push(item);
-  }
-
-  const lmsFirst = (item) => (item.game_type === 'lms' ? 0 : 1);
-  const candidates = [];
-
-  for (const items of byUser.values()) {
-    if (competitionId !== null && !items.some((i) => i.competition_id === competitionId)) continue;
-
+  return groupByPerson([...lms.rows, ...matchday.rows], {
+    competitionId: opts.competition_id || null,
     // Earliest deadline first; LMS before Matchday on a tie, since a missed pick costs a life.
-    items.sort((a, b) =>
+    order: (a, b) =>
       new Date(a.lock_time) - new Date(b.lock_time)
       || lmsFirst(a) - lmsFirst(b)
       || a.competition_id - b.competition_id
-    );
-
-    candidates.push({ ...items[0], items });
-  }
-
-  candidates.sort((a, b) => a.competition_id - b.competition_id || a.user_id - b.user_id);
-  return candidates;
+  });
 }
 
 /*
@@ -534,14 +517,8 @@ function subjectForData(templateData) {
 }
 
 /**
- * Queue one reminder, and open its tracking row.
- *
- * ONE QUEUE ROW PER COMPETITION IN THE EMAIL, so the once-per-round guard above, the skip rows and
- * each competition's email history all stay per competition. The lead row carries the template
- * data and is the one the email is sent from. The others are written as 'bundled', pointing at it:
- * never 'pending', because routes/send-email.js sends any pending row it finds, and these must not
- * go out a second time on their own. The sweep then sets every row to the outcome of the one send
- * (queue_ids, services/emailSweep.js).
+ * Queue one reminder, and open its tracking row. One queue row per competition in the email - see
+ * queueBundle in services/emailBundle.js.
  *
  * @param {object} candidate - a row from findCandidates
  * @returns {Promise<{success: boolean, queue_id?: number, queue_ids?: number[], template_data?: object, error?: string}>}
@@ -549,53 +526,13 @@ function subjectForData(templateData) {
 async function queueCandidate(candidate) {
   try {
     const templateData = await buildTemplateData(candidate);
-
-    const queueResult = await query(`
-      INSERT INTO email_queue (
-        user_id, competition_id, round_id, email_type,
-        scheduled_send_at, template_data, status, attempts
-      ) VALUES ($1, $2, $3, 'pick_reminder', NOW(), $4, 'pending', 0)
-      RETURNING id
-    `, [
-      candidate.user_id,
-      candidate.competition_id,
-      candidate.round_id,
-      JSON.stringify(templateData)
-    ]);
-    const leadId = queueResult.rows[0].id;
-    const queueIds = [leadId];
-
-    const others = (candidate.items || []).slice(1);
-    if (others.length > 0) {
-      const bundled = await query(`
-        INSERT INTO email_queue (
-          user_id, competition_id, round_id, email_type,
-          scheduled_send_at, template_data, status, attempts
-        )
-        SELECT $1, o.competition_id, o.round_id, 'pick_reminder', NOW(),
-               jsonb_build_object('bundled_into', $2::int), 'bundled', 0
-        FROM UNNEST($3::int[], $4::int[]) AS o(competition_id, round_id)
-        RETURNING id
-      `, [
-        candidate.user_id,
-        leadId,
-        others.map((o) => o.competition_id),
-        others.map((o) => o.round_id)
-      ]);
-      queueIds.push(...bundled.rows.map((row) => row.id));
-    }
-
-    await query(`
-      INSERT INTO email_tracking (email_id, user_id, competition_id, email_type, subject)
-      VALUES ($1, $2, $3, 'pick_reminder', $4)
-    `, [
-      templateData.email_tracking_id,
-      candidate.user_id,
-      candidate.competition_id,
-      subjectForData(templateData)
-    ]);
-
-    return { success: true, queue_id: leadId, queue_ids: queueIds, template_data: templateData };
+    const { queue_id, queue_ids } = await queueBundle({
+      emailType: 'pick_reminder',
+      candidate,
+      templateData,
+      subject: subjectForData(templateData)
+    });
+    return { success: true, queue_id, queue_ids, template_data: templateData };
   } catch (error) {
     console.error('pickReminder.queueCandidate failed:', { user_id: candidate.user_id, error: error.message });
     return { success: false, error: error.message };

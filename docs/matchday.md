@@ -508,9 +508,22 @@ is **one email per person, listing every competition** where there is something 
 made a choice, and skipping costs nothing but points (§1). Same 30-hour window and cron line as
 LMS. Tested 2026-11-26 on TEST LMS (287) and TEST Matchday (288).
 
-**Next, the same way: Round Over** (`results`). One results push settles both games at once, so
-the collision is certain there too. Welcome and Game complete stay per competition: they follow
-one-off events that rarely land within 48 hours of each other.
+**Built: Round Over** (`results`, `services/roundOver.js`, 2026-11-26). One results push settles
+both games at once, so the collision is certain there. Matchday's readiness is LMS's, clause for
+clause (last round fully processed, next round staged and not locked, recent, once per player per
+round). Its recipients are the members, minus anyone who has already predicted in the next round;
+no organiser exemption, since Matchday's copy has no organiser block. One competition in full:
+the player's round ("You scored 4 points in Round 1: 1 right and 1 draw from 4 predictions"),
+their place and the top five of the table, then the next round and its matches. More than one: a
+line each (LMS "Arsenal won: through", Matchday "Round 1: +4 · 1st of 3", and the next deadline)
+and the dashboard button. The grouping and the queue rows are shared with the pick reminder in
+`services/emailBundle.js`. Tested on TEST Matchday (288).
+
+**A Matchday game's last round sends nothing yet.** It leaves no next round, so Round Over does
+not qualify, and `game_complete` is still LMS-only. Matchday's Game complete is the next email.
+
+Welcome and Game complete stay per competition: they follow one-off events that rarely land
+within 48 hours of each other.
 
 ---
 

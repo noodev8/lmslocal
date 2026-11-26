@@ -21,7 +21,7 @@ const { subjectFor: gameStartSubjectFor } = require('./gameStartReminder');
 const { subjectFor: fixtureReminderSubjectFor } = require('./fixtureReminder');
 const { subjectFor: resultReminderSubjectFor } = require('./resultReminder');
 const { subjectFor: gameCompleteSubjectFor } = require('./gameComplete');
-const { subjectFor: roundOverSubjectFor } = require('./roundOver');
+const { subjectFor: roundOverSubjectFor, subjectForData: roundOverSubjectForData } = require('./roundOver');
 const { subjectFor: hintSubjectFor } = require('./hints');
 const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
 const { subjectFor: pickReminderSubjectFor, subjectForData: pickReminderSubjectForData } = require('./pickReminder');
@@ -3146,6 +3146,246 @@ const sendGameCompleteEmail = async (email, templateData, options = {}) => {
   }
 };
 
+/*
+The deadline for the next round, or null once it has gone. Derived at send time, as in
+buildRoundOverEmail: a row queued before lock and drained after must not name a passed deadline.
+*/
+const openDeadline = (deadline) =>
+  deadline && new Date(deadline) > new Date() ? deadline : null;
+
+/*
+One Matchday competition's Round Over, in Matchday's words (docs/matchday.md §2: points, the
+table, predictions - never pick, survive or out). The same three blocks as LMS's: my round, where
+everybody stands, what happens next.
+*/
+const matchdayRoundOverSection = (item, trackingId) => {
+  const base = `${process.env.PLAYER_FRONTEND_URL}/game/${item.competition_id}`;
+  const open = openDeadline(item.next_deadline);
+  const pts = (n) => `${n} ${n === 1 ? 'point' : 'points'}`;
+
+  let yourRound;
+  if (item.predictions === 0) {
+    yourRound = `You made no predictions in Round ${item.round_number}, so it scored nothing.`;
+  } else {
+    const parts = [`${item.right_count} right`];
+    if (item.draw_count > 0) parts.push(`${item.draw_count} ${item.draw_count === 1 ? 'draw' : 'draws'}`);
+    yourRound = `You scored ${pts(item.round_points)} in Round ${item.round_number}: ${parts.join(' and ')} from ${item.predictions} ${item.predictions === 1 ? 'prediction' : 'predictions'}.`;
+  }
+
+  const standing = item.position
+    ? `You're ${item.position_shared ? 'joint ' : ''}${ordinal(item.position)} of ${item.player_count}, on ${pts(item.total)}.`
+    : null;
+
+  const isLast = item.rounds_total && item.next_round_number === item.rounds_total;
+  const nextHeading = item.rounds_total
+    ? `Round ${item.next_round_number} of ${item.rounds_total}${isLast ? ' — the last one' : ''}`
+    : `Round ${item.next_round_number}`;
+  const nextBody = open
+    ? `Predictions close ${formatUkDateTime(open)}.`
+    : `Round ${item.next_round_number} is under way.`;
+  const fixtureLines = open ? (item.next_fixtures || []).map((f) => `${f.home} v ${f.away}`) : [];
+
+  const actionUrl = open ? `${base}/coupon?email_id=${trackingId}` : `${base}/table?email_id=${trackingId}`;
+  const buttonLabel = open ? `Make your Round ${item.next_round_number} predictions` : 'See the table';
+
+  const tableRowsHtml = item.table_top.map((r) => `
+                <p style="margin: 0 0 6px 0; color: ${r.is_me ? '#0f172a' : '#475569'}; font-size: 15px; ${r.is_me ? 'font-weight: 600;' : ''}">${r.position}. ${r.display_name} — ${r.total}</p>`).join('');
+  const tableRowsText = item.table_top.map((r) => `  ${r.position}. ${r.display_name} - ${r.total}${r.is_me ? '  (you)' : ''}`).join('\n');
+
+  return {
+    html: `
+            <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 20px; margin: 0 0 24px 0;">
+              <p style="margin: 0; color: #0f172a; font-size: 16px;">${yourRound}</p>
+            </div>
+
+            <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 17px; font-weight: 600;">The table</h3>
+            ${standing ? `<p style="color: #334155; font-size: 15px; margin: 0 0 12px 0;">${standing}</p>` : ''}
+            <div style="margin: 0 0 24px 0;">${tableRowsHtml}
+            </div>
+
+            <h3 style="color: #0f172a; margin: 0 0 8px 0; font-size: 17px; font-weight: 600;">${nextHeading}</h3>
+            <p style="color: #334155; font-size: 15px; margin: 0 0 ${fixtureLines.length ? '12' : '24'}px 0;">${nextBody}</p>
+            ${fixtureLines.length ? `
+            <ul style="margin: 0 0 24px 0; padding-left: 20px; color: #334155; font-size: 15px;">
+              ${fixtureLines.map((line) => `<li style="margin: 0 0 4px 0;">${line}</li>`).join('')}
+            </ul>` : ''}
+
+            <div style="margin: 0 0 24px 0;">
+              <a href="${actionUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                ${buttonLabel}
+              </a>
+            </div>`,
+    text: `${yourRound}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THE TABLE
+${standing ? `\n${standing}\n` : ''}
+${tableRowsText}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${nextHeading.toUpperCase()}
+
+${nextBody}
+${fixtureLines.length ? '\n' + fixtureLines.map((l) => `  ${l}`).join('\n') + '\n' : ''}
+${buttonLabel}:
+${actionUrl}`
+  };
+};
+
+/*
+One competition's line in a Round Over covering several: the game, the competition, what the round
+did to this player and, while it is open, the next deadline. Linked to where they act next - the
+pick or predictions page while they can, the standings or table otherwise.
+*/
+const roundOverLineFor = (item, trackingId) => {
+  const base = `${process.env.PLAYER_FRONTEND_URL}/game/${item.competition_id}`;
+  const open = openDeadline(item.next_deadline);
+  let game;
+  let result;
+  let due = null;
+  let url;
+
+  if (item.game_type === 'matchday') {
+    game = 'Matchday';
+    result = item.predictions === 0
+      ? `Round ${item.round_number}: no predictions`
+      : `Round ${item.round_number}: +${item.round_points}`;
+    if (item.position) result += ` · ${item.position_shared ? 'joint ' : ''}${ordinal(item.position)} of ${item.player_count}`;
+    if (open) due = `Predict by ${formatUkShort(open)}`;
+    url = open ? `${base}/coupon?email_id=${trackingId}` : `${base}/table?email_id=${trackingId}`;
+  } else {
+    game = 'Last Man Standing';
+    const won = String(item.outcome).toUpperCase() === 'WIN';
+    if (item.missed_pick) {
+      result = item.survived ? 'No pick: lost a life, still in' : 'No pick: out';
+    } else if (won) {
+      result = `${item.chosen_team} won: through`;
+    } else {
+      result = item.survived ? `${item.chosen_team} did not win: lost a life, still in` : `${item.chosen_team} did not win: out`;
+    }
+    const canPick = item.survived && open;
+    if (canPick) due = `Pick by ${formatUkShort(open)}`;
+    if (item.is_organiser) result += ' · you run this one';
+    url = canPick ? `${base}/pick?email_id=${trackingId}` : `${base}/standings?email_id=${trackingId}`;
+  }
+
+  return {
+    html: `
+                <a href="${url}" style="display: block; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; text-decoration: none;">
+                  <span style="display: block; color: #64748b; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">${game}</span>
+                  <span style="display: block; color: #0f172a; font-size: 16px; font-weight: 600;">${item.competition_name}</span>
+                  <span style="display: block; color: #475569; font-size: 14px;">${result}</span>
+                  ${due ? `<span style="display: block; color: #475569; font-size: 14px;">${due}</span>` : ''}
+                </a>`,
+    text: `  • ${game} - ${item.competition_name}\n    ${result}${due ? `\n    ${due}` : ''}\n    ${url}`
+  };
+};
+
+/**
+ * The person-level Round Over (services/roundOver.js, docs/matchday.md §9.1): one Matchday
+ * competition in full, or a line per competition and a button to the dashboard when there is more
+ * than one - the same rule as the pick reminder, for the same reason.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/roundOver.js, with `items`
+ */
+const buildBundledRoundOverEmail = (email, templateData) => {
+  const { user_display_name, items, competition_id, email_tracking_id, unsubscribe } = templateData;
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+  const single = items.length === 1;
+
+  let subtitle;
+  let bodyHtml;
+  let bodyText;
+
+  if (single) {
+    const only = items[0];
+    const section = matchdayRoundOverSection(only, email_tracking_id);
+    subtitle = `${only.competition_name} — Round ${only.round_number}`;
+    bodyHtml = section.html;
+    bodyText = section.text;
+  } else {
+    const lines = items.map((item) => roundOverLineFor(item, email_tracking_id));
+    const dashboardUrl = `${process.env.PLAYER_FRONTEND_URL}/dashboard?email_id=${email_tracking_id}`;
+    const intro = `Results are in for ${items.length} of your competitions.`;
+    subtitle = 'Your results this round';
+    bodyHtml = `
+            <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">${intro}</p>
+            <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">${lines.map((l) => l.html).join('')}</div>
+            <div style="margin: 32px 0 24px 0;">
+              <a href="${dashboardUrl}"
+                 style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                Open LMS Local
+              </a>
+            </div>`;
+    bodyText = `${intro}
+
+${lines.map((l) => l.text).join('\n\n')}
+
+Open LMS Local:
+${dashboardUrl}`;
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subtitle}</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+          <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${subtitle}</p>
+          </div>
+
+          <div style="padding: 40px 30px;">
+
+            <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
+            ${bodyHtml}
+
+          </div>
+
+          ${footer.html}
+
+        </div>
+      </body>
+    </html>
+  `;
+
+  const text = `
+${subtitle}
+
+Hi ${firstName(user_display_name)},
+
+${bodyText}
+
+${footer.text}
+  `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: roundOverSubjectForData(templateData),
+    html,
+    text,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'results' },
+      { name: 'competition_id', value: String(competition_id) }
+    ]
+  };
+};
+
 /**
  * Build the Round Over email without sending it.
  *
@@ -3161,6 +3401,15 @@ const sendGameCompleteEmail = async (email, templateData, options = {}) => {
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
 const buildRoundOverEmail = (email, templateData) => {
+  /*
+  Branch once, at the top (docs/matchday.md §3.2). Template data with `items` is the person-level
+  Round Over: one Matchday competition, or more than one of either game. Without it - one LMS
+  competition, or a row queued before 2026-11-26 - the email below is exactly what it was.
+  */
+  if (templateData.items) {
+    return buildBundledRoundOverEmail(email, templateData);
+  }
+
   const {
     user_display_name,
     competition_name,
