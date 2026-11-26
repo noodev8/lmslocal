@@ -593,9 +593,12 @@ export default function LandingPage() {
               <p className={`${EYEBROW} text-overprint`}>Last Man Standing &middot; everyone plays</p>
               <h2 className={`mt-5 ${H2}`}>Terry doesn&rsquo;t use the app</h2>
               <p className="mt-7 max-w-lg text-xl leading-relaxed text-ink">
-                Add him yourself and he is on the sheet with everybody else. Each round he tells you
-                his team and you put it in. No email address, nothing for him to set up &mdash; and
-                he can win the whole thing.
+                In a Last Man Standing game, add him yourself and he is on the sheet with everybody
+                else. Each round he tells you his team and you put it in. No email address, nothing
+                for him to set up &mdash; and he can win the whole thing.
+              </p>
+              <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-fade">
+                Matchday players join and predict for themselves.
               </p>
             </div>
 
