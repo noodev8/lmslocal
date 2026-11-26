@@ -5,7 +5,8 @@ For every match in a gameweek a player predicts the winner: **win +3, draw +1, l
 a league table of points.
 
 **Status: phases 1–3 built, 2026-11-22 — playable on the web end to end** (§10). Not yet: the
-admin game column, Matchday emails. The app is built (2026-11-23) and not yet released.
+admin game column, Matchday emails other than the pick reminder (§9.1, built 2026-11-26). The app
+is built (2026-11-23) and not yet released.
 
 **IN PREVIEW: only organiser 50 can create a Matchday competition.** `MATCHDAY_PREVIEW_ORGANISER_IDS`
 in `services/gameType.js`. Everyone else gets the create wizard exactly as before - three steps, no
@@ -107,6 +108,9 @@ It reads as gambling. A chosen team is "predicted"; the cards ask "Who wins?".
 | How it ends | last one standing | most points after N rounds |
 
 LMS copy that says "pick" stays as it is. New Matchday copy is checked against this table.
+
+One exception: an email covering competitions of both games (§9.1) has a game-neutral subject,
+and each game's section inside it still uses only that game's words.
 
 ---
 
@@ -455,11 +459,10 @@ route's round query against one, not through the screens: no open Matchday round
 - **Every competition email service** composes `isLmsSql()` into its candidate query, alongside
   `notArchivedSql()` and `notOptedOutSql()`, because their copy is LMS copy. That includes
   `welcome`, which is `services/joinComp.js` — a welcome **to a competition**, not to the
-  platform — so Matchday players get **no emails at all at launch**. The two left unguarded are
-  `join_lms` (platform-wide, no competition) and `join_blocked` (about places, not a game). The
-  unwired `shareReminder.js` and `gameStartReminder.js` are guarded too, so re-wiring either
-  cannot leak. Matchday emails are designed later as their own `emailCatalog.js` entries and
-  `OUTLINE` rows.
+  platform. The two left unguarded are `join_lms` (platform-wide, no competition) and
+  `join_blocked` (about places, not a game). The unwired `shareReminder.js` and
+  `gameStartReminder.js` are guarded too, so re-wiring either cannot leak. **The exception is the
+  pick reminder (§9.1)**, which covers both games, each half with its own guard.
 - **Push notifications**: none for Matchday (§7.2). Guarded once, in
   `process-mobile-notifications` — the one place that sends — which marks any pending row for a
   non-LMS competition `skipped`. The six places that queue are left alone.
@@ -468,6 +471,42 @@ route's round query against one, not through the screens: no open Matchday round
 - **Admin, Competitions screen**: a game column and a filter. The counts (`get-admin-stats`,
   Active people, Organisers) include both games. They are about customers, not games.
 - **Admin, Results**: unchanged apart from the row report (§5.1).
+
+### 9.1 Player emails are per person, not per competition (2026-11-26)
+
+Both games run on the same gameweek, so a player in two competitions has two deadlines and two
+results in the same few hours. Sent as separate emails, the second is killed by the 48-hour quiet
+period (`services/emailQuiet.js`) **every week** - already true of a player in two LMS
+competitions, whose second reminder died in the same run. Ranking the games against each other
+does not fix that; it only chooses which game loses. So a player email that recurs each gameweek
+is **one email per person, listing every competition** where there is something to say:
+
+- **One finder per game**, each with its own game guard (`isLmsSql` / `isMatchdaySql`), returning
+  items (person, competition, round, game). The service groups them by person; the earliest
+  deadline is the lead, and its competition and round are what the shared admin code reads.
+- **One section per game** in the template, in that game's own words. A third game is a finder
+  and a section.
+- **The subject**: one competition keeps that game's subject (`Pick by …` / `Predict by …`). More
+  than one is game-neutral and leads with the earliest deadline: `Before Sat 11:30 — 2
+  competitions need you`. This is the one place §2's "never share words" is met by neutral words
+  rather than the game's own.
+- **One `email_queue` row per competition**, so the once-per-round guard, skip rows and history
+  stay per competition. The lead row carries the template; the others are written `bundled`
+  (`template_data.bundled_into` = the lead's id), never `pending`, so `routes/send-email.js`
+  cannot send them a second time; the sweep then gives them all the one send's outcome.
+- **A person with one LMS competition gets exactly the email they got before** - verified
+  byte-identical on 2026-11-26.
+- **Scope picks who, not what.** The admin screen's competition filter selects the people with
+  something due there, but each email still lists all of theirs.
+
+**Built: the pick reminder** (`pick_reminder`, `services/pickReminder.js`). Matchday's rule is
+"**no prediction at all** this round": a player who predicted some matches and left the rest has
+made a choice, and skipping costs nothing but points (§1). Same 30-hour window and cron line as
+LMS. Tested 2026-11-26 on TEST LMS (287) and TEST Matchday (288).
+
+**Next, the same way: Round Over** (`results`). One results push settles both games at once, so
+the collision is certain there too. Welcome and Game complete stay per competition: they follow
+one-off events that rarely land within 48 hours of each other.
 
 ---
 
@@ -569,7 +608,7 @@ route's round query against one, not through the screens: no open Matchday round
    **Open:** the promote page and leaflets have not been checked for LMS wording.
 4. **Admin.** Game column and filter on the Competitions screen. (The push row report went in
    with phase 2.)
-5. **Matchday emails.** Then the app, by sending `X-Game-Types` from a new version. **Everything
+5. **Matchday emails** (§9.1: the pick reminder built 2026-11-26, Round Over next). Then the app, by sending `X-Game-Types` from a new version. **Everything
    the app needs to know is in `docs/matchday-app.md`** (2026-11-22): the header switch, where the
    app branches, the routes, and each screen as built and agreed on the web. **App built
    2026-11-23**, not yet released; what was tested is at the top of that doc.

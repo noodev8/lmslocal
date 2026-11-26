@@ -150,10 +150,10 @@ const OUTLINE: OutlineEmail[] = [
     name: 'Pick reminder',
     scoped: true,
     push: true,
-    note: 'Round locks within 24 hours, no pick made',
+    note: 'Round locks within 30 hours, no pick (LMS) or no prediction (Matchday)',
     focus: true,
     blurb:
-      'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Once per player per round. Locks is their countdown, not an elapsed time.',
+      'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Covers Matchday too: no prediction at all this round. One email per person, listing every competition they owe a choice in (docs/matchday.md §9.1). Once per player per round. Locks is their countdown, not an elapsed time.',
   },
   {
     key: 'organiser_nudge',

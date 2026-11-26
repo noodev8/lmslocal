@@ -79,7 +79,19 @@ async function insertChunk(emailType, candidates, reason, extra) {
   const values = [];
   const params = [];
 
-  candidates.forEach((candidate, i) => {
+  /*
+  A candidate that carries `items` - the pick reminder, one person across several competitions
+  (services/pickReminder.js) - is skipped for every one of them, one row each. A row for the lead
+  only would leave the others to come back as candidates on the next run, which is exactly the
+  loss the person-level email was built to stop.
+  */
+  const rows = candidates.flatMap((candidate) =>
+    candidate.items && candidate.items.length > 1
+      ? candidate.items.map((item) => ({ ...candidate, competition_id: item.competition_id, round_id: item.round_id }))
+      : [candidate]
+  );
+
+  rows.forEach((candidate, i) => {
     const base = i * 5;
     values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, NOW(), $${base + 5}, 'skipped', 0)`);
     params.push(

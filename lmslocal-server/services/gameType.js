@@ -77,6 +77,15 @@ every scoped email's candidate query, above all, since their copy talks about pi
 const isLmsSql = (comp) => `${comp}.game_type = 'lms'`;
 
 /*
+MATCHDAY-ONLY. The same shape as isLmsSql, for the queries written in Matchday's words - the
+Matchday half of the pick reminder (services/pickReminder.js) first. Names the game it allows, for
+the same reason.
+
+  @param {string} comp - the caller's competition alias, e.g. 'c'
+*/
+const isMatchdaySql = (comp) => `${comp}.game_type = 'matchday'`;
+
+/*
 The games this request's client can show. LMS is always included - every client renders it - so
 the absent header, which is every app version in the wild, comes out as ['lms'] and nothing more.
 Unknown names are dropped rather than trusted: the result is bound straight into SQL as an array.
@@ -140,6 +149,7 @@ module.exports = {
   gamesUserCanCreate,
   matchdayInPreview,
   isLmsSql,
+  isMatchdaySql,
   clientGameTypes,
   isLmsCompetition,
   NOT_LMS_RESPONSE

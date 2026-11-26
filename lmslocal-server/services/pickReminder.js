@@ -3,21 +3,29 @@
 Pick Reminder Service
 =======================================================================================================================================
 Purpose: The one definition of who should receive a pick reminder, and how their email is built.
+         Since 2026-11-26 it covers both games: one email per PERSON, listing every competition
+         where they still owe this round a choice - a pick in Last Man Standing, a prediction in
+         Matchday. docs/matchday.md §9 is the contract.
 
-Used by routes/load-pick-reminder.js (the batch path) and by the admin screen's preview and send.
-Kept in one place for the same reason evaluateCompetition is in services/fixtureService.js: the
-preview and the send must agree, or the screen offers a button that then refuses, or worse shows
-a count of five and mails eight.
+Used by the admin screen's preview and send and by the cron (scripts/email-sweep.js), through
+services/emailCatalog.js. routes/load-pick-reminder.js, the older queue-only batch route, reads
+the LMS half only (findLmsCandidates). Kept in one place for the same reason evaluateCompetition
+is in services/fixtureService.js: the preview and the send must agree, or the screen offers a
+button that then refuses, or worse shows a count of five and mails eight.
 
-The eligibility rules, all in findCandidates below:
+The eligibility rules, one query per game (LMS_ITEMS_SQL, MATCHDAY_ITEMS_SQL):
   - competition is not COMPLETE (compared case-insensitively; the column holds upper case)
+  - competition is not archived, and is the game the query is for
   - round has a lock time, in the future, and within REMINDER_WINDOW_HOURS (30)
   - round has fixtures
   - player is still active in the competition
   - player has a real email (guest accounts use @lms-guest.com and are excluded)
-  - player has not already picked this round
+  - LMS: player has not picked this round. Matchday: player has made NO prediction this round
   - nothing is already queued for this player, competition and round
   - not opted out, per services/emailPreference.js
+
+Then findCandidates groups the items by person. A person with one LMS competition gets the email
+exactly as it was before Matchday.
 
 Pick reminder belongs to the player.game group, so switching Game emails off stops it. That
 costs the player a life when they then miss a pick, and it is deliberate - see the note in
@@ -29,7 +37,8 @@ const { query } = require('../database');
 const { notOptedOutSql, groupFor, getOrCreateToken, unsubscribeLinks } = require('./emailPreference');
 const { formatUkShort } = require('./dateFormat');
 const { notArchivedSql } = require('./competitionEngagement');
-const { isLmsSql } = require('./gameType');
+const { isLmsSql, isMatchdaySql } = require('./gameType');
+const { getMatchdayTable } = require('./matchdayTable');
 
 /**
  * The subject, in one place.
@@ -58,6 +67,13 @@ const { isLmsSql } = require('./gameType');
  */
 const subjectFor = (competitionName, lockTime) =>
   `Pick by ${formatUkShort(lockTime)} — ${competitionName}`;
+
+/*
+Matchday's subject for a reminder about one Matchday competition: the same shape, deadline first,
+in Matchday's word (docs/matchday.md §2 - "predict", never "pick").
+*/
+const matchdaySubjectFor = (competitionName, lockTime) =>
+  `Predict by ${formatUkShort(lockTime)} — ${competitionName}`;
 
 
 /*
@@ -134,19 +150,21 @@ than a wider window. Deliberately not built.
 */
 const REMINDER_WINDOW_HOURS = 30;
 
-/**
- * Find every player who should get a pick reminder.
- *
- * @param {object} [opts]
- * @param {number} [opts.competition_id] - restrict to one competition. Omit to scan them all,
- *                                         which is what the batch path does.
- * @returns {Promise<Array>} candidate rows, each carrying everything buildTemplateData needs
- */
-async function findCandidates(opts = {}) {
-  const { competition_id = null } = opts;
 
-  const result = await query(`
+/*
+WHAT THE ITEMS ARE. A candidate is a PERSON, carrying `items`: one per competition where that
+person still owes the round something. The two games find their items separately, each in its
+own query with its own game guard, and the person is assembled afterwards (findCandidates).
+
+The lead item is the one with the earliest deadline. Its competition_id, round_id and lock_time
+are spread onto the candidate itself, which is what every shared caller reads - the admin screen's
+recipient list and its user:competition selection, the sweep script's log, the skip rows. Those
+callers did not change; a person in one competition is exactly the candidate they always were.
+*/
+
+const LMS_ITEMS_SQL = `
     SELECT
+      'lms'                  AS game_type,
       cu.user_id,
       u.email                AS user_email,
       u.display_name         AS user_display_name,
@@ -164,7 +182,7 @@ async function findCandidates(opts = {}) {
       AND UPPER(c.status) != 'COMPLETE'
       -- Archived competitions get no email at all. See notArchivedSql.
       AND ${notArchivedSql('c')}
-      -- Last Man Standing's copy: no other game receives it. See isLmsSql.
+      -- Last Man Standing's half. Matchday's is MATCHDAY_ITEMS_SQL. See isLmsSql.
       AND ${isLmsSql('c')}
 
     INNER JOIN competition_user cu
@@ -207,46 +225,178 @@ async function findCandidates(opts = {}) {
       AND ($1::int IS NULL OR c.id = $1)
 
     ORDER BY c.id, r.round_number, u.id
-  `, [competition_id, groupFor('pick_reminder'), String(REMINDER_WINDOW_HOURS)]);
+`;
 
+/*
+Matchday's half (docs/matchday.md §9). The same window, the same guards and the same
+once-per-round queue check as LMS - only "has not picked" changes, to "has made NO prediction this
+round". A player who has predicted some of the matches and left the rest has made a choice, and
+skipping is never penalised (§1), so they are not chased. Nobody is eliminated in Matchday;
+competition_user.status stays 'active' for every player and is checked anyway, so a future
+removal mechanism cannot leak through.
+*/
+const MATCHDAY_ITEMS_SQL = `
+    SELECT
+      'matchday'             AS game_type,
+      cu.user_id,
+      u.email                AS user_email,
+      u.display_name         AS user_display_name,
+      c.id                   AS competition_id,
+      c.name                 AS competition_name,
+      c.end_value            AS rounds_total,
+      r.id                   AS round_id,
+      r.round_number,
+      r.lock_time,
+      org.display_name       AS organizer_name
+
+    FROM competition c
+
+    INNER JOIN round r
+      ON r.competition_id = c.id
+      AND UPPER(c.status) != 'COMPLETE'
+      AND ${notArchivedSql('c')}
+      AND ${isMatchdaySql('c')}
+
+    INNER JOIN competition_user cu
+      ON cu.competition_id = c.id
+      AND cu.status = 'active'
+
+    INNER JOIN app_user u
+      ON u.id = cu.user_id
+      AND u.email IS NOT NULL
+      AND u.email != ''
+      AND u.email NOT LIKE '%@lms-guest.com'
+
+    LEFT JOIN app_user org
+      ON org.id = c.organiser_id
+
+    WHERE r.lock_time IS NOT NULL
+      AND r.lock_time > NOW()
+      AND r.lock_time <= NOW() + ($3 || ' hours')::interval
+      AND EXISTS (
+        SELECT 1 FROM fixture f WHERE f.round_id = r.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM prediction pr
+        WHERE pr.user_id = u.id
+          AND pr.round_id = r.id
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM email_queue eq
+        WHERE eq.user_id = u.id
+          AND eq.competition_id = c.id
+          AND eq.round_id = r.id
+          AND eq.email_type = 'pick_reminder'
+      )
+      AND ${notOptedOutSql({ userColumn: 'u.id', competitionColumn: 'c.id', groupParam: '$2' })}
+      AND ($1::int IS NULL OR c.id = $1)
+
+    ORDER BY c.id, r.round_number, u.id
+`;
+
+const itemParams = (competitionId) =>
+  [competitionId, groupFor('pick_reminder'), String(REMINDER_WINDOW_HOURS)];
+
+/**
+ * Last Man Standing items only, one row per player per competition - the shape this service
+ * returned before Matchday. Kept for routes/load-pick-reminder.js, the older queue-only batch
+ * route, which queues one LMS email per row and must not be handed a Matchday item it would
+ * render in LMS words.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.competition_id]
+ * @returns {Promise<Array>}
+ */
+async function findLmsCandidates(opts = {}) {
+  const result = await query(LMS_ITEMS_SQL, itemParams(opts.competition_id ?? null));
   return result.rows;
 }
 
 /**
- * Build the template data a pick reminder needs, for one candidate.
+ * Find every PERSON who should get a pick reminder, with every competition they owe a choice in.
  *
- * Two extra queries per candidate: the round's fixtures, and the teams this player has already
- * used (so the template can strike them through). Both are per-player by nature.
+ * WHY THE PERSON AND NOT THE COMPETITION (2026-11-26). Both games run on the same gameweek, so a
+ * player in two competitions has two deadlines in the same few hours. Sent separately, the second
+ * email is killed by the quiet period every week (services/emailQuiet.js) - and it was already
+ * happening to a player in two LMS competitions, whose second reminder died in the same run. One
+ * email per person listing every competition is the only shape where nothing is lost. See
+ * docs/matchday.md §9.
  *
- * @param {object} candidate - a row from findCandidates
- * @returns {Promise<object>} template data, stored on email_queue.template_data
+ * SCOPE PICKS WHO, NOT WHAT. With a competition_id, the result is the people who owe a choice in
+ * THAT competition - but each still carries all their items, because the email they would get is
+ * the whole of what they owe. A scoped send that left out their other competition would leave
+ * that item to be killed by the quiet period on the next run, which is the loss this exists to
+ * prevent.
+ *
+ * Items are found platform-wide and filtered afterwards, for the same reason: the other
+ * competitions are needed. Two queries whatever the scope, each bounded by "rounds locking in the
+ * next 30 hours", which is small.
+ *
+ * @param {object} [opts]
+ * @param {number} [opts.competition_id] - only people with an item in this competition
+ * @returns {Promise<Array>} one candidate per person: the lead item's fields, plus `items`
  */
-async function buildTemplateData(candidate) {
-  const {
-    user_id,
-    round_id,
-    competition_id,
-    user_email,
-    user_display_name,
-    competition_name,
-    organizer_name,
-    round_number,
-    lock_time
-  } = candidate;
+async function findCandidates(opts = {}) {
+  const competitionId = opts.competition_id ? parseInt(opts.competition_id) : null;
 
-  const fixturesResult = await query(`
+  const [lms, matchday] = await Promise.all([
+    query(LMS_ITEMS_SQL, itemParams(null)),
+    query(MATCHDAY_ITEMS_SQL, itemParams(null))
+  ]);
+
+  const byUser = new Map();
+  for (const item of [...lms.rows, ...matchday.rows]) {
+    if (!byUser.has(item.user_id)) byUser.set(item.user_id, []);
+    byUser.get(item.user_id).push(item);
+  }
+
+  const lmsFirst = (item) => (item.game_type === 'lms' ? 0 : 1);
+  const candidates = [];
+
+  for (const items of byUser.values()) {
+    if (competitionId !== null && !items.some((i) => i.competition_id === competitionId)) continue;
+
+    // Earliest deadline first; LMS before Matchday on a tie, since a missed pick costs a life.
+    items.sort((a, b) =>
+      new Date(a.lock_time) - new Date(b.lock_time)
+      || lmsFirst(a) - lmsFirst(b)
+      || a.competition_id - b.competition_id
+    );
+
+    candidates.push({ ...items[0], items });
+  }
+
+  candidates.sort((a, b) => a.competition_id - b.competition_id || a.user_id - b.user_id);
+  return candidates;
+}
+
+/*
+True when the candidate is a person with exactly one LMS competition - the reminder as it was
+before Matchday, which is rendered exactly as it was. A row from findLmsCandidates (no `items`)
+counts too.
+*/
+const isLegacyLms = (candidate) =>
+  !candidate.items || (candidate.items.length === 1 && candidate.items[0].game_type === 'lms');
+
+/** The round's fixtures, in kickoff order. */
+async function fixturesFor(roundId) {
+  const result = await query(`
     SELECT id, home_team, away_team, home_team_short, away_team_short, kickoff_time
     FROM fixture
     WHERE round_id = $1
     ORDER BY kickoff_time ASC
-  `, [round_id]);
+  `, [roundId]);
+  return result.rows;
+}
 
-  /*
-  Teams already used, derived from this player's own picks in earlier rounds. Never read from a
-  stored list - see docs/allowed-teams.md, the allowed_teams table was dropped precisely because
-  it was a second copy of this.
-  */
-  const teamsUsedResult = await query(`
+/*
+Teams already used, derived from this player's own picks in earlier rounds. Never read from a
+stored list - see docs/allowed-teams.md, the allowed_teams table was dropped precisely because
+it was a second copy of this.
+*/
+async function teamsUsedFor(userId, competitionId, roundNumber) {
+  const result = await query(`
     SELECT DISTINCT p.team
     FROM pick p
     INNER JOIN round prev_r ON prev_r.id = p.round_id
@@ -254,7 +404,67 @@ async function buildTemplateData(candidate) {
       AND prev_r.competition_id = $2
       AND prev_r.round_number < $3
     ORDER BY p.team
-  `, [user_id, competition_id, round_number]);
+  `, [userId, competitionId, roundNumber]);
+  return result.rows.map((row) => row.team);
+}
+
+/** One LMS competition's part of the email. */
+async function lmsItemData(userId, item) {
+  return {
+    game_type: 'lms',
+    competition_id: item.competition_id,
+    competition_name: item.competition_name,
+    organizer_name: item.organizer_name || 'Competition Organizer',
+    round_id: item.round_id,
+    round_number: item.round_number,
+    lock_time: item.lock_time,
+    fixtures: await fixturesFor(item.round_id),
+    teams_used: await teamsUsedFor(userId, item.competition_id, item.round_number)
+  };
+}
+
+/*
+One Matchday competition's part of the email. Where the player stands comes from
+services/matchdayTable.js, the one place totals are derived (docs/matchday.md §4.2). Before any
+round has settled there is no table to speak of, so position is left null and the email says the
+table starts this round.
+*/
+async function matchdayItemData(userId, item) {
+  const table = await getMatchdayTable(item.competition_id);
+  const row = table ? table.rows.find((r) => r.user_id === userId) : null;
+  const started = Boolean(table && table.rounds_settled > 0 && row);
+
+  return {
+    game_type: 'matchday',
+    competition_id: item.competition_id,
+    competition_name: item.competition_name,
+    organizer_name: item.organizer_name || 'Competition Organizer',
+    round_id: item.round_id,
+    round_number: item.round_number,
+    rounds_total: item.rounds_total,
+    lock_time: item.lock_time,
+    fixtures: await fixturesFor(item.round_id),
+    position: started ? row.position : null,
+    total: started ? row.total : null,
+    player_count: table ? table.rows.length : null
+  };
+}
+
+/**
+ * Build the template data for one candidate.
+ *
+ * A person with one LMS competition gets EXACTLY the data this built before Matchday, with no
+ * `items` key, so services/emailService.js renders them the email it always has. Anyone else -
+ * one Matchday competition, or more than one of either - gets `items`, one per competition in
+ * deadline order, and the email is assembled from a section per game.
+ *
+ * Per-candidate queries (fixtures, teams used, the Matchday table) are per-player by nature.
+ *
+ * @param {object} candidate - a row from findCandidates (or findLmsCandidates)
+ * @returns {Promise<object>} template data, stored on email_queue.template_data
+ */
+async function buildTemplateData(candidate) {
+  const { user_id, user_email, user_display_name, competition_id, round_id } = candidate;
 
   /*
   The recipient's own unsubscribe link, resolved at queue time so the stored template_data is
@@ -262,29 +472,79 @@ async function buildTemplateData(candidate) {
   */
   const token = await getOrCreateToken(user_id);
   const unsubscribe = token ? unsubscribeLinks(token, groupFor('pick_reminder')) : null;
+  const email_tracking_id = `pick_reminder_${user_id}_${competition_id}_${round_id}_${Date.now()}`;
+
+  if (isLegacyLms(candidate)) {
+    const lms = await lmsItemData(user_id, candidate);
+    return {
+      email_tracking_id,
+      unsubscribe,
+      user_email,
+      user_display_name,
+      competition_name: lms.competition_name,
+      organizer_name: lms.organizer_name,
+      round_number: lms.round_number,
+      lock_time: lms.lock_time,
+      fixtures: lms.fixtures,
+      teams_used: lms.teams_used,
+      competition_id,
+      round_id,
+      user_id
+    };
+  }
+
+  const items = [];
+  for (const item of candidate.items) {
+    items.push(item.game_type === 'matchday'
+      ? await matchdayItemData(user_id, item)
+      : await lmsItemData(user_id, item));
+  }
 
   return {
-    email_tracking_id: `pick_reminder_${user_id}_${competition_id}_${round_id}_${Date.now()}`,
+    email_tracking_id,
     unsubscribe,
     user_email,
     user_display_name,
-    competition_name,
-    organizer_name: organizer_name || 'Competition Organizer',
-    round_number,
-    lock_time,
-    fixtures: fixturesResult.rows,
-    teams_used: teamsUsedResult.rows.map((row) => row.team),
     competition_id,
     round_id,
-    user_id
+    lock_time: items[0].lock_time,
+    user_id,
+    items
   };
 }
 
 /**
- * Queue one pick reminder, and open its tracking row.
+ * The subject for any reminder, from its template data. One competition keeps that game's own
+ * subject; more than one is game-neutral and leads with the earliest deadline - docs/matchday.md
+ * §2 allows a neutral subject on an email covering more than one competition, and only there.
+ *
+ * @param {object} templateData - as built by buildTemplateData
+ * @returns {string}
+ */
+function subjectForData(templateData) {
+  const { items } = templateData;
+  if (!items) return subjectFor(templateData.competition_name, templateData.lock_time);
+  if (items.length === 1) {
+    const only = items[0];
+    return only.game_type === 'matchday'
+      ? matchdaySubjectFor(only.competition_name, only.lock_time)
+      : subjectFor(only.competition_name, only.lock_time);
+  }
+  return `Before ${formatUkShort(items[0].lock_time)} — ${items.length} competitions need you`;
+}
+
+/**
+ * Queue one reminder, and open its tracking row.
+ *
+ * ONE QUEUE ROW PER COMPETITION IN THE EMAIL, so the once-per-round guard above, the skip rows and
+ * each competition's email history all stay per competition. The lead row carries the template
+ * data and is the one the email is sent from. The others are written as 'bundled', pointing at it:
+ * never 'pending', because routes/send-email.js sends any pending row it finds, and these must not
+ * go out a second time on their own. The sweep then sets every row to the outcome of the one send
+ * (queue_ids, services/emailSweep.js).
  *
  * @param {object} candidate - a row from findCandidates
- * @returns {Promise<{success: boolean, queue_id?: number, template_data?: object, error?: string}>}
+ * @returns {Promise<{success: boolean, queue_id?: number, queue_ids?: number[], template_data?: object, error?: string}>}
  */
 async function queueCandidate(candidate) {
   try {
@@ -302,6 +562,28 @@ async function queueCandidate(candidate) {
       candidate.round_id,
       JSON.stringify(templateData)
     ]);
+    const leadId = queueResult.rows[0].id;
+    const queueIds = [leadId];
+
+    const others = (candidate.items || []).slice(1);
+    if (others.length > 0) {
+      const bundled = await query(`
+        INSERT INTO email_queue (
+          user_id, competition_id, round_id, email_type,
+          scheduled_send_at, template_data, status, attempts
+        )
+        SELECT $1, o.competition_id, o.round_id, 'pick_reminder', NOW(),
+               jsonb_build_object('bundled_into', $2::int), 'bundled', 0
+        FROM UNNEST($3::int[], $4::int[]) AS o(competition_id, round_id)
+        RETURNING id
+      `, [
+        candidate.user_id,
+        leadId,
+        others.map((o) => o.competition_id),
+        others.map((o) => o.round_id)
+      ]);
+      queueIds.push(...bundled.rows.map((row) => row.id));
+    }
 
     await query(`
       INSERT INTO email_tracking (email_id, user_id, competition_id, email_type, subject)
@@ -310,10 +592,10 @@ async function queueCandidate(candidate) {
       templateData.email_tracking_id,
       candidate.user_id,
       candidate.competition_id,
-      subjectFor(templateData.competition_name, templateData.lock_time)
+      subjectForData(templateData)
     ]);
 
-    return { success: true, queue_id: queueResult.rows[0].id, template_data: templateData };
+    return { success: true, queue_id: leadId, queue_ids: queueIds, template_data: templateData };
   } catch (error) {
     console.error('pickReminder.queueCandidate failed:', { user_id: candidate.user_id, error: error.message });
     return { success: false, error: error.message };
@@ -321,8 +603,12 @@ async function queueCandidate(candidate) {
 }
 
 module.exports = {
+  REMINDER_WINDOW_HOURS,
   subjectFor,
+  matchdaySubjectFor,
+  subjectForData,
   findCandidates,
+  findLmsCandidates,
   buildTemplateData,
   queueCandidate
 };

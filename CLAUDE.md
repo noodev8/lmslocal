@@ -116,9 +116,11 @@ exists — query `information_schema`. Table names are singular (`app_user`, not
   record rule changes there with the date and the why. `services/pickReminder.js` is the shape
   to copy.
 - Every candidate query composes `notOptedOutSql()` (`emailPreference.js`), and every
-  competition email also `notArchivedSql()` (`competitionEngagement.js`) and `isLmsSql()`
-  (`gameType.js`). Never write these conditions by hand. Archived competitions get no email,
-  with no exceptions.
+  competition email also `notArchivedSql()` (`competitionEngagement.js`) and the guard for the
+  game it is written for, `isLmsSql()` or `isMatchdaySql()` (`gameType.js`). Never write these
+  conditions by hand. Archived competitions get no email, with no exceptions.
+- A recurring player email covering both games is **one email per person**, one section per
+  competition — `docs/matchday.md` §9.1. `services/pickReminder.js` is the shape.
 - The 48-hour quiet period (`services/emailQuiet.js`) drops a second email rather than delaying
   it; `priority` on the `OUTLINE` decides which wins. Under-sending is preferred to over-sending.
 

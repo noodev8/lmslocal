@@ -67,6 +67,13 @@ async function sendTest(entry, candidate, options = {}) {
  * @param {function} [options.onProgress] - called per person, for a script that wants to log
  * @returns {Promise<{sent: number, failed: number, skipped: number, attempted: number, capped: boolean}>}
  */
+/*
+Every queue row one email stands for. Almost every email is one row; the pick reminder writes one
+per competition it covers (services/pickReminder.js, queueCandidate), and all of them take the
+outcome of the single send, so each competition's once-per-round guard and history stay true.
+*/
+const queueIdsOf = (queued) => queued.queue_ids || [queued.queue_id];
+
 async function sendToAll(entry, candidates, options = {}) {
   const { cap = null, onProgress = null } = options;
 
@@ -119,8 +126,8 @@ async function sendToAll(entry, candidates, options = {}) {
 
     if (result.success) {
       await query(
-        `UPDATE email_queue SET status = 'sent', sent_at = NOW() WHERE id = $1`,
-        [queued.queue_id]
+        `UPDATE email_queue SET status = 'sent', sent_at = NOW() WHERE id = ANY($1::int[])`,
+        [queueIdsOf(queued)]
       );
       await query(
         `UPDATE email_tracking SET resend_message_id = $1, sent_at = NOW() WHERE email_id = $2`,
@@ -137,8 +144,8 @@ async function sendToAll(entry, candidates, options = {}) {
       a retry loop nobody is watching would hammer a bad address every day forever.
       */
       await query(
-        `UPDATE email_queue SET status = 'failed', error_message = $1, attempts = attempts + 1, last_attempt_at = NOW() WHERE id = $2`,
-        [result.error, queued.queue_id]
+        `UPDATE email_queue SET status = 'failed', error_message = $1, attempts = attempts + 1, last_attempt_at = NOW() WHERE id = ANY($2::int[])`,
+        [result.error, queueIdsOf(queued)]
       );
       failed++;
       console.error(`emailSweep: send failed for user ${candidate.user_id}:`, result.error);

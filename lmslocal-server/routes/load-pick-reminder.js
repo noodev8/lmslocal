@@ -62,7 +62,12 @@ This matters here: the handler takes user_id, round_id and competition_id straig
 request body, so without that gate anyone could queue email to arbitrary users.
 See middleware/service-auth.js.
 */
-const { findCandidates, buildTemplateData, subjectFor } = require('../services/pickReminder');
+/*
+The LMS half only (2026-11-26). The reminder became one email per person across both games, sent
+by services/emailSweep.js; this route queues one LMS email per row and would render a Matchday
+competition in LMS words. See services/pickReminder.js.
+*/
+const { findLmsCandidates: findCandidates, buildTemplateData, subjectFor } = require('../services/pickReminder');
 const { logApiCall } = require('../utils/apiLogger');
 const router = express.Router();
 

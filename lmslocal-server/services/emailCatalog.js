@@ -75,6 +75,11 @@ email absent from here is not wired: the routes refuse it with UNSUPPORTED_EMAIL
 greyed row on the screen is not the only thing stopping a send.
 */
 const CATALOG = {
+  /*
+  Both games since 2026-11-26, and one email per PERSON rather than per competition: a candidate
+  carries `items`, and queueCandidate returns `queue_ids` for every competition the one email
+  covers. docs/matchday.md §9.1 has the why.
+  */
   pick_reminder: {
     scoped: true,
     service: pickReminder,

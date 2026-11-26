@@ -24,7 +24,7 @@ const { subjectFor: gameCompleteSubjectFor } = require('./gameComplete');
 const { subjectFor: roundOverSubjectFor } = require('./roundOver');
 const { subjectFor: hintSubjectFor } = require('./hints');
 const { subjectFor: joinBlockedSubjectFor } = require('./joinBlocked');
-const { subjectFor: pickReminderSubjectFor } = require('./pickReminder');
+const { subjectFor: pickReminderSubjectFor, subjectForData: pickReminderSubjectForData } = require('./pickReminder');
 const { subjectFor: organiserNudgeSubjectFor } = require('./organiserNudge');
 /*
 SAMPLE_SIZE comes across as well as the subject, which none of the others need. The summary block
@@ -637,6 +637,257 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
   }
 };
 
+/*
+The LMS fixture list with the player's used teams struck through, as rows. Shared by the
+one-competition reminder and the LMS section of the bundled one, so the two cannot drift.
+*/
+const lmsFixtureRowsHtml = (fixtures, teams_used) => fixtures.map((f, index) => {
+      // Check if either team has been used already
+      const homeTeamUsed = teams_used && teams_used.includes(f.home_team_short);
+      const awayTeamUsed = teams_used && teams_used.includes(f.away_team_short);
+
+      return `
+      <div style="padding: 14px 16px; ${index < fixtures.length - 1 ? 'border-bottom: 1px solid #e2e8f0;' : ''}">
+        <span style="color: ${homeTeamUsed ? '#94a3b8' : '#0f172a'}; font-weight: 500; font-size: 15px; ${homeTeamUsed ? 'text-decoration: line-through;' : ''}">${f.home_team}</span>
+        <span style="color: #94a3b8; margin: 0 10px; font-size: 14px;">vs</span>
+        <span style="color: ${awayTeamUsed ? '#94a3b8' : '#0f172a'}; font-weight: 500; font-size: 15px; ${awayTeamUsed ? 'text-decoration: line-through;' : ''}">${f.away_team}</span>
+      </div>
+      `;
+    }).join('');
+
+const lmsFixtureRowsText = (fixtures, teams_used) => fixtures.map(f => {
+      const homeTeamUsed = teams_used && teams_used.includes(f.home_team_short);
+      const awayTeamUsed = teams_used && teams_used.includes(f.away_team_short);
+
+      let homeTeam = f.home_team;
+      let awayTeam = f.away_team;
+
+      // Add [USED] marker for teams already picked
+      if (homeTeamUsed) homeTeam = `${homeTeam} [USED]`;
+      if (awayTeamUsed) awayTeam = `${awayTeam} [USED]`;
+
+      return `  • ${homeTeam} vs ${awayTeam}`;
+    }).join('\n');
+
+/** 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th, 21st. */
+const ordinal = (n) => {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th'}`;
+};
+
+/*
+One competition's section of the bundled reminder, in its own game's words (docs/matchday.md §2:
+a Matchday section never says "pick"; an LMS section never says "predict" or "points"). A third
+game is a third section here, plus its finder in services/pickReminder.js.
+*/
+const reminderSectionFor = (item, trackingId) => {
+  const deadline = formatUkDateTime(item.lock_time);
+  const fixtureRowStyle = (index, count) =>
+    `padding: 14px 16px; ${index < count - 1 ? 'border-bottom: 1px solid #e2e8f0;' : ''}`;
+
+  if (item.game_type === 'matchday') {
+    const url = `${process.env.PLAYER_FRONTEND_URL}/game/${item.competition_id}/coupon?email_id=${trackingId}`;
+    const roundLabel = item.rounds_total
+      ? `Round ${item.round_number} of ${item.rounds_total}`
+      : `Round ${item.round_number}`;
+    const standing = item.position
+      ? `You're ${ordinal(item.position)} of ${item.player_count}, on ${item.total} ${item.total === 1 ? 'point' : 'points'}.`
+      : 'The table starts with this round.';
+    const rule = 'Predict the winner of each match: a right result scores 3, a draw 1. A match you leave scores nothing.';
+
+    const rows = item.fixtures.map((f, index) => `
+      <div style="${fixtureRowStyle(index, item.fixtures.length)}">
+        <span style="color: #0f172a; font-weight: 500; font-size: 15px;">${f.home_team}</span>
+        <span style="color: #94a3b8; margin: 0 10px; font-size: 14px;">vs</span>
+        <span style="color: #0f172a; font-weight: 500; font-size: 15px;">${f.away_team}</span>
+      </div>`).join('');
+
+    return {
+      organiser: item.organizer_name,
+      html: `
+              <div style="margin: 0 0 40px 0;">
+                <p style="color: #64748b; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 4px 0;">Matchday</p>
+                <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">${item.competition_name}</h3>
+                <p style="color: #334155; font-size: 15px; margin: 0 0 16px 0; line-height: 1.5;">
+                  Make your predictions for ${roundLabel}. ${standing}
+                </p>
+                <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 16px 20px; margin: 0 0 20px 0;">
+                  <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px;"><strong>Deadline:</strong> ${deadline}</p>
+                  <p style="margin: 0 0 8px 0; color: #475569; font-size: 14px;">${rule}</p>
+                  <p style="margin: 0; color: #475569; font-size: 14px;">Organised by ${item.organizer_name}</p>
+                </div>
+                <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin: 0 0 20px 0;">
+                  ${rows}
+                </div>
+                <a href="${url}"
+                   style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                  Make Your Predictions
+                </a>
+              </div>`,
+      text: `MATCHDAY - ${item.competition_name}
+
+Make your predictions for ${roundLabel}. ${standing}
+
+DEADLINE: ${deadline}
+${rule}
+ORGANISED BY: ${item.organizer_name}
+
+${item.fixtures.map((f) => `  • ${f.home_team} vs ${f.away_team}`).join('\n')}
+
+Make your predictions here:
+${url}`
+    };
+  }
+
+  const url = `${process.env.PLAYER_FRONTEND_URL}/game/${item.competition_id}/pick?email_id=${trackingId}`;
+  return {
+    organiser: item.organizer_name,
+    html: `
+              <div style="margin: 0 0 40px 0;">
+                <p style="color: #64748b; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 4px 0;">Last Man Standing</p>
+                <h3 style="color: #0f172a; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">${item.competition_name}</h3>
+                <p style="color: #334155; font-size: 15px; margin: 0 0 16px 0; line-height: 1.5;">
+                  Time to make your pick for Round ${item.round_number}.
+                </p>
+                <div style="background: #f1f5f9; border-left: 4px solid #475569; padding: 16px 20px; margin: 0 0 20px 0;">
+                  <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px;"><strong>Deadline:</strong> ${deadline}</p>
+                  <p style="margin: 0; color: #475569; font-size: 14px;">Organised by ${item.organizer_name}</p>
+                </div>
+                <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin: 0 0 20px 0;">
+                  ${lmsFixtureRowsHtml(item.fixtures, item.teams_used)}
+                </div>
+                <a href="${url}"
+                   style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                  Make Your Pick
+                </a>
+              </div>`,
+    text: `LAST MAN STANDING - ${item.competition_name}
+
+Time to make your pick for Round ${item.round_number}.
+
+DEADLINE: ${deadline}
+ORGANISED BY: ${item.organizer_name}
+
+${lmsFixtureRowsText(item.fixtures, item.teams_used)}
+
+Make your pick here:
+${url}`
+  };
+};
+
+/**
+ * The person-level reminder: one Matchday competition, or several competitions of either game,
+ * in one email (services/pickReminder.js, docs/matchday.md §9). A shell around one section per
+ * competition, in deadline order.
+ *
+ * @param {string} email - recipient
+ * @param {object} templateData - as built by services/pickReminder.js, with `items`
+ */
+const buildBundledReminderEmail = (email, templateData) => {
+  const { user_display_name, items, competition_id, round_id, email_tracking_id, unsubscribe } = templateData;
+  const footer = buildEmailFooter(unsubscribe?.url || null);
+  const sections = items.map((item) => reminderSectionFor(item, email_tracking_id));
+
+  const single = items.length === 1;
+  const subtitle = single ? items[0].competition_name : 'Your competitions this round';
+  const introLine = `${items.length} of your competitions are waiting on you this round. Each has its own deadline.`;
+  const intro = single
+    ? ''
+    : `<p style="color: #334155; font-size: 16px; margin: 0 0 32px 0; line-height: 1.5;">${introLine}</p>`;
+  const introText = single ? '' : `${introLine}\n\n`;
+
+  /*
+  The organiser signs off only when there is one. With two organisers neither can sign the whole
+  email, so the reply note says "its organiser" instead of naming one.
+  */
+  const organisers = Array.from(new Set(sections.map((sec) => sec.organiser)));
+  const oneOrganiser = organisers.length === 1 ? organisers[0] : null;
+  const signOffHtml = oneOrganiser ? `Good luck,<br>\n                ${oneOrganiser}` : 'Good luck';
+  const signOffText = oneOrganiser ? `Good luck,\n${oneOrganiser}` : 'Good luck';
+  const replyNote = oneOrganiser
+    ? buildOrganiserReplyNote(oneOrganiser)
+    : {
+      html: `
+    <p style="color: #94a3b8; font-size: 12px; margin: 24px 0 0 0; line-height: 1.5;">
+      For questions about a competition, contact its organiser directly. Replying to this
+      email reaches LMS Local platform support.
+    </p>
+  `,
+      text: 'For questions about a competition, contact its organiser directly. Replying to this email reaches LMS Local platform support.'
+    };
+
+  const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Reminder - ${subtitle}</title>
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+
+            <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">LMS Local</h1>
+              <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">${subtitle}</p>
+            </div>
+
+            <div style="padding: 40px 30px;">
+
+              <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">Hi ${firstName(user_display_name)},</h2>
+
+              ${intro}
+
+              ${sections.map((sec) => sec.html).join('\n')}
+
+              <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
+                ${signOffHtml}
+              </p>
+
+              ${replyNote.html}
+
+            </div>
+
+            ${footer.html}
+
+          </div>
+        </body>
+      </html>
+    `;
+
+  const text = `
+Hi ${firstName(user_display_name)},
+
+${introText}${sections.map((sec) => sec.text).join('\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${signOffText}
+
+${replyNote.text}
+
+${footer.text}
+    `;
+
+  return {
+    from: `LMS Local <${process.env.EMAIL_FROM}>`,
+    to: [email],
+    subject: pickReminderSubjectForData(templateData),
+    html,
+    text,
+    headers: {
+      'X-Entity-Ref-ID': email_tracking_id,
+      ...(unsubscribe?.headers || {})
+    },
+    tags: [
+      { name: 'email_type', value: 'pick_reminder' },
+      { name: 'competition_id', value: String(competition_id) },
+      { name: 'round_id', value: String(round_id) }
+    ]
+  };
+};
+
 /**
  * Send pick reminder email to player
  * @param {string} email - User's email address
@@ -655,6 +906,15 @@ const sendPaymentConfirmationEmail = async (email, displayName, planName, amount
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
 const buildPickReminderEmail = (email, templateData) => {
+  /*
+  Branch once, at the top (docs/matchday.md §3.2). Template data with `items` is the person-level
+  reminder: one Matchday competition, or more than one of either game. Without it - a person with
+  one LMS competition, or a row queued before 2026-11-26 - the email below is exactly what it was.
+  */
+  if (templateData.items) {
+    return buildBundledReminderEmail(email, templateData);
+  }
+
   {
     // Extract template data for easier access
     const {
@@ -688,19 +948,7 @@ const buildPickReminderEmail = (email, templateData) => {
     const formattedLockTime = formatUkDateTime(lock_time);
 
     // Build fixtures list HTML with teams used indicators
-    const fixturesHtml = fixtures.map((f, index) => {
-      // Check if either team has been used already
-      const homeTeamUsed = teams_used && teams_used.includes(f.home_team_short);
-      const awayTeamUsed = teams_used && teams_used.includes(f.away_team_short);
-
-      return `
-      <div style="padding: 14px 16px; ${index < fixtures.length - 1 ? 'border-bottom: 1px solid #e2e8f0;' : ''}">
-        <span style="color: ${homeTeamUsed ? '#94a3b8' : '#0f172a'}; font-weight: 500; font-size: 15px; ${homeTeamUsed ? 'text-decoration: line-through;' : ''}">${f.home_team}</span>
-        <span style="color: #94a3b8; margin: 0 10px; font-size: 14px;">vs</span>
-        <span style="color: ${awayTeamUsed ? '#94a3b8' : '#0f172a'}; font-weight: 500; font-size: 15px; ${awayTeamUsed ? 'text-decoration: line-through;' : ''}">${f.away_team}</span>
-      </div>
-      `;
-    }).join('');
+    const fixturesHtml = lmsFixtureRowsHtml(fixtures, teams_used);
 
     // Teams used section removed - now shown inline with strikethrough in fixtures list
 
@@ -778,19 +1026,7 @@ const buildPickReminderEmail = (email, templateData) => {
 
     // Plain text version for email clients that don't support HTML
     // Build fixtures list for plain text with used team indicators
-    const fixturesText = fixtures.map(f => {
-      const homeTeamUsed = teams_used && teams_used.includes(f.home_team_short);
-      const awayTeamUsed = teams_used && teams_used.includes(f.away_team_short);
-
-      let homeTeam = f.home_team;
-      let awayTeam = f.away_team;
-
-      // Add [USED] marker for teams already picked
-      if (homeTeamUsed) homeTeam = `${homeTeam} [USED]`;
-      if (awayTeamUsed) awayTeam = `${awayTeam} [USED]`;
-
-      return `  • ${homeTeam} vs ${awayTeam}`;
-    }).join('\n');
+    const fixturesText = lmsFixtureRowsText(fixtures, teams_used);
 
     const textContent = `
 ${competition_name} - Pick Reminder
