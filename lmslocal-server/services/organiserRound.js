@@ -86,8 +86,25 @@ const { getRecentMatchdayTable } = require('./matchdayTable');
 const EMAIL_TYPE = 'organiser_round';
 
 /*
-How far ahead of the lock the organiser is told. 30 hours, DELIBERATELY THE SAME NUMBER AS
-services/pickReminder.js, so both fire on the same daily morning run for the same round.
+How far ahead of the lock the organiser is told. 36 hours since 2026-11-26; it was 30.
+
+WHY 36: THE WINDOW MUST BE AT LEAST 24 HOURS WIDE. This email runs once a day, and the 12-hour
+cutoff below takes the last stretch away, so the window is REPORT_WINDOW_HOURS minus
+REPORT_CUTOFF_HOURS wide. At 30 that was 18 hours, so for 6 hours of every day there was a band
+of lock times that no daily run ever reached. With the run at 07:40 GMT, that band was locks between
+13:40 and 19:40: a Saturday 3pm kickoff, locking at 2pm, is 30h20m away on the Friday run (too
+early) and 6h20m on the Saturday run (too late), so it was never reported at all, silently. A
+Friday 8pm lock only got in because the Friday run sits 20 minutes clear of the cutoff. Found
+2026-11-26 checking the first manual sends against the planned crontab.
+
+36 makes the window exactly 24 hours, so every lock is reported on exactly one daily run, whatever
+time the run is. KEEP REPORT_WINDOW_HOURS - REPORT_CUTOFF_HOURS AT 24 OR MORE: moving either number
+alone reopens the gap. The cost is that a Saturday evening lock is now reported on the Friday
+morning, about 36 hours ahead - which suits a report meant to be chased at leisure.
+
+What follows was written for 30, when the window was DELIBERATELY THE SAME NUMBER AS
+services/pickReminder.js so both fired on the same daily morning run for the same round. They now
+usually do, but not always: a lock between 13:40 and 19:40 is reported a day before its reminder.
 
 Andreas's reasoning, 2026-09-01: the whole point of this email is that the organiser chases people
 off-platform, and chasing takes time. Three hours - organiser_nudge's window - is enough to post in
@@ -106,13 +123,14 @@ big one, most of the week's stragglers included. That is accepted: this email's 
 report the organiser can act on at leisure, not a final call. If a short, near-final list is what
 is wanted on a given week, organiser_nudge is the email to run instead.
 */
-const REPORT_WINDOW_HOURS = 30;
+const REPORT_WINDOW_HOURS = 36;
 
 /*
 And not inside the last 12 hours (2026-10-23). The report's point is a day to chase at leisure;
 offered at 2pm for an 8pm lock, after the player reminders had just gone, it was a stale list
 competing with organiser_nudge, which owns the final 3 hours and reports only what is left. So
-the window is 30h to 12h out - long enough for a daily run to catch every lock once.
+the window is 36h to 12h out - 24 hours wide, which is what lets a daily run catch every lock
+once (see REPORT_WINDOW_HOURS: at 30h to 12h it could not).
 */
 const REPORT_CUTOFF_HOURS = 12;
 
@@ -156,7 +174,7 @@ const subjectFor = (outstandingCount, lockTime, competitionName) =>
  *
  * No cheap pre-gate, unlike organiserNudge.hasRoundInWindow(). That exists because that email runs
  * hourly through the afternoon and finds nothing on most runs, so the expensive aggregate must not
- * be reached until a deadline is near. This runs once a day and its window is 30 hours wide, so a
+ * be reached until a deadline is near. This runs once a day and its window is 24 hours wide, so a
  * run that finds nothing is the exception rather than the rule and a gate would buy nothing.
  *
  * @param {object} [opts]

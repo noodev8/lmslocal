@@ -170,15 +170,17 @@
 #    The cheap alternative to Round Over - see section 2 for how the two interact if both run.
 #    One email per competition to the organiser, asking them to carry it into their group chat.
 #
-#    THE SAME MORNING RUN AS pick_reminder, by design: its window opens at 30 hours, the same
-#    number, so both fire on the same morning for the same lock. Since c9052c1 it stops 12 hours
-#    before the lock, leaving the final stretch to organiser_nudge.
+#    Its window is 36 hours to 12 hours before the lock (36 since 2026-11-26, was 30): exactly 24
+#    hours wide, so this one daily run catches every lock once. At 30 it was 18 hours wide and
+#    locks between 13:40 and 19:40 GMT - a Saturday 3pm kickoff - were never reported. Usually the
+#    same morning as pick_reminder; a lock between 13:40 and 19:40 is reported the day before.
+#    The last 12 hours are left to organiser_nudge.
 #
 #    It reads picks after pick_reminder's run has landed but before many have converted - the
 #    number is who has not picked YET, the trade services/organiserRound.js states in full. If a
 #    short near-final list is what is wanted, that is organiser_nudge in section 15.
 #
-#    NO BACKLOG TO CLEAR before switching it on. Candidacy is a lock time in the next 30 hours, so
+#    NO BACKLOG TO CLEAR before switching it on. Candidacy is a lock time in the next 36 hours, so
 #    nothing historical can ever qualify however long this sits off.
 # 8:40 AM
 #40 7 * * * cd /apps/production/lmslocal-server && /root/.nvm/versions/node/v22.17.0/bin/node scripts/email-sweep.js organiser_round >/dev/null
