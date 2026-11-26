@@ -38,7 +38,7 @@ const {
 } = require('./organiserRound');
 const { isOptedOut } = require('./emailPreference');
 const { query } = require('../database');
-const { formatUk, formatUkDate, formatUkDateTime } = require('./dateFormat');
+const { formatUk, formatUkDate, formatUkDateTime, formatUkShort } = require('./dateFormat');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -776,10 +776,32 @@ ${url}`
   };
 };
 
+/*
+One competition's line in a reminder covering several: the game, the competition (linked to its
+own page) and the deadline, in that game's verb. No fixtures - the app has them.
+*/
+const reminderLineFor = (item, trackingId) => {
+  const matchday = item.game_type === 'matchday';
+  const url = `${process.env.PLAYER_FRONTEND_URL}/game/${item.competition_id}/${matchday ? 'coupon' : 'pick'}?email_id=${trackingId}`;
+  const game = matchday ? 'Matchday' : 'Last Man Standing';
+  const due = `${matchday ? 'Predict' : 'Pick'} by ${formatUkShort(item.lock_time)}`;
+
+  return {
+    organiser: item.organizer_name,
+    html: `
+                <a href="${url}" style="display: block; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; text-decoration: none;">
+                  <span style="display: block; color: #64748b; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">${game}</span>
+                  <span style="display: block; color: #0f172a; font-size: 16px; font-weight: 600;">${item.competition_name}</span>
+                  <span style="display: block; color: #475569; font-size: 14px;">${due}</span>
+                </a>`,
+    text: `  • ${game} - ${item.competition_name} - ${due}\n    ${url}`
+  };
+};
+
 /**
  * The person-level reminder: one Matchday competition, or several competitions of either game,
- * in one email (services/pickReminder.js, docs/matchday.md §9). A shell around one section per
- * competition, in deadline order.
+ * in one email (services/pickReminder.js, docs/matchday.md §9.1). One competition gets its full
+ * section; several get a line each and a button to the dashboard.
  *
  * @param {string} email - recipient
  * @param {object} templateData - as built by services/pickReminder.js, with `items`
@@ -787,14 +809,34 @@ ${url}`
 const buildBundledReminderEmail = (email, templateData) => {
   const { user_display_name, items, competition_id, round_id, email_tracking_id, unsubscribe } = templateData;
   const footer = buildEmailFooter(unsubscribe?.url || null);
-  const sections = items.map((item) => reminderSectionFor(item, email_tracking_id));
-
   const single = items.length === 1;
+
+  /*
+  ONE COMPETITION GETS THE FULL SECTION, MORE THAN ONE GET A LINE EACH (Andreas, 2026-11-26).
+  Someone in five competitions would otherwise get five fixture lists, about fifty lines of
+  matches the app already shows better. The email's job at that point is to say which
+  competitions need them and get them into the app, so it stays the same size however many there
+  are: one line per competition, each linking to its own page, and one button to the dashboard.
+  */
+  const sections = single
+    ? [reminderSectionFor(items[0], email_tracking_id)]
+    : items.map((item) => reminderLineFor(item, email_tracking_id));
+
+  const dashboardUrl = `${process.env.PLAYER_FRONTEND_URL}/dashboard?email_id=${email_tracking_id}`;
+  const dashboardButton = single ? '' : `
+              <div style="margin: 32px 0 40px 0;">
+                <a href="${dashboardUrl}"
+                   style="display: block; background-color: #475569; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; text-align: center;">
+                  Open LMS Local
+                </a>
+              </div>`;
+  const dashboardText = single ? '' : `\n\nOpen LMS Local:\n${dashboardUrl}`;
+
   const subtitle = single ? items[0].competition_name : 'Your competitions this round';
-  const introLine = `${items.length} of your competitions are waiting on you this round. Each has its own deadline.`;
+  const introLine = `${items.length} of your competitions are waiting on you this round.`;
   const intro = single
     ? ''
-    : `<p style="color: #334155; font-size: 16px; margin: 0 0 32px 0; line-height: 1.5;">${introLine}</p>`;
+    : `<p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">${introLine}</p>`;
   const introText = single ? '' : `${introLine}\n\n`;
 
   /*
@@ -839,7 +881,8 @@ const buildBundledReminderEmail = (email, templateData) => {
 
               ${intro}
 
-              ${sections.map((sec) => sec.html).join('\n')}
+              ${single ? sections[0].html : `<div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">${sections.map((sec) => sec.html).join('')}</div>`}
+              ${dashboardButton}
 
               <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.5;">
                 ${signOffHtml}
@@ -859,7 +902,7 @@ const buildBundledReminderEmail = (email, templateData) => {
   const text = `
 Hi ${firstName(user_display_name)},
 
-${introText}${sections.map((sec) => sec.text).join('\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n')}
+${introText}${sections.map((sec) => sec.text).join(single ? '' : '\n\n')}${dashboardText}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

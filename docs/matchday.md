@@ -486,6 +486,10 @@ is **one email per person, listing every competition** where there is something 
   deadline is the lead, and its competition and round are what the shared admin code reads.
 - **One section per game** in the template, in that game's own words. A third game is a finder
   and a section.
+- **One competition gets the full section; more than one get a line each** (game, competition,
+  "Pick by …" / "Predict by …", linked to its page) and an **Open LMS Local** button to the
+  dashboard. No fixture lists then: someone in five competitions would get fifty lines of
+  matches the app shows better. The email stays the same size however many there are.
 - **The subject**: one competition keeps that game's subject (`Pick by …` / `Predict by …`). More
   than one is game-neutral and leads with the earliest deadline: `Before Sat 11:30 — 2
   competitions need you`. This is the one place §2's "never share words" is met by neutral words
